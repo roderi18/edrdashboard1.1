@@ -37,6 +37,10 @@ export function NavItem({
     enabledRootRedirect,
   });
 
+  if (!navItem.baseProps?.href && !hasChild) {
+    console.error('NAV ITEM SIN HREF:', { title, path });
+  }
+
   const ownerState = { open, active, disabled };
 
   return (

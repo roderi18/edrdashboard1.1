@@ -6,6 +6,8 @@ export * from './_user';
 
 export * from './_level';
 
+export * from './_national';
+
 export * from './_tour';
 
 export * from './_blog';
