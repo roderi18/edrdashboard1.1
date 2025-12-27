@@ -22,13 +22,13 @@ export function NationalCardsView() {
         heading="Cards"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.national.root },
+          { name: 'National', href: paths.dashboard.level.national.root },
           { name: 'Cards' },
         ]}
         action={
           <Button
             component={RouterLink}
-            href={paths.dashboard.national.new}
+            href={paths.dashboard.level.national.new}
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >

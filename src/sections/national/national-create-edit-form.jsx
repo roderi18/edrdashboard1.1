@@ -85,7 +85,7 @@ export function NationalCreateEditForm({ currentNational }) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       reset();
       toast.success(currentNational ? 'Update success!' : 'Create success!');
-      router.push(paths.dashboard.national.list);
+      router.push(paths.dashboard.level.national.list);
       console.info('DATA', data);
     } catch (error) {
       console.error(error);

@@ -96,33 +96,22 @@ export const navData = [
       {
         title: 'Niveles',
         path: paths.dashboard.level.root,
-        icon: ICONS.user, //icono sidebar
-
+        icon: ICONS.user,
+        deepMatch: true,
         children: [
-          { title: 'Profile', path: paths.dashboard.level.root },
-          { title: 'National', path: paths.dashboard.level.national },
+          // { title: 'Profile', path: paths.dashboard.level.profile },
+          {
+            title: 'Nacional',
+            path: paths.dashboard.level.national.root,
+            deepMatch: true,
+          },
           { title: 'Cards', path: paths.dashboard.level.cards },
-          { title: 'List', path: paths.dashboard.level.list },
-          { title: 'Create', path: paths.dashboard.level.new },
-          { title: 'Edit', path: paths.dashboard.level.demo.edit },
+          // { title: 'List', path: paths.dashboard.level.list },
+          // { title: 'Create', path: paths.dashboard.level.new },
+          // { title: 'Edit', path: paths.dashboard.level.demo.edit },
           { title: 'Account', path: paths.dashboard.level.account, deepMatch: true },
         ],
       },
-      // {
-      //   title: 'Nacional',
-      //   path: paths.dashboard.national.root,
-      //   icon: ICONS.user, //icono sidebar
-
-      //   children: [
-      //     { title: 'Profile', path: paths.dashboard.national.root },
-      //     // { title: 'National', path: paths.dashboard.level.national },
-      //     { title: 'Cards', path: paths.dashboard.national.cards },
-      //     { title: 'List', path: paths.dashboard.national.list },
-      //     { title: 'Create', path: paths.dashboard.national.new },
-      //     { title: 'Edit', path: paths.dashboard.national.demo.edit },
-      //     { title: 'Account', path: paths.dashboard.national.account, deepMatch: true },
-      //   ],
-      // },
       {
         title: 'Product',
         path: paths.dashboard.product.root,

@@ -143,13 +143,13 @@ export function NationalListView() {
           heading="List"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'National', href: paths.dashboard.national.root },
+            { name: 'National', href: paths.dashboard.level.national.root },
             { name: 'List' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.dashboard.national.new}
+              href={paths.dashboard.level.national.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -263,7 +263,7 @@ export function NationalListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.dashboard.national.edit(row.id)}
+                        editHref={paths.dashboard.level.national.edit(row.id)}
                       />
                     ))}
 

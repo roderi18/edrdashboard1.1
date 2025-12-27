@@ -78,7 +78,7 @@ export function NationalProfileView() {
         heading="Profile"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.national.root },
+          { name: 'National', href: paths.dashboard.level.national.root },
           { name: national?.displayName },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
