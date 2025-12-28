@@ -10,6 +10,8 @@ export * from './_national';
 
 export * from './_regional';
 
+export * from './_sectional';
+
 export * from './_tour';
 
 export * from './_blog';

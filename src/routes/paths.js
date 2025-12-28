@@ -144,6 +144,14 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/regional/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/regional/${id}/edit`,
       },
+      sectional: {
+        root: `${ROOTS.DASHBOARD}/level/sectional/`, //anteriormente /list
+        new: `${ROOTS.DASHBOARD}/level/sectional/new`,
+        profile: `${ROOTS.DASHBOARD}/level/sectional/profile`,
+        list: `${ROOTS.DASHBOARD}/level/sectional`,
+        new: `${ROOTS.DASHBOARD}/level/sectional/new`,
+        edit: (id) => `${ROOTS.DASHBOARD}/level/sectional/${id}/edit`,
+      },
     },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,
