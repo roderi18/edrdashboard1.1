@@ -152,6 +152,22 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/sectional/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/sectional/${id}/edit`,
       },
+      dest: {
+        root: `${ROOTS.DASHBOARD}/level/dest/`, //anteriormente /list
+        new: `${ROOTS.DASHBOARD}/level/dest/new`,
+        profile: `${ROOTS.DASHBOARD}/level/dest/profile`,
+        list: `${ROOTS.DASHBOARD}/level/dest`,
+        new: `${ROOTS.DASHBOARD}/level/dest/new`,
+        edit: (id) => `${ROOTS.DASHBOARD}/level/dest/${id}/edit`,
+      },
+      member: {
+        root: `${ROOTS.DASHBOARD}/level/member/`, //anteriormente /list
+        new: `${ROOTS.DASHBOARD}/level/member/new`,
+        profile: `${ROOTS.DASHBOARD}/level/member/profile`,
+        list: `${ROOTS.DASHBOARD}/level/member`,
+        new: `${ROOTS.DASHBOARD}/level/member/new`,
+        edit: (id) => `${ROOTS.DASHBOARD}/level/member/${id}/edit`,
+      },
     },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,

@@ -111,15 +111,25 @@ export const navData = [
             deepMatch: true,
           },
           {
-            title: 'Sectional',
+            title: 'Seccional',
             path: paths.dashboard.level.sectional.root,
             deepMatch: true,
           },
-          { title: 'Cards', path: paths.dashboard.level.cards },
+          {
+            title: 'Destacamentos',
+            path: paths.dashboard.level.dest.root,
+            deepMatch: true,
+          },
+          {
+            title: 'Miembros',
+            path: paths.dashboard.level.member.root,
+            deepMatch: true,
+          },
+          // { title: 'Cards', path: paths.dashboard.level.cards },
           // { title: 'List', path: paths.dashboard.level.list },
           // { title: 'Create', path: paths.dashboard.level.new },
           // { title: 'Edit', path: paths.dashboard.level.demo.edit },
-          { title: 'Account', path: paths.dashboard.level.account, deepMatch: true },
+          // { title: 'Account', path: paths.dashboard.level.account, deepMatch: true },
 
         ],
       },

@@ -12,6 +12,10 @@ export * from './_regional';
 
 export * from './_sectional';
 
+export * from './_dest';
+
+export * from './_member';
+
 export * from './_tour';
 
 export * from './_blog';
