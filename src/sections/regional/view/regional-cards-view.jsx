@@ -32,7 +32,7 @@ export function RegionalCardsView() {
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            Add regional
+            Agregar regional
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

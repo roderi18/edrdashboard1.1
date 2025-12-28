@@ -140,7 +140,7 @@ export function UserAccountBillingPlan({ cardList, addressBook, plans }) {
           ),
         },
         { name: 'Billing address', content: selectedAddress?.fullAddress },
-        { name: 'Billing phone number', content: selectedAddress?.phoneNumber },
+        { name: 'Billing Número de teléfono', content: selectedAddress?.phoneNumber },
         {
           name: 'Payment method',
           content: (

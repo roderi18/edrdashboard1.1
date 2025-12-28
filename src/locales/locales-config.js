@@ -2,34 +2,37 @@ import resourcesToBackend from 'i18next-resources-to-backend';
 
 // MUI Core Locales
 import {
-  frFR as frFRCore,
-  viVN as viVNCore,
-  zhCN as zhCNCore,
-  arSA as arSACore,
+  esES as esESCore,
+  // frFR as frFRCore,
+  // viVN as viVNCore,
+  // zhCN as zhCNCore,
+  // arSA as arSACore,
 } from '@mui/material/locale';
 // MUI Date Pickers Locales
 import {
+  esES as esESDate,
   enUS as enUSDate,
-  frFR as frFRDate,
-  viVN as viVNDate,
-  zhCN as zhCNDate,
+  // frFR as frFRDate,
+  // viVN as viVNDate,
+  // zhCN as zhCNDate,
 } from '@mui/x-date-pickers/locales';
 // MUI Data Grid Locales
 import {
+  esES as esESDataGrid,
   enUS as enUSDataGrid,
-  frFR as frFRDataGrid,
-  viVN as viVNDataGrid,
-  zhCN as zhCNDataGrid,
-  arSD as arSDDataGrid,
+  // frFR as frFRDataGrid,
+  // viVN as viVNDataGrid,
+  // zhCN as zhCNDataGrid,
+  // arSD as arSDDataGrid,
 } from '@mui/x-data-grid/locales';
 
 // ----------------------------------------------------------------------
 
 // Supported languages
-export const supportedLngs = ['en', 'fr', 'vi', 'cn', 'ar'];
+export const supportedLngs = ['es', 'en', 'fr', 'vi', 'cn', 'ar'];
 
 // Fallback and default namespace
-export const fallbackLng = 'en';
+export const fallbackLng = 'es';
 export const defaultNS = 'common';
 
 // Storage config
@@ -48,6 +51,20 @@ export const storageConfig = {
 
 export const allLangs = [
   {
+    value: 'es',
+    label: 'Spanish',
+    countryCode: 'ES',
+    adapterLocale: 'es',
+    numberFormat: { code: 'es-ES', currency: 'EUR' },
+    systemValue: {
+      components: {
+        ...esESCore.components,
+        ...esESDate.components,
+        ...esESDataGrid.components,
+      },
+    },
+  },
+  {
     value: 'en',
     label: 'English',
     countryCode: 'GB',
@@ -57,46 +74,46 @@ export const allLangs = [
       components: { ...enUSDate.components, ...enUSDataGrid.components },
     },
   },
-  {
-    value: 'fr',
-    label: 'French',
-    countryCode: 'FR',
-    adapterLocale: 'fr',
-    numberFormat: { code: 'fr-Fr', currency: 'EUR' },
-    systemValue: {
-      components: { ...frFRCore.components, ...frFRDate.components, ...frFRDataGrid.components },
-    },
-  },
-  {
-    value: 'vi',
-    label: 'Vietnamese',
-    countryCode: 'VN',
-    adapterLocale: 'vi',
-    numberFormat: { code: 'vi-VN', currency: 'VND' },
-    systemValue: {
-      components: { ...viVNCore.components, ...viVNDate.components, ...viVNDataGrid.components },
-    },
-  },
-  {
-    value: 'cn',
-    label: 'Chinese',
-    countryCode: 'CN',
-    adapterLocale: 'zh-cn',
-    numberFormat: { code: 'zh-CN', currency: 'CNY' },
-    systemValue: {
-      components: { ...zhCNCore.components, ...zhCNDate.components, ...zhCNDataGrid.components },
-    },
-  },
-  {
-    value: 'ar',
-    label: 'Arabic',
-    countryCode: 'SA',
-    adapterLocale: 'ar-sa',
-    numberFormat: { code: 'ar-SA', currency: 'SAR' },
-    systemValue: {
-      components: { ...arSACore.components, ...arSDDataGrid.components },
-    },
-  },
+  // {
+  //   value: 'fr',
+  //   label: 'French',
+  //   countryCode: 'FR',
+  //   adapterLocale: 'fr',
+  //   numberFormat: { code: 'fr-Fr', currency: 'EUR' },
+  //   systemValue: {
+  //     components: { ...frFRCore.components, ...frFRDate.components, ...frFRDataGrid.components },
+  //   },
+  // },
+  // {
+  //   value: 'vi',
+  //   label: 'Vietnamese',
+  //   countryCode: 'VN',
+  //   adapterLocale: 'vi',
+  //   numberFormat: { code: 'vi-VN', currency: 'VND' },
+  //   systemValue: {
+  //     components: { ...viVNCore.components, ...viVNDate.components, ...viVNDataGrid.components },
+  //   },
+  // },
+  // {
+  //   value: 'cn',
+  //   label: 'Chinese',
+  //   countryCode: 'CN',
+  //   adapterLocale: 'zh-cn',
+  //   numberFormat: { code: 'zh-CN', currency: 'CNY' },
+  //   systemValue: {
+  //     components: { ...zhCNCore.components, ...zhCNDate.components, ...zhCNDataGrid.components },
+  //   },
+  // },
+  // {
+  //   value: 'ar',
+  //   label: 'Arabic',
+  //   countryCode: 'SA',
+  //   adapterLocale: 'ar-sa',
+  //   numberFormat: { code: 'ar-SA', currency: 'SAR' },
+  //   systemValue: {
+  //     components: { ...arSACore.components, ...arSDDataGrid.components },
+  //   },
+  // },
 ];
 
 // ----------------------------------------------------------------------

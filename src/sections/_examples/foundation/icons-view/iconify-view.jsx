@@ -65,7 +65,7 @@ export function IconifyView() {
   const renderSearch = () => (
     <TextField
       fullWidth
-      placeholder="Search..."
+      placeholder="Buscar..."
       value={searchQuery}
       onChange={handleSearch}
       slotProps={{

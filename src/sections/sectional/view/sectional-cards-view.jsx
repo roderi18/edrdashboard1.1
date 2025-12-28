@@ -32,7 +32,7 @@ export function SectionalCardsView() {
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            Add sectional
+            Agregar seccional
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

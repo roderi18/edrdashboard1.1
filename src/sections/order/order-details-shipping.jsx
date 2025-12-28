@@ -29,7 +29,7 @@ export function OrderDetailsShipping({ shippingAddress }) {
 
         <Box sx={{ display: 'flex' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Phone number
+            Número de teléfono
           </Box>
 
           {shippingAddress?.phoneNumber}

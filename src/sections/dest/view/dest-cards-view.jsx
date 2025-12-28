@@ -32,7 +32,7 @@ export function DestCardsView() {
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            Add dest
+            Agregar Destacamento
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

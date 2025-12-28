@@ -90,7 +90,7 @@ export function PaymentCardListDialog({
           fullWidth
           value={searchCard}
           onChange={handleSearchAddress}
-          placeholder="Search..."
+          placeholder="Buscar..."
           slotProps={{
             input: {
               startAdornment: (

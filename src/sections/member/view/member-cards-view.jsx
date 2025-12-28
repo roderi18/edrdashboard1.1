@@ -32,7 +32,7 @@ export function MemberCardsView() {
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            Add member
+            Agregar miembro
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

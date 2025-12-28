@@ -25,7 +25,7 @@ export function TablePaginationCustom({
 
       {onChangeDense && (
         <FormControlLabel
-          label="Dense"
+          label="Vista compacta"
           control={
             <Switch
               checked={dense}

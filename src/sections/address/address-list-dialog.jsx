@@ -108,7 +108,7 @@ export function AddressListDialog({
           fullWidth
           value={searchAddress}
           onChange={handleSearchAddress}
-          placeholder="Search..."
+          placeholder="Buscar..."
           slotProps={{
             input: {
               startAdornment: (

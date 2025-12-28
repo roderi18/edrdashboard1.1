@@ -79,7 +79,7 @@ export function NavSearch({ navData = [], sx }) {
           hiddenLabel
           size="small"
           variant="filled"
-          placeholder="Search..."
+          placeholder="Buscar..."
           slotProps={{
             input: {
               ...params.InputProps,

@@ -5,15 +5,15 @@ import dayjs from 'dayjs';
 
 export const schemaUtils = {
   /**
-   * Phone number
-   * Apply for phone number input.
+   * Número de teléfono
+   * Apply for Número de teléfono input.
    */
   phoneNumber: (props) =>
     z
       .string()
-      .min(1, { error: props?.error?.required ?? 'Phone number is required!' })
+      .min(1, { error: props?.error?.required ?? 'Número de teléfono is required!' })
       .refine((val) => props?.isValid?.(val), {
-        error: props?.error?.invalid ?? 'Invalid phone number!',
+        error: props?.error?.invalid ?? 'Invalid Número de teléfono!',
       }),
 
   /**

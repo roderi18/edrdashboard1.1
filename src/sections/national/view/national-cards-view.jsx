@@ -32,7 +32,7 @@ export function NationalCardsView() {
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            Add national
+            Agregar nacional
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
