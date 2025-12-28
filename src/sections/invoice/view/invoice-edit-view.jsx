@@ -14,10 +14,10 @@ export function InvoiceEditView({ invoice }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.invoice.root}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Invoice', href: paths.dashboard.invoice.root },
           { name: invoice?.invoiceNumber },
         ]}

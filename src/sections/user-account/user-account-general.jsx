@@ -117,8 +117,8 @@ export function UserAccountGeneral() {
                     color: 'text.disabled',
                   }}
                 >
-                  Allowed *.jpeg, *.jpg, *.png, *.gif
-                  <br /> max size of {fData(3145728)}
+                  Permitido *.jpeg, *.jpg, *.png, *.gif
+                  <br /> tamaño máximo de {fData(3145728)}
                 </Typography>
               }
             />
@@ -147,15 +147,15 @@ export function UserAccountGeneral() {
               }}
             >
               <Field.Text name="displayName" label="Name" />
-              <Field.Text name="email" label="Email address" />
-              <Field.Phone name="phoneNumber" label="Phone number" />
-              <Field.Text name="address" label="Address" />
+              <Field.Text name="email" label="Correo electrónico" />
+              <Field.Phone name="phoneNumber" label="Núm. Teléfono" />
+              <Field.Text name="address" label="Dirección" />
 
-              <Field.CountrySelect name="country" label="Country" placeholder="Choose a country" />
+              <Field.CountrySelect name="ciudad" label="País" placeholder="Elige una ciudad" />
 
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="zipCode" label="Zip/code" />
+              <Field.Text name="state" label="Provincia" />
+              <Field.Text name="city" label="Ciudad" />
+              <Field.Text name="zipCode" label="Código postal" />
             </Box>
 
             <Stack spacing={3} sx={{ mt: 3, alignItems: 'flex-end' }}>

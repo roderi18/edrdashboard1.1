@@ -66,7 +66,7 @@ function TaskItem({ item, selected, onChange, sx, ...other }) {
 
   const handleEdit = () => {
     menuActions.onClose();
-    console.info('EDIT', item.id);
+    console.info('edit', item.id);
   };
 
   const handleDelete = () => {

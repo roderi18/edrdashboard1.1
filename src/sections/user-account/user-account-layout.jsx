@@ -54,7 +54,7 @@ export function UserAccountLayout({ children, ...other }) {
       <CustomBreadcrumbs
         heading="UserAccount"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'User Level Account', href: paths.dashboard.level.root },
           { name: 'UserAccount' },
         ]}

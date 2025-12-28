@@ -21,8 +21,8 @@ export function SectionalCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Sectional', href: paths.dashboard.level.sectional.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Seccional', href: paths.dashboard.level.sectional.root },
           { name: 'Cards' },
         ]}
         action={

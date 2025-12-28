@@ -4,7 +4,7 @@ import { DestCreateView } from 'src/sections/dest/view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Create a new dest | Dashboard - ${CONFIG.appName}` };
+export const metadata = { title: `Create a new Destacamento | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   return <DestCreateView />;

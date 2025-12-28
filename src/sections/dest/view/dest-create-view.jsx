@@ -14,11 +14,11 @@ export function DestCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Create a new dest"
+        heading="Create a new Destacamento"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Dest', href: paths.dashboard.level.dest.root },
-          { name: 'Create' },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
+          { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -14,10 +14,10 @@ export function JobEditView({ job }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.job.root}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Job', href: paths.dashboard.job.root },
           { name: job?.title },
         ]}

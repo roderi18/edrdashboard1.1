@@ -108,7 +108,7 @@ export function AmplifyUpdatePasswordView() {
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
       <Field.Text
         name="email"
-        label="Email address"
+        label="Correo electrónico"
         placeholder="example@gmail.com"
         slotProps={{ inputLabel: { shrink: true } }}
         disabled

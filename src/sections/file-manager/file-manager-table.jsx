@@ -83,7 +83,7 @@ export function FileManagerTable({
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title="Delete">
+              <Tooltip title="Eliminar">
                 <IconButton color="primary" onClick={onOpenConfirm}>
                   <Iconify icon="solar:trash-bin-trash-bold" />
                 </IconButton>

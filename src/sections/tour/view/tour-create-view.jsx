@@ -16,9 +16,9 @@ export function TourCreateView() {
       <CustomBreadcrumbs
         heading="Create a new tour"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Tour', href: paths.dashboard.tour.root },
-          { name: 'Create' },
+          { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

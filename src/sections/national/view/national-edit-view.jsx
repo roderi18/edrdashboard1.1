@@ -15,11 +15,11 @@ export function NationalEditView({ national: currentNational }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.national}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.national.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Nacional', href: paths.dashboard.level.national.root },
           { name: currentNational?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

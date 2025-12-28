@@ -135,8 +135,8 @@ export function UploadView() {
                 color: 'text.disabled',
               }}
             >
-              Allowed *.jpeg, *.jpg, *.png, *.gif
-              <br /> max size of {fData(3145728)}
+              Permitido *.jpeg, *.jpg, *.png, *.gif
+              <br /> tamaño máximo de {fData(3145728)}
             </Typography>
           }
         />

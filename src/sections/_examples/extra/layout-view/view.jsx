@@ -64,8 +64,8 @@ const DEMO_COMPONENTS = [
     ),
   },
   {
-    value: 'dashboard',
-    label: 'Dashboard',
+    value: 'Panel',
+    label: 'Panel',
     component: (
       <DashboardLayout
         sx={{

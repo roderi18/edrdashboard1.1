@@ -14,11 +14,11 @@ export function MemberCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Create a new member"
+        heading="Crear un nuevo miembro"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Member', href: paths.dashboard.level.member.root },
-          { name: 'Create' },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Miembros', href: paths.dashboard.level.member.root },
+          { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -15,11 +15,11 @@ export function SectionalEditView({ sectional: currentSectional }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.sectional}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Sectional', href: paths.dashboard.level.sectional.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Seccional', href: paths.dashboard.level.sectional.root },
           { name: currentSectional?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

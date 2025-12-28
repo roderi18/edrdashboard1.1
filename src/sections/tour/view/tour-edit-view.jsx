@@ -14,10 +14,10 @@ export function TourEditView({ tour }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.tour.root}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Tour', href: paths.dashboard.tour.root },
           { name: tour?.name },
         ]}

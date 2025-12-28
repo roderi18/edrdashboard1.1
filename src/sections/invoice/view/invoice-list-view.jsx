@@ -53,11 +53,11 @@ import { InvoiceTableFiltersResult } from '../invoice-table-filters-result';
 
 const TABLE_HEAD = [
   { id: 'invoiceNumber', label: 'Customer' },
-  { id: 'createDate', label: 'Create' },
+  { id: 'createDate', label: 'Crear' },
   { id: 'dueDate', label: 'Due' },
   { id: 'price', label: 'Amount' },
   { id: 'sent', label: 'Sent', align: 'center' },
-  { id: 'status', label: 'Status' },
+  { id: 'status', label: 'Estado' },
   { id: '' },
 ];
 
@@ -178,7 +178,7 @@ export function InvoiceListView() {
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure want to delete <strong> {table.selected.length} </strong> items?
@@ -205,7 +205,7 @@ export function InvoiceListView() {
         <CustomBreadcrumbs
           heading="List"
           links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Panel', href: paths.dashboard.root },
             { name: 'Invoice', href: paths.dashboard.invoice.root },
             { name: 'List' },
           ]}
@@ -353,7 +353,7 @@ export function InvoiceListView() {
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Delete">
+                  <Tooltip title="Eliminar">
                     <IconButton color="primary" onClick={confirmDialog.onTrue}>
                       <Iconify icon="solar:trash-bin-trash-bold" />
                     </IconButton>

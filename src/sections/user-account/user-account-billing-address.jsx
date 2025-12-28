@@ -55,7 +55,7 @@ export function UserAccountBillingAddress({ addressBook, sx, ...other }) {
         <MenuItem
           onClick={() => {
             handleClose();
-            console.info('EDIT', addressId);
+            console.info('edit', addressId);
           }}
         >
           <Iconify icon="solar:pen-bold" />

@@ -4,7 +4,7 @@ import { RegionalCreateView } from 'src/sections/regional/view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Create a new regional | Dashboard - ${CONFIG.appName}` };
+export const metadata = { title: `Crear un nuevo regional | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   return <RegionalCreateView />;

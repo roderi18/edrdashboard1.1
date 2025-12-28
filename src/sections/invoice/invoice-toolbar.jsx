@@ -67,7 +67,7 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
             display: 'flex',
           }}
         >
-          <Tooltip title="Edit">
+          <Tooltip title="Editar">
             <IconButton
               component={RouterLink}
               href={paths.dashboard.invoice.edit(`${invoice?.id}`)}
@@ -106,7 +106,7 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
         <TextField
           fullWidth
           select
-          label="Status"
+          label="Estado"
           value={currentStatus}
           onChange={onChangeStatus}
           sx={{ maxWidth: 160 }}

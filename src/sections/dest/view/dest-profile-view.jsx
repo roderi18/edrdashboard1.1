@@ -77,8 +77,8 @@ export function DestProfileView() {
       <CustomBreadcrumbs
         heading="Profile"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Dest', href: paths.dashboard.level.dest.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
           { name: dest?.displayName },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

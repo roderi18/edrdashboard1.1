@@ -21,8 +21,8 @@ export function DestCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Dest', href: paths.dashboard.level.dest.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
           { name: 'Cards' },
         ]}
         action={

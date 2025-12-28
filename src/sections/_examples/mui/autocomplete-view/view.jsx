@@ -183,7 +183,7 @@ export function AutocompleteView() {
               <CountrySelect
                 fullWidth
                 label="Single select label"
-                placeholder="Choose a country"
+                placeholder="Elige una ciudad"
                 value={singleLabel}
                 onChange={(event, newValue) => setSingleLabel(newValue)}
               />
@@ -196,7 +196,7 @@ export function AutocompleteView() {
                 fullWidth
                 limitTags={3}
                 label="Multi select label"
-                placeholder="Choose a country"
+                placeholder="Elige una ciudad"
                 value={multiLabel}
                 onChange={(event, newValue) => setMultiLabel(newValue)}
               />
@@ -210,7 +210,7 @@ export function AutocompleteView() {
                 displayValue="code"
                 fullWidth
                 label="Single select code"
-                placeholder="Choose a country"
+                placeholder="Elige una ciudad"
                 value={singleCode}
                 onChange={(event, newValue) => setSingleCode(newValue)}
               />
@@ -224,7 +224,7 @@ export function AutocompleteView() {
                 fullWidth
                 limitTags={3}
                 label="Multi select code"
-                placeholder="Choose a country"
+                placeholder="Elige una ciudad"
                 value={multiCode}
                 onChange={(event, newValue) => setMultiCode(newValue)}
                 slotProps={{ chip: { color: 'info' } }}

@@ -99,12 +99,12 @@ export function DestQuickEditForm({ currentDest, open, onClose }) {
         },
       }}
     >
-      <DialogTitle>Quick update</DialogTitle>
+      <DialogTitle>Actualización rápida</DialogTitle>
 
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
           <Alert variant="outlined" severity="info" sx={{ mb: 3 }}>
-            Account is waiting for confirmation
+            Cuenta esperando por confirmación
           </Alert>
 
           <Box
@@ -115,7 +115,7 @@ export function DestQuickEditForm({ currentDest, open, onClose }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Select name="status" label="Status">
+            <Field.Select name="status" label="Estado">
               {USER_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
@@ -125,23 +125,23 @@ export function DestQuickEditForm({ currentDest, open, onClose }) {
 
             <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
 
-            <Field.Text name="name" label="Full name" />
-            <Field.Text name="email" label="Email address" />
-            <Field.Phone name="phoneNumber" label="Phone number" />
+            <Field.Text name="name" label="Nombre completo" />
+            <Field.Text name="email" label="Correo electrónico" />
+            <Field.Phone name="phoneNumber" label="Núm. Teléfono" />
 
             <Field.CountrySelect
               fullWidth
-              name="country"
-              label="Country"
-              placeholder="Choose a country"
+              name="pais"
+              label="País"
+              placeholder="Elige una ciudad"
             />
 
-            <Field.Text name="state" label="State/region" />
-            <Field.Text name="city" label="City" />
-            <Field.Text name="address" label="Address" />
-            <Field.Text name="zipCode" label="Zip/code" />
+            <Field.Text name="state" label="Provincia" />
+            <Field.Text name="city" label="Ciudad" />
+            <Field.Text name="address" label="Dirección" />
+            <Field.Text name="zipCode" label="Código postal" />
             <Field.Text name="company" label="Company" />
-            <Field.Text name="role" label="Role" />
+            <Field.Text name="Role" label="Posición" />
           </Box>
         </DialogContent>
 

@@ -14,11 +14,11 @@ export function NationalCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Create a new national"
+        heading="Crear un nuevo nacional"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.national.root },
-          { name: 'Create' },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Nacional', href: paths.dashboard.level.national.root },
+          { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -97,7 +97,7 @@ export function FileManagerCreateFolderDialog({
         {(onCreate || onUpdate) && (
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
             <Button variant="soft" onClick={onCreate || onUpdate}>
-              {onUpdate ? 'Save' : 'Create'}
+              {onUpdate ? 'Save' : 'Crear'}
             </Button>
           </Box>
         )}

@@ -75,7 +75,7 @@ export function NavList({ data, sx, ...other }) {
 function NavSubList({ data, subheader, sx, ...other }) {
   const pathname = usePathname();
 
-  const isDashboard = subheader === 'Dashboard';
+  const isDashboard = subheader === 'Panel';
 
   return (
     <NavLi

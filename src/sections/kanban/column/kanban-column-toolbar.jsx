@@ -102,7 +102,7 @@ export function KanbanColumnToolBar({
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure you want to delete this column?

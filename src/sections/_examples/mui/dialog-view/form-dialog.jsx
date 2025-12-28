@@ -34,7 +34,7 @@ export function FormDialog() {
             type="email"
             margin="dense"
             variant="outlined"
-            label="Email address"
+            label="Correo electrónico"
           />
         </DialogContent>
 

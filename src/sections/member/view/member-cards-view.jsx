@@ -21,8 +21,8 @@ export function MemberCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Member', href: paths.dashboard.level.member.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Miembros', href: paths.dashboard.level.member.root },
           { name: 'Cards' },
         ]}
         action={

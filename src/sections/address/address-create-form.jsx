@@ -103,11 +103,11 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Full name" />
-              <Field.Phone name="phoneNumber" label="Phone number" defaultCountry="US" />
+              <Field.Text name="name" label="Nombre completo" />
+              <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
             </Box>
 
-            <Field.Text name="address" label="Address" />
+            <Field.Text name="address" label="Dirección" />
 
             <Box
               sx={{
@@ -119,10 +119,10 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
             >
               <Field.Text name="city" label="Town/city" />
               <Field.Text name="state" label="State" />
-              <Field.Text name="zipCode" label="Zip/code" />
+              <Field.Text name="zipCode" label="Código postal" />
             </Box>
 
-            <Field.CountrySelect name="country" label="Country" placeholder="Choose a country" />
+            <Field.CountrySelect name="ciudad" label="País" placeholder="Elige una ciudad" />
             <Field.Checkbox name="primary" label="Use this address as default." />
           </Stack>
         </DialogContent>

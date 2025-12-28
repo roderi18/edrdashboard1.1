@@ -176,7 +176,7 @@ export function OverviewBookingView() {
               { id: 'customer', label: 'Customer' },
               { id: 'checkIn', label: 'Check in' },
               { id: 'checkOut', label: 'Check out' },
-              { id: 'status', label: 'Status' },
+              { id: 'status', label: 'Estado' },
               { id: '' },
             ]}
           />

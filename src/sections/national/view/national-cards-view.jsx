@@ -21,8 +21,8 @@ export function NationalCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.national.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Nacional', href: paths.dashboard.level.national.root },
           { name: 'Cards' },
         ]}
         action={

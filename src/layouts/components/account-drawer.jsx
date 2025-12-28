@@ -66,7 +66,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       ]}
     >
       {data.map((option) => {
-        const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Dashboard';
+        const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Panel';
         const rootHref = pathname.includes('/dashboard') ? '/' : paths.dashboard.root;
 
         return (
@@ -174,7 +174,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
                 <Avatar
                   alt={_mock.fullName(index + 1)}
                   src={_mock.image.avatar(index + 1)}
-                  onClick={() => {}}
+                  onClick={() => { }}
                 />
               </Tooltip>
             ))}

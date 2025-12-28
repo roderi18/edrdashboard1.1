@@ -53,7 +53,7 @@ const TABLE_HEAD = [
   { id: 'createdAt', label: 'Date', width: 140 },
   { id: 'totalQuantity', label: 'Items', width: 120, align: 'center' },
   { id: 'totalAmount', label: 'Price', width: 140 },
-  { id: 'status', label: 'Status', width: 110 },
+  { id: 'status', label: 'Estado', width: 110 },
   { id: '', width: 88 },
 ];
 
@@ -127,7 +127,7 @@ export function OrderListView() {
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure want to delete <strong> {table.selected.length} </strong> items?
@@ -154,7 +154,7 @@ export function OrderListView() {
         <CustomBreadcrumbs
           heading="List"
           links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Panel', href: paths.dashboard.root },
             { name: 'Order', href: paths.dashboard.order.root },
             { name: 'List' },
           ]}
@@ -227,7 +227,7 @@ export function OrderListView() {
                 )
               }
               action={
-                <Tooltip title="Delete">
+                <Tooltip title="Eliminar">
                   <IconButton color="primary" onClick={confirmDialog.onTrue}>
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>

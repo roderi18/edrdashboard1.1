@@ -65,7 +65,7 @@ export function KanbanDetailsToolbar({
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure want to delete <strong> {taskName} </strong>?

@@ -77,8 +77,8 @@ export function NationalProfileView() {
       <CustomBreadcrumbs
         heading="Profile"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.regional.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Nacional', href: paths.dashboard.level.regional.root },
           { name: regional?.displayName },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

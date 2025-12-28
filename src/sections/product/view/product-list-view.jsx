@@ -88,7 +88,7 @@ export function ProductListView() {
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure want to delete <strong> {selectedRows.ids.size} </strong> items?
@@ -115,7 +115,7 @@ export function ProductListView() {
         <CustomBreadcrumbs
           heading="List"
           links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Panel', href: paths.dashboard.root },
             { name: 'Product', href: paths.dashboard.product.root },
             { name: 'List' },
           ]}
@@ -264,19 +264,19 @@ const useGetColumns = ({ onDeleteRow }) => {
         getActions: (params) => [
           <CustomGridActionsCellItem
             showInMenu
-            label="View"
+            label="Ver"
             icon={<Iconify icon="solar:eye-bold" />}
             href={paths.dashboard.product.details(params.row.id)}
           />,
           <CustomGridActionsCellItem
             showInMenu
-            label="Edit"
+            label="Editar"
             icon={<Iconify icon="solar:pen-bold" />}
             href={paths.dashboard.product.edit(params.row.id)}
           />,
           <CustomGridActionsCellItem
             showInMenu
-            label="Delete"
+            label="Eliminar"
             icon={<Iconify icon="solar:trash-bin-trash-bold" />}
             onClick={() => onDeleteRow(params.row.id)}
             style={{ color: theme.vars.palette.error.main }}

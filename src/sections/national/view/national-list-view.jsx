@@ -48,10 +48,10 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
   { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Num. Teléfono', width: 180 },
+  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
   { id: 'company', label: 'Company', width: 220 },
-  { id: 'role', label: 'Role', width: 180 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'Role', label: 'Role', width: 180 },
+  { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 
@@ -115,7 +115,7 @@ export function NationalListView() {
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content={
         <>
           Are you sure want to delete <strong> {table.selected.length} </strong> items?
@@ -142,8 +142,8 @@ export function NationalListView() {
         <CustomBreadcrumbs
           heading="Lista de nacionales"
           links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'National', href: paths.dashboard.level.national.root },
+            { name: 'Panel', href: paths.dashboard.root },
+            { name: 'Nacional', href: paths.dashboard.level.national.root },
             { name: 'Lista' },
           ]}
           action={
@@ -225,7 +225,7 @@ export function NationalListView() {
                 )
               }
               action={
-                <Tooltip title="Delete">
+                <Tooltip title="Eliminar">
                   <IconButton color="primary" onClick={confirmDialog.onTrue}>
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>

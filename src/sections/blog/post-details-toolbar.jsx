@@ -79,7 +79,7 @@ export function PostDetailsToolbar({
           </Tooltip>
         )}
 
-        <Tooltip title="Edit">
+        <Tooltip title="Editar">
           <IconButton component={RouterLink} href={editHref}>
             <Iconify icon="solar:pen-bold" />
           </IconButton>

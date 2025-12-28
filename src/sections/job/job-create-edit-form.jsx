@@ -177,7 +177,7 @@ export function JobCreateEditForm({ currentJob }) {
           <Stack spacing={1.5}>
             <Typography variant="subtitle2">Role</Typography>
             <Field.Autocomplete
-              name="role"
+              name="Role"
               autoHighlight
               options={_roles.map((option) => option)}
               getOptionLabel={(option) => option}
@@ -316,7 +316,7 @@ export function JobCreateEditForm({ currentJob }) {
       />
 
       <Button type="submit" variant="contained" size="large" loading={isSubmitting} sx={{ ml: 2 }}>
-        {!currentJob ? 'Create job' : 'Save changes'}
+        {!currentJob ? 'Create job' : 'Guardar cambios'}
       </Button>
     </Box>
   );

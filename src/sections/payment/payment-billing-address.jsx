@@ -11,9 +11,9 @@ export function PaymentBillingAddress() {
 
       <Stack spacing={3} mt={5}>
         <TextField fullWidth label="Person name" />
-        <TextField fullWidth label="Phone number" />
+        <TextField fullWidth label="Núm. Teléfono" />
         <TextField fullWidth label="Email" />
-        <TextField fullWidth label="Address" />
+        <TextField fullWidth label="Dirección" />
       </Stack>
     </div>
   );

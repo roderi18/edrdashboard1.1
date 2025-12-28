@@ -146,7 +146,7 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }) {
           Cancel
         </Button>
         <Button type="submit" variant="contained" loading={isSubmitting} disabled={dateError}>
-          {currentEvent?.id ? 'Save changes' : 'Create'}
+          {currentEvent?.id ? 'Guardar cambios' : 'Crear'}
         </Button>
       </DialogActions>
     </Form>

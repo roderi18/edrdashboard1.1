@@ -89,7 +89,7 @@ function FriendCard({ item }) {
 
   const handleEdit = () => {
     menuActions.onClose();
-    console.info('EDIT', item.name);
+    console.info('edit', item.name);
   };
 
   const renderMenuActions = () => (

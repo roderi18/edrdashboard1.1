@@ -79,7 +79,7 @@ export function PhoneInputs() {
           <ComponentBox key={key} title={title}>
             <PhoneInput
               {...props}
-              label="Phone number"
+              label="Núm. Teléfono"
               value={values[typedKey]}
               onChange={handleChange(typedKey)}
             />

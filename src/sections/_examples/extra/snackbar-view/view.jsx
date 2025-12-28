@@ -57,7 +57,7 @@ export function SnackbarView() {
       ),
     },
     {
-      name: 'Status',
+      name: 'Estado',
       component: (
         <ComponentBox>
           <ToastButton

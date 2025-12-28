@@ -47,17 +47,17 @@ const columns = [
     disableColumnMenu: true,
     getActions: (params) => [
       <CustomGridActionsCellItem
-        label="View"
+        label="Ver"
         icon={<Iconify icon="solar:eye-bold" />}
         onClick={() => console.info('VIEW', params.row.id)}
       />,
       <CustomGridActionsCellItem
-        label="Edit"
+        label="Editar"
         icon={<Iconify icon="solar:pen-bold" />}
-        onClick={() => console.info('EDIT', params.row.id)}
+        onClick={() => console.info('edit', params.row.id)}
       />,
       <CustomGridActionsCellItem
-        label="Delete"
+        label="Eliminar"
         icon={<Iconify icon="solar:trash-bin-trash-bold" />}
         onClick={() => console.info('DELETE', params.row.id)}
         style={{ color: 'var(--palette-error-main)' }}

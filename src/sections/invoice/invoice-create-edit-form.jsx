@@ -153,7 +153,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
           loading={loadingSend.value && isSubmitting}
           onClick={handleCreateAndSend}
         >
-          {currentInvoice ? 'Update' : 'Create'} & send
+          {currentInvoice ? 'Update' : 'Crear'} & send
         </Button>
       </Box>
     </Form>

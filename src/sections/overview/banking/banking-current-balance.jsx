@@ -88,7 +88,7 @@ function CarouselItem({ item, showCurrency, onToggleCurrency }) {
 
   const handleEdit = useCallback(() => {
     menuActions.onClose();
-    console.info('EDIT', item.id);
+    console.info('edit', item.id);
   }, [item.id, menuActions]);
 
   const renderMenuActions = () => (

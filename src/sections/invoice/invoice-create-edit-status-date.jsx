@@ -36,7 +36,7 @@ export function InvoiceCreateEditStatusDate() {
       <Field.Select
         fullWidth
         name="status"
-        label="Status"
+        label="Estado"
         slotProps={{ inputLabel: { shrink: true } }}
       >
         {STATUS_OPTIONS.map((option) => (

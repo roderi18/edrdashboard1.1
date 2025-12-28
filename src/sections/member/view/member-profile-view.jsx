@@ -77,8 +77,8 @@ export function MemberProfileView() {
       <CustomBreadcrumbs
         heading="Profile"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Member', href: paths.dashboard.level.member.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Miembros', href: paths.dashboard.level.member.root },
           { name: member?.displayName },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

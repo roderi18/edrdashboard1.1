@@ -21,7 +21,7 @@ export function LevelCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Level', href: paths.dashboard.level.root },
           { name: 'Cards' },
         ]}

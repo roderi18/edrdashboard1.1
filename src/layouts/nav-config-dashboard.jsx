@@ -87,8 +87,8 @@ export const navData = [
           { title: 'Profile', path: paths.dashboard.user.root },
           { title: 'Cards', path: paths.dashboard.user.cards },
           { title: 'List', path: paths.dashboard.user.list },
-          { title: 'Create', path: paths.dashboard.user.new },
-          { title: 'Edit', path: paths.dashboard.user.demo.edit },
+          { title: 'Crear', path: paths.dashboard.user.new },
+          { title: 'edit', path: paths.dashboard.user.demo.edit },
           { title: 'Account', path: paths.dashboard.user.account, deepMatch: true },
         ],
       },
@@ -127,8 +127,8 @@ export const navData = [
           },
           // { title: 'Cards', path: paths.dashboard.level.cards },
           // { title: 'List', path: paths.dashboard.level.list },
-          // { title: 'Create', path: paths.dashboard.level.new },
-          // { title: 'Edit', path: paths.dashboard.level.demo.edit },
+          // { title: 'Crear', path: paths.dashboard.level.new },
+          // { title: 'edit', path: paths.dashboard.level.demo.edit },
           // { title: 'Account', path: paths.dashboard.level.account, deepMatch: true },
 
         ],
@@ -140,8 +140,8 @@ export const navData = [
         children: [
           { title: 'List', path: paths.dashboard.product.root },
           { title: 'Details', path: paths.dashboard.product.demo.details },
-          { title: 'Create', path: paths.dashboard.product.new },
-          { title: 'Edit', path: paths.dashboard.product.demo.edit },
+          { title: 'Crear', path: paths.dashboard.product.new },
+          { title: 'edit', path: paths.dashboard.product.demo.edit },
         ],
       },
       {
@@ -160,8 +160,8 @@ export const navData = [
         children: [
           { title: 'List', path: paths.dashboard.invoice.root },
           { title: 'Details', path: paths.dashboard.invoice.demo.details },
-          { title: 'Create', path: paths.dashboard.invoice.new },
-          { title: 'Edit', path: paths.dashboard.invoice.demo.edit },
+          { title: 'Crear', path: paths.dashboard.invoice.new },
+          { title: 'edit', path: paths.dashboard.invoice.demo.edit },
         ],
       },
       {
@@ -171,8 +171,8 @@ export const navData = [
         children: [
           { title: 'List', path: paths.dashboard.post.root },
           { title: 'Details', path: paths.dashboard.post.demo.details },
-          { title: 'Create', path: paths.dashboard.post.new },
-          { title: 'Edit', path: paths.dashboard.post.demo.edit },
+          { title: 'Crear', path: paths.dashboard.post.new },
+          { title: 'edit', path: paths.dashboard.post.demo.edit },
         ],
       },
       {
@@ -182,8 +182,8 @@ export const navData = [
         children: [
           { title: 'List', path: paths.dashboard.job.root },
           { title: 'Details', path: paths.dashboard.job.demo.details },
-          { title: 'Create', path: paths.dashboard.job.new },
-          { title: 'Edit', path: paths.dashboard.job.demo.edit },
+          { title: 'Crear', path: paths.dashboard.job.new },
+          { title: 'edit', path: paths.dashboard.job.demo.edit },
         ],
       },
       {
@@ -193,8 +193,8 @@ export const navData = [
         children: [
           { title: 'List', path: paths.dashboard.tour.root },
           { title: 'Details', path: paths.dashboard.tour.demo.details },
-          { title: 'Create', path: paths.dashboard.tour.new },
-          { title: 'Edit', path: paths.dashboard.tour.demo.edit },
+          { title: 'Crear', path: paths.dashboard.tour.new },
+          { title: 'edit', path: paths.dashboard.tour.demo.edit },
         ],
       },
       { title: 'File manager', path: paths.dashboard.fileManager, icon: ICONS.folder },

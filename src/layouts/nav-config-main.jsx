@@ -63,7 +63,7 @@ export const navData = [
           { title: 'Page 500', path: paths.page500 },
         ],
       },
-      { subheader: 'Dashboard', items: [{ title: 'Dashboard', path: CONFIG.auth.redirectPath }] },
+      { subheader: 'Panel', items: [{ title: 'Panel', path: CONFIG.auth.redirectPath }] },
     ],
   },
   {

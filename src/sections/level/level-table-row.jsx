@@ -70,7 +70,7 @@ export function LevelTableRow({ row, selected, editHref, onSelectRow, onDeleteRo
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content="Are you sure want to delete?"
       action={
         <Button variant="contained" color="error" onClick={onDeleteRow}>
@@ -138,7 +138,7 @@ export function LevelTableRow({ row, selected, editHref, onSelectRow, onDeleteRo
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Quick edit" placement="top" arrow>
+            <Tooltip title="Actualización rápida" placement="top" arrow>
               <IconButton
                 color={quickEditForm.value ? 'inherit' : 'default'}
                 onClick={quickEditForm.onTrue}

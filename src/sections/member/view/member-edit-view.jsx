@@ -15,11 +15,11 @@ export function MemberEditView({ member: currentMember }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.member}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Member', href: paths.dashboard.level.member.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Miembros', href: paths.dashboard.level.member.root },
           { name: currentMember?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

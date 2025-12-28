@@ -105,7 +105,7 @@ export function PhoneInput({
       variant,
       fullWidth,
       hiddenLabel: !label,
-      placeholder: placeholder ?? 'Enter Número de teléfono',
+      placeholder: placeholder ?? 'Ingresar número de teléfono',
       slotProps: {
         inputLabel: { shrink: true },
         input: {

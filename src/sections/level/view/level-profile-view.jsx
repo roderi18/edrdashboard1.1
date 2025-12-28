@@ -77,7 +77,7 @@ export function LevelProfileView() {
       <CustomBreadcrumbs
         heading="Profile"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Level', href: paths.dashboard.level.root },
           { name: level?.displayName },
         ]}

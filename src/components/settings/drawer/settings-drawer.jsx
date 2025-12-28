@@ -91,7 +91,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderMode = () => (
     <BaseOption
-      label="Mode"
+      label="Modo"
       selected={settings.state.mode === 'dark'}
       icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
       action={
@@ -117,7 +117,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderContrast = () => (
     <BaseOption
-      label="Contrast"
+      label="Contraste"
       selected={settings.state.contrast === 'high'}
       icon={<SvgIcon>{settingIcons.contrast}</SvgIcon>}
       onChangeOption={() => {
@@ -130,7 +130,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderDirection = () => (
     <BaseOption
-      label="Right to left"
+      label="Derecha a Izq."
       selected={settings.state.direction === 'rtl'}
       icon={<SvgIcon>{settingIcons.alignRight}</SvgIcon>}
       onChangeOption={() => {
@@ -142,7 +142,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
   const renderCompactLayout = () => (
     <BaseOption
       tooltip="Dashboard only and available at large resolutions > 1600px (xl)"
-      label="Compact"
+      label="Compacto"
       selected={!!settings.state.compactLayout}
       icon={<SvgIcon>{settingIcons.autofitWidth}</SvgIcon>}
       onChangeOption={() => {

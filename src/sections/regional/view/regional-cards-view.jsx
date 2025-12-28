@@ -21,7 +21,7 @@ export function RegionalCardsView() {
       <CustomBreadcrumbs
         heading="Cards"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Regional', href: paths.dashboard.level.regional.root },
           { name: 'Cards' },
         ]}

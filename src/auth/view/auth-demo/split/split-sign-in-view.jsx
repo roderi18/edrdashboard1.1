@@ -68,7 +68,7 @@ export function SplitSignInView() {
         flexDirection: 'column',
       }}
     >
-      <Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
+      <Field.Text name="email" label="Correo electrónico" slotProps={{ inputLabel: { shrink: true } }} />
 
       <Box
         sx={{
@@ -145,9 +145,9 @@ export function SplitSignInView() {
       <FormDivider />
 
       <FormSocials
-        signInWithGoogle={() => {}}
-        singInWithGithub={() => {}}
-        signInWithTwitter={() => {}}
+        signInWithGoogle={() => { }}
+        singInWithGithub={() => { }}
+        signInWithTwitter={() => { }}
       />
     </>
   );

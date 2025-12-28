@@ -58,7 +58,7 @@ export function SplitVerifyView() {
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
       <Field.Text
         name="email"
-        label="Email address"
+        label="Correo electrónico"
         placeholder="example@gmail.com"
         slotProps={{ inputLabel: { shrink: true } }}
       />
@@ -90,7 +90,7 @@ export function SplitVerifyView() {
         {renderForm()}
       </Form>
 
-      <FormResendCode onResendCode={() => {}} value={0} disabled={false} />
+      <FormResendCode onResendCode={() => { }} value={0} disabled={false} />
 
       <FormReturnLink href={paths.authDemo.split.signIn} />
     </>

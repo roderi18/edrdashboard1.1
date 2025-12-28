@@ -58,7 +58,7 @@ const DEMO_COMPONENTS = [
     ),
   },
   {
-    name: 'Status',
+    name: 'Estado',
     component: (
       <ComponentBox sx={{ columnGap: 4 }}>
         {STATUS.map((status) => (

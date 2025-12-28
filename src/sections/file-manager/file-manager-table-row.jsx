@@ -147,7 +147,7 @@ export function FileManagerTableRow({ row, selected, onSelectRow, onDeleteRow })
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
+      title="Eliminar"
       content="Are you sure want to delete?"
       action={
         <Button variant="contained" color="error" onClick={onDeleteRow}>

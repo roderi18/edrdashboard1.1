@@ -50,7 +50,7 @@ export function UploadAvatar({
     <PlaceholderContainer className={uploadClasses.placeholder.root}>
       <Iconify icon="solar:camera-add-bold" width={32} className={uploadClasses.placeholder.icon} />
       <Typography variant="caption" className={uploadClasses.placeholder.title}>
-        {hasSelectedFile ? 'Update photo' : 'Upload photo'}
+        {hasSelectedFile ? 'Actualizar foto' : 'Cargar foto'}
       </Typography>
     </PlaceholderContainer>
   );

@@ -28,8 +28,8 @@ export const DestCreateSchema = z.object({
   name: z.string().min(1, { error: 'Name is required!' }),
   email: schemaUtils.email(),
   phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
+  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Ciudad is required!' }), {
+    error: 'Ciudad is required!',
   }),
   address: z.string().min(1, { error: 'Address is required!' }),
   company: z.string().min(1, { error: 'Company is required!' }),
@@ -125,8 +125,8 @@ export function DestCreateEditForm({ currentDest }) {
                       color: 'text.disabled',
                     }}
                   >
-                    Allowed *.jpeg, *.jpg, *.png, *.gif
-                    <br /> max size of {fData(3145728)}
+                    Permitido *.jpeg, *.jpg, *.png, *.gif
+                    <br /> tamaño máximo de {fData(3145728)}
                   </Typography>
                 }
               />
@@ -205,28 +205,28 @@ export function DestCreateEditForm({ currentDest }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Full name" />
-              <Field.Text name="email" label="Email address" />
-              <Field.Phone name="phoneNumber" label="Phone number" defaultCountry="US" />
+              <Field.Text name="name" label="Nombre completo" />
+              <Field.Text name="email" label="Correo electrónico" />
+              <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
 
               <Field.CountrySelect
                 fullWidth
-                name="country"
-                label="Country"
-                placeholder="Choose a country"
+                name="pais"
+                label="País"
+                placeholder="Elegir una ciudad"
               />
 
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="address" label="Address" />
-              <Field.Text name="zipCode" label="Zip/code" />
+              <Field.Text name="state" label="Provincia" />
+              <Field.Text name="city" label="Ciudad" />
+              <Field.Text name="address" label="Dirección" />
+              <Field.Text name="zipCode" label="Código postal" />
               <Field.Text name="company" label="Company" />
-              <Field.Text name="role" label="Role" />
+              <Field.Text name="Role" label="Posición" />
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentDest ? 'Create dest' : 'Save changes'}
+                {!currentDest ? 'Crear Destacamento' : 'Guardar cambios'}
               </Button>
             </Stack>
           </Card>

@@ -15,10 +15,10 @@ export function RegionalEditView({ regional: currentRegional }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.regional}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Regional', href: paths.dashboard.level.regional.root },
           { name: currentRegional?.name },
         ]}

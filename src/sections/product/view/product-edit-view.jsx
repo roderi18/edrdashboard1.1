@@ -14,10 +14,10 @@ export function ProductEditView({ product }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.product.root}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Product', href: paths.dashboard.product.root },
           { name: product?.name },
         ]}

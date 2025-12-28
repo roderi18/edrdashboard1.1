@@ -53,7 +53,7 @@ const DEMO_COMPONENTS = [
     name: 'Simple',
     component: (
       <ComponentBox>
-        <Tooltip title="Delete">
+        <Tooltip title="Eliminar">
           <IconButton>
             <Iconify width={24} icon="solar:trash-bin-trash-bold" />
           </IconButton>
@@ -65,7 +65,7 @@ const DEMO_COMPONENTS = [
           </Fab>
         </Tooltip>
 
-        <Tooltip title="Delete">
+        <Tooltip title="Eliminar">
           <IconButton color="info">
             <Iconify width={24} icon="solar:trash-bin-trash-bold" />
           </IconButton>

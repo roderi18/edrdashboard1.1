@@ -89,7 +89,7 @@ export function SortingSelectingTable() {
             )
           }
           action={
-            <Tooltip title="Delete">
+            <Tooltip title="Eliminar">
               <IconButton color="primary">
                 <Iconify icon="solar:trash-bin-trash-bold" />
               </IconButton>

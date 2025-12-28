@@ -4,7 +4,7 @@ import { SectionalCreateView } from 'src/sections/sectional/view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Create a new sectional | Dashboard - ${CONFIG.appName}` };
+export const metadata = { title: `Crear un nuevo seccional | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   return <SectionalCreateView />;

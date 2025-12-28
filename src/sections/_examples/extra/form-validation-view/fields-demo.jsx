@@ -92,11 +92,11 @@ export function FieldsDemo({ debug, onCloseDebug }) {
   const renderBase = () => (
     <>
       <FieldContainer>
-        <Field.Text name="fullName" label="Full name" helperText="Helper text" />
+        <Field.Text name="fullName" label="Nombre completo" helperText="Helper text" />
       </FieldContainer>
 
       <FieldContainer>
-        <Field.Text name="email" label="Email address" />
+        <Field.Text name="email" label="Correo electrónico" />
       </FieldContainer>
 
       <FieldContainer>
@@ -199,7 +199,7 @@ export function FieldsDemo({ debug, onCloseDebug }) {
   const renderPhoneAndOtp = () => (
     <>
       <FieldContainer label="RHFPhone">
-        <Field.Phone name="phoneNumber" label="Phone number" />
+        <Field.Phone name="phoneNumber" label="Núm. Teléfono" />
       </FieldContainer>
 
       <FieldContainer label="RHFCode">
@@ -224,7 +224,7 @@ export function FieldsDemo({ debug, onCloseDebug }) {
           fullWidth
           name="singleCountry"
           label="Single country"
-          placeholder="Choose a country"
+          placeholder="Elige una ciudad"
         />
       </FieldContainer>
 
@@ -235,7 +235,7 @@ export function FieldsDemo({ debug, onCloseDebug }) {
           limitTags={3}
           name="multiCountry"
           label="Multi country"
-          placeholder="Choose a country"
+          placeholder="Elige una ciudad"
           helperText="Helper text"
         />
       </FieldContainer>

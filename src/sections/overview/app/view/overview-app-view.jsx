@@ -161,7 +161,7 @@ export function OverviewAppView() {
               { id: 'id', label: 'Invoice ID' },
               { id: 'category', label: 'Category' },
               { id: 'price', label: 'Price' },
-              { id: 'status', label: 'Status' },
+              { id: 'status', label: 'Estado' },
               { id: '' },
             ]}
           />

@@ -97,7 +97,7 @@ export function OverviewBankingView() {
                 { id: 'description', label: 'Description' },
                 { id: 'date', label: 'Date' },
                 { id: 'amount', label: 'Amount' },
-                { id: 'status', label: 'Status' },
+                { id: 'status', label: 'Estado' },
                 { id: '' },
               ]}
             />

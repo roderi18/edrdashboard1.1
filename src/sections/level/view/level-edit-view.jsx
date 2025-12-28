@@ -14,10 +14,10 @@ export function LevelEditView({ level: currentLevel }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.list}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Level', href: paths.dashboard.level.root },
           { name: currentLevel?.name },
         ]}

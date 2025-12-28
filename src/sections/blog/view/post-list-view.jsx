@@ -51,7 +51,7 @@ export function PostListView() {
       <CustomBreadcrumbs
         heading="List"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Blog', href: paths.dashboard.post.root },
           { name: 'List' },
         ]}

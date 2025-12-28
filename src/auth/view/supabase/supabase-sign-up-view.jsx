@@ -97,7 +97,7 @@ export function SupabaseSignUpView() {
         />
       </Box>
 
-      <Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
+      <Field.Text name="email" label="Correo electrónico" slotProps={{ inputLabel: { shrink: true } }} />
 
       <Field.Text
         name="password"

@@ -14,10 +14,10 @@ export function UserEditView({ user: currentUser }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.user.list}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'User', href: paths.dashboard.level.root },
           { name: currentUser?.name },
         ]}

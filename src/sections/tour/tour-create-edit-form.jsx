@@ -299,7 +299,7 @@ export function TourCreateEditForm({ currentTour }) {
       />
 
       <Button type="submit" variant="contained" size="large" loading={isSubmitting} sx={{ ml: 2 }}>
-        {!currentTour ? 'Create tour' : 'Save changes'}
+        {!currentTour ? 'Create tour' : 'Guardar cambios'}
       </Button>
     </Box>
   );

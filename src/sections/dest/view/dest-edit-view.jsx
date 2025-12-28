@@ -15,11 +15,11 @@ export function DestEditView({ dest: currentDest }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
+        heading="Editar"
         backHref={paths.dashboard.level.dest}
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Dest', href: paths.dashboard.level.dest.root },
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
           { name: currentDest?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

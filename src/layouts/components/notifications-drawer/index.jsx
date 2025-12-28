@@ -25,7 +25,7 @@ import { NotificationItem } from './notification-item';
 
 const TABS = [
   { value: 'all', label: 'All', count: 22 },
-  { value: 'unread', label: 'Unread', count: 12 },
+  { value: 'Unread', label: 'Unread', count: 12 },
   { value: 'archived', label: 'Archived', count: 10 },
 ];
 
@@ -93,7 +93,7 @@ export function NotificationsDrawer({ data = [], sx, ...other }) {
             <Label
               variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
               color={
-                (tab.value === 'unread' && 'info') ||
+                (tab.value === 'Unread' && 'info') ||
                 (tab.value === 'archived' && 'success') ||
                 'default'
               }

@@ -16,9 +16,9 @@ export function LevelCreateView() {
       <CustomBreadcrumbs
         heading="Create a new level"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Panel', href: paths.dashboard.root },
           { name: 'Level', href: paths.dashboard.level.root },
-          { name: 'Create' },
+          { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

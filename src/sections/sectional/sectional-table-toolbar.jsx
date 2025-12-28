@@ -83,7 +83,7 @@ export function SectionalTableToolbar({ filters, options, onResetPage }) {
           <InputLabel htmlFor="filter-role-select">Role</InputLabel>
           <Select
             multiple
-            label="Role"
+            label="Posición"
             value={currentFilters.role}
             onChange={handleFilterRole}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
