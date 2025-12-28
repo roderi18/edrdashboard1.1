@@ -1,31 +1,29 @@
 'use client';
 
-
 import { paths } from 'src/routes/paths';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { NationalCreateEditForm } from '../national-create-edit-form';
+import { RegionalCreateEditForm } from '../regional-create-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function NationalEditView({ national: currentNational }) {
+export function RegionalCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit"
-        backHref={paths.dashboard.level.national}
+        heading="Create a new regional"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.national.root },
-          { name: currentNational?.name },
+          { name: 'Regional', href: paths.dashboard.level.regional.root },
+          { name: 'Create' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <NationalCreateEditForm currentNational={currentNational} />
+      <RegionalCreateEditForm />
     </DashboardContent>
   );
 }

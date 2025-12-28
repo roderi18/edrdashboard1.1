@@ -129,24 +129,22 @@ export const paths = {
       demo: { edit: `${ROOTS.DASHBOARD}/level/${MOCK_ID}/edit` },
 
       national: {
-        root: `${ROOTS.DASHBOARD}/level/national/list`,
+        root: `${ROOTS.DASHBOARD}/level/national/`, //anteriormente /list
         new: `${ROOTS.DASHBOARD}/level/national/new`,
         profile: `${ROOTS.DASHBOARD}/level/national/profile`,
-        list: `${ROOTS.DASHBOARD}/level/national/list`,
+        list: `${ROOTS.DASHBOARD}/level/national`,
         new: `${ROOTS.DASHBOARD}/level/national/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/national/${id}/edit`,
       },
+      regional: {
+        root: `${ROOTS.DASHBOARD}/level/regional/`, //anteriormente /list
+        new: `${ROOTS.DASHBOARD}/level/regional/new`,
+        profile: `${ROOTS.DASHBOARD}/level/regional/profile`,
+        list: `${ROOTS.DASHBOARD}/level/regional`,
+        new: `${ROOTS.DASHBOARD}/level/regional/new`,
+        edit: (id) => `${ROOTS.DASHBOARD}/level/regional/${id}/edit`,
+      },
     },
-    // national: {
-    //   root: `${ROOTS.DASHBOARD}/national`,
-    //   new: `${ROOTS.DASHBOARD}/national/new`,
-    //   list: `${ROOTS.DASHBOARD}/national/list`,
-    //   cards: `${ROOTS.DASHBOARD}/national/cards`,
-    //   profile: `${ROOTS.DASHBOARD}/national/profile`,
-    //   account: `${ROOTS.DASHBOARD}/national/account`,
-    //   edit: (id) => `${ROOTS.DASHBOARD}/national/${id}/edit`,
-    //   demo: { edit: `${ROOTS.DASHBOARD}/national/${MOCK_ID}/edit` },
-    // },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,
       new: `${ROOTS.DASHBOARD}/product/new`,

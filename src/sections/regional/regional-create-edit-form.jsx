@@ -23,7 +23,7 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export const NationalCreateSchema = z.object({
+export const RegionalCreateSchema = z.object({
   avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
   name: z.string().min(1, { error: 'Name is required!' }),
   email: schemaUtils.email(),
@@ -44,7 +44,7 @@ export const NationalCreateSchema = z.object({
 
 // ----------------------------------------------------------------------
 
-export function NationalCreateEditForm({ currentNational }) {
+export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
 
   const defaultValues = {
@@ -65,9 +65,9 @@ export function NationalCreateEditForm({ currentNational }) {
 
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(NationalCreateSchema),
+    resolver: zodResolver(RegionalCreateSchema),
     defaultValues,
-    values: currentNational,
+    values: currentRegional,
   });
 
   const {
@@ -84,8 +84,8 @@ export function NationalCreateEditForm({ currentNational }) {
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
       reset();
-      toast.success(currentNational ? 'Update success!' : 'Create success!');
-      router.push(paths.dashboard.level.national); //anteriormente .list
+      toast.success(currentRegional ? 'Update success!' : 'Create success!');
+      router.push(paths.dashboard.level.regional); //anteriormente .list
       console.info('DATA', data);
     } catch (error) {
       console.error(error);
@@ -97,7 +97,7 @@ export function NationalCreateEditForm({ currentNational }) {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentNational && (
+            {currentRegional && (
               <Label
                 color={
                   (values.status === 'active' && 'success') ||
@@ -132,7 +132,7 @@ export function NationalCreateEditForm({ currentNational }) {
               />
             </Box>
 
-            {currentNational && (
+            {currentRegional && (
               <FormControlLabel
                 labelPlacement="start"
                 control={
@@ -178,17 +178,17 @@ export function NationalCreateEditForm({ currentNational }) {
                     Email verified
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Disabling this will automatically send the national a verification email
+                    Disabling this will automatically send the regional a verification email
                   </Typography>
                 </>
               }
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             />
 
-            {currentNational && (
+            {currentRegional && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                 <Button variant="soft" color="error">
-                  Delete national
+                  Delete regional
                 </Button>
               </Stack>
             )}
@@ -226,7 +226,7 @@ export function NationalCreateEditForm({ currentNational }) {
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentNational ? 'Create national' : 'Save changes'}
+                {!currentRegional ? 'Create regional' : 'Save changes'}
               </Button>
             </Stack>
           </Card>

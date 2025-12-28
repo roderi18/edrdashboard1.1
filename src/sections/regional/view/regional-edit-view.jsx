@@ -7,25 +7,25 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { NationalCreateEditForm } from '../national-create-edit-form';
+import { RegionalCreateEditForm } from '../regional-create-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function NationalEditView({ national: currentNational }) {
+export function RegionalEditView({ regional: currentRegional }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit"
-        backHref={paths.dashboard.level.national}
+        backHref={paths.dashboard.level.regional}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'National', href: paths.dashboard.level.national.root },
-          { name: currentNational?.name },
+          { name: 'Regional', href: paths.dashboard.level.regional.root },
+          { name: currentRegional?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <NationalCreateEditForm currentNational={currentNational} />
+      <RegionalCreateEditForm currentRegional={currentRegional} />
     </DashboardContent>
   );
 }
