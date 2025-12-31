@@ -6,6 +6,7 @@ import {
   _id,
   _ages,
   _roles,
+  _memberPositions,
   _prices,
   _emails,
   _ratings,
@@ -17,6 +18,7 @@ import {
   _sentences,
   _lastNames,
   _fullNames,
+  _memberFullNames,
   _tourNames,
   _jobTitles,
   _taskNames,
@@ -27,9 +29,11 @@ import {
   _courseNames,
   _fullAddress,
   _companyNames,
+  _memberDivisionNames,
   _productNames,
   _descriptions,
   _phoneNumbers,
+  _memberPhoneNumbers,
   _countryNames,
 } from './assets';
 
@@ -40,7 +44,7 @@ export const _mock = {
   time: (index) => fSub({ days: index, hours: index }),
   boolean: (index) => _booleans[index],
   role: (index) => _roles[index],
-  // Text
+  memberPosition: (index) => _memberPositions[index],
   courseNames: (index) => _courseNames[index],
   fileNames: (index) => _fileNames[index],
   eventNames: (index) => _eventNames[index],
@@ -54,12 +58,15 @@ export const _mock = {
   // Contact
   email: (index) => _emails[index],
   phoneNumber: (index) => _phoneNumbers[index],
+  memberPhoneNumber: (index) => _memberPhoneNumbers[index],
   fullAddress: (index) => _fullAddress[index],
   // Name
   firstName: (index) => _firstNames[index],
   lastName: (index) => _lastNames[index],
   fullName: (index) => _fullNames[index],
+  memberFullName: (index) => _memberFullNames[index],
   companyNames: (index) => _companyNames[index],
+  memberDivisionNames: (index) => _memberDivisionNames[index],
   countryNames: (index) => _countryNames[index],
   // Number
   number: {

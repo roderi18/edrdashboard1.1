@@ -74,9 +74,12 @@ export const JOB_SORT_OPTIONS = [
 const CANDIDATES = Array.from({ length: 12 }, (_, index) => ({
   id: _mock.id(index),
   role: _mock.role(index),
+  // memberPosition: _mock.memberPosition(index),
   name: _mock.fullName(index),
+  memberName: _mock.memberFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
+
 
 const CONTENT = `
 <h6>Job description</h6>

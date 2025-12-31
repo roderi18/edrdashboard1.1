@@ -154,6 +154,33 @@ export const _fullNames = [
   `Mireya Conner`,
 ];
 
+export const _memberFullNames = [
+  'José Luis Pérez',
+  'Carlos Alberto Rodríguez',
+  'Diana Martínez',
+  'Juan Manuel Gómez',
+  'Rafael Stein Jiménez',
+  'Laura Sofía Hernández',
+  'Cristopher Cárdenas',
+  'Melanie Núñez',
+  'Luis Miguel Santana',
+  'Shawn De la Cruz',
+  'Soren Durán',
+  'Cortez Herrera',
+  'Brycen Jiménez',
+  'Giana Batista',
+  'Aspen Schmitt Reyes',
+  'Colten Aguilar',
+  'Angélica Morales',
+  'Selina Boyer Núñez',
+  'Lawson Báez',
+  'Ariana Lang Peña',
+  'Amiah Pruitt García',
+  'Harold McGrath Sánchez',
+  'Esperanza Martínez',
+  'Mireya Concepción',
+];
+
 export const _firstNames = [
   `Mossie`,
   `David`,
@@ -253,6 +280,50 @@ export const _phoneNumbers = [
   '+48 22 123 45 67',
 ];
 
+export const _memberPhoneNumbers = [
+  '+1 809 555 0143',
+  '+1 829 555 0198',
+  '+1 849 555 0958',
+  '+1 809 555 5432',
+  '+1 829 555 5678',
+  '+1 849 555 3456',
+  '+1 809 555 6789',
+  '+1 829 555 1234',
+  '+1 849 555 4321',
+  '+1 809 555 6781',
+  '+1 829 555 2468',
+  '+1 849 555 1357',
+  '+1 809 555 9876',
+  '+1 829 555 6543',
+  '+1 849 555 3210',
+  '+1 809 555 1122',
+  '+1 829 555 3344',
+  '+1 849 555 5566',
+  '+1 809 555 7788',
+  '+1 829 555 9900',
+  '+1 849 555 2211',
+  '+1 809 555 4433',
+  '+1 829 555 6655',
+  '+1 849 555 8877',
+  '+1 809 555 1010',
+  '+1 829 555 2020',
+  '+1 849 555 3030',
+  '+1 809 555 4040',
+  '+1 829 555 5050',
+  '+1 849 555 6060',
+  '+1 809 555 7070',
+  '+1 829 555 8080',
+  '+1 849 555 9090',
+  '+1 809 555 1111',
+  '+1 829 555 2222',
+  '+1 849 555 3333',
+  '+1 809 555 4444',
+  '+1 829 555 6666',
+  '+1 849 555 7777',
+  '+1 809 555 8888',
+];
+
+
 // ----------------------------------------------------------------------
 
 export const _countryNames = [
@@ -325,6 +396,33 @@ export const _roles = [
   `Event Planner`,
   `Legal Counsel`,
   `Training Coordinator`,
+];
+
+export const _memberPositions = [
+  'Coordinador Dest.',
+  'Coordinador As. Dest.',
+  'Pastor',
+  'Guía de patrulla',
+  'Líder de patrulla',
+  'Guía auxiliar',
+  'Escriba',
+  'Guía de patrulla',
+  'Líder de patrulla',
+  'Guía auxiliar',
+  'Escriba',
+  'Pastor',
+  'Guía de patrulla',
+  'Líder de patrulla',
+  'Guía auxiliar',
+  'Escriba',
+  'Pastor',
+  'Guía de patrulla',
+  'Líder de patrulla',
+  'Guía auxiliar',
+  'Escriba',
+  'Pastor',
+  'Guía de patrulla',
+  'Líder de patrulla',
 ];
 
 // ----------------------------------------------------------------------
@@ -472,6 +570,32 @@ export const _companyNames = [
   `Tremblay LLC`,
 ];
 
+export const _memberDivisionNames = [
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+  'Exploradores',
+  'Seguidores',
+  'Pioneros',
+  'Navegantes',
+];
 // ----------------------------------------------------------------------
 
 export const _tags = [

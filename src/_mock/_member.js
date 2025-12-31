@@ -11,10 +11,11 @@ export const MEMBER_STATUS_OPTIONS = [
 
 export const _memberAbout = {
   id: _mock.id(1),
-  role: _mock.role(1),
+  memberPosition: _mock.memberPosition(1),
   email: _mock.email(1),
-  school: _mock.companyNames(2),
-  company: _mock.companyNames(1),
+  school: _mock.memberDivisionNames(2),
+  // company: _mock.companyNames(1),
+  memberDivision: _mock.memberDivisionNames(1),
   country: _mock.countryNames(2),
   coverUrl: _mock.image.cover(3),
   totalFollowers: _mock.number.nativeL(1),
@@ -31,15 +32,15 @@ export const _memberAbout = {
 
 export const _memberFollowers = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  name: _mock.fullName(index),
+  memberName: _mock.memberFullName(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 
 export const _memberFriends = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
-  name: _mock.fullName(index),
+  memberPosition: _mock.memberPosition(index),
+  memberName: _mock.memberFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 
@@ -56,7 +57,7 @@ export const _memberFeeds = Array.from({ length: 3 }, (_, index) => ({
   media: _mock.image.travel(index + 1),
   message: _mock.sentence(index),
   personLikes: Array.from({ length: 20 }, (__, personIndex) => ({
-    name: _mock.fullName(personIndex),
+    memberName: _mock.memberFullName(personIndex),
     avatarUrl: _mock.image.avatar(personIndex + 2),
   })),
   comments: (index === 2 && []) || [
@@ -65,7 +66,7 @@ export const _memberFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(8),
         avatarUrl: _mock.image.avatar(index + 5),
-        name: _mock.fullName(index + 5),
+        memberName: _mock.memberFullName(index + 5),
       },
       createdAt: _mock.time(2),
       message: 'Praesent venenatis metus at',
@@ -75,7 +76,7 @@ export const _memberFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(10),
         avatarUrl: _mock.image.avatar(index + 6),
-        name: _mock.fullName(index + 6),
+        memberName: _mock.memberFullName(index + 6),
       },
       createdAt: _mock.time(3),
       message:
@@ -86,8 +87,8 @@ export const _memberFeeds = Array.from({ length: 3 }, (_, index) => ({
 
 export const _memberCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
-  name: _mock.fullName(index),
+  memberPosition: _mock.memberPosition(index),
+  memberName: _mock.memberFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
   totalFollowers: _mock.number.nativeL(index),
@@ -105,8 +106,8 @@ export const _memberPayment = Array.from({ length: 3 }, (_, index) => ({
 export const _memberAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
-  name: _mock.fullName(index),
-  phoneNumber: _mock.phoneNumber(index),
+  memberName: _mock.memberFullName(index),
+  memberPhoneNumber: _mock.memberPhoneNumber(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
 }));
@@ -129,15 +130,16 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   zipCode: '85807',
   state: 'Virginia',
   city: 'Rancho Cordova',
-  role: _mock.role(index),
+  memberPosition: _mock.memberPosition(index),
   email: _mock.email(index),
   address: '908 Jack Locks',
-  name: _mock.fullName(index),
+  memberName: _mock.memberFullName(index),
   isVerified: _mock.boolean(index),
-  company: _mock.companyNames(index),
+  // company: _mock.companyNames(index),
+  memberDivision: _mock.memberDivisionNames(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
-  phoneNumber: _mock.phoneNumber(index),
+  memberPhoneNumber: _mock.memberPhoneNumber(index),
   status:
     (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
 }));

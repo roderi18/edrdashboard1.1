@@ -220,7 +220,7 @@ export function MemberCreateEditForm({ currentMember }) {
               <Field.Text name="city" label="Ciudad" />
               <Field.Text name="address" label="Dirección" />
               <Field.Text name="zipCode" label="Código postal" />
-              <Field.Text name="company" label="Company" />
+              <Field.Text name="memberDivision" label="División" />
               <Field.Text name="Role" label="Posición" />
             </Box>
 
