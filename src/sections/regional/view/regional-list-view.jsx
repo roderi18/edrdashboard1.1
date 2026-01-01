@@ -47,11 +47,20 @@ import { RegionalTableFiltersResult } from '../regional-table-filters-result';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
+// const TABLE_HEAD = [
+//   { id: 'name', label: 'Name' },
+//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+//   { id: 'company', label: 'Company', width: 220 },
+//   { id: 'Role', label: 'Role', width: 180 },
+//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: '', width: 88 },
+// ];
+
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'Role', label: 'Role', width: 180 },
+  { id: 'regionalName', label: 'Nombre' },
+  { id: 'regionalDirectorName', label: 'Director', width: 180 },
+  { id: 'regionalXSectionalCount', label: 'Secciones', width: 190 },
+  { id: 'regionalXSectionalMemberCount', label: 'Miembros', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -141,7 +150,7 @@ export function RegionalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Lista de regionales"
+          heading="Lista de Regionales"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Regional', href: paths.dashboard.level.regional.root },

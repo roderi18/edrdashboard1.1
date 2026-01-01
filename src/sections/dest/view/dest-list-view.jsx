@@ -46,11 +46,20 @@ import { DestTableFiltersResult } from '../dest-table-filters-result';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
+// const TABLE_HEAD = [
+//   { id: 'name', label: 'Name' },
+//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+//   { id: 'company', label: 'Company', width: 220 },
+//   { id: 'Role', label: 'Role', width: 180 },
+//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: '', width: 88 },
+// ];
+
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'Role', label: 'Role', width: 180 },
+  { id: 'destName', label: 'Nombre' },
+  { id: 'destCoordName', label: 'Coord. Dest', width: 180 },
+  { id: 'destMemberCount', label: 'Miembros', width: 220 },
+  { id: 'destMembership', label: 'Membresía', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -140,7 +149,7 @@ export function DestListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Lista de miembros"
+          heading="Lista de Destacamentos"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Destacamentos', href: paths.dashboard.level.dest.root },

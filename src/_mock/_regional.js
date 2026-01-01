@@ -11,8 +11,8 @@ export const REGIONAL_STATUS_OPTIONS = [
 
 export const _regionalAbout = {
   id: _mock.id(1),
-  role: _mock.role(1),
-  email: _mock.email(1),
+  regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(1),
+  regionalXSectionalEmail: _mock.regionalXSectionalEmail(1),
   school: _mock.companyNames(2),
   company: _mock.companyNames(1),
   country: _mock.countryNames(2),
@@ -31,15 +31,15 @@ export const _regionalAbout = {
 
 export const _regionalFollowers = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  name: _mock.fullName(index),
+  regionalName: _mock.regionalFullName(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 
 export const _regionalFriends = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
-  name: _mock.fullName(index),
+  regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(index),
+  regionalName: _mock.regionalFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 
@@ -55,8 +55,8 @@ export const _regionalFeeds = Array.from({ length: 3 }, (_, index) => ({
   createdAt: _mock.time(index),
   media: _mock.image.travel(index + 1),
   message: _mock.sentence(index),
-  personLikes: Array.from({ length: 20 }, (__, personIndex) => ({
-    name: _mock.fullName(personIndex),
+  personLikes: Array.from({ length: 4 }, (__, personIndex) => ({
+    regionalName: _mock.regionalFullName(personIndex),
     avatarUrl: _mock.image.avatar(personIndex + 2),
   })),
   comments: (index === 2 && []) || [
@@ -65,7 +65,7 @@ export const _regionalFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(8),
         avatarUrl: _mock.image.avatar(index + 5),
-        name: _mock.fullName(index + 5),
+        regionalName: _mock.regionalFullName(index + 5),
       },
       createdAt: _mock.time(2),
       message: 'Praesent venenatis metus at',
@@ -75,7 +75,7 @@ export const _regionalFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(10),
         avatarUrl: _mock.image.avatar(index + 6),
-        name: _mock.fullName(index + 6),
+        regionalName: _mock.regionalFullName(index + 6),
       },
       createdAt: _mock.time(3),
       message:
@@ -86,8 +86,8 @@ export const _regionalFeeds = Array.from({ length: 3 }, (_, index) => ({
 
 export const _regionalCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
-  name: _mock.fullName(index),
+  regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(index),
+  regionalName: _mock.regionalFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
   totalFollowers: _mock.number.nativeL(index),
@@ -105,8 +105,8 @@ export const _regionalPayment = Array.from({ length: 3 }, (_, index) => ({
 export const _regionalAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
-  name: _mock.fullName(index),
-  phoneNumber: _mock.phoneNumber(index),
+  regionalName: _mock.regionalFullName(index),
+  regionalDirectorName: _mock.regionalDirectorName(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
 }));
@@ -124,20 +124,20 @@ export const _regionalPlans = [
   { subscription: 'premium', price: 9.99, primary: false },
 ];
 
-export const _regionalList = Array.from({ length: 20 }, (_, index) => ({
+export const _regionalList = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   zipCode: '85807',
   state: 'Virginia',
   city: 'Rancho Cordova',
-  role: _mock.role(index),
-  email: _mock.email(index),
+  regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(index),
+  regionalXSectionalEmail: _mock.regionalXSectionalEmail(index),
   address: '908 Jack Locks',
-  name: _mock.fullName(index),
+  regionalName: _mock.regionalFullName(index),
   isVerified: _mock.boolean(index),
-  company: _mock.companyNames(index),
+  regionalXSectionalCount: _mock.regionalXSectionalCount(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
-  phoneNumber: _mock.phoneNumber(index),
+  regionalDirectorName: _mock.regionalDirectorName(index),
   status:
     (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
 }));

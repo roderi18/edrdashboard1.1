@@ -77,6 +77,7 @@ const CANDIDATES = Array.from({ length: 12 }, (_, index) => ({
   // memberPosition: _mock.memberPosition(index),
   name: _mock.fullName(index),
   memberName: _mock.memberFullName(index),
+  destName: _mock.destFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 

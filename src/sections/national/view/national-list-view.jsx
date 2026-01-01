@@ -46,11 +46,20 @@ import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
+// const TABLE_HEAD = [
+//   { id: 'name', label: 'Name' },
+//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+//   { id: 'company', label: 'Company', width: 220 },
+//   { id: 'Role', label: 'Role', width: 180 },
+//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: '', width: 88 },
+// ];
+
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'Role', label: 'Role', width: 180 },
+  { id: 'nationalXMemberName', label: 'Nombre' },
+  { id: 'nationalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
+  { id: 'nationalXMemberPosition', label: 'Posición', width: 230 },
+  { id: 'nationalXRegionalAssigned', label: 'Región asignada', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

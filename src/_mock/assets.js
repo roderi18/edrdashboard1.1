@@ -125,6 +125,13 @@ export const _memberEmails = [
   'mireya.concepcion24@hotmail.com',
 ];
 
+export const _regionalXSectionalEmails = [
+  'regioncentral01@gmail.com',
+  'regionnorte02@gmail.com',
+  'regionsur03gmail.com',
+  'regionoeste04@gmail.com',
+];
+
 export const _emails = [
   `nannie.abernathy70@yahoo.com`,
   `ashlynn.ohara62@gmail.com`,
@@ -207,6 +214,145 @@ export const _memberFullNames = [
   'Esperanza Martínez',
   'Mireya Concepción',
 ];
+
+export const _destFullNames = [
+  'Destacamento 1',
+  'Destacamento 2',
+  'Destacamento 3',
+  'Destacamento 4',
+  'Destacamento 5',
+  'Destacamento 6',
+  'Destacamento 7',
+  'Destacamento 8',
+  'Destacamento 9',
+  'Destacamento 10',
+  'Destacamento 11',
+  'Destacamento 12',
+  'Destacamento 13',
+  'Destacamento 14',
+  'Destacamento 15',
+  'Destacamento 16',
+  'Destacamento 17',
+  'Destacamento 18',
+  'Destacamento 19',
+  'Destacamento 20',
+  'Destacamento 21',
+  'Destacamento 22',
+  'Destacamento 23',
+  'Destacamento 24',
+];
+
+export const _regionalFullNames = [
+  'Región Central',
+  'Región Norte',
+  'Región Sur',
+  'Región Oeste',
+  'testing'
+];
+
+export const _destCoordNames = [
+  'José Antonio Pérez',
+  'Carlos Alberto Rodríguez',
+  'María Fernanda Martínez',
+  'Juan Manuel Gómez',
+  'Rafael Jiménez',
+  'Laura Sofía Hernández',
+  'Cristopher Cárdenas',
+  'Melanie Núñez',
+  'Luis Miguel Santana',
+  'Shawn De la Cruz',
+  'Soren Durán',
+  'Cortez Herrera',
+  'Brycen Jiménez',
+  'Giana Batista',
+  'Aspen Reyes',
+  'Colten Aguilar',
+  'Angélica Morales',
+  'Selina Núñez',
+  'Lawson Báez',
+  'Ariana Peña',
+  'Amiah García',
+  'Harold Sánchez',
+  'Esperanza Martínez',
+  'Mireya Concepción',
+  'Roberto Valdez',
+  'Karla Ortiz',
+  'Andrés Ramos',
+  'Yessica Mendoza',
+  'Miguel Batista',
+  'Paola Reyes',
+  'Héctor Medina',
+  'Gloria Fermín',
+  'Felipe Torres',
+  'Nancy Lora',
+  'Óscar Paredes',
+  'Daniel Castillo',
+  'Sofía Peralta',
+  'Kevin Ramírez',
+  'Patricia Guillén',
+  'Jonathan Mejía',
+];
+
+export const _regionalDirectorNames = [
+  'José Antonio Pérez',
+  'Carlos Alberto Rodríguez',
+  'María Fernanda Martínez',
+  'Juan Manuel Gómez',
+];
+
+export const _destMemberCounts = [
+  'Cantidad: 8',
+  'Cantidad: 15',
+  'Cantidad: 23',
+  'Cantidad: 12',
+  'Cantidad: 30',
+  'Cantidad: 18',
+  'Cantidad: 25',
+  'Cantidad: 10',
+  'Cantidad: 40',
+  'Cantidad: 16',
+  'Cantidad: 22',
+  'Cantidad: 35',
+  'Cantidad: 14',
+  'Cantidad: 28',
+  'Cantidad: 19',
+  'Cantidad: 9',
+  'Cantidad: 33',
+  'Cantidad: 27',
+  'Cantidad: 11',
+  'Cantidad: 20',
+  'Cantidad: 38',
+  'Cantidad: 17',
+  'Cantidad: 24',
+  'Cantidad: 31',
+];
+export const _destMemberships = [
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'No registrado',
+  'Registrado',
+  'No registrado',
+];
+
 
 export const _firstNames = [
   `Mossie`,
@@ -425,6 +571,13 @@ export const _roles = [
   `Training Coordinator`,
 ];
 
+export const _regionalXSectionalMemberCounts = [
+  `Cantidad: 94`,
+  `Cantidad: 92`,
+  `Cantidad: 75`,
+  `Cantidad: 84`,
+];
+
 export const _memberPositions = [
   'Coordinador Dest.',
   'Coordinador As. Dest.',
@@ -595,6 +748,13 @@ export const _companyNames = [
   `Bartell - Kovacek`,
   `Schimmel - Raynor`,
   `Tremblay LLC`,
+];
+
+export const _regionalXSectionalCounts = [
+  `Cantidad: 12`,
+  `Cantidad: 22`,
+  `Cantidad: 9`,
+  `Cantidad: 15`,
 ];
 
 export const _memberDivisionNames = [

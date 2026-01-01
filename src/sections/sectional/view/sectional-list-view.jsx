@@ -48,10 +48,10 @@ import { SectionalTableFiltersResult } from '../sectional-table-filters-result';
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'Role', label: 'Role', width: 180 },
+  { id: 'sectionalName', label: 'Name' },
+  { id: 'sectionalCoordName', label: 'Coordinador ', width: 180 },
+  { id: 'sectionalDestCount', label: 'Destacamentos', width: 220 },
+  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -141,7 +141,7 @@ export function SectionalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Lista de seccionales"
+          heading="Lista de Seccionales"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Seccional', href: paths.dashboard.level.sectional.root },
