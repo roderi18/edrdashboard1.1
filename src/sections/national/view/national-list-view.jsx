@@ -24,6 +24,7 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -58,8 +59,10 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
   { id: 'nationalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
-  { id: 'nationalXMemberPosition', label: 'Posición', width: 230 },
-  { id: 'nationalXRegionalAssigned', label: 'Región asignada', width: 180 },
+  {
+    id: 'nationalXMemberPosition', label: 'Posición', width: 180
+  },
+  { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -320,7 +323,8 @@ function applyFilter({ inputData, comparator, filters }) {
   inputData = stabilizedThis.map((el) => el[0]);
 
   if (name) {
-    inputData = inputData.filter((national) => national.name.toLowerCase().includes(name.toLowerCase()));
+    inputData = inputData.filter((national) => normalizeText(national.nationalXMemberName).includes(normalizeText(name))
+    );
   }
 
   if (status !== 'all') {

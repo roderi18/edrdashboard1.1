@@ -216,7 +216,7 @@ export const _memberFullNames = [
 ];
 
 export const _destFullNames = [
-  'Destacamento 1',
+  'Destacaménto 1',
   'Destacamento 2',
   'Destacamento 3',
   'Destacamento 4',
@@ -248,6 +248,60 @@ export const _regionalFullNames = [
   'Región Sur',
   'Región Oeste',
   'testing'
+];
+
+export const _sectionalFullNames = [
+  'Josesito Luis Pérez',
+  'Carlos Alberto Rodríguez',
+  'Diana Martínez',
+  'Juan Manuel Gómez',
+  'Rafael Stein Jiménez',
+  'Laura Sofía Hernández',
+  'Cristopher Cárdenas',
+  'Melanie Núñez',
+  'Luis Miguel Santana',
+  'Shawn De la Cruz',
+  'Soren Durán',
+  'Cortez Herrera',
+  'Brycen Jiménez',
+  'Giana Batista',
+  'Aspen Schmitt Reyes',
+  'Colten Aguilar',
+  'Angélica Morales',
+  'Selina Boyer Núñez',
+  'Lawson Báez',
+  'Ariana Lang Peña',
+  'Amiah Pruitt García',
+  'Harold McGrath Sánchez',
+  'Esperanza Martínez',
+  'Mireya Concepción',
+];
+
+export const _nationalXMemberFullNames = [
+  'Jossé Luis Pérez',
+  'Carlos Alberto Rodríguez',
+  'Diana Martínez',
+  'Juan Manuel Gómez',
+  'Rafael Stein Jiménez',
+  'Laura Sofía Hernández',
+  'Cristopher Cárdenas',
+  'Melanie Núñez',
+  'Luis Miguel Santana',
+  'Shawn De la Cruz',
+  'Soren Durán',
+  'Cortez Herrera',
+  'Brycen Jiménez',
+  'Giana Batista',
+  'Aspen Schmitt Reyes',
+  'Colten Aguilar',
+  'Angélica Morales',
+  'Selina Boyer Núñez',
+  'Lawson Báez',
+  'Ariana Lang Peña',
+  'Amiah Pruitt García',
+  'Harold McGrath Sánchez',
+  'Esperanza Martínez',
+  'Mireya Concepción',
 ];
 
 export const _destCoordNames = [
@@ -496,6 +550,48 @@ export const _memberPhoneNumbers = [
   '+1 809 555 8888',
 ];
 
+export const _nationalXMemberPhoneNumbers = [
+  '+1 809 555 0143',
+  '+1 829 555 0198',
+  '+1 849 555 0958',
+  '+1 809 555 5432',
+  '+1 829 555 5678',
+  '+1 849 555 3456',
+  '+1 809 555 6789',
+  '+1 829 555 1234',
+  '+1 849 555 4321',
+  '+1 809 555 6781',
+  '+1 829 555 2468',
+  '+1 849 555 1357',
+  '+1 809 555 9876',
+  '+1 829 555 6543',
+  '+1 849 555 3210',
+  '+1 809 555 1122',
+  '+1 829 555 3344',
+  '+1 849 555 5566',
+  '+1 809 555 7788',
+  '+1 829 555 9900',
+  '+1 849 555 2211',
+  '+1 809 555 4433',
+  '+1 829 555 6655',
+  '+1 849 555 8877',
+  '+1 809 555 1010',
+  '+1 829 555 2020',
+  '+1 849 555 3030',
+  '+1 809 555 4040',
+  '+1 829 555 5050',
+  '+1 849 555 6060',
+  '+1 809 555 7070',
+  '+1 829 555 8080',
+  '+1 849 555 9090',
+  '+1 809 555 1111',
+  '+1 829 555 2222',
+  '+1 849 555 3333',
+  '+1 809 555 4444',
+  '+1 829 555 6666',
+  '+1 849 555 7777',
+  '+1 809 555 8888',
+];
 
 // ----------------------------------------------------------------------
 
@@ -569,6 +665,33 @@ export const _roles = [
   `Event Planner`,
   `Legal Counsel`,
   `Training Coordinator`,
+];
+
+export const _nationalXAssignedRegionals = [
+  'Región Central',
+  'Región Norte',
+  'Región Sur',
+  'Región Oeste',
+  'Región Norte',
+  'Región Central',
+  'Región Oeste',
+  'Región Sur',
+  'Región Central',
+  'Región Sur',
+  'Región Norte',
+  'Región Oeste',
+  'Región Oeste',
+  'Región Central',
+  'Región Norte',
+  'Región Sur',
+  'Región Central',
+  'Región Oeste',
+  'Región Sur',
+  'Región Norte',
+  'Región Oeste',
+  'Región Central',
+  'Región Sur',
+  'Región Norte',
 ];
 
 export const _regionalXSectionalMemberCounts = [
@@ -748,6 +871,33 @@ export const _companyNames = [
   `Bartell - Kovacek`,
   `Schimmel - Raynor`,
   `Tremblay LLC`,
+];
+
+export const _nationalXMemberPositions = [
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
+  `Posición`,
 ];
 
 export const _regionalXSectionalCounts = [

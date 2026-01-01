@@ -98,7 +98,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar alt={row.nationalXMemberName} src={row.avatarUrl} />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -107,7 +107,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {row.name}
+                {row.nationalXMemberName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email}
@@ -116,11 +116,11 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.phoneNumber}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPhoneNumber}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.company}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell>
 
         <TableCell>
           <Label

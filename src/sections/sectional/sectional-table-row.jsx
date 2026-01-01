@@ -1,3 +1,4 @@
+
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -98,7 +99,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar alt={row.sectionalName} src={row.avatarUrl} />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -107,7 +108,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {row.name}
+                {row.sectionalName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email}

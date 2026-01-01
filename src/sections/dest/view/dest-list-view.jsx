@@ -24,6 +24,7 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -320,7 +321,8 @@ function applyFilter({ inputData, comparator, filters }) {
   inputData = stabilizedThis.map((el) => el[0]);
 
   if (name) {
-    inputData = inputData.filter((dest) => dest.name.toLowerCase().includes(name.toLowerCase()));
+    inputData = inputData.filter((dest) => normalizeText(dest.destName).includes(normalizeText(name))
+    );
   }
 
   if (status !== 'all') {

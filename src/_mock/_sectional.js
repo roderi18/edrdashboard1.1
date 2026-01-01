@@ -31,7 +31,7 @@ export const _sectionalAbout = {
 
 export const _sectionalFollowers = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  name: _mock.fullName(index),
+  sectionalName: _mock.sectionalFullName(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
 }));
@@ -39,7 +39,7 @@ export const _sectionalFollowers = Array.from({ length: 18 }, (_, index) => ({
 export const _sectionalFriends = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
   role: _mock.role(index),
-  name: _mock.fullName(index),
+  sectionalName: _mock.sectionalFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
 
@@ -56,7 +56,7 @@ export const _sectionalFeeds = Array.from({ length: 3 }, (_, index) => ({
   media: _mock.image.travel(index + 1),
   message: _mock.sentence(index),
   personLikes: Array.from({ length: 20 }, (__, personIndex) => ({
-    name: _mock.fullName(personIndex),
+    sectionalName: _mock.sectionalFullName(personIndex),
     avatarUrl: _mock.image.avatar(personIndex + 2),
   })),
   comments: (index === 2 && []) || [
@@ -65,7 +65,7 @@ export const _sectionalFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(8),
         avatarUrl: _mock.image.avatar(index + 5),
-        name: _mock.fullName(index + 5),
+        sectionalName: _mock.sectionalFullName(index + 5),
       },
       createdAt: _mock.time(2),
       message: 'Praesent venenatis metus at',
@@ -75,7 +75,7 @@ export const _sectionalFeeds = Array.from({ length: 3 }, (_, index) => ({
       author: {
         id: _mock.id(10),
         avatarUrl: _mock.image.avatar(index + 6),
-        name: _mock.fullName(index + 6),
+        sectionalName: _mock.sectionalFullName(index + 6),
       },
       createdAt: _mock.time(3),
       message:
@@ -87,7 +87,7 @@ export const _sectionalFeeds = Array.from({ length: 3 }, (_, index) => ({
 export const _sectionalCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
   role: _mock.role(index),
-  name: _mock.fullName(index),
+  sectionalName: _mock.sectionalFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
   totalFollowers: _mock.number.nativeL(index),
@@ -105,7 +105,7 @@ export const _sectionalPayment = Array.from({ length: 3 }, (_, index) => ({
 export const _sectionalAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
-  name: _mock.fullName(index),
+  sectionalName: _mock.sectionalFullName(index),
   phoneNumber: _mock.phoneNumber(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
@@ -132,7 +132,7 @@ export const _sectionalList = Array.from({ length: 20 }, (_, index) => ({
   role: _mock.role(index),
   email: _mock.email(index),
   address: '908 Jack Locks',
-  name: _mock.fullName(index),
+  sectionalName: _mock.sectionalFullName(index),
   isVerified: _mock.boolean(index),
   company: _mock.companyNames(index),
   country: _mock.countryNames(index),
