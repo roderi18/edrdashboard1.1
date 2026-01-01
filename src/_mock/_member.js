@@ -12,7 +12,7 @@ export const MEMBER_STATUS_OPTIONS = [
 export const _memberAbout = {
   id: _mock.id(1),
   memberPosition: _mock.memberPosition(1),
-  email: _mock.email(1),
+  memberEmail: _mock.memberEmail(1),
   school: _mock.memberDivisionNames(2),
   // company: _mock.companyNames(1),
   memberDivision: _mock.memberDivisionNames(1),
@@ -131,7 +131,7 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   state: 'Virginia',
   city: 'Rancho Cordova',
   memberPosition: _mock.memberPosition(index),
-  email: _mock.email(index),
+  memberEmail: _mock.memberEmail(index),
   address: '908 Jack Locks',
   memberName: _mock.memberFullName(index),
   isVerified: _mock.boolean(index),

@@ -110,7 +110,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                 {row.memberName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
+                {row.memberEmail}
               </Box>
             </Stack>
           </Box>

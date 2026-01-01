@@ -9,6 +9,7 @@ import {
   _memberPositions,
   _prices,
   _emails,
+  _memberEmails,
   _ratings,
   _nativeS,
   _nativeM,
@@ -57,6 +58,7 @@ export const _mock = {
   description: (index) => _descriptions[index],
   // Contact
   email: (index) => _emails[index],
+  memberEmail: (index) => _memberEmails[index],
   phoneNumber: (index) => _phoneNumbers[index],
   memberPhoneNumber: (index) => _memberPhoneNumbers[index],
   fullAddress: (index) => _fullAddress[index],

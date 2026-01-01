@@ -98,6 +98,33 @@ export const _fullAddress = [
 
 // ----------------------------------------------------------------------
 
+export const _memberEmails = [
+  'jose.perez01@gmail.com',
+  'carlos.rodriguez02@hotmail.com',
+  'diana.martinez03@yahoo.com',
+  'juan.gomez04@gmail.com',
+  'rafael.jimenez05@hotmail.com',
+  'laura.hernandez06@gmail.com',
+  'cristopher.cardenas07@yahoo.com',
+  'melanie.nunez08@gmail.com',
+  'luis.santana09@hotmail.com',
+  'shawn.delacruz10@gmail.com',
+  'soren.duran11@yahoo.com',
+  'cortez.herrera12@gmail.com',
+  'brycen.jimenez13@hotmail.com',
+  'giana.batista14@gmail.com',
+  'aspen.reyes15@yahoo.com',
+  'colten.aguilar16@gmail.com',
+  'angelica.morales17@hotmail.com',
+  'selina.nunez18@gmail.com',
+  'lawson.baez19@yahoo.com',
+  'ariana.pena20@gmail.com',
+  'amiah.garcia21@hotmail.com',
+  'harold.sanchez22@gmail.com',
+  'esperanza.martinez23@yahoo.com',
+  'mireya.concepcion24@hotmail.com',
+];
+
 export const _emails = [
   `nannie.abernathy70@yahoo.com`,
   `ashlynn.ohara62@gmail.com`,
