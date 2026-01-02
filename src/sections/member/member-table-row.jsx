@@ -125,7 +125,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
         <TableCell>
           <Label
             variant="soft"
-            color={
+            color={ //etiquetas / badgets
               (row.status === 'active' && 'success') ||
               (row.status === 'pending' && 'warning') ||
               (row.status === 'banned' && 'error') ||

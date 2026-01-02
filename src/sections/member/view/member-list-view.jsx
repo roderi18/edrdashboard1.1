@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _memberList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { _roles, _memberList, MEMBER_STATUS_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,7 +45,8 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+// const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+// const MEMBER_STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS];
 
 // const TABLE_HEAD = [
 //   { id: 'name', label: 'Name' },
@@ -59,8 +60,8 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 const TABLE_HEAD = [
   { id: 'memberName', label: 'Nombre' },
   { id: 'memberPhoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'memberDivision', label: 'División', width: 220 },
-  { id: 'memberPosition', label: 'Posición', width: 180 },
+  { id: 'memberDivision', label: 'División', width: 170 },
+  { id: 'memberPosition', label: 'Posición', width: 220 },
   { id: 'memberStatus', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -73,7 +74,7 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', role: [], status: 'all' });
+  const filters = useSetState({ name: '', role: [], memberStatus: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -85,7 +86,7 @@ export function MemberListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.memberStatus !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -112,10 +113,10 @@ export function MemberListView() {
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
-  const handleFilterStatus = useCallback(
+  const handleFilterMemberStatus = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      updateFilters({ status: newValue });
+      updateFilters({ memberStatus: newValue });
     },
     [updateFilters, table]
   );
@@ -170,8 +171,8 @@ export function MemberListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
+            value={currentFilters.memberStatus}
+            onChange={handleFilterMemberStatus}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -179,7 +180,7 @@ export function MemberListView() {
               }),
             ]}
           >
-            {STATUS_OPTIONS.map((tab) => (
+            {MEMBER_STATUS_OPTIONS.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -188,18 +189,19 @@ export function MemberListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.memberStatus) && 'filled') ||
                       'soft'
                     }
                     color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'Exploradores' && 'success') ||
+                      (tab.value === 'Seguidores' && 'warning') ||
+                      (tab.value === 'Pioneros' && 'error') ||
+                      (tab.value === 'Navegantes' && 'error') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((member) => member.status === tab.value).length
+                    {['Exploradores', 'Seguidores', 'Pioneros', 'Navegantes'].includes(tab.value)
+                      ? tableData.filter((member) => member.memberDivision === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -307,7 +309,7 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, role } = filters;
+  const { name, memberStatus, role } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -325,8 +327,8 @@ function applyFilter({ inputData, comparator, filters }) {
   }
 
 
-  if (status !== 'all') {
-    inputData = inputData.filter((member) => member.status === status);
+  if (memberStatus !== 'all') {
+    inputData = inputData.filter((member) => member.memberDivision === memberStatus);
   }
 
   if (role.length) {

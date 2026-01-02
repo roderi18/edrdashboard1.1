@@ -48,11 +48,20 @@ import { SectionalTableFiltersResult } from '../sectional-table-filters-result';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
+// const TABLE_HEAD = [
+//   { id: 'name', label: 'Name' },
+//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+//   { id: 'company', label: 'Company', width: 220 },
+//   { id: 'Role', label: 'Role', width: 180 },
+//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: '', width: 88 },
+// ];
+
 const TABLE_HEAD = [
   { id: 'sectionalName', label: 'Name' },
-  { id: 'sectionalCoordName', label: 'Coordinador ', width: 180 },
-  { id: 'sectionalDestCount', label: 'Destacamentos', width: 220 },
-  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 180 },
+  { id: 'sectionalCoordName', label: 'Coordinador ', width: 230 },
+  { id: 'sectionalDestCount', label: 'Destacamentos', width: 160 },
+  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 160 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

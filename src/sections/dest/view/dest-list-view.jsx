@@ -58,9 +58,9 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
   { id: 'destName', label: 'Nombre' },
-  { id: 'destCoordName', label: 'Coord. Dest', width: 180 },
-  { id: 'destMemberCount', label: 'Miembros', width: 220 },
-  { id: 'destMembership', label: 'Membresía', width: 180 },
+  { id: 'destCoordName', label: 'Coord. Dest', width: 230 },
+  { id: 'destMemberCount', label: 'Miembros', width: 160 },
+  { id: 'destMembership', label: 'Membresía', width: 160 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

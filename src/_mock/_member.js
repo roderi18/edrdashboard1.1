@@ -3,11 +3,21 @@ import { _mock } from './_mock';
 // ----------------------------------------------------------------------
 
 export const MEMBER_STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'banned', label: 'Banned' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'all', label: 'Todos' },
+  { value: 'Exploradores', label: 'Exploradores' },
+  { value: 'Seguidores', label: 'Seguidores' },
+  { value: 'Pioneros', label: 'Pioneros' },
+  { value: 'Navegantes', label: 'Navegantes' },
 ];
+
+// const MEMBER_DIVISION_OPTIONS = [
+//   { value: 'all', label: 'Todos' },
+//   { value: 'Exploradores', label: 'Exploradores' },
+//   { value: 'Seguidores', label: 'Seguidores' },
+//   { value: 'Pioneros', label: 'Pioneros' },
+//   { value: 'Navegantes', label: 'Navegantes' },
+// ];
+
 
 export const _memberAbout = {
   id: _mock.id(1),

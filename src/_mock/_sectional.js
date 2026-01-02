@@ -11,10 +11,10 @@ export const SECTIONAL_STATUS_OPTIONS = [
 
 export const _sectionalAbout = {
   id: _mock.id(1),
-  role: _mock.role(1),
+  sectionalXDestMemberCount: _mock.sectionalXDestMemberCount(1),
   email: _mock.email(1),
-  school: _mock.companyNames(2),
-  company: _mock.companyNames(1),
+  school: _mock.sectionalDestCount(2),
+  sectionalDestCount: _mock.sectionalDestCount(1),
   country: _mock.countryNames(2),
   coverUrl: _mock.image.cover(3),
   totalFollowers: _mock.number.nativeL(1),
@@ -38,7 +38,7 @@ export const _sectionalFollowers = Array.from({ length: 18 }, (_, index) => ({
 
 export const _sectionalFriends = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
+  sectionalXDestMemberCount: _mock.sectionalXDestMemberCount(index),
   sectionalName: _mock.sectionalFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
@@ -86,7 +86,7 @@ export const _sectionalFeeds = Array.from({ length: 3 }, (_, index) => ({
 
 export const _sectionalCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
-  role: _mock.role(index),
+  sectionalXDestMemberCount: _mock.sectionalXDestMemberCount(index),
   sectionalName: _mock.sectionalFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
@@ -106,7 +106,7 @@ export const _sectionalAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
   sectionalName: _mock.sectionalFullName(index),
-  phoneNumber: _mock.phoneNumber(index),
+  sectionalCoordName: _mock.sectionalCoordName(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
 }));
@@ -129,15 +129,15 @@ export const _sectionalList = Array.from({ length: 20 }, (_, index) => ({
   zipCode: '85807',
   state: 'Virginia',
   city: 'Rancho Cordova',
-  role: _mock.role(index),
+  sectionalXDestMemberCount: _mock.sectionalXDestMemberCount(index),
   email: _mock.email(index),
   address: '908 Jack Locks',
   sectionalName: _mock.sectionalFullName(index),
   isVerified: _mock.boolean(index),
-  company: _mock.companyNames(index),
+  sectionalDestCount: _mock.sectionalDestCount(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
-  phoneNumber: _mock.phoneNumber(index),
+  sectionalCoordName: _mock.sectionalCoordName(index),
   status:
     (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
 }));

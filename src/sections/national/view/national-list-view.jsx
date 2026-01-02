@@ -59,10 +59,8 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
   { id: 'nationalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
-  {
-    id: 'nationalXMemberPosition', label: 'Posición', width: 180
-  },
-  { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 180 },
+  { id: 'nationalXMemberPosition', label: 'Posición', width: 190 },
+  { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 200 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
