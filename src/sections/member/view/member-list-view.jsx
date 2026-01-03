@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _memberList, MEMBER_STATUS_OPTIONS } from 'src/_mock';
+import { _memberPositionsFilter, _memberList, MEMBER_STATUS_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -74,8 +74,9 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', role: [], memberStatus: 'all' });
+  const filters = useSetState({ name: '', memberPosition: [], memberStatus: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
+  const distinctMemberPositions = [...new Set(_memberPositionsFilter)];
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -86,7 +87,7 @@ export function MemberListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.memberStatus !== 'all';
+    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.memberStatus !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -209,10 +210,16 @@ export function MemberListView() {
             ))}
           </Tabs>
 
+          {/* <MemberTableToolbar
+            filters={filters}
+            onResetPage={table.onResetPage}
+            options={{ memberPosition: _memberPositions }}
+          /> */}
+
           <MemberTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: _roles }}
+            options={{ memberPosition: distinctMemberPositions }}
           />
 
           {canReset && (
@@ -309,7 +316,7 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberStatus, role } = filters;
+  const { name, memberStatus, memberPosition } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -331,8 +338,8 @@ function applyFilter({ inputData, comparator, filters }) {
     inputData = inputData.filter((member) => member.memberDivision === memberStatus);
   }
 
-  if (role.length) {
-    inputData = inputData.filter((member) => role.includes(member.role));
+  if (memberPosition.length) {
+    inputData = inputData.filter((member) => memberPosition.includes(member.memberPosition));
   }
 
   return inputData;

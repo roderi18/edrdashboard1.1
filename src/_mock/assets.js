@@ -724,6 +724,17 @@ export const _regionalXSectionalMemberCounts = [
   `Cantidad: 84`,
 ];
 
+export const _memberPositionsFilter = [
+  'Coordinador Dest.',
+  'Coordinador As. Dest.',
+  'Pastor',
+  'Líder de patrulla',
+  'Guía auxiliar',
+  'Escriba',
+  'Guía de patrulla',
+];
+
+
 export const _memberPositions = [
   'Coordinador Dest.',
   'Coordinador As. Dest.',
@@ -747,7 +758,6 @@ export const _memberPositions = [
   'Guía auxiliar',
   'Escriba',
   'Pastor',
-  'Guía de patrulla',
   'Líder de patrulla',
 ];
 

@@ -21,12 +21,12 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
 
   const handleRemoveRole = useCallback(
     (inputValue) => {
-      const newValue = currentFilters.role.filter((item) => item !== inputValue);
+      const newValue = currentFilters.memberPosition.filter((item) => item !== inputValue);
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ memberPosition: newValue });
     },
-    [onResetPage, updateFilters, currentFilters.role]
+    [onResetPage, updateFilters, currentFilters.memberPosition]
   );
 
   const handleReset = useCallback(() => {
@@ -45,8 +45,8 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Role:" isShow={!!currentFilters.role.length}>
-        {currentFilters.role.map((item) => (
+      <FiltersBlock label="Posición" isShow={!!currentFilters.memberPosition.length}>
+        {currentFilters.memberPosition.map((item) => (
           <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
         ))}
       </FiltersBlock>

@@ -31,13 +31,13 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
+  const handleFilterMemberDivision = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ memberPosition: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -80,26 +80,37 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-role-select">Role</InputLabel>
+        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
+          <InputLabel htmlFor="filter-memberPosition-select">Posición</InputLabel>
           <Select
             multiple
             label="Posición"
-            value={currentFilters.role}
-            onChange={handleFilterRole}
+            value={currentFilters.memberPosition}
+            onChange={handleFilterMemberDivision}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
-            inputProps={{ id: 'filter-role-select' }}
+            inputProps={{ id: 'filter-memberPosition-select' }}
             MenuProps={{
               slotProps: { paper: { sx: { maxHeight: 240 } } },
             }}
           >
-            {options.roles.map((option) => (
+            {/* {options.memberPosition.map((option) => (
               <MenuItem key={option} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={currentFilters.role.includes(option)}
+                  checked={currentFilters.memberPosition.includes(option)}
                   slotProps={{ input: { id: `${option}-checkbox` } }}
+                />
+                {option}
+              </MenuItem>
+            ))} */}
+            {options.memberPosition.map((option, index) => (
+              <MenuItem key={`${option}-${index}`} value={option}>
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.memberPosition.includes(option)}
+                  slotProps={{ input: { id: `${option}-${index}-checkbox` } }}
                 />
                 {option}
               </MenuItem>
