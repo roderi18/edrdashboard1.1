@@ -62,7 +62,7 @@ const TABLE_HEAD = [
   { id: 'memberPhoneNumber', label: 'Núm. Teléfono', width: 180 },
   { id: 'memberDivision', label: 'División', width: 170 },
   { id: 'memberPosition', label: 'Posición', width: 220 },
-  { id: 'memberStatus', label: 'Estado', width: 100 },
+  { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 // ----------------------------------------------------------------------

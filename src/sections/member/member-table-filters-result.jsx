@@ -16,7 +16,7 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
 
   const handleRemoveStatus = useCallback(() => {
     onResetPage();
-    updateFilters({ status: 'all' });
+    updateFilters({ memberStatus: 'all' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveRole = useCallback(
@@ -36,10 +36,10 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="Status:" isShow={currentFilters.status !== 'all'}>
+      <FiltersBlock label="División:" isShow={currentFilters.memberStatus !== 'all'}>
         <Chip
           {...chipProps}
-          label={currentFilters.status}
+          label={currentFilters.memberStatus}
           onDelete={handleRemoveStatus}
           sx={{ textTransform: 'capitalize' }}
         />
