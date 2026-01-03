@@ -320,10 +320,20 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
+  // if (name) {
+  //   inputData = inputData.filter((dest) => normalizeText(dest.destName).includes(normalizeText(name))
+  //   );
+  // }
+  //Se reemplaza el anterior por el siguiente. Este busca tanto por destNasme como por destCoordName.
   if (name) {
-    inputData = inputData.filter((dest) => normalizeText(dest.destName).includes(normalizeText(name))
+    const keyword = normalizeText(name);
+    inputData = inputData.filter(
+      (dest) =>
+        normalizeText(dest.destName).includes(keyword) ||
+        normalizeText(dest.destCoordName).includes(keyword)
     );
   }
+
 
   if (status !== 'all') {
     inputData = inputData.filter((dest) => dest.status === status);

@@ -321,8 +321,17 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
+  // if (name) {
+  //   inputData = inputData.filter((regional) => normalizeText(regional.regionalName).includes(normalizeText(name))
+  //   );
+  // }
+  //Se cambia el anterior para permitir la búsqueda tanto por regionalName como por regionalDirectorName
   if (name) {
-    inputData = inputData.filter((regional) => normalizeText(regional.regionalName).includes(normalizeText(name))
+    const keyword = normalizeText(name);
+    inputData = inputData.filter(
+      (dest) =>
+        normalizeText(dest.regionalName).includes(keyword) ||
+        normalizeText(dest.regionalDirectorName).includes(keyword)
     );
   }
 

@@ -119,7 +119,7 @@ export function RegionalTableToolbar({ filters, options, onResetPage }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar..."
+            placeholder="Buscar Región o Director..."
             slotProps={{
               input: {
                 startAdornment: (

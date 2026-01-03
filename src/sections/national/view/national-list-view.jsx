@@ -320,8 +320,16 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
+  // if (name) {
+  //   inputData = inputData.filter((national) => normalizeText(national.nationalXMemberName).includes(normalizeText(name))
+  //   );
+  // }
   if (name) {
-    inputData = inputData.filter((national) => normalizeText(national.nationalXMemberName).includes(normalizeText(name))
+    const keyword = normalizeText(name);
+    inputData = inputData.filter(
+      (dest) =>
+        normalizeText(dest.nationalXMemberName).includes(keyword) ||
+        normalizeText(dest.nationalXMemberPosition).includes(keyword)
     );
   }
 

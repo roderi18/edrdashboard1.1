@@ -120,7 +120,7 @@ export function DestTableToolbar({ filters, options, onResetPage }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar..."
+            placeholder="Buscar Destacamento o Coordinador..."
             slotProps={{
               input: {
                 startAdornment: (

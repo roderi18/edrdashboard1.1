@@ -321,8 +321,17 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
+  // if (name) {
+  //   inputData = inputData.filter((sectional) => normalizeText(sectional.sectionalName).includes(normalizeText(name))
+  //   );
+  // }
+  //Se cambia el anterior para permitir la búsqueda tanto por sectionalName como por sectionalCoordName
   if (name) {
-    inputData = inputData.filter((sectional) => normalizeText(sectional.sectionalName).includes(normalizeText(name))
+    const keyword = normalizeText(name);
+    inputData = inputData.filter(
+      (dest) =>
+        normalizeText(dest.sectionalName).includes(keyword) ||
+        normalizeText(dest.sectionalCoordName).includes(keyword)
     );
   }
 

@@ -119,7 +119,7 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar..."
+            placeholder="Buscar nombre o posición..."
             slotProps={{
               input: {
                 startAdornment: (
