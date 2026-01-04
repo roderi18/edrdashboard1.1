@@ -118,14 +118,15 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPhoneNumber}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell>
-
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell> */}
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell>
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell>
 
         <TableCell>
           <Label
             variant="soft"
-            color={
+            color={ //etiquetas / badgets
               (row.status === 'active' && 'success') ||
               (row.status === 'pending' && 'warning') ||
               (row.status === 'banned' && 'error') ||

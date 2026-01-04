@@ -732,7 +732,7 @@ export const _memberPositionsFilter = [
   'Guía auxiliar',
   'Escriba',
   'Guía de patrulla',
-];
+]; //////
 
 
 export const _memberPositions = [
@@ -990,7 +990,7 @@ export const _nationalXMemberPositions = [
   `Posición`,
   `Posición`,
   `Posición`,
-  `Posición`,
+  `Posición 3`,
   `Posición`,
   `Posición`,
   `Posición`,

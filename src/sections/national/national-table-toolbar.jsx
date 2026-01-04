@@ -30,13 +30,13 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
+  const handleFilternationalXMemberPosition = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ nationalXMemberPosition: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -80,25 +80,36 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-role-select">Role</InputLabel>
+          <InputLabel htmlFor="filter-nationalXMemberPosition-select">Posición</InputLabel>
           <Select
             multiple
             label="Posición"
-            value={currentFilters.role}
-            onChange={handleFilterRole}
+            value={currentFilters.nationalXMemberPosition}
+            onChange={handleFilternationalXMemberPosition}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
-            inputProps={{ id: 'filter-role-select' }}
+            inputProps={{ id: 'filter-nationalXMemberPosition-select' }}
             MenuProps={{
               slotProps: { paper: { sx: { maxHeight: 240 } } },
             }}
           >
-            {options.roles.map((option) => (
+            {/* {options.roles.map((option) => (
               <MenuItem key={option} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
                   checked={currentFilters.role.includes(option)}
                   slotProps={{ input: { id: `${option}-checkbox` } }}
+                />
+                {option}
+              </MenuItem>
+            ))} */}
+            {options.nationalXMemberPosition.map((option, index) => (
+              <MenuItem key={`${option}-${index}`} value={option}>
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.nationalXMemberPosition.includes(option)}
+                  slotProps={{ input: { id: `${option}-${index}-checkbox` } }}
                 />
                 {option}
               </MenuItem>
@@ -119,7 +130,7 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar nombre o posición..."
+            placeholder="Buscar..."
             slotProps={{
               input: {
                 startAdornment: (

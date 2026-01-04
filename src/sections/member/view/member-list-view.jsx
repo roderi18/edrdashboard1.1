@@ -46,7 +46,7 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 // ----------------------------------------------------------------------
 
 // const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
-// const MEMBER_STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS];
+// const MEMBER_STATUSs_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUSs_OPTIONS];
 
 // const TABLE_HEAD = [
 //   { id: 'name', label: 'Name' },
@@ -76,7 +76,7 @@ export function MemberListView() {
 
   const filters = useSetState({ name: '', memberPosition: [], memberStatus: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
-  const distinctMemberPositions = [...new Set(_memberPositionsFilter)];
+  const distinctPositions = [...new Set(_memberPositionsFilter)];
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -219,7 +219,7 @@ export function MemberListView() {
           <MemberTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ memberPosition: distinctMemberPositions }}
+            options={{ memberPosition: distinctPositions }}
           />
 
           {canReset && (

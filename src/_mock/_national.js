@@ -2,11 +2,19 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-export const NATIONAL_STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'banned', label: 'Banned' },
-  { value: 'rejected', label: 'Rejected' },
+// export const NATIONAL_STATUS_OPTIONS = [
+//   { value: 'active', label: 'Active' },
+//   { value: 'pending', label: 'Pending' },
+//   { value: 'banned', label: 'Banned' },
+//   { value: 'rejected', label: 'Rejected' },
+// ];
+
+export const NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'Región Central', label: 'Región Central' },
+  { value: 'Región Norte', label: 'Región Norte' },
+  { value: 'Región Sur', label: 'Región Sur' },
+  { value: 'Región Oeste', label: 'Región Oeste' },
 ];
 
 export const _nationalAbout = {

@@ -21,12 +21,12 @@ export function NationalTableFiltersResult({ filters, onResetPage, totalResults,
 
   const handleRemoveRole = useCallback(
     (inputValue) => {
-      const newValue = currentFilters.role.filter((item) => item !== inputValue);
+      const newValue = currentFilters.nationalXMemberPosition.filter((item) => item !== inputValue);
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ nationalXMemberPosition: newValue });
     },
-    [onResetPage, updateFilters, currentFilters.role]
+    [onResetPage, updateFilters, currentFilters.nationalXMemberPosition]
   );
 
   const handleReset = useCallback(() => {
@@ -45,8 +45,8 @@ export function NationalTableFiltersResult({ filters, onResetPage, totalResults,
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Role:" isShow={!!currentFilters.role.length}>
-        {currentFilters.role.map((item) => (
+      <FiltersBlock label="Posición" isShow={!!currentFilters.nationalXMemberPosition.length}>
+        {currentFilters.nationalXMemberPosition.map((item) => (
           <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
         ))}
       </FiltersBlock>
