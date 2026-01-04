@@ -74,7 +74,7 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', memberPosition: [], memberStatus: 'all' });
+  const filters = useSetState({ name: '', memberPosition: [], memberDivision: 'all', status: [], });
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctPositions = [...new Set(_memberPositionsFilter)];
 
@@ -87,7 +87,7 @@ export function MemberListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.memberStatus !== 'all';
+    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.memberDivision !== 'all' || currentFilters.status.length > 0;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -114,10 +114,21 @@ export function MemberListView() {
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
-  const handleFilterMemberStatus = useCallback(
+  // const handleFilterMemberDivisionTab = useCallback(
+  //   (event, newValue) => {
+  //     table.onResetPage();
+  //     updateFilters({ memberStatus: newValue });
+  //   },
+  //   [updateFilters, table]
+  // );
+
+  const handleFilterMemberDivisionTab = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      updateFilters({ memberStatus: newValue });
+      updateFilters({
+        memberDivision: newValue,
+        status: [],
+      });
     },
     [updateFilters, table]
   );
@@ -172,8 +183,8 @@ export function MemberListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.memberStatus}
-            onChange={handleFilterMemberStatus}
+            value={currentFilters.memberDivision}
+            onChange={handleFilterMemberDivisionTab}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -190,7 +201,7 @@ export function MemberListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.memberStatus) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.memberDivision) && 'filled') ||
                       'soft'
                     }
                     color={
@@ -325,10 +336,21 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberStatus, memberPosition, status } = filters;
+  const { name, memberDivision, memberPosition, status } = filters;
 
-  if (status && status !== 'all') {
-    inputData = inputData.filter((member) => member.status === status);
+  // if (status && status !== 'all') {
+  //   inputData = inputData.filter((member) => member.status === status);
+  // }
+  if (memberDivision !== 'all') {
+    inputData = inputData.filter(
+      (member) => member.memberDivision === memberDivision
+    );
+  }
+
+  if (status.length) {
+    inputData = inputData.filter((member) =>
+      status.includes(member.status)
+    );
   }
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -346,9 +368,9 @@ function applyFilter({ inputData, comparator, filters }) {
   }
 
 
-  if (memberStatus !== 'all') {
-    inputData = inputData.filter((member) => member.memberDivision === memberStatus);
-  }
+  // if (memberDivision !== 'all') {
+  //   inputData = inputData.filter((member) => member.memberDivision === memberDivision);
+  // }
 
   if (memberPosition.length) {
     inputData = inputData.filter((member) => memberPosition.includes(member.memberPosition));

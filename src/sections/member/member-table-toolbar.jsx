@@ -31,10 +31,23 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
+  // const handleFilterMemberDivisionTab = useCallback(
+  //   (event, newValue) => {
+  //     table.onResetPage();
+  //     updateFilters({
+  //       memberDivision: newValue,
+  //       status: [],
+  //     });
+  //   },
+  //   [updateFilters, table]
+  // );
+
   const handleFilterMemberStatus = useCallback(
     (event) => {
       onResetPage();
-      updateFilters({ status: event.target.value });
+      updateFilters({
+        status: event.target.value,
+      });
     },
     [onResetPage, updateFilters]
   );
@@ -95,6 +108,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
             multiple
             label="Posición"
             value={currentFilters.memberPosition}
+            // onChange={handleFilterMemberDivisionTab}
             onChange={handleFilterMemberDivision}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-memberPosition-select' }}
@@ -127,11 +141,11 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
           </Select>
         </FormControl>
 
-        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
+        {/* <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
           <InputLabel htmlFor="filter-memberStatus-select">Estado</InputLabel>
           <Select
             label="Estado"
-            value={currentFilters.memberStatus}
+            value={currentFilters.status || 'all'}
             onChange={handleFilterMemberStatus}
             inputProps={{ id: 'filter-memberStatus-select' }}
           >
@@ -139,6 +153,28 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
 
             {options.memberStatus.map((option) => (
               <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl> */}
+        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
+          <InputLabel htmlFor="filter-memberStatus-select">Estado</InputLabel>
+          <Select
+            multiple
+            label="Estado"
+            value={currentFilters.status}
+            onChange={handleFilterMemberStatus}
+            renderValue={(selected) => selected.join(', ')}
+            inputProps={{ id: 'filter-memberStatus-select' }}
+          >
+            {options.memberStatus.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.status.includes(option.value)}
+                />
                 {option.label}
               </MenuItem>
             ))}
