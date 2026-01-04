@@ -10,6 +10,14 @@ export const MEMBER_STATUS_OPTIONS = [
   { value: 'Navegantes', label: 'Navegantes' },
 ];
 
+export const MEMBER_STATUSX_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'banned', label: 'Banned' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+
 // const MEMBER_DIVISION_OPTIONS = [
 //   { value: 'all', label: 'Todos' },
 //   { value: 'Exploradores', label: 'Exploradores' },

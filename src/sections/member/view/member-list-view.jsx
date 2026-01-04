@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _memberPositionsFilter, _memberList, MEMBER_STATUS_OPTIONS } from 'src/_mock';
+import { _memberPositionsFilter, _memberList, MEMBER_STATUS_OPTIONS, MEMBER_STATUSX_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -216,11 +216,20 @@ export function MemberListView() {
             options={{ memberPosition: _memberPositions }}
           /> */}
 
-          <MemberTableToolbar
+          {/* <MemberTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
             options={{ memberPosition: distinctPositions }}
+          /> */}
+          <MemberTableToolbar
+            filters={filters}
+            onResetPage={table.onResetPage}
+            options={{
+              memberPosition: distinctPositions,
+              memberStatus: MEMBER_STATUSX_OPTIONS,
+            }}
           />
+
 
           {canReset && (
             <MemberTableFiltersResult
@@ -316,8 +325,11 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberStatus, memberPosition } = filters;
+  const { name, memberStatus, memberPosition, status } = filters;
 
+  if (status && status !== 'all') {
+    inputData = inputData.filter((member) => member.status === status);
+  }
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
   stabilizedThis.sort((a, b) => {

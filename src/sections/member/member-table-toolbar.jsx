@@ -31,6 +31,15 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
+  const handleFilterMemberStatus = useCallback(
+    (event) => {
+      onResetPage();
+      updateFilters({ status: event.target.value });
+    },
+    [onResetPage, updateFilters]
+  );
+
+
   const handleFilterMemberDivision = useCallback(
     (event) => {
       const newValue =
@@ -117,6 +126,25 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
             ))}
           </Select>
         </FormControl>
+
+        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
+          <InputLabel htmlFor="filter-memberStatus-select">Estado</InputLabel>
+          <Select
+            label="Estado"
+            value={currentFilters.memberStatus}
+            onChange={handleFilterMemberStatus}
+            inputProps={{ id: 'filter-memberStatus-select' }}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+
+            {options.memberStatus.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
 
         <Box
           sx={{
