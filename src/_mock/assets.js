@@ -690,6 +690,19 @@ export const _sectionalXDestMemberCounts = [
   `Cantidad: 15`,
 ];
 
+export const _nationalEstructures = [
+  'Consejo Nacional',
+  'Consejo Nacional',
+  'Consejo Nacional',
+  'Consejo Nacional',
+  'Consejo Nacional',
+  'Consejo Ejecutivo',
+  'Consejo Ejecutivo',
+  'Consejo Ejecutivo',
+  'Consejo Ejecutivo',
+
+];
+
 export const _nationalXAssignedRegionals = [
   'Región Central',
   'Región Norte',

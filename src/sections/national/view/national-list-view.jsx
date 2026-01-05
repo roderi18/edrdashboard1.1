@@ -60,8 +60,9 @@ const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
   { id: 'nationalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
   { id: 'nationalXMemberPosition', label: 'Posición', width: 190 },
+  { id: 'nationalEstructure', label: 'Estructura', width: 200 },
   { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 200 },
-  { id: 'status', label: 'Estado', width: 100 },
+  // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 

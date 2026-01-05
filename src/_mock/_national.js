@@ -95,6 +95,7 @@ export const _nationalFeeds = Array.from({ length: 3 }, (_, index) => ({
 export const _nationalCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
   nationalXAssignedRegional: _mock.nationalXAssignedRegional(index),
+  nationalEstructure: _mock.nationalEstructure(index),
   nationalXMemberName: _mock.nationalXMemberFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
@@ -138,6 +139,7 @@ export const _nationalList = Array.from({ length: 20 }, (_, index) => ({
   state: 'Virginia',
   city: 'Rancho Cordova',
   nationalXAssignedRegional: _mock.nationalXAssignedRegional(index),
+  nationalEstructure: _mock.nationalEstructure(index),
   email: _mock.email(index),
   address: '908 Jack Locks',
   nationalXMemberName: _mock.nationalXMemberFullName(index),

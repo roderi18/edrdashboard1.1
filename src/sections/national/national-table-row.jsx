@@ -118,12 +118,13 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPhoneNumber}</TableCell>
 
-        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell> */}
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell>
-
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell>
 
-        <TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalEstructure}</TableCell>
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell>
+
+        {/* <TableCell>
           <Label
             variant="soft"
             color={ //etiquetas / badgets
@@ -135,7 +136,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
           >
             {row.status}
           </Label>
-        </TableCell>
+        </TableCell> */}
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
