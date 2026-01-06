@@ -698,8 +698,8 @@ export const _nationalEstructures = [
   'Consejo Nacional',
   'Consejo Ejecutivo',
   'Consejo Ejecutivo',
-  'Consejo Ejecutivo',
-  'Consejo Ejecutivo',
+  'Consejo Regional',
+  'Consejo Regional',
 
 ];
 

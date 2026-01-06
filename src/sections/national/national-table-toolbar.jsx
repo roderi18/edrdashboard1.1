@@ -41,6 +41,20 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
+  const handleFilternationalEstructure = useCallback(
+    (event) => {
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+
+      onResetPage();
+      // updateFilters({ nationalEstructure: newValue });
+      updateFilters({
+        nationalEstructure: newValue, status: 'all',
+      });
+    },
+    [onResetPage, updateFilters]
+  );
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}
@@ -103,7 +117,7 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
                 {option}
               </MenuItem>
             ))} */}
-            {options.nationalXMemberPosition.map((option, index) => (
+            {(options.nationalXMemberPosition || []).map((option, index) => (
               <MenuItem key={`${option}-${index}`} value={option}>
                 <Checkbox
                   disableRipple
@@ -114,6 +128,48 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
                 {option}
               </MenuItem>
             ))}
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
+          <InputLabel htmlFor="filter-nationalEstructure-select">Estructura</InputLabel>
+          <Select
+            multiple
+            label="Estructura"
+            value={currentFilters.nationalEstructure}
+            onChange={handleFilternationalEstructure}
+            renderValue={(selected) => selected.map((value) => value).join(', ')}
+            inputProps={{ id: 'filter-nationalEstructure-select' }}
+            MenuProps={{
+              slotProps: { paper: { sx: { maxHeight: 240 } } },
+            }}
+          >
+            {/* {(options.nationalEstructure || []).map((option, index) => (
+              <MenuItem key={`${option}-${index}`} value={option}>
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.nationalEstructure.includes(option)}
+                  slotProps={{ input: { id: `${option}-${index}-checkbox` } }}
+                />
+                {option}
+              </MenuItem>
+            ))} */}
+            {(options.nationalEstructure || []).map((option, index) => (
+              <MenuItem key={`${option.value}-${index}`}
+                // value={option.value}
+                value={option.value}
+              >
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.nationalEstructure.includes(option.value)}
+                  slotProps={{ input: { id: `${option.value}-${index}-checkbox` } }}
+                />
+                {option.label}
+              </MenuItem>
+            ))}
+
           </Select>
         </FormControl>
 

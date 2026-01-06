@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _nationalXMemberPositions, _roles, _nationalList, NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS } from 'src/_mock';
+import { _nationalXMemberPositions, _roles, _nationalList, NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS, NATIONAL_ESTRUCTURE_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -58,7 +58,7 @@ import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
-  { id: 'nationalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
+  { id: 'natio  nalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
   { id: 'nationalXMemberPosition', label: 'Posición', width: 190 },
   { id: 'nationalEstructure', label: 'Estructura', width: 200 },
   { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 200 },
@@ -75,9 +75,10 @@ export function NationalListView() {
 
   const [tableData, setTableData] = useState(_nationalList);
 
-  const filters = useSetState({ name: '', nationalXMemberPosition: [], status: 'all' });
+  const filters = useSetState({ name: '', nationalXMemberPosition: [], status: 'all', nationalEstructure: [] });
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctPositions = [...new Set(_nationalXMemberPositions)];
+  const distinctEstructures = NATIONAL_ESTRUCTURE_OPTIONS;
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -88,7 +89,7 @@ export function NationalListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.nationalXMemberPosition.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name || currentFilters.nationalXMemberPosition.length > 0 || currentFilters.nationalEstructure.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -223,7 +224,7 @@ export function NationalListView() {
             filters={filters}
             onResetPage={table.onResetPage}
             // options={{ roles: _roles }}
-            options={{ nationalXMemberPosition: distinctPositions }}
+            options={{ nationalXMemberPosition: distinctPositions, nationalEstructure: distinctEstructures, }}
           />
 
           {canReset && (
@@ -320,7 +321,7 @@ export function NationalListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, nationalXMemberPosition } = filters;
+  const { name, status, nationalXMemberPosition, nationalEstructure } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -347,6 +348,10 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (status !== 'all') {
     inputData = inputData.filter((national) => national.nationalXAssignedRegional === status);
+  }
+
+  if (nationalEstructure.length) {
+    inputData = inputData.filter((national) => nationalEstructure.includes(national.nationalEstructure));
   }
 
   if (nationalXMemberPosition.length) {

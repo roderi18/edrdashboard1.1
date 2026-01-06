@@ -29,6 +29,16 @@ export function NationalTableFiltersResult({ filters, onResetPage, totalResults,
     [onResetPage, updateFilters, currentFilters.nationalXMemberPosition]
   );
 
+  const handleRemoveEstructure = useCallback(
+    (inputValue) => {
+      const newValue = currentFilters.nationalEstructure.filter((item) => item !== inputValue);
+
+      onResetPage();
+      updateFilters({ nationalEstructure: newValue });
+    },
+    [onResetPage, updateFilters, currentFilters.nationalEstructure]
+  );
+
   const handleReset = useCallback(() => {
     onResetPage();
     resetFilters();
@@ -48,6 +58,17 @@ export function NationalTableFiltersResult({ filters, onResetPage, totalResults,
       <FiltersBlock label="Posición" isShow={!!currentFilters.nationalXMemberPosition.length}>
         {currentFilters.nationalXMemberPosition.map((item) => (
           <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
+        ))}
+      </FiltersBlock>
+
+      <FiltersBlock label="Estructura" isShow={!!currentFilters.nationalEstructure.length}>
+        {currentFilters.nationalEstructure.map((item, index) => (
+          <Chip
+            {...chipProps}
+            key={`${item}-${index}`}
+            label={item}
+            onDelete={() => handleRemoveEstructure(item)}
+          />
         ))}
       </FiltersBlock>
 

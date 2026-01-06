@@ -17,6 +17,11 @@ export const NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS = [
   { value: 'Región Oeste', label: 'Región Oeste' },
 ];
 
+export const NATIONAL_ESTRUCTURE_OPTIONS = [
+  { value: 'Consejo Nacional', label: 'Consejo Nacional' },
+  { value: 'Consejo Regional', label: 'Consejo Regional' },
+];
+
 export const _nationalAbout = {
   id: _mock.id(1),
   nationalXAssignedRegional: _mock.nationalXAssignedRegional(1),
