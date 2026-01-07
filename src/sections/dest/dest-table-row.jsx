@@ -99,7 +99,6 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar alt={row.destName} src={row.avatarUrl} />
-
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
@@ -109,6 +108,30 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               >
                 {row.destName}
               </Link>
+              {/* <Box component="span" sx={{ color: 'text.disabled' }}>
+                {row.email}
+              </Box> */}
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                {row.church}
+              </Box>
+            </Stack>
+          </Box>
+        </TableCell>
+
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destCoordName}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar alt={row.destCoordName} src={row.avatarUrl} />
+            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+              <Link
+                component={RouterLink}
+                href={editHref}
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+              >
+                {row.destCoordName}
+              </Link>
+
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email}
               </Box>
@@ -116,7 +139,6 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destCoordName}</TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destMemberCount}</TableCell>
 

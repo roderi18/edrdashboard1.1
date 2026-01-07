@@ -59,9 +59,9 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
   { id: 'sectionalName', label: 'Name' },
-  { id: 'sectionalCoordName', label: 'Director', width: 230 },
-  { id: 'sectionalDestCount', label: 'Destacamentos', width: 160 },
-  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 160 },
+  { id: 'sectionalCoordName', label: 'Director', width: 220 },
+  { id: 'sectionalDestCount', label: 'Destacamentos', width: 150 },
+  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 150 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

@@ -19,14 +19,14 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
     updateFilters({ status: 'all' });
   }, [onResetPage, updateFilters]);
 
-  const handleRemoveRole = useCallback(
+  const handleRemoveDestMembership = useCallback(
     (inputValue) => {
-      const newValue = currentFilters.role.filter((item) => item !== inputValue);
+      const newValue = currentFilters.destMembership.filter((item) => item !== inputValue);
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ destMembership: newValue });
     },
-    [onResetPage, updateFilters, currentFilters.role]
+    [onResetPage, updateFilters, currentFilters.destMembership]
   );
 
   const handleReset = useCallback(() => {
@@ -45,9 +45,9 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Role:" isShow={!!currentFilters.role.length}>
-        {currentFilters.role.map((item) => (
-          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
+      <FiltersBlock label="Membresía:" isShow={!!currentFilters.destMembership.length}>
+        {currentFilters.destMembership.map((item) => (
+          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveDestMembership(item)} />
         ))}
       </FiltersBlock>
 

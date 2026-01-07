@@ -27,6 +27,7 @@ export const DestCreateSchema = z.object({
   avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
   name: z.string().min(1, { error: 'Name is required!' }),
   email: schemaUtils.email(),
+  church: schemaUtils.church(),
   phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
   country: schemaUtils.nullableInput(z.string().min(1, { error: 'Ciudad is required!' }), {
     error: 'Ciudad is required!',
@@ -53,6 +54,7 @@ export function DestCreateEditForm({ currentDest }) {
     isVerified: true,
     name: '',
     email: '',
+    church: '',
     phoneNumber: '',
     country: '',
     state: '',
@@ -207,6 +209,7 @@ export function DestCreateEditForm({ currentDest }) {
             >
               <Field.Text name="name" label="Nombre completo" />
               <Field.Text name="email" label="Correo electrónico" />
+              <Field.Text name="church" label="Iglesia" />
               <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
 
               <Field.CountrySelect

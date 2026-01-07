@@ -132,8 +132,36 @@ export const _regionalXSectionalEmails = [
   'regioneste04@gmail.com',
 ];
 
+export const _churches = [
+  `Iglesia Aposento Alto`,
+  `Iglesia El Calvario`,
+  `Iglesia Fuente de Vida`,
+  `Iglesia Bethel`,
+  `Iglesia Monte de Sión`,
+  `Iglesia Getsemaní`,
+  `Iglesia Vida Nueva`,
+  `Iglesia Shalom`,
+  `Iglesia La Alabanza`,
+  `Iglesia Redención`,
+  `Iglesia Manantial de Vida`,
+  `Iglesia Cristo Vive`,
+  `Iglesia Luz del Mundo`,
+  `Iglesia El Buen Pastor`,
+  `Iglesia Jerusalén`,
+  `Iglesia Casa de Dios`,
+  `Iglesia Alfa y Omega`,
+  `Iglesia Roca Eterna`,
+  `Iglesia Emanuel`,
+  `Iglesia Príncipe de Paz`,
+  `Iglesia Nueva Esperanza`,
+  `Iglesia Fe y Salvación`,
+  `Iglesia El Shaddai`,
+  `Iglesia Tabernáculo de Gloria`,
+];
+
+
 export const _emails = [
-  `nannie.abernathy70@yahoo.com`,
+  `bennsy89@yahoo.com`,
   `ashlynn.ohara62@gmail.com`,
   `milo.farrell@hotmail.com`,
   `violet.ratke86@yahoo.com`,
@@ -249,6 +277,35 @@ export const _regionalFullNames = [
   'Región Este',
   'testing'
 ];
+
+export const _sectionalEmails = [
+  'tiburones.este@email.com',
+  'seccion2@email.com',
+  'seccion3@email.com',
+  'seccion4@email.com',
+  'seccion5@email.com',
+  'seccion6@email.com',
+  'seccion7@email.com',
+  'seccion8@email.com',
+  'seccion9@email.com',
+  'seccion10@email.com',
+  'seccion11@email.com',
+  'seccion12@email.com',
+  'seccion13@email.com',
+  'seccion14@email.com',
+  'seccion15@email.com',
+  'seccion16@email.com',
+  'seccion17@email.com',
+  'seccion18@email.com',
+  'seccion19@email.com',
+  'seccion20@email.com',
+  'seccion21@email.com',
+  'seccion22@email.com',
+  'seccion23@email.com',
+  'seccion24@email.com',
+
+];
+
 
 export const _sectionalFullNames = [
   'Sección Tiburones del Este',

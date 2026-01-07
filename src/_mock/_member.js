@@ -3,7 +3,6 @@ import { _mock } from './_mock';
 // ----------------------------------------------------------------------
 
 export const MEMBER_DIVISION_OPTIONS = [
-  { value: 'all', label: 'Todos' },
   { value: 'Exploradores', label: 'Exploradores' },
   { value: 'Seguidores', label: 'Seguidores' },
   { value: 'Pioneros', label: 'Pioneros' },
@@ -30,7 +29,7 @@ export const MEMBER_STATUS_OPTIONS = [
 export const _memberAbout = {
   id: _mock.id(1),
   memberPosition: _mock.memberPosition(1),
-  memberEmail: _mock.memberEmail(1),
+  // memberEmail: _mock.memberEmail(1),
   school: _mock.memberDivisionNames(2),
   // company: _mock.companyNames(1),
   memberDivision: _mock.memberDivisionNames(1),

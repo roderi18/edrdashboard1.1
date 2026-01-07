@@ -20,7 +20,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 export function DestTableToolbar({ filters, options, onResetPage }) {
   const menuActions = usePopover();
-
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleFilterName = useCallback(
@@ -31,13 +30,13 @@ export function DestTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
+  const handleFilterDestMembership = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ destMembership: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -81,25 +80,25 @@ export function DestTableToolbar({ filters, options, onResetPage }) {
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-role-select">Role</InputLabel>
+          <InputLabel htmlFor="filter-destMembership-select">Membresía</InputLabel>
           <Select
             multiple
-            label="Posición"
-            value={currentFilters.role}
-            onChange={handleFilterRole}
+            label="Membresía"
+            value={currentFilters.destMembership}
+            onChange={handleFilterDestMembership}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
-            inputProps={{ id: 'filter-role-select' }}
+            inputProps={{ id: 'filter-destMembership-select' }}
             MenuProps={{
               slotProps: { paper: { sx: { maxHeight: 240 } } },
             }}
           >
-            {options.roles.map((option) => (
-              <MenuItem key={option} value={option}>
+            {(options.destMembership || []).map((option, index) => (
+              <MenuItem key={`${option}-${index}`} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={currentFilters.role.includes(option)}
-                  slotProps={{ input: { id: `${option}-checkbox` } }}
+                  checked={currentFilters.destMembership.includes(option)}
+                // slotProps={{ input: { id: `${option}-checkbox` } }}
                 />
                 {option}
               </MenuItem>

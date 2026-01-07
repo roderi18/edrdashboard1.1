@@ -13,6 +13,8 @@ import {
   _memberPositions,
   _prices,
   _emails,
+  _sectionalEmails,
+  _churches,
   _memberEmails,
   _regionalXSectionalEmails,
   _ratings,
@@ -85,6 +87,8 @@ export const _mock = {
   description: (index) => _descriptions[index],
   // Contact
   email: (index) => _emails[index],
+  sectionalEmail: (index) => _sectionalEmails[index],
+  church: (index) => _churches[index],
   memberEmail: (index) => _memberEmails[index],
   regionalXSectionalEmail: (index) => _regionalXSectionalEmails[index],
   phoneNumber: (index) => _phoneNumbers[index],

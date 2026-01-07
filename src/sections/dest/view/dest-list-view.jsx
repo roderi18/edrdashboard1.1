@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _destList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { _destMemberships, _destList, USER_STATUS_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -58,9 +58,9 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
   { id: 'destName', label: 'Nombre' },
-  { id: 'destCoordName', label: 'Coord. Dest', width: 230 },
-  { id: 'destMemberCount', label: 'Miembros', width: 160 },
-  { id: 'destMembership', label: 'Membresía', width: 160 },
+  { id: 'destCoordName', label: 'Coord. Dest', width: 250 },
+  { id: 'destMemberCount', label: 'Miembros', width: 180 },
+  { id: 'destMembership', label: 'Membresía', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -74,8 +74,9 @@ export function DestListView() {
 
   const [tableData, setTableData] = useState(_destList);
 
-  const filters = useSetState({ name: '', role: [], status: 'all' });
+  const filters = useSetState({ name: '', destMembership: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
+  const distinctDestMembership = [...new Set(_destMemberships)];
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -86,7 +87,7 @@ export function DestListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name || currentFilters.destMembership.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -211,7 +212,7 @@ export function DestListView() {
           <DestTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: _roles }}
+            options={{ destMembership: distinctDestMembership }}
           />
 
           {canReset && (
@@ -308,7 +309,7 @@ export function DestListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, role } = filters;
+  const { name, status, destMembership } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -339,8 +340,8 @@ function applyFilter({ inputData, comparator, filters }) {
     inputData = inputData.filter((dest) => dest.status === status);
   }
 
-  if (role.length) {
-    inputData = inputData.filter((dest) => role.includes(dest.role));
+  if (destMembership.length) {
+    inputData = inputData.filter((dest) => destMembership.includes(dest.destMembership));
   }
 
   return inputData;

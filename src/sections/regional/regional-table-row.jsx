@@ -116,7 +116,25 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalDirectorName}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalDirectorName}</TableCell> */}<TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar alt={row.regionalDirectorName} src={row.avatarUrl} />
+            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+              <Link
+                component={RouterLink}
+                href={editHref}
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+              >
+                {row.regionalDirectorName}
+              </Link>
+
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                {row.memberEmail}
+              </Box>
+            </Stack>
+          </Box>
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalCount}</TableCell>
 

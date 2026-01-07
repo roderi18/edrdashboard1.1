@@ -111,13 +111,33 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                 {row.sectionalName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
+                {row.sectionalEmail}
               </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalCoordName}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalCoordName}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar alt={row.sectionalCoordName} src={row.avatarUrl} />
+            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+              <Link
+                component={RouterLink}
+                href={editHref}
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+              >
+                {row.sectionalCoordName}
+              </Link>
+
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                {row.memberEmail}
+              </Box>
+            </Stack>
+          </Box>
+        </TableCell>
+
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalDestCount}</TableCell>
 
