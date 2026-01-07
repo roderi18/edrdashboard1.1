@@ -60,8 +60,8 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS
 const TABLE_HEAD = [
   { id: 'memberName', label: 'Nombre' },
   { id: 'memberPhoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'memberDivision', label: 'División', width: 170 },
   { id: 'memberPosition', label: 'Posición', width: 220 },
+  { id: 'memberDivision', label: 'División', width: 170 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
@@ -88,7 +88,7 @@ export function MemberListView() {
 
   const canReset =
     // !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status !== 'all' || currentFilters.status.length > 0;
-    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status !== 'all' || currentFilters.memberDivision.length > 0;;
+    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status.length > 0 || currentFilters.memberDivision.length > 0;;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 

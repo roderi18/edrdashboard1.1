@@ -118,9 +118,9 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPhoneNumber}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
-
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPosition}</TableCell>
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
 
         <TableCell>
           <Label
