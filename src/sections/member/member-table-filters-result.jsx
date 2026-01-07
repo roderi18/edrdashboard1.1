@@ -41,14 +41,21 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="División:" isShow={currentFilters.memberDivision !== 'all'}>
-        <Chip
-          {...chipProps}
-          label={currentFilters.memberDivision}
-          onDelete={handleRemoveStatus}
-          sx={{ textTransform: 'capitalize' }}
-        />
+      <FiltersBlock label="División:" isShow={currentFilters.memberDivision.length > 0}>
+        {currentFilters.memberDivision.map((item) => (
+          <Chip
+            {...chipProps}
+            key={item}
+            label={item}
+            onDelete={() =>
+              updateFilters({
+                memberDivision: currentFilters.memberDivision.filter((d) => d !== item),
+              })
+            }
+          />
+        ))}
       </FiltersBlock>
+
 
       <FiltersBlock label="Posición:" isShow={!!currentFilters.memberPosition.length}>
         {currentFilters.memberPosition.map((item) => (

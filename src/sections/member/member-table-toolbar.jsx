@@ -56,6 +56,20 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
   const handleFilterMemberDivision = useCallback(
     (event) => {
       const newValue =
+        typeof event.target.value === 'string'
+          ? event.target.value.split(',')
+          : event.target.value;
+
+      onResetPage();
+      updateFilters({ memberDivision: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
+
+
+  const handleFilterMemberPosition = useCallback(
+    (event) => {
+      const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
@@ -63,6 +77,8 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
     },
     [onResetPage, updateFilters]
   );
+
+
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -108,8 +124,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
             multiple
             label="Posición"
             value={currentFilters.memberPosition}
-            // onChange={handleFilterMemberDivisionTab}
-            onChange={handleFilterMemberDivision}
+            onChange={handleFilterMemberPosition}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-memberPosition-select' }}
             MenuProps={{
@@ -127,7 +142,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
                 {option}
               </MenuItem>
             ))} */}
-            {options.memberPosition.map((option, index) => (
+            {(options.memberPosition || []).map((option, index) => (
               <MenuItem key={`${option}-${index}`} value={option}>
                 <Checkbox
                   disableRipple
@@ -141,39 +156,21 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
           </Select>
         </FormControl>
 
-        {/* <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
-          <InputLabel htmlFor="filter-memberStatus-select">Estado</InputLabel>
-          <Select
-            label="Estado"
-            value={currentFilters.status || 'all'}
-            onChange={handleFilterMemberStatus}
-            inputProps={{ id: 'filter-memberStatus-select' }}
-          >
-            <MenuItem value="all">Todos</MenuItem>
-
-            {options.memberStatus.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl> */}
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
-          <InputLabel htmlFor="filter-memberStatus-select">Estado</InputLabel>
+          <InputLabel htmlFor="filter-memberStatus-select">División</InputLabel>
           <Select
             multiple
-            label="Estado"
-            value={currentFilters.status}
-            onChange={handleFilterMemberStatus}
+            label="División"
+            value={currentFilters.memberDivision}
+            onChange={handleFilterMemberDivision}
             renderValue={(selected) => selected.join(', ')}
-            inputProps={{ id: 'filter-memberStatus-select' }}
+            inputProps={{ id: 'filter-memberDivision-select' }}
           >
-            {options.memberStatus.map((option) => (
+            {(options.memberDivision || []).map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 <Checkbox
-                  disableRipple
                   size="small"
-                  checked={currentFilters.status.includes(option.value)}
+                  checked={currentFilters.memberDivision.includes(option.value)}
                 />
                 {option.label}
               </MenuItem>

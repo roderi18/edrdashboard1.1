@@ -2,7 +2,7 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-export const MEMBER_STATUS_OPTIONS = [
+export const MEMBER_DIVISION_OPTIONS = [
   { value: 'all', label: 'Todos' },
   { value: 'Exploradores', label: 'Exploradores' },
   { value: 'Seguidores', label: 'Seguidores' },
@@ -10,7 +10,7 @@ export const MEMBER_STATUS_OPTIONS = [
   { value: 'Navegantes', label: 'Navegantes' },
 ];
 
-export const MEMBER_STATUSX_OPTIONS = [
+export const MEMBER_STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'pending', label: 'Pending' },
   { value: 'banned', label: 'Banned' },
