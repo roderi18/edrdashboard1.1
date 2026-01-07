@@ -142,20 +142,24 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destMemberCount}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destMembership}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalFullName}</TableCell>
 
-        <TableCell>
+        {/* <TableCell>
           <Label
             variant="soft"
             color={
-              (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
+              (row.regionalFullName === 'active' && 'success') ||
+              (row.regionalFullName === 'pending' && 'warning') ||
+              (row.regionalFullName === 'banned' && 'error') ||
               'default'
             }
           >
-            {row.status}
+            {row.regionalFullName}
           </Label>
+        </TableCell> */}
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {row.regionalFullName}
         </TableCell>
 
         <TableCell>

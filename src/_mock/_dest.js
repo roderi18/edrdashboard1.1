@@ -2,16 +2,17 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-export const DEST_STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'banned', label: 'Banned' },
-  { value: 'rejected', label: 'Rejected' },
+export const REGIONAL_FULL_NAME_OPTIONS = [
+  { value: 'Región Central', label: 'Región Central' },
+  { value: 'Región Norte', label: 'Región Norte' },
+  { value: 'Región Sur', label: 'Región Sur' },
+  { value: 'Región Este', label: 'Región Este' },
 ];
+
 
 export const _destAbout = {
   id: _mock.id(1),
-  destMembership: _mock.destMembership(1),
+  sectionalFullName: _mock.sectionalFullName(1),
   email: _mock.email(1),
   church: _mock.church(1),
   school: _mock.destMemberCount(2),
@@ -39,7 +40,7 @@ export const _destFollowers = Array.from({ length: 18 }, (_, index) => ({
 
 export const _destFriends = Array.from({ length: 18 }, (_, index) => ({
   id: _mock.id(index),
-  destMembership: _mock.destMembership(index),
+  sectionalFullName: _mock.sectionalFullName(index),
   destName: _mock.destFullName(index),
   avatarUrl: _mock.image.avatar(index),
 }));
@@ -87,7 +88,7 @@ export const _destFeeds = Array.from({ length: 3 }, (_, index) => ({
 
 export const _destCards = Array.from({ length: 21 }, (_, index) => ({
   id: _mock.id(index),
-  destMembership: _mock.destMembership(index),
+  sectionalFullName: _mock.sectionalFullName(index),
   destName: _mock.destFullName(index),
   coverUrl: _mock.image.cover(index),
   avatarUrl: _mock.image.avatar(index),
@@ -130,7 +131,7 @@ export const _destList = Array.from({ length: 20 }, (_, index) => ({
   zipCode: '85807',
   state: 'Virginia',
   city: 'Rancho Cordova',
-  destMembership: _mock.destMembership(index),
+  sectionalFullName: _mock.sectionalFullName(index),
   email: _mock.email(index),
   church: _mock.church(index),
   address: '908 Jack Locks',
@@ -140,6 +141,6 @@ export const _destList = Array.from({ length: 20 }, (_, index) => ({
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
   destCoordName: _mock.destCoordName(index),
-  status:
-    (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
+  regionalFullName:
+    (index % 2 && 'Región Central') || (index % 3 && 'Región Norte') || (index % 4 && 'Región Sur') || 'Región Este',
 }));

@@ -14,19 +14,19 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
     updateFilters({ name: '' });
   }, [onResetPage, updateFilters]);
 
-  const handleRemoveStatus = useCallback(() => {
+  const handleRemoveRegionalFullName = useCallback(() => {
     onResetPage();
-    updateFilters({ status: 'all' });
+    updateFilters({ regionalFullName: 'all' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveDestMembership = useCallback(
     (inputValue) => {
-      const newValue = currentFilters.destMembership.filter((item) => item !== inputValue);
+      const newValue = currentFilters.sectionalFullName.filter((item) => item !== inputValue);
 
       onResetPage();
-      updateFilters({ destMembership: newValue });
+      updateFilters({ sectionalFullName: newValue });
     },
-    [onResetPage, updateFilters, currentFilters.destMembership]
+    [onResetPage, updateFilters, currentFilters.sectionalFullName]
   );
 
   const handleReset = useCallback(() => {
@@ -36,17 +36,17 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="Status:" isShow={currentFilters.status !== 'all'}>
+      <FiltersBlock label="Región:" isShow={currentFilters.regionalFullName !== 'all'}>
         <Chip
           {...chipProps}
-          label={currentFilters.status}
-          onDelete={handleRemoveStatus}
+          label={currentFilters.regionalFullName}
+          onDelete={handleRemoveRegionalFullName}
           sx={{ textTransform: 'capitalize' }}
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Membresía:" isShow={!!currentFilters.destMembership.length}>
-        {currentFilters.destMembership.map((item) => (
+      <FiltersBlock label="Sección:" isShow={!!currentFilters.sectionalFullName.length}>
+        {currentFilters.sectionalFullName.map((item) => (
           <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveDestMembership(item)} />
         ))}
       </FiltersBlock>

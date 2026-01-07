@@ -30,13 +30,13 @@ export function DestTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
-  const handleFilterDestMembership = useCallback(
+  const handleFilterSectionalFullName = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ destMembership: newValue });
+      updateFilters({ sectionalFullName: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -80,24 +80,24 @@ export function DestTableToolbar({ filters, options, onResetPage }) {
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-destMembership-select">Membresía</InputLabel>
+          <InputLabel htmlFor="filter-sectionalFullName-select">Sección</InputLabel>
           <Select
             multiple
-            label="Membresía"
-            value={currentFilters.destMembership}
-            onChange={handleFilterDestMembership}
+            label="Sección"
+            value={currentFilters.sectionalFullName}
+            onChange={handleFilterSectionalFullName}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
-            inputProps={{ id: 'filter-destMembership-select' }}
+            inputProps={{ id: 'filter-sectionalFullName-select' }}
             MenuProps={{
               slotProps: { paper: { sx: { maxHeight: 240 } } },
             }}
           >
-            {(options.destMembership || []).map((option, index) => (
+            {(options.sectionalFullName || []).map((option, index) => (
               <MenuItem key={`${option}-${index}`} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={currentFilters.destMembership.includes(option)}
+                  checked={currentFilters.sectionalFullName.includes(option)}
                 // slotProps={{ input: { id: `${option}-checkbox` } }}
                 />
                 {option}

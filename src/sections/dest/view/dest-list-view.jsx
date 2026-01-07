@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _destMemberships, _destList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { _sectionalFullNames, _destList, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,23 +45,25 @@ import { DestTableFiltersResult } from '../dest-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const REGIONAL_FULL_NAME = [{ value: 'all', label: 'All' }, ...REGIONAL_FULL_NAME_OPTIONS];
 
 // const TABLE_HEAD = [
 //   { id: 'name', label: 'Name' },
 //   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
 //   { id: 'company', label: 'Company', width: 220 },
 //   { id: 'Role', label: 'Role', width: 180 },
-//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: 'regionalFullName', label: 'Estado', width: 100 },
 //   { id: '', width: 88 },
 // ];
 
 const TABLE_HEAD = [
   { id: 'destName', label: 'Nombre' },
-  { id: 'destCoordName', label: 'Coord. Dest', width: 300 },
-  { id: 'destMemberCount', label: 'Miembros', width: 160 },
-  { id: 'destMembership', label: 'Membresía', width: 160 },
-  { id: 'status', label: 'Estado', width: 100 },
+  { id: 'destCoordName', label: 'Coord. Dest', width: 160 },
+  { id: 'destMemberCount', label: 'Miembros', width: 140 },
+  // { id: 'sectionalFullName', label: 'Membresía', width: 160 },
+  { id: 'sectionalFullName', label: 'Sección', width: 160 },
+  { id: 'regionalFullName', label: 'Región', width: 120 },
+  // { id: 'regionalFullName', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 
@@ -74,9 +76,9 @@ export function DestListView() {
 
   const [tableData, setTableData] = useState(_destList);
 
-  const filters = useSetState({ name: '', destMembership: [], status: 'all' });
+  const filters = useSetState({ name: '', sectionalFullName: [], regionalFullName: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
-  const distinctDestMembership = [...new Set(_destMemberships)];
+  const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -87,7 +89,7 @@ export function DestListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.destMembership.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name || currentFilters.sectionalFullName.length > 0 || currentFilters.regionalFullName !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -114,10 +116,10 @@ export function DestListView() {
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
-  const handleFilterStatus = useCallback(
+  const handleFilterRegionalFullName = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      updateFilters({ status: newValue });
+      updateFilters({ regionalFullName: newValue });
     },
     [updateFilters, table]
   );
@@ -172,8 +174,8 @@ export function DestListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
+            value={currentFilters.regionalFullName}
+            onChange={handleFilterRegionalFullName}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -181,7 +183,7 @@ export function DestListView() {
               }),
             ]}
           >
-            {STATUS_OPTIONS.map((tab) => (
+            {REGIONAL_FULL_NAME.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -190,18 +192,18 @@ export function DestListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.regionalFullName) && 'filled') ||
                       'soft'
                     }
                     color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'Región Central' && 'default') ||
+                      (tab.value === 'Región Norte' && 'default') ||
+                      (tab.value === 'Región Sur' && 'default') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((dest) => dest.status === tab.value).length
+                    {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
+                      ? tableData.filter((sectional) => sectional.regionalFullName === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -212,7 +214,7 @@ export function DestListView() {
           <DestTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ destMembership: distinctDestMembership }}
+            options={{ sectionalFullName: distinctSectionalFullName }}
           />
 
           {canReset && (
@@ -309,7 +311,7 @@ export function DestListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, destMembership } = filters;
+  const { name, regionalFullName, sectionalFullName } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -336,12 +338,12 @@ function applyFilter({ inputData, comparator, filters }) {
   }
 
 
-  if (status !== 'all') {
-    inputData = inputData.filter((dest) => dest.status === status);
+  if (regionalFullName !== 'all') {
+    inputData = inputData.filter((dest) => dest.regionalFullName === regionalFullName);
   }
 
-  if (destMembership.length) {
-    inputData = inputData.filter((dest) => destMembership.includes(dest.destMembership));
+  if (sectionalFullName.length) {
+    inputData = inputData.filter((dest) => sectionalFullName.includes(dest.sectionalFullName));
   }
 
   return inputData;
