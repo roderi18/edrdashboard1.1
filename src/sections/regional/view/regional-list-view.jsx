@@ -61,8 +61,9 @@ const TABLE_HEAD = [
   { id: 'regionalName', label: 'Nombre' },
   { id: 'regionalDirectorName', label: 'Director', width: 230 },
   { id: 'regionalXSectionalCount', label: 'Secciones', width: 160 },
+  { id: 'regionalXSectionalXDestCount', label: 'Destacamentos', width: 160 },
   { id: 'regionalXSectionalMemberCount', label: 'Miembros', width: 160 },
-  { id: 'status', label: 'Estado', width: 100 },
+  // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 

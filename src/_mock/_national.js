@@ -14,7 +14,7 @@ export const NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS = [
   { value: 'Región Central', label: 'Región Central' },
   { value: 'Región Norte', label: 'Región Norte' },
   { value: 'Región Sur', label: 'Región Sur' },
-  { value: 'Región Oeste', label: 'Región Oeste' },
+  { value: 'Región Este', label: 'Región Este' },
 ];
 
 export const NATIONAL_ESTRUCTURE_OPTIONS = [

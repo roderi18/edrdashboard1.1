@@ -119,7 +119,7 @@ export function SectionalTableToolbar({ filters, options, onResetPage }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar Sección o Coordinador..."
+            placeholder="Buscar Sección o Director..."
             slotProps={{
               input: {
                 startAdornment: (

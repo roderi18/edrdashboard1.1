@@ -29,6 +29,16 @@ export function RegionalTableFiltersResult({ filters, onResetPage, totalResults,
     [onResetPage, updateFilters, currentFilters.role]
   );
 
+  const handleRemoveRegionalXSectionalXDestCount = useCallback(
+    (inputValue) => {
+      const newValue = currentFilters.regionalXSectionalXDestCount.filter((item) => item !== inputValue);
+
+      onResetPage();
+      updateFilters({ regionalXSectionalXDestCount: newValue });
+    },
+    [onResetPage, updateFilters, currentFilters.regionalXSectionalXDestCount]
+  );
+
   const handleReset = useCallback(() => {
     onResetPage();
     resetFilters();
@@ -48,6 +58,12 @@ export function RegionalTableFiltersResult({ filters, onResetPage, totalResults,
       <FiltersBlock label="Role:" isShow={!!currentFilters.role.length}>
         {currentFilters.role.map((item) => (
           <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
+        ))}
+      </FiltersBlock>
+
+      <FiltersBlock label="Destacamentos:" isShow={!!currentFilters.regionalXSectionalXDestCount.length}>
+        {currentFilters.regionalXSectionalXDestCount.map((item) => (
+          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRegionalXSectionalXDestCount(item)} />
         ))}
       </FiltersBlock>
 

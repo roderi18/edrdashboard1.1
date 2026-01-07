@@ -12,6 +12,7 @@ export const REGIONAL_STATUS_OPTIONS = [
 export const _regionalAbout = {
   id: _mock.id(1),
   regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(1),
+  regionalXSectionalXDestCount: _mock.regionalXSectionalXDestCount(1),
   regionalXSectionalEmail: _mock.regionalXSectionalEmail(1),
   school: _mock.companyNames(2),
   company: _mock.companyNames(1),
@@ -130,6 +131,7 @@ export const _regionalList = Array.from({ length: 4 }, (_, index) => ({
   state: 'Virginia',
   city: 'Rancho Cordova',
   regionalXSectionalMemberCount: _mock.regionalXSectionalMemberCount(index),
+  regionalXSectionalXDestCount: _mock.regionalXSectionalXDestCount(index),
   regionalXSectionalEmail: _mock.regionalXSectionalEmail(index),
   address: '908 Jack Locks',
   regionalName: _mock.regionalFullName(index),

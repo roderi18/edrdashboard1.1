@@ -205,12 +205,12 @@ export function NationalListView() {
                       (tab.value === 'Región Central' && 'success') ||
                       (tab.value === 'Región Norte' && 'warning') ||
                       (tab.value === 'Región Sur' && 'error') ||
-                      (tab.value === 'Región Oeste' && 'error') ||
+                      (tab.value === 'Región Este' && 'error') ||
                       'default'
                     }
                   >
                     {/* {['active', 'pending', 'banned', 'rejected'].includes(tab.value) */}
-                    {['Región Central', 'Región Norte', 'Región Sur', 'Región Oeste'].includes(tab.value)
+                    {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
                       // ? tableData.filter((national) => national.status === tab.value).length
                       ? tableData.filter((national) => national.nationalXAssignedRegional === tab.value).length
                       : tableData.length}

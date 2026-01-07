@@ -41,6 +41,19 @@ export function RegionalTableToolbar({ filters, options, onResetPage }) {
     [onResetPage, updateFilters]
   );
 
+  const handleFilterRegionalXSectionalXDestCount = useCallback(
+    (event) => {
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+
+      onResetPage();
+      updateFilters({
+        regionalXSectionalXDestCount: newValue, status: 'all',
+      });
+    },
+    [onResetPage, updateFilters]
+  );
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}

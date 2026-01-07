@@ -101,7 +101,7 @@ export const navData = [
         children: [
           // { title: 'Profile', path: paths.dashboard.level.profile },
           {
-            title: 'Nacional',
+            title: 'Directiva Nacional - Local',
             path: paths.dashboard.level.national.root,
             deepMatch: true,
           },

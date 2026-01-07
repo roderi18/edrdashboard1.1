@@ -120,9 +120,11 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalCount}</TableCell>
 
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalXDestCount}</TableCell>
+
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalMemberCount}</TableCell>
 
-        <TableCell>
+        {/* <TableCell>
           <Label
             variant="soft"
             color={
@@ -134,7 +136,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
           >
             {row.status}
           </Label>
-        </TableCell>
+        </TableCell> */}
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
