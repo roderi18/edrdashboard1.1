@@ -19,7 +19,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _sectionalList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { _roles, _sectionalList, _regionalFullNames, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -46,23 +46,25 @@ import { SectionalTableFiltersResult } from '../sectional-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+// const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const REGIONAL_FULL_NAME = [{ value: 'all', label: 'All' }, ...REGIONAL_FULL_NAME_OPTIONS];
 
 // const TABLE_HEAD = [
 //   { id: 'name', label: 'Name' },
 //   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
 //   { id: 'company', label: 'Company', width: 220 },
 //   { id: 'Role', label: 'Role', width: 180 },
-//   { id: 'status', label: 'Estado', width: 100 },
+//   { id: 'regionalFullName', label: 'Estado', width: 100 },
 //   { id: '', width: 88 },
 // ];
 
 const TABLE_HEAD = [
   { id: 'sectionalName', label: 'Name' },
-  { id: 'sectionalCoordName', label: 'Director', width: 220 },
-  { id: 'sectionalDestCount', label: 'Destacamentos', width: 150 },
-  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 150 },
-  { id: 'status', label: 'Estado', width: 100 },
+  { id: 'sectionalCoordName', label: 'Director', width: 200 },
+  { id: 'sectionalDestCount', label: 'Destacamentos', width: 180 },
+  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 180 },
+  { id: 'regionalFullName', label: 'Región', width: 130 },
+  // { id: 'regionalFullName', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 
@@ -75,7 +77,7 @@ export function SectionalListView() {
 
   const [tableData, setTableData] = useState(_sectionalList);
 
-  const filters = useSetState({ name: '', role: [], status: 'all' });
+  const filters = useSetState({ name: '', role: [], regionalFullName: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -87,7 +89,7 @@ export function SectionalListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.regionalFullName !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -114,10 +116,10 @@ export function SectionalListView() {
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
-  const handleFilterStatus = useCallback(
+  const handleFilterRegionalFullName = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      updateFilters({ status: newValue });
+      updateFilters({ regionalFullName: newValue });
     },
     [updateFilters, table]
   );
@@ -172,8 +174,8 @@ export function SectionalListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
+            value={currentFilters.regionalFullName}
+            onChange={handleFilterRegionalFullName}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -181,7 +183,7 @@ export function SectionalListView() {
               }),
             ]}
           >
-            {STATUS_OPTIONS.map((tab) => (
+            {REGIONAL_FULL_NAME.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -190,18 +192,18 @@ export function SectionalListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.regionalFullName) && 'filled') ||
                       'soft'
                     }
                     color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'Región Central' && 'default') ||
+                      (tab.value === 'Región Norte' && 'default') ||
+                      (tab.value === 'Región Sur' && 'default') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((sectional) => sectional.status === tab.value).length
+                    {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
+                      ? tableData.filter((sectional) => sectional.regionalFullName === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -309,7 +311,7 @@ export function SectionalListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, role } = filters;
+  const { name, regionalFullName, role } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -335,8 +337,8 @@ function applyFilter({ inputData, comparator, filters }) {
     );
   }
 
-  if (status !== 'all') {
-    inputData = inputData.filter((sectional) => sectional.status === status);
+  if (regionalFullName !== 'all') {
+    inputData = inputData.filter((sectional) => sectional.regionalFullName === regionalFullName);
   }
 
   if (role.length) {

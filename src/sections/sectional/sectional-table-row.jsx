@@ -143,18 +143,22 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalXDestMemberCount}</TableCell>
 
-        <TableCell>
+        {/* <TableCell>
           <Label
             variant="soft"
             color={
-              (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
-              'default'
+              (row.regionalFullName === 'Región Central' && 'success') ||
+              (row.regionalFullName === 'Región Norte' && 'success') ||
+              (row.regionalFullName === 'Región Sur' && 'success') ||
+              'success'
             }
           >
-            {row.status}
+            {row.regionalFullName}
           </Label>
+        </TableCell> */}
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {row.regionalFullName}
         </TableCell>
 
         <TableCell>

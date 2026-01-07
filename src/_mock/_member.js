@@ -3,6 +3,7 @@ import { _mock } from './_mock';
 // ----------------------------------------------------------------------
 
 export const MEMBER_DIVISION_OPTIONS = [
+  { value: 'Liderazgo', label: 'Liderazgo' },
   { value: 'Exploradores', label: 'Exploradores' },
   { value: 'Seguidores', label: 'Seguidores' },
   { value: 'Pioneros', label: 'Pioneros' },

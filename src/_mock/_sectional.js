@@ -2,12 +2,13 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-export const SECTIONAL_STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'banned', label: 'Banned' },
-  { value: 'rejected', label: 'Rejected' },
+export const REGIONAL_FULL_NAME_OPTIONS = [
+  { value: 'Región Central', label: 'Región Central' },
+  { value: 'Región Norte', label: 'Región Norte' },
+  { value: 'Región Sur', label: 'Región Sur' },
+  { value: 'Región Este', label: 'Región Este' },
 ];
+
 
 export const _sectionalAbout = {
   id: _mock.id(1),
@@ -141,6 +142,6 @@ export const _sectionalList = Array.from({ length: 20 }, (_, index) => ({
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
   sectionalCoordName: _mock.sectionalCoordName(index),
-  status:
-    (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
+  regionalFullName:
+    (index % 2 && 'Región Central') || (index % 3 && 'Región Norte') || (index % 4 && 'Región Sur') || 'Región Este',
 }));

@@ -14,9 +14,9 @@ export function SectionalTableFiltersResult({ filters, onResetPage, totalResults
     updateFilters({ name: '' });
   }, [onResetPage, updateFilters]);
 
-  const handleRemoveStatus = useCallback(() => {
+  const handleRemoveregionalFullName = useCallback(() => {
     onResetPage();
-    updateFilters({ status: 'all' });
+    updateFilters({ regionalFullName: 'all' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveRole = useCallback(
@@ -36,11 +36,11 @@ export function SectionalTableFiltersResult({ filters, onResetPage, totalResults
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="Status:" isShow={currentFilters.status !== 'all'}>
+      <FiltersBlock label="Región:" isShow={currentFilters.regionalFullName !== 'all'}>
         <Chip
           {...chipProps}
-          label={currentFilters.status}
-          onDelete={handleRemoveStatus}
+          label={currentFilters.regionalFullName}
+          onDelete={handleRemoveregionalFullName}
           sx={{ textTransform: 'capitalize' }}
         />
       </FiltersBlock>

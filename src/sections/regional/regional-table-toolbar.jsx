@@ -92,7 +92,8 @@ export function RegionalTableToolbar({ filters, options, onResetPage }) {
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
+        {/* desplegable */}
+        {/* <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
           <InputLabel htmlFor="filter-role-select">Role</InputLabel>
           <Select
             multiple
@@ -117,7 +118,7 @@ export function RegionalTableToolbar({ filters, options, onResetPage }) {
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
+        </FormControl> */}
 
         <Box
           sx={{

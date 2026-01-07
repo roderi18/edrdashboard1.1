@@ -275,7 +275,6 @@ export const _regionalFullNames = [
   'Región Norte',
   'Región Sur',
   'Región Este',
-  'testing'
 ];
 
 export const _sectionalEmails = [
@@ -1101,7 +1100,7 @@ export const _regionalXSectionalCounts = [
 ];
 
 export const _memberDivisionNames = [
-  'Exploradores',
+  'Liderazgo',
   'Exploradores',
   'Pioneros',
   'Navegantes',
