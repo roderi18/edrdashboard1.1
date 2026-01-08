@@ -187,7 +187,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/regional/`}
+              href={`/dashboard/level/regional?section=${encodeURIComponent(row.regionalFullName)}`}
               color="inherit"
             >
               {row.regionalFullName}

@@ -82,17 +82,30 @@ export function RegionalListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get('section');
+  const regionFromUrl = searchParams.get('national');
+  const hasAppliedRegion = useRef(false);
   const isFirstLoad = useRef(true);
 
+  // useEffect(() => {
+  //   if (!sectionParam || !isFirstLoad.current) return;
+
+  //   updateFilters({
+  //     name: sectionParam,
+  //   });
+
+  //   isFirstLoad.current = false;
+  // }, [sectionParam, updateFilters]);
   useEffect(() => {
-    if (!sectionParam || !isFirstLoad.current) return;
+    if (!regionFromUrl) return;
+    if (hasAppliedRegion.current) return;
 
     updateFilters({
-      name: sectionParam,
+      name: regionFromUrl,
     });
 
-    isFirstLoad.current = false;
-  }, [sectionParam, updateFilters]);
+    table.onResetPage();
+    hasAppliedRegion.current = true;
+  }, [regionFromUrl, updateFilters, table]);
 
   const dataFiltered = applyFilter({
     inputData: tableData,
