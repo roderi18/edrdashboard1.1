@@ -122,7 +122,18 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalEstructure}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXAssignedRegional}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/regional`}
+              color="inherit"
+            >
+              {row.nationalXAssignedRegional}
+            </Link>
+          </Box>
+        </TableCell>
 
         {/* <TableCell>
           <Label

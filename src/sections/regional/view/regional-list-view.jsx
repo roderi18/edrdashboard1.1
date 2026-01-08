@@ -1,7 +1,9 @@
 'use client';
 
 
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
@@ -76,8 +78,21 @@ export function RegionalListView() {
 
   const [tableData, setTableData] = useState(_regionalList);
 
-  const filters = useSetState({ name: '', role: [], status: 'all' });
+  const filters = useSetState({ name: '', role: [], status: 'all', regionalXSectionalXDestCount: [] });
   const { state: currentFilters, setState: updateFilters } = filters;
+  const searchParams = useSearchParams();
+  const nationalParam = searchParams.get('national');
+  const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    if (!nationalParam || !isFirstLoad.current) return;
+
+    updateFilters({
+      regionalFullName: [nationalParam],
+    });
+
+    isFirstLoad.current = false;
+  }, [nationalParam, updateFilters]);
 
   const dataFiltered = applyFilter({
     inputData: tableData,
