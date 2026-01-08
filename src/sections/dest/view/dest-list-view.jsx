@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -77,8 +79,22 @@ export function DestListView() {
   const [tableData, setTableData] = useState(_destList);
 
   const filters = useSetState({ name: '', sectionalFullName: [], regionalFullName: 'all' });
+  const searchParams = useSearchParams();
+  const regionFromUrl = searchParams.get('region');
+  const appliedFromUrl = useRef(false);
+
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
+
+  useEffect(() => {
+    if (!regionFromUrl) return;
+    if (appliedFromUrl.current) return;
+    updateFilters({ regionalFullName: regionFromUrl });
+    table.onResetPage();
+
+    appliedFromUrl.current = true;
+  }, [regionFromUrl, updateFilters, table]);
+
 
   const dataFiltered = applyFilter({
     inputData: tableData,

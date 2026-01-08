@@ -58,7 +58,7 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 // ];
 
 const TABLE_HEAD = [
-  { id: 'regionalName', label: 'Nombre' },
+  { id: 'regionalName', label: 'Región' },
   { id: 'regionalDirectorName', label: 'Director', width: 270 },
   { id: 'regionalXSectionalCount', label: 'Secciones', width: 140 },
   { id: 'regionalXSectionalXDestCount', label: 'Destacamentos', width: 140 },

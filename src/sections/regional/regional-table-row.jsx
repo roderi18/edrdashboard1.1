@@ -28,7 +28,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
-
+  console.log('REGIONAL ROW:', row);
   const renderQuickEditForm = () => (
     <RegionalQuickEditForm
       currentRegional={row}
@@ -157,7 +157,18 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalXDestCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalXDestCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/dest?region=${encodeURIComponent(row.regionalName)}`}
+              color="inherit"
+            >
+              {row.regionalXSectionalXDestCount}
+            </Link>
+          </Box>
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalMemberCount}</TableCell>
 

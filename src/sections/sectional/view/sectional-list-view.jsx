@@ -133,9 +133,6 @@ export function SectionalListView() {
 
     // aplicar solo una vez
     if (hasAppliedUrlFilter.current) return;
-
-    console.log('🌍 Aplicando filtro inicial desde URL:', regionFromUrl);
-
     updateFilters({ regionalFullName: regionFromUrl });
     hasAppliedUrlFilter.current = true;
   }, [regionFromUrl]);
