@@ -120,7 +120,7 @@ export const _nationalAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
   nationalXMemberName: _mock.nationalXMemberFullName(index),
-  nationalXMemberPhoneNumber: _mock.nationalXMemberPhoneNumber(index),
+  phoneNumber: _mock.phoneNumber(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
 }));
@@ -152,7 +152,7 @@ export const _nationalList = Array.from({ length: 20 }, (_, index) => ({
   nationalXMemberPosition: _mock.nationalXMemberPosition(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
-  nationalXMemberPhoneNumber: _mock.nationalXMemberPhoneNumber(index),
+  phoneNumber: _mock.phoneNumber(index),
   status:
     (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
 }));

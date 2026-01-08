@@ -130,7 +130,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.memberEmail}
+                {row.email}
               </Box>
             </Stack>
           </Box>

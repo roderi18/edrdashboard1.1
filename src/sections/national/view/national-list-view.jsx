@@ -58,10 +58,10 @@ import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
-  { id: 'natio  nalXMemberPhoneNumber', label: 'Núm. Teléfono', width: 200 },
-  { id: 'nationalXMemberPosition', label: 'Posición', width: 190 },
-  { id: 'nationalEstructure', label: 'Estructura', width: 200 },
-  { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 200 },
+  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 160 },
+  { id: 'nationalXMemberPosition', label: 'Posición', width: 180 },
+  { id: 'nationalEstructure', label: 'Estructura', width: 180 },
+  { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 160 },
   // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

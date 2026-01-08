@@ -108,6 +108,7 @@ export const _destAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
   destName: _mock.destFullName(index),
+  phoneNumber: _mock.phoneNumber(index),
   destCoordName: _mock.destCoordName(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
@@ -140,6 +141,7 @@ export const _destList = Array.from({ length: 20 }, (_, index) => ({
   destMemberCount: _mock.destMemberCount(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
+  phoneNumber: _mock.phoneNumber(index),
   destCoordName: _mock.destCoordName(index),
   regionalFullName:
     (index % 2 && 'Región Central') || (index % 3 && 'Región Norte') || (index % 4 && 'Región Sur') || 'Región Este',

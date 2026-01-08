@@ -60,10 +60,10 @@ const REGIONAL_FULL_NAME = [{ value: 'all', label: 'All' }, ...REGIONAL_FULL_NAM
 
 const TABLE_HEAD = [
   { id: 'sectionalName', label: 'Name' },
-  { id: 'sectionalCoordName', label: 'Director', width: 200 },
-  { id: 'sectionalDestCount', label: 'Destacamentos', width: 180 },
-  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 180 },
-  { id: 'regionalFullName', label: 'Región', width: 130 },
+  { id: 'sectionalCoordName', label: 'Director', width: 270 },
+  { id: 'sectionalDestCount', label: 'Destacamentos', width: 140 },
+  { id: 'sectionalXDestMemberCount', label: 'Miembros', width: 140 },
+  { id: 'regionalFullName', label: 'Región', width: 140 },
   // { id: 'regionalFullName', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];

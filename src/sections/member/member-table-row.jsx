@@ -110,13 +110,13 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                 {row.memberName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.memberEmail}
+                {row.phoneNumber}
               </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPhoneNumber}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destFullName}</TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPosition}</TableCell>
 

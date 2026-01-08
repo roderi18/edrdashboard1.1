@@ -132,7 +132,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.memberEmail}
+                {row.phoneNumber}
               </Box>
             </Stack>
           </Box>

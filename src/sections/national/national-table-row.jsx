@@ -110,13 +110,13 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
                 {row.nationalXMemberName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
+                {row.phoneNumber}
               </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPhoneNumber}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.phoneNumber}</TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.nationalXMemberPosition}</TableCell>
 

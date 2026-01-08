@@ -133,7 +133,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
+                {row.phoneNumber}
               </Box>
             </Stack>
           </Box>

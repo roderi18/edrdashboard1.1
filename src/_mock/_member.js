@@ -30,7 +30,7 @@ export const MEMBER_STATUS_OPTIONS = [
 export const _memberAbout = {
   id: _mock.id(1),
   memberPosition: _mock.memberPosition(1),
-  // memberEmail: _mock.memberEmail(1),
+  // email: _mock.email(1),
   school: _mock.memberDivisionNames(2),
   // company: _mock.companyNames(1),
   memberDivision: _mock.memberDivisionNames(1),
@@ -125,7 +125,8 @@ export const _memberAddressBook = Array.from({ length: 4 }, (_, index) => ({
   id: _mock.id(index),
   primary: index === 0,
   memberName: _mock.memberFullName(index),
-  memberPhoneNumber: _mock.memberPhoneNumber(index),
+  phoneNumber: _mock.phoneNumber(index),
+  destFullName: _mock.destFullName(index),
   fullAddress: _mock.fullAddress(index),
   addressType: (index === 0 && 'Home') || 'Office',
 }));
@@ -149,7 +150,7 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   state: 'Virginia',
   city: 'Rancho Cordova',
   memberPosition: _mock.memberPosition(index),
-  memberEmail: _mock.memberEmail(index),
+  email: _mock.email(index),
   address: '908 Jack Locks',
   memberName: _mock.memberFullName(index),
   isVerified: _mock.boolean(index),
@@ -157,7 +158,8 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   memberDivision: _mock.memberDivisionNames(index),
   country: _mock.countryNames(index),
   avatarUrl: _mock.image.avatar(index),
-  memberPhoneNumber: _mock.memberPhoneNumber(index),
+  phoneNumber: _mock.phoneNumber(index),
+  destFullName: _mock.destFullName(index),
   status:
     (index % 2 && 'pending') || (index % 3 && 'banned') || (index % 4 && 'rejected') || 'active',
 }));

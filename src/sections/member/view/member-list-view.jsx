@@ -50,18 +50,21 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS
 
 // const TABLE_HEAD = [
 //   { id: 'name', label: 'Name' },
-//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+//   { id: '
+// ', label: 'Núm. Teléfono', width: 180 },
 //   { id: 'company', label: 'Company', width: 220 },
 //   { id: 'Role', label: 'Role', width: 180 },
 //   { id: 'status', label: 'Estado', width: 100 },
 //   { id: '', width: 88 },
 // ];
 
+
 const TABLE_HEAD = [
   { id: 'memberName', label: 'Nombre' },
-  { id: 'memberPhoneNumber', label: 'Núm. Teléfono', width: 180 },
+  // { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
+  { id: 'destFullName', label: 'Destacamento', width: 200 },
   { id: 'memberPosition', label: 'Posición', width: 220 },
-  { id: 'memberDivision', label: 'División', width: 170 },
+  { id: 'memberDivision', label: 'División', width: 180 },
   { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
