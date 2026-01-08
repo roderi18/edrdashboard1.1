@@ -14,14 +14,14 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
     updateFilters({ name: '' });
   }, [onResetPage, updateFilters]);
 
-  const handleRemoveStatus = useCallback(() => {
+  const handleRemoveSectionalFullName = useCallback(() => {
     onResetPage();
-    updateFilters({ memberStatus: 'all' });
+    updateFilters({ sectionalFullName: 'all' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveState = useCallback(() => {
     onResetPage();
-    updateFilters({ status: [] });
+    updateFilters({ sectionalFullName: [] });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveRole = useCallback(
@@ -72,8 +72,8 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
         />
       </FiltersBlock> */}
 
-      <FiltersBlock label="Estado:" isShow={currentFilters.status.length > 0}>
-        {currentFilters.status.map((item) => (
+      <FiltersBlock label="Sección:" isShow={currentFilters.sectionalFullName.length > 0}>
+        {currentFilters.sectionalFullName.map((item) => (
           <Chip
             {...chipProps}
             key={item}

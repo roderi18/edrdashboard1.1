@@ -18,7 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _memberPositionsFilter, _memberList, MEMBER_STATUS_OPTIONS, MEMBER_DIVISION_OPTIONS } from 'src/_mock';
+import { _roles, _memberPositionsFilter, _memberList, _sectionalFullNames, SECTIONAL_FULL_NAME, MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,7 +45,7 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS];
+// const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS];
 // const MEMBER_STATUSs_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUSs_OPTIONS];
 
 // const TABLE_HEAD = [
@@ -62,10 +62,12 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...MEMBER_STATUS_OPTIONS
 const TABLE_HEAD = [
   { id: 'memberName', label: 'Nombre' },
   // { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-  { id: 'destFullName', label: 'Destacamento', width: 200 },
-  { id: 'memberPosition', label: 'Posición', width: 220 },
-  { id: 'memberDivision', label: 'División', width: 180 },
-  { id: 'status', label: 'Estado', width: 100 },
+  { id: 'destFullName', label: 'Destacamento', width: 210 },
+  { id: 'memberPosition', label: 'Posición', width: 200 },
+  { id: 'memberDivision', label: 'División', width: 120 },
+  { id: 'sectionalFullName', label: 'Sección', width: 160 },
+
+  // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 // ----------------------------------------------------------------------
@@ -77,9 +79,11 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], status: [], });
+  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalFullName: [], });
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctPositions = [...new Set(_memberPositionsFilter)];
+  const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
+
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -91,7 +95,7 @@ export function MemberListView() {
 
   const canReset =
     // !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status !== 'all' || currentFilters.status.length > 0;
-    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status.length > 0 || currentFilters.memberDivision.length > 0;;
+    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.sectionalFullName.length > 0 || currentFilters.memberDivision.length > 0;;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -126,11 +130,11 @@ export function MemberListView() {
   //   [updateFilters, table]
   // );
 
-  const handleFilterStatus = useCallback(
+  const handleFilterSectionalFullName = useCallback(
     (event, newValue) => {
       table.onResetPage();
       updateFilters({
-        status: newValue === 'all' ? [] : [newValue],
+        sectionalFullName: newValue === 'all' ? [] : [newValue],
       });
     },
     [updateFilters, table]
@@ -142,7 +146,7 @@ export function MemberListView() {
       table.onResetPage();
       updateFilters({
         memberDivision: newValue,
-        status: [],
+        sectionalFullName: [],
       });
     },
     [updateFilters, table]
@@ -198,8 +202,8 @@ export function MemberListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.status[0] || 'all'}
-            onChange={handleFilterStatus}
+            value={currentFilters.sectionalFullName[0] || 'all'}
+            onChange={handleFilterSectionalFullName}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -207,7 +211,8 @@ export function MemberListView() {
               }),
             ]}
           >
-            {STATUS_OPTIONS.map((tab) => (
+            <Tab label="Todos" value="all" />
+            {SECTIONAL_FULL_NAME.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -216,7 +221,7 @@ export function MemberListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.sectionalFullName) && 'filled') ||
                       'soft'
                     }
                     color={
@@ -227,7 +232,7 @@ export function MemberListView() {
                     }
                   >
                     {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((sectional) => sectional.status === tab.value).length
+                      ? tableData.filter((sectional) => sectional.sectionalFullName === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -343,7 +348,7 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberDivision, memberPosition, status } = filters;
+  const { name, memberDivision, memberPosition, sectionalFullName } = filters;
 
   // if (status && status !== 'all') {
   //   inputData = inputData.filter((member) => member.status === status);
@@ -355,9 +360,9 @@ function applyFilter({ inputData, comparator, filters }) {
   }
 
 
-  if (status.length) {
+  if (sectionalFullName.length) {
     inputData = inputData.filter((member) =>
-      status.includes(member.status)
+      sectionalFullName.includes(member.sectionalFullName)
     );
   }
   const stabilizedThis = inputData.map((el, index) => [el, index]);

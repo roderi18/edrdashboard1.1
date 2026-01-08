@@ -42,11 +42,11 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
   //   [updateFilters, table]
   // );
 
-  const handleFilterMemberStatus = useCallback(
+  const handleFilterSectionalFullName = useCallback(
     (event) => {
       onResetPage();
       updateFilters({
-        status: event.target.value,
+        sectionalFullName: event.target.value,
       });
     },
     [onResetPage, updateFilters]
@@ -157,7 +157,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
         </FormControl>
 
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
-          <InputLabel htmlFor="filter-memberStatus-select">División</InputLabel>
+          <InputLabel htmlFor="filter-sectionalFullName-select">División</InputLabel>
           <Select
             multiple
             label="División"

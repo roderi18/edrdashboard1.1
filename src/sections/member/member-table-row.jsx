@@ -141,18 +141,22 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
 
-        <TableCell>
+        {/* <TableCell>
           <Label
             variant="soft"
             color={ //etiquetas / badgets
-              (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
+              (row.memberDivision === 'active' && 'success') ||
+              (row.memberDivision === 'pending' && 'warning') ||
+              (row.memberDivision === 'banned' && 'error') ||
               'default'
             }
           >
-            {row.status}
+            {row.memberDivision}
           </Label>
+        </TableCell> */}
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {row.sectionalFullName}
         </TableCell>
 
         <TableCell>

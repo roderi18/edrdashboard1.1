@@ -10,12 +10,17 @@ export const MEMBER_DIVISION_OPTIONS = [
   { value: 'Navegantes', label: 'Navegantes' },
 ];
 
-export const MEMBER_STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'banned', label: 'Banned' },
-  { value: 'rejected', label: 'Rejected' },
+export const SECTIONAL_FULL_NAME = [
+
 ];
+
+// export const MEMBER_STATUS_OPTIONS = [
+//   { value: 'active', label: 'Active' },
+//   { value: 'pending', label: 'Pending' },
+//   { value: 'banned', label: 'Banned' },
+//   { value: 'rejected', label: 'Rejected' },
+// ];
+
 
 
 // const MEMBER_DIVISION_OPTIONS = [
@@ -151,6 +156,7 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   city: 'Rancho Cordova',
   memberPosition: _mock.memberPosition(index),
   email: _mock.email(index),
+  sectionalFullName: _mock.sectionalFullName(index),
   church: _mock.church(index),
   address: '908 Jack Locks',
   memberName: _mock.memberFullName(index),
