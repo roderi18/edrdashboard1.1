@@ -42,18 +42,18 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
   //   [updateFilters, table]
   // );
 
-  const handleFilterSectionalFullName = useCallback(
+  const handleFilterMemberDivision = useCallback(
     (event) => {
       onResetPage();
       updateFilters({
-        sectionalFullName: event.target.value,
+        memberDivision: event.target.value,
       });
     },
     [onResetPage, updateFilters]
   );
 
 
-  const handleFilterMemberDivision = useCallback(
+  const handleFilterSectionalFullName = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string'
@@ -61,7 +61,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
           : event.target.value;
 
       onResetPage();
-      updateFilters({ memberDivision: newValue });
+      updateFilters({ sectionalFullName: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -128,7 +128,7 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-memberPosition-select' }}
             MenuProps={{
-              slotProps: { paper: { sx: { maxHeight: 240 } } },
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
             }}
           >
             {/* {options.memberPosition.map((option) => (
@@ -157,22 +157,25 @@ export function MemberTableToolbar({ filters, options, onResetPage }) {
         </FormControl>
 
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
-          <InputLabel htmlFor="filter-sectionalFullName-select">División</InputLabel>
+          <InputLabel htmlFor="filter-sectionalFullName-select">Sección</InputLabel>
           <Select
             multiple
-            label="División"
-            value={currentFilters.memberDivision}
-            onChange={handleFilterMemberDivision}
+            label="Sección"
+            value={currentFilters.sectionalFullName}
+            onChange={handleFilterSectionalFullName}
             renderValue={(selected) => selected.join(', ')}
-            inputProps={{ id: 'filter-memberDivision-select' }}
+            inputProps={{ id: 'filter-sectionalFullName-select' }}
+            MenuProps={{
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
+            }}
           >
-            {(options.memberDivision || []).map((option) => (
-              <MenuItem key={option.value} value={option.value}>
+            {(options.sectionalFullName || []).map((option) => (
+              <MenuItem key={option} value={option}>
                 <Checkbox
                   size="small"
-                  checked={currentFilters.memberDivision.includes(option.value)}
+                  checked={currentFilters.sectionalFullName.includes(option)}
                 />
-                {option.label}
+                {option}
               </MenuItem>
             ))}
           </Select>

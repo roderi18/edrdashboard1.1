@@ -11,7 +11,7 @@ export const MEMBER_DIVISION_OPTIONS = [
 ];
 
 export const SECTIONAL_FULL_NAME = [
-
+  { value: 'Tiburones del Este', label: 'Tiburones del Este' },
 ];
 
 // export const MEMBER_STATUS_OPTIONS = [

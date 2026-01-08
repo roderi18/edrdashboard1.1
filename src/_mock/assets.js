@@ -281,9 +281,9 @@ export const _sectionalEmails = [
 
 export const _sectionalFullNames = [
   'Tiburones del Este',
-  'Sección 2',
-  'Sección 3',
-  'Sección 4',
+  'Tiburones del Este',
+  'Tiburones del Este',
+  'Tiburones del Este',
   'Sección 5',
   'Sección 6',
   'Sección 7',

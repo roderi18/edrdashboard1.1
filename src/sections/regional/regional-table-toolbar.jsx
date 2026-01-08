@@ -103,7 +103,7 @@ export function RegionalTableToolbar({ filters, options, onResetPage }) {
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-role-select' }}
             MenuProps={{
-              slotProps: { paper: { sx: { maxHeight: 240 } } },
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
             }}
           >
             {options.roles.map((option) => (

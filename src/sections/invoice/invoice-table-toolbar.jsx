@@ -107,7 +107,7 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-service-select' }}
             MenuProps={{
-              slotProps: { paper: { sx: { maxHeight: 240 } } },
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
             }}
           >
             {options.services.map((option) => (

@@ -103,7 +103,7 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-nationalXMemberPosition-select' }}
             MenuProps={{
-              slotProps: { paper: { sx: { maxHeight: 240 } } },
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
             }}
           >
             {/* {options.roles.map((option) => (
@@ -141,7 +141,7 @@ export function NationalTableToolbar({ filters, options, onResetPage }) {
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             inputProps={{ id: 'filter-nationalEstructure-select' }}
             MenuProps={{
-              slotProps: { paper: { sx: { maxHeight: 240 } } },
+              slotProps: { paper: { sx: { maxHeight: 250 } } },
             }}
           >
             {/* {(options.nationalEstructure || []).map((option, index) => (

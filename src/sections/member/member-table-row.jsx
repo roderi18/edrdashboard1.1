@@ -139,7 +139,11 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPosition}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {row.sectionalFullName}
+        </TableCell>
+
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell> */}
 
         {/* <TableCell>
           <Label
@@ -156,7 +160,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
         </TableCell> */}
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
-          {row.sectionalFullName}
+          {row.memberDivision}
         </TableCell>
 
         <TableCell>

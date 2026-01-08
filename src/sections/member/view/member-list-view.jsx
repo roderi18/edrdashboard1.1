@@ -64,8 +64,8 @@ const TABLE_HEAD = [
   // { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
   { id: 'destFullName', label: 'Destacamento', width: 210 },
   { id: 'memberPosition', label: 'Posición', width: 200 },
-  { id: 'memberDivision', label: 'División', width: 120 },
   { id: 'sectionalFullName', label: 'Sección', width: 160 },
+  { id: 'memberDivision', label: 'División', width: 120 },
 
   // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
@@ -79,7 +79,7 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalFullName: [], });
+  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalFullName: [] });
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctPositions = [...new Set(_memberPositionsFilter)];
   const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
@@ -95,7 +95,7 @@ export function MemberListView() {
 
   const canReset =
     // !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.status !== 'all' || currentFilters.status.length > 0;
-    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.sectionalFullName.length > 0 || currentFilters.memberDivision.length > 0;;
+    !!currentFilters.name || currentFilters.memberPosition.length > 0 || currentFilters.memberDivision.length > 0 || currentFilters.sectionalFullName.length > 0;;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -145,8 +145,7 @@ export function MemberListView() {
     (event, newValue) => {
       table.onResetPage();
       updateFilters({
-        memberDivision: newValue,
-        sectionalFullName: [],
+        memberDivision: newValue === 'all' ? [] : [newValue],
       });
     },
     [updateFilters, table]
@@ -202,8 +201,8 @@ export function MemberListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.sectionalFullName[0] || 'all'}
-            onChange={handleFilterSectionalFullName}
+            value={currentFilters.memberDivision[0] || 'all'}
+            onChange={handleFilterMemberDivisionTab}
             sx={[
               (theme) => ({
                 px: { md: 2.5 },
@@ -212,7 +211,7 @@ export function MemberListView() {
             ]}
           >
             <Tab label="Todos" value="all" />
-            {SECTIONAL_FULL_NAME.map((tab) => (
+            {MEMBER_DIVISION_OPTIONS.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -221,18 +220,20 @@ export function MemberListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.sectionalFullName) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.memberDivision) && 'filled') ||
                       'soft'
                     }
                     color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'Liderazgo' && 'default') ||
+                      (tab.value === 'Exploradores' && 'success') ||
+                      (tab.value === 'Seguidores' && 'error') ||
+                      (tab.value === 'Pioneros' && 'error') ||
+                      (tab.value === 'Navegantes' && 'warning') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((sectional) => sectional.sectionalFullName === tab.value).length
+                    {['Liderazgo', 'Exploradores', 'Seguidores', 'Pioneros', 'Navegantes'].includes(tab.value)
+                      ? tableData.filter((sectional) => sectional.memberDivision === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -251,6 +252,7 @@ export function MemberListView() {
             options={{
               memberPosition: distinctPositions,
               memberDivision: MEMBER_DIVISION_OPTIONS,
+              sectionalFullName: distinctSectionalFullName,
             }}
           />
 
@@ -353,16 +355,16 @@ function applyFilter({ inputData, comparator, filters }) {
   // if (status && status !== 'all') {
   //   inputData = inputData.filter((member) => member.status === status);
   // }
-  if (memberDivision.length) {
+  if (sectionalFullName.length) {
     inputData = inputData.filter((member) =>
-      memberDivision.includes(member.memberDivision)
+      sectionalFullName.includes(member.sectionalFullName)
     );
   }
 
 
-  if (sectionalFullName.length) {
+  if (memberDivision.length) {
     inputData = inputData.filter((member) =>
-      sectionalFullName.includes(member.sectionalFullName)
+      memberDivision.includes(member.memberDivision)
     );
   }
   const stabilizedThis = inputData.map((el, index) => [el, index]);
