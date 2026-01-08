@@ -140,7 +140,19 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         </TableCell>
 
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destMemberCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destMemberCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href="/dashboard/level/member"
+              color="inherit"
+              sx={{ cursor: 'pointer' }}
+            >
+              {row.destMemberCount}
+            </Link>
+          </Box>
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalFullName}</TableCell>
 

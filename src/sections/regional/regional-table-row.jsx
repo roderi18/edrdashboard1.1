@@ -130,13 +130,25 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
+                {row.phoneNumber}
               </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href="/dashboard/level/sectional?region=Región Central"
+              color="inherit"
+              sx={{ cursor: 'pointer' }}
+            >
+              {row.regionalXSectionalCount}
+            </Link>
+          </Box>
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalXDestCount}</TableCell>
 

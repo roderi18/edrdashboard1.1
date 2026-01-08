@@ -116,7 +116,26 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destFullName}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.destFullName}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            {/* <Avatar alt={row.memberName} src={row.avatarUrl} /> */}
+            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+              <Link
+                component={RouterLink}
+                href={editHref}
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+              >
+                {row.destFullName}
+              </Link>
+
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                {row.church}
+              </Box>
+            </Stack>
+          </Box>
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberPosition}</TableCell>
 

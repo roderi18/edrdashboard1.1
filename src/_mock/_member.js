@@ -151,6 +151,7 @@ export const _memberList = Array.from({ length: 20 }, (_, index) => ({
   city: 'Rancho Cordova',
   memberPosition: _mock.memberPosition(index),
   email: _mock.email(index),
+  church: _mock.church(index),
   address: '908 Jack Locks',
   memberName: _mock.memberFullName(index),
   isVerified: _mock.boolean(index),

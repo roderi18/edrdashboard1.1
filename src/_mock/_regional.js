@@ -135,6 +135,7 @@ export const _regionalList = Array.from({ length: 4 }, (_, index) => ({
   regionalXSectionalXDestCount: _mock.regionalXSectionalXDestCount(index),
   regionalXSectionalEmail: _mock.regionalXSectionalEmail(index),
   email: _mock.email(index),
+  phoneNumber: _mock.phoneNumber(index),
   address: '908 Jack Locks',
   regionalName: _mock.regionalFullName(index),
   isVerified: _mock.boolean(index),

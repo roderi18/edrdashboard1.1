@@ -58,7 +58,7 @@ import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 const TABLE_HEAD = [
   { id: 'nationalXMemberName', label: 'Nombre' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 160 },
+  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 140 },
   { id: 'nationalXMemberPosition', label: 'Posición', width: 180 },
   { id: 'nationalEstructure', label: 'Estructura', width: 180 },
   { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 160 },

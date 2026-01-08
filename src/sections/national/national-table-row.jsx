@@ -110,7 +110,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
                 {row.nationalXMemberName}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.phoneNumber}
+                {row.email}
               </Box>
             </Stack>
           </Box>
