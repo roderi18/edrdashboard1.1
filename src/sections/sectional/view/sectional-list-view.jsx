@@ -1,7 +1,8 @@
 'use client';
 
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
@@ -79,6 +80,9 @@ export function SectionalListView() {
 
   const filters = useSetState({ name: '', role: [], regionalFullName: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
+  const searchParams = useSearchParams();
+  const regionFromUrl = searchParams.get('region');
+  const hasAppliedUrlFilter = useRef(false);
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -123,6 +127,18 @@ export function SectionalListView() {
     },
     [updateFilters, table]
   );
+
+  useEffect(() => {
+    if (!regionFromUrl) return;
+
+    // aplicar solo una vez
+    if (hasAppliedUrlFilter.current) return;
+
+    console.log('🌍 Aplicando filtro inicial desde URL:', regionFromUrl);
+
+    updateFilters({ regionalFullName: regionFromUrl });
+    hasAppliedUrlFilter.current = true;
+  }, [regionFromUrl]);
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -174,7 +190,7 @@ export function SectionalListView() {
 
         <Card>
           <Tabs
-            value={currentFilters.regionalFullName}
+            value={currentFilters.regionalFullName || 'all'}
             onChange={handleFilterRegionalFullName}
             sx={[
               (theme) => ({

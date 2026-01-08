@@ -139,11 +139,18 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
         {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalCount}</TableCell> */}
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Link
+            {/* <Link
               component={RouterLink}
-              href="/dashboard/level/sectional?region=Región Central"
+              href="/dashboard/level/sectional"
               color="inherit"
               sx={{ cursor: 'pointer' }}
+            >
+              {row.regionalXSectionalCount}
+            </Link> */}
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/sectional?region=${encodeURIComponent(row.regionalName)}`}
+              color="inherit"
             >
               {row.regionalXSectionalCount}
             </Link>
