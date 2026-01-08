@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
@@ -79,10 +80,32 @@ export function MemberListView() {
 
   const [tableData, setTableData] = useState(_memberList);
 
-  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalFullName: [] });
+  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalFullName: [], destFullName: [] });
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctPositions = [...new Set(_memberPositionsFilter)];
   const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
+
+  const searchParams = useSearchParams();
+  const destFromUrl = searchParams.get('dest');
+  const sectionFromUrl = searchParams.get('section');
+  const appliedFromUrl = useRef(false);
+
+  useEffect(() => {
+    if (appliedFromUrl.current) return;
+
+    if (destFromUrl) {
+      updateFilters({ destFullName: [destFromUrl] });
+      table.onResetPage();
+      appliedFromUrl.current = true;
+      return;
+    }
+
+    if (sectionFromUrl) {
+      updateFilters({ sectionalFullName: [sectionFromUrl] });
+      table.onResetPage();
+      appliedFromUrl.current = true;
+    }
+  }, [destFromUrl, sectionFromUrl, updateFilters, table]);
 
 
   const dataFiltered = applyFilter({
@@ -350,14 +373,19 @@ export function MemberListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberDivision, memberPosition, sectionalFullName } = filters;
+  const { name, memberDivision, memberPosition, sectionalFullName, destFullName } = filters;
 
   // if (status && status !== 'all') {
   //   inputData = inputData.filter((member) => member.status === status);
   // }
-  if (sectionalFullName.length) {
+
+
+  if (destFullName.length) {
     inputData = inputData.filter((member) =>
-      sectionalFullName.includes(member.sectionalFullName)
+      destFullName.some(
+        (dest) =>
+          normalizeText(dest) === normalizeText(member.destFullName)
+      )
     );
   }
 
@@ -382,6 +410,14 @@ function applyFilter({ inputData, comparator, filters }) {
     );
   }
 
+  if (sectionalFullName.length) {
+    inputData = inputData.filter((member) =>
+      sectionalFullName.some(
+        (section) =>
+          normalizeText(section) === normalizeText(member.sectionalFullName)
+      )
+    );
+  }
 
   // if (memberDivision !== 'all') {
   //   inputData = inputData.filter((member) => member.memberDivision === memberDivision);

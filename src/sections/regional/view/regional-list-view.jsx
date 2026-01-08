@@ -78,21 +78,21 @@ export function RegionalListView() {
 
   const [tableData, setTableData] = useState(_regionalList);
 
-  const filters = useSetState({ name: '', role: [], status: 'all', regionalXSectionalXDestCount: [] });
+  const filters = useSetState({ name: '', role: [], status: 'all', regionalXSectionalXDestCount: [], });
   const { state: currentFilters, setState: updateFilters } = filters;
   const searchParams = useSearchParams();
-  const nationalParam = searchParams.get('national');
+  const sectionParam = searchParams.get('section');
   const isFirstLoad = useRef(true);
 
   useEffect(() => {
-    if (!nationalParam || !isFirstLoad.current) return;
+    if (!sectionParam || !isFirstLoad.current) return;
 
     updateFilters({
-      regionalFullName: [nationalParam],
+      name: sectionParam,
     });
 
     isFirstLoad.current = false;
-  }, [nationalParam, updateFilters]);
+  }, [sectionParam, updateFilters]);
 
   const dataFiltered = applyFilter({
     inputData: tableData,

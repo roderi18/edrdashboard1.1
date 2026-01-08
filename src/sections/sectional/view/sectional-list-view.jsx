@@ -81,6 +81,7 @@ export function SectionalListView() {
   const filters = useSetState({ name: '', role: [], regionalFullName: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
   const searchParams = useSearchParams();
+  const sectionFromUrl = searchParams.get('section');
   const regionFromUrl = searchParams.get('region');
   const hasAppliedUrlFilter = useRef(false);
 
@@ -128,14 +129,31 @@ export function SectionalListView() {
     [updateFilters, table]
   );
 
-  useEffect(() => {
-    if (!regionFromUrl) return;
+  // useEffect(() => {
+  //   if (!regionFromUrl) return;
 
-    // aplicar solo una vez
+  //   // aplicar solo una vez
+  //   if (hasAppliedUrlFilter.current) return;
+  //   updateFilters({ regionalFullName: regionFromUrl });
+  //   hasAppliedUrlFilter.current = true;
+  // }, [regionFromUrl]);
+  useEffect(() => {
     if (hasAppliedUrlFilter.current) return;
-    updateFilters({ regionalFullName: regionFromUrl });
-    hasAppliedUrlFilter.current = true;
-  }, [regionFromUrl]);
+
+    if (regionFromUrl) {
+      updateFilters({ regionalFullName: regionFromUrl });
+    }
+
+    if (sectionFromUrl) {
+      updateFilters({ name: sectionFromUrl });
+    }
+
+    if (regionFromUrl || sectionFromUrl) {
+      table.onResetPage();
+      hasAppliedUrlFilter.current = true;
+    }
+  }, [regionFromUrl, sectionFromUrl, updateFilters, table]);
+
 
   const renderConfirmDialog = () => (
     <ConfirmDialog

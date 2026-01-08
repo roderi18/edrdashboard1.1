@@ -80,18 +80,27 @@ export function DestListView() {
 
   const filters = useSetState({ name: '', sectionalFullName: [], regionalFullName: 'all' });
   const searchParams = useSearchParams();
+  // const sectionalFromUrl = searchParams.get('sectional');
   const regionFromUrl = searchParams.get('region');
   const appliedFromUrl = useRef(false);
-
   const { state: currentFilters, setState: updateFilters } = filters;
   const distinctSectionalFullName = [...new Set(_sectionalFullNames)];
+
+  // useEffect(() => {
+  //   if (!sectionalFromUrl) return;
+  //   if (appliedFromUrl.current) return;
+  //   updateFilters({ sectionalFullName: [sectionalFromUrl] });
+  //   table.onResetPage();
+
+  //   appliedFromUrl.current = true;
+  // }, [sectionalFromUrl, updateFilters, table]);
 
   useEffect(() => {
     if (!regionFromUrl) return;
     if (appliedFromUrl.current) return;
+
     updateFilters({ regionalFullName: regionFromUrl });
     table.onResetPage();
-
     appliedFromUrl.current = true;
   }, [regionFromUrl, updateFilters, table]);
 

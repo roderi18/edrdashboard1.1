@@ -145,16 +145,27 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href="/dashboard/level/member"
+              href={`/dashboard/level/member?dest=${encodeURIComponent(row.destName)}`}
               color="inherit"
-              sx={{ cursor: 'pointer' }}
             >
               {row.destMemberCount}
             </Link>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalFullName}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalFullName}</TableCell> */}
+
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/sectional?section=${encodeURIComponent(row.sectionalFullName)}`}
+              color="inherit"
+            >
+              {row.sectionalFullName}
+            </Link>
+          </Box>
+        </TableCell>
 
         {/* <TableCell>
           <Label
@@ -170,8 +181,19 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           </Label>
         </TableCell> */}
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>
           {row.regionalFullName}
+        </TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/regional?section=${encodeURIComponent(row.regionalFullName)}`}
+              color="inherit"
+            >
+              {row.regionalFullName}
+            </Link>
+          </Box>
         </TableCell>
 
         <TableCell>

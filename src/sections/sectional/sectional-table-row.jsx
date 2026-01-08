@@ -139,9 +139,31 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         </TableCell>
 
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalDestCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalDestCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.sectionalName)}`}
+              color="inherit"
+            >
+              {row.sectionalDestCount}
+            </Link>
+          </Box>
+        </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalXDestMemberCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalXDestMemberCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/member?sectional=${encodeURIComponent(row.sectionalName)}`}
+              color="inherit"
+            >
+              {row.sectionalXDestMemberCount}
+            </Link>
+          </Box>
+        </TableCell>
 
         {/* <TableCell>
           <Label
@@ -157,8 +179,20 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
           </Label>
         </TableCell> */}
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>
           {row.regionalFullName}
+        </TableCell> */}
+
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/regional/`}
+              color="inherit"
+            >
+              {row.regionalFullName}
+            </Link>
+          </Box>
         </TableCell>
 
         <TableCell>
