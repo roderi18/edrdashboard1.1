@@ -170,7 +170,18 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalMemberCount}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.regionalXSectionalMemberCount}</TableCell> */}
+        <TableCell>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/dest?region=${encodeURIComponent(row.regionalName)}`}
+              color="inherit"
+            >
+              {row.regionalXSectionalMemberCount}
+            </Link>
+          </Box>
+        </TableCell>
 
         {/* <TableCell>
           <Label
