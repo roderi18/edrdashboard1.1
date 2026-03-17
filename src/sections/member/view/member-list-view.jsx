@@ -90,22 +90,21 @@ export function MemberListView() {
 
     return members.map((member) => {
       const dest = DESTS.find((d) => d.id === member.destId);
-      const destLeaderships = leadershipAssignments.filter(
+      const memberLeaderships = leadershipAssignments.filter(
         (l) =>
           (l.memberId === member.id || l.member_id === member.id) &&
-          l.level === 'dest' &&
           (l.status === 'active' || !l.status)
       );
-      console.log('member data', member);
       const sectional = SECTIONALS.find((s) => s.id === dest?.sectionalId);
 
       return {
         ...member,
-        id: member.memberId,
+        id: member.id,
+        memberId: member.id,
         name: getMemberFullName(member),
         sectionalId: dest?.sectionalId,
         sectionalName: sectional?.name,
-        memberPosition: destLeaderships.map((l) => l.role),
+        memberPosition: memberLeaderships.map((l) => l.role),
       };
     });
   });
@@ -159,7 +158,7 @@ export function MemberListView() {
 
 
   const memberFromUrl = memberIdFromUrl
-    ? tableData.find((m) => m.memberId === memberIdFromUrl)
+    ? tableData.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
     : null;
 
   const dataFiltered = applyFilter({
@@ -398,12 +397,12 @@ export function MemberListView() {
                         )
                         .map((row) => (
                           <MemberTableRow
-                            key={row.memberId}
+                            key={row.id}
                             row={row}
-                            selected={table.selected.includes(row.memberId)}
-                            onSelectRow={() => table.onSelectRow(row.memberId)}
-                            onDeleteRow={() => handleDeleteRow(row.memberId)}
-                            editHref={paths.dashboard.level.member.edit(row.memberId)}
+                            selected={table.selected.includes(row.id)}
+                            onSelectRow={() => table.onSelectRow(row.id)}
+                            onDeleteRow={() => handleDeleteRow(row.id)}
+                            editHref={paths.dashboard.level.member.edit(row.id)}
                           />
                         ))}
 

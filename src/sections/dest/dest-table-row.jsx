@@ -52,7 +52,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     row?.churchName ||
     'Iglesia desconocida';
 
-  const coordinator = MEMBERS.find(
+  const coordinator = getMembers().find(
     (m) => m.id === row.coordinatorId
   );
 

@@ -7,7 +7,8 @@ import { getDests } from 'src/services/dest-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
-import { resolveById } from 'src/utils/resolve-display-name';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -58,7 +59,7 @@ export const DestCreateSchema = z.object({
 
 // ----------------------------------------------------------------------
 
-const mapDestToForm = (dest) => {
+const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
   console.log(
     LEADERSHIP_ASSIGNMENTS.filter(a => a.entityId === dest.id)
   );
@@ -82,11 +83,11 @@ const mapDestToForm = (dest) => {
     // a.status === 'active'
   );
 
-  const coordinator = getMembers().find(
+  const coordinator = members.find(
     (m) => m.id === coordinatorAssignment?.memberId
   );
 
-  const assistant = MEMBERS.find(
+  const assistant = members.find(
     (m) => m.id === assistantAssignment?.memberId
   );
 
@@ -174,10 +175,11 @@ export function DestCreateEditForm({ currentDest }) {
 
   useEffect(() => {
     if (currentDest) {
-
-      methods.reset(mapDestToForm(currentDest));
+      methods.reset(
+        mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
+      );
     }
-  }, [currentDest]);
+  }, [currentDest, sectionals, regionals, churches, allMembers, methods]);
 
   useEffect(() => {
 
@@ -404,11 +406,9 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.Autocomplete
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
-                options={[...MEMBERS, ...getMembers()]}
+                options={allMembers}
                 value={
-                  [...MEMBERS, ...getMembers()].find(
-                    (m) => m.id === watch('coordinatorId')
-                  ) || null
+                  allMembers.find((m) => m.id === watch('coordinatorId')) || null
                 }
                 getOptionLabel={(option) =>
                   option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`
@@ -444,7 +444,7 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.Autocomplete
                 name="sectionalId"
                 label="Sección"
-                options={SECTIONALS}
+                options={sectionals}
                 value={
                   sectionals.find(
                     (s) => s.id === watch('sectionalId')

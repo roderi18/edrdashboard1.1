@@ -7,3 +7,8 @@ export const saveChurch = (church) => {
 
     return church;
 };
+
+export const getChurches = () => {
+    const stored = JSON.parse(localStorage.getItem('churches') || '[]');
+    return stored;
+};

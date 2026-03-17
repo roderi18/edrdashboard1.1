@@ -34,20 +34,28 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const quickEditForm = useBoolean();
   const showMorePositions = useBoolean();
   const dest = DESTS.find((d) => d.id === row.destId);
+  const getLeadershipRoleLabel = (roleValue) => {
+    const role = _allLeadershipRoles.find((r) => r.value === roleValue);
+    return role?.label || roleValue;
+  };
 
   const churchName = dest
     ? resolveById(CHURCHES, dest.churchId)
     : '';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
-  const leaderships = leadershipAssignments.filter(
-    (l) =>
-      (l.memberId === row.memberId || l.member_id === row.memberId) &&
-      (l.status === 'active' || !l.status)
-  )
+  const leaderships = leadershipAssignments
+    .filter(
+      (l) =>
+        (l.memberId === row.id ||
+          l.memberId === row.memberId ||
+          l.member_id === row.id ||
+          l.member_id === row.memberId) &&
+        (l.status === 'active' || !l.status)
+    )
     .map((l) => ({
       ...l,
-      label: _allLeadershipRoles.find((r) => r.value === l.role)?.label,
+      label: getLeadershipRoleLabel(l.role),
     }))
     .filter((l) => l.label);
 
@@ -272,7 +280,11 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                 ))}
             </Stack>
           ) : (
-            row.memberPosition || 'N/A'
+            Array.isArray(row.memberPosition)
+              ? row.memberPosition.map(getLeadershipRoleLabel).join(', ')
+              : row.memberPosition
+                ? getLeadershipRoleLabel(row.memberPosition)
+                : 'N/A'
           )}
         </TableCell>
 
