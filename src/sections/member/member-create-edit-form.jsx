@@ -64,10 +64,10 @@ import { ContextInfo } from 'src/components/info/context-info';
 import { Form, Field } from 'src/components/hook-form';
 
 // form sections
-import MemberGeneralSection from 'src/components/member-form/MemberGeneralSection';
-import MemberAddressSection from 'src/components/member-form/MemberAddressSection';
-import MemberLeadershipAndOtherSection from 'src/components/member-form/MemberLeadershipAndOtherSection';
-import MemberInstructorCISection from 'src/components/member-form/MemberInstructorCISection';
+import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
+import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
+import MemberLeadershipAndOtherSection from 'src/components/form/member-form/MemberLeadershipAndOtherSection';
+import MemberInstructorCISection from 'src/components/form/member-form/MemberInstructorCISection';
 // ----------------------------------------------------------------------
 
 const mapMemberToForm = (member) => {

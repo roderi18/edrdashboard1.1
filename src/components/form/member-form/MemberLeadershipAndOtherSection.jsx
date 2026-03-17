@@ -15,7 +15,7 @@ import {
     NATIONAL_LEADERSHIP_LEVELS,
 } from 'src/sections/member/member-create-edit-options';
 
-import { DESTS } from 'src/_mock/assets';
+import { getDests } from 'src/services/dest-service';
 import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 export default function MemberLeadershipAndOtherSection({

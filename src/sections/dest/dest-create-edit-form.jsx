@@ -29,6 +29,7 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 import { countMembersByDestId } from 'src/utils/member-count';
+import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 
 // ----------------------------------------------------------------------
 
@@ -38,21 +39,9 @@ export const DestCreateSchema = z.object({
   name: z.string().min(1, { error: 'Destacamento requerido' }),
   churchName: z.string().min(1, { error: 'Nombre de iglesia requerido' }),
   coordinatorName: z.string().optional(),
-  assistantCoordinatorName: z.string().optional(),
-
   address: z.string().min(1, { error: 'Dirección requerida' }),
   destMeetingTimes: z.string().optional(),
-
-  shepardName: z.string().optional(),
-  churchPhone: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }).optional(),
-
-  destProvince: z.string().optional(),
-  regionalName: z.string().optional(),
-  // sectionalName: z.string().optional(),
-
   coordinatorId: z.string().nullable().optional(),
-  sectionalId: z.string().nullable().optional(),
-
   status: z.string(),
   isVerified: z.boolean(),
 });
@@ -150,21 +139,17 @@ export function DestCreateEditForm({ currentDest }) {
     avatarUrl: null,
     isVerified: true,
     status: 'active',
-    country: 'Dominican Republic',
 
     name: '',
-    churchName: '',
+    destNumber: '',
 
     coordinatorId: null,
-    sectionalId: null,
 
-    address: '',
+    country: 'Dominican Republic',
+
+    churchId: null,
+
     destMeetingTimes: '',
-    shepardName: '',
-    churchPhone: '',
-    destProvince: '',
-    regionalName: '',
-
   };
 
   const methods = useForm({
@@ -238,23 +223,13 @@ export function DestCreateEditForm({ currentDest }) {
 
         coordinatorId: data.coordinatorId ?? null,
 
-        churchName: data.churchName,
-        churchId: data.church?.id ?? null,
+        churchId: data.churchId?.id ?? null,
 
-        churchAddress: data.address,
+        country: data.country,
 
-        sectionalId: data.sectionalId ?? null,
-
-        regionalId: regionals.find(
-          (r) => r.name === data.regionalName
-        )?.id ?? null,
+        destMeetingTimes: data.destMeetingTimes,
 
         avatarUrl: data.avatarUrl,
-
-        shepardName: data.shepardName,
-        churchPhone: data.churchPhone,
-        destProvince: data.destProvince,
-        destMeetingTimes: data.destMeetingTimes,
 
         membershipStatus: data.status ?? 'active',
         isVerified: data.isVerified ?? true,
@@ -394,76 +369,14 @@ export function DestCreateEditForm({ currentDest }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Nombre de Destacamento" />
-              <Field.Text
-                name="destNumber"
-                label="Número de Destacamento (al validar max 3) y no repetir"
-                inputProps={{
-                  inputMode: 'numeric',
-                  pattern: '[0-9]*'
-                }}
+
+              <DestGeneralSection
+                isCreateView={!currentDest}
+                members={allMembers}
+                churches={churches}
+                methods={methods}
+                watch={watch}
               />
-              <Field.Autocomplete
-                name="coordinatorId"
-                label="Coordinador de Destacamento"
-                options={allMembers}
-                value={
-                  allMembers.find((m) => m.id === watch('coordinatorId')) || null
-                }
-                getOptionLabel={(option) =>
-                  option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`
-                }
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(_, value) =>
-                  methods.setValue('coordinatorId', value?.id ?? null)
-                }
-              />
-              {/* {currentDest && (
-                <Field.Text name="assistantCoordinatorName" label="Coordinador Asist. de Destacamento" />
-              )} */}
-              <Field.CountrySelect
-                fullWidth
-                name="country"
-                label="País"
-                placeholder="Elige un país"
-              />
-              <Field.Text
-                name="churchName"
-                label="Nombre de la Iglesia"
-              />
-
-              <Field.Text name="address" label="Dirección iglesia" />
-              <Field.Text name="shepardName" label="Pastor" />
-              <Field.Phone name="churchPhone" label="Número teléfono pastor" defaultCountry="DO" />
-
-              <Field.Text name="destMeetingTimes" label="Horarios reunión" />
-
-
-
-              <Field.Text name="destProvince" label="Provincia" />
-              <Field.Autocomplete
-                name="sectionalId"
-                label="Sección"
-                options={sectionals}
-                value={
-                  sectionals.find(
-                    (s) => s.id === watch('sectionalId')
-                  ) || null
-                }
-                getOptionLabel={(option) => option?.name || ''}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(_, value) =>
-                  methods.setValue('sectionalId', value?.id ?? null)
-                }
-              />
-              {currentDest && (
-                <Field.Text
-                  name="regionalName"
-                  label="Región"
-                  disabled
-                />
-              )}
-
 
               {currentDest && (
                 <TextField

@@ -1,6 +1,7 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { resolveById } from 'src/utils/resolve-display-name';
-import { DESTS, SECTIONALS, CHURCHES } from 'src/_mock/assets';
+import { SECTIONALS, CHURCHES } from 'src/_mock/assets';
+import { getDests } from 'src/services/dest-service';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
@@ -16,6 +17,7 @@ import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { useState, useEffect } from 'react';
 import { UnderlineLink } from 'src/components/link/underline-link';
 
 import { RouterLink } from 'src/routes/components';
@@ -29,11 +31,17 @@ import { MemberQuickEditForm } from './member-quick-edit-form';
 // ----------------------------------------------------------------------
 
 export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+  const [dests, setDests] = useState([]);
+
+  useEffect(() => {
+    setDests(getDests());
+  }, []);
+
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
   const showMorePositions = useBoolean();
-  const dest = DESTS.find((d) => d.id === row.destId);
+  const dest = dests.find((d) => d.id === row.destId);
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
     return role?.label || roleValue;
@@ -152,7 +160,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 
             <Avatar
-              alt={resolveById(DESTS, row.destId)}
+              alt={dest?.name}
               src={dest?.avatarUrl}
               sx={{
                 width: 40,
@@ -162,10 +170,10 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <UnderlineLink
-                href={`/dashboard/level/dest?name=${encodeURIComponent(resolveById(DESTS, row.destId))}`}
+                href={`/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`}
                 color="inherit"
               >
-                {resolveById(DESTS, row.destId)}
+                {dest?.name}
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
@@ -189,7 +197,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
                   if (leadership.level === 'dest') {
                     link = `/dashboard/level/dest?name=${encodeURIComponent(
-                      resolveById(DESTS, row.destId)
+                      dest?.name
                     )}`;
                   }
 
@@ -235,7 +243,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
                         if (leadership.level === 'dest') {
                           link = `/dashboard/level/dest?name=${encodeURIComponent(
-                            resolveById(DESTS, row.destId)
+                            dest?.name
                           )}`;
                         }
 
