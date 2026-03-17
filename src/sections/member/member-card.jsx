@@ -1,0 +1,307 @@
+import { varAlpha } from 'minimal-shared/utils';
+
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
+import ListItemText from '@mui/material/ListItemText';
+import { getStorageCollection } from 'src/utils/storage-service';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
+
+import { _socials } from 'src/_mock';
+import { AvatarShape } from 'src/assets/illustrations';
+
+import { Image } from 'src/components/image';
+import { resolveById } from 'src/utils/resolve-display-name';
+import { parsePhoneNumber } from 'libphonenumber-js';
+import { useTheme, useMediaQuery } from '@mui/material';
+import { useRouter } from 'next/navigation';
+import { DESTS, SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
+import { getAvatarById } from 'src/utils/get-avatar';
+// ----------------------------------------------------------------------
+
+export function MemberCard({ member, sx, ...other }) {
+
+  const memberDivisionCoverMap = {
+    Exploradores: '/assets/images/divisions/member/exploradores3.jpg',
+    Seguidores: '/assets/images/divisions/member/seguidores.jpg',
+    Pioneros: '/assets/images/divisions/member/pioneros.jpg',
+    Navegantes: '/assets/images/divisions/member/navegantes2.jpg',
+    Liderazgo: '/assets/images/divisions/member/liderazgo.jpg',
+  };
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const router = useRouter();
+  const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+
+  const coverSrc =
+    memberDivisionCoverMap[member.memberDivision?.trim()] ||
+    '/assets/images/divisions/default.jpg';
+
+  const dest = DESTS.find(
+    (d) => d.id === member.destId
+  );
+
+  const church = CHURCHES.find(
+    (c) => c.id === dest?.churchId
+  );
+
+  const sectional = SECTIONALS.find(
+    (s) => s.id === member.sectionalId
+  );
+
+  const regional = REGIONALS.find(
+    (r) => r.id === sectional?.regionalId
+  );
+
+  let leaderships = leadershipAssignments
+    .filter(
+      (l) =>
+        (l.memberId === member.id || l.member_id === member.id) &&
+        (l.status === 'active' || !l.status)
+    )
+    .map((l) => ({
+      ...l,
+      label: _allLeadershipRoles.find((r) => r.value === l.role)?.label,
+    }))
+    .filter((l) => l.label);
+
+  // si no tiene liderazgo pero sí posición en destacamento
+  if (!leaderships.length && member.memberPosition) {
+    leaderships = [
+      {
+        label: member.memberPosition,
+        level: 'dest',
+      },
+    ];
+  }
+
+  const handleEdit = () => {
+    router.push(`/dashboard/level/member/${member.id}/edit`);
+  };
+
+  return (
+    <Card sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
+      <Box sx={{ position: 'relative' }}>
+        {/* curva */}
+        <AvatarShape
+          sx={{
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            mx: 'auto',
+            bottom: -26,
+            position: 'absolute',
+          }}
+        />
+
+        <Avatar
+          onClick={handleEdit}
+          alt={member.name}
+          src={member.avatarUrl}
+          sx={{
+            left: 0,
+            right: 0,
+            width: 64,
+            height: 64,
+            zIndex: 11,
+            mx: 'auto',
+            bottom: -32,
+            position: 'absolute',
+            cursor: 'pointer',
+          }}
+        />
+
+        <Image
+          src={coverSrc}
+          alt={member.memberDivision}
+          ratio="16/6"
+          slotProps={{
+            overlay: {
+              sx: (theme) => ({
+                // sombra img trasera
+                bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.46),
+              }),
+            },
+          }}
+        />
+      </Box>
+
+
+      {/* nombre img */}
+      <ListItemText
+        sx={{ mt: 6, mb: 0.5 }}
+        primary={
+          <Box
+            onClick={handleEdit}
+            sx={{
+              typography: 'subtitle1',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {member.name}
+          </Box>
+        }
+      />
+
+      {/* inferior */}
+      <Box
+        sx={{
+          mb: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: 0.5,
+        }}
+      >
+        <Box sx={{ typography: 'body2', fontWeight: 300, mt: 0.2 }}>
+          {[0, 1].map((index) => {
+            const leadership = leaderships[index];
+
+            if (!leadership) {
+              if (isMobile) return null;
+
+              return (
+                <Box key={index} sx={{ color: 'text.secondary' }}>
+                  -
+                </Box>
+              );
+            }
+
+            let link = '#';
+
+            if (leadership.level === 'dest') {
+              link = `/dashboard/level/dest?name=${encodeURIComponent(
+                resolveById(DESTS, member.destId)
+              )}`;
+            }
+
+            if (leadership.level === 'sectional') {
+              link = `/dashboard/level/sectional?sectional=${encodeURIComponent(
+                resolveById(SECTIONALS, member.sectionalId)
+              )}`;
+            }
+
+            if (leadership.level === 'regional') {
+              link = `/dashboard/level/regional?region=${member.regionalId}`;
+            }
+
+            if (leadership.level === 'national') {
+              link = `/dashboard/level/national`;
+            }
+
+            return (
+              <Box
+                key={index}
+                onClick={() => router.push(link)}
+                sx={{
+                  cursor: 'pointer',
+                  color: index === 1 ? 'text.secondary' : 'text.primary',
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                {leadership.label}
+              </Box>
+            );
+          })}
+        </Box>
+
+        <Box
+          component="a"
+          href={`tel:${member.phoneNumber}`}
+          sx={{
+            typography: 'caption',
+            color: 'primary.main',
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          {member.phoneNumber
+            ? parsePhoneNumber(member.phoneNumber)?.formatNational()
+            : '-'}
+        </Box>
+      </Box>
+
+      <Divider sx={{ borderStyle: 'dashed' }} />
+
+      <Box
+        sx={{
+          py: 0.5,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            py: 1.5,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 1.5,
+          }}
+        >
+          {/* Destacamento */}
+          <Box
+            onClick={() =>
+              router.push(
+                `/dashboard/level/dest?member=${encodeURIComponent(
+                  resolveById(DESTS, member.destId)
+                )}`
+              )
+            }
+            sx={{
+              typography: 'caption',
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            }}
+          >
+            {resolveById(DESTS, member.destId)}
+          </Box>
+
+          <Box
+            component="span"
+            sx={{
+              typography: 'body2',
+              fontSize: '1rem',
+              color: 'text.disabled',
+              lineHeight: 1,
+            }}
+          >
+            •
+          </Box>
+
+          {/* Sección */}
+          <Box
+            onClick={() =>
+              router.push(
+                `/dashboard/level/sectional?sectional=${encodeURIComponent(
+                  resolveById(SECTIONALS, member.sectionalId)
+                )}`
+              )
+            }
+            sx={{
+              typography: 'caption',
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            }}
+          >
+            Sección {resolveById(SECTIONALS, member.sectionalId)}
+          </Box>
+        </Box>
+      </Box>
+    </Card>
+  );
+}

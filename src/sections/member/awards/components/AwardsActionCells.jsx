@@ -1,0 +1,165 @@
+'use client';
+
+import TableCell from '@mui/material/TableCell';
+import Button from '@mui/material/Button';
+import dayjs from 'dayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+
+import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
+import { CertificateActionCell } from 'src/sections/member/awards/components/certificate/CertificateActionCell';
+
+export function AwardsActionCells({
+    state,     // { status, completedDate, hasCertificate, timesCompleted }
+    actions,   // AwardsActionsCore
+    menuActions,
+    fileInputId,
+    pdfViewer,
+    certificateFile,
+    showTimesCompleted = true,
+    onRequireDeleteCertificate,
+}) {
+    const isCompleted = state.status === 'completado';
+
+    return (
+        <>
+            {/* =========================
+          ESTADO (DESPLEGABLE ORIGINAL)
+         ========================= */}
+            <StatusSelectCell
+                value={state.status}
+                hasCertificate={state.hasCertificate}
+                onRequireDeleteCertificate={onRequireDeleteCertificate}
+                onChange={(value) => {
+                    actions.setStatus(value);
+
+                    if (value === 'completado' && !state.completedDate) {
+                        actions.setCompletedDate(new Date().toISOString());
+                    }
+                }}
+            />
+
+            {/* =========================
+          COMPLETADO EN FECHA (DATEPICKER)
+         ========================= */}
+            <TableCell>
+                <DatePicker
+                    value={
+                        isCompleted && state.completedDate
+                            ? dayjs(state.completedDate)
+                            : null
+                    }
+                    onChange={(value) => {
+                        if (!value || !dayjs(value).isValid()) return;
+                        actions.setCompletedDate(value.toISOString());
+                    }}
+
+
+                    format="DD/MM/YYYY"
+                    views={['year', 'month', 'day']}
+                    openTo="year"
+                    minDate={dayjs('2000-01-01')}
+                    maxDate={dayjs()}
+                    disableFuture
+                    disabled={!isCompleted}
+                    slotProps={{
+                        textField: {
+                            size: 'small',
+                            sx: {
+                                width: 163,
+                                '& input': {
+                                    padding: '6px 6px',
+                                    textAlign: 'center',
+                                },
+                            },
+                        },
+                    }}
+                />
+            </TableCell>
+
+            {/* =========================
+          N.º DE VECES (+ / - ORIGINAL)
+         ========================= */}
+            {showTimesCompleted && (
+                <TableCell align="center" sx={{ p: 0 }}>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={!isCompleted || state.timesCompleted <= 0}
+                        onClick={() => {
+                            const next = state.timesCompleted - 1;
+                            actions.updateTimesCompleted(next);
+                        }}
+                        sx={{ minWidth: 32 }}
+                    >
+                        −
+                    </Button>
+
+                    <span
+                        style={{
+                            margin: '0 12px',
+                            fontWeight: 600,
+                            opacity: isCompleted ? 1 : 0.4,
+                        }}
+                    >
+                        {state.timesCompleted >= 10 ? '+10' : state.timesCompleted}
+                    </span>
+
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={!isCompleted || state.timesCompleted >= 10}
+                        onClick={() => {
+                            const next = state.timesCompleted + 1;
+                            actions.updateTimesCompleted(next);
+                        }}
+                        sx={{ minWidth: 32 }}
+                    >
+                        +
+                    </Button>
+                </TableCell>
+            )}
+
+
+            {/* =========================
+          CERTIFICADO (BOTÓN ORIGINAL)
+         ========================= */}
+            <TableCell>
+                <input
+                    id={fileInputId}
+                    type="file"
+                    accept="application/pdf"
+                    hidden
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+
+                        reader.onload = () => {
+                            actions.uploadCertificate({
+                                name: file.name,
+                                type: file.type,
+                                fileBase64: reader.result,
+                                uploadedAt: new Date().toISOString(),
+                            });
+                        };
+
+                        reader.readAsDataURL(file);
+                    }}
+                />
+
+                <CertificateActionCell
+                    isCompleted={isCompleted}
+                    hasCertificate={state.hasCertificate}
+                    completedDate={state.completedDate}
+                    inputId={fileInputId}
+                    onView={pdfViewer?.onTrue}
+                    certificateFile={certificateFile}
+                    onUpload={(cert) => actions.uploadCertificate(cert)}
+                    onDelete={actions.deleteCertificate}
+                />
+            </TableCell>
+
+        </>
+    );
+}
