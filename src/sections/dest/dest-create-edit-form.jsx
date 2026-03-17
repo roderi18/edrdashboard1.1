@@ -24,106 +24,41 @@ import { useRouter } from 'src/routes/hooks';
 import { ContextInfo } from 'src/components/info/context-info';
 import { saveDest } from 'src/services/dest-service';
 import { fData } from 'src/utils/format-number';
+import LoadingButton from '@mui/lab/LoadingButton';
+import { createDest } from 'src/models/dest-model';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
-
+import { DestSchema } from 'src/models/dest-schema';
 // ----------------------------------------------------------------------
 
-export const DestCreateSchema = z.object({
-  avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
-
-  name: z.string().min(1, { error: 'Destacamento requerido' }),
-  churchName: z.string().min(1, { error: 'Nombre de iglesia requerido' }),
-  coordinatorName: z.string().optional(),
-  address: z.string().min(1, { error: 'Dirección requerida' }),
-  destMeetingTimes: z.string().optional(),
-  coordinatorId: z.string().nullable().optional(),
-  status: z.string(),
-  isVerified: z.boolean(),
-});
 
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
-  console.log(
-    LEADERSHIP_ASSIGNMENTS.filter(a => a.entityId === dest.id)
-  );
-  const sectional = sectionals.find((s) => s.id === dest.sectionalId);
-
-  const coordinatorAssignment = LEADERSHIP_ASSIGNMENTS.find(
-    (a) =>
-      a.level === 'dest' &&
-      a.entityId === dest.id &&
-      a.role === 'coordinador_dest'
-    // &&
-    // a.status === 'active'
-  );
-
-  const assistantAssignment = LEADERSHIP_ASSIGNMENTS.find(
-    (a) =>
-      a.level === 'dest' &&
-      a.entityId === dest.id &&
-      a.role === 'coordinador_asist_dest'
-    // &&
-    // a.status === 'active'
-  );
-
-  const coordinator = members.find(
-    (m) => m.id === coordinatorAssignment?.memberId
-  );
-
-  const assistant = members.find(
-    (m) => m.id === assistantAssignment?.memberId
-  );
-
-  const generateChurchId = (name) => {
-    return (
-      'iglesia-' +
-      name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-    );
-  };
-
-  const regional = sectional
-    ? regionals.find((r) => r.id === sectional.regionalId)
-    : null;
-
   return {
     avatarUrl: dest.avatarUrl ?? null,
 
     name: dest.name ?? '',
+    destNumber: dest.destNumber ?? '',
+
+    coordinatorId: dest.coordinatorId ?? null,
+
+    country: dest.country ?? 'Dominican Republic',
+
     churchId: dest.churchId
       ? churches.find((c) => c.id === dest.churchId) || null
       : null,
-    address: dest.churchAddress ?? '',
-    sectionalId: dest.sectionalId
-      ? sectionals.find((s) => s.id === dest.sectionalId) || null
-      : null,
+
+    destMeetingTimes: dest.destMeetingTimes ?? '',
 
     status: dest.membershipStatus ?? 'active',
     isVerified: dest.isVerified ?? true,
-
-    coordinatorName: coordinator?.fullName ?? '',
-    assistantCoordinatorName: assistant?.fullName ?? '',
-
-    destMeetingTimes: dest.destMeetingTimes ?? '',
-    shepardName: dest.shepardName ?? '',
-    churchPhone: dest.churchPhone
-      ? `+1${dest.churchPhone.replace(/\D/g, '')}`
-      : '',
-    destProvince: dest.destProvince ?? '',
-    regionalName: regional?.name ?? '',
   };
 };
-
 // ----------------------------------------------------------------------
 
 export function DestCreateEditForm({ currentDest }) {
@@ -154,17 +89,17 @@ export function DestCreateEditForm({ currentDest }) {
 
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(DestCreateSchema),
+    resolver: zodResolver(DestSchema),
     defaultValues,
   });
 
   useEffect(() => {
-    if (currentDest) {
-      methods.reset(
-        mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
-      );
-    }
-  }, [currentDest, sectionals, regionals, churches, allMembers, methods]);
+    if (!currentDest) return;
+
+    methods.reset(
+      mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
+    );
+  }, [currentDest]);
 
   useEffect(() => {
 
@@ -193,20 +128,13 @@ export function DestCreateEditForm({ currentDest }) {
     (r) => r.id === selectedSectional?.regionalId
   );
   const sectional = sectionals.find((s) => s.id === selectedSectional?.id);
-  const regional = regionals.find((r) => r.id === sectional?.regionalId);
-  useEffect(() => {
-    if (regional?.name) {
-      methods.setValue('regionalName', regional.name);
-    } else {
-      methods.setValue('regionalName', '');
-    }
-  }, [selectedSectional, regional, methods]);
+
+  const regional = sectional
+    ? regionals.find((r) => r.id === sectional.regionalId)
+    : null;
+
 
   const onSubmit = handleSubmit(async (data) => {
-
-    console.log("FORM DATA:", data);
-    console.log("COORDINATOR ID:", data.coordinatorId);
-    console.log("SECTIONAL ID:", data.sectionalId);
 
     const destId = currentDest?.id || crypto.randomUUID();
 
@@ -215,25 +143,13 @@ export function DestCreateEditForm({ currentDest }) {
         coordinatorId: data.coordinatorId,
         sectionalId: data.sectionalId
       });
-      saveDest({
-        id: destId,
-
-        name: data.name,
-        destNumber: data.destNumber,
-
-        coordinatorId: data.coordinatorId ?? null,
-
-        churchId: data.churchId?.id ?? null,
-
-        country: data.country,
-
-        destMeetingTimes: data.destMeetingTimes,
-
-        avatarUrl: data.avatarUrl,
-
-        membershipStatus: data.status ?? 'active',
-        isVerified: data.isVerified ?? true,
-      });
+      saveDest(
+        createDest({
+          id: destId,
+          ...data,
+          churchId: data.churchId?.id ?? null,
+        })
+      );
 
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -389,9 +305,9 @@ export function DestCreateEditForm({ currentDest }) {
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
+              <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
                 {!currentDest ? 'Crear Destacamento' : 'Guardar cambios'}
-              </Button>
+              </LoadingButton>
             </Stack>
           </Card>
         </Grid>

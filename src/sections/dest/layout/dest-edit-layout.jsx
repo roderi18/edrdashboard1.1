@@ -6,7 +6,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-
+import { useEffect, useState } from 'react';
 import { paths } from 'src/routes/paths';
 import { usePathname, useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
@@ -25,8 +25,13 @@ export function DestEditLayout({ children, ...other }) {
     const params = useParams();
     const destId = params?.id;
 
-    const dest = getDests().find((d) => d.id === destId);
-    const destName = dest?.name || 'Destacamento';
+    const [dest, setDest] = useState(null);
+
+    useEffect(() => {
+        const found = getDests().find((d) => d.id === destId);
+        setDest(found);
+    }, [destId]);
+    const destName = dest ? dest.name : 'Destacamento';
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));

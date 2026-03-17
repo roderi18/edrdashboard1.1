@@ -14,7 +14,7 @@ export function DestEditView({ id }) {
   useEffect(() => {
     const storedDests = getDests() || [];
 
-    const dests = [...DESTS, ...storedDests];
+    const dests = storedDests;
 
     const dest = dests.find((d) => d.id === id);
 

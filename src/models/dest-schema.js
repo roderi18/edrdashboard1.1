@@ -11,7 +11,7 @@ export const DestSchema = z.object({
 
     country: z.string().min(1, { error: 'País requerido' }),
 
-    churchId: z.object().nullable(),
+    churchId: z.object({ id: z.string() }).nullable().optional(),
 
     destMeetingTimes: z.string().optional(),
 
