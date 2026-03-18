@@ -117,8 +117,10 @@ const buildSectionalList = () => {
 
       // campos que usa tu tabla
       sectionalName: sectional.name,
-      regionalName: regional?.name ?? '',
-      email: sectional.email ?? '',
+      regionalName:
+        regionals.find((r) => String(r.id) === String(sectional.regionalId))?.name ||
+        REGIONALS.find((r) => String(r.id) === String(sectional.regionalId))?.name ||
+        '-', email: sectional.email ?? '',
 
       sectionalDestCount: destCount,
       sectionalXDestMemberCount: membersCount,

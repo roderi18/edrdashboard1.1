@@ -39,7 +39,9 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
   //  Luego resolvemos la región
   const regionals = getRegionals();
-  const regional = regionals.find((r) => r.id === sectional?.regionalId);
+  const regional = regionals.find(
+    (r) => String(r.id) === String(row.regionalId)
+  );
 
   const members = getMembers();
   console.log('ROW:', row);
@@ -253,7 +255,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
               href={`/dashboard/level/regional?sectional=${encodeURIComponent(regional?.name || '')}`}
               color="inherit"
             >
-              {regional?.name || '-'}
+              {regional?.name || row.regionalName || '-'}
             </Link>
           </Box>
         </TableCell>
