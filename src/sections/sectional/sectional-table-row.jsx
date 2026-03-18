@@ -15,12 +15,15 @@ import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { RouterLink } from 'src/routes/components';
+import { getSectionals } from 'src/services/sectional-service';
+import { getMembers } from 'src/services/member-service';
+import { getLeadershipAssignments } from 'src/services/member-service';
+import { getRegionals } from 'src/services/regional-service';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
-import { REGIONALS, SECTIONALS, MEMBERS } from 'src/_mock/assets';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+import { REGIONALS } from 'src/_mock/assets';
 import { useRouter } from 'next/navigation';
 import { SectionalQuickEditForm } from './sectional-quick-edit-form';
 
@@ -32,16 +35,15 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const quickEditForm = useBoolean();
   const router = useRouter();
   //  Primero obtenemos el sectional
-  const sectional = SECTIONALS.find(
-    (s) => s.id === row.id
-  );
+  const sectionals = getSectionals();
+  const sectional = sectionals.find((s) => s.id === row.id);
 
   //  Luego resolvemos la región
-  const regional = REGIONALS.find(
-    (r) => r.id === sectional?.regionalId
-  );
+  const regionals = getRegionals();
+  const regional = regionals.find((r) => r.id === sectional?.regionalId);
 
-  const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
+  const leaderships = getLeadershipAssignments();
+  const directorAssignment = leaderships.find(
     (l) =>
       l.level === 'sectional' &&
       l.entityId === row.id &&
@@ -49,7 +51,8 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
       l.status === 'active'
   );
 
-  const director = MEMBERS.find(
+  const members = getMembers();
+  const director = members.find(
     (m) => m.id === directorAssignment?.memberId
   );
 
