@@ -61,7 +61,8 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 // ----------------------------------------------------------------------
 
 export function DestCreateEditForm({ currentDest }) {
-  const [step, setStep] = useState(1);
+  const isCreateView = !currentDest;
+  const [step, setStep] = useState(isCreateView ? 1 : 2);
   const router = useRouter();
   const [dests, setDests] = useState([]);
   const [sectionals, setSectionals] = useState([]);
@@ -309,57 +310,62 @@ export function DestCreateEditForm({ currentDest }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              {step === 1 && (
-                <ChurchDestSection isCreateView={!currentDest} />
-              )}
+              {isCreateView ? (
+                <>
+                  {step === 1 && (
+                    <ChurchDestSection isCreateView />
+                  )}
 
-              {step === 2 && (
+                  {step === 2 && (
+                    <DestGeneralSection
+                      isCreateView
+                      members={allMembers}
+                      churches={churches}
+                      methods={methods}
+                      watch={watch}
+                    />
+                  )}
+                </>
+              ) : (
                 <>
                   <DestGeneralSection
-                    isCreateView={!currentDest}
                     members={allMembers}
                     churches={churches}
                     methods={methods}
                     watch={watch}
                   />
 
-                  {currentDest && (
-                    <TextField
-                      label="Cantidad de miembros"
-                      value={membersCount}
-                      fullWidth
-                      disabled
-                    />
-                  )}
-                </>
-              )}
+                  <ChurchDestSection />
 
-              {currentDest && (
-                <TextField
-                  label="Cantidad de miembros"
-                  value={membersCount}
-                  fullWidth
-                  disabled
-                />
+
+                </>
               )}
             </Box>
 
             <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-              {step > 1 && (
-                <Button variant="outlined" onClick={() => setStep(step - 1)}>
-                  Atrás
-                </Button>
-              )}
+              {isCreateView ? (
+                <>
+                  {step > 1 && (
+                    <Button variant="outlined" onClick={() => setStep(step - 1)}>
+                      Atrás
+                    </Button>
+                  )}
 
-              {step < 2 && (
-                <Button variant="contained" onClick={() => setStep(step + 1)}>
-                  Siguiente
-                </Button>
-              )}
+                  {step < 2 && (
+                    <Button variant="contained" onClick={() => setStep(step + 1)}>
+                      Siguiente
+                    </Button>
+                  )}
 
-              {step === 2 && (
+                  {step === 2 && (
+                    <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                      Crear Destacamento
+                    </LoadingButton>
+                  )}
+                </>
+              ) : (
                 <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                  {!currentDest ? 'Crear Destacamento' : 'Guardar cambios'}
+                  Guardar cambios
                 </LoadingButton>
               )}
             </Stack>

@@ -16,8 +16,9 @@ import { resolveById } from 'src/utils/resolve-display-name';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useTheme, useMediaQuery } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { DESTS, SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
-import { getAvatarById } from 'src/utils/get-avatar';
+import { SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
+import { getDests } from 'src/services/dest-service';
+import { getChurches } from 'src/services/church-service';
 // ----------------------------------------------------------------------
 
 export function MemberCard({ member, sx, ...other }) {
@@ -34,12 +35,13 @@ export function MemberCard({ member, sx, ...other }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+  const dests = getDests();
 
   const coverSrc =
     memberDivisionCoverMap[member.memberDivision?.trim()] ||
     '/assets/images/divisions/default.jpg';
 
-  const dest = DESTS.find(
+  const dest = dests.find(
     (d) => d.id === member.destId
   );
 
@@ -175,7 +177,7 @@ export function MemberCard({ member, sx, ...other }) {
 
             if (leadership.level === 'dest') {
               link = `/dashboard/level/dest?name=${encodeURIComponent(
-                resolveById(DESTS, member.destId)
+                dest?.name || ''
               )}`;
             }
 
@@ -264,7 +266,7 @@ export function MemberCard({ member, sx, ...other }) {
               },
             }}
           >
-            {resolveById(DESTS, member.destId)}
+            {dest?.name || 'Destacamento desconocido'}
           </Box>
 
           <Box

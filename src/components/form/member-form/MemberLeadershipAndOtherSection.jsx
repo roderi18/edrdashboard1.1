@@ -4,7 +4,7 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import Typography from '@mui/material/Typography';
 import MenuItem from '@mui/material/MenuItem';
-
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { Iconify } from 'src/components/iconify';
 import { Field } from 'src/components/hook-form';
 
@@ -144,28 +144,8 @@ export default function MemberLeadershipAndOtherSection({
     }
 
     return (
-        <Accordion
-            sx={{
-                gridColumn: '1 / -1',
-                boxShadow: 'none',
-                border: (theme) => `1px dashed ${theme.palette.divider}`,
-                '&:before': { display: 'none' },
-            }}
-        >
-            <AccordionSummary
-                expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={20} />}
-            >
-                <Typography
-                    sx={{
-                        typography: 'subtitle2',
-                        color: 'text.secondary',
-                    }}
-                >
-                    Destacamento, posición, otros..
-                </Typography>
-            </AccordionSummary>
-
-            <AccordionDetails>{Content}</AccordionDetails>
-        </Accordion>
+        <DashedAccordion title="Destacamento, posición, otros..">
+            {Content}
+        </DashedAccordion>
     );
 }

@@ -1,11 +1,6 @@
 import Box from '@mui/material/Box';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import Typography from '@mui/material/Typography';
 import MenuItem from '@mui/material/MenuItem';
-
-import { Iconify } from 'src/components/iconify';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { Field } from 'src/components/hook-form';
 
 export default function MemberInstructorCISection({
@@ -59,11 +54,11 @@ export default function MemberInstructorCISection({
                     <Field.DatePicker
                         name="FechaVencimientoCI"
                         label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
-                                ? ` (${diasRestantesCI >= 0
-                                    ? `${diasRestantesCI} días restantes`
-                                    : `vencido hace ${Math.abs(diasRestantesCI)} días`
-                                })`
-                                : ''
+                            ? ` (${diasRestantesCI >= 0
+                                ? `${diasRestantesCI} días restantes`
+                                : `vencido hace ${Math.abs(diasRestantesCI)} días`
+                            })`
+                            : ''
                             }`}
                         format="DD/MM/YYYY"
                         views={['year', 'month', 'day']}
@@ -84,30 +79,8 @@ export default function MemberInstructorCISection({
     }
 
     return (
-        <Accordion
-            sx={{
-                gridColumn: '1 / -1',
-                boxShadow: 'none',
-                border: (theme) => `1px dashed ${theme.palette.divider}`,
-                '&:before': { display: 'none' },
-            }}
-        >
-            <AccordionSummary
-                expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={20} />}
-            >
-                <Typography
-                    sx={{
-                        typography: 'subtitle2',
-                        color: 'text.secondary',
-                    }}
-                >
-                    Instructor CI
-                </Typography>
-            </AccordionSummary>
-
-            <AccordionDetails>
-                {Content}
-            </AccordionDetails>
-        </Accordion>
+        <DashedAccordion title="Instructor CI">
+            {Content}
+        </DashedAccordion>
     );
 }

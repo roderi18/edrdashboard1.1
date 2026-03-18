@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 
 import { Controller } from 'react-hook-form';
 import { Field } from 'src/components/hook-form';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
 
 export default function MemberGeneralSection({
     age,

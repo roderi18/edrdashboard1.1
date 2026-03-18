@@ -1,9 +1,9 @@
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-
+import TextField from '@mui/material/TextField';
 import { Field } from 'src/components/hook-form';
-
+import { useParams } from 'next/navigation';
 export default function DestGeneralSection({
     isCreateView,
     members,
@@ -11,9 +11,14 @@ export default function DestGeneralSection({
     methods,
     watch,
 }) {
+    const params = useParams();
+    const destId = params?.id;
+    const membersCount = members?.filter(
+        (m) => m.destId === destId
+    )?.length || 0;
     return (
         <>
-            {isCreateView && (
+            {(
                 <Box
                     sx={{
                         gridColumn: '1 / -1',
@@ -51,6 +56,8 @@ export default function DestGeneralSection({
                 }}
             />
 
+
+
             <Field.Autocomplete
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
@@ -77,6 +84,15 @@ export default function DestGeneralSection({
 
             <Field.Text name="destMeetingDays" label="Días de reunión" />
             <Field.Text name="destMeetingTimes" label="Horarios de reunión" />
+
+            {!isCreateView && (
+                <TextField
+                    label="Cantidad de miembros"
+                    value={membersCount}
+                    fullWidth
+                    disabled
+                />
+            )}
         </>
     );
 }
