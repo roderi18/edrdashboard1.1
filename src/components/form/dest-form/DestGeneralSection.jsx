@@ -71,18 +71,8 @@ export default function DestGeneralSection({
                 placeholder="Elige un país"
             />
 
-            <Field.Autocomplete
-                name="churchId"
-                label="Iglesia a la que pertenece"
-                options={churches}
-                value={churches.find((c) => c.id === watch('churchId')?.id) || null}
-                getOptionLabel={(option) => option?.name || ''}
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
-                onChange={(_, value) =>
-                    methods.setValue('churchId', value || null)
-                }
-            />
 
+            <Field.Text name="destMeetingDays" label="Días de reunión" />
             <Field.Text name="destMeetingTimes" label="Horarios de reunión" />
         </>
     );

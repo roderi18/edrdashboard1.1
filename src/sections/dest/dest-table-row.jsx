@@ -125,7 +125,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={resolveById(DESTS, row.destName)}
+            <Avatar alt={row.destName}
               src={row.avatarUrl} />
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -134,7 +134,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {resolveById(DESTS, row.destName)}
+                {row.destName}
 
               </Link>
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>

@@ -1,12 +1,10 @@
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import { getDests } from 'src/services/dest-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import Box from '@mui/material/Box';
@@ -33,9 +31,8 @@ import { Form, Field } from 'src/components/hook-form';
 import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
-// ----------------------------------------------------------------------
-
-
+import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
+import { ChurchSchema } from 'src/models/church-schema';
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
@@ -62,6 +59,7 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 // ----------------------------------------------------------------------
 
 export function DestCreateEditForm({ currentDest }) {
+  const [step, setStep] = useState(1);
   const router = useRouter();
   const [dests, setDests] = useState([]);
   const [sectionals, setSectionals] = useState([]);
@@ -85,11 +83,20 @@ export function DestCreateEditForm({ currentDest }) {
     churchId: null,
 
     destMeetingTimes: '',
+
+
+    churchName: '',
+    pastor: '',
+    address: '',
+    provinceId: '',
+    countryId: '',
+    sectionId: '',
   };
 
+  const CombinedSchema = ChurchSchema.merge(DestSchema);
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(DestSchema),
+    resolver: zodResolver(CombinedSchema),
     defaultValues,
   });
 
@@ -285,14 +292,30 @@ export function DestCreateEditForm({ currentDest }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
+              {step === 1 && (
+                <ChurchDestSection isCreateView={!currentDest} />
+              )}
 
-              <DestGeneralSection
-                isCreateView={!currentDest}
-                members={allMembers}
-                churches={churches}
-                methods={methods}
-                watch={watch}
-              />
+              {step === 2 && (
+                <>
+                  <DestGeneralSection
+                    isCreateView={!currentDest}
+                    members={allMembers}
+                    churches={churches}
+                    methods={methods}
+                    watch={watch}
+                  />
+
+                  {currentDest && (
+                    <TextField
+                      label="Cantidad de miembros"
+                      value={membersCount}
+                      fullWidth
+                      disabled
+                    />
+                  )}
+                </>
+              )}
 
               {currentDest && (
                 <TextField
@@ -304,10 +327,24 @@ export function DestCreateEditForm({ currentDest }) {
               )}
             </Box>
 
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                {!currentDest ? 'Crear Destacamento' : 'Guardar cambios'}
-              </LoadingButton>
+            <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
+              {step > 1 && (
+                <Button variant="outlined" onClick={() => setStep(step - 1)}>
+                  Atrás
+                </Button>
+              )}
+
+              {step < 2 && (
+                <Button variant="contained" onClick={() => setStep(step + 1)}>
+                  Siguiente
+                </Button>
+              )}
+
+              {step === 2 && (
+                <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                  {!currentDest ? 'Crear Destacamento' : 'Guardar cambios'}
+                </LoadingButton>
+              )}
             </Stack>
           </Card>
         </Grid>

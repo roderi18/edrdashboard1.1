@@ -10,10 +10,9 @@ export const DEST_DEFAULT = {
 
     coordinatorId: null,
 
-    churchId: null,
-
     country: '',
 
+    destMeetingDays: '',
     destMeetingTimes: '',
 
     membershipStatus: 'active',
