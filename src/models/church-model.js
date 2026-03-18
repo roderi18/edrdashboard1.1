@@ -19,7 +19,7 @@ export function createChurch(data) {
 
         id: data.id,
 
-        name: data.name ?? '',
+        name: data.churchName ?? '',
         pastor: data.pastor ?? '',
         address: data.address ?? '',
 

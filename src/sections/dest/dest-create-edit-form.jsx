@@ -33,6 +33,8 @@ import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import { ChurchSchema } from 'src/models/church-schema';
+import { saveChurch } from 'src/services/church-service';
+import { createChurch } from 'src/models/church-model';
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
@@ -142,21 +144,43 @@ export function DestCreateEditForm({ currentDest }) {
 
 
   const onSubmit = handleSubmit(async (data) => {
-
+    console.log('FORM DATA 👉', data);
     const destId = currentDest?.id || crypto.randomUUID();
+    const churchId = crypto.randomUUID();
 
     try {
-      console.log("DEST A GUARDAR:", {
-        coordinatorId: data.coordinatorId,
-        sectionalId: data.sectionalId
+
+      const newChurch = createChurch({
+        id: churchId,
+        churchName: data.churchName,
+        pastor: data.pastor,
+        address: data.address,
+        provinceId: data.provinceId,
+        countryId: data.countryId,
+        sectionId: data.sectionId,
       });
+      console.log('NEW CHURCH 👉', newChurch);
+
+      saveChurch(newChurch);
+      console.log('CHURCHES EN STORAGE 👉', getChurches());
+      methods.setValue('churchId', churchId);
+
+      const coordinatorId = data.coordinatorId || null;
       saveDest(
+
         createDest({
           id: destId,
           ...data,
-          churchId: data.churchId?.id ?? null,
+          coordinatorId: coordinatorId,
+          churchId: churchId,
         })
       );
+      console.log('DEST A GUARDAR 👉', {
+        ...data,
+        coordinatorId,
+        churchId,
+      });
+      console.log('DESTS EN STORAGE 👉', getDests());
 
       await new Promise((resolve) => setTimeout(resolve, 500));
 

@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 export const ChurchSchema = z.object({
-    name: z.string().min(1, { error: 'Nombre requerido' }),
+    churchName: z.string().min(1, { error: 'Nombre requerido' }),
 
     pastor: z.string().min(1, { error: 'Pastor requerido' }),
 

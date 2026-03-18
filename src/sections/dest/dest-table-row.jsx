@@ -46,6 +46,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const church = getChurches().find(
     (c) => c.id === row.churchId
   );
+  console.log('CHURCH MATCH 👉', {
+    rowChurchId: row.churchId,
+    churches: getChurches(),
+  });
 
   const churchName =
     church?.name ||
@@ -55,6 +59,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const coordinator = getMembers().find(
     (m) => m.id === row.coordinatorId
   );
+  console.log('COORDINATOR MATCH 👉', {
+    rowCoordinatorId: row.coordinatorId,
+    members: getMembers(),
+  });
 
   const renderQuickEditForm = () => (
     <DestQuickEditForm
