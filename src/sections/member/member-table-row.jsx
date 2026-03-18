@@ -1,7 +1,8 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { resolveById } from 'src/utils/resolve-display-name';
-import { SECTIONALS, CHURCHES } from 'src/_mock/assets';
 import { getDests } from 'src/services/dest-service';
+import { SECTIONALS } from 'src/_mock/assets';
+import { getChurches } from 'src/services/church-service';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
@@ -40,6 +41,10 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const capitalize = (text = '') =>
+    text
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
   const dest = dests.find((d) => d.id === row.destId);
   const getLeadershipRoleLabel = (roleValue) => {
@@ -47,9 +52,11 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
     return role?.label || roleValue;
   };
 
-  const churchName = dest
-    ? resolveById(CHURCHES, dest.churchId)
-    : '';
+  const church = getChurches().find(
+    (c) => c.id === dest?.churchId
+  );
+
+  const churchName = church?.name || 'Iglesia desconocida';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
   const leaderships = leadershipAssignments
@@ -160,7 +167,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 
             <Avatar
-              alt={dest?.name}
+              alt={capitalize(dest?.name || '')}
               src={dest?.avatarUrl}
               sx={{
                 width: 40,
@@ -173,11 +180,15 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                 href={`/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`}
                 color="inherit"
               >
-                {dest?.name}
+                {capitalize(dest?.name || '')}
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {churchName}
+                {capitalize(
+                  church?.name ||
+                  dest?.churchName ||
+                  'Iglesia desconocida'
+                )}
               </Box>
             </Stack>
 

@@ -79,9 +79,9 @@ export default function MemberLeadershipAndOtherSection({
             <Field.Autocomplete
                 name="destId"
                 label="Tu Destacamento"
-                options={DESTS}
+                options={getDests()}
                 freeSolo={false}
-                value={DESTS.find((d) => d.id === watch('destId')) || null}
+                value={getDests().find((d) => d.id === watch('destId')) || null}
                 getOptionLabel={(option) =>
                     typeof option === 'string' ? option : option?.name || ''
                 }

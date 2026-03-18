@@ -55,14 +55,17 @@ export default function DestGeneralSection({
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
                 options={members}
-                value={members.find((m) => m.id === watch('coordinatorId')) || null}
+                value={members.find((m) => m.memberId === watch('coordinatorId')) || null}
                 getOptionLabel={(option) =>
                     option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`
                 }
                 isOptionEqualToValue={(option, value) => option.id === value?.id}
-                onChange={(_, value) =>
-                    methods.setValue('coordinatorId', value?.id ?? null)
-                }
+                onChange={(_, value) => {
+                    methods.setValue('coordinatorId', value?.memberId ?? null, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                    });
+                }}
             />
 
             <Field.CountrySelect

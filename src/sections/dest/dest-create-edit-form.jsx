@@ -159,10 +159,8 @@ export function DestCreateEditForm({ currentDest }) {
         countryId: data.countryId,
         sectionId: data.sectionId,
       });
-      console.log('NEW CHURCH 👉', newChurch);
 
       saveChurch(newChurch);
-      console.log('CHURCHES EN STORAGE 👉', getChurches());
       methods.setValue('churchId', churchId);
 
       const coordinatorId = data.coordinatorId || null;
@@ -175,12 +173,7 @@ export function DestCreateEditForm({ currentDest }) {
           churchId: churchId,
         })
       );
-      console.log('DEST A GUARDAR 👉', {
-        ...data,
-        coordinatorId,
-        churchId,
-      });
-      console.log('DESTS EN STORAGE 👉', getDests());
+
 
       await new Promise((resolve) => setTimeout(resolve, 500));
 

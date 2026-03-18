@@ -34,6 +34,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const capitalize = (text = '') =>
+    text
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const sectional = getSectionals().find(
     (s) => s.id === row.sectionalId
@@ -57,7 +61,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     'Iglesia desconocida';
 
   const coordinator = getMembers().find(
-    (m) => m.id === row.coordinatorId
+    (m) => m.memberId === row.coordinatorId
   );
   console.log('COORDINATOR MATCH 👉', {
     rowCoordinatorId: row.coordinatorId,
@@ -142,14 +146,14 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {row.destName}
+                {capitalize(row.destName)}
 
               </Link>
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {churchName}
+                {capitalize(churchName)}
               </Box>
             </Stack>
           </Box>
@@ -159,7 +163,11 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={coordinator?.fullName || ''}
+              alt={
+                coordinator
+                  ? `${coordinator.firstName} ${coordinator.lastName}`
+                  : ''
+              }
               src={coordinator?.avatarUrl}
               sx={{ width: 40, height: 40 }}
             />
@@ -174,7 +182,9 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: coordinator ? 'pointer' : 'default' }}
               >
-                {coordinator?.fullName || 'Desconocido'}
+                {coordinator
+                  ? capitalize(`${coordinator.firstName} ${coordinator.lastName}`)
+                  : 'Desconocido'}
               </Link>
 
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>
