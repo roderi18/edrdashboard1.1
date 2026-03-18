@@ -15,8 +15,12 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
-import { REGIONALS, SECTIONALS, MEMBERS, DESTS } from 'src/_mock/assets';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+import { REGIONALS } from 'src/_mock/assets';
+import { getSectionals } from 'src/services/sectional-service';
+import { getMembers } from 'src/services/member-service';
+import { getLeadershipAssignments } from 'src/services/member-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getDests } from 'src/services/dest-service';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -50,17 +54,7 @@ import { SectionalTableFiltersResult } from '../sectional-table-filters-result';
 import { SectionalCardList } from '../sectional-card-list';
 // ----------------------------------------------------------------------
 
-// const STATUS_OPTIONS = [{ value: 'all', label: 'Todos' }, ...USER_STATUS_OPTIONS];
 const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_NAME_OPTIONS];
-
-// const TABLE_HEAD = [
-//   { id: 'name', label: 'Name' },
-//   { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
-//   { id: 'company', label: 'Company', width: 220 },
-//   { id: 'Role', label: 'Role', width: 180 },
-//   { id: 'regionalName', label: 'Estado', width: 100 },
-//   { id: '', width: 88 },
-// ];
 
 const TABLE_HEAD = [
   { id: 'sectionalName', label: 'Sección' },
@@ -73,12 +67,16 @@ const TABLE_HEAD = [
 
 // ----------------------------------------------------------------------
 const getRegionalNameBySectional = (row) => {
-  const regional = REGIONALS.find((r) => r.id === row.regionalId);
+  const regionals = getRegionals();
+  const regional = regionals.find((r) => r.id === row.regionalId);
   return regional?.name || '';
 };
 
 const getLeadershipBySectional = (sectionalId, role) => {
-  const assignment = LEADERSHIP_ASSIGNMENTS.find(
+  const leaderships = getLeadershipAssignments();
+  const members = getMembers();
+
+  const assignment = leaderships.find(
     (a) =>
       a.level === 'sectional' &&
       a.entityId === sectionalId &&
@@ -86,18 +84,33 @@ const getLeadershipBySectional = (sectionalId, role) => {
       a.memberId
   );
 
-  return MEMBERS.find((m) => m.id === assignment?.memberId) || null;
+  return members.find((m) => m.id === assignment?.memberId) || null;
 };
 
-const buildSectionalList = () =>
-  SECTIONALS.map((sectional) => {
-    const regional = REGIONALS.find((r) => r.id === sectional.regionalId);
+const buildSectionalList = () => {
+  const sectionals = getSectionals();
+  const regionals = getRegionals();
+  const members = getMembers();
+  const dests = getDests();
+  const leaderships = getLeadershipAssignments();
 
-    const destCount = DESTS.filter((d) => d.sectionalId === sectional.id).length;
+  return sectionals.map((sectional) => {
+    const regional = regionals.find((r) => r.id === sectional.regionalId);
 
-    const membersCount = MEMBERS.filter((m) => m.sectionalId === sectional.id).length;
+    const destCount = dests.filter((d) => d.sectionalId === sectional.id).length;
 
-    const director = getLeadershipBySectional(sectional.id, 'director_sectional');
+    const director = members.find(
+      (m) =>
+        String(m.id) === String(sectional.directorId) ||
+        String(m.memberId) === String(sectional.directorId)
+    );
+
+    const membersCount = members.filter(
+      (m) =>
+        m.sectionalId === sectional.id ||
+        String(m.id) === String(sectional.directorId) ||
+        String(m.memberId) === String(sectional.directorId)
+    ).length;
 
     return {
       ...sectional,
@@ -110,14 +123,20 @@ const buildSectionalList = () =>
       sectionalDestCount: destCount,
       sectionalXDestMemberCount: membersCount,
 
-      memberFullName: director?.fullName ?? '-',
+      memberFullName: director
+        ? `${director.firstName || ''} ${director.lastName || ''}`.trim()
+        : 'Desconocido',
       directorId: director?.id ?? null,
     };
   });
+};
 
 export function SectionalListView() {
   const getRegionalNameByDest = (sectional) => {
-    const regional = REGIONALS.find((r) => r.id === sectional.regionalId);
+    const regionals = getRegionals();
+    const regional =
+      regionals.find((r) => String(r.id) === String(sectional.regionalId)) ||
+      REGIONALS.find((r) => String(r.id) === String(sectional.regionalId));
     return regional?.name;
   };
 
@@ -125,8 +144,10 @@ export function SectionalListView() {
 
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState(buildSectionalList());
+  const [tableData, setTableData] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
+  const [isClient, setIsClient] = useState(false);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const filters = useSetState({ name: '', role: [], regionalName: 'all' });
@@ -182,6 +203,10 @@ export function SectionalListView() {
   );
 
   useEffect(() => {
+    setTableData(buildSectionalList());
+  }, []);
+
+  useEffect(() => {
     if (hasAppliedUrlFilter.current) return;
 
     const hasParams = !!(regionFromUrl || sectionFromUrl || memberFromUrl);
@@ -222,6 +247,9 @@ export function SectionalListView() {
     }
   }, [isMobile]);
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -250,6 +278,7 @@ export function SectionalListView() {
 
   return (
     <>
+
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Lista de Seccionales"
@@ -304,10 +333,11 @@ export function SectionalListView() {
                     {/* {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
                       ? tableData.filter((sectional) => sectional.regionalName === tab.value).length
                       : tableData.length} */}
-                    {tab.value === 'all'
-                      ? tableData.length
-                      : tableData.filter((row) => getRegionalNameBySectional(row) === tab.value).length}
-
+                    {isClient
+                      ? tab.value === 'all'
+                        ? tableData.length
+                        : tableData.filter((row) => getRegionalNameBySectional(row) === tab.value).length
+                      : 0}
                   </Label>
                 }
               />

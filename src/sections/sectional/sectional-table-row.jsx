@@ -35,26 +35,25 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const quickEditForm = useBoolean();
   const router = useRouter();
   //  Primero obtenemos el sectional
-  const sectionals = getSectionals();
-  const sectional = sectionals.find((s) => s.id === row.id);
+  const sectionals = getSectionals(); const sectional = sectionals.find((s) => s.id === row.id);
 
   //  Luego resolvemos la región
   const regionals = getRegionals();
   const regional = regionals.find((r) => r.id === sectional?.regionalId);
 
-  const leaderships = getLeadershipAssignments();
-  const directorAssignment = leaderships.find(
-    (l) =>
-      l.level === 'sectional' &&
-      l.entityId === row.id &&
-      l.role === 'director_sectional' &&
-      l.status === 'active'
-  );
-
   const members = getMembers();
+  console.log('ROW:', row);
+  console.log('directorId:', row.directorId);
+  console.log('MEMBERS:', members);
+
   const director = members.find(
-    (m) => m.id === directorAssignment?.memberId
+    (m) => String(m.id) === String(row.directorId)
   );
+  console.log('DIRECTOR ENCONTRADO:', director);
+
+  members.forEach((m) => {
+    console.log('comparando:', m.memberId, 'vs', row.directorId);
+  });
 
   const renderQuickEditForm = () => (
     <SectionalQuickEditForm
@@ -107,25 +106,31 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
     />
   );
 
+  const capitalize = (text = '') =>
+    text
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
   return (
     <>
-      <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
+      <TableRow selected={selected}>
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}
-            onClick={onSelectRow}
+            onChange={onSelectRow}
             slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
-              },
+              input: { id: `checkbox-${row.id}` },
             }}
           />
+
         </TableCell>
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.sectionalName} src={row.avatarUrl} />
+            <Avatar
+              alt={capitalize(sectional?.sectionalName || '')}
+              src={sectional?.avatarUrl}
+            />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -134,7 +139,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {row.sectionalName}
+                {capitalize(sectional?.sectionalName || '') || '-'}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {sectional?.email}
@@ -147,7 +152,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={director?.fullName}
+              alt={`${director?.firstName || ''} ${director?.lastName || ''}`}
               src={director?.avatarUrl}
             />
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
@@ -170,14 +175,14 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                   <Box
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/dashboard/level/member/${director.id}/edit`);
+                      router.push(`/dashboard/level/member/${director.memberId}/edit`);
                     }}
                     sx={{
                       cursor: 'pointer',
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >
-                    {director.fullName}
+                    {`${director.firstName || ''} ${director.lastName || ''}`}
                   </Box>
                 ) : (
                   'Desconocido'

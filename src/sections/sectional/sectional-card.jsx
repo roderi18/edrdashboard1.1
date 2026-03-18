@@ -22,16 +22,8 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 export function SectionalCard({ sectional, sx, ...other }) {
   const router = useRouter();
 
-  const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
-    (l) =>
-      l.level === 'sectional' &&
-      l.entityId === sectional.id &&
-      l.role === 'director_sectional' &&
-      l.status === 'active'
-  );
-
   const director = MEMBERS.find(
-    (m) => m.id === directorAssignment?.memberId
+    (m) => m.id === sectional.directorId
   );
   const directorPhone =
     director?.phoneNumber ? parsePhoneNumber(director.phoneNumber)?.formatNational() : 'N/A';

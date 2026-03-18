@@ -1,7 +1,5 @@
-import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,57 +9,35 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
-
+import { getMembers } from 'src/services/member-service';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
-
+import { getDests } from 'src/services/dest-service';
+import { useEffect, useState } from 'react';
 import { fData } from 'src/utils/format-number';
+import { REGIONALS } from 'src/_mock/assets';
+import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
+
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
-
+import { saveSectional, updateSectional } from 'src/services/sectional-service';
+import { SectionalCreateSchema } from 'src/models/sectional-schema';
 // ----------------------------------------------------------------------
 
-export const SectionalCreateSchema = z.object({
-  avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
-  name: z.string().min(1, { error: 'Name is required!' }),
-  email: schemaUtils.email(),
-  phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
-  }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  company: z.string().min(1, { error: 'Company is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  city: z.string().min(1, { error: 'City is required!' }),
-  role: z.string().min(1, { error: 'Role is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
-  // Not required
-  status: z.string(),
-  isVerified: z.boolean(),
-});
-
-// ----------------------------------------------------------------------
 
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
+  const [dests, setDests] = useState([]);
+  const [members, setMembers] = useState([]);
 
-  const defaultValues = {
-    status: '',
-    avatarUrl: null,
-    isVerified: true,
-    name: '',
-    email: '',
-    phoneNumber: '',
-    country: '',
-    state: '',
-    city: '',
-    address: '',
-    zipCode: '',
-    company: '',
-    role: '',
-  };
+  useEffect(() => {
+    setDests(getDests());
+    setMembers(getMembers());
+  }, []);
+
+  const defaultValues = SECTIONAL_DEFAULT;
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -80,13 +56,37 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
   const values = watch();
 
+  const selectedRegionalId = watch('regionalId');
+
+  const destsByRegional = dests.filter(
+    (d) => d.regionalId === selectedRegionalId
+  );
+
+  const totalDests = destsByRegional.length;
+
+  const totalMembers = members.filter((m) =>
+    destsByRegional.some((d) => d.id === m.destId)
+  ).length;
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const payload = {
+        id: currentSectional?.id || crypto.randomUUID(),
+        sectionalName: data.sectionalName,
+        directorId: data.directorId,
+        regionalId: data.regionalId,
+        status: data.status || 'active',
+      };
+
+      if (currentSectional) {
+        updateSectional(payload);
+      } else {
+        saveSectional(payload);
+      }
+
       reset();
-      toast.success(currentSectional ? 'Actualización exitosa!' : 'Create success!');
-      router.push(paths.dashboard.level.sectional); //anteriormente .list
-      console.info('DATA', data);
+      toast.success(currentSectional ? 'Actualización exitosa!' : 'Creado correctamente!');
+      router.push('/dashboard/level/sectional');
     } catch (error) {
       console.error(error);
     }
@@ -169,21 +169,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
               />
             )}
 
-            <Field.Switch
-              name="isVerified"
-              labelPlacement="start"
-              label={
-                <>
-                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    Email verified
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Disabling this will automatically send the sectional a verification email
-                  </Typography>
-                </>
-              }
-              sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-            />
+
 
             {currentSectional && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
@@ -205,23 +191,52 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Nombre completo" />
-              <Field.Text name="email" label="Correo electrónico" />
-              <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
+              <Field.Text name="sectionalName" label="Nombre de la Seccional" />
 
-              <Field.CountrySelect
-                fullWidth
-                name="country"
-                label="País"
-                placeholder="Elige una ciudad"
+              <Field.Autocomplete
+                name="regionalId"
+                label="Región"
+                options={REGIONALS}
+                getOptionLabel={(option) =>
+                  typeof option === 'string' ? option : option?.name || ''
+                }
+                isOptionEqualToValue={(option, value) => option.memberId === value?.memberId}
+                value={REGIONALS.find((r) => r.id === watch('regionalId')) || null}
+                onChange={(event, option) => {
+                  methods.setValue('regionalId', option?.id || '');
+                }}
               />
 
-              <Field.Text name="state" label="Provincia" />
-              <Field.Text name="city" label="Ciudad" />
-              <Field.Text name="address" label="Dirección" />
-              <Field.Text name="zipCode" label="Código postal" />
-              <Field.Text name="company" label="Company" />
-              <Field.Text name="Role" label="Posición" />
+              <Field.Autocomplete
+                name="directorId"
+                label="Director"
+                options={members}
+                getOptionLabel={(option) =>
+                  typeof option === 'string'
+                    ? option
+                    : `${option?.firstName || ''} ${option?.lastName || ''}`
+                }
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                value={members.find((m) => m.memberId === watch('directorId')) || null}
+                onChange={(event, option) => {
+                  methods.setValue('directorId', option?.memberId || '');
+                }}
+              />
+
+              <Field.Text
+                name="totalDests"
+                label="Total de Destacamentos"
+                value={totalDests}
+                disabled
+              />
+
+              <Field.Text
+                name="totalMembers"
+                label="Total de Miembros"
+                value={totalMembers}
+                disabled
+              />
+
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
