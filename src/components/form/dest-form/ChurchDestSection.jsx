@@ -17,7 +17,7 @@ export default function ChurchDestSection({
         setSectionals(getSectionals());
     }, []);
     return (
-        <DashedAccordion title="Información de la iglesia">
+        <Box>
             <Box
                 sx={{
                     display: 'grid',
@@ -50,6 +50,6 @@ export default function ChurchDestSection({
                     }}
                 />
             </Box>
-        </DashedAccordion>
+        </Box>
     );
 }

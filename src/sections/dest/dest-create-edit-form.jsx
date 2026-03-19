@@ -24,6 +24,7 @@ import { saveDest } from 'src/services/dest-service';
 import { fData } from 'src/utils/format-number';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { createDest } from 'src/models/dest-model';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -313,7 +314,9 @@ export function DestCreateEditForm({ currentDest }) {
               {isCreateView ? (
                 <>
                   {step === 1 && (
-                    <ChurchDestSection isCreateView />
+                    <Box sx={{ gridColumn: '1 / -1' }}>
+                      <ChurchDestSection isCreateView />
+                    </Box>
                   )}
 
                   {step === 2 && (
@@ -335,9 +338,11 @@ export function DestCreateEditForm({ currentDest }) {
                     watch={watch}
                   />
 
-                  <ChurchDestSection />
-
-
+                  <Box sx={{ gridColumn: '1 / -1' }}>
+                    <DashedAccordion title="Información de la iglesia">
+                      <ChurchDestSection />
+                    </DashedAccordion>
+                  </Box>
                 </>
               )}
             </Box>
