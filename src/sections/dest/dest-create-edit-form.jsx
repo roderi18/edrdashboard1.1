@@ -39,6 +39,8 @@ import { createChurch } from 'src/models/church-model';
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
+  const church = churches.find((c) => c.id === dest.churchId) || {};
+
   return {
     avatarUrl: dest.avatarUrl ?? null,
 
@@ -53,10 +55,18 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
       ? churches.find((c) => c.id === dest.churchId) || null
       : null,
 
+    destMeetingDays: dest.destMeetingDays ?? '',
     destMeetingTimes: dest.destMeetingTimes ?? '',
 
     status: dest.membershipStatus ?? 'active',
     isVerified: dest.isVerified ?? true,
+
+    churchName: church.name ?? '',
+    pastor: church.pastor ?? '',
+    address: church.address ?? '',
+    provinceId: church.provinceId ?? '',
+    countryId: church.countryId ?? '',
+    sectionId: church.sectionId ?? '',
   };
 };
 // ----------------------------------------------------------------------
@@ -71,6 +81,7 @@ export function DestCreateEditForm({ currentDest }) {
   const [churches, setChurches] = useState([]);
   const allMembers = getMembers();
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+
 
   const defaultValues = {
     avatarUrl: null,
@@ -95,6 +106,7 @@ export function DestCreateEditForm({ currentDest }) {
     provinceId: '',
     countryId: '',
     sectionId: '',
+
   };
 
   const CombinedSchema = ChurchSchema.merge(DestSchema);
@@ -103,14 +115,15 @@ export function DestCreateEditForm({ currentDest }) {
     resolver: zodResolver(CombinedSchema),
     defaultValues,
   });
-
   useEffect(() => {
     if (!currentDest) return;
+
+    if (churches.length === 0) return;
 
     methods.reset(
       mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
     );
-  }, [currentDest]);
+  }, [currentDest, churches.length]);
 
   useEffect(() => {
 

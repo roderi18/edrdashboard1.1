@@ -40,6 +40,7 @@ export function createDest(data) {
         country: data.country ?? 'Dominican Republic',
 
         destMeetingTimes: data.destMeetingTimes ?? '',
+        destMeetingDays: data.destMeetingDays ?? '',
 
         membershipStatus: data.membershipStatus ?? 'active',
         isVerified: data.isVerified ?? true,
