@@ -116,7 +116,7 @@ const buildSectionalList = () => {
       ...sectional,
 
       // campos que usa tu tabla
-      sectionalName: sectional.name,
+      sectionalName: sectional.sectionalName,
       regionalName:
         regionals.find((r) => String(r.id) === String(sectional.regionalId))?.name ||
         REGIONALS.find((r) => String(r.id) === String(sectional.regionalId))?.name ||

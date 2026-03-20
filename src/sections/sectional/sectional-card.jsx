@@ -20,6 +20,7 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 // ----------------------------------------------------------------------
 
 export function SectionalCard({ sectional, sx, ...other }) {
+  console.log('SECTIONAL DATA 👉', sectional);
   const router = useRouter();
 
   const director = MEMBERS.find(
@@ -53,7 +54,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
 
         <Avatar
           onClick={handleGoToSectional}
-          alt={sectional.name}
+          alt={sectional.sectionalName}
           src={sectional.avatarUrl}
           sx={{
             left: 0,
