@@ -37,7 +37,7 @@ export default function ChurchDestSection({
                 <Field.Text name="provinceId" label="Provincia" />
                 <Field.Text name="countryId" label="País" />
                 <Field.Autocomplete
-                    name="sectionId"
+                    name="sectionalName"
                     label="Sección"
                     options={sectionals}
                     getOptionLabel={(option) =>
@@ -49,10 +49,10 @@ export default function ChurchDestSection({
                         option.id === value?.id
                     }
                     value={
-                        sectionals.find((s) => s.id === watch('sectionId')) || null
+                        sectionals.find((s) => s.sectionalName === watch('sectionalName')) || null
                     }
                     onChange={(event, option) => {
-                        setValue('sectionId', option?.id || '');
+                        setValue('sectionalName', option?.sectionalName || '');
                     }}
                 />
             </Box>

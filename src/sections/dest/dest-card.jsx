@@ -12,13 +12,18 @@ import { AvatarShape } from 'src/assets/illustrations';
 import { Image } from 'src/components/image';
 import { resolveById } from 'src/utils/resolve-display-name';
 import { useRouter } from 'next/navigation';
-import { SECTIONALS, REGIONALS, CHURCHES, MEMBERS } from 'src/_mock/assets';
+import { REGIONALS } from 'src/_mock/assets';
+import { getSectionals } from 'src/services/sectional-service';
+import { getRegionals } from 'src/services/regional-service';
+import { CHURCHES } from 'src/_mock/assets';
 import { getMembers } from 'src/services/member-service';
 // ----------------------------------------------------------------------
 
 export function DestCard({ dest, sx, ...other }) {
 
   const router = useRouter();
+  const sectionals = getSectionals();
+  const regionals = getRegionals();
 
   const church = CHURCHES.find(
     (c) => c.id === dest?.churchId
@@ -29,12 +34,12 @@ export function DestCard({ dest, sx, ...other }) {
     dest?.churchName ||
     'Iglesia desconocida';
 
-  const sectional = SECTIONALS.find(
-    (s) => s.id === dest.sectionalId
+  const sectional = sectionals.find(
+    (s) => String(s.id) === String(dest.sectionalId)
   );
-  console.log('Sectional ID:', sectional?.id);
-  const regional = REGIONALS.find(
-    (r) => r.id === sectional?.regionalId
+
+  const regional = regionals.find(
+    (r) => String(r.id) === String(sectional?.regionalId)
   );
 
   // Imagen según sección
@@ -203,7 +208,7 @@ export function DestCard({ dest, sx, ...other }) {
               },
             }}
           >
-            {resolveById(SECTIONALS, dest.sectionalId)}
+            {sectional?.sectionalName || '-'}
           </Box>
 
           <Box

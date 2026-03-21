@@ -66,7 +66,7 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     address: church.address ?? '',
     provinceId: church.provinceId ?? '',
     countryId: church.countryId ?? '',
-    sectionId: church.sectionId ?? '',
+    sectionalName: church.sectionalName ?? '',
   };
 };
 // ----------------------------------------------------------------------
@@ -105,7 +105,7 @@ export function DestCreateEditForm({ currentDest }) {
     address: '',
     provinceId: '',
     countryId: '',
-    sectionId: '',
+    sectionalName: '',
 
   };
 
@@ -165,6 +165,9 @@ export function DestCreateEditForm({ currentDest }) {
 
     try {
 
+      const sectional = getSectionals().find(
+        (s) => s.sectionalName === data.sectionalName
+      );
       const newChurch = createChurch({
         id: churchId,
         churchName: data.churchName,
@@ -173,6 +176,7 @@ export function DestCreateEditForm({ currentDest }) {
         provinceId: data.provinceId,
         countryId: data.countryId,
         sectionId: data.sectionId,
+        sectionalName: sectional?.sectionalName || '',
       });
 
       saveChurch(newChurch);

@@ -218,10 +218,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/sectional?section=${encodeURIComponent(sectional?.name || '')}`}
+              href={`/dashboard/level/sectional?section=${encodeURIComponent(sectional?.sectionalName || '')}`}
               color="inherit"
             >
-              {sectional?.name || row.sectionalName || '-'}
+              {sectional?.sectionalName || '-'}
             </Link>
           </Box>
         </TableCell>

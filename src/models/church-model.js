@@ -25,7 +25,7 @@ export function createChurch(data) {
 
         provinceId: data.provinceId ?? '',
         countryId: data.countryId ?? '',
-        sectionId: data.sectionId ?? '',
+        sectionalName: data.sectionalName ?? '',
 
         createdAt: data.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),

@@ -49,8 +49,11 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   console.log('MEMBERS:', members);
 
   const director = members.find(
-    (m) => String(m.id) === String(row.directorId)
+    (m) =>
+      String(m.memberId) === String(row.directorId) ||
+      String(m.id) === String(row.directorId)
   );
+
   console.log('DIRECTOR ENCONTRADO:', director);
 
   members.forEach((m) => {

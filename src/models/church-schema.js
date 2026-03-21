@@ -11,5 +11,5 @@ export const ChurchSchema = z.object({
 
     countryId: z.string().min(1, { error: 'País requerido' }),
 
-    sectionId: z.string().min(1, { error: 'Sección requerida' }),
+    sectionalName: z.string().min(1, { error: 'Sección requerida' }),
 });

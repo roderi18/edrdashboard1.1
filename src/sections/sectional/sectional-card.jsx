@@ -13,7 +13,7 @@ import { AvatarShape } from 'src/assets/illustrations';
 import { Image } from 'src/components/image';
 
 import { useRouter } from 'next/navigation';
-import { MEMBERS, REGIONALS } from 'src/_mock/assets';
+import { getRegionals } from 'src/services/regional-service';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { getMembers } from 'src/services/member-service';
 
@@ -21,6 +21,7 @@ import { getMembers } from 'src/services/member-service';
 
 export function SectionalCard({ sectional, sx, ...other }) {
   const router = useRouter();
+  const regionals = getRegionals();
 
   const members = getMembers();
 
@@ -33,8 +34,8 @@ export function SectionalCard({ sectional, sx, ...other }) {
   const directorPhone =
     director?.phoneNumber ? parsePhoneNumber(director.phoneNumber)?.formatNational() : 'N/A';
 
-  const regional = REGIONALS.find(
-    (r) => r.id === sectional.regionalId
+  const regional = regionals.find(
+    (r) => String(r.id) === String(sectional.regionalId)
   );
 
   const handleGoToSectional = () => {
