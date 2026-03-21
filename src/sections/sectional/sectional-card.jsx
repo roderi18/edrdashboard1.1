@@ -13,19 +13,23 @@ import { AvatarShape } from 'src/assets/illustrations';
 import { Image } from 'src/components/image';
 
 import { useRouter } from 'next/navigation';
-import { MEMBERS, SECTIONALS, REGIONALS } from 'src/_mock/assets';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+import { MEMBERS, REGIONALS } from 'src/_mock/assets';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { getMembers } from 'src/services/member-service';
 
 // ----------------------------------------------------------------------
 
 export function SectionalCard({ sectional, sx, ...other }) {
-  console.log('SECTIONAL DATA 👉', sectional);
   const router = useRouter();
 
-  const director = MEMBERS.find(
-    (m) => m.id === sectional.directorId
+  const members = getMembers();
+
+  const director = members.find(
+    (m) =>
+      String(m.memberId) === String(sectional.directorId) ||
+      String(m.id) === String(sectional.directorId)
   );
+
   const directorPhone =
     director?.phoneNumber ? parsePhoneNumber(director.phoneNumber)?.formatNational() : 'N/A';
 
@@ -122,7 +126,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
             <Box
               component="span"
               onClick={() =>
-                router.push(`/dashboard/level/member/${director.id}/edit`)
+                router.push(`/dashboard/level/member/${director.memberId}/edit`)
               }
               sx={{
                 typography: 'caption',
@@ -131,7 +135,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
                 '&:hover': { textDecoration: 'underline' },
               }}
             >
-              {director.fullName}
+              {`${director.firstName} ${director.lastName}`}
             </Box>
           ) : (
             'Desconocido'
