@@ -1,20 +1,13 @@
 import { CONFIG } from 'src/global-config';
-import { SECTIONALS } from 'src/_mock/assets';
-
 import { SectionalEditView } from 'src/sections/sectional/view';
-
-// ----------------------------------------------------------------------
+import { getSectionalById } from 'src/services/sectional-service';
 
 export const metadata = { title: `Sectional edit | Dashboard - ${CONFIG.appName}` };
 
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const currentSectional = SECTIONALS.find(
-    (sectional) => sectional.id === id
-  );
-
-  return <SectionalEditView sectional={currentSectional} />;
+  return <SectionalEditView sectionalId={id} />;
 }
 
 // ----------------------------------------------------------------------

@@ -28,6 +28,7 @@ import { SectionalCreateSchema } from 'src/models/sectional-schema';
 
 
 export function SectionalCreateEditForm({ currentSectional }) {
+  console.log('CURRENT SECTIONAL 👉', currentSectional);
   const router = useRouter();
   const [dests, setDests] = useState([]);
   const [members, setMembers] = useState([]);
@@ -43,8 +44,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
     mode: 'onSubmit',
     resolver: zodResolver(SectionalCreateSchema),
     defaultValues,
-    values: currentSectional,
+    values: currentSectional || defaultValues,
   });
+
 
   const {
     reset,
@@ -53,10 +55,30 @@ export function SectionalCreateEditForm({ currentSectional }) {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+  console.log('WATCH VALUES 👉', watch());
+  useEffect(() => {
+    if (currentSectional && Object.keys(currentSectional).length > 0) {
+      console.log('RESET DATA 👉', {
+        defaultValues,
+        currentSectional,
+        merged: {
+          ...defaultValues,
+          ...currentSectional,
+        },
+      });
+      reset({
+        ...defaultValues,
+        ...currentSectional,
+      });
+    }
+  }, [currentSectional]);
 
   const values = watch();
 
   const selectedRegionalId = watch('regionalId');
+  console.log('regionalId watch 👉', watch('regionalId'));
+  console.log('directorId watch 👉', watch('directorId'));
+  console.log('sectionalName watch 👉', watch('sectionalName'));
 
   const destsByRegional = dests.filter(
     (d) => d.regionalId === selectedRegionalId
@@ -191,7 +213,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="sectionalName" label="Nombre de la Seccional" />
+              <Field.Text name="sectionalName" label="Nombre de la Sección" />
 
               <Field.Autocomplete
                 name="regionalId"
@@ -200,7 +222,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 getOptionLabel={(option) =>
                   typeof option === 'string' ? option : option?.name || ''
                 }
-                isOptionEqualToValue={(option, value) => option.memberId === value?.memberId}
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
                 value={REGIONALS.find((r) => r.id === watch('regionalId')) || null}
                 onChange={(event, option) => {
                   methods.setValue('regionalId', option?.id || '');

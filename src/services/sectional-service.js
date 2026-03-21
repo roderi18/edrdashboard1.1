@@ -5,7 +5,7 @@ export const getSectionals = () => {
 
     try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-            .sort((a, b) => a.name?.localeCompare(b.name));
+            .sort((a, b) => a.sectionalName?.localeCompare(b.sectionalName));
     } catch (error) {
         console.error('Error reading sectionals from localStorage:', error);
         return [];
@@ -19,7 +19,7 @@ export const getSectionalById = (id) => {
 
 export const getSectionalNameById = (id) => {
     const sectional = getSectionalById(id);
-    return sectional?.name || 'Seccional desconocida';
+    return sectional?.sectionalName || 'Sección desconocida';
 };
 
 export const saveSectional = (sectional) => {
