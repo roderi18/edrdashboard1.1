@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { REGIONALS } from 'src/_mock/assets';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
-import { CHURCHES } from 'src/_mock/assets';
+import { getChurches } from 'src/services/church-service';
 import { getMembers } from 'src/services/member-service';
 // ----------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ export function DestCard({ dest, sx, ...other }) {
   const sectionals = getSectionals();
   const regionals = getRegionals();
 
-  const church = CHURCHES.find(
+  const church = getChurches().find(
     (c) => c.id === dest?.churchId
   );
 
@@ -35,7 +35,7 @@ export function DestCard({ dest, sx, ...other }) {
     'Iglesia desconocida';
 
   const sectional = sectionals.find(
-    (s) => String(s.id) === String(dest.sectionalId)
+    (s) => s.sectionalName === church?.sectionalName
   );
 
   const regional = regionals.find(
@@ -194,7 +194,7 @@ export function DestCard({ dest, sx, ...other }) {
             onClick={() =>
               router.push(
                 `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                  dest.sectionalId
+                  church?.sectionalName || ''
                 )}`
               )
             }

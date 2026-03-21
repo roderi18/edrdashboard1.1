@@ -1,6 +1,6 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { getSectionals } from 'src/services/sectional-service';
-import { getRegionals } from 'src/services/regional-service';
+import { REGIONALS } from 'src/_mock/assets';
 import { getChurches } from 'src/services/church-service';
 
 
@@ -38,21 +38,16 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  const sectional = getSectionals().find(
-    (s) => s.id === row.sectionalId
-  );
-
-  const regional = getRegionals().find(
-    (r) => r.id === sectional?.regionalId
-  );
-
   const church = getChurches().find(
     (c) => c.id === row.churchId
   );
-  console.log('CHURCH MATCH 👉', {
-    rowChurchId: row.churchId,
-    churches: getChurches(),
-  });
+
+  const sectional = getSectionals().find(
+    (s) => s.sectionalName === church?.sectionalName
+  );
+  const regional = REGIONALS.find(
+    (r) => String(r.id) === String(sectional?.regionalId)
+  );
 
   const churchName =
     church?.name ||
@@ -218,7 +213,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/sectional?section=${encodeURIComponent(sectional?.sectionalName || '')}`}
+              href={`/dashboard/level/sectional?section=${encodeURIComponent(church?.sectionalName || '')}`}
               color="inherit"
             >
               {sectional?.sectionalName || '-'}
