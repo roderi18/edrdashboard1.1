@@ -25,7 +25,13 @@ export default function ChurchDestSection({
                     gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
                 }}
             >
-                <Field.Text name="churchName" label="Nombre de la Iglesia" />
+                <Field.Text
+                    name="churchName"
+                    label="Nombre de la Iglesia"
+                    InputProps={{
+                        startAdornment: 'Iglesia ',
+                    }}
+                />
                 <Field.Text name="pastor" label="Pastor" />
                 <Field.Text name="address" label="Dirección" />
                 <Field.Text name="provinceId" label="Provincia" />

@@ -2,8 +2,7 @@ import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getChurches } from 'src/services/church-service';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -146,7 +145,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {capitalize(row.destName)}
+                {`Dest. ${capitalize(row.destName)} ${row.destNumber || ''}`}
 
               </Link>
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>

@@ -13,7 +13,7 @@ import { Image } from 'src/components/image';
 import { resolveById } from 'src/utils/resolve-display-name';
 import { useRouter } from 'next/navigation';
 import { SECTIONALS, REGIONALS, CHURCHES, MEMBERS } from 'src/_mock/assets';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+import { getMembers } from 'src/services/member-service';
 // ----------------------------------------------------------------------
 
 export function DestCard({ dest, sx, ...other }) {
@@ -50,16 +50,8 @@ export function DestCard({ dest, sx, ...other }) {
     sectionalCoverMap[sectional?.id?.trim()] ||
     '/assets/images/divisions/default.jpg';
 
-  const coordinatorAssignment = LEADERSHIP_ASSIGNMENTS.find(
-    (l) =>
-      l.level === 'dest' &&
-      l.entityId === dest.id &&
-      l.role === 'coordinador_dest' &&
-      l.status === 'active'
-  );
-
-  const coordinator = MEMBERS.find(
-    (m) => m.id === coordinatorAssignment?.memberId
+  const coordinator = getMembers().find(
+    (m) => m.memberId === dest.coordinatorId
   );
 
   const handleGoToDest = () => {
@@ -123,7 +115,7 @@ export function DestCard({ dest, sx, ...other }) {
               '&:hover': { textDecoration: 'underline' },
             }}
           >
-            {dest.destName}
+            {`Destacamento ${dest.destName} ${dest.destNumber || ''}`}
           </Box>
         } secondary={dest.role}
       />
@@ -152,7 +144,7 @@ export function DestCard({ dest, sx, ...other }) {
                 <Box
                   component="span"
                   onClick={() =>
-                    router.push(`/dashboard/level/member/${coordinator.id}/edit`)
+                    router.push(`/dashboard/level/member/${coordinator.memberId}/edit`)
                   }
                   sx={{
                     typography: 'caption',
@@ -161,8 +153,9 @@ export function DestCard({ dest, sx, ...other }) {
                     '&:hover': { textDecoration: 'underline' },
                   }}
                 >
-                  {coordinator.fullName}
+                  {`${coordinator.firstName} ${coordinator.lastName}`}
                 </Box>
+
               </>
             ) : (
               'Coord. Dest. Desconocido'
