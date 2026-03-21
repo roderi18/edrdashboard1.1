@@ -21,9 +21,10 @@ import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 import { saveSectional, updateSectional } from 'src/services/sectional-service';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
+import { getChurches } from 'src/services/church-service';
 // ----------------------------------------------------------------------
 
 
@@ -76,18 +77,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const values = watch();
 
   const selectedRegionalId = watch('regionalId');
-  console.log('regionalId watch 👉', watch('regionalId'));
-  console.log('directorId watch 👉', watch('directorId'));
-  console.log('sectionalName watch 👉', watch('sectionalName'));
 
-  const destsByRegional = dests.filter(
-    (d) => d.regionalId === selectedRegionalId
-  );
+  const destsBySectional = dests.filter((d) => {
 
-  const totalDests = destsByRegional.length;
+    const church = getChurches().find((c) => c.id === d.churchId);
+    return church?.sectionalName === watch('sectionalName');
+  });
+
+  const totalDests = destsBySectional.length;
 
   const totalMembers = members.filter((m) =>
-    destsByRegional.some((d) => d.id === m.destId)
+    destsBySectional.some((d) => d.id === m.destId)
   ).length;
 
   const onSubmit = handleSubmit(async (data) => {

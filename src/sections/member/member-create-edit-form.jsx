@@ -30,6 +30,7 @@ import {
   getLeadershipAssignments,
   getMembers,
 } from 'src/services/member-service';
+import { getDests } from 'src/services/dest-service';
 
 // models
 import { MemberValidationSchema } from 'src/models/member-schema';
@@ -45,7 +46,7 @@ import {
 } from 'src/utils/ci-utils';
 
 // mock data
-import { DESTS, SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
+import { SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 // local options
@@ -143,6 +144,7 @@ const mapMemberToForm = (member) => {
 export function MemberCreateEditForm({ currentMember }) {
 
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
+  const dests = getDests();
   const members = getMembers();
   const router = useRouter();
   const theme = useTheme();
@@ -273,7 +275,7 @@ export function MemberCreateEditForm({ currentMember }) {
   //   (m) => m.id === destCoordinator?.memberId
   // );
 
-  const selectedDest = DESTS.find((d) => d.id === selectedDestId);
+  const selectedDest = dests.find((d) => d.id === selectedDestId);
   const selectedSectional = SECTIONALS.find(
     (s) => s.id === selectedDest?.sectionalId
   );
@@ -288,8 +290,8 @@ export function MemberCreateEditForm({ currentMember }) {
     currentMember?.dest_id ||
     currentMember?.dest;
 
-  const dest = DESTS.find((d) => d.id === destId);
-  const destName = dest?.name;
+  const dest = dests.find((d) => d.id === destId);
+  const destName = `${dest?.name || ''} ${dest?.destNumber || ''}`.trim() || 'Destacamento desconocido';
 
   const sectional = SECTIONALS.find((s) => s.id === currentMember?.sectionalId);
   const sectionalName = sectional?.name;
@@ -319,8 +321,10 @@ export function MemberCreateEditForm({ currentMember }) {
     if (!role) return null;
 
     if (l.level === 'dest') {
-      const dest = DESTS.find((d) => d.id === l.entityId);
-      const destDisplayName = dest?.name || destName;
+      const dest = dests.find((d) => d.id === l.entityId);
+      const destDisplayName =
+        `${dest?.name || ''} ${dest?.destNumber || ''}`.trim() ||
+        `${destName || ''}`;
 
       return (
         <>
@@ -523,7 +527,7 @@ export function MemberCreateEditForm({ currentMember }) {
                         },
                         {
                           show: isCreateView && !!selectedDest?.name,
-                          text: `pertenecerá a ${selectedDest?.name}`,
+                          text: `pertenecerá a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
                         },
                         {
                           show: isCreateView && !!destChurch?.name,

@@ -17,13 +17,13 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 import { RouterLink } from 'src/routes/components';
 import { getSectionals } from 'src/services/sectional-service';
 import { getMembers } from 'src/services/member-service';
-import { getLeadershipAssignments } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
+import { getDests } from 'src/services/dest-service';
+import { getChurches } from 'src/services/church-service';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
-import { REGIONALS } from 'src/_mock/assets';
 import { useRouter } from 'next/navigation';
 import { SectionalQuickEditForm } from './sectional-quick-edit-form';
 
@@ -44,21 +44,24 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   );
 
   const members = getMembers();
-  console.log('ROW:', row);
-  console.log('directorId:', row.directorId);
-  console.log('MEMBERS:', members);
+  const dests = getDests();
+  const churches = getChurches();
+
 
   const director = members.find(
-    (m) =>
-      String(m.memberId) === String(row.directorId) ||
-      String(m.id) === String(row.directorId)
+    (m) => String(m.id) === String(row.directorId)
   );
 
-  console.log('DIRECTOR ENCONTRADO:', director);
-
-  members.forEach((m) => {
-    console.log('comparando:', m.memberId, 'vs', row.directorId);
+  const destsBySectional = dests.filter((d) => {
+    const church = churches.find((c) => c.id === d.churchId);
+    return church?.sectionalName === row.sectionalName;
   });
+
+  const totalDests = destsBySectional.length;
+
+  const totalMembers = members.filter((m) =>
+    destsBySectional.some((d) => d.id === m.destId)
+  ).length;
 
   const renderQuickEditForm = () => (
     <SectionalQuickEditForm
@@ -207,7 +210,6 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         </TableCell>
 
 
-        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalDestCount}</TableCell> */}
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
@@ -215,12 +217,11 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
               href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.sectionalName)}`}
               color="inherit"
             >
-              {row.sectionalDestCount}
+              {totalDests}
             </Link>
           </Box>
         </TableCell>
 
-        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.sectionalXDestMemberCount}</TableCell> */}
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
@@ -228,7 +229,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
               href={`/dashboard/level/member?sectional=${row.id}`}
               color="inherit"
             >
-              {row.sectionalXDestMemberCount}
+              {totalMembers}
             </Link>
           </Box>
         </TableCell>

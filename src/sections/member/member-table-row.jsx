@@ -56,6 +56,8 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
     (c) => c.id === dest?.churchId
   );
 
+  const sectionalName = church?.sectionalName || '-';
+
   const churchName = church?.name || 'Iglesia desconocida';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
@@ -180,7 +182,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                 href={`/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`}
                 color="inherit"
               >
-                {capitalize(dest?.name || '')}
+                {`${capitalize(dest?.name || '')} ${dest?.destNumber || ''}`.trim()}
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
@@ -310,15 +312,13 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <UnderlineLink
-              href={`/dashboard/level/sectional?sectional=${encodeURIComponent(resolveById(SECTIONALS, row.sectionalId))}`}
+              href={`/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`}
               color="inherit"
             >
-              {resolveById(SECTIONALS, row.sectionalId)}
+              {sectionalName}
             </UnderlineLink>
           </Box>
         </TableCell>
-
-
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
           {row.memberDivision}

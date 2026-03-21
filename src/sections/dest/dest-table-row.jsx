@@ -42,13 +42,15 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     (c) => c.id === row.churchId
   );
 
+  const sectionalName = church?.sectionalName || '';
+
   const sectional = getSectionals().find(
-    (s) => s.sectionalName === church?.sectionalName
+    (s) => s.sectionalName === sectionalName
   );
+
   const regional = REGIONALS.find(
     (r) => String(r.id) === String(sectional?.regionalId)
   );
-
   const churchName =
     church?.name ||
     row?.churchName ||
@@ -213,10 +215,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/sectional?section=${encodeURIComponent(church?.sectionalName || '')}`}
+              href={`/dashboard/level/sectional?section=${encodeURIComponent(sectionalName)}`}
               color="inherit"
             >
-              {sectional?.sectionalName || '-'}
+              {sectionalName || '-'}
             </Link>
           </Box>
         </TableCell>

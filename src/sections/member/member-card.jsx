@@ -45,17 +45,10 @@ export function MemberCard({ member, sx, ...other }) {
     (d) => d.id === member.destId
   );
 
-  const church = CHURCHES.find(
+  const church = getChurches().find(
     (c) => c.id === dest?.churchId
   );
-
-  const sectional = SECTIONALS.find(
-    (s) => s.id === member.sectionalId
-  );
-
-  const regional = REGIONALS.find(
-    (r) => r.id === sectional?.regionalId
-  );
+  const sectionalName = church?.sectionalName || '-';
 
   let leaderships = leadershipAssignments
     .filter(
@@ -183,7 +176,7 @@ export function MemberCard({ member, sx, ...other }) {
 
             if (leadership.level === 'sectional') {
               link = `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                resolveById(SECTIONALS, member.sectionalId)
+                sectionalName
               )}`;
             }
 
@@ -252,7 +245,7 @@ export function MemberCard({ member, sx, ...other }) {
             onClick={() =>
               router.push(
                 `/dashboard/level/dest?member=${encodeURIComponent(
-                  resolveById(DESTS, member.destId)
+                  resolveById(dests, member.destId)
                 )}`
               )
             }
@@ -266,7 +259,7 @@ export function MemberCard({ member, sx, ...other }) {
               },
             }}
           >
-            {dest?.name || 'Destacamento desconocido'}
+            {`Dest. ${`${dest?.name || 'Desconocido'} ${dest?.destNumber || ''}`.trim()}`}
           </Box>
 
           <Box
@@ -300,7 +293,7 @@ export function MemberCard({ member, sx, ...other }) {
               },
             }}
           >
-            Sección {resolveById(SECTIONALS, member.sectionalId)}
+            Sección {sectionalName}
           </Box>
         </Box>
       </Box>
