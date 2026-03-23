@@ -3,8 +3,6 @@ import { useCallback } from 'react';
 import Chip from '@mui/material/Chip';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
-import { SECTIONALS } from 'src/_mock/assets';
-import { resolveById } from 'src/utils/resolve-display-name';
 
 // ----------------------------------------------------------------------
 
@@ -31,8 +29,7 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
     [onResetPage, updateFilters, currentFilters.sectionalName]
   );
 
-  const getSectionalNameById = (id) =>
-    SECTIONALS.find((s) => s.id === id)?.name || id;
+  const getSectionalNameById = (name) => name;
 
   const handleReset = useCallback(() => {
     onResetPage();
@@ -55,7 +52,7 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
           <Chip
             {...chipProps}
             key={item}
-            label={getSectionalNameById(item)}
+            label={item}
             onDelete={() => handleRemoveDestMembership(item)}
           />
         ))}

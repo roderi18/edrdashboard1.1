@@ -122,8 +122,7 @@ export function MemberListView() {
   const distinctdestName = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'destId',
-    labelResolver: (id) =>
-      dests.find((d) => d.id === id)?.name,
+    labelResolver: (name) => name,
   });
 
   const distinctPositions = [

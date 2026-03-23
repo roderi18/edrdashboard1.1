@@ -134,7 +134,7 @@ export function DestListView() {
 
         churchName: church?.name ?? dest?.churchName ?? '',
 
-        sectionalId: dest.sectionalId,
+        sectionalId: church?.sectionalName,
 
         memberFullName: coordinator
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
@@ -142,7 +142,7 @@ export function DestListView() {
 
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
-        sectionalName: sectional?.name ?? '-',
+        sectionalName: church?.sectionalName,
         regionalName: regional?.name ?? '-',
       };
     });
@@ -182,8 +182,7 @@ export function DestListView() {
   const distinctSectionalFullName = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'sectionalId',
-    labelResolver: (id) =>
-      getSectionals().find((s) => s.id === id)?.name,
+    labelResolver: (name) => name,
   });
 
   useEffect(() => {
@@ -200,8 +199,8 @@ export function DestListView() {
     if (!sectionalFromUrl) return;
     if (appliedFromUrl.current) return;
 
-    const sectional = getSectionals().find(
-      (s) => s.name === decodeURIComponent(sectionalFromUrl)
+    const church = getChurches().find(
+      (c) => c.id === dest.churchId
     );
 
     if (!sectional) return;
@@ -536,7 +535,7 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (sectionalName.length) {
     inputData = inputData.filter((dest) =>
-      sectionalName.includes(dest.sectionalId)
+      sectionalName.includes(dest.sectionalName)
     );
   }
 
