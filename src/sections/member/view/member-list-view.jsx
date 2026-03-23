@@ -4,12 +4,11 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { DESTS, SECTIONALS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import { getMembers } from 'src/services/member-service';
 import { getLeadershipAssignments } from 'src/services/member-service';
-
+import { getChurches } from 'src/services/church-service';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -22,6 +21,8 @@ import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { getDests } from 'src/services/dest-service';
+import { getSectionals } from 'src/services/sectional-service';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
@@ -67,6 +68,8 @@ const TABLE_HEAD = [
 
 export function MemberListView() {
   const table = useTable();
+  const dests = getDests();
+  const sectionals = getSectionals();
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -85,25 +88,29 @@ export function MemberListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState(() => {
+
     const members = getMembers();
     const leadershipAssignments = getLeadershipAssignments();
 
     return members.map((member) => {
-      const dest = DESTS.find((d) => d.id === member.destId);
+      const dest = dests.find((d) => d.id === member.destId);
+
       const memberLeaderships = leadershipAssignments.filter(
         (l) =>
           (l.memberId === member.id || l.member_id === member.id) &&
           (l.status === 'active' || !l.status)
       );
-      const sectional = SECTIONALS.find((s) => s.id === dest?.sectionalId);
+      const church = (typeof window !== 'undefined' ? getChurches() : []).find(
+        (c) => c.id === dest?.churchId
+      );
 
       return {
         ...member,
         id: member.id,
         memberId: member.id,
         name: getMemberFullName(member),
-        sectionalId: dest?.sectionalId,
-        sectionalName: sectional?.name,
+        sectionalId: church?.sectionalName,
+        sectionalName: church?.sectionalName,
         memberPosition: memberLeaderships.map((l) => l.role),
       };
     });
@@ -111,12 +118,14 @@ export function MemberListView() {
 
   const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalId: [], destName: [] });
   const { state: currentFilters, setState: updateFilters } = filters;
+
   const distinctdestName = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'destId',
     labelResolver: (id) =>
-      DESTS.find((d) => d.id === id)?.name,
+      dests.find((d) => d.id === id)?.name,
   });
+
   const distinctPositions = [
     ...new Set(tableData.flatMap((m) => m.memberPosition || [])),
   ].map((role) => {
@@ -130,8 +139,7 @@ export function MemberListView() {
   const distinctSectionals = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'sectionalId',
-    labelResolver: (id) =>
-      SECTIONALS.find((s) => s.id === id)?.name,
+    labelResolver: (name) => name,
   });
   const searchParams = useSearchParams();
   const memberIdFromUrl = searchParams.get('member');
@@ -201,7 +209,10 @@ export function MemberListView() {
     (event, newValue) => {
       table.onResetPage();
       updateFilters({
-        destName: newValue === 'all' ? [] : [newValue],
+        destName:
+          newValue === 'all'
+            ? []
+            : [typeof newValue === 'object' ? newValue.value : newValue],
       });
     },
     [updateFilters, table]
@@ -214,7 +225,11 @@ export function MemberListView() {
         : event.target.value;
 
     table.onResetPage();
-    updateFilters({ sectionalId: newValue });
+    updateFilters({
+      sectionalId: newValue.map((v) =>
+        typeof v === 'object' ? v.value : v
+      ),
+    });
   }, [table, updateFilters]);
 
   const handleFilterMemberDivisionTab = useCallback(
@@ -453,12 +468,9 @@ export function MemberListView() {
 function applyFilter({ inputData, comparator, filters }) {
   const { name, memberDivision, memberPosition, sectionalId, destName } = filters;
 
-  // if (status && status !== 'all') {
-  //   inputData = inputData.filter((member) => member.status === status);
-  // }
   if (destName.length) {
     inputData = inputData.filter((member) =>
-      destName.includes(member.destId)
+      destName.includes(member.destId?.toString())
     );
   }
 
@@ -488,7 +500,7 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (sectionalId.length) {
     inputData = inputData.filter((member) =>
-      sectionalId.includes(member.sectionalId)
+      sectionalId.includes(member.sectionalId?.toString())
     );
   }
 

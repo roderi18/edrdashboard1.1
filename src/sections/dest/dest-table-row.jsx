@@ -142,14 +142,18 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {`Dest. ${capitalize(row.destName)} ${row.destNumber || ''}`}
+                {`${capitalize(row.destName)} ${row.destNumber || ''}`}
 
               </Link>
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {capitalize(churchName)}
+                {`Iglesia ${capitalize(
+                  church?.name ||
+                  dest?.churchName ||
+                  'desconocida'
+                )}`}
               </Box>
             </Stack>
           </Box>

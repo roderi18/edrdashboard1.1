@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { DESTS, SECTIONALS } from 'src/_mock/assets';
+import { getDests } from 'src/services/dest-service';
+import { getSectionals } from 'src/services/sectional-service';
 import { usePopover } from 'minimal-shared/hooks';
 import { resolveById } from 'src/utils/resolve-display-name';
 
@@ -24,6 +25,8 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const dests = getDests();
+  const sectionals = getSectionals();
 
   const filtersPopover = usePopover();
 
@@ -42,7 +45,11 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ destName: newValue });
+      updateFilters({
+        destName: newValue.map((v) =>
+          typeof v === 'object' ? v.value : v
+        ),
+      });
     },
     [onResetPage, updateFilters]
   );
@@ -65,7 +72,11 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
           : event.target.value;
 
       onResetPage();
-      updateFilters({ sectionalId: newValue });
+      updateFilters({
+        sectionalId: newValue.map((v) =>
+          typeof v === 'object' ? v.value : v
+        ),
+      });
     },
     [onResetPage, updateFilters]
   );
@@ -192,7 +203,9 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                 value={currentFilters.destName}
                 onChange={handleFilterdestName}
                 renderValue={(selected) =>
-                  selected.map((id) => resolveById(DESTS, id)).join(', ')
+                  selected
+                    .map((id) => dests.find((d) => d.id === id)?.name)
+                    .join(', ')
                 }
                 inputProps={{ id: 'filter-destName-select' }}
                 MenuProps={{
@@ -257,7 +270,9 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                 value={currentFilters.sectionalId}
                 onChange={handleFilterSectionalId}
                 renderValue={(selected) =>
-                  selected.map((id) => resolveById(SECTIONALS, id)).join(', ')
+                  selected
+                    .map((id) => sectionals.find((s) => s.id === id)?.name)
+                    .join(', ')
                 }
                 inputProps={{ id: 'filter-sectionalId-select' }}
                 MenuProps={{
@@ -321,7 +336,10 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                   value: currentFilters.destName,
                   onChange: handleFilterdestName,
                   options: options.destName,
-                  renderValue: (selected) => selected.join(', '),
+                  renderValue: (selected) =>
+                    selected
+                      .map((id) => dests.find((d) => d.id === id)?.name)
+                      .join(', '),
                 },
                 {
                   key: 'memberPosition',
@@ -344,7 +362,10 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                   value: currentFilters.sectionalId,
                   onChange: handleFilterSectionalId,
                   options: options.sectionalId,
-                  renderValue: (selected) => selected.join(', '),
+                  renderValue: (selected) =>
+                    selected
+                      .map((id) => sectionals.find((s) => s.id === id)?.name)
+                      .join(', '),
                 },
               ]}
             />

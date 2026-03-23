@@ -137,7 +137,7 @@ export function DestCard({ dest, sx, ...other }) {
         }}
       >
         <Box sx={{ typography: 'body2', fontWeight: 300, mt: 0.2 }}>
-          {churchName}
+          {`Iglesia ${churchName}`}
         </Box>
 
         {/* Coordinador */}
@@ -208,7 +208,7 @@ export function DestCard({ dest, sx, ...other }) {
               },
             }}
           >
-            {sectional?.sectionalName || '-'}
+            {sectional?.sectionalName ? `Sección ${sectional.sectionalName}` : '-'}
           </Box>
 
           <Box

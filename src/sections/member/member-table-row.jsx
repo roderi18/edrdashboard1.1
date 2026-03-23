@@ -186,11 +186,11 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {capitalize(
+                {`Iglesia ${capitalize(
                   church?.name ||
                   dest?.churchName ||
-                  'Iglesia desconocida'
-                )}
+                  'desconocida'
+                )}`}
               </Box>
             </Stack>
 

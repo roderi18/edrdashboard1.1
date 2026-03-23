@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { DESTS, SECTIONALS } from 'src/_mock/assets';
-
+import { getDests } from 'src/services/dest-service';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import Chip from '@mui/material/Chip';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
@@ -9,6 +8,7 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 // ----------------------------------------------------------------------
 
 export function MemberTableFiltersResult({ filters, onResetPage, totalResults, sx }) {
+  const dests = getDests();
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
@@ -76,7 +76,7 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
           <Chip
             {...chipProps}
             key={`dest-${item}-${index}`}
-            label={resolveById(DESTS, item)}
+            label={dests.find((d) => d.id === item)?.name}
             onDelete={() => handleRemovedestName(item)}
           />
         ))}
@@ -85,7 +85,14 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
 
       <FiltersBlock label="Posición:" isShow={!!currentFilters.memberPosition.length}>
         {currentFilters.memberPosition.map((item) => (
-          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
+          <Chip
+            {...chipProps}
+            key={item}
+            label={
+              _allLeadershipRoles.find((r) => r.value === item)?.label || item
+            }
+            onDelete={() => handleRemoveRole(item)}
+          />
         ))}
       </FiltersBlock>
 
@@ -94,7 +101,7 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
           <Chip
             {...chipProps}
             key={item}
-            label={resolveById(SECTIONALS, item)}
+            label={item}
             onDelete={() => handleRemoveState(item)}
           />
         ))}
