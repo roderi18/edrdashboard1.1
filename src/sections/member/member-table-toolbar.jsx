@@ -269,11 +269,14 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                 label="Sección"
                 value={currentFilters.sectionalId}
                 onChange={handleFilterSectionalId}
-                renderValue={(selected) =>
-                  selected
-                    .map((id) => sectionals.find((s) => s.id === id)?.name)
-                    .join(', ')
-                }
+               renderValue={(selected) =>
+  selected
+    .map((id) => {
+      const found = sectionals.find((s) => s.id?.toString() === id?.toString());
+      return found?.name || id;
+    })
+    .join(', ')
+}
                 inputProps={{ id: 'filter-sectionalId-select' }}
                 MenuProps={{
                   slotProps: { paper: { sx: { maxHeight: 250 } } },

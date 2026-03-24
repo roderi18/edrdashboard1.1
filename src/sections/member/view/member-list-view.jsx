@@ -135,11 +135,12 @@ labelResolver: (id) => dests.find((d) => d.id === id)?.name || id,
       label: roleInfo?.label || role,
     };
   });
-  const distinctSectionals = getAvailableOptionsFromData({
-    inputData: tableData,
-    property: 'sectionalId',
-    labelResolver: (name) => name,
-  });
+const distinctSectionals = getAvailableOptionsFromData({
+  inputData: tableData,
+  property: 'sectionalId',
+  labelResolver: (id) =>
+    sectionals.find((s) => s.id === id)?.name || id,
+});
   const searchParams = useSearchParams();
   const memberIdFromUrl = searchParams.get('member');
   const destFromUrl = searchParams.get('dest');
