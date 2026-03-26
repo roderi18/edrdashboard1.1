@@ -182,17 +182,14 @@ export function DestCreateEditForm({ currentDest }) {
       saveChurch(newChurch);
       methods.setValue('churchId', churchId);
 
-      const coordinatorId = data.coordinatorId || null;
       saveDest(
-
         createDest({
           id: destId,
           ...data,
-          coordinatorId: coordinatorId,
+          coordinatorId: data.coordinatorId || null,
           churchId: churchId,
         })
       );
-
 
       await new Promise((resolve) => setTimeout(resolve, 500));
 

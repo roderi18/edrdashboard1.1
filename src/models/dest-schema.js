@@ -2,14 +2,16 @@ import * as z from 'zod';
 import { schemaUtils } from 'src/components/hook-form';
 
 export const DestSchema = z.object({
-    avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
+    avatarUrl: schemaUtils.file().optional(),
 
-    name: z.string().min(1, { error: 'Nombre requerido' }),
-    destNumber: z.string().min(1, { error: 'Número requerido' }),
+    churchName: z.string().min(1, { error: 'Nombre de la iglesia requerido' }),
+
+    name: z.string().optional(),
+    destNumber: z.string().optional(),
 
     coordinatorId: z.string().nullable(),
 
-    country: z.string().min(1, { error: 'País requerido' }),
+    country: z.string().optional(),
 
     destMeetingDays: z.string().optional(),
     destMeetingTimes: z.string().optional(),

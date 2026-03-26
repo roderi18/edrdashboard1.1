@@ -94,11 +94,10 @@ export function DestListView() {
           l.status === 'active'
       );
 
-      const allMembers = getMembers();
-
       const coordinator = leadership
-        ? allMembers.find((m) => m.id === leadership.memberId)
+        ? getMembers().find((m) => m.id === leadership.memberId)
         : null;
+      const allMembers = getMembers();
       if (dest.name === 'Leones De Sion') {
         console.log('LEADERSHIP ENCONTRADO:', leadership);
         console.log('COORDINADOR ENCONTRADO:', coordinator);
@@ -515,16 +514,18 @@ function applyFilter({ inputData, comparator, filters }) {
   //Se reemplaza el anterior por el siguiente. Este busca tanto por destNasme como por memberFullName.
   if (name) {
     const keyword = normalizeText(name);
-    console.log('SEARCH KEYWORD:', keyword);
-    console.log('DEST DATA:', inputData.map(d => ({
-      dest: d.destName,
-      coord: d.memberFullName
-    })));
-    inputData = inputData.filter(
-      (dest) =>
-        normalizeText(dest.destName).includes(keyword) ||
-        normalizeText(dest.memberFullName).includes(keyword)
-    );
+
+    inputData = inputData.filter((dest) => {
+      const searchFields = [
+        dest.destName,
+        dest.memberFullName,
+        dest.churchName,
+      ];
+
+      return searchFields.some((field) =>
+        normalizeText(field || '').includes(keyword)
+      );
+    });
   }
 
   if (regionalName !== 'all') {

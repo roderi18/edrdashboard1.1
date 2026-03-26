@@ -149,11 +149,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 {row.email}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {`Iglesia ${capitalize(
-                  church?.name ||
-                  dest?.churchName ||
-                  'desconocida'
-                )}`}
+                {`Iglesia ${capitalize(churchName)}`}
               </Box>
             </Stack>
           </Box>
