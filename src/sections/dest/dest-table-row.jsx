@@ -57,7 +57,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     'Iglesia desconocida';
 
   const coordinator = getMembers().find(
-    (m) => m.memberId === row.coordinatorId
+    (m) => String(m.memberId) === String(row.coordinatorId)
   );
   console.log('COORDINATOR MATCH 👉', {
     rowCoordinatorId: row.coordinatorId,

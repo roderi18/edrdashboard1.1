@@ -94,9 +94,17 @@ export function DestListView() {
           l.status === 'active'
       );
 
-      const coordinator = leadership
-        ? getMembers().find((m) => m.id === leadership.memberId)
-        : null;
+      const coordinator =
+        getMembers().find(
+          (m) => String(m.memberId) === String(dest.coordinatorId)
+        ) ||
+        (leadership
+          ? getMembers().find(
+            (m) =>
+              String(m.memberId) === String(leadership.memberId) ||
+              String(m.id) === String(leadership.memberId)
+          )
+          : null);
       const allMembers = getMembers();
       if (dest.name === 'Leones De Sion') {
         console.log('LEADERSHIP ENCONTRADO:', leadership);
@@ -138,6 +146,9 @@ export function DestListView() {
         memberFullName: coordinator
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
           : 'Desconocido',
+
+        memberFirstName: coordinator?.firstName ?? '',
+        memberLastName: coordinator?.lastName ?? '',
 
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
@@ -516,15 +527,13 @@ function applyFilter({ inputData, comparator, filters }) {
     const keyword = normalizeText(name);
 
     inputData = inputData.filter((dest) => {
-      const searchFields = [
-        dest.destName,
-        dest.memberFullName,
-        dest.churchName,
-      ];
-
-      return searchFields.some((field) =>
-        normalizeText(field || '').includes(keyword)
+      const coordinator = getMembers().find(
+        (m) => String(m.memberId) === String(dest.coordinatorId)
       );
+
+      return normalizeText(
+        `${coordinator?.firstName || ''} ${coordinator?.lastName || ''} ${dest.destName || ''} ${dest.churchName || ''} ${dest.coordinatorId || ''}`
+      ).includes(keyword);
     });
   }
 
