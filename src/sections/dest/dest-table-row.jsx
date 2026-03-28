@@ -59,10 +59,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const coordinator = getMembers().find(
     (m) => String(m.memberId) === String(row.coordinatorId)
   );
-  console.log('COORDINATOR MATCH 👉', {
-    rowCoordinatorId: row.coordinatorId,
-    members: getMembers(),
-  });
+
 
   const renderQuickEditForm = () => (
     <DestQuickEditForm

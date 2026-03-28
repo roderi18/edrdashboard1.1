@@ -128,7 +128,7 @@ export function DestListView() {
       }
 
       const regional = getRegionals().find(
-        (r) => r.id === sectional?.regionalId
+        (r) => r.id === sectional?.regionalId || r.id === church?.regionalId
       );
       if (dest.name === 'Leones De Sion') {
         console.log('REGION BUSCADA:', sectional?.regionalId);

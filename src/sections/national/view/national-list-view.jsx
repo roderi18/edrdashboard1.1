@@ -69,15 +69,15 @@ export function NationalListView() {
 
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  if (!hydrated) return null;
-
   const table = useTable();
 
   const confirmDialog = useBoolean();
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  if (!hydrated) return null;
+
 
   const storedMembers = getStorageCollection('members') || [];
   const allMembers = [...MEMBERS, ...storedMembers];
