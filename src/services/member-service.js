@@ -12,6 +12,33 @@ import {
 
 const MEMBERS_KEY = 'members';
 const LEADERSHIP_KEY = 'leadershipAssignments';
+const API_URL = 'https://systexploradores.somee.com/api';
+
+function mapApiMemberToUI(member) {
+    return {
+        id: String(member.idMiembros),
+        memberId: member.codigoMiembro,
+
+        firstName: member.nombres || '',
+        lastName: member.apellidos || '',
+
+        gender: member.genero || '',
+        birthDate: member.fechaNacimiento || null,
+
+        destId: String(member.idDestacamento || ''),
+
+        phoneNumber: member.telefono || '',
+        memberAddress: member.direccion || '',
+        email: member.correo || '',
+
+        status: member.estatusMiembro || 'active',
+
+        InstructorCertificadoCI: member.instructorCertificadoCi ? 1 : 0,
+        EstatusVigenciaCI: member.estatusVigenciaCi ? 1 : 0,
+        FechaInicioCI: member.fechaInicioCertificado || null,
+        FechaVencimientoCI: member.fechaFinCertificado || null,
+    };
+}
 
 // ------------------------------------------------------------
 // MEMBERS
@@ -22,9 +49,26 @@ export function saveMember(member) {
     saveItem(MEMBERS_KEY, normalizedMember);
 }
 
-export function getMembers() {
-    return getStorageCollection(MEMBERS_KEY) || [];
+export async function getMembers() {
+    try {
+        console.log('Calling API...');
+        const res = await fetch('/api/members');
+        console.log('Response status:', res.status);
+
+        if (!res.ok) throw new Error('Error al obtener miembros');
+
+        const response = await res.json();
+        console.log('API RESPONSE:', response);
+
+        const data = response.Data || response.data || response.items || response;
+
+        return Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
+    } catch (error) {
+        console.error('❌ FETCH ERROR COMPLETO:', error);
+        return [];
+    }
 }
+
 
 export function getMemberById(id) {
     const members = getMembers();

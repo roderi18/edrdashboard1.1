@@ -87,34 +87,41 @@ export function MemberListView() {
 
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState(() => {
+  const [tableData, setTableData] = useState([]);
 
-    const members = getMembers();
-    const leadershipAssignments = getLeadershipAssignments();
+  useEffect(() => {
+    async function loadData() {
+      const members = await getMembers();
+      const leadershipAssignments = getLeadershipAssignments();
 
-    return members.map((member) => {
-      const dest = dests.find((d) => d.id === member.destId);
+      const mapped = members.map((member) => {
+        const dest = dests.find((d) => d.id === member.destId);
 
-      const memberLeaderships = leadershipAssignments.filter(
-        (l) =>
-          (l.memberId === member.id || l.member_id === member.id) &&
-          (l.status === 'active' || !l.status)
-      );
-      const church = (typeof window !== 'undefined' ? getChurches() : []).find(
-        (c) => c.id === dest?.churchId
-      );
+        const memberLeaderships = leadershipAssignments.filter(
+          (l) =>
+            (l.memberId === member.id || l.member_id === member.id) &&
+            (l.status === 'active' || !l.status)
+        );
+        const church = (typeof window !== 'undefined' ? getChurches() : []).find(
+          (c) => c.id === dest?.churchId
+        );
 
-      return {
-        ...member,
-        id: member.id,
-        memberId: member.id,
-        name: getMemberFullName(member),
-        sectionalId: church?.sectionalName,
-        sectionalName: church?.sectionalName,
-        memberPosition: memberLeaderships.map((l) => l.role),
-      };
-    });
-  });
+        return {
+          ...member,
+          id: member.id,
+          memberId: member.id,
+          name: getMemberFullName(member),
+          sectionalId: church?.sectionalName,
+          sectionalName: church?.sectionalName,
+          memberPosition: memberLeaderships.map((l) => l.role),
+        };
+      });
+
+      setTableData(mapped);
+    }
+
+    loadData();
+  }, []);
 
   const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalId: [], destName: [] });
   const { state: currentFilters, setState: updateFilters } = filters;

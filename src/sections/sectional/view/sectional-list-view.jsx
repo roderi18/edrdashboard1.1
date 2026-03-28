@@ -66,11 +66,6 @@ const TABLE_HEAD = [
 ];
 
 // ----------------------------------------------------------------------
-const getRegionalNameBySectional = (row) => {
-  const regionals = getRegionals();
-  const regional = regionals.find((r) => r.id === row.regionalId);
-  return regional?.name || '';
-};
 
 const getLeadershipBySectional = (sectionalId, role) => {
   const leaderships = getLeadershipAssignments();
@@ -87,10 +82,10 @@ const getLeadershipBySectional = (sectionalId, role) => {
   return members.find((m) => m.id === assignment?.memberId) || null;
 };
 
-const buildSectionalList = () => {
-  const sectionals = getSectionals();
-  const regionals = getRegionals();
-  const members = getMembers();
+const buildSectionalList = async () => {
+  const sectionals = await getSectionals();
+  const regionals = await getRegionals();
+  const members = await getMembers();
   const dests = getDests();
   const leaderships = getLeadershipAssignments();
 
@@ -115,12 +110,14 @@ const buildSectionalList = () => {
     return {
       ...sectional,
 
-      // campos que usa tu tabla
       sectionalName: sectional.sectionalName,
+
       regionalName:
-        regionals.find((r) => String(r.id) === String(sectional.regionalId))?.name ||
+        regional?.regionalName ||
         REGIONALS.find((r) => String(r.id) === String(sectional.regionalId))?.name ||
-        '-', email: sectional.email ?? '',
+        '-',
+
+      email: sectional.email ?? '',
 
       sectionalDestCount: destCount,
       sectionalXDestMemberCount: membersCount,
@@ -128,6 +125,7 @@ const buildSectionalList = () => {
       memberFullName: director
         ? `${director.firstName || ''} ${director.lastName || ''}`.trim()
         : 'Desconocido',
+
       directorId: director?.id ?? null,
     };
   });
@@ -150,6 +148,7 @@ export function SectionalListView() {
   const [displayMode, setDisplayMode] = useState('panel');
   const [isClient, setIsClient] = useState(false);
 
+  const [regionals, setRegionals] = useState([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const filters = useSetState({ name: '', role: [], regionalName: 'all' });
@@ -205,7 +204,15 @@ export function SectionalListView() {
   );
 
   useEffect(() => {
-    setTableData(buildSectionalList());
+    async function loadData() {
+      const regionalsData = await getRegionals();
+      setRegionals(regionalsData);
+
+      const data = await buildSectionalList();
+      setTableData(data);
+    }
+
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -338,7 +345,7 @@ export function SectionalListView() {
                     {isClient
                       ? tab.value === 'all'
                         ? tableData.length
-                        : tableData.filter((row) => getRegionalNameBySectional(row) === tab.value).length
+                        : tableData.filter((row) => regionals.find((r) => String(r.id) === String(row.regionalId))?.regionalName === tab.value).length
                       : 0}
                   </Label>
                 }

@@ -157,9 +157,19 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.phoneNumber
-                  ? parsePhoneNumber(row.phoneNumber)?.formatNational()
-                  : ''}
+                {(() => {
+                  try {
+                    return row.phoneNumber
+                      ? parsePhoneNumber(
+                        row.phoneNumber.startsWith('+')
+                          ? row.phoneNumber
+                          : `+1${row.phoneNumber}`
+                      )?.formatNational()
+                      : '';
+                  } catch (e) {
+                    return row.phoneNumber;
+                  }
+                })()}
               </Box>
             </Stack>
           </Box>

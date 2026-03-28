@@ -214,9 +214,19 @@ export function MemberCard({ member, sx, ...other }) {
             cursor: 'pointer',
           }}
         >
-          {member.phoneNumber
-            ? parsePhoneNumber(member.phoneNumber)?.formatNational()
-            : '-'}
+          {(() => {
+            try {
+              return member.phoneNumber
+                ? parsePhoneNumber(
+                  member.phoneNumber.startsWith('+')
+                    ? member.phoneNumber
+                    : `+1${member.phoneNumber}`
+                )?.formatNational()
+                : '';
+            } catch (e) {
+              return row.phoneNumber;
+            }
+          })()}
         </Box>
       </Box>
 

@@ -1,6 +1,6 @@
 
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-
+import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -17,7 +17,6 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 import { RouterLink } from 'src/routes/components';
 import { getSectionals } from 'src/services/sectional-service';
 import { getMembers } from 'src/services/member-service';
-import { getRegionals } from 'src/services/regional-service';
 import { getDests } from 'src/services/dest-service';
 import { getChurches } from 'src/services/church-service';
 
@@ -30,20 +29,33 @@ import { SectionalQuickEditForm } from './sectional-quick-edit-form';
 // ----------------------------------------------------------------------
 
 export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
   const router = useRouter();
-  //  Primero obtenemos el sectional
-  const sectionals = getSectionals(); const sectional = sectionals.find((s) => s.id === row.id);
 
-  //  Luego resolvemos la región
-  const regionals = getRegionals();
-  const regional = regionals.find(
-    (r) => String(r.id) === String(row.regionalId)
-  );
+  useEffect(() => {
+    async function loadMembers() {
+      const data = await getMembers();
+      setMembers(data);
+    }
 
-  const members = getMembers();
+    loadMembers();
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      const data = await getSectionals();
+      setSectionals(data);
+    }
+    load();
+  }, []);
+
+  const [sectionals, setSectionals] = useState([]);
+  const sectional = sectionals.find((s) => s.id === row.id);
+
+  const [members, setMembers] = useState([]);
   const dests = getDests();
   const churches = getChurches();
 
@@ -136,8 +148,8 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={capitalize(sectional?.sectionalName || '')}
-              src={sectional?.avatarUrl}
+              alt={capitalize(row.sectionalName || '')}
+              src={row.avatarUrl}
             />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
@@ -201,9 +213,19 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                 {row.phoneNumber}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {director?.phoneNumber
-                  ? parsePhoneNumber(director.phoneNumber)?.formatNational()
-                  : ''}
+                {(() => {
+                  try {
+                    return director?.phoneNumber
+                      ? parsePhoneNumber(
+                        director.phoneNumber.startsWith('+')
+                          ? director.phoneNumber
+                          : `+1${director.phoneNumber}`
+                      )?.formatNational()
+                      : '';
+                  } catch (e) {
+                    return director?.phoneNumber || '';
+                  }
+                })()}
               </Box>
             </Stack>
           </Box>
@@ -234,32 +256,15 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
           </Box>
         </TableCell>
 
-        {/* <TableCell>
-          <Label
-            variant="soft"
-            color={
-              (row.regionalName === 'Región Central' && 'success') ||
-              (row.regionalName === 'Región Norte' && 'success') ||
-              (row.regionalName === 'Región Sur' && 'success') ||
-              'success'
-            }
-          >
-            {row.regionalName}
-          </Label>
-        </TableCell> */}
-
-        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>
-          {row.regionalName}
-        </TableCell> */}
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/regional?sectional=${encodeURIComponent(regional?.name || '')}`}
+              href={`/dashboard/level/regional?sectional=${encodeURIComponent(row.regionalName || '')}`}
               color="inherit"
             >
-              {regional?.name || row.regionalName || '-'}
+              {row.regionalName || '-'}
             </Link>
           </Box>
         </TableCell>

@@ -5,7 +5,7 @@ import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
-
+import { useState, useEffect } from 'react';
 
 import { _socials } from 'src/_mock';
 import { AvatarShape } from 'src/assets/illustrations';
@@ -13,7 +13,6 @@ import { AvatarShape } from 'src/assets/illustrations';
 import { Image } from 'src/components/image';
 
 import { useRouter } from 'next/navigation';
-import { getRegionals } from 'src/services/regional-service';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { getMembers } from 'src/services/member-service';
 
@@ -21,9 +20,8 @@ import { getMembers } from 'src/services/member-service';
 
 export function SectionalCard({ sectional, sx, ...other }) {
   const router = useRouter();
-  const regionals = getRegionals();
 
-  const members = getMembers();
+  const [members, setMembers] = useState([]);
 
   const director = members.find(
     (m) =>
@@ -31,16 +29,36 @@ export function SectionalCard({ sectional, sx, ...other }) {
       String(m.id) === String(sectional.directorId)
   );
 
-  const directorPhone =
-    director?.phoneNumber ? parsePhoneNumber(director.phoneNumber)?.formatNational() : 'N/A';
+  const directorPhone = (() => {
+    try {
+      return director?.phoneNumber
+        ? parsePhoneNumber(
+          director.phoneNumber.startsWith('+')
+            ? director.phoneNumber
+            : `+1${director.phoneNumber}`
+        )?.formatNational()
+        : 'N/A';
+    } catch (e) {
+      return director?.phoneNumber || 'N/A';
+    }
+  })();
 
-  const regional = regionals.find(
-    (r) => String(r.id) === String(sectional.regionalId)
-  );
+
+  const regional = {
+    regionalName: sectional.regionalName,
+  };
 
   const handleGoToSectional = () => {
     router.push(`/dashboard/level/sectional/${sectional.id}/edit`);
   };
+
+  useEffect(() => {
+    async function load() {
+      const data = await getMembers();
+      setMembers(data);
+    }
+    load();
+  }, []);
 
   return (
     <Card sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
@@ -185,7 +203,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
             onClick={() =>
               router.push(
                 `/dashboard/level/regional?sectional=${encodeURIComponent(
-                  regional?.name || ''
+                  regional?.regionalName || ''
                 )}`
               )
             }
@@ -199,7 +217,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
               },
             }}
           >
-            {regional?.name || 'Región desconocida'}
+            {regional?.regionalName || 'Región desconocida'}
           </Box>
         </Box>
       </Box>

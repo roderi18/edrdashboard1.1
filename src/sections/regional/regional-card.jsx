@@ -135,9 +135,19 @@ export function RegionalCard({ regional, sx, ...other }) {
             },
           }}
         >
-          {director?.phoneNumber
-            ? parsePhoneNumber(director.phoneNumber)?.formatNational()
-            : ''}
+          {(() => {
+            try {
+              return director?.phoneNumber
+                ? parsePhoneNumber(
+                  director.phoneNumber.startsWith('+')
+                    ? director.phoneNumber
+                    : `+1${director.phoneNumber}`
+                )?.formatNational()
+                : '';
+            } catch (e) {
+              return director?.phoneNumber || '';
+            }
+          })()}
         </Box>
       </Box>
 

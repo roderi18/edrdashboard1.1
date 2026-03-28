@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { getRegionals } from 'src/services/regional-service';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -121,7 +122,17 @@ export function RegionalListView() {
       };
     });
 
-  const [tableData, setTableData] = useState(buildRegionalList());
+  const [tableData, setTableData] = useState([]);
+
+  useEffect(() => {
+    async function loadRegionals() {
+      const regionals = await getRegionals();
+
+      setTableData(regionals);
+    }
+
+    loadRegionals();
+  }, []);
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));

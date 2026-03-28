@@ -155,9 +155,19 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {director?.phoneNumber
-                  ? parsePhoneNumber(director.phoneNumber)?.formatNational()
-                  : ''}
+                {(() => {
+                  try {
+                    return director?.phoneNumber
+                      ? parsePhoneNumber(
+                        director.phoneNumber.startsWith('+')
+                          ? director.phoneNumber
+                          : `+1${director.phoneNumber}`
+                      )?.formatNational()
+                      : '';
+                  } catch (e) {
+                    return director?.phoneNumber || '';
+                  }
+                })()}
               </Box>
             </Stack>
           </Box>

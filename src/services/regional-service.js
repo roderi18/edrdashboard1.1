@@ -1,12 +1,40 @@
 const STORAGE_KEY = 'regionals';
 
-export const getRegionals = () => {
-    if (typeof window === 'undefined') return [];
+function mapApiRegionalToUI(regional) {
+    return {
+        id: String(regional.idRegion || regional.id),
 
+        regionalName: regional.nombre || regional.name || '',
+        email: regional.correo || regional.email || '',
+
+        avatarUrl: null,
+        coverUrl: null,
+
+        regionalXSectionalCount: 0,
+        regionalXSectionalXDestCount: 0,
+        regionalXSectionalMemberCount: 0,
+
+        memberFullName: 'Desconocido',
+        directorId: null,
+
+        status: 'active',
+    };
+}
+
+
+export const getRegionals = async () => {
     try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const res = await fetch('/api/regional');
+
+        if (!res.ok) throw new Error('Error al obtener regionales');
+
+        const response = await res.json();
+
+        const data = response.Data || response.data || response;
+
+        return Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
     } catch (error) {
-        console.error('Error reading regionals from localStorage:', error);
+        console.error('getRegionals error:', error);
         return [];
     }
 };
