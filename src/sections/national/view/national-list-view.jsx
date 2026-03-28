@@ -23,7 +23,6 @@ import { NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS } from 'src/_mock';
 import { resolveRegionalFromMember } from 'src/utils/resolve-regional-from-member';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import { _mock } from 'src/_mock';
-import { MEMBERS, REGIONALS, SECTIONALS, DESTS } from 'src/_mock/assets';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
@@ -76,12 +75,8 @@ export function NationalListView() {
   useEffect(() => {
     setHydrated(true);
   }, []);
-  if (!hydrated) return null;
 
-
-  const storedMembers = getStorageCollection('members') || [];
-  const allMembers = [...MEMBERS, ...storedMembers];
-
+  const allMembers = getStorageCollection('members') || [];
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
   const nationalAssignments = leadershipAssignments.filter((l) =>
@@ -119,7 +114,10 @@ export function NationalListView() {
     const roleConfig =
       _leadershipRolesByLevel[assignment.level]?.find(
         (r) => r.value === assignment.role
-      );
+      ) ||
+      Object.values(_leadershipRolesByLevel)
+        .flat()
+        .find((r) => r.value === assignment.role);
 
     const regional = resolveRegionalFromMember(member);
     const regionalName = regional?.name || '-';
@@ -248,7 +246,9 @@ export function NationalListView() {
       }
     />
   );
-
+  if (!hydrated) {
+    return <></>;
+  }
   return (
     <>
       <DashboardContent>
@@ -265,6 +265,7 @@ export function NationalListView() {
               href={paths.dashboard.level.national.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
+              disabled
             >
               Crear nuevo
             </Button>

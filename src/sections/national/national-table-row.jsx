@@ -49,7 +49,11 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
     (r) => r.value === roleValue
   );
 
-  const member = allMembers.find((m) => m.id === row.memberId);
+  const member = allMembers.find(
+    (m) =>
+      m.id === row.memberId ||
+      m.memberId === row.memberId
+  );
 
   const NATIONAL_STRUCTURES = {
     ministerios_infantiles: 'Ministerios Infantiles',
@@ -166,7 +170,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
-                href={member ? `/dashboard/level/member/${member.id}/edit` : '#'}
+                href={member ? `/dashboard/level/member/${member.memberId}/edit` : '#'}
                 color="inherit"
                 sx={{ cursor: member ? 'pointer' : 'default' }}
               >

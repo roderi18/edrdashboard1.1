@@ -261,6 +261,7 @@ export function RegionalListView() {
               href={paths.dashboard.level.regional.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
+              disabled
             >
               Crear nuevo
             </Button>
