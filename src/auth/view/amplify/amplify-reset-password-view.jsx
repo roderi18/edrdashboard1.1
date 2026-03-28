@@ -14,7 +14,7 @@ import { PasswordIcon } from 'src/assets/icons';
 
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
-import { resetPassword } from '../../context/amplify';
+import { resetPassword } from '../../components/context/amplify';
 import { FormHead } from '../../components/form-head';
 import { FormReturnLink } from '../../components/form-return-link';
 

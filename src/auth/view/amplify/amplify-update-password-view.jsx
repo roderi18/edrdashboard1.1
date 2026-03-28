@@ -22,7 +22,7 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 import { FormHead } from '../../components/form-head';
 import { FormReturnLink } from '../../components/form-return-link';
 import { FormResendCode } from '../../components/form-resend-code';
-import { resetPassword, updatePassword } from '../../context/amplify';
+import { resetPassword, updatePassword } from '../../components/context/amplify';
 
 // ----------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { doc, setDoc, collection } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import {
   signOut as _signOut,
   signInWithPopup as _signInWithPopup,
@@ -29,6 +30,7 @@ export const signInWithPassword = async ({ email, password }) => {
     if (!user?.emailVerified) {
       throw new Error('Email not verified!');
     }
+    return user;
   } catch (error) {
     console.error('Error during sign in with password:', error);
     throw error;
@@ -57,6 +59,9 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
   try {
     const newUser = await _createUserWithEmailAndPassword(AUTH, email, password);
 
+    await updateProfile(newUser.user, {
+      displayName: `${firstName} ${lastName}`,
+    });
     /*
      * (1) If skip emailVerified
      * Remove : await _sendEmailVerification(newUser.user);
@@ -70,6 +75,7 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
       email,
       displayName: `${firstName} ${lastName}`,
     });
+    return newUser.user;
   } catch (error) {
     console.error('Error during sign up:', error);
     throw error;

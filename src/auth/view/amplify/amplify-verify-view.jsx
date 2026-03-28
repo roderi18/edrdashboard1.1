@@ -19,7 +19,7 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 import { FormHead } from '../../components/form-head';
 import { FormReturnLink } from '../../components/form-return-link';
 import { FormResendCode } from '../../components/form-resend-code';
-import { confirmSignUp, resendSignUpCode } from '../../context/amplify';
+import { confirmSignUp, resendSignUpCode } from '../../components/context/amplify';
 
 // ----------------------------------------------------------------------
 

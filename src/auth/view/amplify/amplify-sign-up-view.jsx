@@ -21,7 +21,7 @@ import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 import { getErrorMessage } from '../../utils';
-import { signUp } from '../../context/amplify';
+import { signUp } from '../../components/context/amplify';
 import { FormHead } from '../../components/form-head';
 import { SignUpTerms } from '../../components/sign-up-terms';
 

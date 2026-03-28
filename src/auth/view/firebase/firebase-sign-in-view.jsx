@@ -30,7 +30,7 @@ import {
   signInWithGithub,
   signInWithTwitter,
   signInWithPassword,
-} from '../../context/firebase';
+} from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 

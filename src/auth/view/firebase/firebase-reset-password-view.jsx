@@ -15,7 +15,7 @@ import { PasswordIcon } from 'src/assets/icons';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 import { FormHead } from '../../components/form-head';
-import { sendPasswordResetEmail } from '../../context/firebase';
+import { sendPasswordResetEmail } from '../../components/context/firebase';
 import { FormReturnLink } from '../../components/form-return-link';
 
 // ----------------------------------------------------------------------

@@ -15,7 +15,7 @@ import { PasswordIcon } from 'src/assets/icons';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 import { FormHead } from '../../components/form-head';
-import { resetPassword } from '../../context/supabase';
+import { resetPassword } from '../../components/context/supabase';
 import { FormReturnLink } from '../../components/form-return-link';
 
 // ----------------------------------------------------------------------

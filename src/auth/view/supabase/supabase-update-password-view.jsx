@@ -22,7 +22,7 @@ import { Form, Field } from 'src/components/hook-form';
 
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
-import { updatePassword } from '../../context/supabase';
+import { updatePassword } from '../../components/context/supabase';
 
 // ----------------------------------------------------------------------
 
