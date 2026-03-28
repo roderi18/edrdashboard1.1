@@ -170,7 +170,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
-                href={member ? `/dashboard/level/member/${member.memberId}/edit` : '#'}
+                href={member ? `/dashboard/level/member/${member.id}/edit` : '#'}
                 color="inherit"
                 sx={{ cursor: member ? 'pointer' : 'default' }}
               >

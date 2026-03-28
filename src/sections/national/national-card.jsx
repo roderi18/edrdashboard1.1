@@ -67,7 +67,7 @@ export function NationalCard({ national, sx, ...other }) {
         primary={
           <Link
             component={RouterLink}
-            href={`/dashboard/level/member/${national.id}/edit`}
+            href={`/dashboard/level/member/${national.memberId}/edit`}
             color="inherit"
             underline="hover"
             sx={{ cursor: 'pointer', typography: 'subtitle1' }}
