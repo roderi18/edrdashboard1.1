@@ -1,8 +1,6 @@
-import * as z from 'zod';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { useEffect, useState } from 'react';
-import { getCountries } from 'src/services/country-service';
 import CountrySelectApi from 'src/components/api/CountrySelectApi';
 
 import Box from '@mui/material/Box';
@@ -21,16 +19,8 @@ import { fData } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
-
-// ----------------------------------------------------------------------
-
-export const RegionalCreateSchema = z.object({
-  regionId: z.string().min(1, { message: 'regionId es requerido' }),
-  name: z.string().min(1, { message: 'El nombre es requerido' }),
-  countryId: z.union([z.string(), z.number()]),
-});
-
+import { Form, Field } from 'src/components/hook-form';
+import { RegionalSchema } from 'src/models/regional-schema';
 // ----------------------------------------------------------------------
 
 export function RegionalCreateEditForm({ currentRegional }) {
@@ -39,12 +29,16 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const defaultValues = {
     regionId: '',
     name: '',
-    countryId: 1,
+    countryId: '',
+
+    regionalXSectionalCount: 0,
+    regionalXSectionalXDestCount: 0,
+    regionalXSectionalMemberCount: 0,
   };
 
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(RegionalCreateSchema),
+    resolver: zodResolver(RegionalSchema),
     defaultValues,
     values: currentRegional,
   });
@@ -58,6 +52,17 @@ export function RegionalCreateEditForm({ currentRegional }) {
   } = methods;
 
   const values = watch();
+
+  useEffect(() => {
+    if (currentRegional) {
+      reset({
+        ...currentRegional,
+        regionalXSectionalCount: currentRegional.regionalXSectionalCount ?? 0,
+        regionalXSectionalXDestCount: currentRegional.regionalXSectionalXDestCount ?? 0,
+        regionalXSectionalMemberCount: currentRegional.regionalXSectionalMemberCount ?? 0,
+      });
+    }
+  }, [currentRegional, reset]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -187,6 +192,26 @@ export function RegionalCreateEditForm({ currentRegional }) {
               <Field.Text name="name" label="Nombre completo" />
               <Field.Text name="regionId" label="ID de Región" />
               <CountrySelectApi name="countryId" label="País" />
+
+
+              <Field.Text
+                name="regionalXSectionalCount"
+                label="Secciones"
+                disabled
+              />
+
+              <Field.Text
+                name="regionalXSectionalXDestCount"
+                label="Destacamentos"
+                disabled
+              />
+
+              <Field.Text
+                name="regionalXSectionalMemberCount"
+                label="Miembros"
+                disabled
+              />
+
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>

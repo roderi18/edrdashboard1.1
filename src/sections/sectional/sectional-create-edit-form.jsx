@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { countries } from 'src/assets/data';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';

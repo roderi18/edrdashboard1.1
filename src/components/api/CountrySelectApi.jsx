@@ -39,24 +39,25 @@ export default function CountrySelectApi({
                             setValue(name, newValue?.label || '');
                         }}
 
-                        // 🔥 EXACTO estilo MEMBERS
-                        renderOption={(props, option) => (
-                            <Box
-                                component="li"
-                                {...props}
-                                key={option.code}
-                                sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                }}
-                            >
-                                <FlagIcon code={option.code}
-                                />
-                                {option.label}
-                            </Box>
-                        )}
+                        renderOption={(props, option) => {
+                            const { key, ...rest } = props;
 
+                            return (
+                                <Box
+                                    key={key}
+                                    component="li"
+                                    {...rest}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                    }}
+                                >
+                                    <FlagIcon code={option.code} />
+                                    {option.label}
+                                </Box>
+                            );
+                        }}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
