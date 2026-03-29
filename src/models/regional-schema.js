@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 export const RegionalSchema = z.object({
-    regionId: z.string().min(1, { message: 'regionId es requerido' }),
+    regionId: z.string().optional(),
 
     name: z.string().min(1, { message: 'El nombre es requerido' }),
 

@@ -66,13 +66,34 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      toast.success(currentRegional ? 'Actualización exitosa!' : 'Create success!');
-      router.push(paths.dashboard.level.regional); //anteriormente .list
-      console.info('DATA', data);
+      const payload = {
+        idRegion: 0,
+        nombre: data.name,
+        idPais: 1,
+      };
+      console.log('PAYLOAD 👉', payload);
+
+      const res = await fetch(
+        '/api/regional/create',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await res.json();
+
+      console.log('RESPONSE 👉', result);
+
+      toast.success('Región creada exitosamente!');
+
+      router.push(paths.dashboard.level.regional);
     } catch (error) {
       console.error(error);
+      toast.error('Error al crear la región');
     }
   });
 
