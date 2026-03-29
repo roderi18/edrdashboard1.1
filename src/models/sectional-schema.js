@@ -10,6 +10,14 @@ export const SectionalCreateSchema = z.object({
         .string()
         .min(1, 'Debe seleccionar una región'),
 
+    countryId: z
+        .string()
+        .min(1, 'Debe seleccionar un país'),
+
+    province: z
+        .string()
+        .min(1, 'Debe seleccionar una provincia'),
+
     status: z
         .enum(['active', 'banned'])
         .default('active'),

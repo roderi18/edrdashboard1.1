@@ -49,7 +49,7 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 
     coordinatorId: dest.coordinatorId ?? null,
 
-    country: dest.country ?? 'Dominican Republic',
+    country: dest.country ?? 'República Dominicana',
 
     churchId: dest.churchId
       ? churches.find((c) => c.id === dest.churchId) || null
@@ -93,7 +93,7 @@ export function DestCreateEditForm({ currentDest }) {
 
     coordinatorId: null,
 
-    country: 'Dominican Republic',
+    country: 'República Dominicana',
 
     churchId: null,
 

@@ -4,7 +4,8 @@ export const SECTIONAL_DEFAULT = {
     sectionalName: '',
     regionalId: '',
     directorId: '',
-
+    countryId: 'República Dominicana',
+    province: '',
     status: 'active',
 
     createdAt: '',

@@ -159,7 +159,7 @@ export const _memberList = MEMBERS.map((member, index) => ({
   name: member.fullName,
   isVerified: true,
   memberDivision: member.memberDivision,
-  country: 'Dominican Republic',
+  country: 'República Dominicana',
   avatarUrl: member.avatarUrl,
   phoneNumber: member.phoneNumber,
   destId: member.destId,

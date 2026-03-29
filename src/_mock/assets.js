@@ -1081,7 +1081,7 @@ export const _phoneNumbers = [
 
 export const _countryNames = [
   'United States',
-  'Dominican Republic',
+  'República Dominicana',
   'United Kingdom',
   'Australia',
   'India',

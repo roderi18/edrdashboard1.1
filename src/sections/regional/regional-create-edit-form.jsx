@@ -1,7 +1,9 @@
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { useEffect, useState } from 'react';
+import { getCountries } from 'src/services/country-service';
+import CountrySelectApi from 'src/components/api/CountrySelectApi';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -24,22 +26,9 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
 export const RegionalCreateSchema = z.object({
-  avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
-  name: z.string().min(1, { error: 'Name is required!' }),
-  email: schemaUtils.email(),
-  phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
-  }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  company: z.string().min(1, { error: 'Company is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  city: z.string().min(1, { error: 'City is required!' }),
-  role: z.string().min(1, { error: 'Role is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
-  // Not required
-  status: z.string(),
-  isVerified: z.boolean(),
+  regionId: z.string().min(1, { message: 'regionId es requerido' }),
+  name: z.string().min(1, { message: 'El nombre es requerido' }),
+  countryId: z.union([z.string(), z.number()]),
 });
 
 // ----------------------------------------------------------------------
@@ -48,19 +37,9 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
 
   const defaultValues = {
-    status: '',
-    avatarUrl: null,
-    isVerified: true,
+    regionId: '',
     name: '',
-    email: '',
-    phoneNumber: '',
-    country: '',
-    state: '',
-    city: '',
-    address: '',
-    zipCode: '',
-    company: '',
-    role: '',
+    countryId: 1,
   };
 
   const methods = useForm({
@@ -206,22 +185,8 @@ export function RegionalCreateEditForm({ currentRegional }) {
               }}
             >
               <Field.Text name="name" label="Nombre completo" />
-              <Field.Text name="email" label="Correo electrónico" />
-              <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
-
-              <Field.CountrySelect
-                fullWidth
-                name="country"
-                label="País"
-                placeholder="Elige una ciudad"
-              />
-
-              <Field.Text name="state" label="Provincia" />
-              <Field.Text name="city" label="Ciudad" />
-              <Field.Text name="address" label="Dirección" />
-              <Field.Text name="zipCode" label="Código postal" />
-              <Field.Text name="company" label="Company" />
-              <Field.Text name="Role" label="Posición" />
+              <Field.Text name="regionId" label="ID de Región" />
+              <CountrySelectApi name="countryId" label="País" />
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>

@@ -158,6 +158,6 @@ export const _destList = DESTS.map((dest) => ({
 
   // placeholders estructurales (temporales hasta Firebase)
   email: '',
-  country: 'Dominican Republic',
+  country: 'República Dominicana',
   isVerified: true,
 }));

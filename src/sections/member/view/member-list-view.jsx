@@ -55,7 +55,6 @@ import { MemberCardList } from '../member-card-list';
 
 const TABLE_HEAD = [
   { id: 'name', label: 'Nombre' },
-  // { id: 'phoneNumber', label: 'Núm. Teléfono', width: 220 },
   { id: 'destName', label: 'Destacamento', width: 250 },
   { id: 'memberPosition', label: 'Posición', width: 180 },
   { id: 'sectionalName', label: 'Sección', width: 160 },

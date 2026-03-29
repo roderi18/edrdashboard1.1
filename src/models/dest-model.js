@@ -37,7 +37,7 @@ export function createDest(data) {
 
         churchId: data.churchId ?? null,
 
-        country: data.country ?? 'Dominican Republic',
+        country: data.country ?? 'República Dominicana',
 
         destMeetingTimes: data.destMeetingTimes ?? '',
         destMeetingDays: data.destMeetingDays ?? '',

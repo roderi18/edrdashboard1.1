@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
+import { countries } from 'src/assets/data';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -35,8 +36,15 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    setDests(getDests());
-    setMembers(getMembers());
+    async function load() {
+      const membersData = await getMembers();
+      const destsData = getDests();
+
+      setMembers(membersData);
+      setDests(destsData);
+    }
+
+    load();
   }, []);
 
   const defaultValues = SECTIONAL_DEFAULT;
@@ -97,6 +105,8 @@ export function SectionalCreateEditForm({ currentSectional }) {
         sectionalName: data.sectionalName,
         directorId: data.directorId,
         regionalId: data.regionalId,
+        countryId: data.countryId,
+        province: data.province,
         status: data.status || 'active',
       };
 
@@ -214,6 +224,14 @@ export function SectionalCreateEditForm({ currentSectional }) {
               }}
             >
               <Field.Text name="sectionalName" label="Nombre de la Sección" />
+
+              <Field.CountrySelect
+                name="countryId"
+                label="País"
+                placeholder="Seleccionar país"
+              />
+
+              <Field.Text name="province" label="Provincia" />
 
               <Field.Autocomplete
                 name="regionalId"

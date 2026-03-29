@@ -1,5 +1,5 @@
 export const MEMBER_COUNTRIES = [
-    { code: 'DO', label: 'Dominican Republic' },
+    { code: 'DO', label: 'República Dominicana' },
     { code: 'PR', label: 'Puerto Rico' },
     { code: 'MX', label: 'Mexico' },
     { code: 'CO', label: 'Colombia' },

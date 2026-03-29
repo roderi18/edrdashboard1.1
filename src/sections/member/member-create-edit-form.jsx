@@ -167,7 +167,7 @@ export function MemberCreateEditForm({ currentMember }) {
     name: '',
     email: '',
     phoneNumber: '',
-    country: 'Dominican Republic',
+    country: 'República Dominicana',
     state: '',
     city: '',
     address: '',
