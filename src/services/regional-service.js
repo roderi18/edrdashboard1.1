@@ -4,7 +4,8 @@ function mapApiRegionalToUI(regional) {
     return {
         id: String(regional.idRegion || regional.id),
 
-        regionalName: regional.nombre || regional.name || '',
+        name: regional.nombre || regional.name || '',
+        regionId: regional.idRegion || regional.id,
         email: regional.correo || regional.email || '',
 
         avatarUrl: null,

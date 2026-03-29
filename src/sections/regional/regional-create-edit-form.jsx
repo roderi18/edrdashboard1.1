@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import CountrySelectApi from 'src/components/api/CountrySelectApi';
-
+import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -11,6 +11,7 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import { usePathname } from 'next/navigation';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -25,15 +26,12 @@ import { RegionalSchema } from 'src/models/regional-schema';
 
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isEditView = pathname.includes('/edit');
 
   const defaultValues = {
-    regionId: '',
     name: '',
     countryId: '',
-
-    regionalXSectionalCount: 0,
-    regionalXSectionalXDestCount: 0,
-    regionalXSectionalMemberCount: 0,
   };
 
   const methods = useForm({
@@ -41,6 +39,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
     resolver: zodResolver(RegionalSchema),
     defaultValues,
     values: currentRegional,
+    shouldUnregister: true,
   });
 
   const {
@@ -56,10 +55,11 @@ export function RegionalCreateEditForm({ currentRegional }) {
   useEffect(() => {
     if (currentRegional) {
       reset({
+        ...defaultValues,
         ...currentRegional,
-        regionalXSectionalCount: currentRegional.regionalXSectionalCount ?? 0,
-        regionalXSectionalXDestCount: currentRegional.regionalXSectionalXDestCount ?? 0,
-        regionalXSectionalMemberCount: currentRegional.regionalXSectionalMemberCount ?? 0,
+        regionalXSectionalCount: currentRegional?.regionalXSectionalCount ?? 0,
+        regionalXSectionalXDestCount: currentRegional?.regionalXSectionalXDestCount ?? 0,
+        regionalXSectionalMemberCount: currentRegional?.regionalXSectionalMemberCount ?? 0,
       });
     }
   }, [currentRegional, reset]);
@@ -189,27 +189,10 @@ export function RegionalCreateEditForm({ currentRegional }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Nombre completo" />
-              <Field.Text name="regionId" label="ID de Región" />
-              <CountrySelectApi name="countryId" label="País" />
-
-
-              <Field.Text
-                name="regionalXSectionalCount"
-                label="Secciones"
-                disabled
-              />
-
-              <Field.Text
-                name="regionalXSectionalXDestCount"
-                label="Destacamentos"
-                disabled
-              />
-
-              <Field.Text
-                name="regionalXSectionalMemberCount"
-                label="Miembros"
-                disabled
+              <RegionalGeneralSection
+                isCreateView={!isEditView}
+                methods={methods}
+                watch={watch}
               />
 
             </Box>

@@ -1,20 +1,43 @@
 import { CONFIG } from 'src/global-config';
-import { REGIONALS } from 'src/_mock/assets';
-
 import { RegionalEditView } from 'src/sections/regional/view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Regional edit | Dashboard - ${CONFIG.appName}` };
+export const metadata = {
+  title: `Regional edit | Dashboard - ${CONFIG.appName}`,
+};
 
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const currentRegional = REGIONALS.find((regional) => regional.id === id);
+  const res = await fetch(
+    'https://systexploradores.somee.com/api/Regiones/GetAllRegiones',
+    { cache: 'no-store' }
+  );
 
-  return <RegionalEditView regional={currentRegional} />;
+  const json = await res.json();
+
+  const data = json?.Data ?? [];
+  console.log('ID 👉', id);
+  console.log('DATA 👉', data);
+  const regionalApi = data.find(
+    (r) => Number(r.idRegion) === Number(id)
+  );
+  console.log('REGIONAL API 👉', regionalApi);
+  const mappedRegional = regionalApi
+    ? {
+      id: regionalApi.idRegion,
+      regionId: regionalApi.idRegion,
+      name: regionalApi.nombre,
+      countryId: regionalApi.idPais ?? '',
+      regionalXSectionalCount: regionalApi.secciones?.length ?? 0,
+      regionalXSectionalXDestCount: 0,
+      regionalXSectionalMemberCount: 0,
+    }
+    : null;
+
+  return <RegionalEditView regional={mappedRegional} />;
 }
-
 // ----------------------------------------------------------------------
 
 /**
