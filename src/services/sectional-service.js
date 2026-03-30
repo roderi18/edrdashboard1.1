@@ -42,13 +42,13 @@ export const getSectionals = async () => {
     }
 };
 
-export const getSectionalById = (id) => {
-    const sectionals = getSectionals();
+export const getSectionalById = async (id) => {
+    const sectionals = await getSectionals();
     return sectionals.find((item) => item.id === id) || null;
 };
 
-export const getSectionalNameById = (id) => {
-    const sectional = getSectionalById(id);
+export const getSectionalNameById = async (id) => {
+    const sectional = await getSectionalById(id);
     return sectional?.sectionalName || 'Sección desconocida';
 };
 

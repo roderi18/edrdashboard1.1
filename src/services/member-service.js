@@ -51,9 +51,8 @@ export function saveMember(member) {
 
 export async function getMembers() {
     try {
-        console.log('Calling API...');
+
         const res = await fetch('/api/members');
-        console.log('Response status:', res.status);
 
         if (!res.ok) throw new Error('Error al obtener miembros');
 

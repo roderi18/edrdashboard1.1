@@ -13,9 +13,13 @@ export function SectionalEditView({ sectionalId }) {
   const [currentSectional, setCurrentSectional] = useState(null);
 
   useEffect(() => {
-    const data = getSectionalById(sectionalId);
-    console.log('CLIENT SECTIONAL 👉', data);
-    setCurrentSectional(data);
+    const load = async () => {
+      const data = await getSectionalById(sectionalId);
+      console.log('CLIENT SECTIONAL 👉', data);
+      setCurrentSectional(data);
+    };
+
+    load();
   }, [sectionalId]);
 
   return (

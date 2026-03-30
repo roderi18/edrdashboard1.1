@@ -13,7 +13,18 @@ export default function SectionalGeneralSection({ methods, watch }) {
     useEffect(() => {
         const loadRegionals = async () => {
             const data = await getRegionals();
-            setRegionals(data);
+
+            const unique = Array.from(
+                new Map(data.map((item) => [item.regionId, item])).values()
+            );
+
+            const prepared = unique.map((item) => ({
+                ...item,
+                name: item.name || `Región ${item.regionId}`, // limpio
+                label: `${item.name || 'Región'}-${item.regionId}`, // 👈 clave única interna
+            }));
+
+            setRegionals(prepared);
         };
 
         loadRegionals();
@@ -35,14 +46,19 @@ export default function SectionalGeneralSection({ methods, watch }) {
                 getOptionLabel={(option) =>
                     typeof option === 'string' ? option : option?.name || ''
                 }
+                renderOption={(props, option) => (
+                    <li {...props} key={option.regionId}>
+                        {option.name}
+                    </li>
+                )}
                 isOptionEqualToValue={(option, value) =>
                     option.regionId === value?.regionId
                 }
                 value={
-                    regionals.find((r) => r.regionId === watch('regionalId')) || null
+                    regionals.find((r) => String(r.regionId) === watch('regionalId')) || null
                 }
                 onChange={(event, option) => {
-                    methods.setValue('regionalId', option?.regionId || '');
+                    methods.setValue('regionalId', option?.regionId?.toString() || '');
                 }}
             />
         </>
