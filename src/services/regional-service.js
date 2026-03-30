@@ -6,7 +6,7 @@ function mapApiRegionalToUI(regional) {
 
         regionalName: regional.nombre || '',
         name: regional.nombre,
-        regionId: regional.idRegion || regional.id,
+        regionId: String(regional.idRegion || regional.id),
         email: regional.correo || regional.email || '',
 
         avatarUrl: null,
@@ -45,35 +45,40 @@ export const getRegionals = async () => {
     }
 };
 
-export const saveRegional = (regional) => {
-    if (typeof window === 'undefined') return regional;
+export const saveRegional = async (payload) => {
+    const res = await fetch('/api/regional/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
 
-    const stored = getRegionals();
-    const updated = [...stored, regional];
+    const text = await res.text();
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    if (!text || text.startsWith('<')) return {};
 
-    return regional;
+    return JSON.parse(text);
 };
 
-export const updateRegional = (updatedRegional) => {
-    if (typeof window === 'undefined') return updatedRegional;
+export const updateRegional = async (payload) => {
+    const res = await fetch('/api/regional/put', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
 
-    const stored = getRegionals();
-    const updated = stored.map((item) =>
-        item.id === updatedRegional.id ? updatedRegional : item
-    );
+    const text = await res.text();
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    if (!text || text.startsWith('<')) return {};
 
-    return updatedRegional;
+    return JSON.parse(text);
 };
 
-export const deleteRegional = (regionalId) => {
-    if (typeof window === 'undefined') return;
-
-    const stored = getRegionals();
-    const updated = stored.filter((item) => item.id !== regionalId);
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+export const deleteRegional = async (id) => {
+    await fetch(`/api/regional?id=${id}`, {
+        method: 'DELETE',
+    });
 };
