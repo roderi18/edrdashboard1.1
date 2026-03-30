@@ -7,7 +7,7 @@ function mapApiSectionalToUI(sectional) {
 
         regionalId: String(sectional.idRegion || sectional.regionalId || ''),
 
-        directorId: sectional.idDirector || null,
+        directorId: sectional.idDirector ? String(sectional.idDirector) : '',
 
         avatarUrl: null,
         coverUrl: null,
@@ -21,7 +21,6 @@ function mapApiSectionalToUI(sectional) {
     };
 }
 
-const STORAGE_KEY = 'sectionals';
 
 export const getSectionals = async () => {
     try {
@@ -52,42 +51,50 @@ export const getSectionalNameById = async (id) => {
     return sectional?.sectionalName || 'Sección desconocida';
 };
 
-export const saveSectional = (sectional) => {
-    if (typeof window === 'undefined') return sectional;
+export const saveSectional = async (payload) => {
+    const res = await fetch('/api/sectional/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
 
-    const stored = getSectionals();
+    const data = await res.json();
 
-    const exists = stored.some((item) => item.id === sectional.id);
+    console.log('RESPUESTA 👉', data);
 
-    const updated = exists
-        ? stored.map((item) =>
-            item.id === sectional.id ? sectional : item
-        )
-        : [...stored, sectional];
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    return sectional;
+    return data;
 };
 
-export const updateSectional = (updatedSectional) => {
-    if (typeof window === 'undefined') return updatedSectional;
+export const updateSectional = async (sectional) => {
+    try {
+        const res = await fetch('/api/sectional/put', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(sectional),
+        });
 
-    const stored = getSectionals();
-    const updated = stored.map((item) =>
-        item.id === updatedSectional.id ? updatedSectional : item
-    );
+        const text = await res.text();
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        if (!text) return {};
 
-    return updatedSectional;
+        if (text.startsWith('<')) return {};
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error('Error actualizando seccional:', error);
+    }
 };
 
-export const deleteSectional = (sectionalId) => {
-    if (typeof window === 'undefined') return;
-
-    const stored = getSectionals();
-    const updated = stored.filter((item) => item.id !== sectionalId);
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+export const deleteSectional = async (id) => {
+    try {
+        await fetch(`/api/sectional?id=${id}`, {
+            method: 'DELETE',
+        });
+    } catch (error) {
+        console.error('Error eliminando seccional:', error);
+    }
 };

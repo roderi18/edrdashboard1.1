@@ -9,6 +9,7 @@ import { getRegionals } from 'src/services/regional-service';
 
 export default function SectionalGeneralSection({ methods, watch }) {
     const [regionals, setRegionals] = useState([]);
+    const regionalId = watch('regionalId');
 
     useEffect(() => {
         const loadRegionals = async () => {
@@ -55,10 +56,13 @@ export default function SectionalGeneralSection({ methods, watch }) {
                     option.regionId === value?.regionId
                 }
                 value={
-                    regionals.find((r) => String(r.regionId) === watch('regionalId')) || null
+                    regionals.find((r) => String(r.regionId) === regionalId) || null
                 }
                 onChange={(event, option) => {
-                    methods.setValue('regionalId', option?.regionId?.toString() || '');
+                    methods.setValue('regionalId', option?.regionId?.toString() || '', {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                    });
                 }}
             />
         </>

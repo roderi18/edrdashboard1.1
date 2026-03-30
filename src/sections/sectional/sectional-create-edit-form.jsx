@@ -50,7 +50,6 @@ export function SectionalCreateEditForm({ currentSectional }) {
     mode: 'onSubmit',
     resolver: zodResolver(SectionalCreateSchema),
     defaultValues,
-    values: currentSectional || defaultValues,
   });
 
 
@@ -108,20 +107,21 @@ export function SectionalCreateEditForm({ currentSectional }) {
         idRegion: Number(data.regionalId),
       };
 
+      console.log('PAYLOAD 👉', payload); // 👈 AQUÍ
+
       if (currentSectional) {
-        updateSectional(payload);
+        await updateSectional(payload);
       } else {
-        saveSectional(payload);
+        await saveSectional(payload);
       }
 
       reset();
-      toast.success(currentSectional ? 'Actualización exitosa!' : 'Creado correctamente!');
+      toast.success('Creado correctamente!');
       router.push('/dashboard/level/sectional');
     } catch (error) {
       console.error(error);
     }
   });
-
   return (
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
