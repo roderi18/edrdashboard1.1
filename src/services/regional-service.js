@@ -27,7 +27,11 @@ export const getRegionals = async () => {
     try {
         const res = await fetch('/api/regional');
 
-        if (!res.ok) throw new Error('Error al obtener regionales');
+        if (!res.ok) {
+            const text = await res.text();
+            console.log('ERROR API 👉', text);
+            throw new Error('Error al obtener regionales');
+        }
 
         const response = await res.json();
 

@@ -10,14 +10,12 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { getMembers } from 'src/services/member-service';
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { getDests } from 'src/services/dest-service';
 import { useEffect, useState } from 'react';
 import { fData } from 'src/utils/format-number';
-import { REGIONALS } from 'src/_mock/assets';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
-
+import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -99,14 +97,15 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!data.regionalId) {
+        toast.error('Debe seleccionar una región');
+        return;
+      }
+
       const payload = {
-        id: currentSectional?.id || crypto.randomUUID(),
-        sectionalName: data.sectionalName,
-        directorId: data.directorId,
-        regionalId: data.regionalId,
-        countryId: data.countryId,
-        province: data.province,
-        status: data.status || 'active',
+        idSeccion: currentSectional?.id || 0,
+        nombre: data.sectionalName,
+        idRegion: Number(data.regionalId),
       };
 
       if (currentSectional) {
@@ -222,58 +221,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="sectionalName" label="Nombre de la Sección" />
-
-              <Field.CountrySelect
-                name="countryId"
-                label="País"
-                placeholder="Seleccionar país"
-              />
-
-              <Field.Text name="province" label="Provincia" />
-
-              <Field.Autocomplete
-                name="regionalId"
-                label="Región"
-                options={REGIONALS}
-                getOptionLabel={(option) =>
-                  typeof option === 'string' ? option : option?.name || ''
-                }
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
-                value={REGIONALS.find((r) => r.id === watch('regionalId')) || null}
-                onChange={(event, option) => {
-                  methods.setValue('regionalId', option?.id || '');
-                }}
-              />
-
-              <Field.Autocomplete
-                name="directorId"
-                label="Director"
-                options={members}
-                getOptionLabel={(option) =>
-                  typeof option === 'string'
-                    ? option
-                    : `${option?.firstName || ''} ${option?.lastName || ''}`
-                }
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
-                value={members.find((m) => m.memberId === watch('directorId')) || null}
-                onChange={(event, option) => {
-                  methods.setValue('directorId', option?.memberId || '');
-                }}
-              />
-
-              <Field.Text
-                name="totalDests"
-                label="Total de Destacamentos"
-                value={totalDests}
-                disabled
-              />
-
-              <Field.Text
-                name="totalMembers"
-                label="Total de Miembros"
-                value={totalMembers}
-                disabled
+              <SectionalGeneralSection
+                methods={methods}
+                watch={watch}
               />
 
             </Box>
