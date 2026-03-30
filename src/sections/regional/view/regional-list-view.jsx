@@ -24,7 +24,6 @@ import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _roles, USER_STATUS_OPTIONS } from 'src/_mock';
-import { REGIONALS, SECTIONALS, DESTS, MEMBERS } from 'src/_mock/assets';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
 import { Label } from 'src/components/label';
@@ -84,43 +83,6 @@ export function RegionalListView() {
     return MEMBERS.find((m) => m.id === assignment?.memberId) || null;
   };
 
-  const buildRegionalList = () =>
-    REGIONALS.map((regional) => {
-      const sectionals = SECTIONALS.filter(
-        (s) => s.regionalId === regional.id
-      );
-
-      const sectionalCount = sectionals.length;
-
-      const destCount = DESTS.filter((d) =>
-        sectionals.some((s) => s.id === d.sectionalId)
-      ).length;
-
-      const memberCount = MEMBERS.filter((m) =>
-        sectionals.some((s) => s.id === m.sectionalId)
-      ).length;
-
-      const director = getLeadershipByRegional(
-        regional.id,
-        'director_regional'
-      );
-
-      return {
-        ...regional,
-
-        regionalName: regional.name,
-        email: regional.email,
-
-        regionalXSectionalCount: sectionalCount,
-        regionalXSectionalXDestCount: destCount,
-        regionalXSectionalMemberCount: memberCount,
-
-        memberFullName: director?.fullName ?? 'Desconocido',
-        directorId: director?.id ?? null,
-
-        status: 'active',
-      };
-    });
 
   const [tableData, setTableData] = useState([]);
 

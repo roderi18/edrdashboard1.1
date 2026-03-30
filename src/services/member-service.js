@@ -58,7 +58,6 @@ export async function getMembers() {
         if (!res.ok) throw new Error('Error al obtener miembros');
 
         const response = await res.json();
-        console.log('API RESPONSE:', response);
 
         const data = response.Data || response.data || response.items || response;
 

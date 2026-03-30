@@ -4,7 +4,8 @@ function mapApiRegionalToUI(regional) {
     return {
         id: String(regional.idRegion || regional.id),
 
-        name: regional.nombre || regional.name || '',
+        regionalName: regional.nombre || '',
+        name: regional.nombre,
         regionId: regional.idRegion || regional.id,
         email: regional.correo || regional.email || '',
 
@@ -35,8 +36,8 @@ export const getRegionals = async () => {
 
         const response = await res.json();
 
-        const data = response.Data || response.data || response;
-
+        const data = response.Data || [];
+        console.log('DATA FINAL 👉', data);
         return Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
     } catch (error) {
         console.error('getRegionals error:', error);

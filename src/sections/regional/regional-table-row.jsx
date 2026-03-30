@@ -14,14 +14,14 @@ import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { RouterLink } from 'src/routes/components';
+import { useState, useEffect } from 'react';
 
-import { Label } from 'src/components/label';
+import { getMembers } from 'src/services/member-service';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { RegionalQuickEditForm } from './regional-quick-edit-form';
-import { REGIONALS, MEMBERS } from 'src/_mock/assets';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
 // ----------------------------------------------------------------------
@@ -30,10 +30,16 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
-  const region = REGIONALS.find(
-    (r) => r.id === row.id
-  );
+  const [members, setMembers] = useState([]);
 
+  useEffect(() => {
+    async function loadMembers() {
+      const data = await getMembers();
+      setMembers(data);
+    }
+
+    loadMembers();
+  }, []);
 
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
@@ -43,7 +49,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
       l.status === 'active'
   );
 
-  const director = MEMBERS.find(
+  const director = members.find(
     (m) => m.id === directorAssignment?.memberId
   );
 

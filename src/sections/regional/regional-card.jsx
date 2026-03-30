@@ -13,7 +13,7 @@ import { AvatarShape } from 'src/assets/illustrations';
 
 import { Image } from 'src/components/image';
 import { useRouter } from 'next/navigation';
-import { MEMBERS, REGIONALS } from 'src/_mock/assets';
+import { MEMBERS } from 'src/_mock/assets';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 import { parsePhoneNumber } from 'libphonenumber-js';
 // ----------------------------------------------------------------------

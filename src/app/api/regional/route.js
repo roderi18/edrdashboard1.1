@@ -1,7 +1,7 @@
 export async function GET() {
     try {
         const res = await fetch(
-            'https://systexploradores.somee.com/api/Regiones/GetListRegiones'
+            'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
         );
 
         const text = await res.text();
