@@ -61,7 +61,7 @@ export default function DestGeneralSection({
             <Field.Autocomplete
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
-                options={members}
+                options={Array.isArray(members) ? members : []}
                 value={members.find((m) => m.memberId === watch('coordinatorId')) || null}
                 getOptionLabel={(option) =>
                     option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`

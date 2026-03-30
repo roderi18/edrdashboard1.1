@@ -16,6 +16,11 @@ export const DestSchema = z.object({
     destMeetingDays: z.string().optional(),
     destMeetingTimes: z.string().optional(),
 
-    status: z.string(),
+    correo: z.string().optional(),
+    telefono: z.string().optional(),
+
+    registradoOfnc: z.boolean().optional(),
+    rritrackActivo: z.boolean().optional(),
+
     isVerified: z.boolean(),
 });

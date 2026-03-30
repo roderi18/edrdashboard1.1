@@ -14,7 +14,12 @@ export default function ChurchDestSection({
     const { watch, setValue } = useFormContext();
 
     useEffect(() => {
-        setSectionals(getSectionals());
+        const loadSectionals = async () => {
+            const data = await getSectionals();
+            setSectionals(Array.isArray(data) ? data : []);
+        };
+
+        loadSectionals();
     }, []);
     return (
         <Box>
@@ -49,7 +54,9 @@ export default function ChurchDestSection({
                         option.id === value?.id
                     }
                     value={
-                        sectionals.find((s) => s.sectionalName === watch('sectionalName')) || null
+                        Array.isArray(sectionals)
+                            ? sectionals.find((s) => s.sectionalName === watch('sectionalName')) || null
+                            : null
                     }
                     onChange={(event, option) => {
                         setValue('sectionalName', option?.sectionalName || '');

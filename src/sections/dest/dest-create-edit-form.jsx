@@ -34,6 +34,8 @@ import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import { ChurchSchema } from 'src/models/church-schema';
 import { saveChurch } from 'src/services/church-service';
 import { createChurch } from 'src/models/church-model';
+import { createChurchApi } from 'src/services/church-service';
+import { createDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
@@ -77,7 +79,7 @@ export function DestCreateEditForm({ currentDest }) {
   const [sectionals, setSectionals] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
-  const allMembers = getMembers();
+  const [allMembers, setAllMembers] = useState([]);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
 
 
@@ -124,12 +126,23 @@ export function DestCreateEditForm({ currentDest }) {
   }, [currentDest, churches.length]);
 
   useEffect(() => {
+    const loadData = async () => {
+      const membersData = await getMembers();
+      setAllMembers(Array.isArray(membersData) ? membersData : []);
 
-    setDests(getDests() || []);
-    setSectionals(getSectionals() || []);
-    setRegionals(getRegionals() || []);
-    setChurches(getChurches() || []);
+      setDests(getDests() || []);
 
+      const sectionalsData = await getSectionals();
+      setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
+
+      const regionalsData = await getRegionals();
+      setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
+
+      const churchesData = await getChurches();
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
+    };
+
+    loadData();
   }, []);
 
   const {
@@ -145,11 +158,13 @@ export function DestCreateEditForm({ currentDest }) {
   const destNumber = watch('destNumber');
 
   const selectedSectional = watch('sectionalId');
+  const selectedRegional = Array.isArray(regionals)
+    ? regionals.find((r) => r.id === selectedSectional?.regionalId)
+    : null;
 
-  const selectedRegional = regionals.find(
-    (r) => r.id === selectedSectional?.regionalId
-  );
-  const sectional = sectionals.find((s) => s.id === selectedSectional?.id);
+  const sectional = Array.isArray(sectionals)
+    ? sectionals.find((s) => s.id === selectedSectional?.id)
+    : null;
 
   const regional = sectional
     ? regionals.find((r) => r.id === sectional.regionalId)
@@ -157,49 +172,26 @@ export function DestCreateEditForm({ currentDest }) {
 
 
   const onSubmit = handleSubmit(async (data) => {
-    console.log('FORM DATA 👉', data);
-    const destId = currentDest?.id || crypto.randomUUID();
-    const churchId = crypto.randomUUID();
-
     try {
+      console.log('FORM DATA 👉', data);
 
-      const sectional = getSectionals().find(
-        (s) => s.sectionalName === data.sectionalName
-      );
-      const newChurch = createChurch({
-        id: churchId,
-        churchName: data.churchName,
-        pastor: data.pastor,
-        address: data.address,
-        provinceId: data.provinceId,
-        countryId: data.countryId,
-        sectionId: data.sectionId,
-        sectionalName: sectional?.sectionalName || '',
-      });
+      // 1. Crear iglesia (sin usar id)
+      await createChurchApi(data);
 
-      saveChurch(newChurch);
-      methods.setValue('churchId', churchId);
-
-      saveDest(
-        createDest({
-          id: destId,
-          ...data,
-          coordinatorId: data.coordinatorId || null,
-          churchId: churchId,
-        })
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 2. Crear destacamento (sin idIglesia)
+      await createDestApi(data);
 
       reset();
 
-      toast.success(currentDest ? 'Actualización exitosa!' : 'Destacamento creado');
+      toast.success(
+        currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
+      );
 
       router.push(paths.dashboard.level.dest.root);
       router.refresh();
-
     } catch (error) {
       console.error(error);
+      toast.error('Error creando destacamento');
     }
   });
 
@@ -368,10 +360,16 @@ export function DestCreateEditForm({ currentDest }) {
                     </Button>
                   )}
 
-                  {step < 2 && (
-                    <Button variant="contained" onClick={() => setStep(step + 1)}>
+                  {step === 1 && (
+                    <LoadingButton
+                      variant="contained"
+                      loading={isSubmitting}
+                      onClick={handleSubmit(async () => {
+                        setStep(2);
+                      })}
+                    >
                       Siguiente
-                    </Button>
+                    </LoadingButton>
                   )}
 
                   {step === 2 && (

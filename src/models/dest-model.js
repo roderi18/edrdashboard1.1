@@ -10,10 +10,18 @@ export const DEST_DEFAULT = {
 
     coordinatorId: null,
 
+    churchId: null,
+
     country: '',
 
     destMeetingDays: '',
     destMeetingTimes: '',
+
+    correo: '',
+    telefono: '',
+
+    registradoOfnc: true,
+    rritrackActivo: true,
 
     membershipStatus: 'active',
     isVerified: true,

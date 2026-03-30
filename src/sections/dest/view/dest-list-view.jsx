@@ -74,6 +74,10 @@ export function DestListView() {
 
   const table = useTable();
   const confirmDialog = useBoolean();
+  const [sectionals, setSectionals] = useState([]);
+  const [regionals, setRegionals] = useState([]);
+  const [churches, setChurches] = useState([]);
+  const [members, setMembers] = useState([]);
 
   const buildDestList = () => {
     const storedDests = getDests() || [];
@@ -95,23 +99,23 @@ export function DestListView() {
       );
 
       const coordinator =
-        getMembers().find(
+        members.find(
           (m) => String(m.memberId) === String(dest.coordinatorId)
         ) ||
         (leadership
-          ? getMembers().find(
+          ? members.find(
             (m) =>
               String(m.memberId) === String(leadership.memberId) ||
               String(m.id) === String(leadership.memberId)
           )
           : null);
-      const allMembers = getMembers();
+      const allMembers = members;
       if (dest.name === 'Leones De Sion') {
         console.log('LEADERSHIP ENCONTRADO:', leadership);
         console.log('COORDINADOR ENCONTRADO:', coordinator);
       }
 
-      const sectional = getSectionals().find(
+      const sectional = sectionals.find(
         (s) => s.id === dest.sectionalId
       );
       if (dest.name === 'Leones De Sion') {
@@ -119,7 +123,7 @@ export function DestListView() {
         console.log('SECTION ENCONTRADA:', sectional);
       }
 
-      const church = getChurches().find(
+      const church = churches.find(
         (c) => c.id === dest.churchId
       );
       if (dest.name === 'Leones De Sion') {
@@ -127,7 +131,7 @@ export function DestListView() {
         console.log('CHURCH ENCONTRADA:', church);
       }
 
-      const regional = getRegionals().find(
+      const regional = regionals.find(
         (r) => r.id === sectional?.regionalId || r.id === church?.regionalId
       );
       if (dest.name === 'Leones De Sion') {
@@ -172,6 +176,31 @@ export function DestListView() {
     const data = buildDestList();
     setTableData(data);
   }, []);
+
+
+  useEffect(() => {
+    async function load() {
+      const [
+        sectionalsData,
+        regionalsData,
+        churchesData,
+        membersData,
+      ] = await Promise.all([
+        getSectionals(),
+        getRegionals(),
+        getChurches(),
+        getMembers(),
+      ]);
+
+      setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
+      setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
+      setMembers(Array.isArray(membersData) ? membersData : []);
+    }
+
+    load();
+  }, []);
+
   const filters = useSetState({ name: '', sectionalName: [], regionalName: 'all' });
   const searchParams = useSearchParams();
   const nameFromUrl = searchParams.get('name');
@@ -234,7 +263,7 @@ export function DestListView() {
     if (!regionFromUrl) return;
     if (appliedFromUrl.current) return;
 
-    const regional = getRegionals().find(
+    const regional = regionals.find(
       (r) => r.id === regionFromUrl
     );
     console.log("REGION BUSCADA:", sectional?.regionalId);
@@ -527,9 +556,10 @@ function applyFilter({ inputData, comparator, filters }) {
     const keyword = normalizeText(name);
 
     inputData = inputData.filter((dest) => {
-      const coordinator = getMembers().find(
-        (m) => String(m.memberId) === String(dest.coordinatorId)
-      );
+      const coordinator =
+        members.find(
+          (m) => String(m.memberId) === String(dest.coordinatorId)
+        );
 
       return normalizeText(
         `${coordinator?.firstName || ''} ${coordinator?.lastName || ''} ${dest.destName || ''} ${dest.churchName || ''} ${dest.coordinatorId || ''}`

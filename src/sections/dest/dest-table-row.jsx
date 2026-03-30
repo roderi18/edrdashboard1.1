@@ -1,8 +1,7 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { getSectionals } from 'src/services/sectional-service';
-import { REGIONALS } from 'src/_mock/assets';
 import { getChurches } from 'src/services/church-service';
-
+import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -33,32 +32,51 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const [churches, setChurches] = useState([]);
+  const [sectionals, setSectionals] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [regionals, setRegionals] = useState([]);
   const capitalize = (text = '') =>
     text
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  const church = getChurches().find(
-    (c) => c.id === row.churchId
+  const regional = regionals.find(
+    (r) => String(r.id) === String(sectional?.regionalId)
   );
+
+  useEffect(() => {
+    async function load() {
+      const [churchesData, sectionalsData, membersData] = await Promise.all([
+        getChurches(),
+        getSectionals(),
+        getMembers(),
+      ]);
+
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
+      setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
+      setMembers(Array.isArray(membersData) ? membersData : []);
+    }
+
+    load();
+  }, []);
+
+  const church = churches.find((c) => c.id === row.churchId);
 
   const sectionalName = church?.sectionalName || '';
 
-  const sectional = getSectionals().find(
+  const sectional = sectionals.find(
     (s) => s.sectionalName === sectionalName
   );
 
-  const regional = REGIONALS.find(
-    (r) => String(r.id) === String(sectional?.regionalId)
+  const coordinator = members.find(
+    (m) => String(m.memberId) === String(row.coordinatorId)
   );
+
   const churchName =
     church?.name ||
     row?.churchName ||
     'Iglesia desconocida';
-
-  const coordinator = getMembers().find(
-    (m) => String(m.memberId) === String(row.coordinatorId)
-  );
 
 
   const renderQuickEditForm = () => (
