@@ -67,8 +67,17 @@ const TABLE_HEAD = [
 
 export function MemberListView() {
   const table = useTable();
-  const dests = getDests();
-  const sectionals = getSectionals();
+  const [dests, setDests] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
+    };
+
+    load();
+  }, []);
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));

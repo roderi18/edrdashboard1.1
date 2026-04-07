@@ -56,9 +56,25 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const sectional = sectionals.find((s) => s.id === row.id);
 
   const [members, setMembers] = useState([]);
-  const dests = getDests();
-  const churches = getChurches();
+  const [dests, setDests] = useState([]);
 
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
+    };
+    load();
+  }, []);
+  const [churches, setChurches] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getChurches();
+      setChurches(data || []);
+    };
+    load();
+  }, []);
 
   const director = members.find(
     (m) => String(m.id) === String(row.directorId)

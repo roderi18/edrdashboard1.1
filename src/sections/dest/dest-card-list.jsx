@@ -28,7 +28,7 @@ export function DestCardList({ dests }) {
         {dests
           .slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage)
           .map((dest) => (
-            <DestCard key={dest.id} dest={dest} />
+            <DestCard key={`${dest.id || dest.idDestacamento}-${dest.name}`} dest={dest} />
           ))}
       </Box>
 

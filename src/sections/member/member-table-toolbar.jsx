@@ -25,7 +25,16 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const dests = getDests();
+  const [dests, setDests] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
+    };
+    load();
+  }, []);
   const sectionals = getSectionals();
 
   const filtersPopover = usePopover();
@@ -269,14 +278,14 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                 label="Sección"
                 value={currentFilters.sectionalId}
                 onChange={handleFilterSectionalId}
-               renderValue={(selected) =>
-  selected
-    .map((id) => {
-      const found = sectionals.find((s) => s.id?.toString() === id?.toString());
-      return found?.name || id;
-    })
-    .join(', ')
-}
+                renderValue={(selected) =>
+                  selected
+                    .map((id) => {
+                      const found = sectionals.find((s) => s.id?.toString() === id?.toString());
+                      return found?.name || id;
+                    })
+                    .join(', ')
+                }
                 inputProps={{ id: 'filter-sectionalId-select' }}
                 MenuProps={{
                   slotProps: { paper: { sx: { maxHeight: 250 } } },

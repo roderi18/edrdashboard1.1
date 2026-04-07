@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
-import { getDests } from 'src/services/dest-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getMembers } from 'src/services/member-service';
@@ -130,7 +129,9 @@ export function DestCreateEditForm({ currentDest }) {
       const membersData = await getMembers();
       setAllMembers(Array.isArray(membersData) ? membersData : []);
 
-      setDests(getDests() || []);
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
 
       const sectionalsData = await getSectionals();
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
@@ -175,11 +176,15 @@ export function DestCreateEditForm({ currentDest }) {
     try {
       console.log('FORM DATA 👉', data);
 
-      // 1. Crear iglesia (sin usar id)
-      await createChurchApi(data);
+      // 1. Crear iglesia
+      const churchRes = await createChurchApi(data);
+      const churchId = churchRes?.Data?.idIglesia;
 
-      // 2. Crear destacamento (sin idIglesia)
-      await createDestApi(data);
+      // 2. Crear destacamento con idIglesia real
+      await createDestApi({
+        ...data,
+        churchId,
+      });
 
       reset();
 

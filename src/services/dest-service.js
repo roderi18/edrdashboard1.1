@@ -43,10 +43,6 @@ export function saveDest(dest) {
     saveItem('dests', dest);
 }
 
-export function getDests() {
-    return getStorageCollection('dests') || [];
-}
-
 export function getDestById(id) {
     const dests = getDests();
     return dests.find((d) => d.id === id);
@@ -57,7 +53,7 @@ export const buildDestPayload = (data, id = 0) => ({
         idDestacamento: id,
         nombre: data.name,
         numero: data.destNumber,
-        idIglesia: Number(data.churchId) || 0,
+        idIglesia: Number(data.churchId) || null,
 
         correo: data.correo || '',
         telefono: data.telefono || '',
@@ -81,5 +77,14 @@ export const createDestApi = async (data) => {
         body: JSON.stringify(buildDestPayload(data)),
     });
 
-    return res.json();
+    const text = await res.text();
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        console.error('Respuesta no es JSON 👉', text);
+        return {};
+    }
 };

@@ -5,6 +5,7 @@ import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
+import { useEffect, useState } from 'react';
 
 import { _socials } from 'src/_mock';
 import { AvatarShape } from 'src/assets/illustrations';
@@ -22,10 +23,25 @@ import { getMembers } from 'src/services/member-service';
 export function DestCard({ dest, sx, ...other }) {
 
   const router = useRouter();
-  const sectionals = getSectionals();
-  const regionals = getRegionals();
+  const [sectionals, setSectionals] = useState([]);
+  const [regionals, setRegionals] = useState([]);
+  const [churches, setChurches] = useState([]);
 
-  const church = getChurches().find(
+  useEffect(() => {
+    const load = async () => {
+      const sectionalsData = await getSectionals();
+      const regionalsData = await getRegionals();
+      const churchesData = await getChurches();
+
+      setSectionals(sectionalsData || []);
+      setRegionals(regionalsData || []);
+      setChurches(churchesData || []);
+    };
+
+    load();
+  }, []);
+
+  const church = churches.find(
     (c) => c.id === dest?.churchId
   );
 
@@ -55,7 +71,17 @@ export function DestCard({ dest, sx, ...other }) {
     sectionalCoverMap[sectional?.id?.trim()] ||
     '/assets/images/divisions/default.jpg';
 
-  const coordinator = getMembers().find(
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      const data = await getMembers();
+      setMembers(data || []);
+    };
+    loadMembers();
+  }, []);
+
+  const coordinator = members.find(
     (m) => m.memberId === dest.coordinatorId
   );
 

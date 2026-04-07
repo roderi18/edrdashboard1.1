@@ -20,7 +20,6 @@ import { getSectionals } from 'src/services/sectional-service';
 import { getMembers } from 'src/services/member-service';
 import { getLeadershipAssignments } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
-import { getDests } from 'src/services/dest-service';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -86,7 +85,11 @@ const buildSectionalList = async () => {
   const sectionals = await getSectionals();
   const regionals = await getRegionals();
   const members = await getMembers();
-  const dests = getDests();
+
+  const res = await fetch('/api/dest');
+  const data = await res.json();
+  const dests = data?.Data || [];
+
   const leaderships = getLeadershipAssignments();
 
   return sectionals.map((sectional) => {

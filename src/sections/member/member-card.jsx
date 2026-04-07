@@ -35,7 +35,16 @@ export function MemberCard({ member, sx, ...other }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
-  const dests = getDests();
+  const [dests, setDests] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
+    };
+    load();
+  }, []);
 
   const coverSrc =
     memberDivisionCoverMap[member.memberDivision?.trim()] ||

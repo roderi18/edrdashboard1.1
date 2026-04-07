@@ -22,7 +22,6 @@ import { RouterLink } from 'src/routes/components';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 
-import { getDests } from 'src/services/dest-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getChurches } from 'src/services/church-service';
@@ -79,10 +78,9 @@ export function DestListView() {
   const [churches, setChurches] = useState([]);
   const [members, setMembers] = useState([]);
 
-  const buildDestList = () => {
-    const storedDests = getDests() || [];
-    console.log("DESTS GUARDADOS:", storedDests);
-    const allDests = getDests() || [];
+  const buildDestList = (apiDests) => {
+    console.log("DESTS API:", apiDests);
+    const allDests = apiDests;
 
     return allDests.map((dest) => {
       if (dest.name === 'Leones De Sion') {
@@ -172,11 +170,18 @@ export function DestListView() {
       setDisplayMode('grid');
     }
   }, [isMobile]);
-  useEffect(() => {
-    const data = buildDestList();
-    setTableData(data);
-  }, []);
 
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+
+      const built = buildDestList(data?.Data || []);
+      setTableData(built);
+    };
+
+    load();
+  }, [members, churches, sectionals, regionals]);
 
   useEffect(() => {
     async function load() {
@@ -492,7 +497,7 @@ export function DestListView() {
                         )
                         .map((row) => (
                           <DestTableRow
-                            key={row.id}
+                            key={`${row.id || row.idDestacamento}-${row.destName}`}
                             row={row}
                             selected={table.selected.includes(row.id)}
                             onSelectRow={() => table.onSelectRow(row.id)}

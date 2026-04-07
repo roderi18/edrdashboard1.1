@@ -11,7 +11,6 @@ import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { getMembers } from 'src/services/member-service';
 import { useRouter } from 'src/routes/hooks';
-import { getDests } from 'src/services/dest-service';
 import { useEffect, useState } from 'react';
 import { fData } from 'src/utils/format-number';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
@@ -31,14 +30,16 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
   const [dests, setDests] = useState([]);
   const [members, setMembers] = useState([]);
+  const [churches, setChurches] = useState([]);
 
   useEffect(() => {
     async function load() {
       const membersData = await getMembers();
-      const destsData = getDests();
+      const res = await fetch('/api/dest');
+      const data = await res.json();
 
       setMembers(membersData);
-      setDests(destsData);
+      setDests(data?.Data || []);;
     }
 
     load();
@@ -84,7 +85,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
   const destsBySectional = dests.filter((d) => {
 
-    const church = getChurches().find((c) => c.id === d.churchId);
+    const church = churches.find((c) => c.id === d.churchId);
     return church?.sectionalName === watch('sectionalName');
   });
 

@@ -11,8 +11,6 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
-import { getDests } from 'src/services/dest-service';
-
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -28,10 +26,18 @@ export function DestEditLayout({ children, ...other }) {
     const [dest, setDest] = useState(null);
 
     useEffect(() => {
-        const found = getDests().find((d) => d.id === destId);
-        setDest(found);
+        const load = async () => {
+            const res = await fetch('/api/dest');
+            const data = await res.json();
+
+            const found = (data?.Data || []).find((d) => String(d.idDestacamento) === String(destId));
+            setDest(found);
+        };
+
+        load();
     }, [destId]);
-    const destName = dest ? dest.name : 'Destacamento';
+
+    const destName = dest ? dest.nombre : 'Destacamento';
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));

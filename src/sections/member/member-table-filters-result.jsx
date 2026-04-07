@@ -8,7 +8,16 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 // ----------------------------------------------------------------------
 
 export function MemberTableFiltersResult({ filters, onResetPage, totalResults, sx }) {
-  const dests = getDests();
+  const [dests, setDests] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
+      setDests(data?.Data || []);
+    };
+    load();
+  }, []);
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {

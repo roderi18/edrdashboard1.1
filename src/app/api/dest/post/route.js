@@ -3,7 +3,7 @@ export async function POST(req) {
         const body = await req.json();
 
         const res = await fetch(
-            'https://systexploradores.somee.com/api/Destacamentos/SetDestacamentos',
+            'https://systexploradores.somee.com/api/Destacamentos/SetDestacamento',
             {
                 method: 'POST',
                 headers: {
