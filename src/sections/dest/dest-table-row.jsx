@@ -62,9 +62,11 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   }, []);
 
   const church = Array.isArray(churches)
-    ? churches.find((c) => String(c.id) === String(row.churchId))
+    ? churches.find((c) => Number(c.id) === Number(row.idIglesia))
     : null;
-
+  console.log('ROW 👉', row);
+  console.log('CHURCHES 👉', churches);
+  console.log('MATCH 👉', church);
   const sectionalName = church?.sectionalName || '';
 
   const sectional = sectionals.find(
@@ -150,7 +152,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.destName}
+            <Avatar alt={row.nombre}
               src={row.avatarUrl} />
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -159,7 +161,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {`${capitalize(row.destName)} ${row.destNumber || ''}`}
+                {`${capitalize(row.nombre)} ${row.numero || ''}`}
 
               </Link>
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>

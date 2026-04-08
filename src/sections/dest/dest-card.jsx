@@ -42,7 +42,7 @@ export function DestCard({ dest, sx, ...other }) {
   }, []);
 
   const church = churches.find(
-    (c) => c.id === dest?.churchId
+    (c) => Number(c.id) === Number(dest?.idIglesia)
   );
 
   const churchName =
@@ -104,7 +104,7 @@ export function DestCard({ dest, sx, ...other }) {
         />
 
         <Avatar
-          alt={dest.destName}
+          alt={dest.nombre}
           src={dest.avatarUrl}
           onClick={handleGoToDest}
           sx={{
@@ -146,7 +146,7 @@ export function DestCard({ dest, sx, ...other }) {
               '&:hover': { textDecoration: 'underline' },
             }}
           >
-            {`Destacamento ${dest.destName} ${dest.destNumber || ''}`}
+            {`Destacamento ${dest.nombre} ${dest.numero || ''}`}
           </Box>
         } secondary={dest.role}
       />
