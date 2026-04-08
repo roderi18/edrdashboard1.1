@@ -1,29 +1,18 @@
 export async function GET() {
     try {
         const res = await fetch(
-            'https://systexploradores.somee.com/api/Iglesias/GetListIglesias',
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            }
+            'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'
         );
 
-        if (!res.ok) {
-            return Response.json(
-                { error: 'Error al obtener iglesias' },
-                { status: res.status }
-            );
-        }
+        const text = await res.text();
 
-        const data = await res.json();
-
-        return Response.json(data);
+        return new Response(text, {
+            status: res.status,
+            headers: { 'Content-Type': 'application/json' },
+        });
     } catch (error) {
         return Response.json(
-            { error: 'Error interno obteniendo iglesias' },
+            { error: 'Error obteniendo iglesias' },
             { status: 500 }
         );
     }

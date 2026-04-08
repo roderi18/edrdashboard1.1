@@ -50,9 +50,8 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 
     country: dest.country ?? 'República Dominicana',
 
-    churchId: dest.churchId
-      ? churches.find((c) => c.id === dest.churchId) || null
-      : null,
+    // Mantenerlo como ID (string), NO como objeto
+    churchId: dest.churchId ?? null,
 
     destMeetingDays: dest.destMeetingDays ?? '',
     destMeetingTimes: dest.destMeetingTimes ?? '',
@@ -65,8 +64,10 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     address: church.address ?? '',
     provinceId: church.provinceId ?? '',
     countryId: church.countryId ?? '',
-    sectionlId: '',
-    sectionalName: '',
+
+    // NUEVO: id real para el POST de Iglesia
+    sectionId: church.sectionId ?? '',
+    sectionalName: church.sectionalName ?? '',
   };
 };
 // ----------------------------------------------------------------------
@@ -111,7 +112,13 @@ export function DestCreateEditForm({ currentDest }) {
     address: '',
     provinceId: '',
     countryId: '',
+    sectionId: '',
     sectionalName: '',
+
+    fechaInicio: '',
+    direccion: '',
+    concilio: '',
+    sectionId: '',
   };
 
   const CombinedSchema = ChurchSchema.merge(DestSchema);
@@ -165,17 +172,14 @@ export function DestCreateEditForm({ currentDest }) {
   const destName = watch('name');
   const destNumber = watch('destNumber');
 
-  const selectedSectional = watch('sectionalId');
-  const selectedRegional = Array.isArray(regionals)
-    ? regionals.find((r) => r.id === selectedSectional?.regionalId)
-    : null;
+  const selectedSectionId = watch('sectionId');
 
   const sectional = Array.isArray(sectionals)
-    ? sectionals.find((s) => s.id === selectedSectional?.id)
+    ? sectionals.find((s) => String(s.id) === String(selectedSectionId))
     : null;
 
   const regional = sectional
-    ? regionals.find((r) => r.id === sectional.regionalId)
+    ? regionals.find((r) => String(r.id) === String(sectional.regionalId))
     : null;
 
 
@@ -194,8 +198,8 @@ export function DestCreateEditForm({ currentDest }) {
       const churchRes = await createChurchApi({
         ...data,
         sectionId: selectedSection?.id || data.sectionId || '',
+        correo: data.correo?.trim() || 'test@demo.com',
       });
-      console.log('CHURCH RES 👉', churchRes);
 
       const churchId =
         churchRes?.Data?.idIglesia ??
@@ -203,7 +207,10 @@ export function DestCreateEditForm({ currentDest }) {
         churchRes?.idIglesia ??
         churchRes?.IdIglesia ??
         null;
-
+      if (!churchId) {
+        console.error('No se pudo obtener idIglesia luego de crear la iglesia. Respuesta:', churchRes);
+        throw new Error('La API no devolvió idIglesia; no se puede crear el destacamento.');
+      }
       const destPayloadData = {
         ...data,
         churchId,
@@ -279,8 +286,8 @@ export function DestCreateEditForm({ currentDest }) {
                   color: 'text.primary',
                 },
                 {
-                  show: !currentDest && !!sectional?.name,
-                  text: `pertenecerá a la Sección ${sectional?.name}`,
+                  show: !currentDest && !!sectional?.sectionalName,
+                  text: `pertenecerá a la Sección ${sectional?.sectionalName}`,
                 },
                 {
                   show: !currentDest && !!regional?.name,

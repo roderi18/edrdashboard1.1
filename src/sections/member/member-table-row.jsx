@@ -52,9 +52,9 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
     return role?.label || roleValue;
   };
 
-  const church = getChurches().find(
-    (c) => c.id === dest?.churchId
-  );
+  // const church = getChurches().find(
+  //   (c) => c.id === dest?.churchId
+  // );
 
   const sectionalName = church?.sectionalName || '-';
 

@@ -121,9 +121,9 @@ export function DestListView() {
         console.log('SECTION ENCONTRADA:', sectional);
       }
 
-      const church = churches.find(
-        (c) => c.id === dest.churchId
-      );
+      const church = Array.isArray(churches)
+        ? churches.find((c) => String(c.id) === String(dest.churchId))
+        : null;
       if (dest.name === 'Leones De Sion') {
         console.log('CHURCH BUSCADA:', dest.churchId);
         console.log('CHURCH ENCONTRADA:', church);

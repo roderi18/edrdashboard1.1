@@ -16,10 +16,10 @@ export const mapApiChurchesToUI = (apiChurch) => {
 
 export const buildChurchPayload = (data) => ({
     idIglesia: 0,
-    nombre: data?.churchName ?? '',
-    pastor: data?.pastor ?? '',
-    direccion: data?.address ?? '',
-    correo: data?.correo ?? '',
+    nombre: data?.churchName?.trim() ?? '',
+    pastor: data?.pastor?.trim() ?? '',
+    direccion: data?.address?.trim() ?? '',
+    correo: data?.correo?.trim() || 'test@demo.com',
     idSeccion: Number(data?.sectionId) || 0,
 });
 

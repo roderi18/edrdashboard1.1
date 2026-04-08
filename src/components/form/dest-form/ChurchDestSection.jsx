@@ -55,11 +55,26 @@ export default function ChurchDestSection({
                     }
                     value={
                         Array.isArray(sectionals)
-                            ? sectionals.find((s) => s.sectionalName === watch('sectionalName')) || null
+                            ? sectionals.find((s) => String(s.id) === String(watch('sectionId'))) || null
                             : null
                     }
                     onChange={(event, option) => {
-                        setValue('sectionalName', option?.sectionalName || '');
+                        // Guardar el ID real (lo que necesita la API)
+                        setValue('sectionId', option?.id ? String(option.id) : '', {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                        });
+
+                        // Guardar el label para mostrar
+                        setValue('sectionId', option?.id ? String(option.id) : '', {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                        });
+
+                        setValue('sectionalName', option?.sectionalName || '', {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                        });
                     }}
                 />
             </Box>

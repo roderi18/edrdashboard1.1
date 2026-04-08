@@ -61,7 +61,9 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     load();
   }, []);
 
-  const church = churches.find((c) => c.id === row.churchId);
+  const church = Array.isArray(churches)
+    ? churches.find((c) => String(c.id) === String(row.churchId))
+    : null;
 
   const sectionalName = church?.sectionalName || '';
 
