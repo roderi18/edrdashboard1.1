@@ -74,7 +74,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
       const url = currentRegional
         ? '/api/regional/put'
-        : '/api/regional/create';
+        : '/api/regional/post';
 
       const method = currentRegional ? 'PUT' : 'POST';
 

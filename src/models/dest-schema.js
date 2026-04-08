@@ -4,7 +4,7 @@ import { schemaUtils } from 'src/components/hook-form';
 export const DestSchema = z.object({
     avatarUrl: schemaUtils.file().optional(),
 
-    churchName: z.string().min(1, { error: 'Nombre de la iglesia requerido' }),
+    churchName: z.string().optional(),
 
     name: z.string().optional(),
     destNumber: z.string().optional(),

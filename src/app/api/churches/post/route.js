@@ -2,43 +2,54 @@ export async function POST(req) {
     try {
         const body = await req.json();
 
-        console.log('BODY IGLESIA LOCAL 👉', JSON.stringify(body, null, 2));
+        const payload = {
+            nombre: body.nombre?.trim() || 'Iglesia sin nombre',
+            pastor: body.pastor?.trim() || 'Pastor no especificado',
+            direccion: body.direccion?.trim() || 'Dirección no especificada',
+            correo: body.correo?.trim() || 'test@demo.com',
+            idSeccion: Number(body.idSeccion) || 1,
+        };
 
-        const res = await fetch(
-            'https://systexploradores.somee.com/api/Iglesias/SetIglesia',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                    idIglesia: 0,
-                    nombre: body.nombre ?? '',
-                    pastor: body.pastor ?? '',
-                    direccion: body.direccion ?? '',
-                    correo: body.correo?.trim() || 'test@demo.com',
-                    idSeccion: Number(body.idSeccion) || 0,
-                }),
-            }
-        );
+        console.log('BODY IGLESIA LOCAL 👉', JSON.stringify(payload, null, 2));
 
-        const text = await res.text();
-
-        console.log('STATUS SOMEE IGLESIA 👉', res.status);
-        console.log('RAW SOMEE IGLESIA 👉', text);
-
-        return new Response(text, {
-            status: res.status,
+        const res = await fetch('https://systexploradores.somee.com/api/Iglesias/SetIglesia', {
+            method: 'POST',
             headers: {
-                'Content-Type': 'text/plain',
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/plain, */*',
             },
+            body: JSON.stringify(payload),
+            cache: 'no-store',
         });
-    } catch (error) {
-        console.error('ERROR LOCAL /api/churches/post 👉', error);
 
+        const raw = await res.text();
+
+        let parsed = null;
+        try {
+            parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+            parsed = null;
+        }
+
+        if (!res.ok) {
+            return Response.json(
+                {
+                    error: 'Error al crear iglesia en Somee',
+                    status: res.status,
+                    raw: raw || null,
+                    payload,
+                },
+                { status: res.status }
+            );
+        }
+
+        return Response.json(parsed ?? { success: true, raw }, { status: 200 });
+    } catch (error) {
         return Response.json(
-            { error: 'Error creando iglesia' },
+            {
+                error: 'Error creando iglesia',
+                detail: error.message,
+            },
             { status: 500 }
         );
     }

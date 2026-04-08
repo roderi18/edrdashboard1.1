@@ -30,10 +30,10 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
-import { ChurchSchema } from 'src/models/church-schema';
-import { saveChurch } from 'src/services/church-service';
-import { createChurch } from 'src/models/church-model';
-import { createChurchApi } from 'src/services/church-service';
+// import { ChurchSchema } from 'src/models/church-schema';
+// import { saveChurch } from 'src/services/church-service';
+// import { createChurch } from 'src/models/church-model';
+// import { createChurchApi } from 'src/services/church-service';
 import { createDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
 
@@ -83,7 +83,6 @@ export function DestCreateEditForm({ currentDest }) {
   const [allMembers, setAllMembers] = useState([]);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
 
-
   const defaultValues = {
     avatarUrl: null,
 
@@ -121,7 +120,7 @@ export function DestCreateEditForm({ currentDest }) {
     sectionId: '',
   };
 
-  const CombinedSchema = ChurchSchema.merge(DestSchema);
+  const CombinedSchema = DestSchema;
   const methods = useForm({
     mode: 'onSubmit',
     resolver: zodResolver(CombinedSchema),
@@ -153,8 +152,8 @@ export function DestCreateEditForm({ currentDest }) {
       const regionalsData = await getRegionals();
       setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
 
-      const churchesData = await getChurches();
-      setChurches(Array.isArray(churchesData) ? churchesData : []);
+      // const churchesData = await getChurches();
+      // setChurches(Array.isArray(churchesData) ? churchesData : []);
     };
 
     loadData();
@@ -188,38 +187,55 @@ export function DestCreateEditForm({ currentDest }) {
       console.log('FORM DATA 👉', data);
 
       // 1. Crear iglesia
-      const selectedSection = sectionals.find(
-        (s) =>
-          String(s.id) === String(data.sectionId) ||
-          s.sectionalName === data.sectionalName ||
-          s.name === data.sectionalName
-      );
+      // const selectedSection = sectionals.find(
+      //   (s) =>
+      //     String(s.id) === String(data.sectionId) ||
+      //     s.sectionalName === data.sectionalName ||
+      //     s.name === data.sectionalName
+      // );
 
-      const churchRes = await createChurchApi({
-        ...data,
-        sectionId: selectedSection?.id || data.sectionId || '',
-        correo: data.correo?.trim() || 'test@demo.com',
-      });
+      // const churchRes = await createChurchApi({
+      //   ...data,
+      //   churchName: data.churchName?.trim(),
+      //   pastor: data.pastor?.trim(),
+      //   address: data.address?.trim(),
+      //   correo: data.correo?.trim() || 'test@demo.com',
+      //   sectionId: selectedSection?.id || data.sectionId || '',
+      // });
 
-      const churchId =
-        churchRes?.Data?.idIglesia ??
-        churchRes?.Data?.IdIglesia ??
-        churchRes?.idIglesia ??
-        churchRes?.IdIglesia ??
-        null;
-      if (!churchId) {
-        console.error('No se pudo obtener idIglesia luego de crear la iglesia. Respuesta:', churchRes);
-        throw new Error('La API no devolvió idIglesia; no se puede crear el destacamento.');
-      }
+      // const churchId =
+      //   churchRes?.Data?.idIglesia ??
+      //   churchRes?.Data?.IdIglesia ??
+      //   churchRes?.idIglesia ??
+      //   churchRes?.IdIglesia ??
+      //   null;
+      // if (!churchId) {
+      //   console.error('No se pudo obtener idIglesia luego de crear la iglesia. Respuesta:', churchRes);
+      //   throw new Error('La API no devolvió idIglesia; no se puede crear el destacamento.');
+      // }
+      // const destPayloadData = {
+      //   ...data,
+      //   churchId,
+      //   correo: data.correo?.trim() || 'dest@demo.com',
+      //   direccion: data.direccion?.trim() || data.address?.trim() || '',
+      //   fechaInicio: data.fechaInicio || new Date().toISOString(),
+      //   concilio: data.concilio?.trim() || '',
+      // };
       const destPayloadData = {
         ...data,
-        churchId,
+        idIglesia: 1,
+        correo: data.correo ?? '',
+        telefono: data.telefono ?? '',
+        destMeetingDays: data.destMeetingDays ?? '',
+        destMeetingTimes: data.destMeetingTimes ?? '',
+        destNumber: data.destNumber ?? '18',
+        direccion: data.direccion ?? data.address ?? '',
+        concilio: data.concilio ?? '',
+        fechaInicio: data.fechaInicio || new Date().toISOString(),
       };
-
       console.log('DEST DATA BEFORE PAYLOAD 👉', destPayloadData);
 
       await createDestApi(destPayloadData);
-
       reset();
 
       toast.success(

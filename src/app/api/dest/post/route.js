@@ -1,8 +1,23 @@
-export async function POST(req) {
+export async function POST() {
     try {
-        const body = await req.json();
+        const payload = {
+            idDestacamento: 0,
+            nombre: 'Prueba Testing A',
+            idIglesia: 1,
+            correo: '',
+            telefono: '',
+            registradoOfnc: true,
+            rritrackActivo: true,
+            diaReunion: '',
+            horaReunion: '',
+            logo: '',
+            numero: '18',
+            fechaInicio: '2026-04-08T03:22:15.027Z',
+            direccion: '',
+            concilio: '',
+        };
 
-        console.log('BODY DEST LOCAL 👉', JSON.stringify(body, null, 2));
+        console.log('BODY DEST HARDCODED 👉', JSON.stringify(payload, null, 2));
 
         const res = await fetch(
             'https://systexploradores.somee.com/api/Destacamentos/SetDestacamento',
@@ -10,41 +25,32 @@ export async function POST(req) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Accept: 'application/json',
+                    Accept: 'application/json, text/plain, */*',
                 },
-                body: JSON.stringify({
-                    idDestacamento: 0,
-                    nombre: body.nombre ?? '',
-                    idIglesia: Number(body.idIglesia) || 0,
-                    correo: body.correo ?? 'dest@demo.com',
-                    telefono: body.telefono ?? '',
-                    registradoOfnc: body.registradoOfnc ?? true,
-                    rritrackActivo: body.rritrackActivo ?? true,
-                    diaReunion: body.diaReunion ?? '',
-                    horaReunion: body.horaReunion ?? null,
-                    logo: body.logo ?? '',
-                    numero: body.numero ?? '',
-                    fechaInicio: body.fechaInicio ?? new Date().toISOString(),
-                    direccion: body.direccion ?? '',
-                    concilio: body.concilio ?? '',
-                }),
+                body: JSON.stringify(payload),
+                cache: 'no-store',
             }
         );
 
-        const text = await res.text();
+        const raw = await res.text();
 
         console.log('STATUS SOMEE DEST 👉', res.status);
-        console.log('RAW SOMEE DEST 👉', text);
+        console.log('RAW SOMEE DEST 👉', raw);
 
-        return new Response(text, {
+        return new Response(raw || JSON.stringify({ status: res.status }), {
             status: res.status,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: {
+                'Content-Type': raw ? 'application/json' : 'application/json',
+            },
         });
     } catch (error) {
         console.error('ERROR LOCAL /api/dest/post 👉', error);
 
         return Response.json(
-            { error: 'Error creando destacamento' },
+            {
+                error: 'Error creando destacamento',
+                detail: error.message,
+            },
             { status: 500 }
         );
     }

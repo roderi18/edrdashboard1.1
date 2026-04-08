@@ -62,11 +62,15 @@ export default function DestGeneralSection({
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
                 options={Array.isArray(members) ? members : []}
-                value={members.find((m) => m.memberId === watch('coordinatorId')) || null}
-                getOptionLabel={(option) =>
-                    option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`
+                value={
+                    watch('coordinatorId')
+                        ? members.find((m) => m.memberId === watch('coordinatorId')) || null
+                        : null
                 }
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                getOptionLabel={(option) =>
+                    option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`.trim()
+                }
+                isOptionEqualToValue={(option, value) => option.memberId === value?.memberId}
                 onChange={(_, value) => {
                     methods.setValue('coordinatorId', value?.memberId ?? null, {
                         shouldValidate: true,

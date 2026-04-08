@@ -1,4 +1,11 @@
 export const mapApiChurchesToUI = (apiChurch) => {
+    const idSeccion =
+        apiChurch.idSeccion ??
+        apiChurch.idseccion ??
+        apiChurch.seccionId ??
+        apiChurch.sectionId ??
+        0;
+
     return {
         id: apiChurch.idIglesia?.toString() || '',
         name: apiChurch.nombre ?? '',
@@ -7,7 +14,7 @@ export const mapApiChurchesToUI = (apiChurch) => {
         correo: apiChurch.correo ?? '',
         provinceId: apiChurch.idProvincia?.toString() ?? '',
         countryId: apiChurch.idPais?.toString() ?? '',
-        sectionId: apiChurch.idSeccion?.toString() ?? '',
+        sectionId: idSeccion ? idSeccion.toString() : '',
         sectionalName: apiChurch.idSeccionNavigation?.nombre ?? '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -15,12 +22,11 @@ export const mapApiChurchesToUI = (apiChurch) => {
 };
 
 export const buildChurchPayload = (data) => ({
-    idIglesia: 0,
-    nombre: data?.churchName?.trim() ?? '',
-    pastor: data?.pastor?.trim() ?? '',
-    direccion: data?.address?.trim() ?? '',
+    nombre: data?.churchName?.trim() || 'Iglesia sin nombre',
+    pastor: data?.pastor?.trim() || 'Pastor no especificado',
+    direccion: data?.address?.trim() || 'Dirección no especificada',
     correo: data?.correo?.trim() || 'test@demo.com',
-    idSeccion: Number(data?.sectionId) || 0,
+    idSeccion: Number(data?.sectionId || data?.idSeccion || data?.sectionalName) || 1,
 });
 
 export const createChurchApi = async (data) => {
@@ -32,8 +38,10 @@ export const createChurchApi = async (data) => {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            Accept: 'application/json, text/plain, */*',
         },
         body: JSON.stringify(payload),
+        cache: 'no-store',
     });
 
     const text = await res.text();
@@ -41,29 +49,35 @@ export const createChurchApi = async (data) => {
     console.log('CHURCH STATUS 👉', res.status);
     console.log('CHURCH RESPONSE RAW 👉', text);
 
-    if (!res.ok) {
-        throw new Error(text || `Error creando iglesia (${res.status})`);
-    }
-
-    if (!text) return {};
+    let parsed = null;
 
     try {
-        return JSON.parse(text);
+        parsed = text ? JSON.parse(text) : null;
     } catch {
-        return { raw: text };
+        parsed = null;
     }
-};
 
-export const saveChurch = (church) => {
-    const stored = JSON.parse(localStorage.getItem('churches') || '[]');
-    const updated = [...stored, church];
-    localStorage.setItem('churches', JSON.stringify(updated));
-    return church;
+    if (!res.ok) {
+        console.error('CHURCH PAYLOAD ERROR 👉', payload);
+        throw new Error(
+            parsed?.error || parsed?.Message || text || `Error creando iglesia (${res.status})`
+        );
+    }
+
+    return parsed ?? { raw: text };
 };
 
 export const getChurches = async () => {
     try {
-        const res = await fetch('/api/churches');
+        const res = await fetch('/api/churches', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/plain, */*',
+            },
+            cache: 'no-store',
+        });
+
         const text = await res.text();
 
         if (!text || text.startsWith('<')) {
@@ -71,11 +85,22 @@ export const getChurches = async () => {
             return [];
         }
 
-        const data = JSON.parse(text);
+        let parsed = null;
 
-        return Array.isArray(data?.Data)
-            ? data.Data.map(mapApiChurchesToUI)
-            : [];
+        try {
+            parsed = JSON.parse(text);
+        } catch (error) {
+            console.error('Error parseando iglesias:', error);
+            return [];
+        }
+
+        const rows = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.Data)
+                ? parsed.Data
+                : [];
+
+        return rows.map(mapApiChurchesToUI);
     } catch (error) {
         console.error('Error cargando iglesias:', error);
         return [];

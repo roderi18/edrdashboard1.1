@@ -57,27 +57,22 @@ const normalizeHoraReunion = (value) => {
 
 export const buildDestPayload = (data) => ({
     idDestacamento: 0,
-    nombre: data?.name?.trim() ?? '',
-    idIglesia: Number(data?.churchId) || 0,
-    correo: data?.correo?.trim() || 'dest@demo.com',
-    telefono: data?.telefono?.trim() ?? '',
+    nombre: data?.name?.trim() || 'name',
+    idIglesia: Number(data?.idIglesia ?? data?.churchId) || 1,
+    correo: data?.correo?.trim() || 'string',
+    telefono: data?.telefono?.trim() || 'string',
     registradoOfnc: data?.registradoOfnc ?? true,
     rritrackActivo: data?.rritrackActivo ?? true,
-    diaReunion: data?.destMeetingDays?.trim() ?? '',
-    horaReunion: normalizeHoraReunion(data?.destMeetingTimes),
-    logo: '',
-    numero: data?.destNumber?.trim() ?? '',
+    diaReunion: data?.destMeetingDays?.trim() || 'string',
+    horaReunion: data?.destMeetingTimes?.trim() || 'string',
+    logo: data?.logo?.trim() || 'string',
+    numero: data?.destNumber?.trim() || '18',
     fechaInicio: data?.fechaInicio || new Date().toISOString(),
-    direccion: data?.direccion?.trim() || data?.address?.trim() || '',
-    concilio: data?.concilio?.trim() || '',
+    direccion: data?.direccion?.trim() || data?.address?.trim() || 'string',
+    concilio: data?.concilio?.trim() || 'string',
 });
-
 export const createDestApi = async (data) => {
     const payload = buildDestPayload(data);
-
-    if (!payload.idIglesia) {
-        throw new Error('idIglesia inválido');
-    }
 
     console.log('DEST PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
