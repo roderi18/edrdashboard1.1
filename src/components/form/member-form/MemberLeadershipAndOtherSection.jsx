@@ -1,8 +1,4 @@
 import Box from '@mui/material/Box';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import Typography from '@mui/material/Typography';
 import MenuItem from '@mui/material/MenuItem';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { Iconify } from 'src/components/iconify';

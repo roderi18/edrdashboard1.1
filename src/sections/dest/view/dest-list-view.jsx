@@ -296,6 +296,7 @@ export function DestListView() {
     inputData: tableData,
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
+    members,
   });
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
@@ -543,7 +544,7 @@ export function DestListView() {
 
 // ----------------------------------------------------------------------
 
-function applyFilter({ inputData, comparator, filters }) {
+function applyFilter({ inputData, comparator, filters, members }) {
   const { name, regionalName, sectionalName } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);

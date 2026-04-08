@@ -3,7 +3,7 @@ import {
     saveItem,
     setStorageCollection,
 } from 'src/utils/storage-service';
-
+import { useState, useEffect } from 'react';
 // ------------------------------------------------------------
 // DESTS
 // ------------------------------------------------------------
@@ -41,6 +41,10 @@ export const mapApiDestToUI = (apiDest) => {
 
 export function saveDest(dest) {
     saveItem('dests', dest);
+}
+
+export function getDests() {
+    return getStorageCollection('dests') || [];
 }
 
 export function getDestById(id) {
