@@ -3,7 +3,7 @@ import MenuItem from '@mui/material/MenuItem';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { Iconify } from 'src/components/iconify';
 import { Field } from 'src/components/hook-form';
-
+import { useState, useEffect } from 'react';
 import {
     MEMBER_OCUPATIONS_SORTED,
     MEMBER_GENDERS,
@@ -11,7 +11,6 @@ import {
     NATIONAL_LEADERSHIP_LEVELS,
 } from 'src/sections/member/member-create-edit-options';
 
-import { getDests } from 'src/services/dest-service';
 import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 export default function MemberLeadershipAndOtherSection({
@@ -21,6 +20,25 @@ export default function MemberLeadershipAndOtherSection({
     isEdit,
 }) {
     const selectedNationalLevel = watch('nationalLeadershipLevel');
+
+    const [dests, setDests] = useState([]);
+
+    useEffect(() => {
+        const load = async () => {
+            const res = await fetch('/api/dest');
+            const data = await res.json();
+
+            setDests(
+                (data?.Data || []).map((d) => ({
+                    id: String(d.idDestacamento),
+                    name: d.nombre,
+                    destNumber: d.numero,
+                }))
+            );
+        };
+
+        load();
+    }, []);
 
     const Content = (
         <Box
@@ -75,9 +93,9 @@ export default function MemberLeadershipAndOtherSection({
             <Field.Autocomplete
                 name="destId"
                 label="Tu Destacamento"
-                options={getDests()}
+                options={dests}
                 freeSolo={false}
-                value={getDests().find((d) => d.id === watch('destId')) || null}
+                value={dests.find((d) => d.id === watch('destId')) || null}
                 getOptionLabel={(option) =>
                     typeof option === 'string' ? option : option?.name || ''
                 }

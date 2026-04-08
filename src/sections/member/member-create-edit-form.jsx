@@ -144,7 +144,7 @@ const mapMemberToForm = (member) => {
 export function MemberCreateEditForm({ currentMember }) {
 
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
-  const dests = getDests();
+  const [dests, setDests] = useState([]);
   const members = getMembers();
   const router = useRouter();
   const theme = useTheme();
@@ -211,7 +211,16 @@ export function MemberCreateEditForm({ currentMember }) {
     }
   }, [division, methods, watch]);
 
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/dest');
+      const data = await res.json();
 
+      setDests(data?.Data || []);
+    };
+
+    load();
+  }, []);
 
   const values = watch();
   console.log("FORM ERRORS:", errors);
