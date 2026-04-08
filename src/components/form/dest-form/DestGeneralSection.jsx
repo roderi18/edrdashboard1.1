@@ -87,8 +87,31 @@ export default function DestGeneralSection({
 
 
             <Field.Text name="destMeetingDays" label="Días de reunión" />
-            <Field.Text name="destMeetingTimes" label="Horarios de reunión" />
-
+            <Field.Text
+                name="destMeetingTimes"
+                label="Horarios de reunión"
+                placeholder="HH:mm"
+            />
+            <Field.Autocomplete
+                name="churchId"
+                label="Iglesia"
+                options={Array.isArray(churches) ? churches : []}
+                getOptionLabel={(option) =>
+                    option?.name ? `${option.name} (ID: ${option.id})` : ''
+                }
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                value={
+                    Array.isArray(churches)
+                        ? churches.find((c) => String(c.id) === String(watch('churchId'))) || null
+                        : null
+                }
+                onChange={(_, value) => {
+                    methods.setValue('churchId', value?.id ? String(value.id) : '', {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                    });
+                }}
+            />
             {!isCreateView && (
                 <TextField
                     label="Cantidad de miembros"

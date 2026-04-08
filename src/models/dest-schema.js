@@ -23,4 +23,5 @@ export const DestSchema = z.object({
     rritrackActivo: z.boolean().optional(),
 
     isVerified: z.boolean(),
+    churchId: z.string().min(1, { error: 'Iglesia requerida' }),
 });

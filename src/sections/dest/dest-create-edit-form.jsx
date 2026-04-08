@@ -5,6 +5,8 @@ import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getMembers } from 'src/services/member-service';
 import { createChurchApi } from 'src/services/church-service';
+import { ChurchSchema } from 'src/models/church-schema';
+import { getChurches } from 'src/services/church-service';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -120,7 +122,7 @@ export function DestCreateEditForm({ currentDest }) {
     sectionId: '',
   };
 
-  const CombinedSchema = DestSchema;
+  const CombinedSchema = step === 1 ? ChurchSchema : DestSchema;
   const methods = useForm({
     mode: 'onSubmit',
     resolver: zodResolver(CombinedSchema),
@@ -152,8 +154,8 @@ export function DestCreateEditForm({ currentDest }) {
       const regionalsData = await getRegionals();
       setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
 
-      // const churchesData = await getChurches();
-      // setChurches(Array.isArray(churchesData) ? churchesData : []);
+      const churchesData = await getChurches();
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
     };
 
     loadData();
@@ -186,44 +188,9 @@ export function DestCreateEditForm({ currentDest }) {
     try {
       console.log('FORM DATA 👉', data);
 
-      // 1. Crear iglesia
-      // const selectedSection = sectionals.find(
-      //   (s) =>
-      //     String(s.id) === String(data.sectionId) ||
-      //     s.sectionalName === data.sectionalName ||
-      //     s.name === data.sectionalName
-      // );
-
-      // const churchRes = await createChurchApi({
-      //   ...data,
-      //   churchName: data.churchName?.trim(),
-      //   pastor: data.pastor?.trim(),
-      //   address: data.address?.trim(),
-      //   correo: data.correo?.trim() || 'test@demo.com',
-      //   sectionId: selectedSection?.id || data.sectionId || '',
-      // });
-
-      // const churchId =
-      //   churchRes?.Data?.idIglesia ??
-      //   churchRes?.Data?.IdIglesia ??
-      //   churchRes?.idIglesia ??
-      //   churchRes?.IdIglesia ??
-      //   null;
-      // if (!churchId) {
-      //   console.error('No se pudo obtener idIglesia luego de crear la iglesia. Respuesta:', churchRes);
-      //   throw new Error('La API no devolvió idIglesia; no se puede crear el destacamento.');
-      // }
-      // const destPayloadData = {
-      //   ...data,
-      //   churchId,
-      //   correo: data.correo?.trim() || 'dest@demo.com',
-      //   direccion: data.direccion?.trim() || data.address?.trim() || '',
-      //   fechaInicio: data.fechaInicio || new Date().toISOString(),
-      //   concilio: data.concilio?.trim() || '',
-      // };
       const destPayloadData = {
         ...data,
-        idIglesia: Number(data.churchId),
+        idIglesia: Number(data.churchId) || 0,
         correo: data.correo ?? '',
         telefono: data.telefono ?? '',
         destMeetingDays: data.destMeetingDays ?? '',
@@ -427,9 +394,12 @@ export function DestCreateEditForm({ currentDest }) {
                             churchName: data.churchName,
                             pastor: data.pastor,
                             address: data.address,
-                            correo: data.correo || 'test@demo.com',
-                            sectionId: data.sectionId || 1,
+                            correo: methods.getValues('correo'),
+                            sectionId: data.sectionId,
                           });
+
+                          const churchesData = await getChurches();
+                          setChurches(Array.isArray(churchesData) ? churchesData : []);
 
                           const churchId =
                             churchRes?.Data?.idIglesia ??
@@ -442,8 +412,10 @@ export function DestCreateEditForm({ currentDest }) {
                           }
 
                           // 🔥 guardar en el form
-                          methods.setValue('churchId', churchId);
-
+                          methods.setValue('churchId', String(churchId), {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          });
                           console.log('IGLESIA CREADA 👉', churchId);
 
                           // 🔥 pasar al step 2

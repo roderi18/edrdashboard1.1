@@ -6,7 +6,7 @@ export async function POST(req) {
             nombre: body.nombre?.trim() || 'Iglesia sin nombre',
             pastor: body.pastor?.trim() || 'Pastor no especificado',
             direccion: body.direccion?.trim() || 'Dirección no especificada',
-            correo: body.correo?.trim() || 'test@demo.com',
+            correo: body.correo?.trim() || 'test@demo2.com',
             idSeccion: Number(body.idSeccion) || 1,
         };
 

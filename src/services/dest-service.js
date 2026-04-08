@@ -58,7 +58,7 @@ const normalizeHoraReunion = (value) => {
 export const buildDestPayload = (data) => ({
     idDestacamento: 0,
     nombre: data?.name?.trim() || 'name',
-    idIglesia: Number(data?.idIglesia ?? data?.churchId) || 1,
+    idIglesia: Number(data.churchId) || (() => { throw new Error('idIglesia es requerido'); })(),
     correo: data?.correo?.trim() || 'test@test.com',
     telefono: data?.telefono?.trim() || '8090000000',
 
@@ -70,9 +70,15 @@ export const buildDestPayload = (data) => ({
     concilio: data?.concilio?.trim() || 'Asambleas',
     registradoOfnc: data?.registradoOfnc ?? true,
     rritrackActivo: data?.rritrackActivo ?? true,
-    diaReunion: data?.destMeetingDays?.trim() || 'string',
-    horaReunion: data?.destMeetingTimes?.trim() || 'string',
-    logo: data?.logo?.trim() || 'string',
+    diaReunion: data?.destMeetingDays?.trim() || 'Sabado',
+    horaReunion: data?.destMeetingTimes
+        ? (data.destMeetingTimes.includes(':')
+            ? (data.destMeetingTimes.length === 5
+                ? `${data.destMeetingTimes}:00`
+                : data.destMeetingTimes)
+            : `${data.destMeetingTimes}:00:00`)
+        : '14:00:00',
+    logo: data?.logo?.trim() || '',
     numero: data?.destNumber?.trim() || '18',
     fechaInicio:
         data?.fechaInicio ||
@@ -80,25 +86,7 @@ export const buildDestPayload = (data) => ({
 });
 
 export const createDestApi = async (data) => {
-    const payload = {
-        // idDestacamento: 0,
-        // nombre: 'Test OK',
-        // idIglesia: 55,
-        // correo: 'test@test1.com',
-        // telefono: '8090000100',
-        // registradoOfnc: true,
-        // rritrackActivo: true,
-        // diaReunion: 'Sabado',
-        // horaReunion: '14:00:00',
-        // logo: '',
-        // numero: '17',
-        // fechaInicio: '2025-04-08',
-        // direccion: 'Test direccion1',
-        // concilio: 'Asambleas1',
-
-
-
-    };
+    const payload = buildDestPayload(data);
     console.log('DEST PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
     const res = await fetch('/api/dest/post', {

@@ -11,7 +11,7 @@ export default function ChurchDestSection({
     methods,
 }) {
     const [sectionals, setSectionals] = useState([]);
-    const { watch, setValue } = useFormContext();
+    const { watch, setValue, register } = useFormContext();
 
     useEffect(() => {
         const loadSectionals = async () => {
@@ -38,11 +38,16 @@ export default function ChurchDestSection({
                     }}
                 />
                 <Field.Text name="pastor" label="Pastor" />
+                <Field.Text
+                    name="correo"
+                    label="Correo"
+                    type="email"
+                />
                 <Field.Text name="address" label="Dirección" />
                 <Field.Text name="provinceId" label="Provincia" />
                 <Field.Text name="countryId" label="País" />
                 <Field.Autocomplete
-                    name="sectionalName"
+                    name="sectionId"
                     label="Sección"
                     options={sectionals}
                     getOptionLabel={(option) =>
@@ -53,25 +58,8 @@ export default function ChurchDestSection({
                     isOptionEqualToValue={(option, value) =>
                         option.id === value?.id
                     }
-                    value={
-                        Array.isArray(sectionals)
-                            ? sectionals.find((s) => String(s.id) === String(watch('sectionId'))) || null
-                            : null
-                    }
                     onChange={(event, option) => {
-                        // Guardar el ID real (lo que necesita la API)
                         setValue('sectionId', option?.id ? String(option.id) : '', {
-                            shouldValidate: true,
-                            shouldDirty: true,
-                        });
-
-                        // Guardar el label para mostrar
-                        setValue('sectionId', option?.id ? String(option.id) : '', {
-                            shouldValidate: true,
-                            shouldDirty: true,
-                        });
-
-                        setValue('sectionalName', option?.sectionalName || '', {
                             shouldValidate: true,
                             shouldDirty: true,
                         });
