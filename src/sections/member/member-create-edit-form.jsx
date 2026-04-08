@@ -76,7 +76,8 @@ const mapMemberToForm = (member) => {
 
   const memberLeaderships = leadershipAssignments.filter(
     (l) =>
-      (l.memberId === member.id || l.member_id === member.id) &&
+      member &&
+      (l.memberId === member?.id || l.member_id === member?.id) &&
       (l.status === 'active' || !l.status)
   );
 
@@ -145,7 +146,16 @@ export function MemberCreateEditForm({ currentMember }) {
 
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
-  const members = getMembers();
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      const data = await getMembers();
+      setMembers(data);
+    };
+
+    loadMembers();
+  }, []);
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -399,55 +409,62 @@ export function MemberCreateEditForm({ currentMember }) {
         const firstName = capitalizeWords(data.firstName);
         const lastName = capitalizeWords(data.lastName);
 
-        saveMemberWithLeadership({
-          member: {
-            id: memberUUID,
-            memberId: currentMember?.memberId || generateMemberId(),
-            firstName,
-            lastName,
-            avatarUrl: data.avatarUrl,
-            email: data.email,
-            phoneNumber: data.phoneNumber || '',
-            country: data.country,
-            province: data.state,
-            city: data.city,
-            memberAddress: data.address,
-            birthDate: data.birthdate
-              ? dayjs(data.birthdate).format('YYYY-MM-DD')
-              : null,
-            memberUUID,
-            destId: selectedDestId,
-            destLeadershipRole: data.memberPosition,
-            ocupation: data.ocupation?.label || data.ocupation || '',
-            memberDivision: data.memberDivision,
-            gender: data.gender === 'Masculino' ? 'M' : 'F',
-            shirtSize:
-              typeof data.shirtSize === 'object'
-                ? data.shirtSize?.label
-                : data.shirtSize || '',
-            InstructorCertificadoCI: data.InstructorCertificadoCI ?? 0,
-            EstatusVigenciaCI:
-              data.EstatusVigenciaCI === 'na'
-                ? null
-                : data.EstatusVigenciaCI,
-            FechaInicioCI: data.FechaInicioCI
-              ? dayjs(data.FechaInicioCI).format('YYYY-MM-DD')
-              : null,
-            FechaVencimientoCI: data.FechaVencimientoCI
-              ? dayjs(data.FechaVencimientoCI).format('YYYY-MM-DD')
-              : null,
-            status: data.status ?? 'active',
-          },
-          memberUUID,
-          destLeadershipRole: data.memberPosition,
-          nationalLeadershipLevel: data.nationalLeadershipLevel,
-          nationalLeadershipRole: data.nationalLeadershipRole,
-        });
+        const codigoMiembro = currentMember?.memberId || await generateMemberId();
 
-        const updatedMembers = getMembers();
-        const updatedMember = updatedMembers.find(m => m.id === memberUUID);
+        const payload = {
+          idMiembros: currentMember?.id || 0,
+          codigoMiembro,
+          nombres: firstName,
+          apellidos: lastName,
+          genero: data.gender === 'Masculino' ? 'M' : 'F',
+          fechaNacimiento: data.birthdate
+            ? dayjs(data.birthdate).format('YYYY-MM-DD')
+            : null,
+          idDestacamento: Number(selectedDestId) || null,
+          telefono: data.phoneNumber || '',
+          direccion: data.address || null,
+          correo: data.email || '',
+          idCargoLocal: null,
+          idCargoInstitucional: null,
+          idDivision: null,
+          instructorCertificadoCi: data.InstructorCertificadoCI ?? null,
+          estatusVigenciaCi:
+            data.EstatusVigenciaCI === 'na' ? null : data.EstatusVigenciaCI,
+          fechaInicioCertificado: data.FechaInicioCI
+            ? dayjs(data.FechaInicioCI).format('YYYY-MM-DD')
+            : null,
+          fechaFinCertificado: data.FechaVencimientoCI
+            ? dayjs(data.FechaVencimientoCI).format('YYYY-MM-DD')
+            : null,
+          estatusMiembro: data.status ?? 'active',
+        };
 
-        reset(mapMemberToForm(updatedMember));
+        await fetch(
+          currentMember ? '/api/members/put' : '/api/members/post',
+          {
+            method: currentMember ? 'PUT' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        toast.success(
+          currentMember
+            ? 'Actualización exitosa!'
+            : `Miembro ${codigoMiembro} creado!`
+        );
+
+        router.push(paths.dashboard.level.member.root);
+
+        const updatedMembers = await getMembers();
+        const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : [])
+          .find(m => m.id === memberUUID);
+
+        if (updatedMember) {
+          reset(mapMemberToForm(updatedMember));
+        }
 
         await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -582,8 +599,7 @@ export function MemberCreateEditForm({ currentMember }) {
 
                     {!isCreateView &&
                       leadershipTexts.map((text, index) => (
-                        <Typography
-                          key={index}
+                        <Typography key={`${text}-${index}`}
                           variant="body2"
                           sx={{
                             mt: index === 0 ? 0.5 : 0.3,

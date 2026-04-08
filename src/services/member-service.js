@@ -51,7 +51,6 @@ export function saveMember(member) {
 
 export async function getMembers() {
     try {
-
         const res = await fetch('/api/members');
 
         if (!res.ok) throw new Error('Error al obtener miembros');
@@ -62,7 +61,7 @@ export async function getMembers() {
 
         return Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
     } catch (error) {
-        console.error('❌ FETCH ERROR COMPLETO:', error);
+        console.error('❌ FETCH ERROR:', error);
         return [];
     }
 }
@@ -73,18 +72,40 @@ export function getMemberById(id) {
     return members.find((m) => m.id === id);
 }
 
-export function updateMember(updatedMember) {
-    const members = getMembers();
+export async function createMemberApi(payload) {
+    const res = await fetch('/api/members/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
 
-    const index = members.findIndex((m) => m.id === updatedMember.id);
+    const text = await res.text();
 
-    if (index !== -1) {
-        members[index] = createMember(updatedMember);
+    if (!res.ok) {
+        throw new Error(text || 'Error creando miembro');
     }
 
-    setStorageCollection(MEMBERS_KEY, members);
+    return text ? JSON.parse(text) : {};
+}
 
-    return updatedMember;
+export async function updateMemberApi(payload) {
+    const res = await fetch('/api/members/put', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+        throw new Error(text || 'Error actualizando miembro');
+    }
+
+    return text ? JSON.parse(text) : {};
 }
 
 export function deleteMember(memberId) {

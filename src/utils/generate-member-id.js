@@ -1,10 +1,10 @@
 import { getMembers } from 'src/services/member-service';
 
-export function generateMemberId() {
+export async function generateMemberId() {
 
-    const members = getMembers();
+    const members = await getMembers();
 
-    const numbers = members
+    const numbers = (Array.isArray(members) ? members : [])
         .map((m) => {
             if (!m.memberId) return null;
 
