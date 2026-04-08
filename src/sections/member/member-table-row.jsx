@@ -41,12 +41,16 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const [churches, setChurches] = useState([]);
   const capitalize = (text = '') =>
     text
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
   const dest = dests.find((d) => d.id === row.destId);
+  const church = churches.find(
+    (c) => String(c.id) === String(dest?.churchId)
+  );
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
     return role?.label || roleValue;
@@ -60,6 +64,15 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
   const churchName = church?.name || 'Iglesia desconocida';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getChurches();
+      setChurches(Array.isArray(data) ? data : []);
+    };
+
+    load();
+  }, []);
 
   const leaderships = leadershipAssignments
     .filter(

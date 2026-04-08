@@ -81,12 +81,22 @@ export function MemberListView() {
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [churches, setChurches] = useState([]);
 
   useEffect(() => {
     if (isMobile) {
       setDisplayMode('grid');
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    const loadChurches = async () => {
+      const data = await getChurches();
+      setChurches(Array.isArray(data) ? data : []);
+    };
+
+    loadChurches();
+  }, []);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -110,10 +120,9 @@ export function MemberListView() {
             (l.memberId === member.id || l.member_id === member.id) &&
             (l.status === 'active' || !l.status)
         );
-        const church = (typeof window !== 'undefined' ? getChurches() : []).find(
-          (c) => c.id === dest?.churchId
+        const church = churches.find(
+          (c) => String(c.id) === String(dest?.churchId)
         );
-
         return {
           ...member,
           id: member.id,
