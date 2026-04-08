@@ -59,21 +59,46 @@ export const buildDestPayload = (data) => ({
     idDestacamento: 0,
     nombre: data?.name?.trim() || 'name',
     idIglesia: Number(data?.idIglesia ?? data?.churchId) || 1,
-    correo: data?.correo?.trim() || 'string',
-    telefono: data?.telefono?.trim() || 'string',
+    correo: data?.correo?.trim() || 'test@test.com',
+    telefono: data?.telefono?.trim() || '8090000000',
+
+    direccion:
+        data?.direccion?.trim() ||
+        data?.address?.trim() ||
+        'N/A',
+
+    concilio: data?.concilio?.trim() || 'Asambleas',
     registradoOfnc: data?.registradoOfnc ?? true,
     rritrackActivo: data?.rritrackActivo ?? true,
     diaReunion: data?.destMeetingDays?.trim() || 'string',
     horaReunion: data?.destMeetingTimes?.trim() || 'string',
     logo: data?.logo?.trim() || 'string',
     numero: data?.destNumber?.trim() || '18',
-    fechaInicio: data?.fechaInicio || new Date().toISOString(),
-    direccion: data?.direccion?.trim() || data?.address?.trim() || 'string',
-    concilio: data?.concilio?.trim() || 'string',
+    fechaInicio:
+        data?.fechaInicio ||
+        new Date().toISOString().split('T')[0],
 });
-export const createDestApi = async (data) => {
-    const payload = buildDestPayload(data);
 
+export const createDestApi = async (data) => {
+    const payload = {
+        // idDestacamento: 0,
+        // nombre: 'Test OK',
+        // idIglesia: 55,
+        // correo: 'test@test1.com',
+        // telefono: '8090000100',
+        // registradoOfnc: true,
+        // rritrackActivo: true,
+        // diaReunion: 'Sabado',
+        // horaReunion: '14:00:00',
+        // logo: '',
+        // numero: '17',
+        // fechaInicio: '2025-04-08',
+        // direccion: 'Test direccion1',
+        // concilio: 'Asambleas1',
+
+
+
+    };
     console.log('DEST PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
     const res = await fetch('/api/dest/post', {

@@ -2,8 +2,8 @@ export async function POST() {
     try {
         const payload = {
             idDestacamento: 0,
-            nombre: 'Prueba Testing A',
-            idIglesia: 1,
+            nombre: '',
+            idIglesia: 1, //
             correo: '',
             telefono: '',
             registradoOfnc: true,
@@ -11,8 +11,8 @@ export async function POST() {
             diaReunion: '',
             horaReunion: '',
             logo: '',
-            numero: '18',
-            fechaInicio: '2026-04-08T03:22:15.027Z',
+            numero: '',
+            fechaInicio: '2026-04-08T03:22:15.027Z', //
             direccion: '',
             concilio: '',
         };

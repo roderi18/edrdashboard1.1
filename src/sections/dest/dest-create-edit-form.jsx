@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getMembers } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
+import { createChurchApi } from 'src/services/church-service';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -223,12 +223,12 @@ export function DestCreateEditForm({ currentDest }) {
       // };
       const destPayloadData = {
         ...data,
-        idIglesia: 1,
+        idIglesia: Number(data.churchId),
         correo: data.correo ?? '',
         telefono: data.telefono ?? '',
         destMeetingDays: data.destMeetingDays ?? '',
         destMeetingTimes: data.destMeetingTimes ?? '',
-        destNumber: data.destNumber ?? '18',
+        destNumber: data.destNumber ?? '',
         direccion: data.direccion ?? data.address ?? '',
         concilio: data.concilio ?? '',
         fechaInicio: data.fechaInicio || new Date().toISOString(),
@@ -419,11 +419,42 @@ export function DestCreateEditForm({ currentDest }) {
                     <LoadingButton
                       variant="contained"
                       loading={isSubmitting}
-                      onClick={handleSubmit(async () => {
-                        setStep(2);
+                      onClick={handleSubmit(async (data) => {
+                        try {
+                          console.log('CREANDO IGLESIA 👉', data);
+
+                          const churchRes = await createChurchApi({
+                            churchName: data.churchName,
+                            pastor: data.pastor,
+                            address: data.address,
+                            correo: data.correo || 'test@demo.com',
+                            sectionId: data.sectionId || 1,
+                          });
+
+                          const churchId =
+                            churchRes?.Data?.idIglesia ??
+                            churchRes?.Data?.IdIglesia ??
+                            churchRes?.idIglesia ??
+                            churchRes?.IdIglesia;
+
+                          if (!churchId) {
+                            throw new Error('No se pudo obtener idIglesia');
+                          }
+
+                          // 🔥 guardar en el form
+                          methods.setValue('churchId', churchId);
+
+                          console.log('IGLESIA CREADA 👉', churchId);
+
+                          // 🔥 pasar al step 2
+                          setStep(2);
+                        } catch (error) {
+                          console.error(error);
+                          toast.error('Error creando iglesia');
+                        }
                       })}
                     >
-                      Siguiente
+                      Crear Iglesia
                     </LoadingButton>
                   )}
 
