@@ -65,7 +65,8 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     address: church.address ?? '',
     provinceId: church.provinceId ?? '',
     countryId: church.countryId ?? '',
-    sectionalName: church.sectionalName ?? '',
+    sectionlId: '',
+    sectionalName: '',
   };
 };
 // ----------------------------------------------------------------------
@@ -84,20 +85,26 @@ export function DestCreateEditForm({ currentDest }) {
 
   const defaultValues = {
     avatarUrl: null,
-    isVerified: true,
-    status: 'active',
 
     name: '',
     destNumber: '',
 
     coordinatorId: null,
-
-    country: 'República Dominicana',
-
     churchId: null,
 
+    country: '',
+
+    destMeetingDays: '',
     destMeetingTimes: '',
 
+    correo: '',
+    telefono: '',
+
+    registradoOfnc: true,
+    rritrackActivo: true,
+
+    status: 'active',
+    isVerified: true,
 
     churchName: '',
     pastor: '',
@@ -105,7 +112,6 @@ export function DestCreateEditForm({ currentDest }) {
     provinceId: '',
     countryId: '',
     sectionalName: '',
-
   };
 
   const CombinedSchema = ChurchSchema.merge(DestSchema);
@@ -113,6 +119,7 @@ export function DestCreateEditForm({ currentDest }) {
     mode: 'onSubmit',
     resolver: zodResolver(CombinedSchema),
     defaultValues,
+    shouldUnregister: false,
   });
   useEffect(() => {
     if (!currentDest) return;
@@ -177,14 +184,34 @@ export function DestCreateEditForm({ currentDest }) {
       console.log('FORM DATA 👉', data);
 
       // 1. Crear iglesia
-      const churchRes = await createChurchApi(data);
-      const churchId = churchRes?.Data?.idIglesia;
+      const selectedSection = sectionals.find(
+        (s) =>
+          String(s.id) === String(data.sectionId) ||
+          s.sectionalName === data.sectionalName ||
+          s.name === data.sectionalName
+      );
 
-      // 2. Crear destacamento con idIglesia real
-      await createDestApi({
+      const churchRes = await createChurchApi({
+        ...data,
+        sectionId: selectedSection?.id || data.sectionId || '',
+      });
+      console.log('CHURCH RES 👉', churchRes);
+
+      const churchId =
+        churchRes?.Data?.idIglesia ??
+        churchRes?.Data?.IdIglesia ??
+        churchRes?.idIglesia ??
+        churchRes?.IdIglesia ??
+        null;
+
+      const destPayloadData = {
         ...data,
         churchId,
-      });
+      };
+
+      console.log('DEST DATA BEFORE PAYLOAD 👉', destPayloadData);
+
+      await createDestApi(destPayloadData);
 
       reset();
 

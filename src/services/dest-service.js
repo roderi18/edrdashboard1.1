@@ -48,43 +48,57 @@ export function getDestById(id) {
     return dests.find((d) => d.id === id);
 }
 
-export const buildDestPayload = (data, id = 0) => ({
+export const buildDestPayload = (data) => ({
     obj: {
-        idDestacamento: id,
-        nombre: data.name,
-        numero: data.destNumber,
-        idIglesia: Number(data.churchId) || null,
+        idDestacamento: 0,
+        nombre: data?.name ?? '',
+        numero: data?.destNumber ?? '',
+        idIglesia: data?.churchId ? Number(data.churchId) : 0,
 
-        correo: data.correo || '',
-        telefono: data.telefono || '',
+        correo: data?.correo ?? '',
+        telefono: data?.telefono ?? '',
 
-        registradoOfnc: data.registradoOfnc ?? true,
-        rritrackActivo: data.rritrackActivo ?? true,
+        registradoOfnc: data?.registradoOfnc ?? true,
+        rritrackActivo: data?.rritrackActivo ?? true,
 
-        diaReunion: data.destMeetingDays || '',
-        horaReunion: data.destMeetingTimes || null,
+        diaReunion: data?.destMeetingDays ?? '',
+        horaReunion: data?.destMeetingTimes ?? null,
 
         logo: '',
     },
 });
 
 export const createDestApi = async (data) => {
+    const payload = buildDestPayload(data);
+
+    console.log('DEST PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
+
     const res = await fetch('/api/dest/post', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(buildDestPayload(data)),
+        body: JSON.stringify(payload),
     });
 
     const text = await res.text();
 
-    if (!text) return {};
+    console.log('DEST STATUS 👉', res.status);
+    console.log('DEST RESPONSE RAW 👉', text);
+
+    let parsed = null;
 
     try {
-        return JSON.parse(text);
+        parsed = text ? JSON.parse(text) : null;
     } catch (e) {
-        console.error('Respuesta no es JSON 👉', text);
-        return {};
+        parsed = null;
     }
+
+    if (!res.ok) {
+        console.error('DEST STATUS 👉', res.status);
+        console.error('DEST RESPONSE RAW 👉', text);
+        throw new Error(text || `Error creando destacamento (${res.status})`);
+    }
+
+    return parsed ?? {};
 };
