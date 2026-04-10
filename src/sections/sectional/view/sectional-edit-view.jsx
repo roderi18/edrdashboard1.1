@@ -29,7 +29,7 @@ export function SectionalEditView({ sectionalId }) {
         backHref={paths.dashboard.level.sectional}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Seccional', href: paths.dashboard.level.sectional.root },
+          { name: 'Sección', href: paths.dashboard.level.sectional.root },
           { name: currentSectional?.sectionalName },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

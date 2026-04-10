@@ -22,7 +22,7 @@ export function SectionalCardsView() {
         heading="Cards"
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Seccional', href: paths.dashboard.level.sectional.root },
+          { name: 'Sección', href: paths.dashboard.level.sectional.root },
           { name: 'Cards' },
         ]}
         action={

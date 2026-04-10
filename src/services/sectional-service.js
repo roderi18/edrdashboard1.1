@@ -2,6 +2,9 @@ function mapApiSectionalToUI(sectional) {
     return {
         id: String(sectional.idSeccion || sectional.id),
 
+        // 🔥 AGREGA ESTA LÍNEA
+        idSeccion: String(sectional.idSeccion || sectional.id || ''),
+
         sectionalName: sectional.nombre || sectional.sectionalName || '',
         email: sectional.correo || sectional.email || '',
 
@@ -14,13 +17,12 @@ function mapApiSectionalToUI(sectional) {
 
         sectionalDestCount: 0,
         sectionalXDestMemberCount: 0,
-
+        sectionalChurchCount: sectional.cantidadIglesias || 0,
         memberFullName: 'Desconocido',
 
         status: 'active',
     };
 }
-
 
 export const getSectionals = async () => {
     try {

@@ -14,10 +14,10 @@ export function SectionalCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Crear un nuevo seccional"
+        heading="Crear una nueva Sección"
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Seccional', href: paths.dashboard.level.sectional.root },
+          { name: 'Sección', href: paths.dashboard.level.sectional.root },
           { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

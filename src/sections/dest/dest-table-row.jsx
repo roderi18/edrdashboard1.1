@@ -36,8 +36,8 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const [sectionals, setSectionals] = useState([]);
   const [members, setMembers] = useState([]);
   const [regionals, setRegionals] = useState([]);
-  const capitalize = (text = '') =>
-    text
+  const capitalize = (text) =>
+    (text || '')
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 

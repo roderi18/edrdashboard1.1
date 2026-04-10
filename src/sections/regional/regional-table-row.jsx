@@ -122,7 +122,12 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.regionalName} src={row.avatarUrl} />
+            <Avatar
+              alt={row.regionalName}
+              src={row.avatarUrl || undefined}
+            >
+              {!row.avatarUrl && row.regionalName?.[0]}
+            </Avatar>
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -144,8 +149,10 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
               alt={director?.fullName}
-              src={director?.avatarUrl}
-            />
+              src={director?.avatarUrl || undefined}
+            >
+              {!director?.avatarUrl && director?.fullName?.[0]}
+            </Avatar>
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
