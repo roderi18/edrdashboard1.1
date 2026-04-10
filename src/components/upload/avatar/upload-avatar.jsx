@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { Iconify } from 'src/components/iconify';
-import { useEffect, useState } from 'react';
+
 import { uploadClasses } from '../classes';
 import { RejectedFiles } from '../components/rejected-files';
 import { getFileMeta, useFilePreview } from '../../file-thumbnail';
@@ -45,11 +45,6 @@ export function UploadAvatar({
 
   const fileMeta = getFileMeta(file);
   const { previewUrl } = useFilePreview(file);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const renderPlaceholder = () => (
     <PlaceholderContainer className={uploadClasses.placeholder.root}>
@@ -72,7 +67,6 @@ export function UploadAvatar({
   const renderPreview = () =>
     hasSelectedFile && previewUrl && <PreviewImage alt={fileMeta.name} src={previewUrl} />;
 
-  if (!mounted) return null;
   return (
     <UploadWrapper {...slotProps?.wrapper} className={uploadClasses.wrapper}>
       <UploadArea

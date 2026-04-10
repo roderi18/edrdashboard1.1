@@ -106,12 +106,12 @@ export const navData = [
             deepMatch: true,
           },
           {
-            title: 'Regional',
+            title: 'Regiones',
             path: paths.dashboard.level.regional.root,
             deepMatch: true,
           },
           {
-            title: 'Seccional',
+            title: 'Secciones',
             path: paths.dashboard.level.sectional.root,
             deepMatch: true,
           },
