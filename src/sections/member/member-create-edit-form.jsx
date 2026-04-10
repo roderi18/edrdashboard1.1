@@ -233,7 +233,7 @@ export function MemberCreateEditForm({ currentMember }) {
   }, []);
 
   const values = watch();
-  console.log("FORM ERRORS:", errors);
+  // console.log("FORM ERRORS:", errors);
   const firstName = watch('firstName');
   const lastName = watch('lastName');
   const memberFullName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
@@ -420,14 +420,15 @@ export function MemberCreateEditForm({ currentMember }) {
           fechaNacimiento: data.birthdate
             ? dayjs(data.birthdate).format('YYYY-MM-DD')
             : null,
-          idDestacamento: Number(selectedDestId) || null,
+          idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
           telefono: data.phoneNumber || '',
           direccion: data.address || null,
-          correo: data.email || '',
+          correo: data.email || null,
           idCargoLocal: null,
           idCargoInstitucional: null,
           idDivision: null,
-          instructorCertificadoCi: data.InstructorCertificadoCI ?? null,
+          instructorCertificadoCi:
+            data.InstructorCertificadoCI === 0 ? null : data.InstructorCertificadoCI,
           estatusVigenciaCi:
             data.EstatusVigenciaCI === 'na' ? null : data.EstatusVigenciaCI,
           fechaInicioCertificado: data.FechaInicioCI
@@ -438,6 +439,7 @@ export function MemberCreateEditForm({ currentMember }) {
             : null,
           estatusMiembro: data.status ?? 'active',
         };
+        console.log('PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
         await fetch(
           currentMember ? '/api/members/put' : '/api/members/post',

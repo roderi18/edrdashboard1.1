@@ -67,7 +67,8 @@ export function createMember(data) {
         gender: data.gender ?? '',
         shirtSize: data.shirtSize ?? '',
 
-        InstructorCertificadoCI: data.InstructorCertificadoCI ?? 0,
+        InstructorCertificadoCI:
+            data.InstructorCertificadoCI === 0 ? null : data.InstructorCertificadoCI,
         EstatusVigenciaCI:
             data.EstatusVigenciaCI === 'na'
                 ? null

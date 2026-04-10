@@ -67,12 +67,9 @@ export const MemberValidationSchema = z.object({
 
     nationalLeadershipRole: z.string().optional(),
 
-    destId: z
-        .string()
-        .min(1, 'Debe seleccionar un destacamento'),
+    destId: z.string().optional(),
 
-    InstructorCertificadoCI: z.number().default(0),
-
+    InstructorCertificadoCI: z.number().nullable().default(null),
     EstatusVigenciaCI: z
         .union([z.number(), z.literal('na')])
         .nullable()
@@ -157,7 +154,7 @@ export const MemberCreateSchema = z.object({
 
     status: z.string().optional(),
 
-    InstructorCertificadoCI: z.number().default(0),
+    InstructorCertificadoCI: z.number().nullable().default(null),
     EstatusVigenciaCI: z.union([z.number(), z.literal('na')]).nullable().default(null),
 
     FechaInicioCI: z.any().nullable(),
