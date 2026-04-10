@@ -3,7 +3,6 @@ import {
     saveItem,
     setStorageCollection,
 } from 'src/utils/storage-service';
-import { useState, useEffect } from 'react';
 // ------------------------------------------------------------
 // DESTS
 // ------------------------------------------------------------

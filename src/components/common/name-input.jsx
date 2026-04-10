@@ -6,6 +6,7 @@ export default function NameInput({
     name = 'name',
     label = 'Nombre',
     maxLength = 60,
+    allowNumbers = false,
 }) {
     const { setValue, watch } = useFormContext();
 
@@ -22,20 +23,23 @@ export default function NameInput({
 
             // 📌 Contador dentro del input (lado derecho)
             InputProps={{
-                endAdornment: (
-                    <InputAdornment position="end">
-                        <span style={{ fontSize: 12, color: '#999' }}>
-                            {currentValue.length}/{maxLength}
-                        </span>
-                    </InputAdornment>
-                ),
+                endAdornment:
+                    currentValue.length > 0 ? (
+                        <InputAdornment position="end">
+                            <span style={{ fontSize: 12, color: '#999' }}>
+                                {currentValue.length}/{maxLength}
+                            </span>
+                        </InputAdornment>
+                    ) : null,
             }}
 
             onChange={(e) => {
                 let value = e.target.value;
 
                 // ❌ Quitar números y símbolos
-                value = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
+                value = allowNumbers
+                    ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]/g, '') // permite números
+                    : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, ''); // solo letras
 
                 // ❌ No permitir espacios al inicio
                 value = value.replace(/^\s+/, '');
