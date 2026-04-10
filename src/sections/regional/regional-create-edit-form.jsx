@@ -228,7 +228,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentRegional ? 'Create regional' : 'Guardar cambios'}
+                {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
               </Button>
             </Stack>
           </Card>

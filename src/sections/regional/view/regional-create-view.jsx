@@ -14,10 +14,10 @@ export function RegionalCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Crear un nuevo regional"
+        heading="Crear nueva Región"
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Regional', href: paths.dashboard.level.regional.root },
+          { name: 'Región', href: paths.dashboard.level.regional.root },
           { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

@@ -22,7 +22,7 @@ export function RegionalCardsView() {
         heading="Cards"
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Regional', href: paths.dashboard.level.regional.root },
+          { name: 'Región', href: paths.dashboard.level.regional.root },
           { name: 'Cards' },
         ]}
         action={

@@ -19,7 +19,7 @@ export function RegionalEditView({ regional: currentRegional }) {
         backHref={paths.dashboard.level.regional}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Regional', href: paths.dashboard.level.regional.root },
+          { name: 'Región', href: paths.dashboard.level.regional.root },
           { name: currentRegional?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

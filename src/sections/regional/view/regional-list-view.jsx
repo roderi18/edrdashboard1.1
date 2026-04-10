@@ -225,7 +225,7 @@ export function RegionalListView() {
           heading="Lista de Regionales"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Regional', href: paths.dashboard.level.regional.root },
+            { name: 'Región', href: paths.dashboard.level.regional.root },
             { name: 'Lista' },
           ]}
           action={

@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
+import { useFormContext } from 'react-hook-form';
+import NameInput from 'src/components/common/name-input';
 
 import { Field } from 'src/components/hook-form';
 import CountrySelectApi from 'src/components/api/CountrySelectApi';
@@ -11,7 +13,9 @@ export default function RegionalGeneralSection({
     methods,
     watch,
 }) {
+    const { setValue } = useFormContext();
     return (
+
         <>
             {/* HEADER */}
             <Box
@@ -40,7 +44,10 @@ export default function RegionalGeneralSection({
             </Box>
 
             {/* CAMPOS */}
-            <Field.Text name="name" label="Nombre de la Región" />
+            <NameInput
+                name="name"
+                label="Nombre de la Región"
+            />
 
             {!isCreateView && (
                 <Field.Text name="regionId" label="ID de Región" disabled />
