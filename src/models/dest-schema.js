@@ -11,8 +11,6 @@ export const DestSchema = z.object({
 
     coordinatorId: z.string().nullable(),
 
-    country: z.string().optional(),
-
     destMeetingDays: z.string().optional(),
     destMeetingTimes: z.string().optional(),
 

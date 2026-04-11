@@ -7,6 +7,7 @@ export default function NameInput({
     label = 'Nombre',
     maxLength = 60,
     allowNumbers = false,
+    InputProps: externalInputProps = {},
 }) {
     const { setValue, watch } = useFormContext();
 
@@ -23,6 +24,8 @@ export default function NameInput({
 
             // 📌 Contador dentro del input (lado derecho)
             InputProps={{
+                ...externalInputProps, // 👈 IMPORTANTE
+
                 endAdornment:
                     currentValue.length > 0 ? (
                         <InputAdornment position="end">

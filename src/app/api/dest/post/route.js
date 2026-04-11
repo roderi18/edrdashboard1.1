@@ -4,22 +4,38 @@ export async function POST(req) {
 
         console.log('📥 BODY RECIBIDO FRONT 👉', JSON.stringify(body, null, 2));
 
+        // 👇 NO enviar campos vacíos
         const payload = {
             idDestacamento: 0,
-            nombre: body.nombre ?? '',
-            idIglesia: Number(body.idIglesia) || 0,
-            correo: body.correo ?? '',
-            telefono: body.telefono ?? '',
-            registradoOfnc: body.registradoOfnc ?? true,
-            rritrackActivo: body.rritrackActivo ?? true,
-            diaReunion: body.diaReunion ?? '',
-            horaReunion: body.horaReunion ?? '',
-            logo: body.logo ?? '',
-            numero: body.numero ?? '',
-            fechaInicio: body.fechaInicio ?? '',
-            direccion: body.direccion ?? '',
-            concilio: body.concilio ?? '',
+            nombre: body?.nombre?.trim() || '',
+            idIglesia: Number(body.idIglesia) || (() => { throw new Error('idIglesia es requerido'); })(),
+
+            registradoOfnc: body?.registradoOfnc ?? null,
+            rritrackActivo: body?.rritrackActivo ?? null,
+
+            diaReunion: body?.diaReunion?.trim() || '',
+
+            horaReunion: body?.horaReunion
+                ? (body.horaReunion.includes(':')
+                    ? (body.horaReunion.length === 5
+                        ? `${body.horaReunion}:00`
+                        : body.horaReunion)
+                    : `${body.horaReunion}:00:00`)
+                : '',
+
+            logo: body?.logo?.trim() || '',
+            numero: body?.numero?.trim() || '',
+            fechaInicio: body?.fechaInicio || '',
         };
+
+        // 👇 SOLO SI EXISTEN
+        if (body?.correo?.trim()) payload.correo = body.correo.trim();
+        if (body?.telefono?.trim()) payload.telefono = body.telefono.trim();
+
+        const direccion = body?.direccion?.trim();
+        if (direccion) payload.direccion = direccion;
+
+        if (body?.concilio?.trim()) payload.concilio = body.concilio.trim();
 
         console.log('📤 PAYLOAD ENVIADO A SOMEE 👉', JSON.stringify(payload, null, 2));
 
@@ -44,13 +60,6 @@ export async function POST(req) {
         } catch {
             parsed = null;
         }
-
-        console.log('================ DEST DEBUG ================');
-        console.log('📡 STATUS SOMEE 👉', res.status);
-        console.log('📦 RAW RESPONSE 👉', raw);
-        console.log('🧠 PARSED RESPONSE 👉', parsed);
-        console.log('📤 PAYLOAD FINAL 👉', payload);
-        console.log('===========================================');
 
         if (!res.ok) {
             console.error('❌ ERROR DETALLADO DEST 👉', {

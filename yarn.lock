@@ -2596,14 +2596,14 @@
     prop-types "^15.8.1"
     use-sync-external-store "^1.6.0"
 
-"@mui/x-date-pickers@^8.22.0":
-  version "8.22.0"
-  resolved "https://registry.npmjs.org/@mui/x-date-pickers/-/x-date-pickers-8.22.0.tgz"
-  integrity sha512-iF4H8EJHcltiwfytTe6M1/iCwBUCB97oVh63nAsL4tre2Ew2jm8bKR4Dw2pbgvSUonB3okpZVuweFBQdnECJCg==
+"@mui/x-date-pickers@^8.27.2":
+  version "8.27.2"
+  resolved "https://registry.npmjs.org/@mui/x-date-pickers/-/x-date-pickers-8.27.2.tgz"
+  integrity sha512-06LFkHFRXJ2O9DMXtWAA3kY0jpbL7XH8iqa8L5cBlN+8bRx/UVLKlZYlhGv06C88jF9kuZWY1bUgrv/EoY/2Ww==
   dependencies:
     "@babel/runtime" "^7.28.4"
     "@mui/utils" "^7.3.5"
-    "@mui/x-internals" "8.22.0"
+    "@mui/x-internals" "8.26.0"
     "@types/react-transition-group" "^4.4.12"
     clsx "^2.1.1"
     prop-types "^15.8.1"
@@ -2613,6 +2613,16 @@
   version "8.22.0"
   resolved "https://registry.npmjs.org/@mui/x-internals/-/x-internals-8.22.0.tgz"
   integrity sha512-PA7jCKRLbS6aYvTSbGr3Id4CPUdTrUejHm31l8Vje7dw138gBBHrHeGsqWJh/S5foorpK8loiRejKrLlTZokyQ==
+  dependencies:
+    "@babel/runtime" "^7.28.4"
+    "@mui/utils" "^7.3.5"
+    reselect "^5.1.1"
+    use-sync-external-store "^1.6.0"
+
+"@mui/x-internals@8.26.0":
+  version "8.26.0"
+  resolved "https://registry.npmjs.org/@mui/x-internals/-/x-internals-8.26.0.tgz"
+  integrity sha512-B9OZau5IQUvIxwpJZhoFJKqRpmWf5r0yMmSXjQuqb5WuqM755EuzWJOenY48denGoENzMLT8hQpA0hRTeU2IPA==
   dependencies:
     "@babel/runtime" "^7.28.4"
     "@mui/utils" "^7.3.5"
@@ -4666,10 +4676,10 @@ data-view-byte-offset@^1.0.1:
     es-errors "^1.3.0"
     is-data-view "^1.0.1"
 
-dayjs@^1.10.7, dayjs@^1.11.19:
-  version "1.11.19"
-  resolved "https://registry.npmjs.org/dayjs/-/dayjs-1.11.19.tgz"
-  integrity sha512-t5EcLVS6QPBNqM2z8fakk/NKel+Xzshgt8FFKAn+qwlD1pzZWxh0nVCrvFK7ZDb6XucZeF9z8C7CBWTRIVApAw==
+dayjs@^1.10.7, dayjs@^1.11.20:
+  version "1.11.20"
+  resolved "https://registry.npmjs.org/dayjs/-/dayjs-1.11.20.tgz"
+  integrity sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==
 
 debug@^3.2.7:
   version "3.2.7"

@@ -64,9 +64,6 @@ export default function ChurchDestSection({
                     label="Nombre de Iglesia"
                     maxLength={100}
                     allowNumbers
-                    InputProps={{
-                        startAdornment: 'Iglesia ',
-                    }}
                 />
 
                 <NameInput

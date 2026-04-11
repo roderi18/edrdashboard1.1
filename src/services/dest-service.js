@@ -62,30 +62,35 @@ export const buildDestPayload = (data) => ({
     idDestacamento: 0,
     nombre: data?.name?.trim() || 'name',
     idIglesia: Number(data.churchId) || (() => { throw new Error('idIglesia es requerido'); })(),
-    correo: data?.correo?.trim() || 'test@test.com',
-    telefono: data?.telefono?.trim() || '8090000000',
+    correo:
+        data?.correo?.trim() ||
+        `nomail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}_${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}@mail.com`,
+    telefono: data?.telefono?.trim() || '',
 
     direccion:
         data?.direccion?.trim() ||
         data?.address?.trim() ||
-        'N/A',
+        '',
 
-    concilio: data?.concilio?.trim() || 'Asambleas',
-    registradoOfnc: data?.registradoOfnc ?? true,
-    rritrackActivo: data?.rritrackActivo ?? true,
-    diaReunion: data?.destMeetingDays?.trim() || 'Sabado',
+    concilio: data?.concilio?.trim() || '',
+    registradoOfnc: data?.registradoOfnc ?? null,
+    rritrackActivo: data?.rritrackActivo ?? null,
+
+    diaReunion: data?.destMeetingDays?.trim() || '',
+
     horaReunion: data?.destMeetingTimes
         ? (data.destMeetingTimes.includes(':')
             ? (data.destMeetingTimes.length === 5
                 ? `${data.destMeetingTimes}:00`
                 : data.destMeetingTimes)
             : `${data.destMeetingTimes}:00:00`)
-        : '14:00:00',
+        : '',
+
     logo: data?.logo?.trim() || '',
-    numero: data?.destNumber?.trim() || '18',
-    fechaInicio:
-        data?.fechaInicio ||
-        new Date().toISOString().split('T')[0],
+
+    numero: data?.destNumber?.trim() || '',
+
+    fechaInicio: data?.fechaInicio || '',
 });
 
 export const createDestApi = async (data) => {

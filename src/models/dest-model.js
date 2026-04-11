@@ -45,10 +45,11 @@ export function createDest(data) {
 
         churchId: data.churchId ?? null,
 
-        country: data.country ?? 'República Dominicana',
-
         destMeetingTimes: data.destMeetingTimes ?? '',
         destMeetingDays: data.destMeetingDays ?? '',
+
+        registradoOfnc: data.registradoOfnc ?? true,
+        rritrackActivo: data.rritrackActivo ?? true,
 
         membershipStatus: data.membershipStatus ?? 'active',
         isVerified: data.isVerified ?? true,
