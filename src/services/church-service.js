@@ -25,7 +25,7 @@ export const buildChurchPayload = (data) => ({
     nombre: data?.churchName?.trim() || 'Iglesia sin nombre',
     pastor: data?.pastor?.trim() || 'Pastor no especificado',
     direccion: data?.address?.trim() || 'Dirección no especificada',
-    correo: data?.correo?.trim(),
+    correo: data?.correo?.trim() || `nomail_${Date.now()}@mail.com`,
     idSeccion: Number(data?.sectionId || data?.idSeccion || data?.sectionalName) || 1,
 });
 

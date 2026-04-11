@@ -225,6 +225,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
               <SectionalGeneralSection
                 methods={methods}
                 watch={watch}
+                isCreateView={!currentSectional}
               />
 
             </Box>

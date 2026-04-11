@@ -9,6 +9,8 @@ export const CHURCH_DEFAULT = {
     countryId: '',
     sectionId: '',
 
+    correo: '',
+
     createdAt: '',
     updatedAt: '',
 };
@@ -26,6 +28,8 @@ export function createChurch(data) {
         provinceId: data.provinceId ?? '',
         countryId: data.countryId ?? '',
         sectionalName: data.sectionalName ?? '',
+
+        correo: data.correo ?? '',
 
         createdAt: data.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),

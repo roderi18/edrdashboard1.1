@@ -7,6 +7,8 @@ export const ChurchSchema = z.object({
     address: z.string().optional(),
     provinceId: z.string().optional(),
     countryId: z.string().optional(),
+    correo: z.string().nullable().optional(),
+
     // ID real de la sección (lo que terminará como idSeccion en el payload API)
     sectionId: z.string().min(1, { error: 'Sección requerida' }),
 

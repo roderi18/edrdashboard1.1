@@ -61,7 +61,7 @@ export default function ChurchDestSection({
             >
                 <NameInput
                     name="churchName"
-                    label="Nombre de la Iglesia"
+                    label="Nombre de Iglesia"
                     maxLength={100}
                     allowNumbers
                     InputProps={{
@@ -75,18 +75,20 @@ export default function ChurchDestSection({
                     maxLength={100}
                 />
 
-                <Field.Text
-                    name="correo"
-                    label="Correo"
-                    type="email"
-                />
-
                 <NameInput
                     name="address"
                     label="Dirección"
                     maxLength={100}
                     allowNumbers
                 />
+
+                <Field.Text
+                    name="correo"
+                    label="Correo"
+                    type="email"
+                />
+
+
 
                 <Field.Autocomplete
                     name="sectionId"
