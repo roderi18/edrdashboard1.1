@@ -133,7 +133,7 @@ export default function DestGeneralSection({
                 />
             )}
 
-            <Box
+            {/* <Box
                 sx={{
                     gridColumn: '1 / -1',
                     display: 'flex',
@@ -157,38 +157,7 @@ export default function DestGeneralSection({
                 </Typography>
 
                 <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-
-            </Box>
-            <FormControlLabel
-                control={
-                    <Switch
-                        checked={watch('registradoOfnc') ?? true}
-                        onChange={(e) =>
-                            methods.setValue('registradoOfnc', e.target.checked, {
-                                shouldValidate: true,
-                                shouldDirty: true,
-                            })
-                        }
-                    />
-                }
-                label="Registrado en Oficina Nacional?"
-            />
-
-            <FormControlLabel
-                control={
-                    <Switch
-                        checked={watch('rritrackActivo') ?? true}
-                        onChange={(e) =>
-                            methods.setValue('rritrackActivo', e.target.checked, {
-                                shouldValidate: true,
-                                shouldDirty: true,
-                            })
-                        }
-                    />
-                }
-                label="RRITrack activo?"
-            />
+            </Box> */}
         </>
     );
 }

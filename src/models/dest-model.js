@@ -21,7 +21,7 @@ export const DEST_DEFAULT = {
     telefono: '',
 
     registradoOfnc: true,
-    rritrackActivo: true,
+    rritrackActivo: false,
 
     membershipStatus: 'active',
     isVerified: true,

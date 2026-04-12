@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getMembers } from 'src/services/member-service';
@@ -19,12 +18,10 @@ import { useEffect, useState } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { ContextInfo } from 'src/components/info/context-info';
-import { saveDest } from 'src/services/dest-service';
 import { fData } from 'src/utils/format-number';
 import LoadingButton from '@mui/lab/LoadingButton';
-import { createDest } from 'src/models/dest-model';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
-
+import StatusLabel from 'src/components/common/status-label';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -255,8 +252,98 @@ export function DestCreateEditForm({ currentDest }) {
                   </Typography>
                 }
               />
+
+              {/* BADGE REGISTRADO en oficina*/}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 24,
+                  right: 24,
+                  display: 'flex',
+                  gap: 1,
+                }}
+              >
+                <StatusLabel
+                  value={watch('registradoOfnc')}
+                  activeText="Registrado"
+                  inactiveText="sin registro oficial"
+                  sx={{ position: 'static' }} // IMPORTANTE para dejar horizontalmente
+                />
+
+                <StatusLabel
+                  value={watch('rritrackActivo')}
+                  activeText="RRITrack activo"
+                  inactiveText="RRITrack inactivo"
+                  warningText="RRITrack vencido"
+                  sx={{ position: 'static' }}
+                />
+              </Box>
+
             </Box>
 
+            <Stack spacing={1} sx={{ mb: 3 }}>
+              <FormControlLabel
+                labelPlacement="start"
+                control={
+                  <Switch
+                    checked={watch('registradoOfnc') ?? true}
+                    onChange={(event) =>
+                      methods.setValue('registradoOfnc', event.target.checked, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                  />
+                }
+                label={
+                  <>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                      Registrado en Oficina Nacional
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Registrado oficialmente con número de Destacamento
+                    </Typography>
+                  </>
+                }
+                sx={{
+                  mx: 0,
+                  mb: 2,
+                  width: 1,
+                  justifyContent: 'space-between',
+                }}
+              />
+
+              <FormControlLabel
+                labelPlacement="start"
+                control={
+                  <Switch
+                    checked={watch('rritrackActivo') ?? false}
+                    onChange={(event) =>
+                      methods.setValue('rritrackActivo', event.target.checked, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                  />
+                }
+                label={
+                  <>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                      RRITrack activo
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Destacamento cuenta con licencia anual de RRITrack
+                    </Typography>
+                  </>
+                }
+                sx={{
+                  mx: 0,
+                  mb: 2,
+                  width: 1,
+                  justifyContent: 'space-between',
+                }}
+              />
+            </Stack>
 
             <ContextInfo
               items={[
