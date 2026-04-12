@@ -462,7 +462,7 @@ export function MemberCreateEditForm({ currentMember }) {
 
         const updatedMembers = await getMembers();
         const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : [])
-          .find(m => m.id === memberUUID);
+          .find(m => String(m.id) === String(currentMember?.id));
 
         if (updatedMember) {
           reset(mapMemberToForm(updatedMember));

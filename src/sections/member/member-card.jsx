@@ -7,6 +7,7 @@ import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
+import { useState, useEffect } from 'react';
 
 import { _socials } from 'src/_mock';
 import { AvatarShape } from 'src/assets/illustrations';
@@ -36,12 +37,16 @@ export function MemberCard({ member, sx, ...other }) {
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const [dests, setDests] = useState([]);
+  const [churches, setChurches] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       const res = await fetch('/api/dest');
       const data = await res.json();
       setDests(data?.Data || []);
+
+      const churchesData = await getChurches();
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
     };
     load();
   }, []);
@@ -54,9 +59,10 @@ export function MemberCard({ member, sx, ...other }) {
     (d) => d.id === member.destId
   );
 
-  const church = getChurches().find(
+  const church = churches.find(
     (c) => c.id === dest?.churchId
   );
+
   const sectionalName = church?.sectionalName || '-';
 
   let leaderships = leadershipAssignments

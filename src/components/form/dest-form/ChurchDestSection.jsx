@@ -100,7 +100,6 @@ export default function ChurchDestSection({
                 />
 
 
-
                 <Field.Autocomplete
                     name="sectionId"
                     label="Sección"

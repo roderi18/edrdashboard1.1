@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 
 import { Controller } from 'react-hook-form';
 import { Field } from 'src/components/hook-form';
-import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import NameInput from 'src/components/common/name-input';
 
 export default function MemberGeneralSection({
     age,
@@ -41,9 +41,17 @@ export default function MemberGeneralSection({
                 </Box>
             )}
 
-            <Field.Text name="firstName" label="Nombres" />
+            <NameInput
+                name="firstName"
+                label="Nombres"
+                maxLength={60}
+            />
 
-            <Field.Text name="lastName" label="Apellidos" />
+            <NameInput
+                name="lastName"
+                label="Apellidos"
+                maxLength={60}
+            />
 
             <Field.DatePicker
                 name="birthdate"
