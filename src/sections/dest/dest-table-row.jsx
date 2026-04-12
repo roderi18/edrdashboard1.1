@@ -77,6 +77,8 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     (m) => String(m.memberId) === String(row.coordinatorId)
   );
 
+  const id = row.id || row.idDestacamento;
+
   const churchName =
     church?.name ||
     row?.churchName ||
@@ -100,7 +102,8 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     >
       <MenuList>
         <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
+          <MenuItem component={RouterLink} href={`/dashboard/level/dest/${id}/edit`}
+            onClick={() => menuActions.onClose()}>
             <Iconify icon="solar:pen-bold" />
             Edit
           </MenuItem>
@@ -143,8 +146,8 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
             onClick={onSelectRow}
             slotProps={{
               input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
+                id: `${id}-checkbox`,
+                'aria-label': `${id} checkbox`,
               },
             }}
           />
@@ -157,7 +160,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
-                href={editHref}
+                href={`/dashboard/level/dest/${id}/edit`}
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
@@ -220,7 +223,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/member?dest=${row.id}`}
+              href={`/dashboard/level/member?dest=${id}`}
               color="inherit"
             >
               {row.destMemberCount}

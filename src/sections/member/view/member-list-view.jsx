@@ -113,6 +113,7 @@ export function MemberListView() {
       const leadershipAssignments = getLeadershipAssignments();
 
       const mapped = members.map((member) => {
+
         const dest = dests.find((d) => d.id === member.destId);
 
         const memberLeaderships = leadershipAssignments.filter(

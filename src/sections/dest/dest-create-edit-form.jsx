@@ -29,6 +29,8 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
+import { mapApiDestToUI } from 'src/services/dest-service';
+
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
@@ -37,7 +39,7 @@ import { createDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
-  const church = churches.find((c) => c.id === dest.churchId) || {};
+  const church = churches.find((c) => String(c.id) === String(dest.churchId)) || {};
 
   return {
     avatarUrl: dest.avatarUrl ?? null,
@@ -47,15 +49,22 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 
     coordinatorId: dest.coordinatorId ?? null,
 
+    registradoOfnc: dest.registradoOfnc ?? true,
+    rritrackActivo: dest.rritrackActivo ?? false,
+
+    correo: dest.correo ?? '',
+    telefono: dest.telefono ?? '',
+    direccion: dest.direccion ?? '',
+    concilio: dest.concilio ?? '',
+    fechaInicio: dest.fechaInicio ?? '',
+
     country: dest.country ?? 'República Dominicana',
 
-    // Mantenerlo como ID (string), NO como objeto
     churchId: dest.churchId ?? null,
 
     destMeetingDays: dest.destMeetingDays ?? '',
     destMeetingTimes: dest.destMeetingTimes ?? '',
 
-    status: dest.membershipStatus ?? 'active',
     isVerified: dest.isVerified ?? true,
 
     churchName: church.name ?? '',
@@ -64,7 +73,6 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     provinceId: church.provinceId ?? '',
     countryId: church.countryId ?? '',
 
-    // NUEVO: id real para el POST de Iglesia
     sectionId: church.sectionId ?? '',
     sectionalName: church.sectionalName ?? '',
   };
@@ -102,7 +110,7 @@ export function DestCreateEditForm({ currentDest }) {
     registradoOfnc: true,
     rritrackActivo: true,
 
-    status: 'active',
+    // status: 'active',
     isVerified: true,
 
     churchName: '',
@@ -126,15 +134,23 @@ export function DestCreateEditForm({ currentDest }) {
     defaultValues,
     shouldUnregister: false,
   });
-  useEffect(() => {
-    if (!currentDest) return;
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!currentDest) return;
     if (churches.length === 0) return;
 
-    methods.reset(
-      mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
-    );
-  }, [currentDest, churches.length]);
+    if (isMounted) {
+      methods.reset(
+        mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
+      );
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentDest, churches, sectionals, regionals, allMembers]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -143,7 +159,11 @@ export function DestCreateEditForm({ currentDest }) {
 
       const res = await fetch('/api/dest');
       const data = await res.json();
-      setDests(data?.Data || []);
+      setDests(
+        Array.isArray(data?.Data)
+          ? data.Data.map(mapApiDestToUI)
+          : []
+      );
 
       const sectionalsData = await getSectionals();
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
@@ -167,6 +187,7 @@ export function DestCreateEditForm({ currentDest }) {
   } = methods;
 
   const values = watch();
+  console.log('📦 form values 👉', values);
   const destName = watch('name');
   const destNumber = watch('destNumber');
 
@@ -219,7 +240,7 @@ export function DestCreateEditForm({ currentDest }) {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentDest && (
+            {/* {currentDest && (
               <Label
                 color={
                   (values.status === 'active' && 'success') ||
@@ -230,7 +251,7 @@ export function DestCreateEditForm({ currentDest }) {
               >
                 {values.status}
               </Label>
-            )}
+            )} */}
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
@@ -366,7 +387,7 @@ export function DestCreateEditForm({ currentDest }) {
               ]}
             />
 
-            {currentDest && (
+            {/* {currentDest && (
               <FormControlLabel
                 labelPlacement="start"
                 control={
@@ -401,7 +422,7 @@ export function DestCreateEditForm({ currentDest }) {
                   justifyContent: 'space-between',
                 }}
               />
-            )}
+            )} */}
 
 
             {currentDest && (

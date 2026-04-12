@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
 import { DestCreateEditForm } from '../dest-create-edit-form';
+import { mapApiDestToUI } from 'src/services/dest-service';
+
 // ----------------------------------------------------------------------
 
 export function DestEditView({ id }) {
@@ -19,7 +21,7 @@ export function DestEditView({ id }) {
         (d) => String(d.idDestacamento) === String(id)
       );
 
-      setCurrentDest(dest);
+      setCurrentDest(dest ? mapApiDestToUI(dest) : null);
     };
 
     load();

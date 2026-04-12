@@ -8,7 +8,7 @@ import {
 // ------------------------------------------------------------
 export const mapApiDestToUI = (apiDest) => {
     return {
-        id: apiDest.idDestacamento?.toString() || '',
+        id: apiDest.idDestacamento ? String(apiDest.idDestacamento) : null,
 
         name: apiDest.nombre ?? '',
         destNumber: apiDest.numero ?? '',
@@ -18,6 +18,14 @@ export const mapApiDestToUI = (apiDest) => {
         coordinatorId: null,
 
         churchId: apiDest.idIglesia?.toString() ?? null,
+
+        correo: apiDest.correo ?? '',
+        telefono: apiDest.telefono ?? '',
+        direccion: apiDest.direccion ?? '',
+        concilio: apiDest.concilio ?? '',
+        fechaInicio: apiDest.fechaInicio ?? '',
+        registradoOfnc: apiDest.registradoOfnc ?? true,
+        rritrackActivo: apiDest.rritrackActivo ?? false,
 
         country: '',
 
@@ -37,7 +45,6 @@ export const mapApiDestToUI = (apiDest) => {
         updatedAt: new Date().toISOString(),
     };
 };
-
 export function saveDest(dest) {
     saveItem('dests', dest);
 }

@@ -86,6 +86,11 @@ export function DestCard({ dest, sx, ...other }) {
   );
 
   const handleGoToDest = () => {
+    if (!dest?.id) {
+      console.error('ID inválido 👉', dest);
+      return;
+    }
+
     router.push(`/dashboard/level/dest/${dest.id}/edit`);
   };
 

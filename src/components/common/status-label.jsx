@@ -5,7 +5,6 @@ export default function StatusLabel({
     activeText = 'Activo',
     inactiveText = 'Inactivo',
     sx = {},
-    ...other
 }) {
     return (
         <Label
@@ -16,7 +15,6 @@ export default function StatusLabel({
                 right: 24,
                 ...sx,
             }}
-            {...other}
         >
             {value ? activeText : inactiveText}
         </Label>
