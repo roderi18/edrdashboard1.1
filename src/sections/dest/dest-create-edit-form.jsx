@@ -108,7 +108,7 @@ export function DestCreateEditForm({ currentDest }) {
     telefono: '',
 
     registradoOfnc: true,
-    rritrackActivo: true,
+    rritrackActivo: false,
 
     // status: 'active',
     isVerified: true,

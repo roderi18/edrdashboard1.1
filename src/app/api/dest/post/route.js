@@ -11,7 +11,7 @@ export async function POST(req) {
             idIglesia: Number(body.idIglesia) || (() => { throw new Error('idIglesia es requerido'); })(),
 
             registradoOfnc: body?.registradoOfnc ?? null,
-            rritrackActivo: body?.rritrackActivo ?? null,
+            rritrackActivo: body?.rritrackActivo ?? false,
 
             diaReunion: body?.diaReunion?.trim() || '',
 

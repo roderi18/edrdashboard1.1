@@ -6,13 +6,14 @@ import { useFormContext } from 'react-hook-form';
 import NameInput from 'src/components/common/name-input';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import { Controller } from 'react-hook-form';
 
 export default function ChurchDestSection({
     isCreateView,
     methods,
 }) {
     const [sectionals, setSectionals] = useState([]);
-    const { watch, setValue } = useFormContext();
+    const { watch, setValue, control } = useFormContext();
 
     useEffect(() => {
         const loadSectionals = async () => {
@@ -70,6 +71,19 @@ export default function ChurchDestSection({
                     name="pastor"
                     label="Pastor"
                     maxLength={100}
+                />
+
+                <Controller
+                    name="telefono"
+                    control={control}
+                    render={({ field }) => (
+                        <Field.Phone
+                            {...field}
+                            label="Teléfono"
+                            defaultCountry="DO"
+                            inputProps={{ maxLength: 14 }}
+                        />
+                    )}
                 />
 
                 <NameInput

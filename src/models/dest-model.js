@@ -38,7 +38,7 @@ export function createDest(data) {
 
         name: data.name ?? '',
         destNumber: data.destNumber ?? '',
-
+        telefono: data.telefono ?? '',
         avatarUrl: data.avatarUrl ?? null,
 
         coordinatorId: data.coordinatorId ?? null,
@@ -49,7 +49,7 @@ export function createDest(data) {
         destMeetingDays: data.destMeetingDays ?? '',
 
         registradoOfnc: data.registradoOfnc ?? true,
-        rritrackActivo: data.rritrackActivo ?? true,
+        rritrackActivo: data.rritrackActivo ?? false,
 
         membershipStatus: data.membershipStatus ?? 'active',
         isVerified: data.isVerified ?? true,

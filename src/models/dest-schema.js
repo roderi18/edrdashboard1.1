@@ -14,7 +14,12 @@ export const DestSchema = z.object({
     destMeetingDays: z.string().optional(),
     destMeetingTimes: z.string().optional(),
 
-    correo: z.string().optional(),
+    correo: z
+        .string()
+        .email('Correo inválido')
+        .optional()
+        .or(z.literal('')),
+
     telefono: z.string().optional(),
 
     registradoOfnc: z.boolean().optional(),
