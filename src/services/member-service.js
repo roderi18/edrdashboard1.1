@@ -14,7 +14,7 @@ const MEMBERS_KEY = 'members';
 const LEADERSHIP_KEY = 'leadershipAssignments';
 const API_URL = 'https://systexploradores.somee.com/api';
 
-function mapApiMemberToUI(member) {
+export function mapApiMemberToUI(member) {
     return {
         id: String(member.idMiembros),
         memberId: member.codigoMiembro,

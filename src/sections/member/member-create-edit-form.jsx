@@ -428,9 +428,18 @@ export function MemberCreateEditForm({ currentMember }) {
           idCargoInstitucional: null,
           idDivision: null,
           instructorCertificadoCi:
-            data.InstructorCertificadoCI === 0 ? null : data.InstructorCertificadoCI,
+            data.InstructorCertificadoCI === 1
+              ? true
+              : data.InstructorCertificadoCI === 0
+                ? false
+                : null,
+
           estatusVigenciaCi:
-            data.EstatusVigenciaCI === 'na' ? null : data.EstatusVigenciaCI,
+            data.EstatusVigenciaCI === 1
+              ? true
+              : data.EstatusVigenciaCI === 0
+                ? false
+                : null,
           fechaInicioCertificado: data.FechaInicioCI
             ? dayjs(data.FechaInicioCI).format('YYYY-MM-DD')
             : null,
@@ -441,7 +450,7 @@ export function MemberCreateEditForm({ currentMember }) {
         };
         console.log('PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
-        await fetch(
+        const res = await fetch(
           currentMember ? '/api/members/put' : '/api/members/post',
           {
             method: currentMember ? 'PUT' : 'POST',
@@ -451,6 +460,13 @@ export function MemberCreateEditForm({ currentMember }) {
             body: JSON.stringify(payload),
           }
         );
+
+        const text = await res.text();
+        console.log('RESPONSE API 👉', text);
+
+        if (!res.ok) {
+          throw new Error(text || 'Error guardando en API');
+        }
 
         toast.success(
           currentMember
@@ -468,17 +484,11 @@ export function MemberCreateEditForm({ currentMember }) {
           reset(mapMemberToForm(updatedMember));
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         toast.success(
           currentMember
             ? 'Actualización exitosa!'
-            : `Miembro ${updatedMember?.memberId} creado!`
+            : `Miembro ${codigoMiembro} creado!`
         );
-
-        if (!currentMember) {
-          router.push(paths.dashboard.level.member.root);
-        }
 
       } catch (error) {
         console.error("ERROR EN SUBMIT:", error);

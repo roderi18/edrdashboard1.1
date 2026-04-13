@@ -7,6 +7,7 @@ import NameInput from 'src/components/common/name-input';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { Controller } from 'react-hook-form';
+import LocationSelect from 'src/components/location/location-select';
 
 export default function ChurchDestSection({
     isCreateView,
@@ -86,12 +87,7 @@ export default function ChurchDestSection({
                     )}
                 />
 
-                <NameInput
-                    name="address"
-                    label="Dirección"
-                    maxLength={100}
-                    allowNumbers
-                />
+                <LocationSelect />
 
                 <Field.Text
                     name="correo"

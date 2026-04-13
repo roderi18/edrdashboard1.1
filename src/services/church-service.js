@@ -24,7 +24,14 @@ export const mapApiChurchesToUI = (apiChurch) => {
 export const buildChurchPayload = (data) => ({
     nombre: data?.churchName?.trim() || 'Iglesia sin nombre',
     pastor: data?.pastor?.trim() || 'Pastor no especificado',
-    direccion: data?.address?.trim() || 'Dirección no especificada',
+    direccion: [
+        data?.street,
+        sectores.find(s => String(s.id) === data?.sectorId)?.nombre,
+        municipios.find(m => String(m.id) === data?.municipioId)?.nombre,
+        provinces.find(p => String(p.id) === data?.provinceId)?.nombre,
+    ]
+        .filter(Boolean)
+        .join(', ') || 'Dirección no especificada',
     correo:
         data?.correo?.trim() ||
         `nomail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}_${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}@mail.com`,

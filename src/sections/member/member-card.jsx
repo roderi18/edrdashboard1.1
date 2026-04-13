@@ -88,7 +88,7 @@ export function MemberCard({ member, sx, ...other }) {
   }
 
   const handleEdit = () => {
-    router.push(`/dashboard/level/member/${member.id}/edit`);
+    router.push(`/dashboard/level/member/${member.idMiembros}/edit`);
   };
 
   return (

@@ -7,6 +7,10 @@ export const ChurchSchema = z.object({
     address: z.string().optional(),
     provinceId: z.string().optional(),
     countryId: z.string().optional(),
+    provinceId: z.string().optional(),
+    municipioId: z.string().optional(),
+    sectorId: z.string().optional(),
+    street: z.string().optional(),
     correo: z
         .string()
         .email('Correo inválido')
