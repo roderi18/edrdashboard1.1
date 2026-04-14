@@ -3,7 +3,7 @@ import { Field } from 'src/components/hook-form';
 import { useFormContext } from 'react-hook-form';
 
 // 🔥 BUILDER
-const buildSectores = (distritos, secciones, barrios, subBarrios) => {
+const buildSectores = (distritos, secciones, barrios) => {
     const sectores = [];
 
     const getMunicipioIdFromSeccion = (seccionId) => {
@@ -11,35 +11,18 @@ const buildSectores = (distritos, secciones, barrios, subBarrios) => {
         return seccion?.municipioId;
     };
 
-    secciones.forEach(sec => {
-        const municipio_id = getMunicipioIdFromSeccion(sec.id);
-        if (municipio_id) {
-            sectores.push({ id: `sec-${sec.id}`, nombre: sec.nombre, municipio_id });
-        }
-    });
-
     barrios.forEach(b => {
         const municipio_id = getMunicipioIdFromSeccion(b.seccionId);
         if (municipio_id) {
-            sectores.push({ id: `bar-${b.id}`, nombre: b.nombre, municipio_id });
+            sectores.push({
+                id: b.id,
+                nombre: b.nombre,
+                municipio_id
+            });
         }
     });
 
-    subBarrios.forEach(s => {
-        const barrio = barrios.find(b => b.id === s.barrioId);
-        const municipio_id = getMunicipioIdFromSeccion(barrio?.seccionId);
-
-        if (municipio_id) {
-            sectores.push({ id: `sub-${s.id}`, nombre: s.nombre, municipio_id });
-        }
-    });
-
-    return sectores.reduce((acc, curr) => {
-        if (!acc.find(s => s.nombre === curr.nombre && s.municipio_id === curr.municipio_id)) {
-            acc.push(curr);
-        }
-        return acc;
-    }, []);
+    return sectores;
 };
 
 export default function LocationSelect() {
@@ -62,9 +45,15 @@ export default function LocationSelect() {
         ]).then(([prov, mun, dis, sec, bar, sub]) => {
             setProvinces(prov.default);
 
-            setMunicipios(mun.default);
+            setMunicipios(
+                mun.default.map((m, index) => ({
+                    ...m,
+                    id: index + 1,
+                    municipioId: index + 1,
+                }))
+            );
 
-            setSectores(buildSectores(dis.default, sec.default, bar.default, sub.default));
+            setSectores(buildSectores(dis.default, sec.default, bar.default));
         });
     }, []);
 
@@ -106,7 +95,7 @@ export default function LocationSelect() {
                 name="sectorId"
                 label="Sector"
                 options={sectores.filter(
-                    s => String(s.municipio_id) === String(selectedMunicipio?.id)
+                    s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
                 )}
                 getOptionLabel={(option) => option?.nombre || ''}
                 isOptionEqualToValue={(option, value) => option.id === value?.id}
