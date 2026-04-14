@@ -19,6 +19,10 @@ import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { useMediaQuery, useTheme } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
+import provinciasData from 'src/data/provincias.json';
+import municipiosData from 'src/data/municipios.json';
+import barriosData from 'src/data/barrios.json';
+
 
 // routes
 import { paths } from 'src/routes/paths';
@@ -84,6 +88,28 @@ const mapMemberToForm = (member) => {
   const nationalLeadership = memberLeaderships.find((l) => l.level === 'national');
   const destLeadership = memberLeaderships.find((l) => l.level === 'dest');
 
+
+  const provinces = provinciasData;
+
+  const municipios = municipiosData.map((m, index) => ({
+    ...m,
+    id: index + 1,
+    municipioId: index + 1,
+  }));
+
+  const sectores = barriosData;
+
+  const direccionParts = (member.direccion || member.memberAddress || '')
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  const [provinceName = '', municipioName = '', sectorName = '', street = ''] = direccionParts;
+
+  const province = provinces.find(p => p.nombre?.trim() === provinceName);
+  const municipio = municipios.find(m => m.nombre?.trim() === municipioName && String(m.id));
+  const sector = sectores.find(s => s.nombre?.trim() === sectorName && String(s.id));
+
   return {
     firstName: member.firstName ?? '',
     lastName: member.lastName ?? '',
@@ -96,10 +122,14 @@ const mapMemberToForm = (member) => {
           : null,
     email: member.email ?? '',
     phoneNumber: member.phoneNumber ?? '',
-    country: member.country ?? '',
+    // country: member.country ?? '',
+    provinceId: province?.id ? String(province.id) : '',
+    municipioId: municipio?.id ? String(municipio.id) : '',
+    sectorId: sector?.id ? String(sector.id) : '',
+    street: street ?? '',
     state: member.province ?? '',
     city: member.city ?? '',
-    address: member.memberAddress ?? '',
+    address: member.direccion ?? '',
     memberDivision: member.memberDivision ?? '',
     destId: member.destId || member.dest_id || member.dest || '',
     ocupation:
@@ -177,7 +207,12 @@ export function MemberCreateEditForm({ currentMember }) {
     name: '',
     email: '',
     phoneNumber: '',
-    country: 'República Dominicana',
+    // country: 'República Dominicana',
+
+    provinceId: '',
+    municipioId: '',
+    sectorId: '',
+    street: '',
     state: '',
     city: '',
     address: '',
@@ -200,6 +235,12 @@ export function MemberCreateEditForm({ currentMember }) {
     mode: 'onSubmit',
     defaultValues: currentMember ? mapMemberToForm(currentMember) : defaultValues,
   });
+
+  useEffect(() => {
+    if (currentMember) {
+      methods.reset(mapMemberToForm(currentMember));
+    }
+  }, [currentMember]);
 
   const {
     reset,
@@ -410,6 +451,21 @@ export function MemberCreateEditForm({ currentMember }) {
         const lastName = capitalizeWords(data.lastName);
 
         const codigoMiembro = currentMember?.memberId || await generateMemberId();
+        const provinces = provinciasData;
+        const municipios = municipiosData.map((m, index) => ({
+          ...m,
+          id: index + 1,
+        }));
+        const sectores = barriosData;
+        const buildDireccion = () => {
+          const province = provinces.find(p => String(p.id) === data.provinceId)?.nombre;
+          const municipio = municipios.find(m => String(m.id) === data.municipioId)?.nombre;
+          const sector = sectores.find(s => String(s.id) === data.sectorId)?.nombre;
+
+          return [province, municipio, sector, data.street]
+            .filter(Boolean)
+            .join(', ');
+        };
 
         const payload = {
           idMiembros: currentMember?.id || 0,
@@ -422,7 +478,7 @@ export function MemberCreateEditForm({ currentMember }) {
             : null,
           idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
           telefono: data.phoneNumber || '',
-          direccion: data.address || null,
+          direccion: buildDireccion(data) || null,
           correo: data.email || null,
           idCargoLocal: null,
           idCargoInstitucional: null,

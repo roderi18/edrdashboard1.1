@@ -30,6 +30,9 @@ import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import { mapApiDestToUI } from 'src/services/dest-service';
+import provinciasData from 'src/data/provincias.json';
+import municipiosData from 'src/data/municipios.json';
+import barriosData from 'src/data/barrios.json';
 
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
@@ -37,9 +40,27 @@ import { mapApiDestToUI } from 'src/services/dest-service';
 // import { createChurchApi } from 'src/services/church-service';
 import { createDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
+const provinces = provinciasData;
+
+const municipios = municipiosData.map((m, index) => ({
+  ...m,
+  id: index + 1,
+  municipioId: index + 1,
+}));
+
+const sectores = barriosData;
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
   const church = churches.find((c) => String(c.id) === String(dest.churchId)) || {};
+  const direccionParts = (church.address || '')
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  const [provinceName = '', municipioName = '', sectorName = '', street = ''] = direccionParts;
+  const province = provinces.find(p => p.nombre?.trim() === provinceName);
+  const municipio = municipios.find(m => m.nombre === municipioName);
+  const sector = sectores.find(s => s.nombre === sectorName);
 
   return {
     avatarUrl: dest.avatarUrl ?? null,
@@ -52,7 +73,10 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     registradoOfnc: dest.registradoOfnc ?? true,
     rritrackActivo: dest.rritrackActivo ?? false,
 
-    correo: dest.correo ?? '',
+    correo:
+      dest.correo && dest.correo.startsWith('nomail_')
+        ? ''
+        : dest.correo ?? '',
     telefono: dest.telefono ?? '',
     direccion: dest.direccion ?? '',
     concilio: dest.concilio ?? '',
@@ -70,7 +94,10 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     churchName: church.name ?? '',
     pastor: church.pastor ?? '',
     address: church.address ?? '',
-    provinceId: church.provinceId ?? '',
+    provinceId: province?.id ? String(province.id) : '',
+    municipioId: municipio?.id ? String(municipio.id) : '',
+    sectorId: sector?.id ? String(sector.id) : '',
+    street: street ?? '',
     countryId: church.countryId ?? '',
 
     sectionId: church.sectionId ?? '',
@@ -89,6 +116,7 @@ export function DestCreateEditForm({ currentDest }) {
   const [churches, setChurches] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+
 
   const defaultValues = {
     avatarUrl: null,

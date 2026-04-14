@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
-import { Field } from 'src/components/hook-form';
+import LocationSelect from 'src/components/location/location-select';
 
 export default function MemberAddressSection({ isEdit = false }) {
 
@@ -14,18 +14,7 @@ export default function MemberAddressSection({ isEdit = false }) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
             }}
         >
-            <Field.CountrySelect
-                fullWidth
-                name="country"
-                label="País"
-                placeholder="Elige un país"
-            />
-
-            <Field.Text name="state" label="Provincia" />
-
-            <Field.Text name="city" label="Ciudad" />
-
-            <Field.Text name="address" label="Dirección" />
+            <LocationSelect />
         </Box>
     );
 
@@ -39,5 +28,7 @@ export default function MemberAddressSection({ isEdit = false }) {
         <DashedAccordion title="Dirección">
             {Content}
         </DashedAccordion>
+
+
     );
 }

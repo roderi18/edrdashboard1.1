@@ -110,7 +110,7 @@ export default function MemberLeadershipAndOtherSection({
                 name="memberPosition"
                 value={
                     [{ value: 'none', label: 'Ninguna' }, ..._leadershipRolesByLevel.dest]
-                        .find((r) => r.value === watch('memberPosition')) || null
+                        .find((r) => r.value === (watch('memberPosition') || 'none')) || null
                 }
                 label="Nivel posición en tu Destacamento"
                 options={[

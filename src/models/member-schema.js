@@ -19,7 +19,6 @@ export const MemberValidationSchema = z.object({
 
     phoneNumber: z
         .string()
-        .min(1, 'Debe ingresar un teléfono')
         .min(8, 'Teléfono inválido'),
 
     birthdate: z
@@ -28,21 +27,10 @@ export const MemberValidationSchema = z.object({
             message: 'Debe seleccionar la fecha de nacimiento',
         }),
 
-    country: z
-        .string()
-        .min(1, 'Debe seleccionar un país'),
-
-    state: z
-        .string()
-        .min(1, 'Debe seleccionar una provincia'),
-
-    city: z
-        .string()
-        .min(1, 'Debe seleccionar una ciudad'),
-
-    address: z
-        .string()
-        .min(2, 'Debe ingresar una dirección'),
+    provinceId: z.string().min(1, 'Debe seleccionar una provincia'),
+    municipioId: z.string().min(1, 'Debe seleccionar un municipio'),
+    sectorId: z.string().min(1, 'Debe seleccionar un sector'),
+    street: z.string().min(1, 'Debe ingresar la calle'),
 
     ocupation: z.any().optional(),
 
