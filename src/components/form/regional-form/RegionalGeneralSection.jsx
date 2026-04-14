@@ -4,7 +4,9 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import { useFormContext } from 'react-hook-form';
 import NameInput from 'src/components/common/name-input';
-
+import { useEffect, useState } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import AutocompleteWithCreate from 'src/components/common/autocomplete-with-create';
 import { Field } from 'src/components/hook-form';
 import CountrySelectApi from 'src/components/api/CountrySelectApi';
 
@@ -14,6 +16,18 @@ export default function RegionalGeneralSection({
     watch,
 }) {
     const { setValue } = useFormContext();
+    const [members, setMembers] = useState([]);
+
+    useEffect(() => {
+        const load = async () => {
+            const res = await fetch('/api/members');
+            const data = await res.json();
+            setMembers(data?.Data || []);
+        };
+
+        load();
+    }, []);
+
     return (
 
         <>
@@ -53,6 +67,26 @@ export default function RegionalGeneralSection({
                 <Field.Text name="regionId" label="ID de Región" disabled />
             )}
 
+            <AutocompleteWithCreate
+                options={members}
+                value={
+                    members.find(
+                        (m) => String(m.idMiembros) === String(watch('directorId'))
+                    ) || null
+                }
+                onChange={(_, newValue) => {
+                    setValue('directorId', newValue?.idMiembros || '');
+                }}
+                getOptionLabel={(option) =>
+                    `${option?.nombres || ''} ${option?.apellidos || ''}`
+                }
+                isOptionEqualToValue={(option, value) =>
+                    String(option.idMiembros) === String(value.idMiembros)
+                }
+                label="Director"
+                createLabel="Crear Director"
+                createLink="/dashboard/level/member/new"
+            />
             <CountrySelectApi name="countryId" label="País" />
 
             {!isCreateView && (
