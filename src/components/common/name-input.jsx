@@ -8,6 +8,7 @@ export default function NameInput({
     maxLength = 60,
     allowNumbers = false,
     allowSpecialChars = false,
+    allowDash = false,
     InputProps: externalInputProps = {},
 }) {
     const { setValue, watch } = useFormContext();
@@ -41,20 +42,15 @@ export default function NameInput({
                 let value = e.target.value;
 
                 // ❌ Quitar números y símbolos
-                value = allowNumbers
-                    ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]/g, '') // permite números
-                    : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, ''); // solo letras
+                let regex = 'A-Za-zÁÉÍÓÚáéíóúÑñ\\s';
 
-                // Permitir caracteres
-                if (allowSpecialChars) {
-                    value = allowNumbers
-                        ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s#\-./]/g, '')
-                        : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s#\-./]/g, '');
-                } else {
-                    value = allowNumbers
-                        ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]/g, '')
-                        : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
-                }
+                if (allowNumbers) regex += '0-9';
+                if (allowDash) regex += '\\-';
+                if (allowSpecialChars) regex += '#./';
+
+                const pattern = new RegExp(`[^${regex}]`, 'g');
+
+                value = value.replace(pattern, '');
 
                 // ❌ No permitir espacios al inicio
                 value = value.replace(/^\s+/, '');
@@ -66,17 +62,25 @@ export default function NameInput({
                 value = value.slice(0, maxLength);
 
                 // ✅ Capitalizar cada palabra correctamente
-                // (respeta tildes y no rompe palabras)
-                if (!allowSpecialChars) {
-                    value = value
-                        .toLowerCase()
-                        .split(' ')
-                        .map((word) =>
-                            word.charAt(0).toLocaleUpperCase() + word.slice(1)
-                        )
-                        .join(' ');
-                }
 
+                // ✅ Capitalizar palabras pero permitir minúsculas después de tildes
+                value = value
+                    .toLocaleLowerCase()
+                    .split(' ')
+                    .map((word) => {
+                        if (!word) return word;
+
+                        // 👉 palabras que deben ir en minúscula
+                        const lowerWords = ['de'];
+
+                        if (lowerWords.includes(word)) return word;
+
+                        return word.charAt(0).toLocaleUpperCase() + word.slice(1);
+                    })
+                    .join(' ');
+
+                // 👉 corregir "de" solo si está entre espacios
+                value = value.replace(/\bDe\b/g, 'de');
                 // 📌 Actualiza valor en react-hook-form
                 // Solo valida si hay texto real
                 setValue(name, value, {

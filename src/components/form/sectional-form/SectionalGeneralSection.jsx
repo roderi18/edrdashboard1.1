@@ -9,7 +9,7 @@ import { Field } from 'src/components/hook-form';
 import { getRegionals } from 'src/services/regional-service';
 import NameInput from 'src/components/common/name-input';
 import { getChurches } from 'src/services/church-service';
-
+import LocationSuggestInput from 'src/components/api/location-suggest-input';
 // ----------------------------------------------------------------------
 
 export default function SectionalGeneralSection({ methods, watch, isCreateView }) {
@@ -75,9 +75,11 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView }
             </Box>
 
             {/* Nombre de la Sección */}
-            <NameInput
+            <LocationSuggestInput
                 name="sectionalName"
                 label="Nombre de la Sección"
+                allowNumbers
+                allowDash
             />
 
             {/* ID de la Sección */}

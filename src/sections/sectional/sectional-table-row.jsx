@@ -17,7 +17,6 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 import { RouterLink } from 'src/routes/components';
 import { getSectionals } from 'src/services/sectional-service';
 import { getMembers } from 'src/services/member-service';
-import { getDests } from 'src/services/dest-service';
 import { getChurches } from 'src/services/church-service';
 
 import { Iconify } from 'src/components/iconify';
@@ -142,10 +141,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
     />
   );
 
-  const capitalize = (text = '') =>
-    text
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+  const capitalize = (text = '') => text;
 
   return (
     <>

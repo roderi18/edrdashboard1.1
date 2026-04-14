@@ -3,8 +3,7 @@
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { FlagIcon } from 'src/components/flag-icon';
-import { countries } from 'src/assets/data/countries';
-
+import { useEffect, useState } from 'react';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
@@ -17,6 +16,17 @@ export default function CountrySelectApi({
     ...other
 }) {
     const { control, setValue } = useFormContext();
+    const [countries, setCountries] = useState([]);
+
+    useEffect(() => {
+        const loadCountries = async () => {
+            const res = await fetch('/api/countries', { cache: 'no-store' });
+            const data = await res.json();
+            setCountries(Array.isArray(data) ? data : []);
+        };
+
+        loadCountries();
+    }, []);
 
     return (
         <Controller
@@ -24,7 +34,7 @@ export default function CountrySelectApi({
             control={control}
             render={({ field, fieldState: { error } }) => {
                 const selected =
-                    countries.find((c) => c.label === field.value) || null;
+                    countries.find((c) => Number(c.id) === Number(field.value)) || null;
 
                 return (
                     <Autocomplete
@@ -33,10 +43,10 @@ export default function CountrySelectApi({
                         value={selected}
                         getOptionLabel={(option) => option.label || ''}
                         isOptionEqualToValue={(option, value) =>
-                            option.label === value.label
+                            Number(option.id) === Number(value.id)
                         }
                         onChange={(_, newValue) => {
-                            setValue(name, newValue?.label || '');
+                            setValue(name, newValue?.id || null);
                         }}
 
                         renderOption={(props, option) => {
