@@ -7,6 +7,7 @@ export default function NameInput({
     label = 'Nombre',
     maxLength = 60,
     allowNumbers = false,
+    allowSpecialChars = false,
     InputProps: externalInputProps = {},
 }) {
     const { setValue, watch } = useFormContext();
@@ -44,6 +45,17 @@ export default function NameInput({
                     ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]/g, '') // permite números
                     : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, ''); // solo letras
 
+                // Permitir caracteres
+                if (allowSpecialChars) {
+                    value = allowNumbers
+                        ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s#\-./]/g, '')
+                        : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s#\-./]/g, '');
+                } else {
+                    value = allowNumbers
+                        ? value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]/g, '')
+                        : value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
+                }
+
                 // ❌ No permitir espacios al inicio
                 value = value.replace(/^\s+/, '');
 
@@ -55,13 +67,15 @@ export default function NameInput({
 
                 // ✅ Capitalizar cada palabra correctamente
                 // (respeta tildes y no rompe palabras)
-                value = value
-                    .toLowerCase()
-                    .split(' ')
-                    .map((word) =>
-                        word.charAt(0).toLocaleUpperCase() + word.slice(1)
-                    )
-                    .join(' ');
+                if (!allowSpecialChars) {
+                    value = value
+                        .toLowerCase()
+                        .split(' ')
+                        .map((word) =>
+                            word.charAt(0).toLocaleUpperCase() + word.slice(1)
+                        )
+                        .join(' ');
+                }
 
                 // 📌 Actualiza valor en react-hook-form
                 // Solo valida si hay texto real

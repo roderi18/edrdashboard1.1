@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Field } from 'src/components/hook-form';
 import { useFormContext } from 'react-hook-form';
+import NameInput from 'src/components/common/name-input';
 
 // 🔥 BUILDER
 const buildSectores = (distritos, secciones, barrios) => {
@@ -84,6 +85,11 @@ export default function LocationSelect() {
                 value={
                     municipios.find(m => String(m.id) === String(watch('municipioId'))) || null
                 }
+                noOptionsText={
+                    watch('provinceId')
+                        ? 'Sin opciones'
+                        : 'Primero elegir Provincia'
+                }
                 onChange={(e, option) => {
                     setValue('municipioId', option?.id ? String(option.id) : '');
                     setValue('sectorId', '');
@@ -98,11 +104,25 @@ export default function LocationSelect() {
                     s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
                 )}
                 getOptionLabel={(option) => option?.nombre || ''}
+                getOptionKey={(option) => option.id}
                 isOptionEqualToValue={(option, value) => option.id === value?.id}
                 value={sectores.find(s => String(s.id) === watch('sectorId')) || null}
+                noOptionsText={
+                    watch('municipioId')
+                        ? 'Sin opciones'
+                        : 'Primero elegir Municipio'
+                }
                 onChange={(e, option) => {
                     setValue('sectorId', option?.id ? String(option.id) : '');
                 }}
+            />
+
+            <NameInput
+                name="street"
+                label="Calle / Número"
+                allowNumbers
+                allowSpecialChars
+                maxLength={20}
             />
         </>
     );
