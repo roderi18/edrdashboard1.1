@@ -9,7 +9,7 @@ import { Field } from 'src/components/hook-form';
 import { getRegionals } from 'src/services/regional-service';
 import NameInput from 'src/components/common/name-input';
 import { getChurches } from 'src/services/church-service';
-import LocationSuggestInput from 'src/components/api/location-suggest-input';
+import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
 // ----------------------------------------------------------------------
 
 export default function SectionalGeneralSection({ methods, watch, isCreateView }) {

@@ -8,26 +8,36 @@ import {
     MEMBER_OCUPATIONS_SORTED,
     MEMBER_GENDERS,
     MEMBER_SHIRT_SIZES,
-    NATIONAL_LEADERSHIP_LEVELS,
+
 } from 'src/sections/member/member-create-edit-options';
-
-import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
-
+import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
 export default function MemberLeadershipAndOtherSection({
     watch,
     methods,
     isCreateView,
     isEdit,
 }) {
-    const selectedNationalLevel = watch('nationalLeadershipLevel');
 
     const [dests, setDests] = useState([]);
+    const [cargos, setCargos] = useState([]);
+
+    useEffect(() => {
+        const loadCargos = async () => {
+            const res = await fetch('/api/cargos');
+            const data = await res.json();
+            console.log('CARGOS 👉', data);
+            setCargos(Array.isArray(data?.Data) ? data.Data : []);
+
+        };
+
+        loadCargos();
+    }, []);
 
     useEffect(() => {
         const load = async () => {
             const res = await fetch('/api/dest');
             const data = await res.json();
-
+            console.log('CARGOS 👉', data);
             setDests(
                 (data?.Data || []).map((d) => ({
                     id: String(d.idDestacamento),
@@ -63,31 +73,7 @@ export default function MemberLeadershipAndOtherSection({
             />
 
             {/* Liderazgo Nacional */}
-            {isCreateView && (
-                <>
-                    <Field.Select
-                        name="nationalLeadershipLevel"
-                        label="Posición en Consejo Nacional"
-                        value={watch('nationalLeadershipLevel') ?? ''}
-                    >
-                        {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
-                            <MenuItem key={option.label} value={option.value}>
-                                {option.label}
-                            </MenuItem>
-                        ))}
-                    </Field.Select>
-
-                    {selectedNationalLevel !== 'none' && (
-                        <Field.Select name="nationalLeadershipRole" label="Cargo">
-                            {_leadershipRolesByLevel[selectedNationalLevel]?.map((role) => (
-                                <MenuItem key={role.value} value={role.value}>
-                                    {role.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
-                    )}
-                </>
-            )}
+            <CargoSelectApi name="nationalLeadershipRole" />
 
             {/* Destacamento */}
             <Field.Autocomplete
@@ -109,13 +95,12 @@ export default function MemberLeadershipAndOtherSection({
             <Field.Autocomplete
                 name="memberPosition"
                 value={
-                    [{ value: 'none', label: 'Ninguna' }, ..._leadershipRolesByLevel.dest]
+                    [{ value: 'none', label: 'Ninguna' }]
                         .find((r) => r.value === (watch('memberPosition') || 'none')) || null
                 }
                 label="Nivel posición en tu Destacamento"
                 options={[
                     { value: 'none', label: 'Ninguna' },
-                    ..._leadershipRolesByLevel.dest,
                 ]}
                 freeSolo={false}
                 getOptionLabel={(option) =>

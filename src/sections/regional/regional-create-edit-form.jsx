@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import CountrySelectApi from 'src/components/api/CountrySelectApi';
+import CountrySelectApi from 'src/components/api/country-select-api';
 import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
