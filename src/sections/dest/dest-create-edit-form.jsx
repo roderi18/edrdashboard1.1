@@ -501,7 +501,10 @@ export function DestCreateEditForm({ currentDest }) {
                           const churchRes = await createChurchApi({
                             churchName: data.churchName,
                             pastor: data.pastor,
-                            address: data.address,
+                            street: data.street,
+                            provinceId: data.provinceId,
+                            municipioId: data.municipioId,
+                            sectorId: data.sectorId,
                             correo: methods.getValues('correo'),
                             sectionId: data.sectionId,
                           });

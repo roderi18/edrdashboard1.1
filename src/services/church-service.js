@@ -1,3 +1,14 @@
+import provinciasData from 'src/data/provincias.json';
+import municipiosData from 'src/data/municipios.json';
+import barriosData from 'src/data/barrios.json';
+
+const provinces = provinciasData;
+const municipios = municipiosData.map((m, index) => ({
+    ...m,
+    id: index + 1,
+    municipioId: index + 1,
+}));
+const sectores = barriosData;
 export const mapApiChurchesToUI = (apiChurch) => {
     const idSeccion =
         apiChurch.idSeccion ??
@@ -25,10 +36,10 @@ export const buildChurchPayload = (data) => ({
     nombre: data?.churchName?.trim() || 'Iglesia sin nombre',
     pastor: data?.pastor?.trim() || 'Pastor no especificado',
     direccion: [
+        provinces?.find(p => String(p.id) === String(data?.provinceId))?.nombre,
+        municipios?.find(m => String(m.id) === String(data?.municipioId))?.nombre,
+        sectores?.find(s => String(s.id) === String(data?.sectorId))?.nombre,
         data?.street,
-        sectores.find(s => String(s.id) === data?.sectorId)?.nombre,
-        municipios.find(m => String(m.id) === data?.municipioId)?.nombre,
-        provinces.find(p => String(p.id) === data?.provinceId)?.nombre,
     ]
         .filter(Boolean)
         .join(', ') || 'Dirección no especificada',
