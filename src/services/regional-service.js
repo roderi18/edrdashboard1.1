@@ -12,7 +12,7 @@ function mapApiRegionalToUI(regional) {
         avatarUrl: null,
         coverUrl: null,
 
-        regionalXSectionalCount: 0,
+        regionalXSectionalCount: regional.regionalXSectionalCount || 0,
         regionalXSectionalXDestCount: 0,
         regionalXSectionalMemberCount: 0,
 
@@ -37,7 +37,6 @@ export const getRegionals = async () => {
         const response = await res.json();
 
         const data = response.Data || [];
-        console.log('DATA FINAL 👉', data);
         return Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
     } catch (error) {
         console.error('getRegionals error:', error);

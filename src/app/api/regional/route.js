@@ -1,5 +1,6 @@
 export async function GET() {
     try {
+        // 🔹 1. REGIONALES
         const res = await fetch(
             'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
         );
@@ -16,6 +17,40 @@ export async function GET() {
                 { status: 500 }
             );
         }
+
+        // 🔹 2. SECCIONES
+        const resSections = await fetch(
+            'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
+        );
+
+        const textSections = await resSections.text();
+
+        let sectionsData = [];
+
+        try {
+            const parsedSections = JSON.parse(textSections);
+            sectionsData = parsedSections?.Data || [];
+        } catch (e) {
+            sectionsData = [];
+        }
+
+        // 🔹 3. CALCULAR CONTEO
+        const regionals = data?.Data || [];
+
+        const newData = regionals.map((regional) => {
+            const count = sectionsData.filter(
+                (s) => String(s.idRegion) === String(regional.idRegion)
+            ).length;
+
+            return {
+                ...regional,
+                regionalXSectionalCount: count,
+            };
+        });
+
+        console.log('🔥 REGIONALES CON CONTEO 👉', newData);
+
+        data.Data = newData;
 
         return Response.json(data);
     } catch (error) {
@@ -44,12 +79,43 @@ export async function POST(req) {
 
         const text = await res.text();
 
-        console.log('RAW RESPONSE 👉', text);
+        const resSections = await fetch(
+            'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
+        );
+
+        const textSections = await resSections.text();
+
+        let sectionsData = [];
+
+        try {
+            const parsedSections = JSON.parse(textSections);
+            sectionsData = parsedSections?.Data || [];
+        } catch (e) {
+            sectionsData = [];
+        }
 
         let data;
 
         try {
             data = JSON.parse(text);
+            const regionals = data?.Data || [];
+
+            const newData = regionals.map((regional) => {
+                const count = sectionsData.filter(
+                    (s) => String(s.idRegion) === String(regional.idRegion)
+                ).length;
+
+                return {
+                    ...regional,
+                    regionalXSectionalCount: count,
+                };
+            });
+
+            data.Data = newData;
+            console.log('REGIONALES CON SECCIONES 👉', newData);
+            newData.forEach(r => {
+                console.log(`REGION: ${r.nombre} → SECCIONES: ${r.regionalXSectionalCount}`);
+            });
         } catch (e) {
             return Response.json(
                 { error: 'Respuesta no es JSON', raw: text },

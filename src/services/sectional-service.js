@@ -15,9 +15,9 @@ function mapApiSectionalToUI(sectional) {
         avatarUrl: null,
         coverUrl: null,
 
-        sectionalDestCount: 0,
+        sectionalDestCount: sectional.sectionalDestCount || 0,
         sectionalXDestMemberCount: 0,
-        sectionalChurchCount: sectional.cantidadIglesias || 0,
+        // sectionalChurchCount: sectional.cantidadIglesias || 0,
         memberFullName: 'Desconocido',
 
         status: 'active',

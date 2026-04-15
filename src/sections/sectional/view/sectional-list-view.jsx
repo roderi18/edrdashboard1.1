@@ -89,13 +89,16 @@ const buildSectionalList = async () => {
   const res = await fetch('/api/dest');
   const data = await res.json();
   const dests = data?.Data || [];
+  const resChurches = await fetch('/api/churches');
+  const dataChurches = await resChurches.json();
+  const churches = dataChurches?.Data || [];
+
 
   const leaderships = getLeadershipAssignments();
 
   return sectionals.map((sectional) => {
     const regional = regionals.find((r) => r.id === sectional.regionalId);
 
-    const destCount = dests.filter((d) => d.sectionalId === sectional.id).length;
 
     const director = members.find(
       (m) =>
@@ -108,6 +111,20 @@ const buildSectionalList = async () => {
         m.sectionalId === sectional.id ||
         String(m.id) === String(sectional.directorId) ||
         String(m.memberId) === String(sectional.directorId)
+    ).length;
+
+
+    const iglesiasDeSeccion = churches.filter(
+      (c) =>
+        c.idSeccion &&
+        Number(c.idSeccion) === Number(sectional.idSeccion)
+    );
+
+
+    const destCount = dests.filter((d) =>
+      iglesiasDeSeccion.some(
+        (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
+      )
     ).length;
 
     return {

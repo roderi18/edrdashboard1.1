@@ -69,9 +69,15 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
   useEffect(() => {
     const load = async () => {
-      const data = await getChurches();
-      setChurches(data || []);
+      const resDests = await fetch('/api/dest');
+      const dataDests = await resDests.json();
+      setDests(dataDests?.Data || []);
+
+      const resChurches = await fetch('/api/churches');
+      const dataChurches = await resChurches.json();
+      setChurches(dataChurches?.Data || []);
     };
+
     load();
   }, []);
 
@@ -79,12 +85,22 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
     (m) => String(m.id) === String(row.directorId)
   );
 
-  const destsBySectional = dests.filter((d) => {
-    const church = churches.find((c) => c.id === d.churchId);
-    return church?.sectionalName === row.sectionalName;
-  });
+  const seccionId = Number(row.idSeccion || row.id);
 
-  const totalDests = destsBySectional.length;
+  const iglesiasDeSeccion = churches.filter(
+    (c) =>
+      c.idSeccion !== null &&
+      Number(c.idSeccion) === Number(row.idSeccion)
+  );
+
+
+  const destsBySectional = dests.filter((d) =>
+    iglesiasDeSeccion.some(
+      (ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia)
+    )
+  );
+
+  const totalDests = destsBySectional.length || 0;
 
   const totalMembers = members.filter((m) =>
     destsBySectional.some((d) => d.id === m.destId)
