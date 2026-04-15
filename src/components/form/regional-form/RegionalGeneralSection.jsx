@@ -76,6 +76,9 @@ export default function RegionalGeneralSection({
                 }
                 onChange={(_, newValue) => {
                     setValue('directorId', newValue?.idMiembros || '');
+
+                    // asignar cargo institucional de Director Nacional automáticamente
+                    setValue('idCargoInstitucional', 1);
                 }}
                 getOptionLabel={(option) =>
                     `${option?.nombres || ''} ${option?.apellidos || ''}`

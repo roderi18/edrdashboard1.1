@@ -5,6 +5,8 @@ export const REGIONAL_DEFAULT = {
     countryId: '',
     createdAt: '',
     updatedAt: '',
+
+    idCargoInstitucional: '',
 };
 
 export function createRegional(data) {

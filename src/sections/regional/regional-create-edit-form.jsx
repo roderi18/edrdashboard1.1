@@ -70,6 +70,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
         idRegion: currentRegional?.id || 0,
         nombre: data.name,
         idPais: 1,
+        idCargoInstitucional: Number(data.idCargoInstitucional) || null,
       };
 
       const url = currentRegional
