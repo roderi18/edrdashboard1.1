@@ -44,10 +44,6 @@ export default function Page() {
                 m.memberPosition === 'Coordinador As. Dest.'
         )?.fullName || 'No asignado ';
 
-    console.log('👤 coordinator:', coordinator);
-    console.log('👤 assistantCoordinator:', assistantCoordinator);
-
-
     const memberWithResolvedData = {
 
         ...currentMember,
@@ -59,8 +55,6 @@ export default function Page() {
         coordinatorName: coordinator,
         assistantCoordinatorName: assistantCoordinator,
     };
-    console.log('📦 memberWithResolvedData:', memberWithResolvedData);
-
 
     return (
         <MemberEditLayout>

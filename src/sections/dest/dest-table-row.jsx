@@ -41,16 +41,13 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  const regional = regionals.find(
-    (r) => String(r.id) === String(sectional?.regionalId)
-  );
-
   useEffect(() => {
     async function load() {
-      const [churchesData, sectionalsData, membersData] = await Promise.all([
+      const [churchesData, sectionalsData, membersData, regionalsData] = await Promise.all([
         getChurches(),
         getSectionals(),
         getMembers(),
+        fetch('/api/regional').then(r => r.json()).then(d => d.Data || [])
       ]);
 
       setChurches(Array.isArray(churchesData) ? churchesData : []);
@@ -65,11 +62,16 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
     ? churches.find((c) => Number(c.id) === Number(row.idIglesia))
     : null;
 
-  const sectionalName = church?.sectionalName || '';
-
   const sectional = sectionals.find(
-    (s) => s.sectionalName === sectionalName
+    (s) => Number(s.idSeccion) === Number(church?.sectionId)
   );
+
+  const regional = regionals.find(
+    (r) => Number(r.idRegion) === Number(sectional?.regionalId)
+  );
+  console.log('SECTIONAL 👉', sectional);
+  console.log('REGIONAL 👉', regional);
+  const sectionalName = sectional?.sectionalName || '';
 
   const coordinator = members.find(
     (m) => String(m.memberId) === String(row.coordinatorId)

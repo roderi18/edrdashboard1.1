@@ -62,7 +62,6 @@ const TABLE_HEAD = [
   { id: 'destName', label: 'Destacamento' },
   { id: 'memberFullName', label: 'Coord. Dest', width: 280 },
   { id: 'destMemberCount', label: 'Miembros', width: 120 },
-  // { id: 'sectionalName', label: 'Membresía', width: 160 },
   { id: 'sectionalName', label: 'Sección', width: 160 },
   { id: 'regionalName', label: 'Región', width: 140 },
   { id: '', width: 88 },
@@ -108,35 +107,26 @@ export function DestListView() {
           )
           : null);
       const allMembers = members;
-      if (dest.name === 'Leones De Sion') {
-        console.log('LEADERSHIP ENCONTRADO:', leadership);
-        console.log('COORDINADOR ENCONTRADO:', coordinator);
-      }
-
-      const sectional = sectionals.find(
-        (s) => s.id === dest.sectionalId
-      );
-      if (dest.name === 'Leones De Sion') {
-        console.log('SECTION BUSCADA:', dest.sectionalId);
-        console.log('SECTION ENCONTRADA:', sectional);
-      }
+      console.log('CHURCHES 👉', churches);
 
       const church = Array.isArray(churches)
-        ? churches.find((c) => String(c.id) === String(dest.churchId))
+        ? churches.find((c) => Number(c.idIglesia) === Number(dest.idIglesia))
         : null;
-      if (dest.name === 'Leones De Sion') {
-        console.log('CHURCH BUSCADA:', dest.churchId);
-        console.log('CHURCH ENCONTRADA:', church);
-      }
+      console.log('CHURCH 👉', church);
+      console.log('SECTIONALS 👉', sectionals);
 
-      const regional = regionals.find(
-        (r) => r.id === sectional?.regionalId || r.id === church?.regionalId
+      const sectional = sectionals.find(
+        (s) => Number(s.idSeccion) === Number(church?.idSeccion)
       );
-      if (dest.name === 'Leones De Sion') {
-        console.log('REGION BUSCADA:', sectional?.regionalId);
-        console.log('REGION ENCONTRADA:', regional);
-      }
+      console.log('SECTIONAL 👉', sectional);
 
+      console.log('REGIONALS 👉', regionals);
+      console.log('BUSCANDO ID 👉', sectional?.idRegion);
+      const regional = regionals.find(
+        (r) => Number(r.idRegion) === Number(sectional?.regionalId)
+      );
+      console.log('REGIONAL 👉', regional);
+      console.log('-----------------------------');
       return {
         ...dest,
         destName: dest.name,
@@ -154,8 +144,8 @@ export function DestListView() {
 
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
-        sectionalName: church?.sectionalName,
-        regionalName: regional?.name ?? '-',
+        sectionalName: sectional?.nombre ?? '-',
+        regionalName: regional?.nombre ?? '-',
       };
     });
   };

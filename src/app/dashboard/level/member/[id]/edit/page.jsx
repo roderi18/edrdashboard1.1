@@ -3,7 +3,6 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { DESTS, CHURCHES, REGIONALS, SECTIONALS, MEMBERS } from 'src/_mock/assets';
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 import { mapApiMemberToUI } from 'src/services/member-service';
@@ -19,13 +18,25 @@ export default function Page() {
   useEffect(() => {
     const load = async () => {
       const res = await fetch('/api/members');
-      console.log('RES:', res);
 
       const data = await res.json();
-      console.log('DATA:', data);
 
       const allMembers = data?.Data || [];
-      console.log('ALL MEMBERS:', allMembers);
+      const resDests = await fetch('/api/dest');
+      const dataDests = await resDests.json();
+      const dests = dataDests?.Data || [];
+
+      const resChurches = await fetch('/api/churches');
+      const dataChurches = await resChurches.json();
+      const churches = dataChurches?.Data || [];
+
+      const resSectionals = await fetch('/api/sectional');
+      const dataSectionals = await resSectionals.json();
+      const sectionals = dataSectionals?.Data || [];
+
+      const resRegionals = await fetch('/api/regional');
+      const dataRegionals = await resRegionals.json();
+      const regionals = dataRegionals?.Data || [];
 
       const member = allMembers.find(
         (m) =>
@@ -33,9 +44,29 @@ export default function Page() {
           String(m.codigoMiembro) === String(id)
       );
 
-      console.log('FOUND MEMBER:', member);
+      const dest = dests.find(
+        (d) => Number(d.idDestacamento) === Number(member?.idDestacamento)
+      );
 
-      setCurrentMember(mapApiMemberToUI(member));
+      const church = churches.find(
+        (c) => Number(c.idIglesia) === Number(dest?.idIglesia)
+      );
+
+      const sectional = sectionals.find(
+        (s) => Number(s.idSeccion) === Number(church?.idSeccion)
+      );
+
+      const regional = regionals.find(
+        (r) => Number(r.id) === Number(sectional?.idRegion)
+      );
+
+      const mapped = mapApiMemberToUI(member);
+
+      setCurrentMember({
+        ...mapped,
+        sectionalName: sectional?.nombre || '-',
+        regionalName: regional?.nombre || '-',
+      });
       setHydrated(true);
     };
 
