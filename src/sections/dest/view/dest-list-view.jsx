@@ -109,22 +109,18 @@ export function DestListView() {
       const allMembers = members;
       console.log('CHURCHES 👉', churches);
 
-      const church = Array.isArray(churches)
-        ? churches.find((c) => Number(c.idIglesia) === Number(dest.idIglesia))
-        : null;
-      console.log('CHURCH 👉', church);
-      console.log('SECTIONALS 👉', sectionals);
+      const church = churches.find(
+        (c) => Number(c.idIglesia) === Number(dest.idIglesia)
+      );
 
       const sectional = sectionals.find(
         (s) => Number(s.idSeccion) === Number(church?.idSeccion)
       );
-      console.log('SECTIONAL 👉', sectional);
 
-      console.log('REGIONALS 👉', regionals);
-      console.log('BUSCANDO ID 👉', sectional?.idRegion);
       const regional = regionals.find(
-        (r) => Number(r.idRegion) === Number(sectional?.regionalId)
+        (r) => Number(r.idRegion) === Number(sectional?.idRegion)
       );
+
       console.log('REGIONAL 👉', regional);
       console.log('-----------------------------');
       return {

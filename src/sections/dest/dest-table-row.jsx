@@ -53,6 +53,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
       setMembers(Array.isArray(membersData) ? membersData : []);
+      setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
     }
 
     load();
@@ -69,8 +70,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const regional = regionals.find(
     (r) => Number(r.idRegion) === Number(sectional?.regionalId)
   );
-  console.log('SECTIONAL 👉', sectional);
-  console.log('REGIONAL 👉', regional);
+
   const sectionalName = sectional?.sectionalName || '';
 
   const coordinator = members.find(
@@ -272,7 +272,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               href={`/dashboard/level/regional?region=${regional?.id}`}
               color="inherit"
             >
-              {regional?.name || '-'}
+              {regional?.nombre || '-'}
             </Link>
           </Box>
         </TableCell>

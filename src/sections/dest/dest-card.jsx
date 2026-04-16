@@ -51,11 +51,11 @@ export function DestCard({ dest, sx, ...other }) {
     'Iglesia desconocida';
 
   const sectional = sectionals.find(
-    (s) => s.sectionalName === church?.sectionalName
+    (s) => String(s.idSeccion) === String(church?.sectionId)
   );
 
   const regional = regionals.find(
-    (r) => String(r.id) === String(sectional?.regionalId)
+    (r) => String(r.idRegion) === String(sectional?.regionalId)
   );
 
   // Imagen según sección
