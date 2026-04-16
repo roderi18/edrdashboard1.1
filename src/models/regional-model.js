@@ -21,8 +21,8 @@ export function createRegional(data) {
         createdAt: data.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
 
-        regionalXSectionalCount: 0,
-        regionalXSectionalXDestCount: 0,
-        regionalXSectionalMemberCount: 0,
+        regionalXSectionalCount: data.regionalXSectionalCount ?? 0,
+        regionalXSectionalXDestCount: data.regionalXSectionalXDestCount ?? 0,
+        regionalXSectionalMemberCount: data.regionalXSectionalMemberCount ?? 0,
     };
 }

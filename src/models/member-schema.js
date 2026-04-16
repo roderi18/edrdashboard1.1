@@ -34,9 +34,7 @@ export const MemberValidationSchema = z.object({
 
     ocupation: z.any().optional(),
 
-    memberDivision: z
-        .string()
-        .min(1, 'Debe colocar su fecha de nacimiento'),
+    memberDivision: z.any().optional(),
 
     memberPosition: z.any().optional(),
 

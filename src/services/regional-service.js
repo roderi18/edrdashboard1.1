@@ -13,7 +13,7 @@ function mapApiRegionalToUI(regional) {
         coverUrl: null,
 
         regionalXSectionalCount: regional.regionalXSectionalCount || 0,
-        regionalXSectionalXDestCount: 0,
+        regionalXSectionalXDestCount: regional.regionalXSectionalXDestCount || 0,
         regionalXSectionalMemberCount: 0,
 
         memberFullName: 'Desconocido',

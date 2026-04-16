@@ -31,7 +31,7 @@ export default async function Page({ params }) {
       name: regionalApi.nombre,
       countryId: regionalApi.idPais ?? '',
       regionalXSectionalCount: regionalApi.secciones?.length ?? 0,
-      regionalXSectionalXDestCount: 0,
+      regionalXSectionalXDestCount: regionalApi.regionalXSectionalXDestCount || 0,
       regionalXSectionalMemberCount: 0,
     }
     : null;

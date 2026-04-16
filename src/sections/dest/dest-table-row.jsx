@@ -56,7 +56,6 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
       setMembers(Array.isArray(membersData) ? membersData : []);
-      console.log('MEMBERS 👉', membersData);
     }
 
     load();
@@ -77,23 +76,19 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   );
 
   const id = row.id || row.idDestacamento;
-  console.log('ROW ID 👉', id);
-  console.log(
-    'IDS MEMBERS 👉',
-    members.map(m => m.idDestacamento)
-  );
+
   const destMemberCount = members.filter((m) => {
     const match =
       m.idDestacamento !== null &&
       Number(m.idDestacamento) === Number(id);
 
-    if (match) {
-      console.log('MATCH 👉', {
-        memberId: m.idMiembros,
-        memberDest: m.idDestacamento,
-        rowId: id,
-      });
-    }
+    // if (match) {
+    //   console.log('MATCH 👉', {
+    //     memberId: m.idMiembros,
+    //     memberDest: m.idDestacamento,
+    //     rowId: id,
+    //   });
+    // }
 
     return match;
   }).length;

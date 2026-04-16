@@ -61,7 +61,7 @@ const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_N
 const TABLE_HEAD = [
   { id: 'destName', label: 'Destacamento' },
   { id: 'memberFullName', label: 'Coord. Dest', width: 280 },
-  { id: 'destMemberCount', label: 'Miembsros', width: 120 },
+  { id: 'destMemberCount', label: 'Miembros', width: 120 },
   // { id: 'sectionalName', label: 'Membresía', width: 160 },
   { id: 'sectionalName', label: 'Sección', width: 160 },
   { id: 'regionalName', label: 'Región', width: 140 },

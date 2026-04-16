@@ -18,6 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
+import { getSectionals } from 'src/services/sectional-service';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -89,8 +90,54 @@ export function RegionalListView() {
   useEffect(() => {
     async function loadRegionals() {
       const regionals = await getRegionals();
+      const sectionals = await getSectionals();
 
-      setTableData(regionals);
+      const resChurches = await fetch('/api/churches');
+      const dataChurches = await resChurches.json();
+      const churches = dataChurches?.Data || [];
+
+      const resDests = await fetch('/api/dest');
+      const dataDests = await resDests.json();
+      const dests = dataDests?.Data || [];
+
+      const resMembers = await fetch('/api/members');
+      const dataMembers = await resMembers.json();
+      const members = dataMembers?.Data || [];
+
+      const newData = regionals.map((regional) => {
+        const seccionesDeRegion = sectionals.filter(
+          (s) => Number(s.regionalId) === Number(regional.id)
+        );
+
+        const iglesiasDeRegion = churches.filter((c) =>
+          seccionesDeRegion.some(
+            (s) => Number(s.idSeccion) === Number(c.idSeccion)
+          )
+        );
+
+        const destCount = dests.filter((d) =>
+          iglesiasDeRegion.some(
+            (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
+          )
+        ).length;
+        const miembrosDeRegion = members.filter((m) =>
+          m.idDestacamento !== null &&
+          dests.some(
+            (d) =>
+              Number(d.idDestacamento) === Number(m.idDestacamento) &&
+              iglesiasDeRegion.some(
+                (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
+              )
+          )
+        ).length;
+        return {
+          ...regional,
+          regionalXSectionalXDestCount: destCount,
+          regionalXSectionalMemberCount: miembrosDeRegion,
+        };
+      });
+
+      setTableData(newData);
     }
 
     loadRegionals();
