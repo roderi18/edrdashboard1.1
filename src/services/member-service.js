@@ -21,6 +21,7 @@ export function mapApiMemberToUI(member) {
 
         firstName: member.nombres || '',
         lastName: member.apellidos || '',
+        idDestacamento: member.idDestacamento ?? null,
 
         gender: member.genero || '',
         birthDate: member.fechaNacimiento || null,

@@ -56,6 +56,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
       setMembers(Array.isArray(membersData) ? membersData : []);
+      console.log('MEMBERS 👉', membersData);
     }
 
     load();
@@ -64,9 +65,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const church = Array.isArray(churches)
     ? churches.find((c) => Number(c.id) === Number(row.idIglesia))
     : null;
-  console.log('ROW 👉', row);
-  console.log('CHURCHES 👉', churches);
-  console.log('MATCH 👉', church);
+
   const sectionalName = church?.sectionalName || '';
 
   const sectional = sectionals.find(
@@ -78,6 +77,26 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   );
 
   const id = row.id || row.idDestacamento;
+  console.log('ROW ID 👉', id);
+  console.log(
+    'IDS MEMBERS 👉',
+    members.map(m => m.idDestacamento)
+  );
+  const destMemberCount = members.filter((m) => {
+    const match =
+      m.idDestacamento !== null &&
+      Number(m.idDestacamento) === Number(id);
+
+    if (match) {
+      console.log('MATCH 👉', {
+        memberId: m.idMiembros,
+        memberDest: m.idDestacamento,
+        rowId: id,
+      });
+    }
+
+    return match;
+  }).length;
 
   const churchName =
     church?.name ||
@@ -226,7 +245,11 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               href={`/dashboard/level/member?dest=${id}`}
               color="inherit"
             >
-              {row.destMemberCount}
+              {members.filter(
+                (m) =>
+                  m.idDestacamento !== null &&
+                  Number(m.idDestacamento) === Number(row.id || row.idDestacamento)
+              ).length}
             </Link>
           </Box>
         </TableCell>
