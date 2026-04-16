@@ -103,7 +103,11 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const totalDests = destsBySectional.length || 0;
 
   const totalMembers = members.filter((m) =>
-    destsBySectional.some((d) => d.id === m.destId)
+    m.idDestacamento !== null &&
+    destsBySectional.some(
+      (d) =>
+        Number(d.idDestacamento) === Number(m.idDestacamento)
+    )
   ).length;
 
   const renderQuickEditForm = () => (
