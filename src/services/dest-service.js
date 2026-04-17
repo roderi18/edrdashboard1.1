@@ -53,6 +53,33 @@ export function getDests() {
     return getStorageCollection('dests') || [];
 }
 
+export async function getDestsApi() {
+    try {
+        const res = await fetch('/api/dest');
+
+        const text = await res.text();
+
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch {
+            console.error('❌ DEST NO JSON:', text);
+            return [];
+        }
+
+        const data = parsed?.Data || parsed?.data || parsed;
+
+        console.log('DEST API 👉', data);
+
+        return Array.isArray(data)
+            ? data.map(mapApiDestToUI)
+            : [];
+    } catch (error) {
+        console.error('❌ ERROR DEST API:', error);
+        return [];
+    }
+}
+
 export function getDestById(id) {
     const dests = getDests();
     return dests.find((d) => d.id === id);

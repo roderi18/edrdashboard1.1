@@ -1,6 +1,6 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { resolveById } from 'src/utils/resolve-display-name';
-import { getDests } from 'src/services/dest-service';
+import { getDestsApi } from 'src/services/dest-service';
 import { SECTIONALS } from 'src/_mock/assets';
 import { getChurches } from 'src/services/church-service';
 import { getStorageCollection } from 'src/utils/storage-service';
@@ -35,9 +35,14 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const [dests, setDests] = useState([]);
 
   useEffect(() => {
-    setDests(getDests());
-  }, []);
+    const load = async () => {
+      const data = await getDestsApi();
+      console.log('DESTS LOADED 👉', data); // 👈 déjalo para validar
+      setDests(Array.isArray(data) ? data : []);
+    };
 
+    load();
+  }, []);
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -47,7 +52,13 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
-  const dest = dests.find((d) => d.id === row.destId);
+  const dest = dests.find(
+    (d) => String(d.id) === String(row.destId)
+  );
+  console.log('ROW 👉', row);
+  console.log('ROW.destId 👉', row.destId);
+  console.log('DESTS 👉', dests);
+  console.log('MATCH DEST 👉', dest);
   const church = churches.find(
     (c) => String(c.id) === String(dest?.churchId)
   );

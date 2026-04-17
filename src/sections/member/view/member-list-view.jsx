@@ -18,6 +18,7 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import { getDestsApi } from 'src/services/dest-service';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -59,8 +60,6 @@ const TABLE_HEAD = [
   { id: 'memberPosition', label: 'Posición', width: 180 },
   { id: 'sectionalName', label: 'Sección', width: 160 },
   { id: 'memberDivision', label: 'División', width: 90 },
-
-  // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
 // ----------------------------------------------------------------------
@@ -71,13 +70,13 @@ export function MemberListView() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
-      setDests(data?.Data || []);
+      const data = await getDestsApi();
+      setDests(data);
     };
 
     load();
   }, []);
+
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -114,7 +113,9 @@ export function MemberListView() {
 
       const mapped = members.map((member) => {
 
-        const dest = dests.find((d) => d.id === member.destId);
+        const dest = dests.find(
+          (d) => String(d.id) === String(member.destId)
+        );
 
         const memberLeaderships = leadershipAssignments.filter(
           (l) =>
