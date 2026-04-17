@@ -69,8 +69,6 @@ export async function getDestsApi() {
 
         const data = parsed?.Data || parsed?.data || parsed;
 
-        console.log('DEST API 👉', data);
-
         return Array.isArray(data)
             ? data.map(mapApiDestToUI)
             : [];

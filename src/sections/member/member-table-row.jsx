@@ -37,7 +37,6 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   useEffect(() => {
     const load = async () => {
       const data = await getDestsApi();
-      console.log('DESTS LOADED 👉', data); // 👈 déjalo para validar
       setDests(Array.isArray(data) ? data : []);
     };
 
@@ -55,10 +54,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const dest = dests.find(
     (d) => String(d.id) === String(row.destId)
   );
-  console.log('ROW 👉', row);
-  console.log('ROW.destId 👉', row.destId);
-  console.log('DESTS 👉', dests);
-  console.log('MATCH DEST 👉', dest);
+
   const church = churches.find(
     (c) => String(c.id) === String(dest?.churchId)
   );
