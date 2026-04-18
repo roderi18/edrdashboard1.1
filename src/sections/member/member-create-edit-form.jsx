@@ -23,7 +23,7 @@ import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import barriosData from 'src/data/barrios.json';
 import { getDivisions } from 'src/services/division-service';
-
+import DebugPayloadButton from 'src/components/debug/DebugPayloadButton';
 // routes
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -260,6 +260,7 @@ export function MemberCreateEditForm({ currentMember }) {
 
   const birthdate = watch('birthdate');
   const [division, setDivision] = useState('');
+  const [divisionId, setDivisionId] = useState(null);
   const idDivision = watch('idDivision');
 
   useEffect(() => {
@@ -268,10 +269,9 @@ export function MemberCreateEditForm({ currentMember }) {
     const load = async () => {
       const res = await fetch(`/api/divisions/calculate?birthdate=${birthdate}`);
       const data = await res.json();
-
-      console.log('DIVISION DESDE API 👉', data); // opcional
-
       setDivision(data?.name || '');
+      methods.setValue('idDivision', data?.id || 0);
+      setDivisionId(data?.id || null);
     };
 
     load();
@@ -286,6 +286,11 @@ export function MemberCreateEditForm({ currentMember }) {
     }
   }, [division, methods, watch]);
 
+  useEffect(() => {
+    if (divisionId) {
+      methods.setValue('idDivision', divisionId);
+    }
+  }, [divisionId, methods]);
 
   useEffect(() => {
     const load = async () => {
@@ -514,7 +519,7 @@ export function MemberCreateEditForm({ currentMember }) {
           correo: data.email || null,
           idCargoLocal: null,
           idCargoInstitucional: null,
-          idDivision: null,
+          idDivision: data.idDivision ? Number(data.idDivision) : 0,
           instructorCertificadoCi:
             data.InstructorCertificadoCI === 1
               ? true
@@ -1018,6 +1023,36 @@ export function MemberCreateEditForm({ currentMember }) {
                 Faltan campos obligatorios por completar
               </Typography>
             )}
+            <DebugPayloadButton
+              getValues={methods.getValues}
+              buildPayload={(data) => {
+                const firstName = capitalizeWords(data.firstName);
+                const lastName = capitalizeWords(data.lastName);
+
+                return {
+                  idMiembros: currentMember?.id || 0,
+                  codigoMiembro: currentMember?.memberId || 'DEBUG',
+                  nombres: firstName,
+                  apellidos: lastName,
+                  genero: data.gender === 'Masculino' ? 'M' : 'F',
+                  fechaNacimiento: data.birthdate
+                    ? dayjs(data.birthdate).format('YYYY-MM-DD')
+                    : null,
+                  idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
+                  telefono: data.phoneNumber || '',
+                  direccion: data.street || '',
+                  correo: data.email || null,
+                  idCargoLocal: null,
+                  idCargoInstitucional: null,
+
+                  // 🔥 CLAVE
+                  idDivision: Number(data.idDivision) || 0,
+
+                  instructorCertificadoCi: data.InstructorCertificadoCI === 1,
+                  estatusMiembro: data.status ?? 'active',
+                };
+              }}
+            />
           </Card>
         </Grid>
       </Grid>

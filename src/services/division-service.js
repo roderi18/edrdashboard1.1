@@ -1,8 +1,12 @@
 export async function getDivisions() {
     try {
-        const res = await fetch(
-            'https://systexploradores.somee.com/api/Divisiones/GetAllDivisiones'
-        );
+        const isServer = typeof window === 'undefined';
+
+        const url = isServer
+            ? 'https://systexploradores.somee.com/api/Divisiones/GetAllDivisiones'
+            : '/api/divisions';
+
+        const res = await fetch(url);
 
         const text = await res.text();
 
@@ -11,12 +15,10 @@ export async function getDivisions() {
         try {
             parsed = JSON.parse(text);
         } catch {
-            console.error('DIVISIONES NO JSON 👉', text);
             return [];
         }
 
         const rows = parsed?.Data || [];
-        console.log('ROWS DIVISIONES 👉', rows);
 
         return rows.map((d) => ({
             id: d.idDivision,
@@ -24,7 +26,6 @@ export async function getDivisions() {
         }));
 
     } catch (error) {
-        console.error('Error cargando divisiones:', error);
         return [];
     }
 }

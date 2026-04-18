@@ -14,13 +14,6 @@ const getDivisionByBirthdate = (birthDate, divisions) => {
         age--;
     }
 
-    console.log('DEBUG EDAD 👉', {
-        birthDate,
-        parsedBirth: birth,
-        today,
-        age
-    });
-
     const findByName = (keyword) =>
         divisions.find(d =>
             d.name.toLowerCase().includes(keyword.toLowerCase())
@@ -43,7 +36,6 @@ export async function GET(req) {
         const divisions = await getDivisions();
 
         const division = getDivisionByBirthdate(birthdate, divisions);
-        console.log('DIVISION CALCULADA 👉', division);
 
         return Response.json(division ?? { id: null, name: '' });
 

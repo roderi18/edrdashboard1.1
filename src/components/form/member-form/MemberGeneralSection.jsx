@@ -62,9 +62,8 @@ export default function MemberGeneralSection({
                 views={['year', 'month', 'day']}
             />
 
-
             <Field.Text
-                name="idDivision"
+                name="memberDivision"
                 label="División (cálculo automático según edad)"
                 value={division || ''}
                 disabled

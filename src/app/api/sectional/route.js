@@ -50,8 +50,6 @@ export async function GET() {
             };
         });
 
-        console.log('🔥 SECCIONALES CON IGLESIAS 👉', newData);
-
         data.Data = newData;
 
         return Response.json(data);
