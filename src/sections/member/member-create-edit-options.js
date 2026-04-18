@@ -59,23 +59,3 @@ export const NATIONAL_LEADERSHIP_LEVELS = [
     { value: 'regional', label: 'Nivel Regional' },
     { value: 'sectional', label: 'Nivel Seccional' },
 ];
-
-
-export const MEMBER_DIVISIONS_BY_AGE = [
-    { min: 5, max: 7, value: 'navegantes', label: 'Navegantes' },
-    { min: 8, max: 10, value: 'pioneros', label: 'Pioneros' },
-    { min: 11, max: 13, value: 'seguidores', label: 'Seguidores' },
-    { min: 14, max: 17, value: 'exploradores', label: 'Exploradores' },
-    { min: 18, max: 99, value: 'liderazgo', label: 'Liderazgo' },
-];
-
-export function getDivisionByAge(age) {
-    if (!age && age !== 0) return '';
-
-    const division = MEMBER_DIVISIONS_BY_AGE.find(
-        (d) => age >= d.min && age <= d.max
-    );
-
-    return division ? division.label : '';
-}
-

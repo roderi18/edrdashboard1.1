@@ -13,6 +13,7 @@ export default function MemberGeneralSection({
     control,
 }) {
     return (
+
         <>
             {isCreateView && (
                 <Box
@@ -63,7 +64,7 @@ export default function MemberGeneralSection({
 
 
             <Field.Text
-                name="memberDivision"
+                name="idDivision"
                 label="División (cálculo automático según edad)"
                 value={division || ''}
                 disabled

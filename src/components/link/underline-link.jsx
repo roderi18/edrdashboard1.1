@@ -1,4 +1,5 @@
 import Link from '@mui/material/Link';
+import Box from '@mui/material/Box';
 import { RouterLink } from 'src/routes/components';
 
 export function UnderlineLink({
@@ -8,6 +9,31 @@ export function UnderlineLink({
     children,
     ...props
 }) {
+    const text = String(children || '').toLowerCase().trim();
+
+    const isDisabled =
+        !text ||
+        text === '-' ||
+        text === 'n/a' ||
+        text.includes('desconocida');
+
+    // 🔴 SI ESTÁ DESHABILITADO → NO LINK
+    if (isDisabled) {
+        return (
+            <Box
+                sx={{
+                    color: 'text.disabled',
+                    typography: 'body2',
+                    cursor: 'default',
+                    ...sx,
+                }}
+            >
+                {children}
+            </Box>
+        );
+    }
+
+    // ✅ SI ES VÁLIDO → LINK NORMAL
     return (
         <Link
             component={RouterLink}
@@ -16,9 +42,10 @@ export function UnderlineLink({
             sx={(theme) => ({
                 cursor: 'pointer',
 
-                color: theme.palette.mode === 'dark'
-                    ? '#ffffff'
-                    : 'inherit',
+                color:
+                    theme.palette.mode === 'dark'
+                        ? '#ffffff'
+                        : 'inherit',
 
                 textUnderlineOffset: '3px',
 

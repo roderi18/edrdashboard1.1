@@ -9,6 +9,7 @@ import { getAvailableOptionsFromData } from 'src/utils/get-available-options-fro
 import { getMembers } from 'src/services/member-service';
 import { getLeadershipAssignments } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
+import { getSectionals } from 'src/services/sectional-service';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -23,7 +24,6 @@ import { getDestsApi } from 'src/services/dest-service';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { getDests } from 'src/services/dest-service';
-import { getSectionals } from 'src/services/sectional-service';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
@@ -81,6 +81,7 @@ export function MemberListView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [churches, setChurches] = useState([]);
+  const [sectionals, setSectionals] = useState([]);
 
   useEffect(() => {
     if (isMobile) {
@@ -97,6 +98,15 @@ export function MemberListView() {
     loadChurches();
   }, []);
 
+  useEffect(() => {
+    const loadSectionals = async () => {
+      const data = await getSectionals();
+      setSectionals(Array.isArray(data) ? data : []);
+    };
+
+    loadSectionals();
+  }, []);
+
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
@@ -108,31 +118,35 @@ export function MemberListView() {
 
   useEffect(() => {
     async function loadData() {
+
+      // 🚨 NO correr hasta que haya data
+      if (!dests.length || !churches.length || !sectionals.length) return;
+
       const members = await getMembers();
       const leadershipAssignments = getLeadershipAssignments();
 
       const mapped = members.map((member) => {
 
         const dest = dests.find(
-          (d) => String(d.id) === String(member.destId)
+          (d) => String(d.id) === String(member.idDestacamento)
         );
 
-        const memberLeaderships = leadershipAssignments.filter(
-          (l) =>
-            (l.memberId === member.id || l.member_id === member.id) &&
-            (l.status === 'active' || !l.status)
-        );
         const church = churches.find(
-          (c) => String(c.id) === String(dest?.churchId)
+          (c) => Number(c.id) === Number(dest?.churchId)
         );
+
+        const sectional = sectionals.find(
+          (s) => String(s.id) === String(church?.idSeccion)
+        );
+
         return {
           ...member,
           id: member.id,
           memberId: member.id,
           name: getMemberFullName(member),
-          sectionalId: church?.sectionalName,
-          sectionalName: church?.sectionalName,
-          memberPosition: memberLeaderships.map((l) => l.role),
+          sectionalId: sectional?.id,
+          sectionalName: sectional?.sectionalName || 'Sección desconocida',
+          memberPosition: [],
         };
       });
 
@@ -140,7 +154,7 @@ export function MemberListView() {
     }
 
     loadData();
-  }, []);
+  }, [dests, churches, sectionals]);
 
   const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalId: [], destName: [] });
   const { state: currentFilters, setState: updateFilters } = filters;

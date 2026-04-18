@@ -25,7 +25,7 @@ export const mapApiChurchesToUI = (apiChurch) => {
         correo: apiChurch.correo ?? '',
         provinceId: apiChurch.idProvincia?.toString() ?? '',
         countryId: apiChurch.idPais?.toString() ?? '',
-        sectionId: idSeccion ? idSeccion.toString() : '',
+        idSeccion: idSeccion ? idSeccion.toString() : '',
         sectionalName: apiChurch.idSeccionNavigation?.nombre ?? '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

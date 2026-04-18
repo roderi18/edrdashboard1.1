@@ -22,7 +22,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import barriosData from 'src/data/barrios.json';
-
+import { getDivisions } from 'src/services/division-service';
 
 // routes
 import { paths } from 'src/routes/paths';
@@ -58,7 +58,6 @@ import {
   MEMBER_OCUPATIONS_SORTED,
   MEMBER_SHIRT_SIZES,
   NATIONAL_LEADERSHIP_LEVELS,
-  getDivisionByAge
 } from './member-create-edit-options';
 
 // components
@@ -77,7 +76,6 @@ import MemberInstructorCISection from 'src/components/form/member-form/MemberIns
 
 const mapMemberToForm = (member) => {
   const leadershipAssignments = getLeadershipAssignments();
-
   const memberLeaderships = leadershipAssignments.filter(
     (l) =>
       member &&
@@ -177,6 +175,16 @@ export function MemberCreateEditForm({ currentMember }) {
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
   const [members, setMembers] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getDivisions();
+      setDivisions(data);
+    };
+
+    load();
+  }, []);
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -251,10 +259,26 @@ export function MemberCreateEditForm({ currentMember }) {
   } = methods;
 
   const birthdate = watch('birthdate');
+  const [division, setDivision] = useState('');
+  const idDivision = watch('idDivision');
+
+  useEffect(() => {
+    if (!birthdate) return;
+
+    const load = async () => {
+      const res = await fetch(`/api/divisions/calculate?birthdate=${birthdate}`);
+      const data = await res.json();
+
+      console.log('DIVISION DESDE API 👉', data); // opcional
+
+      setDivision(data?.name || '');
+    };
+
+    load();
+  }, [birthdate]);
 
   const age =
     birthdate ? dayjs().diff(dayjs(birthdate), 'year') : null;
-  const division = getDivisionByAge(age);
 
   useEffect(() => {
     if (division && watch('memberDivision') !== division) {
@@ -262,10 +286,18 @@ export function MemberCreateEditForm({ currentMember }) {
     }
   }, [division, methods, watch]);
 
+
   useEffect(() => {
     const load = async () => {
       const res = await fetch('/api/dest');
-      const data = await res.json();
+      let data = null;
+
+      try {
+        data = await res.json();
+      } catch {
+        console.error('ERROR PARSE DIVISION');
+        return;
+      }
 
       setDests(data?.Data || []);
     };

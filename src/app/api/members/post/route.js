@@ -1,7 +1,31 @@
+import { getDivisions } from 'src/services/division-service';
+
+const getDivisionIdByBirthdate = (birthDate, divisions) => {
+    if (!birthDate) return null;
+
+    const today = new Date();
+    const birth = new Date(birthDate);
+
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+
+    if (age >= 5 && age <= 7) return divisions.find(d => d.name.includes('Navegantes'))?.id;
+    if (age >= 8 && age <= 10) return divisions.find(d => d.name.includes('Pioneros'))?.id;
+    if (age >= 11 && age <= 13) return divisions.find(d => d.name.includes('Seguidores'))?.id;
+    if (age >= 14 && age <= 17) return divisions.find(d => d.name.includes('Exploradores'))?.id;
+    if (age >= 18) return divisions.find(d => d.name.includes('Liderazgo'))?.id;
+
+    return null;
+};
+
 export async function POST(req) {
     try {
         const body = await req.json();
-        console.log('BODY FRONT 👉', JSON.stringify(body, null, 2));
+        const divisions = await getDivisions();
         const res = await fetch(
             'https://systexploradores.somee.com/api/Miembros/SetMiembros',
             {
@@ -23,7 +47,7 @@ export async function POST(req) {
                     telefono: body.telefono,
                     direccion: body.direccion,
                     correo: body.correo,
-                    idDivision: body.idDivision ?? null,
+                    idDivision: getDivisionIdByBirthdate(body.fechaNacimiento, divisions),
                     instructorCertificadoCi: body.instructorCertificadoCi ?? null,
                     estatusVigenciaCi: body.estatusVigenciaCi ?? null,
                     fechaInicioCertificado: body.fechaInicioCertificado ?? null,

@@ -56,7 +56,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   );
 
   const church = churches.find(
-    (c) => String(c.id) === String(dest?.churchId)
+    (c) => Number(c.id) === Number(dest?.churchId)
   );
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
@@ -67,7 +67,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   //   (c) => c.id === dest?.churchId
   // );
 
-  const sectionalName = church?.sectionalName || '-';
+  const sectionalName = row.sectionalName || '-';
 
   const churchName = church?.name || 'Iglesia desconocida';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
