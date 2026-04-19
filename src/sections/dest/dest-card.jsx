@@ -34,7 +34,7 @@ export function DestCard({ dest, sx, ...other }) {
       const churchesData = await getChurches();
 
       setSectionals(sectionalsData || []);
-      setRegionals(regionalsData || []);
+      setRegionals(regionalsData?.Data || regionalsData || []);
       setChurches(churchesData || []);
     };
 
@@ -51,13 +51,14 @@ export function DestCard({ dest, sx, ...other }) {
     'Iglesia desconocida';
 
   const sectional = sectionals.find(
-    (s) => String(s.idSeccion) === String(church?.sectionId)
+    (s) => String(s.id) === String(church?.idSeccion)
   );
 
   const regional = regionals.find(
-    (r) => String(r.idRegion) === String(sectional?.regionalId)
+    (r) => Number(r.id) === Number(sectional?.regionalId)
   );
-
+  console.log('SECTIONAL 👉', sectional);
+  console.log('REGIONAL 👉', regional);
   // Imagen según sección
   const sectionalCoverMap = {
     'sec-este-01': '/assets/images/divisions/dest/tiburones-del-este.jpg',
@@ -225,7 +226,7 @@ export function DestCard({ dest, sx, ...other }) {
             onClick={() =>
               router.push(
                 `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                  church?.sectionalName || ''
+                  sectional?.sectionalName || ''
                 )}`
               )
             }
@@ -239,7 +240,7 @@ export function DestCard({ dest, sx, ...other }) {
               },
             }}
           >
-            {sectional?.sectionalName ? `Sección ${sectional.sectionalName}` : '-'}
+            {sectional?.sectionalName ? `Sección ${sectional.sectionalName}` : 'Sección desconocida'}
           </Box>
 
           <Box
@@ -259,8 +260,8 @@ export function DestCard({ dest, sx, ...other }) {
             onClick={() =>
               sectional &&
               router.push(
-                `/dashboard/level/regional?section=${encodeURIComponent(
-                  resolveById(REGIONALS, sectional.regionalId)
+                `/dashboard/level/regional?region=${encodeURIComponent(
+                  regional?.name || ''
                 )}`
               )
             }
@@ -274,7 +275,7 @@ export function DestCard({ dest, sx, ...other }) {
               },
             }}
           >
-            {sectional ? resolveById(REGIONALS, sectional.regionalId) : 'Región desconocida'}
+            {regional?.name || 'Región desconocida'}
           </Box>
         </Box>
       </Box>

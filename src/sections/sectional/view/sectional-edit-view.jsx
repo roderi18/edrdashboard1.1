@@ -15,7 +15,6 @@ export function SectionalEditView({ sectionalId }) {
   useEffect(() => {
     const load = async () => {
       const data = await getSectionalById(sectionalId);
-      console.log('CLIENT SECTIONAL 👉', data);
       setCurrentSectional(data);
     };
 

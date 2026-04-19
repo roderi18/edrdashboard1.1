@@ -26,7 +26,6 @@ import { getChurches } from 'src/services/church-service';
 
 
 export function SectionalCreateEditForm({ currentSectional }) {
-  console.log('CURRENT SECTIONAL 👉', currentSectional);
   const router = useRouter();
   const [dests, setDests] = useState([]);
   const [members, setMembers] = useState([]);
