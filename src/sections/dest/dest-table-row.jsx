@@ -66,14 +66,12 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const sectional = sectionals.find(
     (s) => Number(s.id) === Number(church?.idSeccion)
   );
-  console.log('CHURCH 👉', church);
-  console.log('SECTIONAL 👉', sectional);
 
   const regional = regionals.find(
     (r) => Number(r.idRegion) === Number(sectional?.regionalId)
   );
 
-  const sectionalName = sectional?.name || '';
+  const sectionalName = sectional?.sectionalName || '';
 
   const coordinator = members.find(
     (m) => String(m.memberId) === String(row.coordinatorId)
