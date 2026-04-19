@@ -107,7 +107,6 @@ export function DestListView() {
           )
           : null);
       const allMembers = members;
-      console.log('CHURCHES 👉', churches);
 
       const church = churches.find(
         (c) => Number(c.idIglesia) === Number(dest.idIglesia)
@@ -121,8 +120,6 @@ export function DestListView() {
         (r) => Number(r.idRegion) === Number(sectional?.idRegion)
       );
 
-      console.log('REGIONAL 👉', regional);
-      console.log('-----------------------------');
       return {
         ...dest,
         destName: dest.name,

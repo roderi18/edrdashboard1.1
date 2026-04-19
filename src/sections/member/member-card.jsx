@@ -17,8 +17,7 @@ import { resolveById } from 'src/utils/resolve-display-name';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useTheme, useMediaQuery } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
-import { getDests } from 'src/services/dest-service';
+import { SECTIONALS } from 'src/_mock/assets';
 import { getChurches } from 'src/services/church-service';
 // ----------------------------------------------------------------------
 
@@ -56,14 +55,16 @@ export function MemberCard({ member, sx, ...other }) {
     '/assets/images/divisions/default.jpg';
 
   const dest = dests.find(
-    (d) => d.id === member.destId
+    (d) => Number(d.idDestacamento) === Number(member.destId)
   );
-
+  console.log('MEMBER 👉', member);
+  console.log('DESTS 👉', dests);
+  console.log('MATCH DEST 👉', dest);
   const church = churches.find(
-    (c) => c.id === dest?.churchId
+    (c) => Number(c.id) === Number(dest?.churchId)
   );
 
-  const sectionalName = church?.sectionalName || '-';
+  const sectionalName = member?.sectionalName || '-';
 
   let leaderships = leadershipAssignments
     .filter(
@@ -269,8 +270,8 @@ export function MemberCard({ member, sx, ...other }) {
           <Box
             onClick={() =>
               router.push(
-                `/dashboard/level/dest?member=${encodeURIComponent(
-                  resolveById(dests, member.destId)
+                `/dashboard/level/dest?dest=${encodeURIComponent(
+                  member.destId
                 )}`
               )
             }
@@ -284,7 +285,7 @@ export function MemberCard({ member, sx, ...other }) {
               },
             }}
           >
-            {`Dest. ${`${dest?.name || 'Desconocido'} ${dest?.destNumber || ''}`.trim()}`}
+            {`Dest. ${`${dest?.nombre || 'Desconocido'} ${dest?.numero || ''}`.trim()}`}
           </Box>
 
           <Box
@@ -304,7 +305,7 @@ export function MemberCard({ member, sx, ...other }) {
             onClick={() =>
               router.push(
                 `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                  resolveById(SECTIONALS, member.sectionalId)
+                  sectionalName
                 )}`
               )
             }

@@ -57,8 +57,7 @@ export function DestCard({ dest, sx, ...other }) {
   const regional = regionals.find(
     (r) => Number(r.id) === Number(sectional?.regionalId)
   );
-  console.log('SECTIONAL 👉', sectional);
-  console.log('REGIONAL 👉', regional);
+
   // Imagen según sección
   const sectionalCoverMap = {
     'sec-este-01': '/assets/images/divisions/dest/tiburones-del-este.jpg',
