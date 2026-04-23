@@ -282,7 +282,7 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                   selected
                     .map((id) => {
                       const found = sectionals.find((s) => s.id?.toString() === id?.toString());
-                      return found?.name || id;
+                      return found?.nombre || found?.name || id;
                     })
                     .join(', ')
                 }
