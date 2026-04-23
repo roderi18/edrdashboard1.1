@@ -21,7 +21,7 @@ import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { useTheme, useMediaQuery } from '@mui/material';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';// ----------------------------------------------------------------------
 
-export function MemberTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode }) {
+export function MemberTableToolbar({ filters, onResetPage, displayMode, setDisplayMode, options, sectionals }) {
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -35,7 +35,6 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
     };
     load();
   }, []);
-  const sectionals = getSectionals();
 
   const filtersPopover = usePopover();
 
@@ -281,8 +280,30 @@ export function MemberTableToolbar({ filters, options, onResetPage, displayMode,
                 renderValue={(selected) =>
                   selected
                     .map((id) => {
-                      const found = sectionals.find((s) => s.id?.toString() === id?.toString());
-                      return found?.nombre || found?.name || id;
+                      const found = Array.isArray(sectionals)
+                        ? sectionals.find(
+                          (s) =>
+                            s.id?.toString() === id?.toString() ||
+                            s.idSeccion?.toString() === id?.toString()
+                        )
+                        : null;
+                      console.log('DEBUG SECTION FILTER 👉', {
+                        selectedId: id,
+                        sectionals,
+                        found: Array.isArray(sectionals)
+                          ? sectionals.find(
+                            (s) =>
+                              s.id?.toString() === id?.toString() ||
+                              s.idSeccion?.toString() === id?.toString()
+                          )
+                          : 'sectionals NO ES ARRAY',
+                      });
+                      return (
+                        found?.sectionalName ||
+                        found?.nombre ||
+                        found?.name ||
+                        id
+                      );
                     })
                     .join(', ')
                 }

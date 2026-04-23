@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect } from 'react';
-import { getDests } from 'src/services/dest-service';
+import { getSectionals } from 'src/services/sectional-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import Chip from '@mui/material/Chip';
 
@@ -60,6 +60,16 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
     resetFilters();
   }, [onResetPage, resetFilters]);
 
+  const [sectionals, setSectionals] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getSectionals();
+      setSectionals(Array.isArray(data) ? data : []);
+    };
+    load();
+  }, []);
+
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
       <FiltersBlock label="División:" isShow={currentFilters.memberDivision.length > 0}>
@@ -106,14 +116,18 @@ export function MemberTableFiltersResult({ filters, onResetPage, totalResults, s
       </FiltersBlock>
 
       <FiltersBlock label="Sección:" isShow={currentFilters.sectionalId.length > 0}>
-        {currentFilters.sectionalId.map((item) => (
-          <Chip
-            {...chipProps}
-            key={item}
-            label={item}
-            onDelete={() => handleRemoveState(item)}
-          />
-        ))}
+        {currentFilters.sectionalId.map((item) => {
+          const found = sectionals.find((s) => String(s.id) === String(item));
+
+          return (
+            <Chip
+              {...chipProps}
+              key={item}
+              label={found?.sectionalName || found?.nombre || item}
+              onDelete={() => handleRemoveState(item)}
+            />
+          );
+        })}
       </FiltersBlock>
 
 

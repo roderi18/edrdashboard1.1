@@ -178,8 +178,10 @@ export function MemberListView() {
   const distinctSectionals = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'sectionalId',
-    labelResolver: (id) =>
-      sectionals.find((s) => s.id === id)?.name || id,
+    labelResolver: (id) => {
+      const found = sectionals.find((s) => String(s.id) === String(id));
+      return found?.sectionalName || found?.nombre || id;
+    },
   });
   const searchParams = useSearchParams();
   const memberIdFromUrl = searchParams.get('member');
@@ -382,6 +384,7 @@ export function MemberListView() {
             onResetPage={table.onResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
+            sectionals={sectionals}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,
