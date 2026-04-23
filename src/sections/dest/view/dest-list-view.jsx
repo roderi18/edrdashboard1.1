@@ -411,9 +411,7 @@ export function DestListView() {
                       'default'
                     }
                   >
-                    {/* {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
-                      ? tableData.filter((sectional) => sectional.regionalName === tab.value).length
-                      : tableData.length} */}
+
                     {getDestCountByRegion(tab.value)}
                   </Label>
                 }
@@ -534,8 +532,6 @@ export function DestListView() {
 
 function applyFilter({ inputData, comparator, filters, members }) {
   const { name, regionalName, sectionalName } = filters;
-  console.log('FILTROS ACTUALES 👉', filters);
-  console.log('INPUT DATA ANTES FILTRO 👉', inputData);
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -550,11 +546,10 @@ function applyFilter({ inputData, comparator, filters, members }) {
   //Se reemplaza el anterior por el siguiente. Este busca tanto por destNasme como por memberFullName.
   if (name) {
     const keyword = normalizeText(name);
-    console.log('KEYWORD NORMALIZED 👉', keyword);
 
     inputData = inputData.filter((dest) =>
       normalizeText(
-        `${dest.nombre || ''} ${dest.destName || ''} ${dest.memberFullName || ''} ${dest.churchName || ''} ${dest.sectionalName || ''} ${dest.regionalName || ''}`
+        `${dest.nombre || ''} ${dest.destName || ''} ${dest.numero || ''} ${dest.memberFullName || ''} ${dest.churchName || ''} ${dest.sectionalName || ''} ${dest.regionalName || ''}`
       ).includes(keyword)
     );
   }
