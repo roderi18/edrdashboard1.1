@@ -82,6 +82,7 @@ export function DestListView() {
     const allDests = apiDests;
 
     return allDests.map((dest) => {
+      console.log('DEST RAW 👉', dest);
       if (dest.name === 'Leones De Sion') {
         console.log('DEST PROCESADO:', dest);
       }
@@ -122,7 +123,8 @@ export function DestListView() {
 
       return {
         ...dest,
-        destName: dest.name,
+        destName: dest.nombre || dest.name || '',
+        debugDestName: dest.name || dest.destName || '',
 
         churchName: church?.name ?? dest?.churchName ?? '',
 
@@ -158,8 +160,11 @@ export function DestListView() {
     const load = async () => {
       const res = await fetch('/api/dest');
       const data = await res.json();
+      console.log('RESPUESTA /api/dest 👉', data);
+      console.log('DATA ARRAY /api/dest 👉', data?.Data || []);
 
       const built = buildDestList(data?.Data || []);
+      console.log('DESTS BUILT 👉', built);
       setTableData(built);
     };
 
@@ -529,6 +534,8 @@ export function DestListView() {
 
 function applyFilter({ inputData, comparator, filters, members }) {
   const { name, regionalName, sectionalName } = filters;
+  console.log('FILTROS ACTUALES 👉', filters);
+  console.log('INPUT DATA ANTES FILTRO 👉', inputData);
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -543,17 +550,13 @@ function applyFilter({ inputData, comparator, filters, members }) {
   //Se reemplaza el anterior por el siguiente. Este busca tanto por destNasme como por memberFullName.
   if (name) {
     const keyword = normalizeText(name);
+    console.log('KEYWORD NORMALIZED 👉', keyword);
 
-    inputData = inputData.filter((dest) => {
-      const coordinator =
-        members.find(
-          (m) => String(m.memberId) === String(dest.coordinatorId)
-        );
-
-      return normalizeText(
-        `${coordinator?.firstName || ''} ${coordinator?.lastName || ''} ${dest.destName || ''} ${dest.churchName || ''} ${dest.coordinatorId || ''}`
-      ).includes(keyword);
-    });
+    inputData = inputData.filter((dest) =>
+      normalizeText(
+        `${dest.nombre || ''} ${dest.destName || ''} ${dest.memberFullName || ''} ${dest.churchName || ''} ${dest.sectionalName || ''} ${dest.regionalName || ''}`
+      ).includes(keyword)
+    );
   }
 
   if (regionalName !== 'all') {
