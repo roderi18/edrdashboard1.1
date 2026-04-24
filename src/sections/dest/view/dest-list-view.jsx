@@ -243,10 +243,11 @@ export function DestListView() {
 
   const distinctSectionalFullName = (sectionals || []).map((s) => ({
     value: s.idSeccion || s.id,
-    label: s.nombre || s.name,
+    label: s.nombre || s.sectionalName || s.name || 'Sin nombre',
   }));
 
-  console.log('OPTIONS SECTIONAL FINAL 👉', distinctSectionalFullName);
+  console.log('OPTIONS SECTIONAL FINAL 👉', sectionals);
+
 
   useEffect(() => {
     if (appliedFromUrl.current) return;

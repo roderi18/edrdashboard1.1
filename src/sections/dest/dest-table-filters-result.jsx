@@ -6,7 +6,7 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 
 // ----------------------------------------------------------------------
 
-export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx }) {
+export function DestTableFiltersResult({ filters, options, onResetPage, totalResults, sx }) {
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
@@ -52,7 +52,9 @@ export function DestTableFiltersResult({ filters, onResetPage, totalResults, sx 
           <Chip
             {...chipProps}
             key={item}
-            label={item}
+            label={
+              options?.sectionalName?.find((opt) => opt.value === item)?.label || item
+            }
             onDelete={() => handleRemoveDestMembership(item)}
           />
         ))}
