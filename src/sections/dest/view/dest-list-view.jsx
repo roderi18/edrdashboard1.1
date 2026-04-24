@@ -82,7 +82,6 @@ export function DestListView() {
     const allDests = apiDests;
 
     return allDests.map((dest) => {
-      console.log('DEST RAW 👉', dest);
       if (dest.name === 'Leones De Sion') {
         console.log('DEST PROCESADO:', dest);
       }
@@ -110,25 +109,45 @@ export function DestListView() {
       const allMembers = members;
 
       const church = churches.find(
-        (c) => Number(c.idIglesia) === Number(dest.idIglesia)
+        (c) =>
+          Number(c.idIglesia) === Number(dest.idIglesia) ||
+          Number(c.id) === Number(dest.idIglesia)
       );
 
+      console.log('MATCH CHURCH 👉', {
+        destIdIglesia: dest.idIglesia,
+        churches,
+        encontrada: church,
+      });
+
       const sectional = sectionals.find(
-        (s) => Number(s.idSeccion) === Number(church?.idSeccion)
+        (s) =>
+          Number(s.idSeccion) === Number(church?.idSeccion) ||
+          Number(s.id) === Number(church?.idSeccion) ||
+          Number(s.idSeccion) === Number(church?.sectionId) ||
+          Number(s.id) === Number(church?.sectionId)
       );
+
+      console.log('SECTIONAL MATCH 👉', {
+        church,
+        churchIdSeccion: church?.idSeccion,
+        churchSectionId: church?.sectionId,
+        sectionalEncontrada: sectional,
+      });
 
       const regional = regionals.find(
         (r) => Number(r.idRegion) === Number(sectional?.idRegion)
       );
 
+      const sectionalId = sectional?.idSeccion || sectional?.id || null;
+      const sectionalName = sectional?.nombre || sectional?.name || null;
       return {
         ...dest,
+
         destName: dest.nombre || dest.name || '',
         debugDestName: dest.name || dest.destName || '',
 
         churchName: church?.name ?? dest?.churchName ?? '',
-
-        sectionalId: church?.sectionalName,
 
         memberFullName: coordinator
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
@@ -139,7 +158,12 @@ export function DestListView() {
 
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
-        sectionalName: sectional?.nombre ?? '-',
+        sectionalId: sectional?.idSeccion || sectional?.id || null,
+        sectionalName: sectional?.nombre || sectional?.name || null,
+
+        debugChurchIdSeccion: church?.idSeccion,
+        debugChurchSectionId: church?.sectionId,
+
         regionalName: regional?.nombre ?? '-',
       };
     });
@@ -157,14 +181,20 @@ export function DestListView() {
   }, [isMobile]);
 
   useEffect(() => {
+    if (!members.length || !churches.length || !sectionals.length || !regionals.length) {
+      return;
+    }
+
     const load = async () => {
       const res = await fetch('/api/dest');
       const data = await res.json();
-      console.log('RESPUESTA /api/dest 👉', data);
-      console.log('DATA ARRAY /api/dest 👉', data?.Data || []);
+
+      console.log('DATA DEST RAW 👉', data?.Data);
 
       const built = buildDestList(data?.Data || []);
-      console.log('DESTS BUILT 👉', built);
+
+      console.log('DATA DEST BUILT 👉', built);
+
       setTableData(built);
     };
 
@@ -211,11 +241,12 @@ export function DestListView() {
     ).length;
   };
 
-  const distinctSectionalFullName = getAvailableOptionsFromData({
-    inputData: tableData,
-    property: 'sectionalId',
-    labelResolver: (name) => name,
-  });
+  const distinctSectionalFullName = (sectionals || []).map((s) => ({
+    value: s.idSeccion || s.id,
+    label: s.nombre || s.name,
+  }));
+
+  console.log('OPTIONS SECTIONAL FINAL 👉', distinctSectionalFullName);
 
   useEffect(() => {
     if (appliedFromUrl.current) return;
@@ -562,7 +593,7 @@ function applyFilter({ inputData, comparator, filters, members }) {
 
   if (sectionalName.length) {
     inputData = inputData.filter((dest) =>
-      sectionalName.includes(dest.sectionalName)
+      sectionalName.includes(dest.sectionalId)
     );
   }
 
