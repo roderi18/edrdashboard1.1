@@ -478,6 +478,10 @@ export function SectionalListView() {
   );
 }
 
+const getRegionalNameBySectional = (sectional) => {
+  return sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '-';
+};
+
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
