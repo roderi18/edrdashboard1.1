@@ -6,6 +6,21 @@ import {
 // ------------------------------------------------------------
 // DESTS
 // ------------------------------------------------------------
+
+const normalizePhoneToE164 = (value) => {
+    const phone = String(value ?? '').trim();
+
+    if (!phone) return '';
+    if (phone.startsWith('+')) return phone;
+
+    const digits = phone.replace(/\D/g, '');
+
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+
+    return phone;
+};
+
 export const mapApiDestToUI = (apiDest) => {
     return {
         id: apiDest.idDestacamento ? String(apiDest.idDestacamento) : null,
@@ -20,7 +35,7 @@ export const mapApiDestToUI = (apiDest) => {
         churchId: apiDest.idIglesia?.toString() ?? null,
 
         correo: apiDest.correo ?? '',
-        telefono: apiDest.telefono ?? '',
+        telefono: normalizePhoneToE164(apiDest.telefono),
         direccion: apiDest.direccion ?? '',
         concilio: apiDest.concilio ?? '',
         fechaInicio: apiDest.fechaInicio ?? '',
@@ -90,21 +105,29 @@ const normalizeHoraReunion = (value) => {
     return t;
 };
 
+const normalizePhoneForApi = (value) => String(value ?? '').replace(/\D/g, '');
+
+const normalizeDateTimeForApi = (value) => {
+    if (!value) return new Date().toISOString().slice(0, 19);
+
+    return String(value).replace('Z', '').split('.')[0];
+};
+
 export const buildDestPayload = (data) => ({
-    idDestacamento: 0,
+    idDestacamento: Number(data?.idDestacamento || data?.id || 0),
     nombre: data?.name?.trim() || 'name',
     idIglesia: Number(data.churchId) || (() => { throw new Error('idIglesia es requerido'); })(),
     correo:
         data?.correo?.trim() ||
         `nomail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}_${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}@mail.com`,
-    telefono: data?.telefono?.trim() || '',
+    telefono: normalizePhoneForApi(data?.telefono),
 
     direccion:
         data?.direccion?.trim() ||
         data?.address?.trim() ||
-        '',
+        'N/A',
 
-    concilio: data?.concilio?.trim() || '',
+    concilio: data?.concilio?.trim() || 'N/A',
     registradoOfnc: data?.registradoOfnc ?? null,
     rritrackActivo: data?.rritrackActivo ?? null,
 
@@ -122,7 +145,7 @@ export const buildDestPayload = (data) => ({
 
     numero: data?.destNumber?.trim() || '',
 
-    fechaInicio: data?.fechaInicio || '',
+    fechaInicio: normalizeDateTimeForApi(data?.fechaInicio),
 });
 
 export const createDestApi = async (data) => {
@@ -144,6 +167,36 @@ export const createDestApi = async (data) => {
 
     if (!res.ok) {
         throw new Error(text || `Error creando destacamento (${res.status})`);
+    }
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
+    }
+};
+
+export const updateDestApi = async (data) => {
+    const payload = buildDestPayload(data);
+    console.log('DEST UPDATE PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
+
+    const res = await fetch('/api/dest/put', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+
+    console.log('DEST UPDATE STATUS 👉', res.status);
+    console.log('DEST UPDATE RESPONSE RAW 👉', text);
+
+    if (!res.ok) {
+        throw new Error(text || `Error actualizando destacamento (${res.status})`);
     }
 
     if (!text) return {};

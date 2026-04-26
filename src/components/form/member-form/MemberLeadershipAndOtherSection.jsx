@@ -25,7 +25,6 @@ export default function MemberLeadershipAndOtherSection({
         const loadCargos = async () => {
             const res = await fetch('/api/cargos');
             const data = await res.json();
-            console.log('CARGOS 👉', data);
             setCargos(Array.isArray(data?.Data) ? data.Data : []);
 
         };
@@ -37,7 +36,6 @@ export default function MemberLeadershipAndOtherSection({
         const load = async () => {
             const res = await fetch('/api/dest');
             const data = await res.json();
-            console.log('CARGOS 👉', data);
             setDests(
                 (data?.Data || []).map((d) => ({
                     id: String(d.idDestacamento),

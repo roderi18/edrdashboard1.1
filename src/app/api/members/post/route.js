@@ -67,6 +67,8 @@ export async function POST(req) {
                     telefono: body.telefono,
                     direccion: body.direccion,
                     correo: body.correo,
+                    idCargoLocal: body.idCargoLocal ?? null,
+                    idCargoInstitucional: body.idCargoInstitucional ?? null,
 
                     idDivision: Number(divisionId) || 0,
                     instructorCertificadoCi: body.instructorCertificadoCi ?? null,

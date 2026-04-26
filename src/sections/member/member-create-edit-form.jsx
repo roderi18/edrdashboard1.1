@@ -481,11 +481,15 @@ export function MemberCreateEditForm({ currentMember }) {
       setFormErrorMessage(false);
 
       const memberUUID = currentMember?.id || crypto.randomUUID();
-
+      const formData = data;
       try {
 
-        const firstName = capitalizeWords(data.firstName);
-        const lastName = capitalizeWords(data.lastName);
+        const firstName = formData.firstName;
+        const lastName = formData.lastName;
+        const genderValue =
+          typeof formData.gender === 'string'
+            ? formData.gender
+            : formData.gender?.value;
 
         const codigoMiembro = currentMember?.memberId || await generateMemberId();
         const provinces = provinciasData;
@@ -495,11 +499,11 @@ export function MemberCreateEditForm({ currentMember }) {
         }));
         const sectores = barriosData;
         const buildDireccion = () => {
-          const province = provinces.find(p => String(p.id) === data.provinceId)?.nombre;
-          const municipio = municipios.find(m => String(m.id) === data.municipioId)?.nombre;
-          const sector = sectores.find(s => String(s.id) === data.sectorId)?.nombre;
+          const province = provinces.find(p => String(p.id) === formData.provinceId)?.nombre;
+          const municipio = municipios.find(m => String(m.id) === formData.municipioId)?.nombre;
+          const sector = sectores.find(s => String(s.id) === formData.sectorId)?.nombre;
 
-          return [province, municipio, sector, data.street]
+          return [province, municipio, sector, formData.street]
             .filter(Boolean)
             .join(', ');
         };
@@ -509,42 +513,56 @@ export function MemberCreateEditForm({ currentMember }) {
           codigoMiembro,
           nombres: firstName,
           apellidos: lastName,
-          genero: data.gender === 'Masculino' ? 'M' : 'F',
-          fechaNacimiento: data.birthdate
-            ? dayjs(data.birthdate).format('YYYY-MM-DD')
+          genero:
+            genderValue === 'Masculino'
+              ? 'M'
+              : genderValue === 'Femenino'
+                ? 'F'
+                : genderValue || null,
+          fechaNacimiento: formData.birthdate
+            ? dayjs(formData.birthdate).format('YYYY-MM-DD')
             : null,
           idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
-          telefono: data.phoneNumber || '',
-          direccion: buildDireccion(data) || null,
-          correo: data.email || null,
+          telefono: formData.phoneNumber || '',
+          direccion: buildDireccion(formData) || null,
+          correo: formData.email || null,
           idCargoLocal: null,
-          idCargoInstitucional: null,
-          idDivision: data.idDivision ? Number(data.idDivision) : 0,
+          idCargoInstitucional: formData.nationalLeadershipRole
+            ? Number(formData.nationalLeadershipRole)
+            : null,
+          idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
           instructorCertificadoCi:
-            data.InstructorCertificadoCI === 1
+            formData.InstructorCertificadoCI === 1
               ? true
-              : data.InstructorCertificadoCI === 0
+              : formData.InstructorCertificadoCI === 0
                 ? false
                 : null,
 
           estatusVigenciaCi:
-            data.EstatusVigenciaCI === 1
+            formData.EstatusVigenciaCI === 1
               ? true
-              : data.EstatusVigenciaCI === 0
+              : formData.EstatusVigenciaCI === 0
                 ? false
                 : null,
-          fechaInicioCertificado: data.FechaInicioCI
-            ? dayjs(data.FechaInicioCI).format('YYYY-MM-DD')
+          fechaInicioCertificado: formData.FechaInicioCI
+            ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')
             : null,
-          fechaFinCertificado: data.FechaVencimientoCI
-            ? dayjs(data.FechaVencimientoCI).format('YYYY-MM-DD')
+          fechaFinCertificado: formData.FechaVencimientoCI
+            ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
             : null,
-          estatusMiembro: data.status ?? 'active',
+          estatusMiembro: formData.status ?? 'active',
         };
         console.log('PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
+        console.log('[member form] submitting member update', {
+          currentMemberId: currentMember?.id,
+          endpoint: currentMember ? '/api/members/put' : '/api/members/post',
+          payload,
+        });
 
         const res = await fetch(
-          currentMember ? '/api/members/put' : '/api/members/post',
+          currentMember
+            ? '/api/members/put'
+            : '/api/members/post',
           {
             method: currentMember ? 'PUT' : 'POST',
             headers: {
@@ -555,11 +573,30 @@ export function MemberCreateEditForm({ currentMember }) {
         );
 
         const text = await res.text();
-        console.log('RESPONSE API 👉', text);
+        console.log('[member form] save response', {
+          status: res.status,
+          ok: res.ok,
+          text,
+        });
+        let responseData;
+        try {
+          responseData = text ? JSON.parse(text) : {};
+        } catch {
+          console.error('RAW RESPONSE 👉', text);
+          responseData = {};
+        }
 
         if (!res.ok) {
-          throw new Error(text || 'Error guardando en API');
+          throw new Error(responseData?.Message || responseData?.error || text || `Error de red o servidor (${res.status})`);
         }
+
+        const completedMessage = responseData?.Message?.toLowerCase().includes('completada');
+
+        if (responseData?.Success === false && !completedMessage) {
+          console.error('API ERROR 👉', responseData);
+          throw new Error(responseData?.Message || 'Error guardando en API');
+        }
+        console.log('RESPONSE API 👉', responseData || text);
 
         toast.success(
           currentMember
@@ -584,7 +621,8 @@ export function MemberCreateEditForm({ currentMember }) {
         );
 
       } catch (error) {
-        console.error("ERROR EN SUBMIT:", error);
+        console.log('[member form] save failed', error);
+        toast.error(error.message || 'Error guardando en API');
       }
 
     },
@@ -1026,30 +1064,44 @@ export function MemberCreateEditForm({ currentMember }) {
             <DebugPayloadButton
               getValues={methods.getValues}
               buildPayload={(data) => {
-                const firstName = capitalizeWords(data.firstName);
-                const lastName = capitalizeWords(data.lastName);
+                const formData = data;
+
+                const province = provinciasData.find(
+                  (p) => String(p.id) === String(formData.provinceId)
+                )?.nombre;
+
+                const municipio = municipiosData.find(
+                  (m, index) => String(index + 1) === String(formData.municipioId)
+                )?.nombre;
+
+                const sector = barriosData.find(
+                  (s) => String(s.id) === String(formData.sectorId)
+                )?.nombre;
+
+                const direccion = [province, municipio, sector, formData.street]
+                  .filter(Boolean)
+                  .join(', ');
 
                 return {
                   idMiembros: currentMember?.id || 0,
                   codigoMiembro: currentMember?.memberId || 'DEBUG',
-                  nombres: firstName,
-                  apellidos: lastName,
-                  genero: data.gender === 'Masculino' ? 'M' : 'F',
-                  fechaNacimiento: data.birthdate
-                    ? dayjs(data.birthdate).format('YYYY-MM-DD')
+                  nombres: formData.firstName,
+                  apellidos: formData.lastName,
+                  genero: formData.gender === 'Masculino' ? 'M' : 'F',
+                  fechaNacimiento: formData.birthdate
+                    ? dayjs(formData.birthdate).format('YYYY-MM-DD')
                     : null,
-                  idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
-                  telefono: data.phoneNumber || '',
-                  direccion: data.street || '',
-                  correo: data.email || null,
+                  idDestacamento: selectedDestId ? Number(selectedDestId) : null,
+                  telefono: formData.phoneNumber || '',
+                  direccion,
+                  correo: formData.email || null,
                   idCargoLocal: null,
-                  idCargoInstitucional: null,
-
-                  // 🔥 CLAVE
-                  idDivision: Number(data.idDivision) || 0,
-
-                  instructorCertificadoCi: data.InstructorCertificadoCI === 1,
-                  estatusMiembro: data.status ?? 'active',
+                  idCargoInstitucional: formData.nationalLeadershipRole
+                    ? Number(formData.nationalLeadershipRole)
+                    : null,
+                  idDivision: Number(formData.idDivision) || 0,
+                  instructorCertificadoCi: formData.InstructorCertificadoCI === 1,
+                  estatusMiembro: formData.status ?? 'active',
                 };
               }}
             />

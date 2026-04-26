@@ -38,7 +38,7 @@ import barriosData from 'src/data/barrios.json';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
 // import { createChurchApi } from 'src/services/church-service';
-import { createDestApi } from 'src/services/dest-service';
+import { createDestApi, updateDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -236,6 +236,7 @@ export function DestCreateEditForm({ currentDest }) {
 
       const destPayloadData = {
         ...data,
+        idDestacamento: currentDest?.id,
         idIglesia: Number(data.churchId) || 0,
         correo: data.correo ?? '',
         telefono: data.telefono ?? '',
@@ -248,7 +249,11 @@ export function DestCreateEditForm({ currentDest }) {
       };
       console.log('DEST DATA BEFORE PAYLOAD 👉', destPayloadData);
 
-      await createDestApi(destPayloadData);
+      if (currentDest) {
+        await updateDestApi(destPayloadData);
+      } else {
+        await createDestApi(destPayloadData);
+      }
       reset();
 
       toast.success(
