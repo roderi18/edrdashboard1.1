@@ -20,12 +20,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { saveLocalProduct } from 'src/utils/local-product-storage';
+
 import {
   _tags,
   PRODUCT_SIZE_OPTIONS,
-  PRODUCT_GENDER_OPTIONS,
   PRODUCT_COLOR_NAME_OPTIONS,
-  PRODUCT_CATEGORY_GROUP_OPTIONS,
 } from 'src/_mock';
 
 import { toast } from 'src/components/snackbar';
@@ -34,26 +34,79 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
+const PRODUCT_GENDER_OPTIONS_ES = [
+  { label: 'Hombre', value: 'Men' },
+  { label: 'Mujer', value: 'Women' },
+  { label: 'Ninos', value: 'Kids' },
+];
+
+const PRODUCT_COLOR_NAME_OPTIONS_ES = PRODUCT_COLOR_NAME_OPTIONS.map((option) => ({
+  ...option,
+  label:
+    {
+      Reds: 'Rojos',
+      Blue: 'Azul',
+      Pink: 'Rosado',
+      Green: 'Verde',
+      Yellow: 'Amarillo',
+      Violet: 'Violeta',
+      Black: 'Negro',
+      White: 'Blanco',
+    }[option.label] || option.label,
+}));
+
+const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
+  {
+    group: 'Ropa',
+    classify: [
+      { label: 'Camisas', value: 'Shirts' },
+      { label: 'T-shirts', value: 'T-shirts' },
+      { label: 'Jeans', value: 'Jeans' },
+      { label: 'Cuero', value: 'Leather' },
+      { label: 'Accesorios', value: 'Accessories' },
+    ],
+  },
+  {
+    group: 'Sastreria',
+    classify: [
+      { label: 'Trajes', value: 'Suits' },
+      { label: 'Blazers', value: 'Blazers' },
+      { label: 'Pantalones', value: 'Trousers' },
+      { label: 'Chalecos', value: 'Waistcoats' },
+      { label: 'Ropa', value: 'Apparel' },
+    ],
+  },
+  {
+    group: 'Accesorios',
+    classify: [
+      { label: 'Zapatos', value: 'Shoes' },
+      { label: 'Mochilas y bolsos', value: 'Backpacks and bags' },
+      { label: 'Brazaletes', value: 'Bracelets' },
+      { label: 'Mascarillas', value: 'Face masks' },
+    ],
+  },
+];
+
 export const ProductCreateSchema = z.object({
-  name: z.string().min(1, { error: 'Name is required!' }),
+  name: z.string().min(1, { error: 'El nombre es requerido.' }),
   description: schemaUtils
-    .editor({ error: 'Description is required!' })
-    .min(100, { error: 'Description must be at least 100 characters' }),
-  images: schemaUtils.files({ error: 'Images is required!' }).min(2, {
-    error: 'Must have at least 2 items!',
+    .editor({ error: 'La descripcion es requerida.' })
+    .min(100, { error: 'La descripcion debe tener al menos 100 caracteres.' }),
+  images: schemaUtils.files({ error: 'Las imagenes son requeridas.' }).min(2, {
+    error: 'Debe subir al menos 2 imagenes.',
   }),
-  code: z.string().min(1, { error: 'Product code is required!' }),
-  sku: z.string().min(1, { error: 'Product sku is required!' }),
+  code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
+  sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
   quantity: schemaUtils.nullableInput(
-    z.coerce.number().min(1, { error: 'Quantity is required!' }),
-    { error: 'Quantity is required!' }
+    z.coerce.number().min(1, { error: 'La cantidad es requerida.' }),
+    { error: 'La cantidad es requerida.' }
   ),
-  colors: z.string().array().min(1, { error: 'Choose at least one option!' }),
-  sizes: z.string().array().min(1, { error: 'Choose at least one option!' }),
-  tags: z.string().array().min(2, { error: 'Must have at least 2 items!' }),
-  gender: z.array(z.string()).min(1, { error: 'Choose at least one option!' }),
-  price: schemaUtils.nullableInput(z.coerce.number().min(1, { error: 'Price is required!' }), {
-    error: 'Price is required!',
+  colors: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
+  sizes: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
+  tags: z.string().array().min(2, { error: 'Debe agregar al menos 2 etiquetas.' }),
+  gender: z.array(z.string()).min(1, { error: 'Elija al menos una opcion.' }),
+  price: schemaUtils.nullableInput(z.coerce.number().min(1, { error: 'El precio es requerido.' }), {
+    error: 'El precio es requerido.',
   }),
   // Not required
   category: z.string(),
@@ -62,6 +115,7 @@ export const ProductCreateSchema = z.object({
   priceSale: z.coerce.number().nullable(),
   saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
   newLabel: z.object({ enabled: z.boolean(), content: z.string() }),
+  publish: z.boolean().optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -74,6 +128,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openPricing = useBoolean(true);
 
   const [includeTaxes, setIncludeTaxes] = useState(false);
+  const [publish, setPublish] = useState(currentProduct?.publish !== 'draft');
 
   const defaultValues = {
     name: '',
@@ -89,11 +144,12 @@ export function ProductCreateEditForm({ currentProduct }) {
     quantity: null,
     tags: [],
     gender: [],
-    category: PRODUCT_CATEGORY_GROUP_OPTIONS[0].classify[1],
+    category: PRODUCT_CATEGORY_GROUP_OPTIONS_ES[0].classify[1].value,
     colors: [],
     sizes: [],
     newLabel: { enabled: false, content: '' },
     saleLabel: { enabled: false, content: '' },
+    publish: true,
   };
 
   const methods = useForm({
@@ -120,8 +176,9 @@ export function ProductCreateEditForm({ currentProduct }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      await saveLocalProduct(updatedData, { publish });
       reset();
-      toast.success(currentProduct ? 'Actualización exitosa!' : 'Create success!');
+      toast.success(currentProduct ? 'Actualizacion exitosa!' : 'Producto creado!');
       router.push(paths.dashboard.product.root);
       console.info('DATA', updatedData);
     } catch (error) {
@@ -154,8 +211,8 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderDetails = () => (
     <Card>
       <CardHeader
-        title="Details"
-        subheader="Title, short description, image..."
+        title="Detalles"
+        subheader="Titulo, descripcion corta, imagen..."
         action={renderCollapseButton(openDetails.value, openDetails.onToggle)}
         sx={{ mb: 3 }}
       />
@@ -164,17 +221,17 @@ export function ProductCreateEditForm({ currentProduct }) {
         <Divider />
 
         <Stack spacing={3} sx={{ p: 3 }}>
-          <Field.Text name="name" label="Product name" />
+          <Field.Text name="name" label="Nombre del producto" />
 
-          <Field.Text name="subDescription" label="Sub description" multiline rows={4} />
+          <Field.Text name="subDescription" label="Descripcion corta" multiline rows={4} />
 
           <Stack spacing={1.5}>
-            <Typography variant="subtitle2">Content</Typography>
+            <Typography variant="subtitle2">Contenido</Typography>
             <Field.Editor name="description" sx={{ maxHeight: 480 }} />
           </Stack>
 
           <Stack spacing={1.5}>
-            <Typography variant="subtitle2">Images</Typography>
+            <Typography variant="subtitle2">Imagenes</Typography>
             <Field.Upload
               multiple
               name="images"
@@ -192,8 +249,8 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderProperties = () => (
     <Card>
       <CardHeader
-        title="Properties"
-        subheader="Additional functions and attributes..."
+        title="Propiedades"
+        subheader="Funciones y atributos adicionales..."
         action={renderCollapseButton(openProperties.value, openProperties.onToggle)}
         sx={{ mb: 3 }}
       />
@@ -210,13 +267,13 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Text name="code" label="Product code" />
+            <Field.Text name="code" label="Codigo del producto" />
 
-            <Field.Text name="sku" label="Product SKU" />
+            <Field.Text name="sku" label="SKU del producto" />
 
             <Field.Text
               name="quantity"
-              label="Quantity"
+              label="Cantidad"
               placeholder="0"
               type="number"
               slotProps={{ inputLabel: { shrink: true } }}
@@ -224,17 +281,17 @@ export function ProductCreateEditForm({ currentProduct }) {
 
             <Field.Select
               name="category"
-              label="Category"
+              label="Categoria"
               slotProps={{
                 select: { native: true },
                 inputLabel: { shrink: true },
               }}
             >
-              {PRODUCT_CATEGORY_GROUP_OPTIONS.map((category) => (
+              {PRODUCT_CATEGORY_GROUP_OPTIONS_ES.map((category) => (
                 <optgroup key={category.group} label={category.group}>
                   {category.classify.map((classify) => (
-                    <option key={classify} value={classify}>
-                      {classify}
+                    <option key={classify.value} value={classify.value}>
+                      {classify.label}
                     </option>
                   ))}
                 </optgroup>
@@ -244,17 +301,17 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Field.MultiSelect
               checkbox
               name="colors"
-              label="Colors"
-              options={PRODUCT_COLOR_NAME_OPTIONS}
+              label="Colores"
+              options={PRODUCT_COLOR_NAME_OPTIONS_ES}
             />
 
-            <Field.MultiSelect checkbox name="sizes" label="Sizes" options={PRODUCT_SIZE_OPTIONS} />
+            <Field.MultiSelect checkbox name="sizes" label="Tallas" options={PRODUCT_SIZE_OPTIONS} />
           </Box>
 
           <Field.Autocomplete
             name="tags"
-            label="Tags"
-            placeholder="+ Tags"
+            label="Etiquetas"
+            placeholder="+ Etiquetas"
             multiple
             freeSolo
             disableCloseOnSelect
@@ -266,11 +323,11 @@ export function ProductCreateEditForm({ currentProduct }) {
           />
 
           <Stack spacing={1}>
-            <Typography variant="subtitle2">Gender</Typography>
+            <Typography variant="subtitle2">Genero</Typography>
             <Field.MultiCheckbox
               row
               name="gender"
-              options={PRODUCT_GENDER_OPTIONS}
+              options={PRODUCT_GENDER_OPTIONS_ES}
               sx={{ gap: 2 }}
             />
           </Stack>
@@ -281,7 +338,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Field.Switch name="saleLabel.enabled" label={null} sx={{ m: 0 }} />
             <Field.Text
               name="saleLabel.content"
-              label="Sale label"
+              label="Etiqueta de oferta"
               fullWidth
               disabled={!values.saleLabel.enabled}
             />
@@ -291,7 +348,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Field.Switch name="newLabel.enabled" label={null} sx={{ m: 0 }} />
             <Field.Text
               name="newLabel.content"
-              label="New label"
+              label="Etiqueta de nuevo"
               fullWidth
               disabled={!values.newLabel.enabled}
             />
@@ -304,8 +361,8 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderPricing = () => (
     <Card>
       <CardHeader
-        title="Pricing"
-        subheader="Price related inputs"
+        title="Precios"
+        subheader="Campos relacionados al precio"
         action={renderCollapseButton(openPricing.value, openPricing.onToggle)}
         sx={{ mb: 3 }}
       />
@@ -316,7 +373,7 @@ export function ProductCreateEditForm({ currentProduct }) {
         <Stack spacing={3} sx={{ p: 3 }}>
           <Field.Text
             name="price"
-            label="Regular price"
+            label="Precio regular"
             placeholder="0.00"
             type="number"
             slotProps={{
@@ -325,7 +382,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                 startAdornment: (
                   <InputAdornment position="start" sx={{ mr: 0.75 }}>
                     <Box component="span" sx={{ color: 'text.disabled' }}>
-                      $
+                      RD$
                     </Box>
                   </InputAdornment>
                 ),
@@ -335,7 +392,7 @@ export function ProductCreateEditForm({ currentProduct }) {
 
           <Field.Text
             name="priceSale"
-            label="Sale price"
+            label="Precio de oferta"
             placeholder="0.00"
             type="number"
             slotProps={{
@@ -344,7 +401,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                 startAdornment: (
                   <InputAdornment position="start" sx={{ mr: 0.75 }}>
                     <Box component="span" sx={{ color: 'text.disabled' }}>
-                      $
+                      RD$
                     </Box>
                   </InputAdornment>
                 ),
@@ -360,13 +417,13 @@ export function ProductCreateEditForm({ currentProduct }) {
                 onChange={handleChangeIncludeTaxes}
               />
             }
-            label="Price includes taxes"
+            label="El precio incluye impuestos"
           />
 
           {!includeTaxes && (
             <Field.Text
               name="taxes"
-              label="Tax (%)"
+              label="Impuesto (%)"
               placeholder="0.00"
               type="number"
               slotProps={{
@@ -398,13 +455,19 @@ export function ProductCreateEditForm({ currentProduct }) {
       }}
     >
       <FormControlLabel
-        label="Publish"
-        control={<Switch defaultChecked slotProps={{ input: { id: 'publish-switch' } }} />}
+        label="Publicar"
+        control={
+          <Switch
+            checked={publish}
+            onChange={(event) => setPublish(event.target.checked)}
+            slotProps={{ input: { id: 'publish-switch' } }}
+          />
+        }
         sx={{ pl: 3, flexGrow: 1 }}
       />
 
       <Button type="submit" variant="contained" size="large" loading={isSubmitting}>
-        {!currentProduct ? 'Create product' : 'Guardar cambios'}
+        {!currentProduct ? 'Crear producto' : 'Guardar cambios'}
       </Button>
     </Box>
   );

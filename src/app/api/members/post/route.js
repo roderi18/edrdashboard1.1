@@ -76,6 +76,15 @@ export async function POST(req) {
                     fechaInicioCertificado: body.fechaInicioCertificado ?? null,
                     fechaFinCertificado: body.fechaFinCertificado ?? null,
                     estatusMiembro: body.estatusMiembro ?? 'activo',
+                    cargosmiembros: body.cargosmiembros ?? [],
+                    idDestacamentoNavigation: body.idDestacamentoNavigation ?? null,
+                    idDivisionNavigation: body.idDivisionNavigation ?? null,
+                    miembromeritos: body.miembromeritos ?? [],
+                    participanteseventos: body.participanteseventos ?? [],
+                    tutores: body.tutores ?? [],
+                    usuarios: body.usuarios ?? [],
+                    idUniformes: body.idUniformes ?? [],
+                    uniformesMiembros: body.uniformesMiembros ?? [],
                 })
             }
         );
@@ -91,7 +100,7 @@ export async function POST(req) {
 
     } catch (error) {
         return Response.json(
-            { error: 'Error creando miembro' },
+            { error: error?.message || 'Error creando miembro' },
             { status: 500 }
         );
     }

@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
+import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
@@ -14,17 +14,21 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { printTablePdf, downloadTablePdf } from 'src/utils/download-table-pdf';
+import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
+import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 
 // ----------------------------------------------------------------------
 
 export function DestTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode, rows = [] }) {
   const menuActions = usePopover();
+  const uploadInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [uploadResult, setUploadResult] = useState(null);
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -78,6 +82,47 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
     menuActions.onClose();
   };
 
+  const handleUploadFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const result = await uploadExcelRows({
+      file,
+      processRow: async (row) => {
+        const nombre = getCell(row, ['nombre', 'Nombre', 'destacamento', 'Destacamento']);
+        const idIglesia = Number(getCell(row, ['idIglesia', 'iglesiaId', 'ID Iglesia']));
+
+        if (!nombre) throw new Error('La columna nombre es requerida.');
+        if (!idIglesia) throw new Error('La columna idIglesia es requerida.');
+
+        const res = await fetch('/api/dest/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre,
+            idIglesia,
+            numero: getCell(row, ['numero', 'Número', 'destNumber']),
+            correo: getCell(row, ['correo', 'Correo']),
+            telefono: getCell(row, ['telefono', 'Teléfono', 'Telefono']),
+            direccion: getCell(row, ['direccion', 'Dirección', 'Direccion']),
+            concilio: getCell(row, ['concilio', 'Concilio']),
+            registradoOfnc: getCell(row, ['registradoOfnc']) || true,
+            rritrackActivo: getCell(row, ['rritrackActivo']) || false,
+            diaReunion: getCell(row, ['diaReunion', 'Día reunión']),
+            horaReunion: getCell(row, ['horaReunion', 'Hora reunión']),
+            fechaInicio: formatExcelDate(getCell(row, ['fechaInicio', 'Fecha inicio'])),
+          }),
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+      },
+    });
+
+    setUploadResult(result);
+    menuActions.onClose();
+  };
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}
@@ -126,7 +171,7 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
           Descargar
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={() => uploadInputRef.current?.click()}>
           <Iconify icon="solar:export-bold" />
           Subir
         </MenuItem>
@@ -245,6 +290,19 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
       </Box>
 
       {renderMenuActions()}
+      <input
+        ref={uploadInputRef}
+        hidden
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleUploadFile}
+      />
+      <ExcelUploadResultDialog
+        open={!!uploadResult}
+        result={uploadResult}
+        logFileName="log-subida-destacamentos.txt"
+        onClose={() => setUploadResult(null)}
+      />
     </>
   );
 }

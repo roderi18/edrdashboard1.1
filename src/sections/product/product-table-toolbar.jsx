@@ -54,7 +54,7 @@ export function ProductTableToolbar({
   const renderLeftPanel = () => (
     <>
       <FilterSelect
-        label="Stock"
+        label="Existencias"
         value={stock}
         options={options.stocks}
         onChange={handleSelect(setStock)}
@@ -62,7 +62,7 @@ export function ProductTableToolbar({
       />
 
       <FilterSelect
-        label="Publish"
+        label="Publicado"
         value={publish}
         options={options.publishs}
         onChange={handleSelect(setPublish)}
@@ -82,14 +82,18 @@ export function ProductTableToolbar({
           startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
           onClick={onOpenConfirmDeleteRows}
         >
-          Delete ({selectedRowCount})
+          Eliminar ({selectedRowCount})
         </Button>
       )}
 
       <CustomToolbarColumnsButton />
       <CustomToolbarFilterButton />
       <CustomToolbarExportButton />
-      <CustomToolbarSettingsButton settings={settings} onChangeSettings={onChangeSettings} />
+      <CustomToolbarSettingsButton
+        label="Configuracion"
+        settings={settings}
+        onChangeSettings={onChangeSettings}
+      />
     </>
   );
 
@@ -157,7 +161,7 @@ function FilterSelect({ label, value, options, onChange, onApply }) {
             border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
           })}
         >
-          Apply
+          Aplicar
         </MenuItem>
       </Select>
     </FormControl>

@@ -14,7 +14,7 @@ import { formHelperTextClasses } from '@mui/material/FormHelperText';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fCurrency, fShortenNumber } from 'src/utils/format-number';
+import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -101,11 +101,11 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
           component="span"
           sx={{ color: 'text.disabled', textDecoration: 'line-through', mr: 0.5 }}
         >
-          {fCurrency(priceSale)}
+          {fDopCurrency(priceSale)}
         </Box>
       )}
 
-      {fCurrency(price)}
+      {fDopCurrency(price)}
     </Box>
   );
 

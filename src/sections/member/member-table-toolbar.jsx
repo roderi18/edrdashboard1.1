@@ -1,5 +1,5 @@
 import { usePopover } from 'minimal-shared/hooks';
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
@@ -14,9 +14,12 @@ import FormControl from '@mui/material/FormControl';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
+import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 // ----------------------------------------------------------------------
@@ -38,6 +41,32 @@ const pdfStyles = StyleSheet.create({
 });
 
 const getValue = (value) => value || '-';
+
+const readApiResponse = async (response) => {
+  const text = await response.text();
+
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+const getApiMessage = (payload) => {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+
+  return payload.Message || payload.message || payload.error || payload.title || '';
+};
+
+const getMemberCodeNumber = (member) => {
+  const code = member.codigoMiembro || member.memberCode || member.memberId || member.code || '';
+  const match = String(code).match(/DO-SD-(\d+)/i);
+
+  return match ? Number(match[1]) : 0;
+};
 
 function MembersPdfDocument({ members }) {
   return (
@@ -88,9 +117,11 @@ export function MemberTableToolbar({
   members = [],
 }) {
   const menuActions = usePopover();
+  const uploadInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [dests, setDests] = useState([]);
+  const [uploadResult, setUploadResult] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -193,6 +224,94 @@ export function MemberTableToolbar({
     menuActions.onClose();
   };
 
+  const getNextMemberCode = (() => {
+    let nextNumber = Math.max(
+      10000,
+      ...members
+        .map((member) => getMemberCodeNumber(member))
+        .filter(Boolean)
+    );
+
+    return () => {
+      nextNumber += 1;
+      return `DO-SD-${String(nextNumber).padStart(5, '0')}`;
+    };
+  })();
+
+  const handleUploadFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const result = await uploadExcelRows({
+      file,
+      processRow: async (row) => {
+        const nombres = getCell(row, ['nombres', 'Nombres', 'nombre', 'Nombre']);
+        const apellidos = getCell(row, ['apellidos', 'Apellidos', 'apellido', 'Apellido']);
+        const fechaNacimiento = formatExcelDate(
+          getCell(row, ['fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
+        );
+        const idDestacamento = Number(getCell(row, ['idDestacamento', 'destId', 'ID Destacamento']));
+
+        if (!nombres) throw new Error('La columna nombres es requerida.');
+        if (!apellidos) throw new Error('La columna apellidos es requerida.');
+        if (!fechaNacimiento) throw new Error('La columna fechaNacimiento es requerida.');
+        if (!idDestacamento) throw new Error('La columna idDestacamento es requerida.');
+
+        const res = await fetch('/api/members/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idMiembros: 0,
+            codigoMiembro: getCell(row, ['codigoMiembro', 'Código', 'Codigo']) || getNextMemberCode(),
+            nombres,
+            apellidos,
+            genero: getCell(row, ['genero', 'Género', 'Genero']) || null,
+            fechaNacimiento,
+            idDestacamento,
+            telefono: getCell(row, ['telefono', 'Teléfono', 'Telefono']),
+            direccion: getCell(row, ['direccion', 'Dirección', 'Direccion']),
+            correo: getCell(row, ['correo', 'Correo']) || null,
+            idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
+            idCargoInstitucional: Number(getCell(row, ['idCargoInstitucional'])) || null,
+            idDivision: Number(getCell(row, ['idDivision'])) || null,
+            instructorCertificadoCi:
+              getCell(row, ['instructorCertificadoCi', 'Instructor CI']) || false,
+            estatusVigenciaCi: getCell(row, ['estatusVigenciaCi', 'Estatus CI']) || false,
+            fechaInicioCertificado:
+              formatExcelDate(getCell(row, ['fechaInicioCertificado', 'Fecha inicio certificado'])) ||
+              null,
+            fechaFinCertificado:
+              formatExcelDate(getCell(row, ['fechaFinCertificado', 'Fecha fin certificado'])) || null,
+            estatusMiembro: getCell(row, ['estatusMiembro', 'Estatus']) || 'activo',
+            cargosmiembros: [],
+            idDestacamentoNavigation: null,
+            idDivisionNavigation: null,
+            miembromeritos: [],
+            participanteseventos: [],
+            tutores: [],
+            usuarios: [],
+            idUniformes: [],
+            uniformesMiembros: [],
+          }),
+        });
+        const responsePayload = await readApiResponse(res);
+        const responseMessage = getApiMessage(responsePayload);
+
+        if (!res.ok) {
+          throw new Error(responseMessage || `Error creando miembro (${res.status}).`);
+        }
+
+        if (responsePayload?.Success === false) {
+          throw new Error(responseMessage || 'El API no pudo crear el miembro.');
+        }
+      },
+    });
+
+    setUploadResult(result);
+    menuActions.onClose();
+  };
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}
@@ -240,7 +359,7 @@ export function MemberTableToolbar({
           Descargar
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={() => uploadInputRef.current?.click()}>
           <Iconify icon="solar:export-bold" />
           Subir
         </MenuItem>
@@ -530,6 +649,19 @@ export function MemberTableToolbar({
       </Box >
 
       {renderMenuActions()}
+      <input
+        ref={uploadInputRef}
+        hidden
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleUploadFile}
+      />
+      <ExcelUploadResultDialog
+        open={!!uploadResult}
+        result={uploadResult}
+        logFileName="log-subida-miembros.txt"
+        onClose={() => setUploadResult(null)}
+      />
     </>
   );
 }

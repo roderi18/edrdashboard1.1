@@ -6,10 +6,13 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
+import { esES } from '@mui/x-data-grid/locales';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+
+import { getLocalProducts, removeLocalProduct } from 'src/utils/local-product-storage';
 
 import { PRODUCT_STOCK_OPTIONS } from 'src/_mock';
 import { useGetProducts } from 'src/actions/product';
@@ -62,7 +65,10 @@ export function ProductListView() {
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
 
   useEffect(() => {
-    setTableData(products);
+    const localProducts = getLocalProducts();
+    const localProductIds = new Set(localProducts.map((product) => product.id));
+
+    setTableData([...localProducts, ...products.filter((product) => !localProductIds.has(product.id))]);
   }, [products]);
 
   const canReset = filters.state.publish.length > 0 || filters.state.stock.length > 0;
@@ -73,13 +79,15 @@ export function ProductListView() {
   });
 
   const handleDeleteRow = useCallback((id) => {
+    removeLocalProduct(id);
     setTableData((prev) => prev.filter((row) => row.id !== id));
-    toast.success('Delete success!');
+    toast.success('Producto eliminado!');
   }, []);
 
   const handleDeleteRows = useCallback(() => {
+    selectedRows.ids.forEach((id) => removeLocalProduct(id));
     setTableData((prev) => prev.filter((row) => !selectedRows.ids.has(row.id)));
-    toast.success('Delete success!');
+    toast.success('Productos eliminados!');
   }, [selectedRows.ids]);
 
   const columns = useGetColumns({ onDeleteRow: handleDeleteRow });
@@ -91,7 +99,7 @@ export function ProductListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {selectedRows.ids.size} </strong> items?
+          Seguro que quieres eliminar <strong> {selectedRows.ids.size} </strong> productos?
         </>
       }
       action={
@@ -103,7 +111,7 @@ export function ProductListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -113,11 +121,11 @@ export function ProductListView() {
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="List"
+          heading="Lista de productos"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Producto', href: paths.dashboard.product.root },
-            { name: 'List' },
+            { name: 'Lista' },
           ]}
           action={
             <Button
@@ -126,7 +134,7 @@ export function ProductListView() {
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add product
+              Agregar producto
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -148,6 +156,7 @@ export function ProductListView() {
             rows={dataFiltered}
             columns={columns}
             loading={productsLoading}
+            localeText={esES.components.MuiDataGrid.defaultProps.localeText}
             getRowHeight={() => 'auto'}
             pageSizeOptions={[5, 10, 20, { value: -1, label: 'Todos' }]}
             initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
@@ -156,7 +165,7 @@ export function ProductListView() {
             onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
-              noResultsOverlay: () => <EmptyContent title="No results found" />,
+              noResultsOverlay: () => <EmptyContent title="No se encontraron resultados" />,
               toolbar: () => (
                 <ProductTableToolbar
                   filters={filters}
@@ -203,7 +212,7 @@ const useGetColumns = ({ onDeleteRow }) => {
     () => [
       {
         field: 'category',
-        headerName: 'Category',
+        headerName: 'Categoria',
         filterable: false,
       },
       {
@@ -236,14 +245,14 @@ const useGetColumns = ({ onDeleteRow }) => {
       },
       {
         field: 'price',
-        headerName: 'Precios',
+        headerName: 'Precio',
         width: 120,
         editable: true,
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
       {
         field: 'publish',
-        headerName: 'Publicado',
+        headerName: 'Estado',
         width: 120,
         type: 'singleSelect',
         editable: true,

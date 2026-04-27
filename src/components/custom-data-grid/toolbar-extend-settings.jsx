@@ -46,10 +46,10 @@ export function useToolbarSettings(initialSettings) {
 // ----------------------------------------------------------------------
 
 const GRID_DENSITY_OPTIONS = [
-  { label: 'Compact density', value: 'compact', icon: <DensityCompactIcon /> },
-  { label: 'Standard density', value: 'standard', icon: <DensityStandardIcon /> },
+  { label: 'Densidad compacta', value: 'compact', icon: <DensityCompactIcon /> },
+  { label: 'Densidad estandar', value: 'standard', icon: <DensityStandardIcon /> },
   {
-    label: 'Comfortable density',
+    label: 'Densidad comoda',
     value: 'comfortable',
     icon: <DensityComfortableIcon />,
   },
@@ -59,7 +59,7 @@ export function CustomToolbarSettingsButton({
   settings,
   onChangeSettings,
   showLabel,
-  label = 'Settings',
+  label = 'Configuracion',
 }) {
   const { open, anchorEl, onClose, onOpen } = usePopover();
 
@@ -135,8 +135,8 @@ export function CustomToolbarSettingsButton({
 
         <Divider />
 
-        {renderToggleOption('Show column borders', 'showColumnVerticalBorder')}
-        {renderToggleOption('Show cell borders', 'showCellVerticalBorder')}
+        {renderToggleOption('Mostrar bordes de columnas', 'showColumnVerticalBorder')}
+        {renderToggleOption('Mostrar bordes de celdas', 'showCellVerticalBorder')}
       </Menu>
     </>
   );

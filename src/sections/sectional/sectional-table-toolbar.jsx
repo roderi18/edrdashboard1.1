@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
+import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import MenuList from '@mui/material/MenuList';
@@ -9,18 +9,22 @@ import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { getCell, uploadExcelRows } from 'src/utils/excel-upload';
 import { printTablePdf, downloadTablePdf } from 'src/utils/download-table-pdf';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
+import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 
 // ----------------------------------------------------------------------
 
 export function SectionalTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode, rows = [] }) {
   const menuActions = usePopover();
+  const uploadInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [uploadResult, setUploadResult] = useState(null);
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -57,6 +61,34 @@ export function SectionalTableToolbar({ filters, options, onResetPage, displayMo
       rows,
       columns: pdfColumns,
     });
+    menuActions.onClose();
+  };
+
+  const handleUploadFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const result = await uploadExcelRows({
+      file,
+      processRow: async (row) => {
+        const nombre = getCell(row, ['nombre', 'Nombre', 'seccion', 'Sección', 'Seccion']);
+        const idRegion = Number(getCell(row, ['idRegion', 'regionId', 'ID Región', 'ID Region']));
+
+        if (!nombre) throw new Error('La columna nombre es requerida.');
+        if (!idRegion) throw new Error('La columna idRegion es requerida.');
+
+        const res = await fetch('/api/sectional/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idSeccion: 0, nombre, idRegion }),
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+      },
+    });
+
+    setUploadResult(result);
     menuActions.onClose();
   };
 
@@ -108,7 +140,7 @@ export function SectionalTableToolbar({ filters, options, onResetPage, displayMo
           Descargar
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={() => uploadInputRef.current?.click()}>
           <Iconify icon="solar:export-bold" />
           Subir
         </MenuItem>
@@ -166,6 +198,19 @@ export function SectionalTableToolbar({ filters, options, onResetPage, displayMo
       </Box>
 
       {renderMenuActions()}
+      <input
+        ref={uploadInputRef}
+        hidden
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleUploadFile}
+      />
+      <ExcelUploadResultDialog
+        open={!!uploadResult}
+        result={uploadResult}
+        logFileName="log-subida-secciones.txt"
+        onClose={() => setUploadResult(null)}
+      />
     </>
   );
 }

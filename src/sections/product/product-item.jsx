@@ -7,7 +7,7 @@ import Fab, { fabClasses } from '@mui/material/Fab';
 
 import { RouterLink } from 'src/routes/components';
 
-import { fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Image } from 'src/components/image';
@@ -94,7 +94,7 @@ export function ProductItem({ product, detailsHref }) {
         </Fab>
       )}
 
-      <Tooltip title={!available && 'Out of stock'} placement="bottom-end">
+      <Tooltip title={!available && 'Sin existencias'} placement="bottom-end">
         <Image
           alt={name}
           src={coverUrl}
@@ -119,11 +119,11 @@ export function ProductItem({ product, detailsHref }) {
         <Box sx={{ gap: 0.5, display: 'flex', typography: 'subtitle1' }}>
           {priceSale && (
             <Box component="span" sx={{ color: 'text.disabled', textDecoration: 'line-through' }}>
-              {fCurrency(priceSale)}
+              {fDopCurrency(priceSale)}
             </Box>
           )}
 
-          <Box component="span">{fCurrency(price)}</Box>
+          <Box component="span">{fDopCurrency(price)}</Box>
         </Box>
       </Box>
     </Stack>

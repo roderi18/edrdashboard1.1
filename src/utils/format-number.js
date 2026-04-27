@@ -52,6 +52,21 @@ export function fCurrency(inputValue, options) {
 
 // ----------------------------------------------------------------------
 
+export function fDopCurrency(inputValue, options) {
+  const number = processInput(inputValue);
+  if (number === null) return '';
+
+  const fm = new Intl.NumberFormat('es-DO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    ...options,
+  }).format(number);
+
+  return `RD$${fm}`;
+}
+
+// ----------------------------------------------------------------------
+
 export function fPercent(inputValue, options) {
   const locale = formatNumberLocale() || DEFAULT_LOCALE;
 
