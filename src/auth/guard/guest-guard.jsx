@@ -10,6 +10,7 @@ import { CONFIG } from 'src/global-config';
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from '../hooks';
+import { signOut } from '../components/context/firebase/action';
 
 // ----------------------------------------------------------------------
 
@@ -22,9 +23,16 @@ export function GuestGuard({ children }) {
 
   const searchParams = useSearchParams();
   const redirectUrl = safeReturnUrl(searchParams.get('returnTo'), CONFIG.auth.redirectPath);
+  const forceSignOut = searchParams.get('forceSignOut') === '1';
 
   const checkPermissions = async () => {
     if (loading) {
+      return;
+    }
+
+    if (authenticated && forceSignOut) {
+      await signOut();
+      setIsChecking(false);
       return;
     }
 
@@ -39,7 +47,7 @@ export function GuestGuard({ children }) {
   useEffect(() => {
     checkPermissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, loading]);
+  }, [authenticated, forceSignOut, loading]);
 
   if (isChecking) {
     return <SplashScreen />;

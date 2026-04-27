@@ -34,6 +34,12 @@ import {
 
 // ----------------------------------------------------------------------
 
+const expectedSignUpErrorCodes = [
+  'auth/email-already-in-use',
+  'auth/invalid-email',
+  'auth/weak-password',
+];
+
 export const SignUpSchema = z.object({
   firstName: z.string().min(1, { error: 'El nombre es requerido.' }),
   lastName: z.string().min(1, { error: 'El apellido es requerido.' }),
@@ -88,7 +94,10 @@ export function FirebaseSignUpView() {
 
       router.push(redirectPath);
     } catch (error) {
-      console.error(error);
+      if (!expectedSignUpErrorCodes.includes(error?.code)) {
+        console.error(error);
+      }
+
       const feedbackMessage = getErrorMessage(error);
       setErrorMessage(feedbackMessage);
     }

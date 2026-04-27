@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -9,49 +10,30 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { getMembers } from 'src/services/member-service';
+
 import { useRouter } from 'src/routes/hooks';
-import { useEffect, useState } from 'react';
+
 import { fData } from 'src/utils/format-number';
+
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
-import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
+import { SectionalCreateSchema } from 'src/models/sectional-schema';
+import { saveSectional, updateSectional } from 'src/services/sectional-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
-import { saveSectional, updateSectional } from 'src/services/sectional-service';
-import { SectionalCreateSchema } from 'src/models/sectional-schema';
-import { getChurches } from 'src/services/church-service';
-// ----------------------------------------------------------------------
+import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
+// ----------------------------------------------------------------------
 
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
-  const [dests, setDests] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [churches, setChurches] = useState([]);
-
-  useEffect(() => {
-    async function load() {
-      const membersData = await getMembers();
-      const res = await fetch('/api/dest');
-      const data = await res.json();
-
-      setMembers(membersData);
-      setDests(data?.Data || []);;
-    }
-
-    load();
-  }, []);
-
-  const defaultValues = SECTIONAL_DEFAULT;
 
   const methods = useForm({
     mode: 'onSubmit',
     resolver: zodResolver(SectionalCreateSchema),
-    defaultValues,
+    defaultValues: SECTIONAL_DEFAULT,
   });
-
 
   const {
     reset,
@@ -60,39 +42,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
-  console.log('WATCH VALUES 👉', watch());
+
   useEffect(() => {
     if (currentSectional && Object.keys(currentSectional).length > 0) {
-      console.log('RESET DATA 👉', {
-        defaultValues,
-        currentSectional,
-        merged: {
-          ...defaultValues,
-          ...currentSectional,
-        },
-      });
       reset({
-        ...defaultValues,
+        ...SECTIONAL_DEFAULT,
         ...currentSectional,
       });
     }
-  }, [currentSectional]);
+  }, [currentSectional, reset]);
 
   const values = watch();
-
-  const selectedRegionalId = watch('regionalId');
-
-  const destsBySectional = dests.filter((d) => {
-
-    const church = churches.find((c) => c.id === d.churchId);
-    return church?.sectionalName === watch('sectionalName');
-  });
-
-  const totalDests = destsBySectional.length;
-
-  const totalMembers = members.filter((m) =>
-    destsBySectional.some((d) => d.id === m.destId)
-  ).length;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -107,8 +67,6 @@ export function SectionalCreateEditForm({ currentSectional }) {
         idRegion: Number(data.regionalId),
       };
 
-      console.log('PAYLOAD 👉', payload); // 👈 AQUÍ
-
       if (currentSectional) {
         await updateSectional(payload);
       } else {
@@ -116,12 +74,14 @@ export function SectionalCreateEditForm({ currentSectional }) {
       }
 
       reset();
-      toast.success('Creado correctamente!');
+      toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
       router.push('/dashboard/level/sectional');
     } catch (error) {
       console.error(error);
+      toast.error('Error al guardar la sección');
     }
   });
+
   return (
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
@@ -199,8 +159,6 @@ export function SectionalCreateEditForm({ currentSectional }) {
               />
             )}
 
-
-
             {currentSectional && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                 <Button variant="soft" color="error">
@@ -226,7 +184,6 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 watch={watch}
                 isCreateView={!currentSectional}
               />
-
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>

@@ -1,30 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
-import { Field } from 'src/components/hook-form';
 import { getRegionals } from 'src/services/regional-service';
-import NameInput from 'src/components/common/name-input';
-import { getChurches } from 'src/services/church-service';
+
+import { Field } from 'src/components/hook-form';
 import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
 // ----------------------------------------------------------------------
 
 export default function SectionalGeneralSection({ methods, watch, isCreateView }) {
     const [regionals, setRegionals] = useState([]);
-    const [churches, setChurches] = useState([]);
     const regionalId = watch('regionalId');
-
-    useEffect(() => {
-        const loadChurches = async () => {
-            const data = await getChurches();
-            setChurches(data || []);
-        };
-
-        loadChurches();
-    }, []);
 
     useEffect(() => {
         const loadRegionals = async () => {
@@ -91,11 +81,20 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView }
                 />
             )}
 
-            {/* Iglesia */}
+            {/* Destacamentos */}
             {!isCreateView && (
                 <Field.Text
-                    name="sectionalChurchCount"
-                    label="Cantidad de Iglesias"
+                    name="sectionalDestCount"
+                    label="Cantidad de destacamentos"
+                    disabled
+                />
+            )}
+
+            {/* Miembros */}
+            {!isCreateView && (
+                <Field.Text
+                    name="sectionalXDestMemberCount"
+                    label="Cantidad de miembros"
                     disabled
                 />
             )}

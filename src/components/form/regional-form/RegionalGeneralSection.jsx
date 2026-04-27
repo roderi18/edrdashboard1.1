@@ -1,21 +1,19 @@
+import { useState, useEffect } from 'react';
+import { useFormContext } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import { useFormContext } from 'react-hook-form';
-import NameInput from 'src/components/common/name-input';
-import { useEffect, useState } from 'react';
-import Autocomplete from '@mui/material/Autocomplete';
-import AutocompleteWithCreate from 'src/components/common/autocomplete-with-create';
+
 import { Field } from 'src/components/hook-form';
+import NameInput from 'src/components/common/name-input';
 import CountrySelectApi from 'src/components/api/country-select-api';
+import AutocompleteWithCreate from 'src/components/common/autocomplete-with-create';
 
 export default function RegionalGeneralSection({
     isCreateView,
-    methods,
-    watch,
 }) {
-    const { setValue } = useFormContext();
+    const { setValue, watch } = useFormContext();
     const [members, setMembers] = useState([]);
 
     useEffect(() => {
@@ -93,28 +91,25 @@ export default function RegionalGeneralSection({
             <CountrySelectApi name="countryId" label="País" />
 
             {!isCreateView && (
-                <TextField
+                <Field.Text
+                    name="regionalXSectionalCount"
                     label="Secciones"
-                    value={methods.getValues('regionalXSectionalCount') || 0}
-                    fullWidth
                     disabled
                 />
             )}
 
             {!isCreateView && (
-                <TextField
+                <Field.Text
+                    name="regionalXSectionalXDestCount"
                     label="Destacamentos"
-                    value={watch('regionalXSectionalXDestCount') || 0}
-                    fullWidth
                     disabled
                 />
             )}
 
             {!isCreateView && (
-                <TextField
+                <Field.Text
+                    name="regionalXSectionalMemberCount"
                     label="Miembros"
-                    value={watch('regionalXSectionalMemberCount') || 0}
-                    fullWidth
                     disabled
                 />
             )}

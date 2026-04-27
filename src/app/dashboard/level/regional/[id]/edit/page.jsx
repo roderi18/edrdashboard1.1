@@ -1,4 +1,5 @@
 import { CONFIG } from 'src/global-config';
+
 import { RegionalEditView } from 'src/sections/regional/view';
 
 // ----------------------------------------------------------------------
@@ -7,47 +8,59 @@ export const metadata = {
   title: `Regional edit | Dashboard - ${CONFIG.appName}`,
 };
 
+const fetchApiData = async (url) => {
+  const res = await fetch(url, { cache: 'no-store' });
+  const json = await res.json();
+
+  return Array.isArray(json?.Data) ? json.Data : [];
+};
+
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const res = await fetch(
-    'https://systexploradores.somee.com/api/Regiones/GetAllRegiones',
-    { cache: 'no-store' }
+  const [regionals, sectionals, churches, dests, members] = await Promise.all([
+    fetchApiData('https://systexploradores.somee.com/api/Regiones/GetAllRegiones'),
+    fetchApiData('https://systexploradores.somee.com/api/Secciones/GetAllSecciones'),
+    fetchApiData('https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'),
+    fetchApiData('https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos'),
+    fetchApiData('https://systexploradores.somee.com/api/Miembros/GetAllMiembros'),
+  ]);
+
+  const regionalApi = regionals.find((regional) => Number(regional.idRegion) === Number(id));
+
+  const seccionesDeRegion = sectionals.filter(
+    (sectional) => Number(sectional.idRegion) === Number(id)
   );
 
-  const json = await res.json();
-
-  const data = json?.Data ?? [];
-  console.log('ID 👉', id);
-  console.log('DATA 👉', data);
-  const regionalApi = data.find(
-    (r) => Number(r.idRegion) === Number(id)
+  const iglesiasDeRegion = churches.filter((church) =>
+    seccionesDeRegion.some(
+      (sectional) => Number(sectional.idSeccion) === Number(church.idSeccion)
+    )
   );
-  console.log('REGIONAL API 👉', regionalApi);
+
+  const destacamentosDeRegion = dests.filter((dest) =>
+    iglesiasDeRegion.some((church) => Number(church.idIglesia) === Number(dest.idIglesia))
+  );
+
+  const miembrosDeRegion = members.filter(
+    (member) =>
+      member.idDestacamento !== null &&
+      destacamentosDeRegion.some(
+        (dest) => Number(dest.idDestacamento) === Number(member.idDestacamento)
+      )
+  );
+
   const mappedRegional = regionalApi
     ? {
-      id: regionalApi.idRegion,
-      regionId: regionalApi.idRegion,
-      name: regionalApi.nombre,
-      countryId: regionalApi.idPais ?? '',
-      regionalXSectionalCount: regionalApi.secciones?.length ?? 0,
-      regionalXSectionalXDestCount: regionalApi.regionalXSectionalXDestCount || 0,
-      regionalXSectionalMemberCount: 0,
-    }
+        id: regionalApi.idRegion,
+        regionId: regionalApi.idRegion,
+        name: regionalApi.nombre,
+        countryId: regionalApi.idPais ?? '',
+        regionalXSectionalCount: seccionesDeRegion.length,
+        regionalXSectionalXDestCount: destacamentosDeRegion.length,
+        regionalXSectionalMemberCount: miembrosDeRegion.length,
+      }
     : null;
 
   return <RegionalEditView regional={mappedRegional} />;
 }
-// ----------------------------------------------------------------------
-
-/**
- * Static Exports in Next.js
- *
- * 1. Set `isStaticExport = true` in `next.config.{mjs|ts}`.
- * 2. This allows `generateStaticParams()` to pre-render dynamic routes at build time.
- *
- * For more details, see:
- * https://nextjs.org/docs/app/building-your-application/deploying/static-exports
- *
- * NOTE: Remove all "generateStaticParams()" functions if not using static exports.
- */

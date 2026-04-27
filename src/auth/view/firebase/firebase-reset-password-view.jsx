@@ -1,24 +1,32 @@
 'use client';
 
 import * as z from 'zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
 
 import { PasswordIcon } from 'src/assets/icons';
 
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
+import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
-import { sendPasswordResetEmail } from '../../components/context/firebase';
 import { FormReturnLink } from '../../components/form-return-link';
+import { sendPasswordResetEmail } from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
+
+const expectedResetErrorCodes = [
+  'auth/invalid-email',
+  'auth/user-not-found',
+  'auth/invalid-credential',
+];
 
 export const ResetPasswordSchema = z.object({
   email: schemaUtils.email(),
@@ -27,7 +35,8 @@ export const ResetPasswordSchema = z.object({
 // ----------------------------------------------------------------------
 
 export function FirebaseResetPasswordView() {
-  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const defaultValues = {
     email: '',
@@ -43,20 +52,21 @@ export function FirebaseResetPasswordView() {
     formState: { isSubmitting },
   } = methods;
 
-  const createRedirectPath = (query) => {
-    const queryString = new URLSearchParams({ email: query }).toString();
-    return `${paths.auth.firebase.verify}?${queryString}`;
-  };
-
   const onSubmit = handleSubmit(async (data) => {
     try {
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
       await sendPasswordResetEmail({ email: data.email });
 
-      const redirectPath = createRedirectPath(data.email);
-
-      router.push(redirectPath);
+      setSuccessMessage('Te enviamos un enlace para restablecer tu contraseña.');
     } catch (error) {
-      console.error(error);
+      if (!expectedResetErrorCodes.includes(error?.code)) {
+        console.error(error);
+      }
+
+      const feedbackMessage = getErrorMessage(error);
+      setErrorMessage(feedbackMessage);
     }
   });
 
@@ -66,7 +76,7 @@ export function FirebaseResetPasswordView() {
         autoFocus
         name="email"
         label="Correo electrónico"
-        placeholder="example@gmail.com"
+        placeholder="ejemplo@gmail.com"
         slotProps={{ inputLabel: { shrink: true } }}
       />
 
@@ -76,9 +86,9 @@ export function FirebaseResetPasswordView() {
         type="submit"
         variant="contained"
         loading={isSubmitting}
-        loadingIndicator="Send request..."
+        loadingIndicator="Enviando solicitud..."
       >
-        Send request
+        Enviar enlace
       </Button>
     </Box>
   );
@@ -87,9 +97,21 @@ export function FirebaseResetPasswordView() {
     <>
       <FormHead
         icon={<PasswordIcon />}
-        title="Forgot your password?"
-        description={`Please enter the email address associated with your account and we'll email you a link to reset your password.`}
+        title="¿Olvidaste tu contraseña?"
+        description="Ingresa el correo asociado a tu cuenta y te enviaremos un enlace para restablecerla."
       />
+
+      {!!errorMessage && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {errorMessage}
+        </Alert>
+      )}
+
+      {!!successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
+        </Alert>
+      )}
 
       <Form methods={methods} onSubmit={onSubmit}>
         {renderForm()}

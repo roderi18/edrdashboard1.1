@@ -18,6 +18,18 @@ export function getErrorMessage(error) {
     return 'Demasiados intentos fallidos. Inténtalo de nuevo más tarde.';
   }
 
+  if (errorCode === 'auth/email-already-in-use') {
+    return 'Este correo ya está registrado. Inicia sesión.';
+  }
+
+  if (errorCode === 'auth/weak-password') {
+    return 'La contraseña es demasiado débil. Usa al menos 6 caracteres.';
+  }
+
+  if (errorCode === 'auth/network-request-failed') {
+    return 'No se pudo conectar con Firebase. Revisa tu conexión e inténtalo de nuevo.';
+  }
+
   if (error instanceof Error) {
     return error.message || error.name || 'An error occurred';
   }

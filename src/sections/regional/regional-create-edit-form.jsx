@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import CountrySelectApi from 'src/components/api/country-select-api';
-import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -11,33 +11,36 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { usePathname } from 'next/navigation';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
 
+import { RegionalSchema } from 'src/models/regional-schema';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
-import { RegionalSchema } from 'src/models/regional-schema';
+import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
 // ----------------------------------------------------------------------
+
+const DEFAULT_VALUES = {
+  name: '',
+  countryId: '',
+  regionalXSectionalCount: 0,
+  regionalXSectionalXDestCount: 0,
+  regionalXSectionalMemberCount: 0,
+};
 
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
 
-  const defaultValues = {
-    name: '',
-    countryId: '',
-  };
-
   const methods = useForm({
     mode: 'onSubmit',
     resolver: zodResolver(RegionalSchema),
-    defaultValues,
+    defaultValues: DEFAULT_VALUES,
     values: currentRegional,
     shouldUnregister: true,
   });
@@ -55,7 +58,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
   useEffect(() => {
     if (currentRegional) {
       reset({
-        ...defaultValues,
+        ...DEFAULT_VALUES,
         ...currentRegional,
         regionalXSectionalCount: currentRegional?.regionalXSectionalCount ?? 0,
         regionalXSectionalXDestCount: currentRegional?.regionalXSectionalXDestCount ?? 0,
@@ -91,7 +94,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
       if (!text || text.startsWith('<')) return;
 
-      const result = JSON.parse(text);
+      JSON.parse(text);
 
       toast.success(
         currentRegional
@@ -221,8 +224,6 @@ export function RegionalCreateEditForm({ currentRegional }) {
             >
               <RegionalGeneralSection
                 isCreateView={!isEditView}
-                methods={methods}
-                watch={watch}
               />
 
             </Box>

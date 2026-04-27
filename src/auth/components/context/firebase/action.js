@@ -33,6 +33,14 @@ const expectedAuthErrorCodes = [
   'auth/invalid-email',
 ];
 
+const getEmailVerificationSettings = () => ({
+  url:
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/firebase/sign-in?forceSignOut=1`
+      : '/auth/firebase/sign-in?forceSignOut=1',
+  handleCodeInApp: false,
+});
+
 /** **************************************
  * Sign in
  *************************************** */
@@ -83,7 +91,10 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
      * (1) If skip emailVerified
      * Remove : await _sendEmailVerification(newUser.user);
      */
-    await withTimeout(_sendEmailVerification(newUser.user), 'Send email verification');
+    await withTimeout(
+      _sendEmailVerification(newUser.user, getEmailVerificationSettings()),
+      'Send email verification'
+    );
 
     const userProfile = doc(collection(FIRESTORE, 'users'), newUser.user?.uid);
 
@@ -103,6 +114,19 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
     console.error('Error during sign up:', error);
     throw error;
   }
+};
+
+export const resendEmailVerification = async () => {
+  const user = AUTH.currentUser;
+
+  if (!user) {
+    throw new Error('Debes iniciar sesión para reenviar el enlace de verificación.');
+  }
+
+  await withTimeout(
+    _sendEmailVerification(user, getEmailVerificationSettings()),
+    'Resend email verification'
+  );
 };
 
 /** **************************************
