@@ -21,6 +21,7 @@ import { RegionalSchema } from 'src/models/regional-schema';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
 // ----------------------------------------------------------------------
 
@@ -201,6 +202,47 @@ export function RegionalCreateEditForm({ currentRegional }) {
               }
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             />
+
+            {currentRegional && (
+              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
+                <EntityInfoPdfMenu
+                  title={values.name || currentRegional?.name || 'Región'}
+                  subtitle={`Región ${currentRegional?.id || ''}`}
+                  avatarUrl={values.avatarUrl}
+                  fileName={`region-${currentRegional?.id || 'info'}.pdf`}
+                  sections={[
+                    {
+                      value: 'general',
+                      label: 'General',
+                      required: true,
+                      rows: [
+                        { label: 'Nombre', value: values.name },
+                        { label: 'ID', value: currentRegional?.id },
+                        { label: 'País', value: values.countryId || 'República Dominicana' },
+                        { label: 'Secciones', value: values.regionalXSectionalCount },
+                        { label: 'Destacamentos', value: values.regionalXSectionalXDestCount },
+                        { label: 'Miembros', value: values.regionalXSectionalMemberCount },
+                      ],
+                    },
+                    {
+                      value: 'secciones',
+                      label: 'Secciones',
+                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalCount }],
+                    },
+                    {
+                      value: 'destacamentos',
+                      label: 'Destacamentos',
+                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalXDestCount }],
+                    },
+                    {
+                      value: 'miembros',
+                      label: 'Miembros',
+                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalMemberCount }],
+                    },
+                  ]}
+                />
+              </Stack>
+            )}
 
             {currentRegional && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>

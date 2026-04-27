@@ -385,6 +385,7 @@ export function MemberListView() {
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
             sectionals={sectionals}
+            members={tableData}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,

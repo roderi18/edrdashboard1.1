@@ -8,8 +8,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -17,8 +20,10 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
+
 import { Iconify } from 'src/components/iconify';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
 import { useAuthContext } from '../../hooks';
 import { getErrorMessage } from '../../utils';
@@ -42,9 +47,10 @@ const expectedAuthErrorCodes = [
 ];
 
 const REMEMBER_EMAIL_KEY = 'firebase-sign-in-email';
+const DEFAULT_PREFIX = 'DO-SD-';
 
 export const SignInSchema = z.object({
-  email: schemaUtils.email(),
+  userNumber: z.string().min(1, { error: 'El usuario es requerido.' }),
   password: z
     .string()
     .min(1, { error: 'La contraseña es requerida.' })
@@ -61,17 +67,16 @@ export function FirebaseSignInView() {
 
   const { checkUserSession } = useAuthContext();
 
+  const [prefix, setPrefix] = useState(DEFAULT_PREFIX);
   const [errorMessage, setErrorMessage] = useState(null);
-
-  const defaultValues = {
-    email: '',
-    password: '',
-    rememberEmail: false,
-  };
 
   const methods = useForm({
     resolver: zodResolver(SignInSchema),
-    defaultValues,
+    defaultValues: {
+      userNumber: '',
+      password: '',
+      rememberEmail: false,
+    },
   });
 
   const {
@@ -81,23 +86,27 @@ export function FirebaseSignInView() {
   } = methods;
 
   useEffect(() => {
-    const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
+    const rememberedUser = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
 
-    if (rememberedEmail) {
-      setValue('email', rememberedEmail);
+    if (rememberedUser) {
+      setPrefix(DEFAULT_PREFIX);
+      setValue('userNumber', rememberedUser.replace(/^do-sd-/i, ''));
       setValue('rememberEmail', true);
     }
   }, [setValue]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      const loginValue = `${prefix}${data.userNumber}`.trim();
+      const authEmail = resolveSignInEmail(loginValue);
+
       if (data.rememberEmail) {
-        window.localStorage.setItem(REMEMBER_EMAIL_KEY, data.email);
+        window.localStorage.setItem(REMEMBER_EMAIL_KEY, loginValue);
       } else {
         window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
       }
 
-      await signInWithPassword({ email: data.email, password: data.password });
+      await signInWithPassword({ email: authEmail, password: data.password });
       await checkUserSession?.();
 
       router.replace(paths.dashboard.root);
@@ -106,8 +115,7 @@ export function FirebaseSignInView() {
         console.error(error);
       }
 
-      const feedbackMessage = getErrorMessage(error);
-      setErrorMessage(feedbackMessage);
+      setErrorMessage(getErrorMessage(error));
     }
   });
 
@@ -137,7 +145,25 @@ export function FirebaseSignInView() {
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      <Field.Text name="email" label="Correo electrónico" slotProps={{ inputLabel: { shrink: true } }} />
+      <Stack direction="row" spacing={1}>
+        <TextField
+          select
+          label="Prefijo"
+          value={prefix}
+          onChange={(event) => setPrefix(event.target.value)}
+          sx={{ width: 140 }}
+          slotProps={{ inputLabel: { shrink: true } }}
+        >
+          <MenuItem value="DO-SD-">DO-SD-</MenuItem>
+        </TextField>
+
+        <Field.Text
+          name="userNumber"
+          label="Código de usuario"
+          placeholder="111111017"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+      </Stack>
 
       <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
         <Link
@@ -192,14 +218,6 @@ export function FirebaseSignInView() {
     <>
       <FormHead
         title="Inicia sesión en tu cuenta"
-        description={
-          <>
-            {`¿No tienes una cuenta? `}
-            <Link component={RouterLink} href={paths.auth.firebase.signUp} variant="subtitle2">
-              Crear cuenta
-            </Link>
-          </>
-        }
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
 

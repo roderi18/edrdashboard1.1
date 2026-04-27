@@ -456,6 +456,7 @@ export function DestListView() {
             onResetPage={table.onResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
+            rows={tableData}
             options={{ sectionalName: distinctSectionalFullName }}
           />
 

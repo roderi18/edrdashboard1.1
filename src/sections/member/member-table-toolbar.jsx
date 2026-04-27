@@ -1,9 +1,7 @@
-import { useCallback } from 'react';
-import { getDests } from 'src/services/dest-service';
-import { getSectionals } from 'src/services/sectional-service';
 import { usePopover } from 'minimal-shared/hooks';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
+
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
 import MenuList from '@mui/material/MenuList';
@@ -13,15 +11,82 @@ import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
+import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
-import { useTheme, useMediaQuery } from '@mui/material';
-import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';// ----------------------------------------------------------------------
+import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
-export function MemberTableToolbar({ filters, onResetPage, displayMode, setDisplayMode, options, sectionals }) {
+// ----------------------------------------------------------------------
+
+const pdfStyles = StyleSheet.create({
+  page: { padding: 24, fontSize: 8, fontFamily: 'Helvetica' },
+  title: { fontSize: 16, marginBottom: 6, fontWeight: 700 },
+  subtitle: { fontSize: 9, marginBottom: 16, color: '#52606d' },
+  table: { width: '100%', borderStyle: 'solid', borderWidth: 1, borderColor: '#d9e2ec' },
+  row: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#d9e2ec' },
+  header: { backgroundColor: '#f0f4f8', fontWeight: 700 },
+  cell: { padding: 4, borderRightWidth: 1, borderRightColor: '#d9e2ec' },
+  code: { width: '16%' },
+  name: { width: '24%' },
+  phone: { width: '14%' },
+  email: { width: '20%' },
+  dest: { width: '16%' },
+  section: { width: '10%', borderRightWidth: 0 },
+});
+
+const getValue = (value) => value || '-';
+
+function MembersPdfDocument({ members }) {
+  return (
+    <Document>
+      <Page size="A4" orientation="landscape" style={pdfStyles.page}>
+        <Text style={pdfStyles.title}>Lista de miembros</Text>
+        <Text style={pdfStyles.subtitle}>Total de miembros: {members.length}</Text>
+
+        <View style={pdfStyles.table}>
+          <View style={[pdfStyles.row, pdfStyles.header]}>
+            <Text style={[pdfStyles.cell, pdfStyles.code]}>Código</Text>
+            <Text style={[pdfStyles.cell, pdfStyles.name]}>Nombre</Text>
+            <Text style={[pdfStyles.cell, pdfStyles.phone]}>Teléfono</Text>
+            <Text style={[pdfStyles.cell, pdfStyles.email]}>Correo</Text>
+            <Text style={[pdfStyles.cell, pdfStyles.dest]}>Destacamento</Text>
+            <Text style={[pdfStyles.cell, pdfStyles.section]}>Sección</Text>
+          </View>
+
+          {members.map((member, index) => (
+            <View key={`${member.id || member.memberId || index}`} style={pdfStyles.row}>
+              <Text style={[pdfStyles.cell, pdfStyles.code]}>
+                {getValue(member.memberId || member.codigoMiembro)}
+              </Text>
+              <Text style={[pdfStyles.cell, pdfStyles.name]}>
+                {getValue(member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim())}
+              </Text>
+              <Text style={[pdfStyles.cell, pdfStyles.phone]}>{getValue(member.phoneNumber)}</Text>
+              <Text style={[pdfStyles.cell, pdfStyles.email]}>{getValue(member.email)}</Text>
+              <Text style={[pdfStyles.cell, pdfStyles.dest]}>
+                {getValue(member.destName || member.destamento || member.idDestacamento)}
+              </Text>
+              <Text style={[pdfStyles.cell, pdfStyles.section]}>{getValue(member.sectionalName)}</Text>
+            </View>
+          ))}
+        </View>
+      </Page>
+    </Document>
+  );
+}
+
+export function MemberTableToolbar({
+  filters,
+  onResetPage,
+  displayMode,
+  setDisplayMode,
+  options,
+  sectionals,
+  members = [],
+}) {
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -35,8 +100,6 @@ export function MemberTableToolbar({ filters, onResetPage, displayMode, setDispl
     };
     load();
   }, []);
-
-  const filtersPopover = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -57,16 +120,6 @@ export function MemberTableToolbar({ filters, onResetPage, displayMode, setDispl
         destName: newValue.map((v) =>
           typeof v === 'object' ? v.value : v
         ),
-      });
-    },
-    [onResetPage, updateFilters]
-  );
-
-  const handleFilterMemberDivision = useCallback(
-    (event) => {
-      onResetPage();
-      updateFilters({
-        memberDivision: event.target.value,
       });
     },
     [onResetPage, updateFilters]
@@ -100,6 +153,45 @@ export function MemberTableToolbar({ filters, onResetPage, displayMode, setDispl
     [onResetPage, updateFilters]
   );
 
+  const handleDownloadMembersPdf = async () => {
+    const blob = await pdf(<MembersPdfDocument members={members} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = 'lista-miembros.pdf';
+    link.click();
+    URL.revokeObjectURL(url);
+    menuActions.onClose();
+  };
+
+  const handlePrint = async () => {
+    const blob = await pdf(<MembersPdfDocument members={members} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = url;
+
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    };
+
+    document.body.appendChild(iframe);
+
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+      URL.revokeObjectURL(url);
+    }, 60000);
+
+    menuActions.onClose();
+  };
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -138,19 +230,19 @@ export function MemberTableToolbar({ filters, onResetPage, displayMode, setDispl
         ]}
 
         {/* Acciones normales */}
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handlePrint}>
           <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
+          Imprimir
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handleDownloadMembersPdf}>
           <Iconify icon="solar:import-bold" />
-          Import
+          Descargar
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:export-bold" />
-          Export
+          Subir
         </MenuItem>
 
       </MenuList>

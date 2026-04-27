@@ -6,15 +6,17 @@ import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
+
+import { printTablePdf, downloadTablePdf } from 'src/utils/download-table-pdf';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
-import { useTheme, useMediaQuery } from '@mui/material';
 // ----------------------------------------------------------------------
 
-export function RegionalTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode }) {
+export function RegionalTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode, rows = [] }) {
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -29,29 +31,33 @@ export function RegionalTableToolbar({ filters, options, onResetPage, displayMod
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
-    (event) => {
-      const newValue =
-        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+  const pdfColumns = [
+    { label: 'ID', value: (row) => row.id || row.idRegion },
+    { label: 'Región', value: (row) => row.regionalName || row.name || row.nombre },
+    { label: 'Director', value: (row) => row.directorName || row.director || 'Desconocido' },
+    { label: 'Secciones', value: (row) => row.regionalXSectionalCount || row.sectionalCount },
+    { label: 'Destacamentos', value: (row) => row.regionalXSectionalXDestCount || row.destCount },
+    { label: 'Miembros', value: (row) => row.regionalXSectionalMemberCount || row.memberCount },
+  ];
 
-      onResetPage();
-      updateFilters({ role: newValue });
-    },
-    [onResetPage, updateFilters]
-  );
+  const handleDownloadPdf = async () => {
+    await downloadTablePdf({
+      title: 'Lista de regiones',
+      fileName: 'lista-regiones.pdf',
+      rows,
+      columns: pdfColumns,
+    });
+    menuActions.onClose();
+  };
 
-  const handleFilterRegionalXSectionalXDestCount = useCallback(
-    (event) => {
-      const newValue =
-        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
-
-      onResetPage();
-      updateFilters({
-        regionalXSectionalXDestCount: newValue, status: 'all',
-      });
-    },
-    [onResetPage, updateFilters]
-  );
+  const handlePrint = async () => {
+    await printTablePdf({
+      title: 'Lista de regiones',
+      rows,
+      columns: pdfColumns,
+    });
+    menuActions.onClose();
+  };
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -91,19 +97,19 @@ export function RegionalTableToolbar({ filters, options, onResetPage, displayMod
           </MenuItem>
         ]}
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handlePrint}>
           <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
+          Imprimir
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handleDownloadPdf}>
           <Iconify icon="solar:import-bold" />
-          Import
+          Descargar
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:export-bold" />
-          Export
+          Subir
         </MenuItem>
 
       </MenuList>

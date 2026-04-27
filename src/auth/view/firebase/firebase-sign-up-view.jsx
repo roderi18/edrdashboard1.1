@@ -20,6 +20,8 @@ import { RouterLink } from 'src/routes/components';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
+import { SignUpWithoutEmail } from 'src/sections/auth/signup/signup-without-email';
+
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
 import { FormDivider } from '../../components/form-divider';
@@ -195,6 +197,10 @@ export function FirebaseSignUpView() {
       <Form methods={methods} onSubmit={onSubmit}>
         {renderForm()}
       </Form>
+
+      <Box sx={{ mt: 2 }}>
+        <SignUpWithoutEmail />
+      </Box>
 
       <SignUpTerms />
 

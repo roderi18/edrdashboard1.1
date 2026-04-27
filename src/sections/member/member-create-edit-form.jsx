@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 
 // third-party
 import dayjs from 'dayjs';
+import { doc, setDoc, collection } from 'firebase/firestore';
+import { getApp, deleteApp, initializeApp } from 'firebase/app';
+import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -22,6 +25,8 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import barriosData from 'src/data/barrios.json';
+import { CONFIG } from 'src/global-config';
+import { FIRESTORE } from 'src/lib/firebase';
 import { getDivisions } from 'src/services/division-service';
 import DebugPayloadButton from 'src/components/debug/DebugPayloadButton';
 // routes
@@ -43,6 +48,11 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 import { fData } from 'src/utils/format-number';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { capitalizeWords } from 'src/utils/capitalize-words';
+import {
+  buildMemberAuthEmail,
+  buildMemberAuthPassword,
+  normalizeMemberUsername,
+} from 'src/utils/member-auth-credentials';
 import {
   calcularVencimientoCI,
   calcularEstatusCI,
@@ -72,7 +82,75 @@ import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralS
 import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
 import MemberLeadershipAndOtherSection from 'src/components/form/member-form/MemberLeadershipAndOtherSection';
 import MemberInstructorCISection from 'src/components/form/member-form/MemberInstructorCISection';
+import { MemberInfoPdfMenu } from './member-info-pdf-menu';
 // ----------------------------------------------------------------------
+
+const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
+
+const createSecondaryAuth = () => {
+  try {
+    return getAuth(getApp(MEMBER_AUTH_APP_NAME));
+  } catch {
+    return getAuth(initializeApp(CONFIG.firebase, MEMBER_AUTH_APP_NAME));
+  }
+};
+
+const withTimeout = (promise, milliseconds, errorMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(errorMessage)), milliseconds);
+    }),
+  ]);
+
+const createFirebaseAuthForMember = async ({ codigoMiembro, firstName, lastName, destId }) => {
+  let secondaryAuth = null;
+
+  try {
+    const username = normalizeMemberUsername(codigoMiembro);
+    const emailFake = buildMemberAuthEmail(username);
+    const password = buildMemberAuthPassword(username);
+    const displayName = `${firstName} ${lastName}`.trim() || codigoMiembro;
+
+    secondaryAuth = createSecondaryAuth();
+
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, emailFake, password);
+
+    Promise.allSettled([
+      withTimeout(
+        updateProfile(credential.user, { displayName }),
+        5000,
+        'No se pudo actualizar el nombre del usuario Firebase.'
+      ),
+      withTimeout(
+        setDoc(doc(collection(FIRESTORE, 'users'), credential.user.uid), {
+          uid: credential.user.uid,
+          email: emailFake,
+          username,
+          codigoMiembro,
+          displayName,
+          firstName,
+          lastName,
+          idDestacamento: destId ? Number(destId) : null,
+          authMode: 'member-code',
+          createdAt: new Date().toISOString(),
+        }),
+        5000,
+        'No se pudo guardar el perfil extra del usuario Firebase.'
+      ),
+    ]).then((results) => {
+      results
+        .filter((result) => result.status === 'rejected')
+        .forEach((result) => console.warn('[member form] firebase profile task failed', result.reason));
+    });
+
+    return { emailFake, username, password };
+  } finally {
+    if (secondaryAuth?.app) {
+      deleteApp(secondaryAuth.app).catch(() => { });
+    }
+  }
+};
 
 const mapMemberToForm = (member) => {
   const leadershipAssignments = getLeadershipAssignments();
@@ -215,7 +293,7 @@ export function MemberCreateEditForm({ currentMember }) {
     name: '',
     email: '',
     phoneNumber: '',
-    // country: 'República Dominicana',
+    // country: 'RepÃƒÂºblica Dominicana',
 
     provinceId: '',
     municipioId: '',
@@ -315,7 +393,10 @@ export function MemberCreateEditForm({ currentMember }) {
   const firstName = watch('firstName');
   const lastName = watch('lastName');
   const memberFullName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
-  const selectedDestId = watch('destId')?.id || watch('destId');
+  const getDestId = (destItem) => String(destItem?.id ?? destItem?.idDestacamento ?? '');
+  const getDestName = (destItem) => destItem?.name ?? destItem?.nombre ?? '';
+  const getDestNumber = (destItem) => destItem?.destNumber ?? destItem?.numero ?? '';
+  const selectedDestId = String(watch('destId')?.id || watch('destId') || '');
   const selectedNationalLevel = watch('nationalLeadershipLevel');
   const instructorCI = watch('InstructorCertificadoCI');
   const fechaInicioCI = watch('FechaInicioCI');
@@ -372,7 +453,7 @@ export function MemberCreateEditForm({ currentMember }) {
   //   (m) => m.id === destCoordinator?.memberId
   // );
 
-  const selectedDest = dests.find((d) => d.id === selectedDestId);
+  const selectedDest = dests.find((d) => getDestId(d) === selectedDestId);
   const selectedSectional = SECTIONALS.find(
     (s) => s.id === selectedDest?.sectionalId
   );
@@ -383,12 +464,14 @@ export function MemberCreateEditForm({ currentMember }) {
     (c) => c.id === selectedDest?.churchId
   );
   const destId =
+    selectedDestId ||
     currentMember?.destId ||
     currentMember?.dest_id ||
     currentMember?.dest;
 
-  const dest = dests.find((d) => d.id === destId);
-  const destName = `${dest?.name || ''} ${dest?.destNumber || ''}`.trim() || 'Destacamento desconocido';
+  const dest = selectedDest || dests.find((d) => getDestId(d) === String(destId));
+  const destName =
+    `${getDestName(dest)} ${getDestNumber(dest)}`.trim() || 'Destacamento desconocido';
 
   const sectional = SECTIONALS.find((s) => s.id === currentMember?.sectionalId);
   const sectionalName = sectional?.name;
@@ -418,9 +501,9 @@ export function MemberCreateEditForm({ currentMember }) {
     if (!role) return null;
 
     if (l.level === 'dest') {
-      const dest = dests.find((d) => d.id === l.entityId);
+      const leadershipDest = dests.find((d) => getDestId(d) === String(l.entityId));
       const destDisplayName =
-        `${dest?.name || ''} ${dest?.destNumber || ''}`.trim() ||
+        `${getDestName(leadershipDest)} ${getDestNumber(leadershipDest)}`.trim() ||
         `${destName || ''}`;
 
       return (
@@ -484,8 +567,8 @@ export function MemberCreateEditForm({ currentMember }) {
       const formData = data;
       try {
 
-        const firstName = formData.firstName;
-        const lastName = formData.lastName;
+        const submittedFirstName = formData.firstName;
+        const submittedLastName = formData.lastName;
         const genderValue =
           typeof formData.gender === 'string'
             ? formData.gender
@@ -511,8 +594,8 @@ export function MemberCreateEditForm({ currentMember }) {
         const payload = {
           idMiembros: currentMember?.id || 0,
           codigoMiembro,
-          nombres: firstName,
-          apellidos: lastName,
+          nombres: submittedFirstName,
+          apellidos: submittedLastName,
           genero:
             genderValue === 'Masculino'
               ? 'M'
@@ -552,7 +635,7 @@ export function MemberCreateEditForm({ currentMember }) {
             : null,
           estatusMiembro: formData.status ?? 'active',
         };
-        console.log('PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
+        console.log('PAYLOAD FINAL Ã°Å¸â€˜â€°', JSON.stringify(payload, null, 2));
         console.log('[member form] submitting member update', {
           currentMemberId: currentMember?.id,
           endpoint: currentMember ? '/api/members/put' : '/api/members/post',
@@ -582,7 +665,7 @@ export function MemberCreateEditForm({ currentMember }) {
         try {
           responseData = text ? JSON.parse(text) : {};
         } catch {
-          console.error('RAW RESPONSE 👉', text);
+          console.error('RAW RESPONSE Ã°Å¸â€˜â€°', text);
           responseData = {};
         }
 
@@ -593,32 +676,51 @@ export function MemberCreateEditForm({ currentMember }) {
         const completedMessage = responseData?.Message?.toLowerCase().includes('completada');
 
         if (responseData?.Success === false && !completedMessage) {
-          console.error('API ERROR 👉', responseData);
+          console.error('API ERROR Ã°Å¸â€˜â€°', responseData);
           throw new Error(responseData?.Message || 'Error guardando en API');
         }
-        console.log('RESPONSE API 👉', responseData || text);
+        console.log('RESPONSE API Ã°Å¸â€˜â€°', responseData || text);
 
         toast.success(
           currentMember
-            ? 'Actualización exitosa!'
+            ? 'ActualizaciÃƒÂ³n exitosa!'
             : `Miembro ${codigoMiembro} creado!`
         );
+
+        if (!currentMember) {
+          try {
+            const authCredentials = await createFirebaseAuthForMember({
+              codigoMiembro,
+              firstName: submittedFirstName,
+              lastName: submittedLastName,
+              destId: selectedDestId,
+            });
+
+            console.log('[member form] firebase auth user created', {
+              username: authCredentials.username,
+              emailFake: authCredentials.emailFake,
+            });
+          } catch (authError) {
+            if (authError?.code === 'auth/email-already-in-use') {
+              console.warn('[member form] firebase auth user already exists', authError);
+            } else {
+              console.error('[member form] firebase auth user creation failed', authError);
+              toast.error('Miembro creado, pero no se pudo crear su usuario de inicio de sesiÃƒÂ³n.');
+            }
+          }
+        }
 
         router.push(paths.dashboard.level.member.root);
 
-        const updatedMembers = await getMembers();
-        const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : [])
-          .find(m => String(m.id) === String(currentMember?.id));
+        if (currentMember) {
+          const updatedMembers = await getMembers();
+          const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : [])
+            .find(m => String(m.id) === String(currentMember?.id));
 
-        if (updatedMember) {
-          reset(mapMemberToForm(updatedMember));
+          if (updatedMember) {
+            reset(mapMemberToForm(updatedMember));
+          }
         }
-
-        toast.success(
-          currentMember
-            ? 'Actualización exitosa!'
-            : `Miembro ${codigoMiembro} creado!`
-        );
 
       } catch (error) {
         console.log('[member form] save failed', error);
@@ -696,7 +798,7 @@ export function MemberCreateEditForm({ currentMember }) {
                         },
                         {
                           show: isCreateView && !!selectedDest?.name,
-                          text: `pertenecerá a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
+                          text: `pertenecerÃƒÂ¡ a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
                         },
                         {
                           show: isCreateView && !!destChurch?.name,
@@ -704,7 +806,7 @@ export function MemberCreateEditForm({ currentMember }) {
                         },
                         {
                           show: isCreateView && !!selectedSectional?.name,
-                          text: `Sección ${selectedSectional?.name}`,
+                          text: `SecciÃƒÂ³n ${selectedSectional?.name}`,
                         },
                         {
                           show: isCreateView && !!selectedRegional?.name,
@@ -796,12 +898,14 @@ export function MemberCreateEditForm({ currentMember }) {
                 }}
               />
             )}
-
             {currentMember && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Imprimir información
-                </Button>
+                <MemberInfoPdfMenu
+                  values={values}
+                  memberCode={currentMember?.memberId}
+                  fullName={memberFullName}
+                  destName={destName}
+                />
               </Stack>
             )}
           </Card>
@@ -828,7 +932,7 @@ export function MemberCreateEditForm({ currentMember }) {
                 </>
               )}
 
-              {/* SOLO EDIT: mantener comportamiento "Ver más" */}
+              {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
               {!isCreateView && (!isMobile || showMore) && (
                 <>
 
@@ -838,7 +942,7 @@ export function MemberCreateEditForm({ currentMember }) {
                     <>
                       <Field.Select
                         name="nationalLeadershipLevel"
-                        label="Posición en Consejo Nacional"
+                        label="PosiciÃƒÂ³n en Consejo Nacional"
                         value={watch('nationalLeadershipLevel') ?? ''}
                       >
                         {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
@@ -877,7 +981,7 @@ export function MemberCreateEditForm({ currentMember }) {
                 </>
               )}
 
-              {/* SOLO /new: STEP 1 = Dirección */}
+              {/* SOLO /new: STEP 1 = DirecciÃƒÂ³n */}
               {isCreateView && step === 1 && (
                 <>
                   <Box
@@ -890,7 +994,7 @@ export function MemberCreateEditForm({ currentMember }) {
                   >
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                     <Typography sx={{ mx: 2, typography: 'subtitle2', color: 'text.secondary' }}>
-                      Dirección
+                      DirecciÃƒÂ³n
                     </Typography>
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                   </Box>
@@ -899,7 +1003,7 @@ export function MemberCreateEditForm({ currentMember }) {
                 </>
               )}
 
-              {/* SOLO /new: STEP 2 = Otros (Ocupación + Size T-Shirt) */}
+              {/* SOLO /new: STEP 2 = Otros (OcupaciÃƒÂ³n + Size T-Shirt) */}
               {isCreateView && step === 2 && (
                 <>
                   <Box
@@ -957,8 +1061,8 @@ export function MemberCreateEditForm({ currentMember }) {
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                   </Box>
 
-                  <Field.Select name="InstructorCertificadoCI" label="¿Instructor Certificado?">
-                    <MenuItem value={1}>Sí</MenuItem>
+                  <Field.Select name="InstructorCertificadoCI" label="Ã‚Â¿Instructor Certificado?">
+                    <MenuItem value={1}>SÃƒÂ­</MenuItem>
                     <MenuItem value={0}>No</MenuItem>
                   </Field.Select>
 
@@ -992,8 +1096,8 @@ export function MemberCreateEditForm({ currentMember }) {
                         name="FechaVencimientoCI"
                         label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
                           ? ` (${diasRestantesCI >= 0
-                            ? `${diasRestantesCI} días restantes`
-                            : `vencido hace ${Math.abs(diasRestantesCI)} días`})`
+                            ? `${diasRestantesCI} dÃƒÂ­as restantes`
+                            : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`})`
                           : ''
                           }`}
                         format="DD/MM/YYYY"
@@ -1015,7 +1119,7 @@ export function MemberCreateEditForm({ currentMember }) {
             {!isCreateView && isMobile && (
               <Box sx={{ mt: 2 }}>
                 <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
-                  {showMore ? 'Ocultar información' : 'Ver más información'}
+                  {showMore ? 'Ocultar informaciÃƒÂ³n' : 'Ver mÃƒÂ¡s informaciÃƒÂ³n'}
                 </Button>
               </Box>
             )}
@@ -1026,7 +1130,7 @@ export function MemberCreateEditForm({ currentMember }) {
               {/* SOLO /new */}
               {isCreateView && step === 2 && (
                 <Button variant="outlined" onClick={prevStep}>
-                  Atrás
+                  AtrÃƒÂ¡s
                 </Button>
               )}
 

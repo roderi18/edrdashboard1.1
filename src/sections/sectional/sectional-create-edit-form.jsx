@@ -22,6 +22,7 @@ import { saveSectional, updateSectional } from 'src/services/sectional-service';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
 // ----------------------------------------------------------------------
@@ -157,6 +158,41 @@ export function SectionalCreateEditForm({ currentSectional }) {
                   justifyContent: 'space-between',
                 }}
               />
+            )}
+
+            {currentSectional && (
+              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
+                <EntityInfoPdfMenu
+                  title={values.sectionalName || currentSectional?.sectionalName || 'Sección'}
+                  subtitle={`Sección ${currentSectional?.id || ''}`}
+                  avatarUrl={values.avatarUrl}
+                  fileName={`seccion-${currentSectional?.id || 'info'}.pdf`}
+                  sections={[
+                    {
+                      value: 'general',
+                      label: 'General',
+                      required: true,
+                      rows: [
+                        { label: 'Nombre', value: values.sectionalName },
+                        { label: 'ID', value: currentSectional?.id },
+                        { label: 'Región', value: values.regionalName || values.regionalId },
+                        { label: 'Destacamentos', value: values.sectionalDestCount },
+                        { label: 'Miembros', value: values.sectionalXDestMemberCount },
+                      ],
+                    },
+                    {
+                      value: 'destacamentos',
+                      label: 'Destacamentos',
+                      rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
+                    },
+                    {
+                      value: 'miembros',
+                      label: 'Miembros',
+                      rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
+                    },
+                  ]}
+                />
+              </Stack>
             )}
 
             {currentSectional && (

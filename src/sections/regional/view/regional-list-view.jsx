@@ -332,6 +332,7 @@ export function RegionalListView() {
             onResetPage={table.onResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
+            rows={tableData}
             options={{ roles: _roles }}
           />
 

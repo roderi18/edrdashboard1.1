@@ -25,6 +25,7 @@ import StatusLabel from 'src/components/common/status-label';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
@@ -457,6 +458,42 @@ export function DestCreateEditForm({ currentDest }) {
               />
             )} */}
 
+
+            {currentDest && (
+              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
+                <EntityInfoPdfMenu
+                  title={`${values.name || currentDest?.name || 'Destacamento'} ${values.destNumber || ''}`.trim()}
+                  subtitle={`Destacamento ${currentDest?.id || currentDest?.idDestacamento || ''}`}
+                  avatarUrl={values.avatarUrl}
+                  fileName={`destacamento-${currentDest?.id || currentDest?.idDestacamento || 'info'}.pdf`}
+                  sections={[
+                    {
+                      value: 'general',
+                      label: 'General',
+                      required: true,
+                      rows: [
+                        { label: 'Nombre', value: values.name },
+                        { label: 'Número', value: values.destNumber },
+                        { label: 'ID', value: currentDest?.id || currentDest?.idDestacamento },
+                        { label: 'Sección', value: values.sectionName || values.sectionId },
+                        { label: 'Iglesia', value: values.churchName || values.churchId },
+                        { label: 'Miembros', value: values.memberCount },
+                      ],
+                    },
+                    {
+                      value: 'iglesia',
+                      label: 'Iglesia',
+                      rows: [{ label: 'Iglesia', value: values.churchName || values.churchId }],
+                    },
+                    {
+                      value: 'miembros',
+                      label: 'Miembros',
+                      rows: [{ label: 'Cantidad', value: values.memberCount }],
+                    },
+                  ]}
+                />
+              </Stack>
+            )}
 
             {currentDest && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>

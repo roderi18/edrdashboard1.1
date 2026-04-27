@@ -378,6 +378,7 @@ export function SectionalListView() {
             onResetPage={table.onResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
+            rows={tableData}
             options={{ roles: _roles }}
           />
 
