@@ -1,8 +1,8 @@
 'use client';
 
 import * as z from 'zod';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -34,12 +34,22 @@ import {
 
 // ----------------------------------------------------------------------
 
+const expectedAuthErrorCodes = [
+  'auth/invalid-credential',
+  'auth/user-not-found',
+  'auth/wrong-password',
+  'auth/invalid-email',
+];
+
+const REMEMBER_EMAIL_KEY = 'firebase-sign-in-email';
+
 export const SignInSchema = z.object({
   email: schemaUtils.email(),
   password: z
     .string()
-    .min(1, { error: 'Password is required!' })
-    .min(6, { error: 'Password must be at least 6 characters!' }),
+    .min(1, { error: 'La contraseña es requerida.' })
+    .min(6, { error: 'La contraseña debe tener al menos 6 caracteres.' }),
+  rememberEmail: z.boolean(),
 });
 
 // ----------------------------------------------------------------------
@@ -56,6 +66,7 @@ export function FirebaseSignInView() {
   const defaultValues = {
     email: '',
     password: '',
+    rememberEmail: false,
   };
 
   const methods = useForm({
@@ -64,18 +75,37 @@ export function FirebaseSignInView() {
   });
 
   const {
+    setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
+  useEffect(() => {
+    const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
+
+    if (rememberedEmail) {
+      setValue('email', rememberedEmail);
+      setValue('rememberEmail', true);
+    }
+  }, [setValue]);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (data.rememberEmail) {
+        window.localStorage.setItem(REMEMBER_EMAIL_KEY, data.email);
+      } else {
+        window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
+
       await signInWithPassword({ email: data.email, password: data.password });
       await checkUserSession?.();
 
-      router.refresh();
+      router.replace(paths.dashboard.root);
     } catch (error) {
-      console.error(error);
+      if (!expectedAuthErrorCodes.includes(error?.code)) {
+        console.error(error);
+      }
+
       const feedbackMessage = getErrorMessage(error);
       setErrorMessage(feedbackMessage);
     }
@@ -117,13 +147,13 @@ export function FirebaseSignInView() {
           color="inherit"
           sx={{ alignSelf: 'flex-end' }}
         >
-          Forgot password?
+          ¿Olvidaste tu contraseña?
         </Link>
 
         <Field.Text
           name="password"
-          label="Password"
-          placeholder="6+ characters"
+          label="Contraseña"
+          placeholder="6+ caracteres"
           type={showPassword.value ? 'text' : 'password'}
           slotProps={{
             inputLabel: { shrink: true },
@@ -142,6 +172,8 @@ export function FirebaseSignInView() {
         />
       </Box>
 
+      <Field.Checkbox name="rememberEmail" label="Recordar usuario" />
+
       <Button
         fullWidth
         color="inherit"
@@ -149,9 +181,9 @@ export function FirebaseSignInView() {
         type="submit"
         variant="contained"
         loading={isSubmitting}
-        loadingIndicator="Sign in..."
+        loadingIndicator="Iniciando sesión..."
       >
-        Sign in
+        Iniciar sesión
       </Button>
     </Box>
   );
@@ -159,12 +191,12 @@ export function FirebaseSignInView() {
   return (
     <>
       <FormHead
-        title="Sign in to your account"
+        title="Inicia sesión en tu cuenta"
         description={
           <>
-            {`Don’t have an account? `}
+            {`¿No tienes una cuenta? `}
             <Link component={RouterLink} href={paths.auth.firebase.signUp} variant="subtitle2">
-              Get started
+              Crear cuenta
             </Link>
           </>
         }
@@ -181,7 +213,7 @@ export function FirebaseSignInView() {
         {renderForm()}
       </Form>
 
-      <FormDivider />
+      <FormDivider label="O" />
 
       <FormSocials
         signInWithGoogle={handleSignInWithGoogle}

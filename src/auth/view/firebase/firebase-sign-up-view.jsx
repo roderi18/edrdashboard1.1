@@ -35,13 +35,13 @@ import {
 // ----------------------------------------------------------------------
 
 export const SignUpSchema = z.object({
-  firstName: z.string().min(1, { error: 'First name is required!' }),
-  lastName: z.string().min(1, { error: 'Last name is required!' }),
+  firstName: z.string().min(1, { error: 'El nombre es requerido.' }),
+  lastName: z.string().min(1, { error: 'El apellido es requerido.' }),
   email: schemaUtils.email(),
   password: z
     .string()
-    .min(1, { error: 'Password is required!' })
-    .min(6, { error: 'Password must be at least 6 characters!' }),
+    .min(1, { error: 'La contraseña es requerida.' })
+    .min(6, { error: 'La contraseña debe tener al menos 6 caracteres.' }),
 });
 
 // ----------------------------------------------------------------------
@@ -123,24 +123,16 @@ export function FirebaseSignUpView() {
       <Box
         sx={{ display: 'flex', gap: { xs: 3, sm: 2 }, flexDirection: { xs: 'column', sm: 'row' } }}
       >
-        <Field.Text
-          name="firstName"
-          label="First name"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <Field.Text
-          name="lastName"
-          label="Last name"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
+        <Field.Text name="firstName" label="Nombre" slotProps={{ inputLabel: { shrink: true } }} />
+        <Field.Text name="lastName" label="Apellido" slotProps={{ inputLabel: { shrink: true } }} />
       </Box>
 
       <Field.Text name="email" label="Correo electrónico" slotProps={{ inputLabel: { shrink: true } }} />
 
       <Field.Text
         name="password"
-        label="Password"
-        placeholder="6+ characters"
+        label="Contraseña"
+        placeholder="6+ caracteres"
         type={showPassword.value ? 'text' : 'password'}
         slotProps={{
           inputLabel: { shrink: true },
@@ -163,9 +155,9 @@ export function FirebaseSignUpView() {
         type="submit"
         variant="contained"
         loading={isSubmitting}
-        loadingIndicator="Create account..."
+        loadingIndicator="Creando cuenta..."
       >
-        Create account
+        Crear cuenta
       </Button>
     </Box>
   );
@@ -173,12 +165,12 @@ export function FirebaseSignUpView() {
   return (
     <>
       <FormHead
-        title="Get started absolutely free"
+        title="Crea tu cuenta gratis"
         description={
           <>
-            {`Already have an account? `}
+            {`¿Ya tienes una cuenta? `}
             <Link component={RouterLink} href={paths.auth.firebase.signIn} variant="subtitle2">
-              Get started
+              Iniciar sesión
             </Link>
           </>
         }
@@ -197,7 +189,7 @@ export function FirebaseSignUpView() {
 
       <SignUpTerms />
 
-      <FormDivider />
+      <FormDivider label="O" />
 
       <FormSocials
         signInWithGoogle={handleSignInWithGoogle}

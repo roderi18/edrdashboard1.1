@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 
 import Button from '@mui/material/Button';
 
+import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/global-config';
@@ -23,6 +24,13 @@ const signOut =
   (CONFIG.auth.method === 'amplify' && amplifySignOut) ||
   jwtSignOut;
 
+const signInPath =
+  (CONFIG.auth.method === 'supabase' && paths.auth.supabase.signIn) ||
+  (CONFIG.auth.method === 'firebase' && paths.auth.firebase.signIn) ||
+  (CONFIG.auth.method === 'amplify' && paths.auth.amplify.signIn) ||
+  (CONFIG.auth.method === 'auth0' && paths.auth.auth0.signIn) ||
+  paths.auth.jwt.signIn;
+
 export function SignOutButton({ onClose, sx, ...other }) {
   const router = useRouter();
 
@@ -31,12 +39,18 @@ export function SignOutButton({ onClose, sx, ...other }) {
   const { logout: signOutAuth0 } = useAuth0();
 
   const handleLogout = useCallback(async () => {
+    const confirmed = window.confirm('¿Realmente quieres cerrar sesión?');
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       await signOut();
       await checkUserSession?.();
 
       onClose?.();
-      router.refresh();
+      router.replace(signInPath);
     } catch (error) {
       console.error(error);
       toast.error('Unable to logout!');
@@ -44,11 +58,17 @@ export function SignOutButton({ onClose, sx, ...other }) {
   }, [checkUserSession, onClose, router]);
 
   const handleLogoutAuth0 = useCallback(async () => {
+    const confirmed = window.confirm('¿Realmente quieres cerrar sesión?');
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       await signOutAuth0();
 
       onClose?.();
-      router.refresh();
+      router.replace(signInPath);
     } catch (error) {
       console.error(error);
       toast.error('Unable to logout!');

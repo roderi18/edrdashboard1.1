@@ -1,8 +1,8 @@
 'use client';
 
 import { doc, setDoc, collection } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
 import {
+  updateProfile,
   signOut as _signOut,
   signInWithPopup as _signInWithPopup,
   GoogleAuthProvider as _GoogleAuthProvider,
@@ -18,21 +18,34 @@ import { AUTH, FIRESTORE } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
+const withTimeout = (promise, label, timeoutMs = 10000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]);
+
+const expectedAuthErrorCodes = [
+  'auth/invalid-credential',
+  'auth/user-not-found',
+  'auth/wrong-password',
+  'auth/invalid-email',
+];
+
 /** **************************************
  * Sign in
  *************************************** */
 export const signInWithPassword = async ({ email, password }) => {
   try {
-    await _signInWithEmailAndPassword(AUTH, email, password);
+    const userCredential = await _signInWithEmailAndPassword(AUTH, email, password);
 
-    const user = AUTH.currentUser;
-
-    if (!user?.emailVerified) {
-      throw new Error('Email not verified!');
-    }
-    return user;
+    return userCredential.user;
   } catch (error) {
-    console.error('Error during sign in with password:', error);
+    if (!expectedAuthErrorCodes.includes(error?.code)) {
+      console.error('Error during sign in with password:', error);
+    }
+
     throw error;
   }
 };
@@ -58,23 +71,33 @@ export const signInWithTwitter = async () => {
 export const signUp = async ({ email, password, firstName, lastName }) => {
   try {
     const newUser = await _createUserWithEmailAndPassword(AUTH, email, password);
+    const displayName = `${firstName} ${lastName}`;
 
-    await updateProfile(newUser.user, {
-      displayName: `${firstName} ${lastName}`,
-    });
+    await withTimeout(
+      updateProfile(newUser.user, {
+        displayName,
+      }),
+      'Update profile'
+    );
     /*
      * (1) If skip emailVerified
      * Remove : await _sendEmailVerification(newUser.user);
      */
-    await _sendEmailVerification(newUser.user);
+    await withTimeout(_sendEmailVerification(newUser.user), 'Send email verification');
 
     const userProfile = doc(collection(FIRESTORE, 'users'), newUser.user?.uid);
 
-    await setDoc(userProfile, {
-      uid: newUser.user?.uid,
-      email,
-      displayName: `${firstName} ${lastName}`,
+    withTimeout(
+      setDoc(userProfile, {
+        uid: newUser.user?.uid,
+        email,
+        displayName,
+      }),
+      'Create user profile'
+    ).catch((error) => {
+      console.warn('User was created in Auth, but profile was not saved in Firestore:', error);
     });
+
     return newUser.user;
   } catch (error) {
     console.error('Error during sign up:', error);

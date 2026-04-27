@@ -9,7 +9,7 @@ export default function Layout({ children }) {
     <GuestGuard>
       <AuthSplitLayout
         slotProps={{
-          section: { title: 'Hi, Welcome back' },
+          section: { title: 'Hola, bienvenido de nuevo' },
         }}
       >
         {children}

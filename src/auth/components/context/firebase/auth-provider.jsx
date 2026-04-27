@@ -12,6 +12,14 @@ import { AuthContext } from '../auth-context';
 
 // ----------------------------------------------------------------------
 
+const withTimeout = (promise, fallback, timeoutMs = 5000) =>
+  Promise.race([
+    promise,
+    new Promise((resolve) => {
+      setTimeout(() => resolve(fallback), timeoutMs);
+    }),
+  ]);
+
 /**
  * NOTE:
  * We only build demo at basic level.
@@ -24,16 +32,16 @@ export function AuthProvider({ children }) {
   const checkUserSession = useCallback(async () => {
     try {
       onAuthStateChanged(AUTH, async (user) => {
-        if (user && user.emailVerified) {
+        if (user) {
           /*
            * (1) If skip emailVerified
            * Remove the condition (if/else) : user.emailVerified
            */
           const userProfile = doc(FIRESTORE, 'users', user.uid);
 
-          const docSnap = await getDoc(userProfile);
+          const docSnap = await withTimeout(getDoc(userProfile), null);
 
-          const profileData = docSnap.data();
+          const profileData = docSnap?.data?.() ?? {};
 
           const { accessToken } = user;
 
