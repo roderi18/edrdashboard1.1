@@ -1,3 +1,5 @@
+import { paths } from 'src/routes/paths';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -6,7 +8,7 @@ export const _account = [
   { label: 'Inicio', href: '/', icon: <Iconify icon="solar:home-angle-bold-duotone" /> },
   {
     label: 'Perfil',
-    href: '#',
+    href: paths.dashboard.user.account,
     icon: <Iconify icon="custom:profile-duotone" />,
   },
   {

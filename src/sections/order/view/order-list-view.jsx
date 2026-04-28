@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Tab from '@mui/material/Tab';
@@ -17,6 +17,7 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { getLocalOrders } from 'src/utils/local-commerce-storage';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _orders, ORDER_STATUS_OPTIONS } from 'src/_mock';
@@ -65,6 +66,10 @@ export function OrderListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState(_orders);
+
+  useEffect(() => {
+    setTableData([...getLocalOrders(), ..._orders]);
+  }, []);
 
   const filters = useSetState({
     name: '',

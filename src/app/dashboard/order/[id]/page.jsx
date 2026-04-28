@@ -12,7 +12,7 @@ export default async function Page({ params }) {
 
   const currentOrder = _orders.find((order) => order.id === id);
 
-  return <OrderDetailsView order={currentOrder} />;
+  return <OrderDetailsView order={currentOrder} orderId={id} />;
 }
 
 // ----------------------------------------------------------------------

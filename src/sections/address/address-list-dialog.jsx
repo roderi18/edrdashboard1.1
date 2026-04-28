@@ -22,7 +22,7 @@ export function AddressListDialog({
   onClose,
   selected,
   onSelect,
-  title = 'Address book',
+  title = 'Libreta de direcciones',
   ...other
 }) {
   const [searchAddress, setSearchAddress] = useState('');
@@ -65,7 +65,7 @@ export function AddressListDialog({
           >
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
               <Typography variant="subtitle2">{address.name}</Typography>
-              {address.primary && <Label color="info">Default</Label>}
+              {address.primary && <Label color="info">Predeterminada</Label>}
             </Box>
 
             {address.company && (

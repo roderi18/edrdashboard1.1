@@ -12,7 +12,7 @@ export default async function Page({ params }) {
 
   const currentInvoice = _invoices.find((invoice) => invoice.id === id);
 
-  return <InvoiceEditView invoice={currentInvoice} />;
+  return <InvoiceEditView invoice={currentInvoice} invoiceId={id} />;
 }
 
 // ----------------------------------------------------------------------

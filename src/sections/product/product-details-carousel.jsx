@@ -40,9 +40,9 @@ export function ProductDetailsCarousel({ images }) {
           />
 
           <Carousel carousel={carousel} sx={{ borderRadius: 2 }}>
-            {slides.map((slide) => (
+          {slides.map((slide, index) => (
               <Image
-                key={slide.src}
+                key={`${slide.src}-${index}`}
                 alt={slide.src}
                 src={slide.src}
                 ratio="1/1"
@@ -61,7 +61,7 @@ export function ProductDetailsCarousel({ images }) {
         >
           {slides.map((item, index) => (
             <CarouselThumb
-              key={item.src}
+              key={`${item.src}-${index}`}
               index={index}
               src={item.src}
               selected={index === carousel.thumbs.selectedIndex}

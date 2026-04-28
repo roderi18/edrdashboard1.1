@@ -37,10 +37,7 @@ import { useParams } from 'next/navigation';
 import { _invoices } from 'src/_mock/_invoice';
 
 const InvoiceDetailsView = dynamic(
-  () =>
-    import('src/sections/invoice/view').then(
-      (m) => m.InvoiceDetailsView
-    ),
+  () => import('src/sections/invoice/view').then((m) => m.InvoiceDetailsView),
   { ssr: false }
 );
 
@@ -49,6 +46,5 @@ export default function Page() {
 
   const currentInvoice = _invoices.find((invoice) => invoice.id === id);
 
-  return <InvoiceDetailsView invoice={currentInvoice} />;
+  return <InvoiceDetailsView invoice={currentInvoice} invoiceId={id} />;
 }
-

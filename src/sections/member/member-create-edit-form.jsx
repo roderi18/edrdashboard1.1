@@ -41,6 +41,8 @@ import {
 } from 'src/services/member-service';
 import { getDests } from 'src/services/dest-service';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // models
 import { MemberValidationSchema } from 'src/models/member-schema';
 
@@ -48,6 +50,7 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 import { fData } from 'src/utils/format-number';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { capitalizeWords } from 'src/utils/capitalize-words';
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import {
   buildMemberAuthEmail,
   buildMemberAuthPassword,
@@ -56,7 +59,7 @@ import {
 import {
   calcularVencimientoCI,
   calcularEstatusCI,
-  calcularDiasRestantesCI
+  calcularDiasRestantesCI,
 } from 'src/utils/ci-utils';
 
 // mock data
@@ -141,7 +144,9 @@ const createFirebaseAuthForMember = async ({ codigoMiembro, firstName, lastName,
     ]).then((results) => {
       results
         .filter((result) => result.status === 'rejected')
-        .forEach((result) => console.warn('[member form] firebase profile task failed', result.reason));
+        .forEach((result) =>
+          console.warn('[member form] firebase profile task failed', result.reason)
+        );
     });
 
     return { emailFake, username, password };
@@ -164,7 +169,6 @@ const mapMemberToForm = (member) => {
   const nationalLeadership = memberLeaderships.find((l) => l.level === 'national');
   const destLeadership = memberLeaderships.find((l) => l.level === 'dest');
 
-
   const provinces = provinciasData;
 
   const municipios = municipiosData.map((m, index) => ({
@@ -177,14 +181,14 @@ const mapMemberToForm = (member) => {
 
   const direccionParts = (member.direccion || member.memberAddress || '')
     .split(',')
-    .map(p => p.trim())
+    .map((p) => p.trim())
     .filter(Boolean);
 
   const [provinceName = '', municipioName = '', sectorName = '', street = ''] = direccionParts;
 
-  const province = provinces.find(p => p.nombre?.trim() === provinceName);
-  const municipio = municipios.find(m => m.nombre?.trim() === municipioName && String(m.id));
-  const sector = sectores.find(s => s.nombre?.trim() === sectorName && String(s.id));
+  const province = provinces.find((p) => p.nombre?.trim() === provinceName);
+  const municipio = municipios.find((m) => m.nombre?.trim() === municipioName && String(m.id));
+  const sector = sectores.find((s) => s.nombre?.trim() === sectorName && String(s.id));
 
   return {
     firstName: member.firstName ?? '',
@@ -208,35 +212,18 @@ const mapMemberToForm = (member) => {
     address: member.direccion ?? '',
     memberDivision: member.memberDivision ?? '',
     destId: member.destId || member.dest_id || member.dest || '',
-    ocupation:
-      MEMBER_OCUPATIONS_SORTED.find(
-        (o) => o.label === member.ocupation
-      ) || null,
+    ocupation: MEMBER_OCUPATIONS_SORTED.find((o) => o.label === member.ocupation) || null,
     memberPosition: destLeadership?.role ?? 'none',
 
-    gender:
-      member.gender === 'M'
-        ? 'Masculino'
-        : member.gender === 'F'
-          ? 'Femenino'
-          : '',
-    shirtSize:
-      MEMBER_SHIRT_SIZES.find(
-        (s) => s.value === member.shirtSize
-      )?.value || '',
+    gender: member.gender === 'M' ? 'Masculino' : member.gender === 'F' ? 'Femenino' : '',
+    shirtSize: MEMBER_SHIRT_SIZES.find((s) => s.value === member.shirtSize)?.value || '',
 
     InstructorCertificadoCI: member.InstructorCertificadoCI ?? 0,
     EstatusVigenciaCI:
-      member.InstructorCertificadoCI === 0
-        ? 'na'
-        : member.EstatusVigenciaCI ?? 1,
-    FechaInicioCI: member.FechaInicioCI
-      ? dayjs(member.FechaInicioCI)
-      : null,
+      member.InstructorCertificadoCI === 0 ? 'na' : (member.EstatusVigenciaCI ?? 1),
+    FechaInicioCI: member.FechaInicioCI ? dayjs(member.FechaInicioCI) : null,
 
-    FechaVencimientoCI: member.FechaVencimientoCI
-      ? dayjs(member.FechaVencimientoCI)
-      : null,
+    FechaVencimientoCI: member.FechaVencimientoCI ? dayjs(member.FechaVencimientoCI) : null,
 
     status: member.status ?? 'active',
     avatarUrl: member.avatarUrl ?? null,
@@ -246,14 +233,13 @@ const mapMemberToForm = (member) => {
   };
 };
 
-
-
 export function MemberCreateEditForm({ currentMember }) {
-
+  const { user } = useAuthContext();
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
   const [members, setMembers] = useState([]);
   const [divisions, setDivisions] = useState([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -355,8 +341,7 @@ export function MemberCreateEditForm({ currentMember }) {
     load();
   }, [birthdate]);
 
-  const age =
-    birthdate ? dayjs().diff(dayjs(birthdate), 'year') : null;
+  const age = birthdate ? dayjs().diff(dayjs(birthdate), 'year') : null;
 
   useEffect(() => {
     if (division && watch('memberDivision') !== division) {
@@ -404,7 +389,6 @@ export function MemberCreateEditForm({ currentMember }) {
 
   const diasRestantesCI = calcularDiasRestantesCI(fechaVencimientoCI);
   useEffect(() => {
-
     if (instructorCI === 0) {
       methods.setValue('FechaInicioCI', null);
       methods.setValue('FechaVencimientoCI', null);
@@ -413,18 +397,14 @@ export function MemberCreateEditForm({ currentMember }) {
     }
 
     if (fechaInicioCI) {
-
       const vencimiento = calcularVencimientoCI(fechaInicioCI);
 
       methods.setValue('FechaVencimientoCI', vencimiento);
       methods.setValue('EstatusVigenciaCI', calcularEstatusCI(vencimiento));
-
     }
-
   }, [fechaInicioCI, instructorCI]);
 
   useEffect(() => {
-
     if (!fechaVencimientoCI) {
       methods.setValue('EstatusVigenciaCI', 'na');
       return;
@@ -438,7 +418,6 @@ export function MemberCreateEditForm({ currentMember }) {
     } else {
       methods.setValue('EstatusVigenciaCI', 1); // Activo
     }
-
   }, [fechaVencimientoCI]);
 
   const destCoordinator = LEADERSHIP_ASSIGNMENTS.find(
@@ -454,20 +433,11 @@ export function MemberCreateEditForm({ currentMember }) {
   // );
 
   const selectedDest = dests.find((d) => getDestId(d) === selectedDestId);
-  const selectedSectional = SECTIONALS.find(
-    (s) => s.id === selectedDest?.sectionalId
-  );
-  const selectedRegional = REGIONALS.find(
-    (r) => r.id === selectedSectional?.regionalId
-  );
-  const destChurch = CHURCHES.find(
-    (c) => c.id === selectedDest?.churchId
-  );
+  const selectedSectional = SECTIONALS.find((s) => s.id === selectedDest?.sectionalId);
+  const selectedRegional = REGIONALS.find((r) => r.id === selectedSectional?.regionalId);
+  const destChurch = CHURCHES.find((c) => c.id === selectedDest?.churchId);
   const destId =
-    selectedDestId ||
-    currentMember?.destId ||
-    currentMember?.dest_id ||
-    currentMember?.dest;
+    selectedDestId || currentMember?.destId || currentMember?.dest_id || currentMember?.dest;
 
   const dest = selectedDest || dests.find((d) => getDestId(d) === String(destId));
   const destName =
@@ -490,91 +460,118 @@ export function MemberCreateEditForm({ currentMember }) {
   const destLeadership = leaderships.find((l) => l.level === 'dest');
   let memberDestText = destName ? `Miembro de ${destName}` : null;
 
+  const roleInfo = _allLeadershipRoles.find((r) => r.value === leadership?.role);
 
-  const roleInfo = _allLeadershipRoles.find(
-    (r) => r.value === leadership?.role
-  );
+  const leadershipTexts = leaderships
+    .map((l) => {
+      const role = _allLeadershipRoles.find((r) => r.value === l.role);
+      if (!role) return null;
 
+      if (l.level === 'dest') {
+        const leadershipDest = dests.find((d) => getDestId(d) === String(l.entityId));
+        const destDisplayName =
+          `${getDestName(leadershipDest)} ${getDestNumber(leadershipDest)}`.trim() ||
+          `${destName || ''}`;
 
-  const leadershipTexts = leaderships.map((l) => {
-    const role = _allLeadershipRoles.find((r) => r.value === l.role);
-    if (!role) return null;
+        return (
+          <>
+            {role.label.replace(' Destacamento', '')} de{' '}
+            <UnderlineLink
+              href={`/dashboard/level/dest/${l.entityId}/edit`}
+              sx={{ color: 'text.primary' }}
+            >
+              {destDisplayName}
+            </UnderlineLink>
+          </>
+        );
+      }
 
-    if (l.level === 'dest') {
-      const leadershipDest = dests.find((d) => getDestId(d) === String(l.entityId));
-      const destDisplayName =
-        `${getDestName(leadershipDest)} ${getDestNumber(leadershipDest)}`.trim() ||
-        `${destName || ''}`;
+      if (l.level === 'sectional') {
+        const sec = SECTIONALS.find((s) => s.id === l.entityId);
 
-      return (
-        <>
-          {role.label.replace(' Destacamento', '')} de{' '}
-          <UnderlineLink
-            href={`/dashboard/level/dest/${l.entityId}/edit`}
-            sx={{ color: 'text.primary' }}
-          >
-            {destDisplayName}
-          </UnderlineLink>
-        </>
-      );
+        return (
+          <>
+            {role.label}:{' '}
+            <UnderlineLink
+              href={`/dashboard/level/sectional/${l.entityId}/edit`}
+              sx={{ color: 'text.primary' }}
+            >
+              {sec?.name}
+            </UnderlineLink>
+          </>
+        );
+      }
+
+      if (l.level === 'regional') {
+        const reg = REGIONALS.find((r) => r.id === l.entityId);
+
+        return (
+          <>
+            {role.label}:{' '}
+            <UnderlineLink
+              href={`/dashboard/level/regional/${l.entityId}/edit`}
+              sx={{ color: 'text.primary' }}
+            >
+              {reg?.name}
+            </UnderlineLink>
+          </>
+        );
+      }
+
+      if (l.level === 'national') {
+        return role.label;
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  const handleUploadMemberPhoto = async (acceptedFiles) => {
+    const file = acceptedFiles?.[0];
+    const idMiembros = currentMember?.id;
+
+    if (!currentMember || !idMiembros) {
+      toast.error('Primero guarda el miembro antes de subir una foto.');
+      return null;
     }
 
-    if (l.level === 'sectional') {
-      const sec = SECTIONALS.find((s) => s.id === l.entityId);
+    try {
+      setUploadingPhoto(true);
 
-      return (
-        <>
-          {role.label}:{' '}
-          <UnderlineLink
-            href={`/dashboard/level/sectional/${l.entityId}/edit`}
-            sx={{ color: 'text.primary' }}
-          >
-            {sec?.name}
-          </UnderlineLink>
-        </>
-      );
+      const photo = await subirFotoEntidad({
+        file,
+        tipoEntidad: 'miembro',
+        idEntidad: idMiembros,
+        tipoFoto: 'perfil',
+        subidoPor: user?.uid || user?.id || null,
+      });
+
+      toast.success('Foto subida correctamente.');
+
+      return photo.urlFoto;
+    } catch (error) {
+      console.error('[member form] photo upload failed', error);
+      toast.error(error.message || 'No se pudo subir la foto.');
+
+      return null;
+    } finally {
+      setUploadingPhoto(false);
     }
-
-    if (l.level === 'regional') {
-      const reg = REGIONALS.find((r) => r.id === l.entityId);
-
-      return (
-        <>
-          {role.label}:{' '}
-          <UnderlineLink
-            href={`/dashboard/level/regional/${l.entityId}/edit`}
-            sx={{ color: 'text.primary' }}
-          >
-            {reg?.name}
-          </UnderlineLink>
-        </>
-      );
-    }
-
-    if (l.level === 'national') {
-      return role.label;
-    }
-
-    return null;
-  }).filter(Boolean);
+  };
 
   const onSubmit = handleSubmit(
     async (data) => {
-
       setFormErrorMessage(false);
 
       const memberUUID = currentMember?.id || crypto.randomUUID();
       const formData = data;
       try {
-
         const submittedFirstName = formData.firstName;
         const submittedLastName = formData.lastName;
         const genderValue =
-          typeof formData.gender === 'string'
-            ? formData.gender
-            : formData.gender?.value;
+          typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
-        const codigoMiembro = currentMember?.memberId || await generateMemberId();
+        const codigoMiembro = currentMember?.memberId || (await generateMemberId());
         const provinces = provinciasData;
         const municipios = municipiosData.map((m, index) => ({
           ...m,
@@ -582,13 +579,11 @@ export function MemberCreateEditForm({ currentMember }) {
         }));
         const sectores = barriosData;
         const buildDireccion = () => {
-          const province = provinces.find(p => String(p.id) === formData.provinceId)?.nombre;
-          const municipio = municipios.find(m => String(m.id) === formData.municipioId)?.nombre;
-          const sector = sectores.find(s => String(s.id) === formData.sectorId)?.nombre;
+          const province = provinces.find((p) => String(p.id) === formData.provinceId)?.nombre;
+          const municipio = municipios.find((m) => String(m.id) === formData.municipioId)?.nombre;
+          const sector = sectores.find((s) => String(s.id) === formData.sectorId)?.nombre;
 
-          return [province, municipio, sector, formData.street]
-            .filter(Boolean)
-            .join(', ');
+          return [province, municipio, sector, formData.street].filter(Boolean).join(', ');
         };
 
         const payload = {
@@ -642,18 +637,13 @@ export function MemberCreateEditForm({ currentMember }) {
           payload,
         });
 
-        const res = await fetch(
-          currentMember
-            ? '/api/members/put'
-            : '/api/members/post',
-          {
-            method: currentMember ? 'PUT' : 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          }
-        );
+        const res = await fetch(currentMember ? '/api/members/put' : '/api/members/post', {
+          method: currentMember ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
 
         const text = await res.text();
         console.log('[member form] save response', {
@@ -670,7 +660,12 @@ export function MemberCreateEditForm({ currentMember }) {
         }
 
         if (!res.ok) {
-          throw new Error(responseData?.Message || responseData?.error || text || `Error de red o servidor (${res.status})`);
+          throw new Error(
+            responseData?.Message ||
+            responseData?.error ||
+            text ||
+            `Error de red o servidor (${res.status})`
+          );
         }
 
         const completedMessage = responseData?.Message?.toLowerCase().includes('completada');
@@ -682,9 +677,7 @@ export function MemberCreateEditForm({ currentMember }) {
         console.log('RESPONSE API Ã°Å¸â€˜â€°', responseData || text);
 
         toast.success(
-          currentMember
-            ? 'ActualizaciÃƒÂ³n exitosa!'
-            : `Miembro ${codigoMiembro} creado!`
+          currentMember ? 'ActualizaciÃƒÂ³n exitosa!' : `Miembro ${codigoMiembro} creado!`
         );
 
         if (!currentMember) {
@@ -705,7 +698,9 @@ export function MemberCreateEditForm({ currentMember }) {
               console.warn('[member form] firebase auth user already exists', authError);
             } else {
               console.error('[member form] firebase auth user creation failed', authError);
-              toast.error('Miembro creado, pero no se pudo crear su usuario de inicio de sesiÃƒÂ³n.');
+              toast.error(
+                'Miembro creado, pero no se pudo crear su usuario de inicio de sesiÃƒÂ³n.'
+              );
             }
           }
         }
@@ -714,33 +709,28 @@ export function MemberCreateEditForm({ currentMember }) {
 
         if (currentMember) {
           const updatedMembers = await getMembers();
-          const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : [])
-            .find(m => String(m.id) === String(currentMember?.id));
+          const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : []).find(
+            (m) => String(m.id) === String(currentMember?.id)
+          );
 
           if (updatedMember) {
             reset(mapMemberToForm(updatedMember));
           }
         }
-
       } catch (error) {
         console.log('[member form] save failed', error);
         toast.error(error.message || 'Error guardando en API');
       }
-
     },
 
     (errors) => {
-
       if (Object.keys(errors).length > 0) {
-
         setFormErrorMessage(true);
 
         setTimeout(() => {
           setFormErrorMessage(false);
         }, 5000);
-
       }
-
     }
   );
 
@@ -766,6 +756,9 @@ export function MemberCreateEditForm({ currentMember }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 maxSize={1050000}
+                loading={uploadingPhoto}
+                disabled={uploadingPhoto}
+                onDrop={handleUploadMemberPhoto}
                 helperText={
                   <>
                     <Typography
@@ -816,35 +809,36 @@ export function MemberCreateEditForm({ currentMember }) {
                     />
 
                     {/* Coordinador de Dest... */}
-                    {memberDestText && !destLeadership && (<Typography
-
-                      variant="body2"
-                      sx={{
-                        mt: 1,
-                        mx: 'auto',
-                        display: 'block',
-                        textAlign: 'center',
-                      }}
-                    >
-                      {memberDestText.includes(destName) ? (
-                        <>
-                          {memberDestText.replace(destName, '')}
-                          <UnderlineLink
-                            href={`/dashboard/level/dest/${destId}/edit`}
-                            sx={{ color: 'text.primary' }}
-                          >
-                            {destName}
-                          </UnderlineLink>
-                        </>
-                      ) : (
-                        memberDestText
-                      )}
-                    </Typography>
+                    {memberDestText && !destLeadership && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          mt: 1,
+                          mx: 'auto',
+                          display: 'block',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {memberDestText.includes(destName) ? (
+                          <>
+                            {memberDestText.replace(destName, '')}
+                            <UnderlineLink
+                              href={`/dashboard/level/dest/${destId}/edit`}
+                              sx={{ color: 'text.primary' }}
+                            >
+                              {destName}
+                            </UnderlineLink>
+                          </>
+                        ) : (
+                          memberDestText
+                        )}
+                      </Typography>
                     )}
 
                     {!isCreateView &&
                       leadershipTexts.map((text, index) => (
-                        <Typography key={`${text}-${index}`}
+                        <Typography
+                          key={`${text}-${index}`}
                           variant="body2"
                           sx={{
                             mt: index === 0 ? 0.5 : 0.3,
@@ -858,7 +852,6 @@ export function MemberCreateEditForm({ currentMember }) {
                       ))}
                   </>
                 }
-
               />
             </Box>
 
@@ -935,7 +928,6 @@ export function MemberCreateEditForm({ currentMember }) {
               {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
               {!isCreateView && (!isMobile || showMore) && (
                 <>
-
                   <MemberAddressSection isEdit />
 
                   {isCreateView && (
@@ -954,16 +946,17 @@ export function MemberCreateEditForm({ currentMember }) {
 
                       {watch('nationalLeadershipLevel') !== 'none' && (
                         <Field.Select name="nationalLeadershipRole" label="Cargo">
-                          {_leadershipRolesByLevel[watch('nationalLeadershipLevel')]?.map((role) => (
-                            <MenuItem key={role.value} value={role.value}>
-                              {role.label}
-                            </MenuItem>
-                          ))}
+                          {_leadershipRolesByLevel[watch('nationalLeadershipLevel')]?.map(
+                            (role) => (
+                              <MenuItem key={role.value} value={role.value}>
+                                {role.label}
+                              </MenuItem>
+                            )
+                          )}
                         </Field.Select>
                       )}
                     </>
                   )}
-
 
                   <MemberLeadershipAndOtherSection
                     watch={watch}
@@ -977,7 +970,6 @@ export function MemberCreateEditForm({ currentMember }) {
                     diasRestantesCI={diasRestantesCI}
                     isEdit
                   />
-
                 </>
               )}
 
@@ -994,7 +986,7 @@ export function MemberCreateEditForm({ currentMember }) {
                   >
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                     <Typography sx={{ mx: 2, typography: 'subtitle2', color: 'text.secondary' }}>
-                      DirecciÃƒÂ³n
+                      Dirección
                     </Typography>
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                   </Box>
@@ -1031,11 +1023,7 @@ export function MemberCreateEditForm({ currentMember }) {
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                   </Box>
 
-                  <MemberLeadershipAndOtherSection
-                    watch={watch}
-                    methods={methods}
-                    isCreateView
-                  />
+                  <MemberLeadershipAndOtherSection watch={watch} methods={methods} isCreateView />
                   <Box
                     sx={{
                       gridColumn: '1 / -1',
@@ -1097,7 +1085,8 @@ export function MemberCreateEditForm({ currentMember }) {
                         label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
                           ? ` (${diasRestantesCI >= 0
                             ? `${diasRestantesCI} dÃƒÂ­as restantes`
-                            : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`})`
+                            : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
+                          })`
                           : ''
                           }`}
                         format="DD/MM/YYYY"
@@ -1124,13 +1113,11 @@ export function MemberCreateEditForm({ currentMember }) {
               </Box>
             )}
 
-
-
             <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
               {/* SOLO /new */}
               {isCreateView && step === 2 && (
                 <Button variant="outlined" onClick={prevStep}>
-                  AtrÃƒÂ¡s
+                  Atrás
                 </Button>
               )}
 
@@ -1212,6 +1199,6 @@ export function MemberCreateEditForm({ currentMember }) {
           </Card>
         </Grid>
       </Grid>
-    </Form >
+    </Form>
   );
 }

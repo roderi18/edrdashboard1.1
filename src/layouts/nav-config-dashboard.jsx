@@ -6,6 +6,8 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { SvgColor } from 'src/components/svg-color';
 
+import { CheckoutCartNavInfo } from './components/checkout-cart-nav-info';
+
 // ----------------------------------------------------------------------
 
 const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/${name}.svg`} />;
@@ -157,6 +159,12 @@ export const navData = [
           { title: 'Crear', path: paths.dashboard.invoice.new },
           { title: 'Editar', path: paths.dashboard.invoice.demo.edit },
         ],
+      },
+      {
+        title: 'Compra - DEV',
+        path: paths.dashboard.checkout,
+        icon: ICONS.ecommerce,
+        info: <CheckoutCartNavInfo />,
       },
       // {
       //   title: 'Blog',

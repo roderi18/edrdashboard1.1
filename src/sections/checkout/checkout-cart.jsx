@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
 import { paths } from 'src/routes/paths';
+import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { CONFIG } from 'src/global-config';
@@ -21,6 +22,11 @@ import { CheckoutCartProductList } from './checkout-cart-product-list';
 // ----------------------------------------------------------------------
 
 export function CheckoutCart() {
+  const pathname = usePathname();
+  const continueShoppingPath = pathname.includes(paths.dashboard.root)
+    ? paths.dashboard.product.root
+    : paths.product.root;
+
   const {
     loading,
     onChangeStep,
@@ -47,8 +53,8 @@ export function CheckoutCart() {
 
   const renderEmpty = () => (
     <EmptyContent
-      title="Cart is empty!"
-      description="Look like you have no items in your shopping cart."
+      title="El carrito esta vacio!"
+      description="No tienes articulos en tu carrito."
       imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-cart.svg`}
       sx={{ height: 340 }}
     />
@@ -61,9 +67,9 @@ export function CheckoutCart() {
           <CardHeader
             title={
               <Typography variant="h6">
-                {`Cart `}
+                {`Carrito `}
                 <Typography component="span" sx={{ color: 'text.secondary' }}>
-                  ({checkoutState.totalItems} items)
+                  ({checkoutState.totalItems} articulos)
                 </Typography>
               </Typography>
             }
@@ -89,11 +95,11 @@ export function CheckoutCart() {
 
         <Button
           component={RouterLink}
-          href={paths.product.root}
+          href={continueShoppingPath}
           color="inherit"
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
         >
-          Continue shopping
+          Continuar comprando
         </Button>
       </Grid>
 
@@ -108,7 +114,7 @@ export function CheckoutCart() {
           disabled={isCartEmpty}
           onClick={() => onChangeStep('next')}
         >
-          Check out
+          Continuar
         </Button>
       </Grid>
     </Grid>

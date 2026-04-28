@@ -35,7 +35,6 @@ export function SignOutButton({ onClose, sx, ...other }) {
   const router = useRouter();
 
   const { checkUserSession } = useAuthContext();
-
   const { logout: signOutAuth0 } = useAuth0();
 
   const handleLogout = useCallback(async () => {
@@ -53,7 +52,7 @@ export function SignOutButton({ onClose, sx, ...other }) {
       router.replace(signInPath);
     } catch (error) {
       console.error(error);
-      toast.error('Unable to logout!');
+      toast.error('No se pudo cerrar la sesión.');
     }
   }, [checkUserSession, onClose, router]);
 
@@ -71,13 +70,14 @@ export function SignOutButton({ onClose, sx, ...other }) {
       router.replace(signInPath);
     } catch (error) {
       console.error(error);
-      toast.error('Unable to logout!');
+      toast.error('No se pudo cerrar la sesión.');
     }
   }, [onClose, router, signOutAuth0]);
 
   return (
     <Button
       fullWidth
+      type="button"
       variant="soft"
       size="large"
       color="error"

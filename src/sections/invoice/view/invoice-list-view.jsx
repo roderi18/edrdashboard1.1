@@ -1,8 +1,8 @@
 'use client';
 
 import { sumBy } from 'es-toolkit';
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -22,6 +22,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { getLocalInvoices } from 'src/utils/local-commerce-storage';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
@@ -71,6 +72,10 @@ export function InvoiceListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState(_invoices);
+
+  useEffect(() => {
+    setTableData([...getLocalInvoices(), ..._invoices]);
+  }, []);
 
   const filters = useSetState({
     name: '',

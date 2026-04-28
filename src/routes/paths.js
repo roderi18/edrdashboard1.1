@@ -59,9 +59,11 @@ export const paths = {
     },
     firebase: {
       signIn: `${ROOTS.AUTH}/firebase/sign-in`,
+      adminSignIn: `${ROOTS.AUTH}/firebase/admin-sign-in`,
       verify: `${ROOTS.AUTH}/firebase/verify`,
       signUp: `${ROOTS.AUTH}/firebase/sign-up`,
       resetPassword: `${ROOTS.AUTH}/firebase/reset-password`,
+      adminResetPassword: `${ROOTS.AUTH}/firebase/admin-reset-password`,
     },
     auth0: { signIn: `${ROOTS.AUTH}/auth0/sign-in` },
     supabase: {
@@ -133,7 +135,6 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/national/new`,
         profile: `${ROOTS.DASHBOARD}/level/national/profile`,
         list: `${ROOTS.DASHBOARD}/level/national`,
-        new: `${ROOTS.DASHBOARD}/level/national/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/national/${id}/edit`,
       },
       regional: {
@@ -141,7 +142,6 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/regional/new`,
         profile: `${ROOTS.DASHBOARD}/level/regional/profile`,
         list: `${ROOTS.DASHBOARD}/level/regional`,
-        new: `${ROOTS.DASHBOARD}/level/regional/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/regional/${id}/edit`,
       },
       sectional: {
@@ -149,7 +149,6 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/sectional/new`,
         profile: `${ROOTS.DASHBOARD}/level/sectional/profile`,
         list: `${ROOTS.DASHBOARD}/level/sectional`,
-        new: `${ROOTS.DASHBOARD}/level/sectional/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/sectional/${id}/edit`,
       },
       dest: {
@@ -157,7 +156,6 @@ export const paths = {
         new: `${ROOTS.DASHBOARD}/level/dest/new`,
         profile: `${ROOTS.DASHBOARD}/level/dest/profile`,
         list: `${ROOTS.DASHBOARD}/level/dest`,
-        new: `${ROOTS.DASHBOARD}/level/dest/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/dest/${id}/edit`,
       },
       member: {
@@ -210,6 +208,7 @@ export const paths = {
       details: (id) => `${ROOTS.DASHBOARD}/order/${id}`,
       demo: { details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}` },
     },
+    checkout: `${ROOTS.DASHBOARD}/checkout`,
     job: {
       root: `${ROOTS.DASHBOARD}/job`,
       new: `${ROOTS.DASHBOARD}/job/new`,

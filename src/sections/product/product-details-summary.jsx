@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useMemo, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -12,7 +12,7 @@ import Link, { linkClasses } from '@mui/material/Link';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, usePathname } from 'src/routes/hooks';
 
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 
@@ -24,8 +24,16 @@ import { NumberInput } from 'src/components/number-input';
 
 // ----------------------------------------------------------------------
 
+const EMPTY_OPTIONS = [];
+
+// ----------------------------------------------------------------------
+
 export function ProductDetailsSummary({ items, product, onAddToCart, disableActions, ...other }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const checkoutPath = pathname.includes(paths.dashboard.root)
+    ? paths.dashboard.checkout
+    : paths.product.checkout;
 
   const {
     id,
@@ -44,30 +52,41 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     subDescription,
   } = product;
 
+  const productSizes = sizes ?? EMPTY_OPTIONS;
+  const productColors = colors ?? EMPTY_OPTIONS;
   const existProduct = !!items?.length && items.map((item) => item.id).includes(id);
 
+  const availableQuantity = Number(available) || 0;
   const isMaxQuantity =
     !!items?.length &&
-    items.filter((item) => item.id === id).map((item) => item.quantity)[0] >= available;
+    items.filter((item) => item.id === id).map((item) => item.quantity)[0] >= availableQuantity;
 
-  const defaultValues = {
-    id,
-    name,
-    coverUrl,
-    available,
-    price,
-    colors: colors[0],
-    size: sizes[4],
-    quantity: available < 1 ? 0 : 1,
-  };
+  const defaultValues = useMemo(
+    () => ({
+      id,
+      name,
+      coverUrl,
+      available: availableQuantity,
+      price,
+      colors: productColors[0] || '',
+      size: productSizes[0] || '',
+      quantity: availableQuantity < 1 ? 0 : 1,
+    }),
+    [availableQuantity, coverUrl, id, name, price, productColors, productSizes]
+  );
 
   const methods = useForm({
     defaultValues,
   });
 
-  const { watch, control, setValue, handleSubmit } = methods;
+  const { reset, watch, control, setValue, handleSubmit } = methods;
 
   const values = watch();
+  const hasQuantity = Number(values.quantity) > 0;
+
+  useEffect(() => {
+    reset(defaultValues);
+  }, [defaultValues, reset]);
 
   const onSubmit = handleSubmit(async (data) => {
     console.info('DATA', JSON.stringify(data, null, 2));
@@ -76,7 +95,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       if (!existProduct) {
         onAddToCart?.({ ...data, colors: [values.colors] });
       }
-      router.push(paths.product.checkout);
+      router.push(checkoutPath);
     } catch (error) {
       console.error(error);
     }
@@ -152,7 +171,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         control={control}
         render={({ field }) => (
           <ColorPicker
-            options={colors}
+            options={productColors}
             value={field.value}
             onChange={(color) => field.onChange(color)}
             limit={4}
@@ -181,7 +200,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
           [`& .${formHelperTextClasses.root}`]: { mx: 0, mt: 1, textAlign: 'right' },
         }}
       >
-        {sizes.map((size) => (
+        {productSizes.map((size) => (
           <MenuItem key={size} value={size}>
             {size}
           </MenuItem>
@@ -201,7 +220,8 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
           hideDivider
           value={values.quantity}
           onChange={(event, quantity) => setValue('quantity', quantity)}
-          max={available}
+          min={availableQuantity > 0 ? 1 : 0}
+          max={availableQuantity}
           sx={{ maxWidth: 112 }}
         />
 
@@ -210,7 +230,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
           component="div"
           sx={{ textAlign: 'right', color: 'text.secondary' }}
         >
-          Available: {available}
+          Available: {availableQuantity}
         </Typography>
       </Stack>
     </Box>
@@ -220,19 +240,25 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     <Box sx={{ gap: 2, display: 'flex' }}>
       <Button
         fullWidth
-        disabled={isMaxQuantity || disableActions}
+        disabled={isMaxQuantity || disableActions || !hasQuantity}
         size="large"
-        color="warning"
-        variant="contained"
+        color="inherit"
+        variant="outlined"
         startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
         onClick={handleAddCart}
         sx={{ whiteSpace: 'nowrap' }}
       >
-        Add to cart
+        Agregar al carrito
       </Button>
 
-      <Button fullWidth size="large" type="submit" variant="contained" disabled={disableActions}>
-        Buy now
+      <Button
+        fullWidth
+        size="large"
+        type="submit"
+        variant="contained"
+        disabled={disableActions || !hasQuantity}
+      >
+        Comprar ahora
       </Button>
     </Box>
   );
@@ -258,10 +284,10 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
   );
 
   const renderLabels = () =>
-    (newLabel.enabled || saleLabel.enabled) && (
+    (newLabel?.enabled || saleLabel?.enabled) && (
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-        {newLabel.enabled && <Label color="info">{newLabel.content}</Label>}
-        {saleLabel.enabled && <Label color="error">{saleLabel.content}</Label>}
+        {newLabel?.enabled && <Label color="info">{newLabel.content}</Label>}
+        {saleLabel?.enabled && <Label color="error">{saleLabel.content}</Label>}
       </Box>
     );
 

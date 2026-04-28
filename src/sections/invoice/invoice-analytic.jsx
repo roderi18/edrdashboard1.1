@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { fCurrency, fShortenNumber } from 'src/utils/format-number';
+import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -68,7 +68,7 @@ export function InvoiceAnalytic({ title, total, icon, color, percent, price }) {
         </Box>
 
         <Box component="span" sx={{ typography: 'subtitle2' }}>
-          {fCurrency(price)}
+          {fDopCurrency(price)}
         </Box>
       </div>
     </Box>

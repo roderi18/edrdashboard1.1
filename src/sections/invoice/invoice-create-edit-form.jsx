@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,14 +12,48 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { today, fIsAfter } from 'src/utils/format-time';
+import { updateLocalInvoice } from 'src/utils/local-commerce-storage';
 
-import { _addressBooks } from 'src/_mock';
+import { _addressBooks, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 
 import { Form, schemaUtils } from 'src/components/hook-form';
 
 import { InvoiceCreateEditAddress } from './invoice-create-edit-address';
 import { InvoiceCreateEditStatusDate } from './invoice-create-edit-status-date';
 import { defaultItem, InvoiceCreateEditDetails } from './invoice-create-edit-details';
+
+// ----------------------------------------------------------------------
+
+const getValidService = (service) =>
+  INVOICE_SERVICE_OPTIONS.some((option) => option.name === service)
+    ? service
+    : INVOICE_SERVICE_OPTIONS[0].name;
+
+const normalizeInvoice = (invoice) => {
+  if (!invoice) return invoice;
+
+  return {
+    ...invoice,
+    taxes: Number(invoice.taxes) || 0,
+    status: invoice.status || 'draft',
+    discount: Number(invoice.discount) || 0,
+    shipping: Number(invoice.shipping) || 0,
+    subtotal: Number(invoice.subtotal) || 0,
+    totalAmount: Number(invoice.totalAmount) || 0,
+    invoiceFrom: invoice.invoiceFrom || _addressBooks[0],
+    invoiceTo: invoice.invoiceTo || null,
+    items: (invoice.items?.length ? invoice.items : [defaultItem]).map((item) => ({
+      ...defaultItem,
+      ...item,
+      title: item.title || item.name || 'Producto',
+      description: item.description || 'Compra local DEV',
+      service: getValidService(item.service),
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+      total: Number(item.total) || (Number(item.quantity) || 1) * (Number(item.price) || 0),
+    })),
+  };
+};
 
 // ----------------------------------------------------------------------
 
@@ -78,11 +113,13 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
     items: [defaultItem],
   };
 
+  const currentValues = useMemo(() => normalizeInvoice(currentInvoice), [currentInvoice]);
+
   const methods = useForm({
     mode: 'all',
     resolver: zodResolver(InvoiceCreateSchema),
     defaultValues,
-    values: currentInvoice,
+    values: currentValues,
   });
 
   const {
@@ -91,11 +128,18 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
     formState: { isSubmitting },
   } = methods;
 
+  const updateLocalDraft = (data) => {
+    if (!currentInvoice?.id?.startsWith('local-invoice-')) return;
+
+    updateLocalInvoice({ ...currentInvoice, ...data, id: currentInvoice.id });
+  };
+
   const handleSaveAsDraft = handleSubmit(async (data) => {
     loadingSave.onTrue();
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      updateLocalDraft({ ...data, status: 'draft' });
       reset();
       loadingSave.onFalse();
       router.push(paths.dashboard.invoice.root);
@@ -111,6 +155,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      updateLocalDraft(data);
       reset();
       loadingSend.onFalse();
       router.push(paths.dashboard.invoice.root);

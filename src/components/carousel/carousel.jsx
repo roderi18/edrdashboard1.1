@@ -17,12 +17,13 @@ export function Carousel({ sx, carousel, children, slotProps, className, ...othe
   const slideSpacing = options?.slideSpacing ?? '0px';
 
   const renderChildren = () =>
-    Children.map(children, (child) => {
+    Children.map(children, (child, index) => {
       if (isValidElement(child)) {
         const reactChild = child;
+        const slideKey = reactChild.key ?? index;
 
         return (
-          <CarouselSlide key={reactChild.key} options={carousel.options} sx={slotProps?.slide}>
+          <CarouselSlide key={slideKey} options={carousel.options} sx={slotProps?.slide}>
             {child}
           </CarouselSlide>
         );

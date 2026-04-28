@@ -16,8 +16,8 @@ import ListItemText from '@mui/material/ListItemText';
 
 import { RouterLink } from 'src/routes/components';
 
-import { fCurrency } from 'src/utils/format-number';
 import { fDate, fTime } from 'src/utils/format-time';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -88,7 +88,7 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
 
       <TableCell align="center"> {row.totalQuantity} </TableCell>
 
-      <TableCell> {fCurrency(row.subtotal)} </TableCell>
+      <TableCell> {fDopCurrency(row.subtotal)} </TableCell>
 
       <TableCell>
         <Label
@@ -159,7 +159,7 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
 
                 <div>x{item.quantity} </div>
 
-                <Box sx={{ width: 110, textAlign: 'right' }}>{fCurrency(item.price)}</Box>
+                <Box sx={{ width: 110, textAlign: 'right' }}>{fDopCurrency(item.price)}</Box>
               </Box>
             ))}
           </Paper>

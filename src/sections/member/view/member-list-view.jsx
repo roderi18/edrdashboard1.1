@@ -1,15 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
-import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
-import { getMembers } from 'src/services/member-service';
-import { getLeadershipAssignments } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
-import { getSectionals } from 'src/services/sectional-service';
+import { useRef, useState, useEffect, useCallback } from 'react';
+
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -19,23 +14,30 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
-import { getDestsApi } from 'src/services/dest-service';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { getDests } from 'src/services/dest-service';
 
-import { DashboardContent } from 'src/layouts/dashboard';
+import { normalizeText } from 'src/utils/normalize-text';
+import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
+
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { getDestsApi } from 'src/services/dest-service';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
+import { getSectionals } from 'src/services/sectional-service';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { getMemberFullName } from 'src/utils/get-member-fullname';
 import {
   useTable,
   emptyRows,
@@ -49,9 +51,9 @@ import {
 } from 'src/components/table';
 
 import { MemberTableRow } from '../member-table-row';
+import { MemberCardList } from '../member-card-list';
 import { MemberTableToolbar } from '../member-table-toolbar';
 import { MemberTableFiltersResult } from '../member-table-filters-result';
-import { MemberCardList } from '../member-card-list';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
@@ -118,31 +120,27 @@ export function MemberListView() {
 
   useEffect(() => {
     async function loadData() {
-
       // 🚨 NO correr hasta que haya data
       if (!dests.length || !churches.length || !sectionals.length) return;
 
       const members = await getMembers();
-      const leadershipAssignments = getLeadershipAssignments();
+      const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
 
       const mapped = members.map((member) => {
+        const memberPhoto = memberPhotos[String(member.id)];
 
-        const dest = dests.find(
-          (d) => String(d.id) === String(member.idDestacamento)
-        );
+        const dest = dests.find((d) => String(d.id) === String(member.idDestacamento));
 
-        const church = churches.find(
-          (c) => Number(c.id) === Number(dest?.churchId)
-        );
+        const church = churches.find((c) => Number(c.id) === Number(dest?.churchId));
 
-        const sectional = sectionals.find(
-          (s) => String(s.id) === String(church?.idSeccion)
-        );
+        const sectional = sectionals.find((s) => String(s.id) === String(church?.idSeccion));
 
         return {
           ...member,
           id: member.id,
+          idMiembros: member.id,
           memberId: member.id,
+          avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
           name: getMemberFullName(member),
           sectionalId: sectional?.id,
           sectionalName: sectional?.sectionalName || 'Sección desconocida',
@@ -156,7 +154,13 @@ export function MemberListView() {
     loadData();
   }, [dests, churches, sectionals]);
 
-  const filters = useSetState({ name: '', memberPosition: [], memberDivision: [], sectionalId: [], destName: [] });
+  const filters = useSetState({
+    name: '',
+    memberPosition: [],
+    memberDivision: [],
+    sectionalId: [],
+    destName: [],
+  });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const distinctdestName = getAvailableOptionsFromData({
@@ -165,16 +169,16 @@ export function MemberListView() {
     labelResolver: (id) => dests.find((d) => d.id === id)?.name || id,
   });
 
-  const distinctPositions = [
-    ...new Set(tableData.flatMap((m) => m.memberPosition || [])),
-  ].map((role) => {
-    const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
+  const distinctPositions = [...new Set(tableData.flatMap((m) => m.memberPosition || []))].map(
+    (role) => {
+      const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
 
-    return {
-      value: role,
-      label: roleInfo?.label || role,
-    };
-  });
+      return {
+        value: role,
+        label: roleInfo?.label || role,
+      };
+    }
+  );
   const distinctSectionals = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'sectionalId',
@@ -206,7 +210,6 @@ export function MemberListView() {
     }
   }, [destFromUrl, sectionFromUrl, updateFilters, table]);
 
-
   const memberFromUrl = memberIdFromUrl
     ? tableData.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
     : null;
@@ -220,7 +223,11 @@ export function MemberListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.destName.length > 0 || currentFilters.memberPosition.length > 0 || currentFilters.memberDivision.length > 0 || currentFilters.sectionalId.length > 0;;
+    !!currentFilters.name ||
+    currentFilters.destName.length > 0 ||
+    currentFilters.memberPosition.length > 0 ||
+    currentFilters.memberDivision.length > 0 ||
+    currentFilters.sectionalId.length > 0;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -252,27 +259,24 @@ export function MemberListView() {
       table.onResetPage();
       updateFilters({
         destName:
-          newValue === 'all'
-            ? []
-            : [typeof newValue === 'object' ? newValue.value : newValue],
+          newValue === 'all' ? [] : [typeof newValue === 'object' ? newValue.value : newValue],
       });
     },
     [updateFilters, table]
   );
 
-  const handleFilterSectionalId = useCallback((event) => {
-    const newValue =
-      typeof event.target.value === 'string'
-        ? event.target.value.split(',')
-        : event.target.value;
+  const handleFilterSectionalId = useCallback(
+    (event) => {
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
-    table.onResetPage();
-    updateFilters({
-      sectionalId: newValue.map((v) =>
-        typeof v === 'object' ? v.value : v
-      ),
-    });
-  }, [table, updateFilters]);
+      table.onResetPage();
+      updateFilters({
+        sectionalId: newValue.map((v) => (typeof v === 'object' ? v.value : v)),
+      });
+    },
+    [table, updateFilters]
+  );
 
   const handleFilterMemberDivisionTab = useCallback(
     (event, newValue) => {
@@ -342,9 +346,9 @@ export function MemberListView() {
             value={currentFilters.memberDivision[0] || 'all'}
             onChange={handleFilterMemberDivisionTab}
             sx={[
-              (theme) => ({
+              (tabsTheme) => ({
                 px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(tabsTheme.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
           >
@@ -358,7 +362,8 @@ export function MemberListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.memberDivision) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.memberDivision) &&
+                        'filled') ||
                       'soft'
                     }
                     color={
@@ -370,8 +375,11 @@ export function MemberListView() {
                       'default'
                     }
                   >
-                    {['Liderazgo', 'Exploradores', 'Seguidores', 'Pioneros', 'Navegantes'].includes(tab.value)
-                      ? tableData.filter((sectional) => sectional.memberDivision === tab.value).length
+                    {['Liderazgo', 'Exploradores', 'Seguidores', 'Pioneros', 'Navegantes'].includes(
+                      tab.value
+                    )
+                      ? tableData.filter((sectional) => sectional.memberDivision === tab.value)
+                          .length
                       : tableData.length}
                   </Label>
                 }
@@ -428,63 +436,53 @@ export function MemberListView() {
               }
             />
 
-
             {displayMode === 'panel' ? (
-              <>
-                <Scrollbar>
-                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                    <TableHeadCustom
-                      order={table.order}
-                      orderBy={table.orderBy}
-                      headCells={TABLE_HEAD}
-                      rowCount={dataFiltered.length}
-                      numSelected={table.selected.length}
-                      onSort={table.onSort}
-                      onSelectAllRows={(checked) =>
-                        table.onSelectAllRows(
-                          checked,
-                          dataFiltered.map((row) => row.id)
-                        )
-                      }
+              <Scrollbar>
+                <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                  <TableHeadCustom
+                    order={table.order}
+                    orderBy={table.orderBy}
+                    headCells={TABLE_HEAD}
+                    rowCount={dataFiltered.length}
+                    numSelected={table.selected.length}
+                    onSort={table.onSort}
+                    onSelectAllRows={(checked) =>
+                      table.onSelectAllRows(
+                        checked,
+                        dataFiltered.map((row) => row.id)
+                      )
+                    }
+                  />
+
+                  <TableBody>
+                    {dataFiltered
+                      .slice(
+                        table.page * table.rowsPerPage,
+                        table.page * table.rowsPerPage + table.rowsPerPage
+                      )
+                      .map((row) => (
+                        <MemberTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.dashboard.level.member.edit(row.id)}
+                        />
+                      ))}
+
+                    <TableEmptyRows
+                      height={table.dense ? 56 : 76}
+                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                     />
 
-                    <TableBody>
-                      {dataFiltered
-                        .slice(
-                          table.page * table.rowsPerPage,
-                          table.page * table.rowsPerPage + table.rowsPerPage
-                        )
-                        .map((row) => (
-                          <MemberTableRow
-                            key={row.id}
-                            row={row}
-                            selected={table.selected.includes(row.id)}
-                            onSelectRow={() => table.onSelectRow(row.id)}
-                            onDeleteRow={() => handleDeleteRow(row.id)}
-                            editHref={paths.dashboard.level.member.edit(row.id)}
-                          />
-                        ))}
-
-                      <TableEmptyRows
-                        height={table.dense ? 56 : 76}
-                        emptyRows={emptyRows(
-                          table.page,
-                          table.rowsPerPage,
-                          dataFiltered.length
-                        )}
-                      />
-
-                      <TableNoData notFound={notFound} />
-                    </TableBody>
-                  </Table>
-                </Scrollbar>
-
-
-              </>
+                    <TableNoData notFound={notFound} />
+                  </TableBody>
+                </Table>
+              </Scrollbar>
             ) : (
               <MemberCardList members={dataFiltered} />
             )}
-
           </Box>
 
           {displayMode === 'panel' && (
@@ -498,7 +496,6 @@ export function MemberListView() {
               onRowsPerPageChange={table.onChangeRowsPerPage}
             />
           )}
-
         </Card>
       </DashboardContent>
 
@@ -513,15 +510,11 @@ function applyFilter({ inputData, comparator, filters }) {
   const { name, memberDivision, memberPosition, sectionalId, destName } = filters;
 
   if (destName.length) {
-    inputData = inputData.filter((member) =>
-      destName.includes(member.destId?.toString())
-    );
+    inputData = inputData.filter((member) => destName.includes(member.destId?.toString()));
   }
 
   if (memberDivision.length) {
-    inputData = inputData.filter((member) =>
-      memberDivision.includes(member.memberDivision)
-    );
+    inputData = inputData.filter((member) => memberDivision.includes(member.memberDivision));
   }
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
@@ -536,16 +529,14 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (name) {
     inputData = inputData.filter((member) =>
-      normalizeText(
-        `${member.firstName || ''} ${member.lastName || ''}`
-      ).includes(normalizeText(name))
+      normalizeText(`${member.firstName || ''} ${member.lastName || ''}`).includes(
+        normalizeText(name)
+      )
     );
   }
 
   if (sectionalId.length) {
-    inputData = inputData.filter((member) =>
-      sectionalId.includes(member.sectionalId?.toString())
-    );
+    inputData = inputData.filter((member) => sectionalId.includes(member.sectionalId?.toString()));
   }
 
   if (memberPosition?.length) {

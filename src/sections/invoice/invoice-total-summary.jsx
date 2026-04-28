@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
 
-import { fPercent, fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 // ----------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ export function InvoiceTotalSummary({
           Subtotal
         </Box>
         <Box component="span" sx={[valueStyles, { fontWeight: 'fontWeightSemiBold' }]}>
-          {fCurrency(subtotal) || '-'}
+          {fDopCurrency(subtotal) || '-'}
         </Box>
       </Box>
 
@@ -56,7 +56,7 @@ export function InvoiceTotalSummary({
           Shipping
         </Box>
         <Box component="span" sx={[{ ...valueStyles }, !!shipping && { color: 'error.main' }]}>
-          {shipping ? `- ${fCurrency(shipping)}` : '-'}
+          {shipping ? `- ${fDopCurrency(shipping)}` : '-'}
         </Box>
       </Box>
 
@@ -66,7 +66,7 @@ export function InvoiceTotalSummary({
         </Box>
 
         <Box component="span" sx={[{ ...valueStyles }, !!discount && { color: 'error.main' }]}>
-          {discount ? `- ${fCurrency(discount)}` : '-'}
+          {discount ? `- ${fDopCurrency(discount)}` : '-'}
         </Box>
       </Box>
 
@@ -75,14 +75,14 @@ export function InvoiceTotalSummary({
           Taxes
         </Box>
         <Box component="span" sx={valueStyles}>
-          {taxes ? fPercent(taxes) : '-'}
+          {taxes ? fDopCurrency(taxes) : '-'}
         </Box>
       </Box>
 
       <Box sx={[rowStyles, { typography: 'subtitle1' }]}>
         <Box component="span">Total</Box>
         <Box component="span" sx={valueStyles}>
-          {fCurrency(totalAmount) || '-'}
+          {fDopCurrency(totalAmount) || '-'}
         </Box>
       </Box>
     </Box>

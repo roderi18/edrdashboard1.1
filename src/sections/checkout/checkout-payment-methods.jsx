@@ -26,7 +26,7 @@ export function CheckoutPaymentMethods({ name, options, sx, ...other }) {
   return (
     <>
       <Card sx={sx} {...other}>
-        <CardHeader title="Payment" />
+        <CardHeader title="Pago" />
 
         <Controller
           name={name}
@@ -67,7 +67,7 @@ export function CheckoutPaymentMethods({ name, options, sx, ...other }) {
       </Card>
 
       <Dialog fullWidth maxWidth="xs" open={openForm.value} onClose={openForm.onFalse}>
-        <DialogTitle>Add card</DialogTitle>
+        <DialogTitle>Agregar tarjeta</DialogTitle>
 
         <PaymentCardCreateForm sx={{ px: 3 }} />
 
@@ -76,7 +76,7 @@ export function CheckoutPaymentMethods({ name, options, sx, ...other }) {
             Cancelar
           </Button>
           <Button color="inherit" variant="contained" onClick={openForm.onFalse}>
-            Add
+            Agregar
           </Button>
         </DialogActions>
       </Dialog>
@@ -140,7 +140,7 @@ function OptionItem({ sx, option, onOpen, selected, isCredit, cardOptions, ...ot
 
       {isCredit && (
         <Box sx={{ px: 3 }}>
-          <TextField select fullWidth label="Card" slotProps={{ select: { native: true } }}>
+          <TextField select fullWidth label="Tarjeta" slotProps={{ select: { native: true } }}>
             {cardOptions.map((card) => (
               <option key={card.value} value={card.value}>
                 {card.label}
@@ -155,7 +155,7 @@ function OptionItem({ sx, option, onOpen, selected, isCredit, cardOptions, ...ot
             onClick={onOpen}
             sx={{ my: 3 }}
           >
-            Add card
+            Agregar tarjeta
           </Button>
         </Box>
       )}

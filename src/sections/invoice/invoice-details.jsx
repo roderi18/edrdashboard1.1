@@ -12,7 +12,7 @@ import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 
 import { fDate } from 'src/utils/format-time';
-import { fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { INVOICE_STATUS_OPTIONS } from 'src/_mock';
 
@@ -88,8 +88,8 @@ export function InvoiceDetails({ invoice }) {
               </TableCell>
 
               <TableCell>{row.quantity}</TableCell>
-              <TableCell align="right">{fCurrency(row.price)}</TableCell>
-              <TableCell align="right">{fCurrency(row.price * row.quantity)}</TableCell>
+              <TableCell align="right">{fDopCurrency(row.price)}</TableCell>
+              <TableCell align="right">{fDopCurrency(row.price * row.quantity)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

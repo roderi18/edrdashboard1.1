@@ -10,9 +10,9 @@ export const metadata = { title: `Product edit | Dashboard - ${CONFIG.appName}` 
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const { product } = await getProduct(id);
+  const product = id.startsWith('local-product-') ? null : (await getProduct(id)).product;
 
-  return <ProductEditView product={product} />;
+  return <ProductEditView product={product} productId={id} />;
 }
 
 // ----------------------------------------------------------------------

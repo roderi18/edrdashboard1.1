@@ -16,14 +16,14 @@ import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { fDate } from 'src/utils/format-time';
-import { fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function InvoicePDFDownload({ invoice, currentStatus }) {
-  const renderButton = (loading) => (
+export function InvoicePDFDownload({ invoice, fileName, currentStatus, renderButton }) {
+  const defaultRenderButton = (loading) => (
     <Tooltip title="Download">
       <IconButton>
         {loading ? (
@@ -38,10 +38,10 @@ export function InvoicePDFDownload({ invoice, currentStatus }) {
   return (
     <PDFDownloadLink
       document={<InvoicePdfDocument invoice={invoice} currentStatus={currentStatus} />}
-      fileName={invoice?.invoiceNumber}
+      fileName={fileName || invoice?.invoiceNumber}
       style={{ textDecoration: 'none' }}
     >
-      {({ loading }) => renderButton(loading)}
+      {({ loading }) => (renderButton ? renderButton(loading) : defaultRenderButton(loading))}
     </PDFDownloadLink>
   );
 }
@@ -118,7 +118,7 @@ const useStyles = () =>
     []
   );
 
-function InvoicePdfDocument({ invoice, currentStatus }) {
+export function InvoicePdfDocument({ invoice, currentStatus }) {
   const {
     items,
     taxes,
@@ -141,7 +141,7 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
 
       <View style={{ alignItems: 'flex-end', flexDirection: 'column' }}>
         <Text style={[styles.h3, styles.mb8, { textTransform: 'capitalize' }]}>
-          {currentStatus}
+          {currentStatus || 'pagado'}
         </Text>
         <Text style={[styles.text2]}>{invoiceNumber}</Text>
       </View>
@@ -151,14 +151,14 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
   const renderFooter = () => (
     <View style={[styles.container, styles.footer]} fixed>
       <View style={{ width: '75%' }}>
-        <Text style={[styles.text2Bold, styles.mb4]}>NOTES</Text>
+        <Text style={[styles.text2Bold, styles.mb4]}>NOTAS</Text>
         <Text style={[styles.text2]}>
-          We appreciate your business. Should you need us to add VAT or extra notes let us know!
+          Gracias por tu compra. Este documento corresponde a la compra realizada.
         </Text>
       </View>
       <View style={{ width: '25%', textAlign: 'right' }}>
-        <Text style={[styles.text2Bold, styles.mb4]}>Have a question?</Text>
-        <Text style={[styles.text2]}>support@abcapp.com</Text>
+        <Text style={[styles.text2Bold, styles.mb4]}>Soporte</Text>
+        <Text style={[styles.text2]}>soporte@soporte.com</Text>
       </View>
     </View>
   );
@@ -166,14 +166,14 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
   const renderBillingInfo = () => (
     <View style={[styles.container, styles.mb40]}>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.text1Bold, styles.mb4]}>Invoice from</Text>
+        <Text style={[styles.text1Bold, styles.mb4]}>Recibo de</Text>
         <Text style={[styles.text2]}>{invoiceFrom?.name}</Text>
         <Text style={[styles.text2]}>{invoiceFrom?.fullAddress}</Text>
         <Text style={[styles.text2]}>{invoiceFrom?.phoneNumber}</Text>
       </View>
 
       <View style={{ width: '50%' }}>
-        <Text style={[styles.text1Bold, styles.mb4]}>Invoice to</Text>
+        <Text style={[styles.text1Bold, styles.mb4]}>Recibo para</Text>
         <Text style={[styles.text2]}>{invoiceTo?.name}</Text>
         <Text style={[styles.text2]}>{invoiceTo?.fullAddress}</Text>
         <Text style={[styles.text2]}>{invoiceTo?.phoneNumber}</Text>
@@ -184,11 +184,11 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
   const renderDates = () => (
     <View style={[styles.container, styles.mb40]}>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.text1Bold, styles.mb4]}>Date create</Text>
+        <Text style={[styles.text1Bold, styles.mb4]}>Fecha</Text>
         <Text style={[styles.text2]}>{fDate(createDate)}</Text>
       </View>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.text1Bold, styles.mb4]}>Due date</Text>
+        <Text style={[styles.text1Bold, styles.mb4]}>Vencimiento</Text>
         <Text style={[styles.text2]}>{fDate(dueDate)}</Text>
       </View>
     </View>
@@ -196,7 +196,7 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
 
   const renderTable = () => (
     <>
-      <Text style={[styles.text1Bold]}>Invoice details</Text>
+      <Text style={[styles.text1Bold]}>Detalle de la compra</Text>
 
       <View style={styles.table}>
         <View>
@@ -205,13 +205,13 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
               <Text style={[styles.text2Bold]}>#</Text>
             </View>
             <View style={styles.cell_2}>
-              <Text style={[styles.text2Bold]}>Description</Text>
+              <Text style={[styles.text2Bold]}>Descripcion</Text>
             </View>
             <View style={styles.cell_3}>
-              <Text style={[styles.text2Bold]}>Qty</Text>
+              <Text style={[styles.text2Bold]}>Cant.</Text>
             </View>
             <View style={styles.cell_4}>
-              <Text style={[styles.text2Bold]}>Unit price</Text>
+              <Text style={[styles.text2Bold]}>Precio</Text>
             </View>
             <View style={[styles.cell_5, { textAlign: 'right' }]}>
               <Text style={[styles.text2Bold]}>Total</Text>
@@ -233,19 +233,19 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
                 <Text style={[styles.text2]}>{item.quantity}</Text>
               </View>
               <View style={styles.cell_4}>
-                <Text style={[styles.text2]}>{item.price}</Text>
+                <Text style={[styles.text2]}>{fDopCurrency(item.price)}</Text>
               </View>
               <View style={[styles.cell_5, { textAlign: 'right' }]}>
-                <Text style={[styles.text2]}>{fCurrency(item.price * item.quantity)}</Text>
+                <Text style={[styles.text2]}>{fDopCurrency(item.price * item.quantity)}</Text>
               </View>
             </View>
           ))}
 
           {[
             { name: 'Subtotal', value: subtotal },
-            { name: 'Shipping', value: -(shipping ?? 0) },
-            { name: 'Discount', value: -(discount ?? 0) },
-            { name: 'Taxes', value: taxes },
+            { name: 'Envio', value: shipping ?? 0 },
+            { name: 'Descuento', value: -(discount ?? 0) },
+            { name: 'Impuestos', value: taxes },
             { name: 'Total', value: totalAmount, styles: styles.h4 },
           ].map((item) => (
             <View key={item.name} style={[styles.row, styles.noBorder]}>
@@ -256,7 +256,7 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
                 <Text style={[item.styles ?? styles.text2]}>{item.name}</Text>
               </View>
               <View style={[styles.cell_5, { textAlign: 'right' }]}>
-                <Text style={[item.styles ?? styles.text2]}>{fCurrency(item.value)}</Text>
+                <Text style={[item.styles ?? styles.text2]}>{fDopCurrency(item.value)}</Text>
               </View>
             </View>
           ))}

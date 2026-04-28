@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 
+import { fDopCurrency } from 'src/utils/format-number';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -14,7 +16,7 @@ export function CheckoutDelivery({ name, options, onApplyShipping, sx, ...other 
 
   return (
     <Card sx={sx} {...other}>
-      <CardHeader title="Delivery" />
+      <CardHeader title="Entrega" />
       <Controller
         name={name}
         control={control}
@@ -72,8 +74,8 @@ function OptionItem({ option, selected, sx, ...other }) {
       <Iconify
         width={28}
         icon={
-          (option.label === 'Standard' && 'carbon:delivery') ||
-          (option.label === 'Express' && 'carbon:rocket') ||
+          (option.label === 'Estandar' && 'carbon:delivery') ||
+          (option.label === 'Expreso' && 'carbon:rocket') ||
           'carbon:bicycle'
         }
       />
@@ -90,7 +92,7 @@ function OptionItem({ option, selected, sx, ...other }) {
             {option.label}
           </Box>
 
-          {`$${option.value}`}
+          {option.value ? fDopCurrency(option.value) : 'Gratis'}
         </Box>
 
         <Box

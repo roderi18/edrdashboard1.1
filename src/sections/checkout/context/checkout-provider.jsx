@@ -8,17 +8,23 @@ import { useMemo, useState, Suspense, useEffect, useCallback } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
+import { createLocalPurchase } from 'src/utils/local-commerce-storage';
+
 import { SplashScreen } from 'src/components/loading-screen';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { CheckoutContext } from './checkout-context';
 
 // ----------------------------------------------------------------------
 
 const CHECKOUT_STORAGE_KEY = 'app-checkout';
-const CHECKOUT_STEPS = ['Cart', 'Billing & address', 'Payment'];
+const CHECKOUT_STEPS = ['Carrito', 'Direccion', 'Pago'];
 
 const initialState = {
   items: [],
+  order: null,
+  receipt: null,
   subtotal: 0,
   total: 0,
   discount: 0,
@@ -40,10 +46,16 @@ export function CheckoutProvider({ children }) {
 // ----------------------------------------------------------------------
 
 function CheckoutContainer({ children }) {
+  const { user } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeStep = pathname.includes(paths.product.checkout)
+  const checkoutPath = pathname.includes(paths.dashboard.checkout)
+    ? paths.dashboard.checkout
+    : paths.product.checkout;
+  const activeStep = [paths.product.checkout, paths.dashboard.checkout].some((path) =>
+    pathname.includes(path)
+  )
     ? Number(searchParams.get('step') ?? 0)
     : null;
 
@@ -93,12 +105,11 @@ function CheckoutContainer({ children }) {
 
       const targetStep = stepNumbers[type];
       const queryString = new URLSearchParams({ step: `${targetStep}` }).toString();
-      const redirectPath =
-        targetStep === 0 ? paths.product.checkout : `${paths.product.checkout}?${queryString}`;
+      const redirectPath = targetStep === 0 ? checkoutPath : `${checkoutPath}?${queryString}`;
 
       router.push(redirectPath);
     },
-    [activeStep, router]
+    [activeStep, checkoutPath, router]
   );
 
   const onAddToCart = useCallback(
@@ -173,6 +184,18 @@ function CheckoutContainer({ children }) {
     }
   }, [completed, resetState]);
 
+  const onCreateOrder = useCallback(
+    (paymentData) => {
+      const purchase = createLocalPurchase(state, paymentData, user);
+
+      setField('order', purchase.order);
+      setField('receipt', purchase.invoice);
+
+      return purchase;
+    },
+    [setField, state, user]
+  );
+
   const memoizedValue = useMemo(
     () => ({
       state,
@@ -189,6 +212,7 @@ function CheckoutContainer({ children }) {
       /********/
       onAddToCart,
       onResetCart,
+      onCreateOrder,
       onApplyDiscount,
       onApplyShipping,
       onDeleteCartItem,
@@ -204,6 +228,7 @@ function CheckoutContainer({ children }) {
       completed,
       activeStep,
       onResetCart,
+      onCreateOrder,
       onAddToCart,
       onChangeStep,
       onApplyDiscount,

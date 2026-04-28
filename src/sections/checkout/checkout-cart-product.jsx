@@ -7,7 +7,7 @@ import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import { fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -41,7 +41,7 @@ export function CheckoutCartProduct({ row, onDeleteCartItem, onChangeItemQuantit
                 color: 'text.secondary',
               }}
             >
-              size: <Label sx={{ ml: 0.5 }}> {row.size} </Label>
+              talla: <Label sx={{ ml: 0.5 }}> {row.size} </Label>
               <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
               <ColorPreview colors={row.colors} />
             </Box>
@@ -49,7 +49,7 @@ export function CheckoutCartProduct({ row, onDeleteCartItem, onChangeItemQuantit
         </Box>
       </TableCell>
 
-      <TableCell>{fCurrency(row.price)}</TableCell>
+      <TableCell>{fDopCurrency(row.price)}</TableCell>
 
       <TableCell>
         <Box sx={{ width: 100, textAlign: 'right' }}>
@@ -61,12 +61,12 @@ export function CheckoutCartProduct({ row, onDeleteCartItem, onChangeItemQuantit
           />
 
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
-            available: {row.available}
+            disponible: {row.available}
           </Typography>
         </Box>
       </TableCell>
 
-      <TableCell align="right">{fCurrency(row.price * row.quantity)}</TableCell>
+      <TableCell align="right">{fDopCurrency(row.price * row.quantity)}</TableCell>
 
       <TableCell align="right" sx={{ px: 1 }}>
         <IconButton onClick={() => onDeleteCartItem(row.id)}>

@@ -8,7 +8,7 @@ import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import { fCurrency } from 'src/utils/format-number';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -17,7 +17,7 @@ import { Iconify } from 'src/components/iconify';
 export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
   const { shipping, subtotal, discount, total } = checkoutState;
 
-  const displayShipping = shipping !== null ? 'Free' : '-';
+  const displayShipping = shipping !== null ? 'Gratis' : '-';
 
   const rowStyles = {
     display: 'flex',
@@ -26,11 +26,11 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
   return (
     <Card sx={{ mb: 3 }}>
       <CardHeader
-        title="Order summary"
+        title="Resumen de la orden"
         action={
           onEdit && (
             <Button size="small" onClick={onEdit} startIcon={<Iconify icon="solar:pen-bold" />}>
-              Edit
+              Editar
             </Button>
           )
         }
@@ -45,7 +45,7 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
             Subtotal
           </Typography>
           <Typography component="span" variant="subtitle2">
-            {fCurrency(subtotal)}
+            {fDopCurrency(subtotal)}
           </Typography>
         </Box>
 
@@ -55,10 +55,10 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
             variant="body2"
             sx={{ flexGrow: 1, color: 'text.secondary' }}
           >
-            Discount
+            Descuento
           </Typography>
           <Typography component="span" variant="subtitle2">
-            {discount ? fCurrency(-discount) : '-'}
+            {discount ? fDopCurrency(-discount) : '-'}
           </Typography>
         </Box>
 
@@ -68,10 +68,10 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
             variant="body2"
             sx={{ flexGrow: 1, color: 'text.secondary' }}
           >
-            Shipping
+            Envio
           </Typography>
           <Typography component="span" variant="subtitle2">
-            {shipping ? fCurrency(shipping) : displayShipping}
+            {shipping ? fDopCurrency(shipping) : displayShipping}
           </Typography>
         </Box>
 
@@ -88,10 +88,10 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
               variant="subtitle1"
               sx={{ display: 'block', color: 'error.main' }}
             >
-              {fCurrency(total)}
+              {fDopCurrency(total)}
             </Typography>
             <Typography variant="caption" sx={{ fontStyle: 'italic' }}>
-              (VAT included if applicable)
+              (Impuestos incluidos si aplica)
             </Typography>
           </Box>
         </Box>
@@ -99,14 +99,14 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
         {onApplyDiscount && (
           <TextField
             fullWidth
-            placeholder="Discount codes / Gifts"
+            placeholder="Codigo de descuento"
             value="DISCOUNT5"
             slotProps={{
               input: {
                 endAdornment: (
                   <InputAdornment position="end">
                     <Button color="primary" onClick={() => onApplyDiscount(5)} sx={{ mr: -0.5 }}>
-                      Apply
+                      Aplicar
                     </Button>
                   </InputAdornment>
                 ),

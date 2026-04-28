@@ -14,12 +14,12 @@ import { CheckoutBillingAddress } from '../checkout-billing-address';
 // ----------------------------------------------------------------------
 
 export function CheckoutView() {
-  const { steps, activeStep, completed, onResetCart } = useCheckoutContext();
+  const { steps, activeStep, completed, onResetCart, state: checkoutState } = useCheckoutContext();
 
   return (
     <Container sx={{ mb: 10 }}>
       <Typography variant="h4" sx={{ my: { xs: 3, md: 5 } }}>
-        Checkout
+        Finalizar compra
       </Typography>
 
       <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
@@ -36,7 +36,13 @@ export function CheckoutView() {
         {activeStep === 2 && <CheckoutPayment />}
 
         {completed && (
-          <CheckoutOrderComplete open onResetCart={onResetCart} onDownloadPDF={() => {}} />
+          <CheckoutOrderComplete
+            open
+            receipt={checkoutState.receipt}
+            orderId={checkoutState.order?.id}
+            orderNumber={checkoutState.order?.orderNumber}
+            onResetCart={onResetCart}
+          />
         )}
       </>
     </Container>

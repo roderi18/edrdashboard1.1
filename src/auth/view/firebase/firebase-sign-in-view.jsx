@@ -2,8 +2,8 @@
 
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -20,6 +20,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 
 import { Iconify } from 'src/components/iconify';
@@ -28,14 +29,7 @@ import { Form, Field } from 'src/components/hook-form';
 import { useAuthContext } from '../../hooks';
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
-import { FormDivider } from '../../components/form-divider';
-import { FormSocials } from '../../components/form-socials';
-import {
-  signInWithGoogle,
-  signInWithGithub,
-  signInWithTwitter,
-  signInWithPassword,
-} from '../../components/context/firebase';
+import { signInWithPassword } from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -46,11 +40,24 @@ const expectedAuthErrorCodes = [
   'auth/invalid-email',
 ];
 
-const REMEMBER_EMAIL_KEY = 'firebase-sign-in-email';
 const DEFAULT_PREFIX = 'DO-SD-';
 
-export const SignInSchema = z.object({
-  userNumber: z.string().min(1, { error: 'El usuario es requerido.' }),
+const SIGN_IN_STORAGE_KEYS = {
+  member: 'firebase-sign-in-member',
+  admin: 'firebase-sign-in-admin',
+};
+
+export const MemberSignInSchema = z.object({
+  userNumber: z.string().min(1, { error: 'El código de usuario es requerido.' }),
+  password: z
+    .string()
+    .min(1, { error: 'La contraseña es requerida.' })
+    .min(6, { error: 'La contraseña debe tener al menos 6 caracteres.' }),
+  rememberEmail: z.boolean(),
+});
+
+export const AdminSignInSchema = z.object({
+  loginValue: z.string().min(1, { error: 'El usuario o correo es requerido.' }),
   password: z
     .string()
     .min(1, { error: 'La contraseña es requerida.' })
@@ -60,23 +67,27 @@ export const SignInSchema = z.object({
 
 // ----------------------------------------------------------------------
 
-export function FirebaseSignInView() {
+export function FirebaseSignInView({ mode = 'member' }) {
   const router = useRouter();
-
   const showPassword = useBoolean();
-
   const { checkUserSession } = useAuthContext();
+
+  const isAdminMode = mode === 'admin';
+  const storageKey = SIGN_IN_STORAGE_KEYS[mode] ?? SIGN_IN_STORAGE_KEYS.member;
+
+  const schema = useMemo(
+    () => (isAdminMode ? AdminSignInSchema : MemberSignInSchema),
+    [isAdminMode]
+  );
 
   const [prefix, setPrefix] = useState(DEFAULT_PREFIX);
   const [errorMessage, setErrorMessage] = useState(null);
 
   const methods = useForm({
-    resolver: zodResolver(SignInSchema),
-    defaultValues: {
-      userNumber: '',
-      password: '',
-      rememberEmail: false,
-    },
+    resolver: zodResolver(schema),
+    defaultValues: isAdminMode
+      ? { loginValue: '', password: '', rememberEmail: false }
+      : { userNumber: '', password: '', rememberEmail: false },
   });
 
   const {
@@ -86,24 +97,41 @@ export function FirebaseSignInView() {
   } = methods;
 
   useEffect(() => {
-    const rememberedUser = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
+    const rememberedValue = window.localStorage.getItem(storageKey);
 
-    if (rememberedUser) {
-      setPrefix(DEFAULT_PREFIX);
-      setValue('userNumber', rememberedUser.replace(/^do-sd-/i, ''));
-      setValue('rememberEmail', true);
+    if (!rememberedValue) {
+      return;
     }
-  }, [setValue]);
+
+    if (isAdminMode) {
+      setValue('loginValue', rememberedValue);
+    } else {
+      setPrefix(DEFAULT_PREFIX);
+      setValue('userNumber', rememberedValue.replace(/^do-sd-/i, ''));
+    }
+
+    setValue('rememberEmail', true);
+  }, [isAdminMode, setValue, storageKey]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const loginValue = `${prefix}${data.userNumber}`.trim();
-      const authEmail = resolveSignInEmail(loginValue);
+      const loginValue = isAdminMode ? data.loginValue.trim() : `${prefix}${data.userNumber}`.trim();
+      const authEmail = isAdminMode
+        ? await resolveAdminSignInEmail(loginValue)
+        : resolveSignInEmail(loginValue);
+
+      if (!authEmail) {
+        throw new Error(
+          isAdminMode
+            ? 'No encontramos ese usuario de administrador.'
+            : 'No encontramos ese usuario de miembro.'
+        );
+      }
 
       if (data.rememberEmail) {
-        window.localStorage.setItem(REMEMBER_EMAIL_KEY, loginValue);
+        window.localStorage.setItem(storageKey, loginValue);
       } else {
-        window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+        window.localStorage.removeItem(storageKey);
       }
 
       await signInWithPassword({ email: authEmail, password: data.password });
@@ -119,56 +147,61 @@ export function FirebaseSignInView() {
     }
   });
 
-  const handleSignInWithGoogle = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const renderModeSwitch = () => {
+    const href = isAdminMode ? paths.auth.firebase.signIn : paths.auth.firebase.adminSignIn;
+    const label = isAdminMode ? 'Volver al inicio de sesión de miembros' : 'Iniciar sesión como administrador';
 
-  const handleSignInWithGithub = async () => {
-    try {
-      await signInWithGithub();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleSignInWithTwitter = async () => {
-    try {
-      await signInWithTwitter();
-    } catch (error) {
-      console.error(error);
-    }
+    return (
+      <Link
+        component={RouterLink}
+        href={href}
+        variant="body2"
+        color="inherit"
+        sx={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+      >
+        {label}
+        <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
+      </Link>
+    );
   };
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" spacing={1}>
-        <TextField
-          select
-          label="Prefijo"
-          value={prefix}
-          onChange={(event) => setPrefix(event.target.value)}
-          sx={{ width: 140 }}
-          slotProps={{ inputLabel: { shrink: true } }}
-        >
-          <MenuItem value="DO-SD-">DO-SD-</MenuItem>
-        </TextField>
-
+      {isAdminMode ? (
         <Field.Text
-          name="userNumber"
-          label="Código de usuario"
-          placeholder="111111017"
+          autoFocus
+          name="loginValue"
+          label="Usuario o correo electrónico"
+          placeholder="admin001 o correo@correo.com"
           slotProps={{ inputLabel: { shrink: true } }}
         />
-      </Stack>
+      ) : (
+        <Stack direction="row" spacing={1}>
+          <TextField
+            select
+            label="Prefijo"
+            value={prefix}
+            onChange={(event) => setPrefix(event.target.value)}
+            sx={{ width: 140 }}
+            slotProps={{ inputLabel: { shrink: true } }}
+          >
+            <MenuItem value="DO-SD-">DO-SD-</MenuItem>
+          </TextField>
+
+          <Field.Text
+            autoFocus
+            name="userNumber"
+            label="Código de usuario"
+            placeholder="111111017"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </Stack>
+      )}
 
       <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
         <Link
           component={RouterLink}
-          href={paths.auth.firebase.resetPassword}
+          href={isAdminMode ? paths.auth.firebase.adminResetPassword : paths.auth.firebase.resetPassword}
           variant="body2"
           color="inherit"
           sx={{ alignSelf: 'flex-end' }}
@@ -209,15 +242,17 @@ export function FirebaseSignInView() {
         loading={isSubmitting}
         loadingIndicator="Iniciando sesión..."
       >
-        Iniciar sesión
+        {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesión'}
       </Button>
+
+      {renderModeSwitch()}
     </Box>
   );
 
   return (
     <>
       <FormHead
-        title="Inicia sesión en tu cuenta"
+        title={isAdminMode ? 'Inicia sesión como administrador' : 'Inicia sesión en tu cuenta'}
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
 
@@ -230,14 +265,6 @@ export function FirebaseSignInView() {
       <Form methods={methods} onSubmit={onSubmit}>
         {renderForm()}
       </Form>
-
-      <FormDivider label="O" />
-
-      <FormSocials
-        signInWithGoogle={handleSignInWithGoogle}
-        singInWithGithub={handleSignInWithGithub}
-        signInWithTwitter={handleSignInWithTwitter}
-      />
     </>
   );
 }

@@ -1,12 +1,17 @@
 'use client';
 
-import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
+import {
+  loadAdminProfile,
+  loadProfileByUid,
+  buildAdminSessionUser,
+} from 'src/utils/admin-profile';
+
 import axios from 'src/lib/axios';
-import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { AUTH } from 'src/lib/firebase';
 
 import { AuthContext } from '../auth-context';
 
@@ -29,29 +34,32 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
 export function AuthProvider({ children }) {
   const { state, setState } = useSetState({ user: null, loading: true });
 
-  const checkUserSession = useCallback(async () => {
+  const syncUserSession = useCallback(async (authUser) => {
     try {
-      onAuthStateChanged(AUTH, async (user) => {
-        if (user) {
-          /*
-           * (1) If skip emailVerified
-           * Remove the condition (if/else) : user.emailVerified
-           */
-          const userProfile = doc(FIRESTORE, 'users', user.uid);
+      if (authUser) {
+        const accessToken =
+          authUser.accessToken ??
+          authUser.stsTokenManager?.accessToken ??
+          (await authUser.getIdToken?.()) ??
+          null;
 
-          const docSnap = await withTimeout(getDoc(userProfile), null);
+        const profileData =
+          (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
+          (await withTimeout(loadProfileByUid('users', authUser.uid), null));
 
-          const profileData = docSnap?.data?.() ?? {};
+        const sessionUser = buildAdminSessionUser(authUser, profileData ?? {});
 
-          const { accessToken } = user;
+        setState({ user: { ...sessionUser, accessToken }, loading: false });
 
-          setState({ user: { ...user, ...profileData }, loading: false });
+        if (accessToken) {
           axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        } else {
-          setState({ user: null, loading: false });
-          delete axios.defaults.headers.common.Authorization;
         }
-      });
+
+        return;
+      }
+
+      setState({ user: null, loading: false });
+      delete axios.defaults.headers.common.Authorization;
     } catch (error) {
       console.error(error);
       setState({ user: null, loading: false });
@@ -59,9 +67,16 @@ export function AuthProvider({ children }) {
   }, [setState]);
 
   useEffect(() => {
-    checkUserSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const unsubscribe = onAuthStateChanged(AUTH, (authUser) => {
+      syncUserSession(authUser);
+    });
+
+    return unsubscribe;
+  }, [syncUserSession]);
+
+  const checkUserSession = useCallback(async () => {
+    await syncUserSession(AUTH.currentUser ?? null);
+  }, [syncUserSession]);
 
   // ----------------------------------------------------------------------
 

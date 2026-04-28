@@ -8,11 +8,11 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function CartIcon({ totalItems, sx, ...other }) {
+export function CartIcon({ totalItems, href = paths.product.checkout, sx, ...other }) {
   return (
     <Box
       component={RouterLink}
-      href={paths.product.checkout}
+      href={href}
       sx={[
         (theme) => ({
           right: 0,

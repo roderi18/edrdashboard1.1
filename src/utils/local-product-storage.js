@@ -38,6 +38,12 @@ export const getLocalProducts = () => {
   }
 };
 
+export const getLocalProductById = (productId) => {
+  if (!productId) return null;
+
+  return getLocalProducts().find((product) => product.id === productId) || null;
+};
+
 export const saveLocalProduct = async (data, { publish = true } = {}) => {
   const images = await serializeImages(data.images);
   const quantity = Number(data.quantity) || 0;

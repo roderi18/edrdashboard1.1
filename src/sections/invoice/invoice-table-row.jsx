@@ -15,8 +15,8 @@ import ListItemText from '@mui/material/ListItemText';
 
 import { RouterLink } from 'src/routes/components';
 
-import { fCurrency } from 'src/utils/format-number';
 import { fDate, fTime } from 'src/utils/format-time';
+import { fDopCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -147,7 +147,7 @@ export function InvoiceTableRow({
           />
         </TableCell>
 
-        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+        <TableCell>{fDopCurrency(row.totalAmount)}</TableCell>
 
         <TableCell align="center">{row.sent}</TableCell>
 

@@ -3,13 +3,14 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+
+import { mapApiMemberToUI } from 'src/services/member-service';
+
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
-import { mapApiMemberToUI } from 'src/services/member-service';
-import { getAllMembers } from 'src/utils/member-storage';
 
 export default function Page() {
-
   const { id } = useParams();
 
   const [hydrated, setHydrated] = useState(false);
@@ -39,31 +40,26 @@ export default function Page() {
       const regionals = dataRegionals?.Data || [];
 
       const member = allMembers.find(
-        (m) =>
-          String(m.idMiembros) === String(id) ||
-          String(m.codigoMiembro) === String(id)
+        (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
       );
 
-      const dest = dests.find(
-        (d) => Number(d.idDestacamento) === Number(member?.idDestacamento)
-      );
+      const dest = dests.find((d) => Number(d.idDestacamento) === Number(member?.idDestacamento));
 
-      const church = churches.find(
-        (c) => Number(c.idIglesia) === Number(dest?.idIglesia)
-      );
+      const church = churches.find((c) => Number(c.idIglesia) === Number(dest?.idIglesia));
 
-      const sectional = sectionals.find(
-        (s) => Number(s.idSeccion) === Number(church?.idSeccion)
-      );
+      const sectional = sectionals.find((s) => Number(s.idSeccion) === Number(church?.idSeccion));
 
-      const regional = regionals.find(
-        (r) => Number(r.id) === Number(sectional?.idRegion)
-      );
+      const regional = regionals.find((r) => Number(r.id) === Number(sectional?.idRegion));
 
       const mapped = mapApiMemberToUI(member);
+      const memberPhoto = await obtenerFotoPrincipal({
+        tipoEntidad: 'miembro',
+        idEntidad: mapped?.id,
+      });
 
       setCurrentMember({
         ...mapped,
+        avatarUrl: memberPhoto?.urlFoto || mapped?.avatarUrl || null,
         sectionalName: sectional?.nombre || '-',
         regionalName: regional?.nombre || '-',
       });

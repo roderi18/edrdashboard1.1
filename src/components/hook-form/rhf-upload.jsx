@@ -7,7 +7,7 @@ import { Upload, UploadBox, UploadAvatar } from '../upload';
 
 // ----------------------------------------------------------------------
 
-export function RHFUploadAvatar({ name, slotProps, ...other }) {
+export function RHFUploadAvatar({ name, slotProps, onDrop: onDropProp, ...other }) {
   const { control, setValue } = useFormContext();
 
   return (
@@ -15,10 +15,16 @@ export function RHFUploadAvatar({ name, slotProps, ...other }) {
       name={name}
       control={control}
       render={({ field, fieldState: { error } }) => {
-        const onDrop = (acceptedFiles) => {
+        const onDrop = async (acceptedFiles) => {
           const value = acceptedFiles[0];
 
           setValue(name, value, { shouldValidate: true });
+
+          const nextValue = await onDropProp?.(acceptedFiles, { field, setValue });
+
+          if (nextValue) {
+            setValue(name, nextValue, { shouldValidate: true });
+          }
         };
 
         return (

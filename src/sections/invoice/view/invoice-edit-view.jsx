@@ -1,6 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 import { paths } from 'src/routes/paths';
+
+import { getLocalInvoiceById } from 'src/utils/local-commerce-storage';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -10,7 +14,15 @@ import { InvoiceCreateEditForm } from '../invoice-create-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function InvoiceEditView({ invoice }) {
+export function InvoiceEditView({ invoice, invoiceId }) {
+  const [resolvedInvoice, setResolvedInvoice] = useState(invoice);
+
+  useEffect(() => {
+    if (invoice || !invoiceId?.startsWith('local-invoice-')) return;
+
+    setResolvedInvoice(getLocalInvoiceById(invoiceId));
+  }, [invoice, invoiceId]);
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -19,12 +31,12 @@ export function InvoiceEditView({ invoice }) {
         links={[
           { name: 'Panel', href: paths.dashboard.root },
           { name: 'Invoice', href: paths.dashboard.invoice.root },
-          { name: invoice?.invoiceNumber },
+          { name: resolvedInvoice?.invoiceNumber },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <InvoiceCreateEditForm currentInvoice={invoice} />
+      <InvoiceCreateEditForm currentInvoice={resolvedInvoice} />
     </DashboardContent>
   );
 }

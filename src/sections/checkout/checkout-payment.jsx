@@ -17,23 +17,23 @@ import { CheckoutPaymentMethods } from './checkout-payment-methods';
 // ----------------------------------------------------------------------
 
 const DELIVERY_OPTIONS = [
-  { value: 0, label: 'Free', description: '5-7 days delivery' },
-  { value: 10, label: 'Standard', description: '3-5 days delivery' },
-  { value: 20, label: 'Express', description: '2-3 days delivery' },
+  { value: 0, label: 'Gratis', description: 'Entrega en 5-7 dias' },
+  { value: 10, label: 'Estandar', description: 'Entrega en 3-5 dias' },
+  { value: 20, label: 'Expreso', description: 'Entrega en 2-3 dias' },
 ];
 
 const PAYMENT_OPTIONS = [
   {
     value: 'paypal',
-    label: 'Pay with Paypal',
-    description: 'You will be redirected to PayPal website to complete your purchase securely.',
+    label: 'Pagar con Paypal',
+    description: 'Seras redirigido a PayPal para completar la compra de forma segura.',
   },
   {
     value: 'creditcard',
-    label: 'Credit / Debit card',
-    description: 'We support Mastercard, Visa, Discover and Stripe.',
+    label: 'Tarjeta de credito / debito',
+    description: 'Aceptamos Mastercard, Visa, Discover y Stripe.',
   },
-  { value: 'cash', label: 'Cash', description: 'Pay with cash when your order is delivered.' },
+  { value: 'cash', label: 'Efectivo', description: 'Paga en efectivo al recibir tu orden.' },
 ];
 
 const CARD_OPTIONS = [
@@ -45,7 +45,7 @@ const CARD_OPTIONS = [
 // ----------------------------------------------------------------------
 
 export const PaymentSchema = z.object({
-  payment: z.string().min(1, { error: 'Payment is required!' }),
+  payment: z.string().min(1, { error: 'El metodo de pago es obligatorio.' }),
   // Not required
   delivery: z.number(),
 });
@@ -55,8 +55,8 @@ export const PaymentSchema = z.object({
 export function CheckoutPayment() {
   const {
     loading,
-    onResetCart,
     onChangeStep,
+    onCreateOrder,
     onApplyShipping,
     state: checkoutState,
   } = useCheckoutContext();
@@ -78,7 +78,7 @@ export function CheckoutPayment() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      onResetCart();
+      onCreateOrder(data);
       onChangeStep('next');
       console.info('DATA', data);
     } catch (error) {
@@ -108,7 +108,7 @@ export function CheckoutPayment() {
             onClick={() => onChangeStep('back')}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           >
-            Back
+            Atras
           </Button>
         </Grid>
 
@@ -122,7 +122,7 @@ export function CheckoutPayment() {
           <CheckoutSummary checkoutState={checkoutState} onEdit={() => onChangeStep('go', 0)} />
 
           <Button fullWidth size="large" type="submit" variant="contained" loading={isSubmitting}>
-            Complete order
+            Completar orden
           </Button>
         </Grid>
       </Grid>

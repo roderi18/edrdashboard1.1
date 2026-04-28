@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { orderBy } from 'es-toolkit';
+import { useState, useEffect } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -10,6 +10,8 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+
+import { getLocalProducts } from 'src/utils/local-product-storage';
 
 import {
   PRODUCT_SORT_OPTIONS,
@@ -36,7 +38,15 @@ export function ProductShopView({ products }) {
 
   const openFilters = useBoolean();
 
+  const [tableProducts, setTableProducts] = useState(products);
   const [sortBy, setSortBy] = useState('featured');
+
+  useEffect(() => {
+    const localProducts = getLocalProducts();
+    const localProductIds = new Set(localProducts.map((product) => product.id));
+
+    setTableProducts([...localProducts, ...products.filter((product) => !localProductIds.has(product.id))]);
+  }, [products]);
 
   const filters = useSetState({
     gender: [],
@@ -48,7 +58,7 @@ export function ProductShopView({ products }) {
   const { state: currentFilters } = filters;
 
   const dataFiltered = applyFilter({
-    inputData: products,
+    inputData: tableProducts,
     filters: currentFilters,
     sortBy,
   });
@@ -62,7 +72,7 @@ export function ProductShopView({ products }) {
     currentFilters.priceRange[1] !== 200;
 
   const notFound = !dataFiltered.length && canReset;
-  const isEmpty = !products.length;
+  const isEmpty = !tableProducts.length;
 
   const renderFilters = () => (
     <Box

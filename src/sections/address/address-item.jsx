@@ -39,7 +39,7 @@ export function AddressItem({ address, action, sx, ...other }) {
 
           {address.primary && (
             <Label color="info" sx={{ ml: 1 }}>
-              Default
+              Predeterminada
             </Label>
           )}
         </Box>

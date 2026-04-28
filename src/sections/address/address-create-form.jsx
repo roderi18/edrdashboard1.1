@@ -16,14 +16,14 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
 export const AddressCreateSchema = z.object({
-  city: z.string().min(1, { error: 'City is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  name: z.string().min(1, { error: 'Name is required!' }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
+  city: z.string().min(1, { error: 'La ciudad es obligatoria.' }),
+  state: z.string().min(1, { error: 'La provincia es obligatoria.' }),
+  name: z.string().min(1, { error: 'El nombre es obligatorio.' }),
+  address: z.string().min(1, { error: 'La direccion es obligatoria.' }),
+  zipCode: z.string().min(1, { error: 'El codigo postal es obligatorio.' }),
   phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
+  country: schemaUtils.nullableInput(z.string().min(1, { error: 'El pais es obligatorio.' }), {
+    error: 'El pais es obligatorio.',
   }),
   // Not required
   primary: z.boolean(),
@@ -42,7 +42,7 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
     country: '',
     primary: true,
     phoneNumber: '',
-    addressType: 'Home',
+    addressType: 'Casa',
   };
 
   const methods = useForm({
@@ -82,7 +82,7 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
       {...other}
     >
       <Form methods={methods} onSubmit={onSubmit}>
-        <DialogTitle>Add address</DialogTitle>
+        <DialogTitle>Agregar direccion</DialogTitle>
 
         <DialogContent dividers>
           <Stack spacing={3}>
@@ -90,8 +90,8 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
               row
               name="addressType"
               options={[
-                { label: 'Home', value: 'Home' },
-                { label: 'Office', value: 'Office' },
+                { label: 'Casa', value: 'Casa' },
+                { label: 'Oficina', value: 'Oficina' },
               ]}
             />
 
@@ -104,10 +104,10 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
               }}
             >
               <Field.Text name="name" label="Nombre completo" />
-              <Field.Phone name="phoneNumber" label="Núm. Teléfono" defaultCountry="US" />
+              <Field.Phone name="phoneNumber" label="Num. telefono" defaultCountry="DO" />
             </Box>
 
-            <Field.Text name="address" label="Dirección" />
+            <Field.Text name="address" label="Direccion" />
 
             <Box
               sx={{
@@ -117,13 +117,13 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
               }}
             >
-              <Field.Text name="city" label="Town/city" />
-              <Field.Text name="state" label="State" />
-              <Field.Text name="zipCode" label="Código postal" />
+              <Field.Text name="city" label="Ciudad" />
+              <Field.Text name="state" label="Provincia" />
+              <Field.Text name="zipCode" label="Codigo postal" />
             </Box>
 
-            <Field.CountrySelect name="ciudad" label="País" placeholder="Elige una ciudad" />
-            <Field.Checkbox name="primary" label="Use this address as default." />
+            <Field.CountrySelect name="country" label="Pais" placeholder="Elige un pais" />
+            <Field.Checkbox name="primary" label="Usar esta direccion como predeterminada." />
           </Stack>
         </DialogContent>
 
@@ -137,7 +137,7 @@ export function AddressCreateForm({ open, onClose, onCreate, slotProps, sx, ...o
             loading={isSubmitting}
             {...slotProps?.submitButton}
           >
-            {slotProps?.submitButton?.label ?? 'Add'}
+            {slotProps?.submitButton?.label ?? 'Agregar'}
           </Button>
         </DialogActions>
       </Form>

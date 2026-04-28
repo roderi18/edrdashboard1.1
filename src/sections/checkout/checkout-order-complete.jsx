@@ -1,3 +1,5 @@
+import dynamic from 'next/dynamic';
+
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Button from '@mui/material/Button';
@@ -6,16 +8,43 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { OrderCompleteIllustration } from 'src/assets/illustrations';
 
 import { Iconify } from 'src/components/iconify';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
-export function CheckoutOrderComplete({ onResetCart, onDownloadPDF, slotProps, ...other }) {
+const InvoicePDFDownload = dynamic(
+  () => import('../invoice/invoice-pdf').then((mod) => mod.InvoicePDFDownload),
+  { ssr: false }
+);
+
+// ----------------------------------------------------------------------
+
+export function CheckoutOrderComplete({
+  receipt,
+  orderId,
+  orderNumber,
+  onResetCart,
+  slotProps,
+  ...other
+}) {
+  const { user } = useAuthContext();
+  const pathname = usePathname();
+  const continueShoppingPath = pathname.includes(paths.dashboard.root)
+    ? paths.dashboard.product.root
+    : paths.product.root;
   const dialogPaperSx = slotProps?.paper?.sx;
+  const isAdmin = String(user?.role || '')
+    .toLowerCase()
+    .includes('admin');
+  const orderLabel = orderNumber || 'Orden local creada';
+  const orderDetailsPath = orderId ? paths.dashboard.order.details(orderId) : '';
 
   return (
     <Dialog
@@ -49,20 +78,26 @@ export function CheckoutOrderComplete({ onResetCart, onDownloadPDF, slotProps, .
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4">Thank you for your purchase!</Typography>
+        <Typography variant="h4">Gracias por tu compra!</Typography>
 
         <OrderCompleteIllustration />
 
         <Typography>
-          Thanks for placing order
+          Orden creada correctamente
           <br />
           <br />
-          <Link>01dc1370-3df6-11eb-b378-0242ac130002</Link>
+          {isAdmin && orderDetailsPath ? (
+            <Link component={RouterLink} href={orderDetailsPath}>
+              {orderLabel}
+            </Link>
+          ) : (
+            <Link component="span">{orderLabel}</Link>
+          )}
           <br />
           <br />
-          We will send you a notification within 5 days when it ships.
-          <br /> If you have any question or queries then fell to get in contact us. <br />
-          All the best,
+          Te enviaremos una notificacion cuando la orden sea procesada.
+          <br /> Si tienes alguna pregunta, contacta a soporte. <br />
+          Gracias,
         </Typography>
 
         <Divider sx={{ width: 1, borderStyle: 'dashed' }} />
@@ -77,24 +112,33 @@ export function CheckoutOrderComplete({ onResetCart, onDownloadPDF, slotProps, .
         >
           <Button
             component={RouterLink}
-            href={paths.product.root}
+            href={continueShoppingPath}
             size="large"
             color="inherit"
             variant="outlined"
             onClick={onResetCart}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           >
-            Continue shopping
+            Continuar comprando
           </Button>
 
-          <Button
-            size="large"
-            variant="contained"
-            startIcon={<Iconify icon="eva:cloud-download-fill" />}
-            onClick={onDownloadPDF}
-          >
-            Download as PDF
-          </Button>
+          {receipt && (
+            <InvoicePDFDownload
+              invoice={receipt}
+              currentStatus={receipt.status}
+              fileName={`${receipt.invoiceNumber}.pdf`}
+              renderButton={(loading) => (
+                <Button
+                  size="large"
+                  variant="contained"
+                  loading={loading}
+                  startIcon={<Iconify icon="eva:cloud-download-fill" />}
+                >
+                  Descargar PDF
+                </Button>
+              )}
+            />
+          )}
         </Box>
       </Box>
     </Dialog>

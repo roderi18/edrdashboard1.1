@@ -1,11 +1,13 @@
-import { CONFIG } from 'src/global-config';
+import { redirect } from 'next/navigation';
 
-import { CheckoutView } from 'src/sections/checkout/view';
+import { paths } from 'src/routes/paths';
+
+import { CONFIG } from 'src/global-config';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Checkout - ${CONFIG.appName}` };
+export const metadata = { title: `Finalizar compra - ${CONFIG.appName}` };
 
 export default function Page() {
-  return <CheckoutView />;
+  redirect(paths.dashboard.checkout);
 }

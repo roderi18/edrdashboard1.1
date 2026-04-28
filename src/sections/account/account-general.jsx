@@ -1,78 +1,64 @@
+'use client';
+
 import * as z from 'zod';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
+import { updateProfile } from 'firebase/auth';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
-import { fData } from 'src/utils/format-number';
+import { fileToDataUrl, getAdminProfileRef, buildAdminDisplayName } from 'src/utils/admin-profile';
+
+import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { SignOutButton } from 'src/layouts/components/sign-out-button';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-export const UpdateUserSchema = z.object({
-  displayName: z.string().min(1, { error: 'Name is required!' }),
-  email: schemaUtils.email(),
-  photoURL: schemaUtils.file({ error: 'Avatar is required!' }),
-  phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
-  }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  city: z.string().min(1, { error: 'City is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
-  about: z.string().min(1, { error: 'About is required!' }),
-  // Not required
-  isPublic: z.boolean(),
+export const UpdateAdminSchema = z.object({
+  nombres: z.string().min(1, { error: 'Los nombres son requeridos.' }),
+  apellidos: z.string().min(1, { error: 'Los apellidos son requeridos.' }),
+  correo: z.string().email({ error: 'El correo no es válido.' }),
+  codigoUsuario: z.string().min(1, { error: 'El código de usuario es requerido.' }),
+  rol: z.string().min(1, { error: 'El rol es requerido.' }),
+  estatus: z.string().min(1, { error: 'El estatus es requerido.' }),
+  photoURL: z.any().optional(),
 });
 
 // ----------------------------------------------------------------------
 
 export function AccountGeneral() {
-  const { user } = useMockedUser();
+  const { user, checkUserSession } = useAuthContext();
 
-  const currentUser = {
-    displayName: user?.displayName,
-    email: user?.email,
-    photoURL: user?.photoURL,
-    phoneNumber: user?.phoneNumber,
-    country: user?.country,
-    address: user?.address,
-    state: user?.state,
-    city: user?.city,
-    zipCode: user?.zipCode,
-    about: user?.about,
-    isPublic: user?.isPublic,
-  };
-
-  const defaultValues = {
-    displayName: '',
-    email: '',
-    photoURL: null,
-    phoneNumber: '',
-    country: null,
-    address: '',
-    state: '',
-    city: '',
-    zipCode: '',
-    about: '',
-    isPublic: false,
-  };
+  const currentUser = useMemo(
+    () => ({
+      nombres: user?.nombres ?? user?.displayName?.split(' ')?.[0] ?? '',
+      apellidos: user?.apellidos ?? user?.displayName?.split(' ')?.slice(1).join(' ') ?? '',
+      correo: user?.correo ?? user?.email ?? '',
+      codigoUsuario: user?.codigoUsuario ?? '',
+      rol: user?.role ?? 'admin',
+      estatus: user?.estatus ?? 'activo',
+      photoURL: user?.photoURL ?? '',
+    }),
+    [user]
+  );
 
   const methods = useForm({
     mode: 'all',
-    resolver: zodResolver(UpdateUserSchema),
-    defaultValues,
+    resolver: zodResolver(UpdateAdminSchema),
+    defaultValues: currentUser,
     values: currentUser,
   });
 
@@ -83,11 +69,49 @@ export function AccountGeneral() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success('Actualización exitosa!');
-      console.info('DATA', data);
+      const authUser = AUTH.currentUser;
+
+      if (!authUser) {
+        throw new Error('No hay una sesión activa.');
+      }
+
+      const adminEntry = await getAdminProfileRef(authUser.uid);
+      const photoURL =
+        data.photoURL instanceof File ? await fileToDataUrl(data.photoURL) : data.photoURL || '';
+      const displayName = buildAdminDisplayName(
+        { nombres: data.nombres, apellidos: data.apellidos },
+        authUser
+      );
+
+      const payload = {
+        uid: authUser.uid,
+        nombres: data.nombres.trim(),
+        apellidos: data.apellidos.trim(),
+        correo: data.correo.trim(),
+        codigoUsuario: data.codigoUsuario.trim(),
+        rol: data.rol.trim(),
+        estatus: data.estatus.trim(),
+        photoURL,
+        displayName,
+        updatedAt: new Date(),
+      };
+
+      if (adminEntry?.ref) {
+        await updateDoc(adminEntry.ref, payload);
+      } else {
+        await setDoc(doc(FIRESTORE, 'admins', authUser.uid), { ...payload, createdAt: new Date() }, { merge: true });
+      }
+
+      await updateProfile(authUser, {
+        displayName,
+        photoURL,
+      });
+
+      await checkUserSession?.();
+      toast.success('Perfil actualizado con éxito.');
     } catch (error) {
       console.error(error);
+      toast.error('No se pudo actualizar el perfil.');
     }
   });
 
@@ -118,21 +142,20 @@ export function AccountGeneral() {
                   }}
                 >
                   Permitido *.jpeg, *.jpg, *.png, *.gif
-                  <br /> tamaño máximo de {fData(1050000)}
+                  <br /> tamaño máximo de 1 Mb
                 </Typography>
               }
             />
 
-            <Field.Switch
-              name="isPublic"
-              labelPlacement="start"
-              label="Public profile"
-              sx={{ mt: 5 }}
-            />
+            <Typography variant="subtitle1" sx={{ mt: 3 }}>
+              {buildAdminDisplayName(currentUser, user)}
+            </Typography>
 
-            <Button variant="soft" color="error" sx={{ mt: 3 }}>
-              Delete user
-            </Button>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+              {currentUser.codigoUsuario}
+            </Typography>
+
+            <SignOutButton sx={{ mt: 3 }} />
           </Card>
         </Grid>
 
@@ -146,23 +169,28 @@ export function AccountGeneral() {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="displayName" label="Name" />
-              <Field.Text name="email" label="Correo electrónico" />
-              <Field.Phone name="phoneNumber" label="Núm. Teléfono" />
-              <Field.Text name="address" label="Dirección" />
-
-              <Field.CountrySelect name="ciudad" label="País" placeholder="Elige una ciudad" />
-
-              <Field.Text name="state" label="Provincia" />
-              <Field.Text name="city" label="Ciudad" />
-              <Field.Text name="zipCode" label="Código postal" />
+              <Field.Text name="nombres" label="Nombres" />
+              <Field.Text name="apellidos" label="Apellidos" />
+              <Field.Text
+                name="correo"
+                label="Correo electrónico"
+                slotProps={{ htmlInput: { readOnly: true } }}
+              />
+              <Field.Text name="codigoUsuario" label="Código de usuario" />
+              <Field.Text
+                name="rol"
+                label="Rol"
+                slotProps={{ htmlInput: { readOnly: true } }}
+              />
+              <Field.Select name="estatus" label="Estatus">
+                <MenuItem value="activo">Activo</MenuItem>
+                <MenuItem value="inactivo">Inactivo</MenuItem>
+              </Field.Select>
             </Box>
 
             <Stack spacing={3} sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Field.Text name="about" multiline rows={4} label="About" />
-
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                Save changes
+                Guardar cambios
               </Button>
             </Stack>
           </Card>

@@ -31,7 +31,7 @@ export function CheckoutBillingAddress() {
                 <Box sx={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap' }}>
                   {!address.primary && (
                     <Button size="small" color="error" sx={{ mr: 1 }}>
-                      Delete
+                      Eliminar
                     </Button>
                   )}
                   <Button
@@ -42,7 +42,7 @@ export function CheckoutBillingAddress() {
                       onCreateBillingAddress(address);
                     }}
                   >
-                    Deliver to this address
+                    Enviar a esta direccion
                   </Button>
                 </Box>
               }
@@ -64,7 +64,7 @@ export function CheckoutBillingAddress() {
               onClick={() => onChangeStep('back')}
               startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
             >
-              Back
+              Atras
             </Button>
 
             <Button
@@ -73,7 +73,7 @@ export function CheckoutBillingAddress() {
               onClick={addressForm.onTrue}
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add address
+              Agregar direccion
             </Button>
           </Box>
         </Grid>
@@ -91,7 +91,7 @@ export function CheckoutBillingAddress() {
           onCreateBillingAddress(address);
         }}
         slotProps={{
-          submitButton: { label: 'Deliver to this address' },
+          submitButton: { label: 'Enviar a esta direccion' },
         }}
       />
     </>
