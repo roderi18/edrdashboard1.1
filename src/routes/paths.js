@@ -209,6 +209,10 @@ export const paths = {
       demo: { details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}` },
     },
     checkout: `${ROOTS.DASHBOARD}/checkout`,
+    admin: {
+      root: `${ROOTS.DASHBOARD}/admin`,
+      new: `${ROOTS.DASHBOARD}/admin/new`,
+    },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,
       new: `${ROOTS.DASHBOARD}/job/new`,

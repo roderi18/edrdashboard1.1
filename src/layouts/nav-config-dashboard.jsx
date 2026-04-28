@@ -166,6 +166,11 @@ export const navData = [
         icon: ICONS.ecommerce,
         info: <CheckoutCartNavInfo />,
       },
+      {
+        title: 'Administradores',
+        path: paths.dashboard.admin.root,
+        icon: ICONS.lock,
+      },
       // {
       //   title: 'Blog',
       //   path: paths.dashboard.post.root,
