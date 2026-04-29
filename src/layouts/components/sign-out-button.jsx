@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 
 import Button from '@mui/material/Button';
@@ -9,6 +9,7 @@ import { useRouter } from 'src/routes/hooks';
 import { CONFIG } from 'src/global-config';
 
 import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { signOut as jwtSignOut } from 'src/auth/components/context/jwt/action';
@@ -33,17 +34,12 @@ const signInPath =
 
 export function SignOutButton({ onClose, sx, ...other }) {
   const router = useRouter();
+  const [openConfirm, setOpenConfirm] = useState(false);
 
   const { checkUserSession } = useAuthContext();
   const { logout: signOutAuth0 } = useAuth0();
 
   const handleLogout = useCallback(async () => {
-    const confirmed = window.confirm('¿Realmente quieres cerrar sesión?');
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       await signOut();
       await checkUserSession?.();
@@ -57,12 +53,6 @@ export function SignOutButton({ onClose, sx, ...other }) {
   }, [checkUserSession, onClose, router]);
 
   const handleLogoutAuth0 = useCallback(async () => {
-    const confirmed = window.confirm('¿Realmente quieres cerrar sesión?');
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       await signOutAuth0();
 
@@ -74,18 +64,43 @@ export function SignOutButton({ onClose, sx, ...other }) {
     }
   }, [onClose, router, signOutAuth0]);
 
+  const handleConfirmLogout = useCallback(async () => {
+    setOpenConfirm(false);
+
+    if (CONFIG.auth.method === 'auth0') {
+      await handleLogoutAuth0();
+      return;
+    }
+
+    await handleLogout();
+  }, [handleLogout, handleLogoutAuth0]);
+
   return (
-    <Button
-      fullWidth
-      type="button"
-      variant="soft"
-      size="large"
-      color="error"
-      onClick={CONFIG.auth.method === 'auth0' ? handleLogoutAuth0 : handleLogout}
-      sx={sx}
-      {...other}
-    >
-      Cerrar sesión
-    </Button>
+    <>
+      <Button
+        fullWidth
+        type="button"
+        variant="soft"
+        size="large"
+        color="error"
+        onClick={() => setOpenConfirm(true)}
+        sx={sx}
+        {...other}
+      >
+        Cerrar sesión
+      </Button>
+
+      <ConfirmDialog
+        open={openConfirm}
+        onClose={() => setOpenConfirm(false)}
+        title="Cerrar sesión"
+        content="¿Realmente quieres cerrar sesión?"
+        action={
+          <Button variant="contained" color="error" onClick={handleConfirmLogout}>
+            Aceptar
+          </Button>
+        }
+      />
+    </>
   );
 }
