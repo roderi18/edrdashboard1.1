@@ -1,6 +1,6 @@
 import { doc, limit, query, where, getDoc, getDocs, collection } from 'firebase/firestore';
 
-import { FIRESTORE } from 'src/lib/firebase';
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -21,6 +21,10 @@ export const fileToDataUrl = (file) =>
   });
 
 export const getProfileRefByUid = async (collectionName, uid) => {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return null;
+  }
+
   if (!uid) {
     return null;
   }
@@ -63,6 +67,10 @@ export const loadProfileByUid = async (collectionName, uid) => {
 };
 
 export const findProfileByField = async (collectionName, fieldName, fieldValue) => {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return null;
+  }
+
   const value = String(fieldValue ?? '').trim();
 
   if (!value) {
@@ -86,6 +94,10 @@ export const findProfileByField = async (collectionName, fieldName, fieldValue) 
 };
 
 export const findAdminProfileByLoginValue = async (loginValue) => {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return null;
+  }
+
   const value = String(loginValue ?? '').trim();
 
   if (!value) {
@@ -129,8 +141,13 @@ export const resolveAdminSignInEmail = async (loginValue) => {
     return String(profile.data.correo).trim().toLowerCase();
   }
 
-  return String(loginValue ?? '').trim().toLowerCase().includes('@')
-    ? String(loginValue ?? '').trim().toLowerCase()
+  return String(loginValue ?? '')
+    .trim()
+    .toLowerCase()
+    .includes('@')
+    ? String(loginValue ?? '')
+        .trim()
+        .toLowerCase()
     : '';
 };
 

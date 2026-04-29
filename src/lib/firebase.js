@@ -8,11 +8,21 @@ import { CONFIG } from 'src/global-config';
 // ----------------------------------------------------------------------
 
 const isFirebase = CONFIG.auth.method === 'firebase';
+const hasFirebaseConfig = Boolean(
+  CONFIG.firebase.apiKey &&
+  CONFIG.firebase.authDomain &&
+  CONFIG.firebase.projectId &&
+  CONFIG.firebase.storageBucket &&
+  CONFIG.firebase.messagingSenderId &&
+  CONFIG.firebase.appId
+);
 
-export const firebaseApp = isFirebase ? initializeApp(CONFIG.firebase) : {};
+export const isFirebaseConfigured = isFirebase && hasFirebaseConfig;
 
-export const AUTH = isFirebase ? getAuth(firebaseApp) : {};
+export const firebaseApp = isFirebaseConfigured ? initializeApp(CONFIG.firebase) : null;
 
-export const FIRESTORE = isFirebase ? getFirestore(firebaseApp) : {};
+export const AUTH = isFirebaseConfigured ? getAuth(firebaseApp) : null;
 
-export const FIREBASE_STORAGE = isFirebase ? getStorage(firebaseApp) : {};
+export const FIRESTORE = isFirebaseConfigured ? getFirestore(firebaseApp) : null;
+
+export const FIREBASE_STORAGE = isFirebaseConfigured ? getStorage(firebaseApp) : null;

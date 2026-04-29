@@ -4,13 +4,13 @@ import {
   query,
   where,
   getDoc,
-  getDocs,
   setDoc,
+  getDocs,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { FIRESTORE, FIREBASE_STORAGE } from 'src/lib/firebase';
+import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -41,6 +41,10 @@ export async function subirFotoEntidad({
   tipoFoto = 'perfil',
   subidoPor,
 }) {
+  if (!isFirebaseConfigured || !FIRESTORE || !FIREBASE_STORAGE) {
+    throw new Error('Firebase no está configurado en este entorno.');
+  }
+
   if (!file) throw new Error('Selecciona una foto para subir.');
   if (!tipoEntidad || !idEntidad)
     throw new Error('No se pudo identificar a quién pertenece la foto.');
@@ -95,6 +99,10 @@ export async function subirFotoEntidad({
 }
 
 export async function obtenerFotoPrincipal({ tipoEntidad, idEntidad, tipoFoto = 'perfil' }) {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return null;
+  }
+
   if (!tipoEntidad || !idEntidad) return null;
 
   const documentId = getPhotoDocumentId({ tipoEntidad, idEntidad, tipoFoto });
@@ -109,6 +117,10 @@ export async function obtenerFotoPrincipal({ tipoEntidad, idEntidad, tipoFoto = 
 }
 
 export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto = 'perfil' }) {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return {};
+  }
+
   if (!tipoEntidad) return {};
 
   const snapshot = await getDocs(

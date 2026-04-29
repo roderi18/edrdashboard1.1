@@ -1,9 +1,9 @@
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { limit, query, where, getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
-import { FIRESTORE } from 'src/lib/firebase';
 import { getMembers } from 'src/services/member-service';
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
@@ -194,6 +194,10 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
     .filter(Boolean);
 
 export const loadMemberAccessProfile = async (authUser) => {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return null;
+  }
+
   const email = String(authUser?.email ?? '')
     .trim()
     .toLowerCase();

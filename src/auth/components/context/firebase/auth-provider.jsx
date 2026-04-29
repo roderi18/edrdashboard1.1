@@ -9,7 +9,7 @@ import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/membe
 import { loadAdminProfile, loadProfileByUid, buildAdminSessionUser } from 'src/utils/admin-profile';
 
 import axios from 'src/lib/axios';
-import { AUTH } from 'src/lib/firebase';
+import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { AuthContext } from '../auth-context';
 
@@ -35,6 +35,12 @@ export function AuthProvider({ children }) {
   const syncUserSession = useCallback(
     async (authUser) => {
       try {
+        if (!isFirebaseConfigured || !AUTH) {
+          setState({ user: null, loading: false });
+          delete axios.defaults.headers.common.Authorization;
+          return;
+        }
+
         if (authUser) {
           const accessToken =
             authUser.accessToken ??
@@ -79,16 +85,28 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
+    if (!isFirebaseConfigured || !AUTH) {
+      setState({ user: null, loading: false });
+      delete axios.defaults.headers.common.Authorization;
+      return undefined;
+    }
+
     const unsubscribe = onAuthStateChanged(AUTH, (authUser) => {
       syncUserSession(authUser);
     });
 
     return unsubscribe;
-  }, [syncUserSession]);
+  }, [setState, syncUserSession]);
 
   const checkUserSession = useCallback(async () => {
+    if (!isFirebaseConfigured || !AUTH) {
+      setState({ user: null, loading: false });
+      delete axios.defaults.headers.common.Authorization;
+      return;
+    }
+
     await syncUserSession(AUTH.currentUser ?? null);
-  }, [syncUserSession]);
+  }, [setState, syncUserSession]);
 
   // ----------------------------------------------------------------------
 
