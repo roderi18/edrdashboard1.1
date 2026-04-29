@@ -31,6 +31,22 @@ export function OrderDetailsCustomer({ customer }) {
         <Stack spacing={0.5} sx={{ typography: 'body2', alignItems: 'flex-start' }}>
           <Typography variant="subtitle2">{customer?.name}</Typography>
           <Box sx={{ color: 'text.secondary' }}>{customer?.email}</Box>
+          {customer?.codigoMiembro && (
+            <Box sx={{ color: 'text.secondary' }}>{String(customer.codigoMiembro).toUpperCase()}</Box>
+          )}
+          {customer?.memberRole && (
+            <Box sx={{ color: 'text.secondary' }}>{customer.memberRole}</Box>
+          )}
+          {(customer?.destName || customer?.sectionalName || customer?.regionalName) && (
+            <Box sx={{ color: 'text.secondary' }}>
+              {[customer?.destName, customer?.sectionalName, customer?.regionalName]
+                .filter(Boolean)
+                .join(' · ')}
+            </Box>
+          )}
+          {customer?.phoneNumber && (
+            <Box sx={{ color: 'text.secondary' }}>Phone: {customer.phoneNumber}</Box>
+          )}
 
           <div>
             IP address:

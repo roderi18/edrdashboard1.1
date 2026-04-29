@@ -160,6 +160,30 @@ export function InvoiceDetails({ invoice }) {
             <br />
             Phone: {invoice?.invoiceTo.phoneNumber}
             <br />
+            {invoice?.invoiceTo.codigoMiembro && (
+              <>
+                Code: {String(invoice.invoiceTo.codigoMiembro).toUpperCase()}
+                <br />
+              </>
+            )}
+            {invoice?.invoiceTo.memberRole && (
+              <>
+                Role: {invoice.invoiceTo.memberRole}
+                <br />
+              </>
+            )}
+            {(invoice?.invoiceTo.memberId || invoice?.invoiceTo.idMiembros) && (
+              <>
+                Member ID: {invoice.invoiceTo.memberId || invoice.invoiceTo.idMiembros}
+                <br />
+              </>
+            )}
+            {invoice?.invoiceTo.company && (
+              <>
+                Email: {invoice.invoiceTo.company}
+                <br />
+              </>
+            )}
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>
