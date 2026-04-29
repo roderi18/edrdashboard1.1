@@ -11,6 +11,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
+
 import { Label } from 'src/components/label';
 import { CustomPopover } from 'src/components/custom-popover';
 
@@ -27,6 +29,7 @@ export function AccountPopover({ data = [], sx, ...other }) {
   const { open, anchorEl, onClose, onOpen } = usePopover();
 
   const { user } = useAuthContext();
+  const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -40,12 +43,14 @@ export function AccountPopover({ data = [], sx, ...other }) {
           {user?.displayName}
         </Typography>
 
-        <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-          administrador
-        </Typography>
+        {!isMemberSessionUser(user) && (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
+            administrador
+          </Typography>
+        )}
 
         <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-          {user?.email}
+          {memberCode || user?.email}
         </Typography>
       </Box>
 

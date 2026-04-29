@@ -1,10 +1,6 @@
+import { useState, useEffect } from 'react';
+import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { getDestsApi } from 'src/services/dest-service';
-import { SECTIONALS } from 'src/_mock/assets';
-import { getChurches } from 'src/services/church-service';
-import { getStorageCollection } from 'src/utils/storage-service';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -17,21 +13,33 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
-import { parsePhoneNumber } from 'libphonenumber-js';
-import { useState, useEffect } from 'react';
-import { UnderlineLink } from 'src/components/link/underline-link';
 
 import { RouterLink } from 'src/routes/components';
+
+import { resolveById } from 'src/utils/resolve-display-name';
+import { getStorageCollection } from 'src/utils/storage-service';
+
+import { SECTIONALS } from 'src/_mock/assets';
+import { getDestsApi } from 'src/services/dest-service';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
+import { UnderlineLink } from 'src/components/link/underline-link';
 
 import { MemberQuickEditForm } from './member-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function MemberTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canManage = true,
+}) {
   const [dests, setDests] = useState([]);
 
   useEffect(() => {
@@ -45,19 +53,11 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
-  const [churches, setChurches] = useState([]);
   const capitalize = (text = '') =>
-    text
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+    text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
-  const dest = dests.find(
-    (d) => String(d.id) === String(row.destId)
-  );
+  const dest = dests.find((d) => String(d.id) === String(row.destId));
 
-  const church = churches.find(
-    (c) => Number(c.id) === Number(dest?.churchId)
-  );
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
     return role?.label || roleValue;
@@ -69,17 +69,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
   const sectionalName = row.sectionalName || '-';
 
-  const churchName = church?.name || 'Iglesia desconocida';
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
-
-  useEffect(() => {
-    const load = async () => {
-      const data = await getChurches();
-      setChurches(Array.isArray(data) ? data : []);
-    };
-
-    load();
-  }, []);
 
   const leaderships = leadershipAssignments
     .filter(
@@ -96,42 +86,44 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
     }))
     .filter((l) => l.label);
 
-  const renderQuickEditForm = () => (
-    <MemberQuickEditForm
-      currentMember={row}
-      open={quickEditForm.value}
-      onClose={quickEditForm.onFalse}
-    />
-  );
+  const renderQuickEditForm = () =>
+    canManage ? (
+      <MemberQuickEditForm
+        currentMember={row}
+        open={quickEditForm.value}
+        onClose={quickEditForm.onFalse}
+      />
+    ) : null;
 
-  const renderMenuActions = () => (
-    <CustomPopover
-      open={menuActions.open}
-      anchorEl={menuActions.anchorEl}
-      onClose={menuActions.onClose}
-      slotProps={{ arrow: { placement: 'right-top' } }}
-    >
-      <MenuList>
-        <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
-            <Iconify icon="solar:pen-bold" />
-            Edit
+  const renderMenuActions = () =>
+    canManage ? (
+      <CustomPopover
+        open={menuActions.open}
+        anchorEl={menuActions.anchorEl}
+        onClose={menuActions.onClose}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          <li>
+            <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
+              <Iconify icon="solar:pen-bold" />
+              Edit
+            </MenuItem>
+          </li>
+
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Delete
           </MenuItem>
-        </li>
-
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
-      </MenuList>
-    </CustomPopover>
-  );
+        </MenuList>
+      </CustomPopover>
+    ) : null;
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -153,7 +145,8 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}
-            onClick={onSelectRow}
+            disabled={!canManage}
+            onClick={canManage ? onSelectRow : undefined}
             slotProps={{
               input: {
                 id: `${row.memberId}-checkbox`,
@@ -168,25 +161,23 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
             <Avatar alt={row.name} src={row.avatarUrl} />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              <UnderlineLink
-                href={editHref}
-                color="inherit"
-                underline="always"
-              >
-                {row.name}
-              </UnderlineLink>
+              {canManage ? (
+                <UnderlineLink href={editHref} color="inherit" underline="always">
+                  {row.name}
+                </UnderlineLink>
+              ) : (
+                <Box component="span">{row.name}</Box>
+              )}
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {(() => {
                   try {
                     return row.phoneNumber
                       ? parsePhoneNumber(
-                        row.phoneNumber.startsWith('+')
-                          ? row.phoneNumber
-                          : `+1${row.phoneNumber}`
-                      )?.formatNational()
+                          row.phoneNumber.startsWith('+') ? row.phoneNumber : `+1${row.phoneNumber}`
+                        )?.formatNational()
                       : '';
-                  } catch (e) {
+                  } catch {
                     return row.phoneNumber;
                   }
                 })()}
@@ -197,7 +188,6 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-
             <Avatar
               alt={capitalize(dest?.name || '')}
               src={dest?.avatarUrl}
@@ -216,14 +206,9 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {`Iglesia ${capitalize(
-                  church?.name ||
-                  dest?.churchName ||
-                  'desconocida'
-                )}`}
+                {`Iglesia ${capitalize(dest?.churchName || 'desconocida')}`}
               </Box>
             </Stack>
-
           </Box>
         </TableCell>
 
@@ -239,9 +224,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                   let link = '#';
 
                   if (leadership.level === 'dest') {
-                    link = `/dashboard/level/dest?name=${encodeURIComponent(
-                      dest?.name
-                    )}`;
+                    link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`;
                   }
 
                   if (leadership.level === 'sectional') {
@@ -285,9 +268,7 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                         let link = '#';
 
                         if (leadership.level === 'dest') {
-                          link = `/dashboard/level/dest?name=${encodeURIComponent(
-                            dest?.name
-                          )}`;
+                          link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`;
                         }
 
                         if (leadership.level === 'sectional') {
@@ -330,12 +311,12 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
                   </Box>
                 ))}
             </Stack>
+          ) : Array.isArray(row.memberPosition) ? (
+            row.memberPosition.map(getLeadershipRoleLabel).join(', ')
+          ) : row.memberPosition ? (
+            getLeadershipRoleLabel(row.memberPosition)
           ) : (
-            Array.isArray(row.memberPosition)
-              ? row.memberPosition.map(getLeadershipRoleLabel).join(', ')
-              : row.memberPosition
-                ? getLeadershipRoleLabel(row.memberPosition)
-                : 'N/A'
+            'N/A'
           )}
         </TableCell>
 
@@ -350,27 +331,29 @@ export function MemberTableRow({ row, selected, editHref, onSelectRow, onDeleteR
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>
-          {row.memberDivision}
-        </TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Actualización rápida" placement="top" arrow>
-              <IconButton
-                color={quickEditForm.value ? 'inherit' : 'default'}
-                onClick={quickEditForm.onTrue}
-              >
-                <Iconify icon="solar:pen-bold" />
-              </IconButton>
-            </Tooltip>
+            {canManage ? (
+              <>
+                <Tooltip title="Actualización rápida" placement="top" arrow>
+                  <IconButton
+                    color={quickEditForm.value ? 'inherit' : 'default'}
+                    onClick={quickEditForm.onTrue}
+                  >
+                    <Iconify icon="solar:pen-bold" />
+                  </IconButton>
+                </Tooltip>
 
-            <IconButton
-              color={menuActions.open ? 'inherit' : 'default'}
-              onClick={menuActions.onOpen}
-            >
-              <Iconify icon="eva:more-vertical-fill" />
-            </IconButton>
+                <IconButton
+                  color={menuActions.open ? 'inherit' : 'default'}
+                  onClick={menuActions.onOpen}
+                >
+                  <Iconify icon="eva:more-vertical-fill" />
+                </IconButton>
+              </>
+            ) : null}
           </Box>
         </TableCell>
       </TableRow>

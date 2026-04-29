@@ -4,11 +4,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
-import {
-  loadAdminProfile,
-  loadProfileByUid,
-  buildAdminSessionUser,
-} from 'src/utils/admin-profile';
+import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
+import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
+import { loadAdminProfile, loadProfileByUid, buildAdminSessionUser } from 'src/utils/admin-profile';
 
 import axios from 'src/lib/axios';
 import { AUTH } from 'src/lib/firebase';
@@ -34,37 +32,51 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
 export function AuthProvider({ children }) {
   const { state, setState } = useSetState({ user: null, loading: true });
 
-  const syncUserSession = useCallback(async (authUser) => {
-    try {
-      if (authUser) {
-        const accessToken =
-          authUser.accessToken ??
-          authUser.stsTokenManager?.accessToken ??
-          (await authUser.getIdToken?.()) ??
-          null;
+  const syncUserSession = useCallback(
+    async (authUser) => {
+      try {
+        if (authUser) {
+          const accessToken =
+            authUser.accessToken ??
+            authUser.stsTokenManager?.accessToken ??
+            (await authUser.getIdToken?.()) ??
+            null;
 
-        const profileData =
-          (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
-          (await withTimeout(loadProfileByUid('users', authUser.uid), null));
+          const email = String(authUser.email ?? '')
+            .trim()
+            .toLowerCase();
+          const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
 
-        const sessionUser = buildAdminSessionUser(authUser, profileData ?? {});
+          const sessionUser = isMemberAuth
+            ? buildMemberSessionUser(
+                authUser,
+                (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {}
+              )
+            : buildAdminSessionUser(
+                authUser,
+                (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
+                  (await withTimeout(loadProfileByUid('users', authUser.uid), null)) ??
+                  {}
+              );
 
-        setState({ user: { ...sessionUser, accessToken }, loading: false });
+          setState({ user: { ...sessionUser, accessToken }, loading: false });
 
-        if (accessToken) {
-          axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+          if (accessToken) {
+            axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+          }
+
+          return;
         }
 
-        return;
+        setState({ user: null, loading: false });
+        delete axios.defaults.headers.common.Authorization;
+      } catch (error) {
+        console.error(error);
+        setState({ user: null, loading: false });
       }
-
-      setState({ user: null, loading: false });
-      delete axios.defaults.headers.common.Authorization;
-    } catch (error) {
-      console.error(error);
-      setState({ user: null, loading: false });
-    }
-  }, [setState]);
+    },
+    [setState]
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(AUTH, (authUser) => {

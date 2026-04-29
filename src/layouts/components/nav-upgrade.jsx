@@ -8,16 +8,19 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
+import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
+
 import { CONFIG } from 'src/global-config';
 
 import { Label } from 'src/components/label';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
 export function NavUpgrade({ sx, ...other }) {
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+  const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
 
   return (
     <Box
@@ -55,13 +58,23 @@ export function NavUpgrade({ sx, ...other }) {
             {user?.displayName}
           </Typography>
 
-          <Typography
-            variant="body2"
-            noWrap
-            sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
-          >
-            {user?.email}
-          </Typography>
+          {memberCode ? (
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
+            >
+              {memberCode}
+            </Typography>
+          ) : (
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
+            >
+              {user?.email}
+            </Typography>
+          )}
         </Box>
 
         <Button

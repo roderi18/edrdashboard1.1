@@ -1,28 +1,24 @@
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { parsePhoneNumber } from 'libphonenumber-js';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
-import { getStorageCollection } from 'src/utils/storage-service';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
-import { useState, useEffect } from 'react';
+import { useTheme, useMediaQuery } from '@mui/material';
 
-import { _socials } from 'src/_mock';
+import { getStorageCollection } from 'src/utils/storage-service';
+
 import { AvatarShape } from 'src/assets/illustrations';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import { Image } from 'src/components/image';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { parsePhoneNumber } from 'libphonenumber-js';
-import { useTheme, useMediaQuery } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import { SECTIONALS } from 'src/_mock/assets';
-import { getChurches } from 'src/services/church-service';
 // ----------------------------------------------------------------------
 
-export function MemberCard({ member, sx, ...other }) {
-
+export function MemberCard({ member, sx, canManage = true, ...other }) {
   const memberDivisionCoverMap = {
     Exploradores: '/assets/images/divisions/member/exploradores3.jpg',
     Seguidores: '/assets/images/divisions/member/seguidores.jpg',
@@ -36,34 +32,23 @@ export function MemberCard({ member, sx, ...other }) {
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const [dests, setDests] = useState([]);
-  const [churches, setChurches] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       const res = await fetch('/api/dest');
       const data = await res.json();
       setDests(data?.Data || []);
-
-      const churchesData = await getChurches();
-      setChurches(Array.isArray(churchesData) ? churchesData : []);
     };
     load();
   }, []);
 
   const coverSrc =
-    memberDivisionCoverMap[member.memberDivision?.trim()] ||
-    '/assets/images/divisions/default.jpg';
+    memberDivisionCoverMap[member.memberDivision?.trim()] || '/assets/images/divisions/default.jpg';
 
-  const dest = dests.find(
-    (d) => Number(d.idDestacamento) === Number(member.destId)
-  );
+  const dest = dests.find((d) => Number(d.idDestacamento) === Number(member.destId));
   console.log('MEMBER 👉', member);
   console.log('DESTS 👉', dests);
   console.log('MATCH DEST 👉', dest);
-  const church = churches.find(
-    (c) => Number(c.id) === Number(dest?.churchId)
-  );
-
   const sectionalName = member?.sectionalName || '-';
 
   let leaderships = leadershipAssignments
@@ -89,6 +74,7 @@ export function MemberCard({ member, sx, ...other }) {
   }
 
   const handleEdit = () => {
+    if (!canManage) return;
     router.push(`/dashboard/level/member/${member.idMiembros}/edit`);
   };
 
@@ -108,7 +94,7 @@ export function MemberCard({ member, sx, ...other }) {
         />
 
         <Avatar
-          onClick={handleEdit}
+          onClick={canManage ? handleEdit : undefined}
           alt={member.name}
           src={member.avatarUrl}
           sx={{
@@ -120,7 +106,7 @@ export function MemberCard({ member, sx, ...other }) {
             mx: 'auto',
             bottom: -32,
             position: 'absolute',
-            cursor: 'pointer',
+            cursor: canManage ? 'pointer' : 'default',
           }}
         />
 
@@ -130,26 +116,25 @@ export function MemberCard({ member, sx, ...other }) {
           ratio="16/6"
           slotProps={{
             overlay: {
-              sx: (theme) => ({
+              sx: (overlayTheme) => ({
                 // sombra img trasera
-                bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.46),
+                bgcolor: varAlpha(overlayTheme.vars.palette.common.blackChannel, 0.46),
               }),
             },
           }}
         />
       </Box>
 
-
       {/* nombre img */}
       <ListItemText
         sx={{ mt: 6, mb: 0.5 }}
         primary={
           <Box
-            onClick={handleEdit}
+            onClick={canManage ? handleEdit : undefined}
             sx={{
               typography: 'subtitle1',
-              cursor: 'pointer',
-              '&:hover': { textDecoration: 'underline' },
+              cursor: canManage ? 'pointer' : 'default',
+              '&:hover': canManage ? { textDecoration: 'underline' } : undefined,
             }}
           >
             {member.name}
@@ -185,15 +170,11 @@ export function MemberCard({ member, sx, ...other }) {
             let link = '#';
 
             if (leadership.level === 'dest') {
-              link = `/dashboard/level/dest?name=${encodeURIComponent(
-                dest?.name || ''
-              )}`;
+              link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name || '')}`;
             }
 
             if (leadership.level === 'sectional') {
-              link = `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                sectionalName
-              )}`;
+              link = `/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`;
             }
 
             if (leadership.level === 'regional') {
@@ -234,13 +215,13 @@ export function MemberCard({ member, sx, ...other }) {
             try {
               return member.phoneNumber
                 ? parsePhoneNumber(
-                  member.phoneNumber.startsWith('+')
-                    ? member.phoneNumber
-                    : `+1${member.phoneNumber}`
-                )?.formatNational()
+                    member.phoneNumber.startsWith('+')
+                      ? member.phoneNumber
+                      : `+1${member.phoneNumber}`
+                  )?.formatNational()
                 : '';
-            } catch (e) {
-              return row.phoneNumber;
+            } catch {
+              return member.phoneNumber;
             }
           })()}
         </Box>
@@ -269,11 +250,7 @@ export function MemberCard({ member, sx, ...other }) {
           {/* Destacamento */}
           <Box
             onClick={() =>
-              router.push(
-                `/dashboard/level/dest?dest=${encodeURIComponent(
-                  member.destId
-                )}`
-              )
+              router.push(`/dashboard/level/dest?dest=${encodeURIComponent(member.destId)}`)
             }
             sx={{
               typography: 'caption',
@@ -304,9 +281,7 @@ export function MemberCard({ member, sx, ...other }) {
           <Box
             onClick={() =>
               router.push(
-                `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                  sectionalName
-                )}`
+                `/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`
               )
             }
             sx={{

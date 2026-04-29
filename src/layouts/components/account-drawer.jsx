@@ -17,6 +17,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
+
 import { _mock } from 'src/_mock';
 
 import { Label } from 'src/components/label';
@@ -36,6 +38,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
+  const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -152,12 +155,14 @@ export function AccountDrawer({ data = [], sx, ...other }) {
               {user?.displayName}
             </Typography>
 
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              administrador
-            </Typography>
+            {!isMemberSessionUser(user) && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+                administrador
+              </Typography>
+            )}
 
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              {user?.email}
+              {memberCode || user?.email}
             </Typography>
           </Box>
 
@@ -178,7 +183,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
                 <Avatar
                   alt={_mock.fullName(index + 1)}
                   src={_mock.image.avatar(index + 1)}
-                  onClick={() => { }}
+                  onClick={() => {}}
                 />
               </Tooltip>
             ))}

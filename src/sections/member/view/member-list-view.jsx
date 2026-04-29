@@ -3,7 +3,7 @@
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -23,6 +23,11 @@ import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
+import {
+  isMemberSessionUser,
+  canMemberManageMembers,
+  filterMembersByMemberScope,
+} from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
@@ -50,6 +55,8 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { MemberTableRow } from '../member-table-row';
 import { MemberCardList } from '../member-card-list';
 import { MemberTableToolbar } from '../member-table-toolbar';
@@ -68,6 +75,7 @@ const TABLE_HEAD = [
 
 export function MemberListView() {
   const table = useTable();
+  const { user, loading } = useAuthContext();
   const [dests, setDests] = useState([]);
 
   useEffect(() => {
@@ -117,6 +125,28 @@ export function MemberListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState([]);
+  const visibleMembers = useMemo(
+    () => filterMembersByMemberScope(tableData, user),
+    [tableData, user]
+  );
+  const memberCanManage = isMemberSessionUser(user) ? canMemberManageMembers(user) : true;
+  const memberDestLabel = useMemo(() => {
+    if (!isMemberSessionUser(user)) {
+      return '';
+    }
+
+    const allowedDest = user?.alcance?.destacamentos?.[0];
+
+    if (!allowedDest) {
+      return '';
+    }
+
+    const foundDest = dests.find((dest) => String(dest.id) === String(allowedDest));
+    const destName = foundDest?.name || foundDest?.nombre || foundDest?.destName || '';
+    const destNumber = foundDest?.destNumber || foundDest?.numero || foundDest?.number || '';
+
+    return [destName, destNumber].filter(Boolean).join(' ') || `destacamento ${allowedDest}`;
+  }, [dests, user]);
 
   useEffect(() => {
     async function loadData() {
@@ -164,12 +194,12 @@ export function MemberListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const distinctdestName = getAvailableOptionsFromData({
-    inputData: tableData,
+    inputData: visibleMembers,
     property: 'destId',
     labelResolver: (id) => dests.find((d) => d.id === id)?.name || id,
   });
 
-  const distinctPositions = [...new Set(tableData.flatMap((m) => m.memberPosition || []))].map(
+  const distinctPositions = [...new Set(visibleMembers.flatMap((m) => m.memberPosition || []))].map(
     (role) => {
       const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
 
@@ -180,7 +210,7 @@ export function MemberListView() {
     }
   );
   const distinctSectionals = getAvailableOptionsFromData({
-    inputData: tableData,
+    inputData: visibleMembers,
     property: 'sectionalId',
     labelResolver: (id) => {
       const found = sectionals.find((s) => String(s.id) === String(id));
@@ -211,11 +241,11 @@ export function MemberListView() {
   }, [destFromUrl, sectionFromUrl, updateFilters, table]);
 
   const memberFromUrl = memberIdFromUrl
-    ? tableData.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
+    ? visibleMembers.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
     : null;
 
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: visibleMembers,
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
   });
@@ -254,30 +284,6 @@ export function MemberListView() {
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
-  const handleFilterdestName = useCallback(
-    (event, newValue) => {
-      table.onResetPage();
-      updateFilters({
-        destName:
-          newValue === 'all' ? [] : [typeof newValue === 'object' ? newValue.value : newValue],
-      });
-    },
-    [updateFilters, table]
-  );
-
-  const handleFilterSectionalId = useCallback(
-    (event) => {
-      const newValue =
-        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
-
-      table.onResetPage();
-      updateFilters({
-        sectionalId: newValue.map((v) => (typeof v === 'object' ? v.value : v)),
-      });
-    },
-    [table, updateFilters]
-  );
-
   const handleFilterMemberDivisionTab = useCallback(
     (event, newValue) => {
       table.onResetPage();
@@ -313,13 +319,15 @@ export function MemberListView() {
     />
   );
 
-  if (!hydrated) return null;
+  if (loading || !hydrated) return null;
 
   return (
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Lista de miembros"
+          heading={
+            memberDestLabel ? `Lista de miembros del ${memberDestLabel}` : 'Lista de miembros'
+          }
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Miembros', href: paths.dashboard.level.member.root },
@@ -329,14 +337,16 @@ export function MemberListView() {
               : [{ name: 'Lista' }]),
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.member.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Crear nuevo
-            </Button>
+            memberCanManage ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.member.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -378,9 +388,9 @@ export function MemberListView() {
                     {['Liderazgo', 'Exploradores', 'Seguidores', 'Pioneros', 'Navegantes'].includes(
                       tab.value
                     )
-                      ? tableData.filter((sectional) => sectional.memberDivision === tab.value)
+                      ? visibleMembers.filter((sectional) => sectional.memberDivision === tab.value)
                           .length
-                      : tableData.length}
+                      : visibleMembers.length}
                   </Label>
                 }
               />
@@ -393,7 +403,8 @@ export function MemberListView() {
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
             sectionals={sectionals}
-            members={tableData}
+            members={visibleMembers}
+            canManageMembers={memberCanManage}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,
@@ -417,24 +428,26 @@ export function MemberListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+            {memberCanManage && (
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+                action={
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
+            )}
 
             {displayMode === 'panel' ? (
               <Scrollbar>
@@ -465,7 +478,8 @@ export function MemberListView() {
                           key={row.id}
                           row={row}
                           selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
+                          canManage={memberCanManage}
+                          onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                           onDeleteRow={() => handleDeleteRow(row.id)}
                           editHref={paths.dashboard.level.member.edit(row.id)}
                         />
@@ -481,7 +495,7 @@ export function MemberListView() {
                 </Table>
               </Scrollbar>
             ) : (
-              <MemberCardList members={dataFiltered} />
+              <MemberCardList members={dataFiltered} canManage={memberCanManage} />
             )}
           </Box>
 

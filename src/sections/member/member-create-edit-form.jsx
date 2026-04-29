@@ -1,91 +1,83 @@
-// react
-import { useState, useEffect } from 'react';
-
 // third-party
 import dayjs from 'dayjs';
+// react
+import { useState, useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, Controller } from 'react-hook-form';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { getApp, deleteApp, initializeApp } from 'firebase/app';
 import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 
 // mui
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import { useMediaQuery, useTheme } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
-import provinciasData from 'src/data/provincias.json';
-import municipiosData from 'src/data/municipios.json';
-import barriosData from 'src/data/barrios.json';
-import { CONFIG } from 'src/global-config';
-import { FIRESTORE } from 'src/lib/firebase';
-import { getDivisions } from 'src/services/division-service';
-import DebugPayloadButton from 'src/components/debug/DebugPayloadButton';
+import { useTheme, useMediaQuery } from '@mui/material';
+import FormControlLabel from '@mui/material/FormControlLabel';
+
 // routes
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-// services
-import {
-  saveMemberWithLeadership,
-  getLeadershipAssignments,
-  getMembers,
-} from 'src/services/member-service';
-import { getDests } from 'src/services/dest-service';
-
-import { useAuthContext } from 'src/auth/hooks';
-
-// models
-import { MemberValidationSchema } from 'src/models/member-schema';
-
 // utils
 import { fData } from 'src/utils/format-number';
-import { generateMemberId } from 'src/utils/generate-member-id';
-import { capitalizeWords } from 'src/utils/capitalize-words';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { generateMemberId } from 'src/utils/generate-member-id';
+import { buildDefaultMemberPermissions } from 'src/utils/member-access';
+import {
+  calcularEstatusCI,
+  calcularVencimientoCI,
+  calcularDiasRestantesCI,
+} from 'src/utils/ci-utils';
 import {
   buildMemberAuthEmail,
   buildMemberAuthPassword,
   normalizeMemberUsername,
 } from 'src/utils/member-auth-credentials';
-import {
-  calcularVencimientoCI,
-  calcularEstatusCI,
-  calcularDiasRestantesCI,
-} from 'src/utils/ci-utils';
 
+import { CONFIG } from 'src/global-config';
+import { FIRESTORE } from 'src/lib/firebase';
+import barriosData from 'src/data/barrios.json';
+import provinciasData from 'src/data/provincias.json';
+import municipiosData from 'src/data/municipios.json';
+import { getDivisions } from 'src/services/division-service';
+// models
+import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
-import { SECTIONALS, REGIONALS, CHURCHES } from 'src/_mock/assets';
+import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
+// services
+import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
-
-// local options
-import {
-  MEMBER_OCUPATIONS_SORTED,
-  MEMBER_SHIRT_SIZES,
-  NATIONAL_LEADERSHIP_LEVELS,
-} from './member-create-edit-options';
 
 // components
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { UnderlineLink } from 'src/components/link/underline-link';
-import { ContextInfo } from 'src/components/info/context-info';
 import { Form, Field } from 'src/components/hook-form';
-
+import { ContextInfo } from 'src/components/info/context-info';
+import { UnderlineLink } from 'src/components/link/underline-link';
+import DebugPayloadButton from 'src/components/debug/DebugPayloadButton';
 // form sections
 import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
 import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
-import MemberLeadershipAndOtherSection from 'src/components/form/member-form/MemberLeadershipAndOtherSection';
 import MemberInstructorCISection from 'src/components/form/member-form/MemberInstructorCISection';
+import MemberLeadershipAndOtherSection from 'src/components/form/member-form/MemberLeadershipAndOtherSection';
+
+import { useAuthContext } from 'src/auth/hooks';
+
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
+// local options
+import {
+  MEMBER_SHIRT_SIZES,
+  MEMBER_OCUPATIONS_SORTED,
+  NATIONAL_LEADERSHIP_LEVELS,
+} from './member-create-edit-options';
 // ----------------------------------------------------------------------
 
 const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
@@ -106,7 +98,13 @@ const withTimeout = (promise, milliseconds, errorMessage) =>
     }),
   ]);
 
-const createFirebaseAuthForMember = async ({ codigoMiembro, firstName, lastName, destId }) => {
+const createFirebaseAuthForMember = async ({
+  codigoMiembro,
+  firstName,
+  lastName,
+  destId,
+  memberId,
+}) => {
   let secondaryAuth = null;
 
   try {
@@ -141,6 +139,30 @@ const createFirebaseAuthForMember = async ({ codigoMiembro, firstName, lastName,
         5000,
         'No se pudo guardar el perfil extra del usuario Firebase.'
       ),
+      withTimeout(
+        setDoc(doc(collection(FIRESTORE, 'usuarios_roles'), String(memberId || codigoMiembro)), {
+          idMiembros: memberId ? Number(memberId) : null,
+          codigoMiembro,
+          uid: credential.user.uid,
+          correo: emailFake,
+          nombre: displayName,
+          rol: 'miembro',
+          estado: 'activo',
+          alcance: {
+            modo: 'destacamento',
+            destacamentos: destId ? [Number(destId)] : [],
+            regiones: [],
+            secciones: [],
+          },
+          permisos: {
+            ...buildDefaultMemberPermissions(),
+          },
+          creadoEn: new Date().toISOString(),
+          actualizadoEn: new Date().toISOString(),
+        }),
+        5000,
+        'No se pudo guardar los permisos base del miembro.'
+      ),
     ]).then((results) => {
       results
         .filter((result) => result.status === 'rejected')
@@ -152,7 +174,7 @@ const createFirebaseAuthForMember = async ({ codigoMiembro, firstName, lastName,
     return { emailFake, username, password };
   } finally {
     if (secondaryAuth?.app) {
-      deleteApp(secondaryAuth.app).catch(() => { });
+      deleteApp(secondaryAuth.app).catch(() => {});
     }
   }
 };
@@ -662,9 +684,9 @@ export function MemberCreateEditForm({ currentMember }) {
         if (!res.ok) {
           throw new Error(
             responseData?.Message ||
-            responseData?.error ||
-            text ||
-            `Error de red o servidor (${res.status})`
+              responseData?.error ||
+              text ||
+              `Error de red o servidor (${res.status})`
           );
         }
 
@@ -682,11 +704,19 @@ export function MemberCreateEditForm({ currentMember }) {
 
         if (!currentMember) {
           try {
+            const createdMembers = await getMembers();
+            const createdMember = (Array.isArray(createdMembers) ? createdMembers : []).find(
+              (member) =>
+                normalizeMemberUsername(member?.memberId || member?.codigoMiembro || member?.id) ===
+                normalizeMemberUsername(codigoMiembro)
+            );
+
             const authCredentials = await createFirebaseAuthForMember({
               codigoMiembro,
               firstName: submittedFirstName,
               lastName: submittedLastName,
               destId: selectedDestId,
+              memberId: createdMember?.id || null,
             });
 
             console.log('[member form] firebase auth user created', {
@@ -723,8 +753,8 @@ export function MemberCreateEditForm({ currentMember }) {
       }
     },
 
-    (errors) => {
-      if (Object.keys(errors).length > 0) {
+    (validationErrors) => {
+      if (Object.keys(validationErrors).length > 0) {
         setFormErrorMessage(true);
 
         setTimeout(() => {
@@ -915,14 +945,12 @@ export function MemberCreateEditForm({ currentMember }) {
               }}
             >
               {(!isCreateView || step === 1) && (
-                <>
-                  <MemberGeneralSection
-                    age={age}
-                    division={division}
-                    isCreateView={isCreateView}
-                    control={control}
-                  />
-                </>
+                <MemberGeneralSection
+                  age={age}
+                  division={division}
+                  isCreateView={isCreateView}
+                  control={control}
+                />
               )}
 
               {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
@@ -1082,13 +1110,15 @@ export function MemberCreateEditForm({ currentMember }) {
                       />
                       <Field.DatePicker
                         name="FechaVencimientoCI"
-                        label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
-                          ? ` (${diasRestantesCI >= 0
-                            ? `${diasRestantesCI} dÃƒÂ­as restantes`
-                            : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
-                          })`
-                          : ''
-                          }`}
+                        label={`Fecha vencimiento CI${
+                          diasRestantesCI !== null && diasRestantesCI <= 365
+                            ? ` (${
+                                diasRestantesCI >= 0
+                                  ? `${diasRestantesCI} dÃƒÂ­as restantes`
+                                  : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
+                              })`
+                            : ''
+                        }`}
                         format="DD/MM/YYYY"
                         views={['year', 'month', 'day']}
                         disabled

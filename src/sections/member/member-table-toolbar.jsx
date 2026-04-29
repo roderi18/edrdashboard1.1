@@ -91,14 +91,18 @@ function MembersPdfDocument({ members }) {
                 {getValue(member.memberId || member.codigoMiembro)}
               </Text>
               <Text style={[pdfStyles.cell, pdfStyles.name]}>
-                {getValue(member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim())}
+                {getValue(
+                  member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim()
+                )}
               </Text>
               <Text style={[pdfStyles.cell, pdfStyles.phone]}>{getValue(member.phoneNumber)}</Text>
               <Text style={[pdfStyles.cell, pdfStyles.email]}>{getValue(member.email)}</Text>
               <Text style={[pdfStyles.cell, pdfStyles.dest]}>
                 {getValue(member.destName || member.destamento || member.idDestacamento)}
               </Text>
-              <Text style={[pdfStyles.cell, pdfStyles.section]}>{getValue(member.sectionalName)}</Text>
+              <Text style={[pdfStyles.cell, pdfStyles.section]}>
+                {getValue(member.sectionalName)}
+              </Text>
             </View>
           ))}
         </View>
@@ -115,6 +119,7 @@ export function MemberTableToolbar({
   options,
   sectionals,
   members = [],
+  canManageMembers = true,
 }) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
@@ -148,9 +153,7 @@ export function MemberTableToolbar({
 
       onResetPage();
       updateFilters({
-        destName: newValue.map((v) =>
-          typeof v === 'object' ? v.value : v
-        ),
+        destName: newValue.map((v) => (typeof v === 'object' ? v.value : v)),
       });
     },
     [onResetPage, updateFilters]
@@ -159,15 +162,11 @@ export function MemberTableToolbar({
   const handleFilterSectionalId = useCallback(
     (event) => {
       const newValue =
-        typeof event.target.value === 'string'
-          ? event.target.value.split(',')
-          : event.target.value;
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
       updateFilters({
-        sectionalId: newValue.map((v) =>
-          typeof v === 'object' ? v.value : v
-        ),
+        sectionalId: newValue.map((v) => (typeof v === 'object' ? v.value : v)),
       });
     },
     [onResetPage, updateFilters]
@@ -227,9 +226,7 @@ export function MemberTableToolbar({
   const getNextMemberCode = (() => {
     let nextNumber = Math.max(
       10000,
-      ...members
-        .map((member) => getMemberCodeNumber(member))
-        .filter(Boolean)
+      ...members.map((member) => getMemberCodeNumber(member)).filter(Boolean)
     );
 
     return () => {
@@ -251,7 +248,9 @@ export function MemberTableToolbar({
         const fechaNacimiento = formatExcelDate(
           getCell(row, ['fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
         );
-        const idDestacamento = Number(getCell(row, ['idDestacamento', 'destId', 'ID Destacamento']));
+        const idDestacamento = Number(
+          getCell(row, ['idDestacamento', 'destId', 'ID Destacamento'])
+        );
 
         if (!nombres) throw new Error('La columna nombres es requerida.');
         if (!apellidos) throw new Error('La columna apellidos es requerida.');
@@ -263,7 +262,8 @@ export function MemberTableToolbar({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             idMiembros: 0,
-            codigoMiembro: getCell(row, ['codigoMiembro', 'Código', 'Codigo']) || getNextMemberCode(),
+            codigoMiembro:
+              getCell(row, ['codigoMiembro', 'Código', 'Codigo']) || getNextMemberCode(),
             nombres,
             apellidos,
             genero: getCell(row, ['genero', 'Género', 'Genero']) || null,
@@ -279,10 +279,12 @@ export function MemberTableToolbar({
               getCell(row, ['instructorCertificadoCi', 'Instructor CI']) || false,
             estatusVigenciaCi: getCell(row, ['estatusVigenciaCi', 'Estatus CI']) || false,
             fechaInicioCertificado:
-              formatExcelDate(getCell(row, ['fechaInicioCertificado', 'Fecha inicio certificado'])) ||
-              null,
+              formatExcelDate(
+                getCell(row, ['fechaInicioCertificado', 'Fecha inicio certificado'])
+              ) || null,
             fechaFinCertificado:
-              formatExcelDate(getCell(row, ['fechaFinCertificado', 'Fecha fin certificado'])) || null,
+              formatExcelDate(getCell(row, ['fechaFinCertificado', 'Fecha fin certificado'])) ||
+              null,
             estatusMiembro: getCell(row, ['estatusMiembro', 'Estatus']) || 'activo',
             cargosmiembros: [],
             idDestacamentoNavigation: null,
@@ -320,7 +322,6 @@ export function MemberTableToolbar({
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-
         {/* 🔥 SOLO EN MOBILE → opciones de vista */}
         {isMobile && [
           <MenuItem
@@ -345,7 +346,7 @@ export function MemberTableToolbar({
           >
             <Iconify icon="mingcute:dot-grid-fill" />
             Grid
-          </MenuItem>
+          </MenuItem>,
         ]}
 
         {/* Acciones normales */}
@@ -359,11 +360,12 @@ export function MemberTableToolbar({
           Descargar
         </MenuItem>
 
-        <MenuItem onClick={() => uploadInputRef.current?.click()}>
-          <Iconify icon="solar:export-bold" />
-          Subir
-        </MenuItem>
-
+        {canManageMembers && (
+          <MenuItem onClick={() => uploadInputRef.current?.click()}>
+            <Iconify icon="solar:export-bold" />
+            Subir
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -380,7 +382,6 @@ export function MemberTableToolbar({
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-
         <Box
           sx={{
             gap: 2,
@@ -412,9 +413,7 @@ export function MemberTableToolbar({
           <>
             {/* Destacamento */}
             <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-destName-select">
-                Destacamento
-              </InputLabel>
+              <InputLabel htmlFor="filter-destName-select">Destacamento</InputLabel>
 
               <Select
                 multiple
@@ -422,9 +421,7 @@ export function MemberTableToolbar({
                 value={currentFilters.destName}
                 onChange={handleFilterdestName}
                 renderValue={(selected) =>
-                  selected
-                    .map((id) => dests.find((d) => d.id === id)?.name)
-                    .join(', ')
+                  selected.map((id) => dests.find((d) => d.id === id)?.name).join(', ')
                 }
                 inputProps={{ id: 'filter-destName-select' }}
                 MenuProps={{
@@ -442,9 +439,7 @@ export function MemberTableToolbar({
 
             {/* Posición */}
             <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-memberPosition-select">
-                Posición
-              </InputLabel>
+              <InputLabel htmlFor="filter-memberPosition-select">Posición</InputLabel>
 
               <Select
                 multiple
@@ -479,9 +474,7 @@ export function MemberTableToolbar({
 
             {/* Sección */}
             <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-sectionalId-select">
-                Sección
-              </InputLabel>
+              <InputLabel htmlFor="filter-sectionalId-select">Sección</InputLabel>
 
               <Select
                 multiple
@@ -493,28 +486,23 @@ export function MemberTableToolbar({
                     .map((id) => {
                       const found = Array.isArray(sectionals)
                         ? sectionals.find(
-                          (s) =>
-                            s.id?.toString() === id?.toString() ||
-                            s.idSeccion?.toString() === id?.toString()
-                        )
+                            (s) =>
+                              s.id?.toString() === id?.toString() ||
+                              s.idSeccion?.toString() === id?.toString()
+                          )
                         : null;
                       console.log('DEBUG SECTION FILTER 👉', {
                         selectedId: id,
                         sectionals,
                         found: Array.isArray(sectionals)
                           ? sectionals.find(
-                            (s) =>
-                              s.id?.toString() === id?.toString() ||
-                              s.idSeccion?.toString() === id?.toString()
-                          )
+                              (s) =>
+                                s.id?.toString() === id?.toString() ||
+                                s.idSeccion?.toString() === id?.toString()
+                            )
                           : 'sectionals NO ES ARRAY',
                       });
-                      return (
-                        found?.sectionalName ||
-                        found?.nombre ||
-                        found?.name ||
-                        id
-                      );
+                      return found?.sectionalName || found?.nombre || found?.name || id;
                     })
                     .join(', ')
                 }
@@ -554,8 +542,8 @@ export function MemberTableToolbar({
               onChange={handleFilterName}
               placeholder="Buscar nombre..."
               sx={{
-                flex: 1,        // 🔥 ocupa TODO el espacio sobrante
-                minWidth: 0,    // 🔥 evita que rompa el flexbox
+                flex: 1, // 🔥 ocupa TODO el espacio sobrante
+                minWidth: 0, // 🔥 evita que rompa el flexbox
               }}
               InputProps={{
                 startAdornment: (
@@ -581,9 +569,7 @@ export function MemberTableToolbar({
                   onChange: handleFilterdestName,
                   options: options.destName,
                   renderValue: (selected) =>
-                    selected
-                      .map((id) => dests.find((d) => d.id === id)?.name)
-                      .join(', '),
+                    selected.map((id) => dests.find((d) => d.id === id)?.name).join(', '),
                 },
                 {
                   key: 'memberPosition',
@@ -607,13 +593,10 @@ export function MemberTableToolbar({
                   onChange: handleFilterSectionalId,
                   options: options.sectionalId,
                   renderValue: (selected) =>
-                    selected
-                      .map((id) => sectionals.find((s) => s.id === id)?.name)
-                      .join(', '),
+                    selected.map((id) => sectionals.find((s) => s.id === id)?.name).join(', '),
                 },
               ]}
             />
-
 
             {/* ⋮ More */}
             <IconButton onClick={menuActions.onOpen}>
@@ -632,7 +615,6 @@ export function MemberTableToolbar({
               ml: 'auto', // 🔥 los empuja a la derecha
             }}
           >
-
             {!isMobile && (
               <ViewModeToggle
                 value={displayMode}
@@ -646,7 +628,7 @@ export function MemberTableToolbar({
             </IconButton>
           </Box>
         )}
-      </Box >
+      </Box>
 
       {renderMenuActions()}
       <input

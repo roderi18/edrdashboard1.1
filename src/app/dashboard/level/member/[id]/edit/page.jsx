@@ -1,20 +1,27 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+
+import Alert from '@mui/material/Alert';
 
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { mapApiMemberToUI } from 'src/services/member-service';
 
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 export default function Page() {
   const { id } = useParams();
+  const { user, loading } = useAuthContext();
 
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
+  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
 
   useEffect(() => {
     const load = async () => {
@@ -70,8 +77,18 @@ export default function Page() {
   }, [id]);
   if (!hydrated) return null;
 
+  if (loading) return null;
+
   if (!currentMember) {
     return <div>Miembro no encontrado</div>;
+  }
+
+  if (!canManage) {
+    return (
+      <MemberEditLayout>
+        <Alert severity="warning">No tienes permisos para editar miembros.</Alert>
+      </MemberEditLayout>
+    );
   }
 
   return (

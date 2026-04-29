@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
 
@@ -7,6 +8,8 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
+
+import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
 import { _contacts, _notifications } from 'src/_mock';
@@ -47,7 +50,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navData = slotProps?.nav?.data ?? dashboardNavData;
+  const navData = useMemo(() => {
+    const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
+
+    if (!isMemberSessionUser(user)) {
+      return baseNavData;
+    }
+
+    return filterDashboardNavDataForMember(baseNavData, user);
+  }, [slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
