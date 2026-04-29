@@ -54,6 +54,8 @@ import { DestTableToolbar } from '../dest-table-toolbar';
 import { DestTableFiltersResult } from '../dest-table-filters-result';
 import { DestCardList } from '../dest-card-list';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
+import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-access';
+import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_NAME_OPTIONS];
@@ -69,16 +71,16 @@ const TABLE_HEAD = [
 
 // ----------------------------------------------------------------------
 export function DestListView() {
-
   const table = useTable();
   const confirmDialog = useBoolean();
+  const { user } = useAuthContext();
   const [sectionals, setSectionals] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
   const [members, setMembers] = useState([]);
 
   const buildDestList = (apiDests) => {
-    console.log("DESTS API:", apiDests);
+    console.log('DESTS API:', apiDests);
     const allDests = apiDests;
 
     return allDests.map((dest) => {
@@ -96,22 +98,19 @@ export function DestListView() {
       );
 
       const coordinator =
-        members.find(
-          (m) => String(m.memberId) === String(dest.coordinatorId)
-        ) ||
+        members.find((m) => String(m.memberId) === String(dest.coordinatorId)) ||
         (leadership
           ? members.find(
-            (m) =>
-              String(m.memberId) === String(leadership.memberId) ||
-              String(m.id) === String(leadership.memberId)
-          )
+              (m) =>
+                String(m.memberId) === String(leadership.memberId) ||
+                String(m.id) === String(leadership.memberId)
+            )
           : null);
       const allMembers = members;
 
       const church = churches.find(
         (c) =>
-          Number(c.idIglesia) === Number(dest.idIglesia) ||
-          Number(c.id) === Number(dest.idIglesia)
+          Number(c.idIglesia) === Number(dest.idIglesia) || Number(c.id) === Number(dest.idIglesia)
       );
 
       console.log('MATCH CHURCH 👉', {
@@ -135,9 +134,7 @@ export function DestListView() {
         sectionalEncontrada: sectional,
       });
 
-      const regional = regionals.find(
-        (r) => Number(r.idRegion) === Number(sectional?.idRegion)
-      );
+      const regional = regionals.find((r) => Number(r.idRegion) === Number(sectional?.idRegion));
 
       const sectionalId = sectional?.idSeccion || sectional?.id || null;
       const sectionalName = sectional?.nombre || sectional?.name || null;
@@ -191,7 +188,11 @@ export function DestListView() {
 
       console.log('DATA DEST RAW 👉', data?.Data);
 
-      const built = buildDestList(data?.Data || []);
+      const scopedDests = isMemberSessionUser(user)
+        ? filterDestsByMemberScope(data?.Data || [], user)
+        : data?.Data || [];
+
+      const built = buildDestList(scopedDests);
 
       console.log('DATA DEST BUILT 👉', built);
 
@@ -199,16 +200,11 @@ export function DestListView() {
     };
 
     load();
-  }, [members, churches, sectionals, regionals]);
+  }, [members, churches, sectionals, regionals, user]);
 
   useEffect(() => {
     async function load() {
-      const [
-        sectionalsData,
-        regionalsData,
-        churchesData,
-        membersData,
-      ] = await Promise.all([
+      const [sectionalsData, regionalsData, churchesData, membersData] = await Promise.all([
         getSectionals(),
         getRegionals(),
         getChurches(),
@@ -236,9 +232,7 @@ export function DestListView() {
   const getDestCountByRegion = (regionName) => {
     if (regionName === 'all') return tableData.length;
 
-    return tableData.filter(
-      (dest) => dest.regionalName === regionName
-    ).length;
+    return tableData.filter((dest) => dest.regionalName === regionName).length;
   };
 
   const distinctSectionalFullName = (sectionals || []).map((s) => ({
@@ -247,7 +241,6 @@ export function DestListView() {
   }));
 
   console.log('OPTIONS SECTIONAL FINAL 👉', sectionals);
-
 
   useEffect(() => {
     if (appliedFromUrl.current) return;
@@ -263,9 +256,7 @@ export function DestListView() {
     if (!sectionalFromUrl) return;
     if (appliedFromUrl.current) return;
 
-    const church = getChurches().find(
-      (c) => c.id === dest.churchId
-    );
+    const church = getChurches().find((c) => c.id === dest.churchId);
 
     if (!sectional) return;
 
@@ -275,7 +266,8 @@ export function DestListView() {
     appliedFromUrl.current = true;
   }, [sectionalFromUrl, updateFilters, table]);
 
-  useEffect(() => { //vista panel en pantalla pequeña, use DENSE true
+  useEffect(() => {
+    //vista panel en pantalla pequeña, use DENSE true
     if (isMobile) {
       table.setDense(true);
     } else {
@@ -288,11 +280,9 @@ export function DestListView() {
     if (!regionFromUrl) return;
     if (appliedFromUrl.current) return;
 
-    const regional = regionals.find(
-      (r) => r.id === regionFromUrl
-    );
-    console.log("REGION BUSCADA:", sectional?.regionalId);
-    console.log("REGION ENCONTRADA:", regional);
+    const regional = regionals.find((r) => r.id === regionFromUrl);
+    console.log('REGION BUSCADA:', sectional?.regionalId);
+    console.log('REGION ENCONTRADA:', regional);
 
     if (!regional) return;
 
@@ -311,7 +301,6 @@ export function DestListView() {
     appliedFromUrl.current = true;
   }, [memberFromUrl, updateFilters, table]);
 
-
   const dataFiltered = applyFilter({
     inputData: tableData,
     comparator: getComparator(table.order, table.orderBy),
@@ -322,7 +311,9 @@ export function DestListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.sectionalName.length > 0 || currentFilters.regionalName !== 'all';
+    !!currentFilters.name ||
+    currentFilters.sectionalName.length > 0 ||
+    currentFilters.regionalName !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -393,19 +384,21 @@ export function DestListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.dest.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              sx={{
-                position: { xs: 'absolute', md: 'static' },
-                right: { xs: 0, md: 'auto' },
-                top: { xs: 0, md: 'auto' },
-              }}
-            >
-              Crear nuevo
-            </Button>
+            !isMemberSessionUser(user) ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.dest.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                sx={{
+                  position: { xs: 'absolute', md: 'static' },
+                  right: { xs: 0, md: 'auto' },
+                  top: { xs: 0, md: 'auto' },
+                }}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
           }
           sx={{
             mb: { xs: 3, md: 5 },
@@ -433,7 +426,8 @@ export function DestListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.regionalName) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.regionalName) &&
+                        'filled') ||
                       'soft'
                     }
                     color={
@@ -443,7 +437,6 @@ export function DestListView() {
                       'default'
                     }
                   >
-
                     {getDestCountByRegion(tab.value)}
                   </Label>
                 }
@@ -539,7 +532,6 @@ export function DestListView() {
             ) : (
               <DestCardList dests={dataFiltered} />
             )}
-
           </Box>
 
           {displayMode === 'panel' && (
@@ -588,15 +580,11 @@ function applyFilter({ inputData, comparator, filters, members }) {
   }
 
   if (regionalName !== 'all') {
-    inputData = inputData.filter(
-      (dest) => dest.regionalName === regionalName
-    );
+    inputData = inputData.filter((dest) => dest.regionalName === regionalName);
   }
 
   if (sectionalName.length) {
-    inputData = inputData.filter((dest) =>
-      sectionalName.includes(dest.sectionalId)
-    );
+    inputData = inputData.filter((dest) => sectionalName.includes(dest.sectionalId));
   }
 
   return inputData;

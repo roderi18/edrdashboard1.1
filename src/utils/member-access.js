@@ -30,6 +30,12 @@ export const buildDefaultMemberPermissions = () => ({
     eliminar: false,
     subirFoto: false,
   },
+  destacamentos: {
+    ver: true,
+    crear: false,
+    editar: false,
+    eliminar: false,
+  },
   tienda: {
     ver: true,
     comprar: true,
@@ -116,6 +122,55 @@ export const filterMembersByMemberScope = (members = [], user) => {
     const memberDestId = member?.idDestacamento ?? member?.destId ?? member?.destamentoId ?? '';
 
     return allowedDestinations.has(String(memberDestId));
+  });
+};
+
+export const getMemberAllowedDestIds = (user) => {
+  if (!isMemberSessionUser(user)) {
+    return null;
+  }
+
+  const scope = getMemberScope(user);
+
+  if (scope?.modo !== 'destacamento') {
+    return null;
+  }
+
+  const allowedDestinations = Array.isArray(scope?.destacamentos)
+    ? scope.destacamentos.map((id) => String(id))
+    : [];
+
+  if (!allowedDestinations.length) {
+    return new Set();
+  }
+
+  return new Set(allowedDestinations);
+};
+
+export const filterDestsByMemberScope = (dests = [], user) => {
+  if (!isMemberSessionUser(user)) {
+    return dests;
+  }
+
+  const allowedDestinations = getMemberAllowedDestIds(user);
+
+  if (allowedDestinations === null) {
+    return dests;
+  }
+
+  if (!(allowedDestinations instanceof Set) || !allowedDestinations.size) {
+    return [];
+  }
+
+  return dests.filter((dest) => {
+    const destIdCandidates = [
+      dest?.id,
+      dest?.idDestacamento,
+      dest?.destId,
+      dest?.destamentoId,
+    ].filter((value) => value !== null && value !== undefined && value !== '');
+
+    return destIdCandidates.some((candidate) => allowedDestinations.has(String(candidate)));
   });
 };
 
