@@ -13,8 +13,12 @@ import { NavItemDashboard } from './nav-desktop-item-dashboard';
 export function NavList({ data, sx, ...other }) {
   const pathname = usePathname();
   const navItemRef = useRef(null);
+  const matchesPath = (targetPath) =>
+    pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const isActive = Array.isArray(data.activePaths) && data.activePaths.length
+    ? data.activePaths.some((activePath) => matchesPath(activePath))
+    : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 

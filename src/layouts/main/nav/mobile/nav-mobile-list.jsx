@@ -19,12 +19,16 @@ import { NavItem } from './nav-mobile-item';
 export function NavList({ data, sx, ...other }) {
   const pathname = usePathname();
   const navItemRef = useRef(null);
+  const matchesPath = (targetPath) =>
+    pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 
   const isNotRootOrDocs = !['/', paths.docs].includes(pathname);
   const isNotComponentsPath = !pathname.startsWith(paths.components);
   const isOpenPath = !!data.children && isNotRootOrDocs && isNotComponentsPath;
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const isActive = Array.isArray(data.activePaths) && data.activePaths.length
+    ? data.activePaths.some((activePath) => matchesPath(activePath))
+    : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
 
   const { value: open, onToggle } = useBoolean(isOpenPath);
 

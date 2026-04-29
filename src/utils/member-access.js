@@ -206,6 +206,10 @@ const navPermissionByItem = (item, user) => {
     return true;
   }
 
+  if (isMemberSessionUser(user) && (title.includes('recibo') || title.includes('invoice'))) {
+    return false;
+  }
+
   if (title.includes('miembro')) return Boolean(permissions.miembros?.ver);
   if (title.includes('administrador')) return Boolean(permissions.administradores?.ver);
   if (title.includes('destacamento')) return Boolean(permissions.destacamentos?.ver);
@@ -257,29 +261,34 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
               if (isMemberSessionUser(user) && isShopItem) {
                 return itemAllowed
                   ? {
-                      ...item,
-                      children: [
-                        {
-                          title: 'Lista de productos',
-                          path: paths.dashboard.product.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                        {
-                          title: 'Mis ordenes',
-                          path: paths.dashboard.order.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                        {
-                          title: 'Mis recibos',
-                          path: paths.dashboard.invoice.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                      ],
-                      deepMatch: true,
-                    }
+                    ...item,
+                    children: [
+                      {
+                        title: 'Lista de productos',
+                        path: paths.dashboard.product.root,
+                        deepMatch: true,
+                        memberShopChild: true,
+                      },
+                      {
+                        title: 'Ordenes',
+                        path: paths.dashboard.order.root,
+                        deepMatch: true,
+                        memberShopChild: true,
+                      },
+                      {
+                        title: 'Recibos',
+                        path: paths.dashboard.invoice.root,
+                        deepMatch: true,
+                        memberShopChild: true,
+                      },
+                    ],
+                    activePaths: [
+                      paths.dashboard.product.root,
+                      paths.dashboard.order.root,
+                      paths.dashboard.invoice.root,
+                    ],
+                    deepMatch: true,
+                  }
                   : null;
               }
 

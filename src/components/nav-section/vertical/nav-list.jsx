@@ -16,7 +16,14 @@ export function NavList({ data, depth, render, slotProps, checkPermissions, enab
   const pathname = usePathname();
   const navItemRef = useRef(null);
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const matchesPath = useCallback(
+    (targetPath) => pathname === targetPath || pathname.startsWith(`${targetPath}/`),
+    [pathname]
+  );
+
+  const isActive = Array.isArray(data.activePaths) && data.activePaths.length
+    ? data.activePaths.some((activePath) => matchesPath(activePath))
+    : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
 
   const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
