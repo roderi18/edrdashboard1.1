@@ -35,9 +35,14 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
-      setDests(data?.Data || []);
+      try {
+        const res = await fetch('/api/dest');
+        const data = await res.json();
+        setDests(data?.Data || []);
+      } catch (error) {
+        console.error('Error loading dests for member card:', error);
+        setDests([]);
+      }
     };
     load();
   }, []);

@@ -80,8 +80,13 @@ export function MemberListView() {
 
   useEffect(() => {
     const load = async () => {
-      const data = await getDestsApi();
-      setDests(data);
+      try {
+        const data = await getDestsApi();
+        setDests(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading dests for member list:', error);
+        setDests([]);
+      }
     };
 
     load();
@@ -101,8 +106,13 @@ export function MemberListView() {
 
   useEffect(() => {
     const loadChurches = async () => {
-      const data = await getChurches();
-      setChurches(Array.isArray(data) ? data : []);
+      try {
+        const data = await getChurches();
+        setChurches(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading churches for member list:', error);
+        setChurches([]);
+      }
     };
 
     loadChurches();
@@ -110,8 +120,13 @@ export function MemberListView() {
 
   useEffect(() => {
     const loadSectionals = async () => {
-      const data = await getSectionals();
-      setSectionals(Array.isArray(data) ? data : []);
+      try {
+        const data = await getSectionals();
+        setSectionals(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading sectionals for member list:', error);
+        setSectionals([]);
+      }
     };
 
     loadSectionals();
@@ -153,32 +168,37 @@ export function MemberListView() {
       // 🚨 NO correr hasta que haya data
       if (!dests.length || !churches.length || !sectionals.length) return;
 
-      const members = await getMembers();
-      const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
+      try {
+        const members = await getMembers();
+        const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
 
-      const mapped = members.map((member) => {
-        const memberPhoto = memberPhotos[String(member.id)];
+        const mapped = members.map((member) => {
+          const memberPhoto = memberPhotos[String(member.id)];
 
-        const dest = dests.find((d) => String(d.id) === String(member.idDestacamento));
+          const dest = dests.find((d) => String(d.id) === String(member.idDestacamento));
 
-        const church = churches.find((c) => Number(c.id) === Number(dest?.churchId));
+          const church = churches.find((c) => Number(c.id) === Number(dest?.churchId));
 
-        const sectional = sectionals.find((s) => String(s.id) === String(church?.idSeccion));
+          const sectional = sectionals.find((s) => String(s.id) === String(church?.idSeccion));
 
-        return {
-          ...member,
-          id: member.id,
-          idMiembros: member.id,
-          memberId: member.id,
-          avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
-          name: getMemberFullName(member),
-          sectionalId: sectional?.id,
-          sectionalName: sectional?.sectionalName || 'Sección desconocida',
-          memberPosition: [],
-        };
-      });
+          return {
+            ...member,
+            id: member.id,
+            idMiembros: member.id,
+            memberId: member.id,
+            avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
+            name: getMemberFullName(member),
+            sectionalId: sectional?.id,
+            sectionalName: sectional?.sectionalName || 'Sección desconocida',
+            memberPosition: [],
+          };
+        });
 
-      setTableData(mapped);
+        setTableData(mapped);
+      } catch (error) {
+        console.error('Error loading member table data:', error);
+        setTableData([]);
+      }
     }
 
     loadData();

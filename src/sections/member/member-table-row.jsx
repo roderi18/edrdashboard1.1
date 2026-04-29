@@ -44,8 +44,13 @@ export function MemberTableRow({
 
   useEffect(() => {
     const load = async () => {
-      const data = await getDestsApi();
-      setDests(Array.isArray(data) ? data : []);
+      try {
+        const data = await getDestsApi();
+        setDests(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading dests for member table row:', error);
+        setDests([]);
+      }
     };
 
     load();
