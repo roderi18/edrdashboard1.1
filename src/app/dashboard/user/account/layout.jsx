@@ -1,7 +1,7 @@
-import { AccountLayout } from 'src/sections/account/account-layout';
+import { UserAccountLayout } from 'src/sections/user-account/user-account-layout';
 
 // ----------------------------------------------------------------------
 
 export default function Layout({ children }) {
-  return <AccountLayout> {children}</AccountLayout>;
+  return <UserAccountLayout>{children}</UserAccountLayout>;
 }

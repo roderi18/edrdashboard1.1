@@ -1,13 +1,13 @@
 import { CONFIG } from 'src/global-config';
 
-import { AccountGeneralView } from 'src/sections/account/view';
+import { UserAccountGeneralView } from 'src/sections/user-account/view';
 
 // ----------------------------------------------------------------------
 
 export const metadata = {
-  title: `Account general settings | Dashboard - ${CONFIG.appName}`,
+  title: `Mi cuenta | Dashboard - ${CONFIG.appName}`,
 };
 
 export default function Page() {
-  return <AccountGeneralView />;
+  return <UserAccountGeneralView />;
 }
