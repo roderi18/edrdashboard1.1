@@ -1,15 +1,16 @@
 'use client';
 
-import { removeLastSlash } from 'minimal-shared/utils';
+
+import { useState, useEffect } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useEffect, useState } from 'react';
+
 import { paths } from 'src/routes/paths';
-import { usePathname, useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
+import { useParams, usePathname } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -30,7 +31,7 @@ export function DestEditLayout({ children, ...other }) {
             const res = await fetch('/api/dest');
             const data = await res.json();
 
-            const found = (data?.Data || []).find((d) => String(d.idDestacamento) === String(destId));
+            const found = (data?.data || []).find((d) => String(d.idDestacamento) === String(destId));
             setDest(found);
         };
 

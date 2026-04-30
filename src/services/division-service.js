@@ -18,7 +18,7 @@ export async function getDivisions() {
             return [];
         }
 
-        const rows = parsed?.Data || [];
+        const rows = parsed?.data || parsed?.Data || [];
 
         return rows.map((d) => ({
             id: d.idDivision,

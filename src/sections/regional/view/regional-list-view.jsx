@@ -94,15 +94,15 @@ export function RegionalListView() {
 
       const resChurches = await fetch('/api/churches');
       const dataChurches = await resChurches.json();
-      const churches = dataChurches?.Data || [];
+      const churches = dataChurches?.data || dataChurches?.Data || [];
 
       const resDests = await fetch('/api/dest');
       const dataDests = await resDests.json();
-      const dests = dataDests?.Data || [];
+      const dests = dataDests?.data || dataDests?.Data || [];
 
       const resMembers = await fetch('/api/members');
       const dataMembers = await resMembers.json();
-      const members = dataMembers?.Data || [];
+      const members = dataMembers?.data || dataMembers?.Data || [];
 
       const newData = regionals.map((regional) => {
         const seccionesDeRegion = sectionals.filter(

@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -43,7 +45,10 @@ export async function POST(req) {
             );
         }
 
-        return Response.json(parsed ?? { success: true, raw }, { status: 200 });
+        return Response.json(
+            normalizeApiResponse(parsed ?? { success: true, raw }),
+            { status: 200 }
+        );
     } catch (error) {
         return Response.json(
             {

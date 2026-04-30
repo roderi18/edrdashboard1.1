@@ -353,9 +353,13 @@ export function MemberCreateEditForm({ currentMember }) {
     if (!birthdate) return;
 
     const load = async () => {
-      const res = await fetch(`/api/divisions/calculate?birthdate=${birthdate}`);
+      const normalizedBirthdate = dayjs(birthdate).format('YYYY-MM-DD');
+      const res = await fetch(
+        `/api/divisions/calculate?birthdate=${encodeURIComponent(normalizedBirthdate)}`
+      );
       const data = await res.json();
       setDivision(data?.name || '');
+      methods.setValue('memberDivision', data?.name || '');
       methods.setValue('idDivision', data?.id || 0);
       setDivisionId(data?.id || null);
     };

@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function GET() {
     try {
         const res = await fetch(
@@ -7,17 +9,18 @@ export async function GET() {
         const text = await res.text();
 
         if (!text || text.startsWith('<')) {
-            return Response.json({ Data: [] });
+            return Response.json({ data: [] });
         }
 
-        return new Response(text, {
-            status: res.status,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        const data = JSON.parse(text);
 
+        return Response.json(
+            normalizeApiResponse({ ...data, data: data?.data || data?.Data || [] })
+        );
     } catch (error) {
-        console.error('ERROR DIVISIONES 👉', error);
+        console.error('ERROR DIVISIONES ðŸ‘‰', error);
 
-        return Response.json({ Data: [] });
+        return Response.json({ data: [] });
     }
 }
+

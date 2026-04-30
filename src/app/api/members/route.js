@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function GET() {
     try {
         const res = await fetch(
@@ -6,7 +8,7 @@ export async function GET() {
 
         const data = await res.json();
 
-        return Response.json(data);
+        return Response.json(normalizeApiResponse(data));
     } catch (error) {
         return Response.json({ error: 'Error fetching members' }, { status: 500 });
     }

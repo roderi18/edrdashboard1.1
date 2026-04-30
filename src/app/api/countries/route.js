@@ -9,7 +9,7 @@ export async function GET() {
 
 
         const data = await res.json();
-        const list = data?.Data || [];
+        const list = data?.data || data?.Data || [];
 
         const formatted = list.map((c) => {
             const match = countriesISO.find(
@@ -23,9 +23,9 @@ export async function GET() {
             };
         });
 
-        return Response.json(formatted);
+        return Response.json({ data: formatted });
     } catch (error) {
         console.error('ROUTE ERROR:', error);
-        return Response.json([], { status: 500 });
+        return Response.json({ data: [] }, { status: 500 });
     }
 }

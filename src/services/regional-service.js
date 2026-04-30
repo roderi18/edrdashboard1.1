@@ -36,7 +36,7 @@ export const getRegionals = async () => {
 
         const response = await res.json();
 
-        const data = response.Data || [];
+        const data = response.data || response.Data || [];
         return Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
     } catch (error) {
         console.error('getRegionals error:', error);

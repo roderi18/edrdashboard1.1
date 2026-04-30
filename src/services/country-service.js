@@ -8,7 +8,7 @@ export const getCountries = async () => {
 
         const data = JSON.parse(text);
 
-        return (data.Data || data).map((c) => ({
+        return (data.data || data.Data || data).map((c) => ({
             label: c.nombre,
             value: String(c.idPais || c.id),
         }));

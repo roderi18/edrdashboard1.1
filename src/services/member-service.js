@@ -1,10 +1,12 @@
 import dayjs from 'dayjs';
-import { createMember } from 'src/models/member-model';
+
 import {
-    getStorageCollection,
     saveItem,
+    getStorageCollection,
     setStorageCollection,
 } from 'src/utils/storage-service';
+
+import { createMember } from 'src/models/member-model';
 
 // ------------------------------------------------------------
 // STORAGE KEYS
@@ -12,7 +14,6 @@ import {
 
 const MEMBERS_KEY = 'members';
 const LEADERSHIP_KEY = 'leadershipAssignments';
-const API_URL = 'https://systexploradores.somee.com/api';
 
 export function mapApiMemberToUI(member) {
     return {
@@ -58,7 +59,7 @@ export async function getMembers() {
 
         const response = await res.json();
 
-        const data = response.Data || response.data || response.items || response;
+        const data = response.data || response.Data || response.items || response;
 
         return Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
     } catch (error) {

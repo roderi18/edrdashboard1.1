@@ -1,7 +1,6 @@
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { getSectionals } from 'src/services/sectional-service';
-import { getChurches } from 'src/services/church-service';
 import { useState, useEffect } from 'react';
+import { parsePhoneNumber } from 'libphonenumber-js';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -15,11 +14,14 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
-import { parsePhoneNumber } from 'libphonenumber-js';
-import { getMembers } from 'src/services/member-service';
+
 import { RouterLink } from 'src/routes/components';
 
-import { Label } from 'src/components/label';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
+
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -47,7 +49,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         getChurches(),
         getSectionals(),
         getMembers(),
-        fetch('/api/regional').then(r => r.json()).then(d => d.Data || [])
+        getRegionals(),
       ]);
 
       setChurches(Array.isArray(churchesData) ? churchesData : []);
@@ -68,32 +70,19 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   );
 
   const regional = regionals.find(
-    (r) => Number(r.idRegion) === Number(sectional?.regionalId)
+    (r) =>
+      Number(r.idRegion) === Number(sectional?.regionalId) ||
+      Number(r.id) === Number(sectional?.regionalId)
   );
 
   const sectionalName = sectional?.sectionalName || '';
+  const regionalName = row.regionalName || regional?.regionalName || regional?.name || regional?.nombre || '-';
 
   const coordinator = members.find(
     (m) => String(m.memberId) === String(row.coordinatorId)
   );
 
   const id = row.id || row.idDestacamento;
-
-  const destMemberCount = members.filter((m) => {
-    const match =
-      m.idDestacamento !== null &&
-      Number(m.idDestacamento) === Number(id);
-
-    // if (match) {
-    //   console.log('MATCH 👉', {
-    //     memberId: m.idMiembros,
-    //     memberDest: m.idDestacamento,
-    //     rowId: id,
-    //   });
-    // }
-
-    return match;
-  }).length;
 
   const churchName =
     church?.name ||
@@ -269,10 +258,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/regional?region=${regional?.id}`}
+              href={`/dashboard/level/regional?region=${regional?.id || regional?.idRegion || row.regionalId || ''}`}
               color="inherit"
             >
-              {regional?.nombre || '-'}
+              {regionalName}
             </Link>
           </Box>
         </TableCell>

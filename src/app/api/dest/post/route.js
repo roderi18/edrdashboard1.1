@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -70,18 +72,20 @@ export async function POST(req) {
             });
 
             return Response.json(
-                {
+                normalizeApiResponse({
                     error: 'Error creando destacamento en Somee',
                     status: res.status,
                     raw,
                     parsed,
                     payload,
-                },
+                }),
                 { status: res.status }
             );
         }
 
-        return Response.json(parsed ?? { raw }, { status: 200 });
+        return Response.json(normalizeApiResponse(parsed ?? { raw }), {
+            status: 200,
+        });
 
     } catch (error) {
         console.error('🔥 ERROR LOCAL /api/dest/post 👉', error);

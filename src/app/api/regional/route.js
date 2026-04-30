@@ -1,6 +1,7 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function GET() {
     try {
-        // 🔹 1. REGIONALES
         const res = await fetch(
             'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
         );
@@ -18,7 +19,6 @@ export async function GET() {
             );
         }
 
-        // 🔹 2. SECCIONES
         const resSections = await fetch(
             'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
         );
@@ -29,13 +29,12 @@ export async function GET() {
 
         try {
             const parsedSections = JSON.parse(textSections);
-            sectionsData = parsedSections?.Data || [];
+            sectionsData = parsedSections?.data || parsedSections?.Data || [];
         } catch (e) {
             sectionsData = [];
         }
 
-        // 🔹 3. CALCULAR CONTEO
-        const regionals = data?.Data || [];
+        const regionals = data?.data || data?.Data || [];
 
         const newData = regionals.map((regional) => {
             const count = sectionsData.filter(
@@ -48,11 +47,7 @@ export async function GET() {
             };
         });
 
-        console.log('🔥 REGIONALES CON CONTEO 👉', newData);
-
-        data.Data = newData;
-
-        return Response.json(data);
+        return Response.json(normalizeApiResponse({ ...data, data: newData }));
     } catch (error) {
         return Response.json(
             { error: 'Error obteniendo regionales' },
@@ -71,11 +66,12 @@ export async function POST(req) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
+                    Accept: 'application/json',
                 },
                 body: JSON.stringify(body),
             }
-        ); console.log('STATUS 👉', res.status);
+        );
+        console.log('STATUS ðŸ‘‰', res.status);
 
         const text = await res.text();
 
@@ -89,7 +85,7 @@ export async function POST(req) {
 
         try {
             const parsedSections = JSON.parse(textSections);
-            sectionsData = parsedSections?.Data || [];
+            sectionsData = parsedSections?.data || parsedSections?.Data || [];
         } catch (e) {
             sectionsData = [];
         }
@@ -98,7 +94,7 @@ export async function POST(req) {
 
         try {
             data = JSON.parse(text);
-            const regionals = data?.Data || [];
+            const regionals = data?.data || data?.Data || [];
 
             const newData = regionals.map((regional) => {
                 const count = sectionsData.filter(
@@ -111,10 +107,10 @@ export async function POST(req) {
                 };
             });
 
-            data.Data = newData;
-            console.log('REGIONALES CON SECCIONES 👉', newData);
-            newData.forEach(r => {
-                console.log(`REGION: ${r.nombre} → SECCIONES: ${r.regionalXSectionalCount}`);
+            data = normalizeApiResponse({ ...data, data: newData });
+            console.log('REGIONALES CON SECCIONES ðŸ‘‰', newData);
+            newData.forEach((r) => {
+                console.log(`REGION: ${r.nombre} â†’ SECCIONES: ${r.regionalXSectionalCount}`);
             });
         } catch (e) {
             return Response.json(
@@ -128,3 +124,4 @@ export async function POST(req) {
         return Response.json({ error: 'Error creando regional' }, { status: 500 });
     }
 }
+

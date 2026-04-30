@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -16,10 +18,9 @@ export async function PUT(req) {
 
         const text = await res.text();
 
-        return new Response(text, {
-            status: res.status,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        const parsed = text ? JSON.parse(text) : {};
+
+        return Response.json(normalizeApiResponse(parsed), { status: res.status });
     } catch (error) {
         return Response.json(
             { error: 'Error actualizando destacamento' },

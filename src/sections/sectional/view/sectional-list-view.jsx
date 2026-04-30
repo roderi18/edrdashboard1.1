@@ -1,10 +1,10 @@
 'use client';
 
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -15,24 +15,24 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
-import { REGIONALS } from 'src/_mock/assets';
-import { getSectionals } from 'src/services/sectional-service';
-import { getMembers } from 'src/services/member-service';
-import { getLeadershipAssignments } from 'src/services/member-service';
-import { getRegionals } from 'src/services/regional-service';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { normalizeText } from 'src/utils/normalize-text';
+
+import { REGIONALS } from 'src/_mock/assets';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _regionalNames, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
+import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
+import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -48,9 +48,9 @@ import {
 } from 'src/components/table';
 
 import { SectionalTableRow } from '../sectional-table-row';
+import { SectionalCardList } from '../sectional-card-list';
 import { SectionalTableToolbar } from '../sectional-table-toolbar';
 import { SectionalTableFiltersResult } from '../sectional-table-filters-result';
-import { SectionalCardList } from '../sectional-card-list';
 // ----------------------------------------------------------------------
 
 const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_NAME_OPTIONS];
@@ -88,10 +88,10 @@ const buildSectionalList = async () => {
 
   const res = await fetch('/api/dest');
   const data = await res.json();
-  const dests = data?.Data || [];
+  const dests = data?.data || data?.Data || [];
   const resChurches = await fetch('/api/churches');
   const dataChurches = await resChurches.json();
-  const churches = dataChurches?.Data || [];
+  const churches = dataChurches?.data || dataChurches?.Data || [];
 
 
   const leaderships = getLeadershipAssignments();
@@ -106,14 +106,6 @@ const buildSectionalList = async () => {
         String(m.memberId) === String(sectional.directorId)
     );
 
-    const membersCount = members.filter(
-      (m) =>
-        m.sectionalId === sectional.id ||
-        String(m.id) === String(sectional.directorId) ||
-        String(m.memberId) === String(sectional.directorId)
-    ).length;
-
-
     const iglesiasDeSeccion = churches.filter(
       (c) =>
         c.idSeccion &&
@@ -124,6 +116,18 @@ const buildSectionalList = async () => {
     const destCount = dests.filter((d) =>
       iglesiasDeSeccion.some(
         (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
+      )
+    ).length;
+
+    const destsBySectional = dests.filter((d) =>
+      iglesiasDeSeccion.some(
+        (ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia)
+      )
+    );
+
+    const membersCount = members.filter((member) =>
+      destsBySectional.some(
+        (dest) => Number(dest.idDestacamento) === Number(member.idDestacamento)
       )
     ).length;
 
@@ -334,9 +338,9 @@ export function SectionalListView() {
             value={currentFilters.regionalName || 'all'}
             onChange={handleFilterRegionalFullName}
             sx={[
-              (theme) => ({
+              (muiTheme) => ({
                 px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(muiTheme.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
           >
@@ -479,9 +483,7 @@ export function SectionalListView() {
   );
 }
 
-const getRegionalNameBySectional = (sectional) => {
-  return sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '-';
-};
+const getRegionalNameBySectional = (sectional) => sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '-';
 
 // ----------------------------------------------------------------------
 

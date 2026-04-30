@@ -32,7 +32,7 @@ export const getSectionals = async () => {
 
         const response = await res.json();
 
-        const data = response.Data || response.data || response;
+        const data = response.data || response.Data || response;
 
         return Array.isArray(data)
             ? data.map(mapApiSectionalToUI)
@@ -88,6 +88,7 @@ export const updateSectional = async (sectional) => {
         return JSON.parse(text);
     } catch (error) {
         console.error('Error actualizando seccional:', error);
+        return {};
     }
 };
 

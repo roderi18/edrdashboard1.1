@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
-import { DestCreateEditForm } from '../dest-create-edit-form';
 import { mapApiDestToUI } from 'src/services/dest-service';
+
+import { DestCreateEditForm } from '../dest-create-edit-form';
 
 // ----------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ export function DestEditView({ id }) {
       const res = await fetch('/api/dest');
       const data = await res.json();
 
-      const dest = (data?.Data || []).find(
+      const dest = (data?.data || []).find(
         (d) => String(d.idDestacamento) === String(id)
       );
 

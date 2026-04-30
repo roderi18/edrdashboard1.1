@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -19,22 +19,21 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
-
-import { getSectionals } from 'src/services/sectional-service';
-import { getRegionals } from 'src/services/regional-service';
-import { getChurches } from 'src/services/church-service';
+import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
+import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-access';
 
-import { getMembers } from 'src/services/member-service';
-import { getLeadershipAssignments } from 'src/services/member-service';
+import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { getChurches } from 'src/services/church-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
+import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -49,13 +48,12 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { DestTableRow } from '../dest-table-row';
+import { DestCardList } from '../dest-card-list';
 import { DestTableToolbar } from '../dest-table-toolbar';
 import { DestTableFiltersResult } from '../dest-table-filters-result';
-import { DestCardList } from '../dest-card-list';
-import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
-import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-access';
-import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_NAME_OPTIONS];
@@ -134,7 +132,11 @@ export function DestListView() {
         sectionalEncontrada: sectional,
       });
 
-      const regional = regionals.find((r) => Number(r.idRegion) === Number(sectional?.idRegion));
+      const regional = regionals.find(
+        (r) =>
+          Number(r.id) === Number(sectional?.regionalId) ||
+          Number(r.idRegion) === Number(sectional?.regionalId)
+      );
 
       const sectionalId = sectional?.idSeccion || sectional?.id || null;
       const sectionalName = sectional?.nombre || sectional?.name || null;
@@ -157,11 +159,12 @@ export function DestListView() {
 
         sectionalId: sectional?.idSeccion || sectional?.id || null,
         sectionalName: sectional?.nombre || sectional?.name || null,
+        regionalId: regional?.idRegion || regional?.id || null,
 
         debugChurchIdSeccion: church?.idSeccion,
         debugChurchSectionId: church?.sectionId,
 
-        regionalName: regional?.nombre ?? '-',
+        regionalName: regional?.regionalName || regional?.name || regional?.nombre || '-',
       };
     });
   };
@@ -186,11 +189,11 @@ export function DestListView() {
       const res = await fetch('/api/dest');
       const data = await res.json();
 
-      console.log('DATA DEST RAW 👉', data?.Data);
+      console.log('DATA DEST RAW 👉', data?.data);
 
       const scopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(data?.Data || [], user)
-        : data?.Data || [];
+        ? filterDestsByMemberScope(data?.data || [], user)
+        : data?.data || [];
 
       const built = buildDestList(scopedDests);
 
@@ -256,15 +259,18 @@ export function DestListView() {
     if (!sectionalFromUrl) return;
     if (appliedFromUrl.current) return;
 
-    const church = getChurches().find((c) => c.id === dest.churchId);
+    const sectional = sectionals.find(
+      (item) =>
+        String(item.idSeccion || item.id || '') === String(sectionalFromUrl)
+    );
 
     if (!sectional) return;
 
-    updateFilters({ sectionalName: [sectional.id] });
+    updateFilters({ sectionalName: [sectional.idSeccion || sectional.id] });
     table.onResetPage();
 
     appliedFromUrl.current = true;
-  }, [sectionalFromUrl, updateFilters, table]);
+  }, [sectionalFromUrl, sectionals, updateFilters, table]);
 
   useEffect(() => {
     //vista panel en pantalla pequeña, use DENSE true
@@ -281,8 +287,6 @@ export function DestListView() {
     if (appliedFromUrl.current) return;
 
     const regional = regionals.find((r) => r.id === regionFromUrl);
-    console.log('REGION BUSCADA:', sectional?.regionalId);
-    console.log('REGION ENCONTRADA:', regional);
 
     if (!regional) return;
 
@@ -411,9 +415,9 @@ export function DestListView() {
             value={currentFilters.regionalName}
             onChange={handleFilterRegionalFullName}
             sx={[
-              (theme) => ({
+              (muiTheme) => ({
                 px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(muiTheme.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
           >
@@ -484,8 +488,7 @@ export function DestListView() {
             />
 
             {displayMode === 'panel' ? (
-              <>
-                <Scrollbar>
+              <Scrollbar>
                   <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                     <TableHeadCustom
                       order={table.order}
@@ -528,7 +531,6 @@ export function DestListView() {
                     </TableBody>
                   </Table>
                 </Scrollbar>
-              </>
             ) : (
               <DestCardList dests={dataFiltered} />
             )}

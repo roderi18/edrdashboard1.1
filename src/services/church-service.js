@@ -1,6 +1,6 @@
+import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
-import barriosData from 'src/data/barrios.json';
 
 const provinces = provinciasData;
 const municipios = municipiosData.map((m, index) => ({
@@ -116,9 +116,11 @@ export const getChurches = async () => {
 
         const rows = Array.isArray(parsed)
             ? parsed
-            : Array.isArray(parsed?.Data)
-                ? parsed.Data
-                : [];
+            : Array.isArray(parsed?.data)
+                ? parsed.data
+                : Array.isArray(parsed?.Data)
+                    ? parsed.Data
+                    : [];
 
         return rows.map(mapApiChurchesToUI);
     } catch (error) {

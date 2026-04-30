@@ -29,22 +29,22 @@ export default function Page() {
 
       const data = await res.json();
 
-      const allMembers = data?.Data || [];
+      const allMembers = data?.data || data?.Data || [];
       const resDests = await fetch('/api/dest');
       const dataDests = await resDests.json();
-      const dests = dataDests?.Data || [];
+      const dests = dataDests?.data || dataDests?.Data || [];
 
       const resChurches = await fetch('/api/churches');
       const dataChurches = await resChurches.json();
-      const churches = dataChurches?.Data || [];
+      const churches = dataChurches?.data || dataChurches?.Data || [];
 
       const resSectionals = await fetch('/api/sectional');
       const dataSectionals = await resSectionals.json();
-      const sectionals = dataSectionals?.Data || [];
+      const sectionals = dataSectionals?.data || dataSectionals?.Data || [];
 
       const resRegionals = await fetch('/api/regional');
       const dataRegionals = await resRegionals.json();
-      const regionals = dataRegionals?.Data || [];
+      const regionals = dataRegionals?.data || dataRegionals?.Data || [];
 
       const member = allMembers.find(
         (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)

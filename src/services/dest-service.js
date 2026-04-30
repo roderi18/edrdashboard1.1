@@ -1,7 +1,6 @@
 import {
-    getStorageCollection,
     saveItem,
-    setStorageCollection,
+    getStorageCollection,
 } from 'src/utils/storage-service';
 // ------------------------------------------------------------
 // DESTS
@@ -21,8 +20,7 @@ const normalizePhoneToE164 = (value) => {
     return phone;
 };
 
-export const mapApiDestToUI = (apiDest) => {
-    return {
+export const mapApiDestToUI = (apiDest) => ({
         id: apiDest.idDestacamento ? String(apiDest.idDestacamento) : null,
 
         name: apiDest.nombre ?? '',
@@ -58,8 +56,7 @@ export const mapApiDestToUI = (apiDest) => {
 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-    };
-};
+    });
 export function saveDest(dest) {
     saveItem('dests', dest);
 }
@@ -82,7 +79,7 @@ export async function getDestsApi() {
             return [];
         }
 
-        const data = parsed?.Data || parsed?.data || parsed;
+        const data = parsed?.data || parsed?.Data || parsed;
 
         return Array.isArray(data)
             ? data.map(mapApiDestToUI)
@@ -97,13 +94,6 @@ export function getDestById(id) {
     const dests = getDests();
     return dests.find((d) => d.id === id);
 }
-const normalizeHoraReunion = (value) => {
-    if (value == null) return null;
-    const t = String(value).trim();
-    if (!t) return null;
-    if (/^\d{1,2}:\d{2}$/.test(t)) return `${t}:00`;
-    return t;
-};
 
 const normalizePhoneForApi = (value) => String(value ?? '').replace(/\D/g, '');
 

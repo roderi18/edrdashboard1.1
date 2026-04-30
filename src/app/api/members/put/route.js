@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -21,12 +23,10 @@ export async function PUT(req) {
             fechaFinCertificado: body.fechaFinCertificado ?? null,
             estatusMiembro: body.estatusMiembro ?? null,
         };
+
         const endpoint = 'https://systexploradores.somee.com/api/Miembros/UpdateMiembros';
-
-        console.log('[members/put] incoming body', body);
-        console.log('[members/put] normalized payload', payload);
-
         const normalize = (value) => String(value ?? '').trim().toLowerCase();
+
         const verifyPersisted = async () => {
             let updatedMember = null;
 
@@ -45,11 +45,14 @@ export async function PUT(req) {
                         },
                     }
                 );
+
                 const membersJson = await membersRes.json();
-                const members = Array.isArray(membersJson?.Data) ? membersJson.Data : membersJson;
-                updatedMember = Array.isArray(members)
-                    ? members.find((member) => Number(member.idMiembros) === Number(payload.idMiembros))
-                    : null;
+                const normalizedMembers = normalizeApiResponse(membersJson);
+                const members = Array.isArray(normalizedMembers?.data) ? normalizedMembers.data : [];
+
+                updatedMember = members.find(
+                    (member) => Number(member.idMiembros) === Number(payload.idMiembros)
+                );
 
                 if (
                     updatedMember &&
@@ -75,6 +78,7 @@ export async function PUT(req) {
             { label: 'UpdateMiembros PUT raw', method: 'PUT', body },
             { label: 'UpdateMiembros POST raw', method: 'POST', body },
         ];
+
         const attemptResults = [];
 
         for (const attempt of attempts) {
@@ -96,35 +100,11 @@ export async function PUT(req) {
                 parsed = null;
             }
 
-            console.log('[members/put] upstream response', {
-                endpoint,
-                attempt: attempt.label,
-                status: res.status,
-                ok: res.ok,
-                text,
-            });
-
-            const completedMessage = parsed?.Message?.toLowerCase().includes('completada');
+            const completedMessage = parsed?.message?.toLowerCase().includes('completada');
             const shouldVerify = res.ok || completedMessage;
             const verification = shouldVerify
                 ? await verifyPersisted()
                 : { persisted: false, updatedMember: null };
-
-            console.log('[members/put] verification result', {
-                attempt: attempt.label,
-                expected: {
-                    idMiembros: payload.idMiembros,
-                    nombres: payload.nombres,
-                    apellidos: payload.apellidos,
-                },
-                found: verification.updatedMember
-                    ? {
-                        idMiembros: verification.updatedMember.idMiembros,
-                        nombres: verification.updatedMember.nombres,
-                        apellidos: verification.updatedMember.apellidos,
-                    }
-                    : null,
-            });
 
             attemptResults.push({
                 label: attempt.label,
@@ -144,11 +124,11 @@ export async function PUT(req) {
 
             if (verification.persisted) {
                 return Response.json({
-                    Success: true,
-                    Message: 'Actualización exitosa',
-                    Data: {
+                    success: true,
+                    message: 'Actualización exitosa',
+                    data: {
                         attempt: attempt.label,
-                        upstream: parsed ?? text,
+                        upstream: normalizeApiResponse(parsed ?? { raw: text }),
                     },
                 });
             }
@@ -158,9 +138,9 @@ export async function PUT(req) {
 
         return Response.json(
             {
-                Success: false,
-                Message: `El API respondió, pero el miembro no quedó actualizado. Esperado: "${payload.nombres} ${payload.apellidos}". Encontrado: "${lastFound?.nombres ?? 'N/A'} ${lastFound?.apellidos ?? ''}".`,
-                Data: {
+                success: false,
+                message: `El API respondió, pero el miembro no quedó actualizado. Esperado: "${payload.nombres} ${payload.apellidos}". Encontrado: "${lastFound?.nombres ?? 'N/A'} ${lastFound?.apellidos ?? ''}".`,
+                data: {
                     expected: {
                         idMiembros: payload.idMiembros,
                         nombres: payload.nombres,
@@ -171,12 +151,12 @@ export async function PUT(req) {
             },
             { status: 409 }
         );
-
     } catch (error) {
         console.error('[members/put] route error', error);
         return Response.json(
-            { Message: error.message || 'Error actualizando miembro' },
+            { message: error.message || 'Error actualizando miembro' },
             { status: 500 }
         );
     }
 }
+

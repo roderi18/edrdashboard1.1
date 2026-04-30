@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function GET() {
     try {
         const res = await fetch(
@@ -15,7 +17,7 @@ export async function GET() {
 
         const data = JSON.parse(text);
 
-        return Response.json(data);
+        return Response.json(normalizeApiResponse(data));
     } catch (error) {
         return Response.json(
             { error: 'Error obteniendo destacamentos' },

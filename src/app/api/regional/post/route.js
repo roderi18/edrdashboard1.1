@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -16,7 +18,7 @@ export async function POST(req) {
 
         const data = await res.json();
 
-        return Response.json(data);
+        return Response.json(normalizeApiResponse(data));
     } catch (error) {
         return Response.json({ error: 'Error creando regional' }, { status: 500 });
     }

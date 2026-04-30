@@ -71,6 +71,53 @@ const TABLE_HEAD = [
   { id: 'memberDivision', label: 'División', width: 90 },
   { id: '', width: 88 },
 ];
+
+const getMemberAge = (birthdate) => {
+  if (!birthdate) return null;
+
+  const parsed = new Date(birthdate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDiff = today.getMonth() - parsed.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
+    age--;
+  }
+
+  return age;
+};
+
+const resolveMemberDivision = (member) => {
+  const currentDivision = String(
+    member?.memberDivision ?? member?.division ?? member?.divisionName ?? ''
+  ).trim();
+
+  if (currentDivision) {
+    const normalized = currentDivision.toLowerCase();
+    if (normalized.includes('lider')) return 'Liderazgo';
+    if (normalized.includes('explor')) return 'Exploradores';
+    if (normalized.includes('segu')) return 'Seguidores';
+    if (normalized.includes('pion')) return 'Pioneros';
+    if (normalized.includes('naveg')) return 'Navegantes';
+    return currentDivision;
+  }
+
+  const age = getMemberAge(
+    member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento
+  );
+
+  if (age === null) return '';
+  if (age >= 18) return 'Liderazgo';
+  if (age >= 14) return 'Exploradores';
+  if (age >= 11) return 'Seguidores';
+  if (age >= 8) return 'Pioneros';
+  if (age >= 5) return 'Navegantes';
+
+  return '';
+};
+
 // ----------------------------------------------------------------------
 
 export function MemberListView() {
@@ -188,6 +235,7 @@ export function MemberListView() {
             memberId: member.id,
             avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
             name: getMemberFullName(member),
+            memberDivision: resolveMemberDivision(member),
             sectionalId: sectional?.id,
             sectionalName: sectional?.sectionalName || 'Sección desconocida',
             memberPosition: [],
@@ -581,3 +629,4 @@ function applyFilter({ inputData, comparator, filters }) {
 
   return inputData;
 }
+

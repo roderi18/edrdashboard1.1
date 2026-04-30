@@ -12,7 +12,13 @@ const fetchApiData = async (url) => {
   const res = await fetch(url, { cache: 'no-store' });
   const json = await res.json();
 
-  return Array.isArray(json?.Data) ? json.Data : [];
+  return Array.isArray(json?.data)
+    ? json.data
+    : Array.isArray(json?.Data)
+      ? json.Data
+      : Array.isArray(json)
+        ? json
+        : [];
 };
 
 export default async function Page({ params }) {

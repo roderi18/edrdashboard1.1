@@ -1,3 +1,5 @@
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
 export async function PUT(req) {
     try {
         const body = await req.json();
@@ -35,7 +37,7 @@ export async function PUT(req) {
             );
         }
 
-        return Response.json(data);
+        return Response.json(normalizeApiResponse(data));
     } catch (error) {
         return Response.json(
             { error: 'Error actualizando iglesia' },

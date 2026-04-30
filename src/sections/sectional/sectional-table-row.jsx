@@ -1,6 +1,9 @@
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useEffect, useState } from 'react';
+
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -13,16 +16,16 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
-import { parsePhoneNumber } from 'libphonenumber-js';
+
 import { RouterLink } from 'src/routes/components';
-import { getSectionals } from 'src/services/sectional-service';
+
 import { getMembers } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
+import { getSectionals } from 'src/services/sectional-service';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
-import { useRouter } from 'next/navigation';
+
 import { SectionalQuickEditForm } from './sectional-quick-edit-form';
 
 // ----------------------------------------------------------------------
@@ -61,7 +64,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
     const load = async () => {
       const res = await fetch('/api/dest');
       const data = await res.json();
-      setDests(data?.Data || []);
+      setDests(data?.data || data?.Data || []);
     };
     load();
   }, []);
@@ -71,11 +74,11 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
     const load = async () => {
       const resDests = await fetch('/api/dest');
       const dataDests = await resDests.json();
-      setDests(dataDests?.Data || []);
+      setDests(dataDests?.data || dataDests?.Data || []);
 
       const resChurches = await fetch('/api/churches');
       const dataChurches = await resChurches.json();
-      setChurches(dataChurches?.Data || []);
+      setChurches(dataChurches?.data || dataChurches?.Data || []);
     };
 
     load();
@@ -84,8 +87,6 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const director = members.find(
     (m) => String(m.id) === String(row.directorId)
   );
-
-  const seccionId = Number(row.idSeccion || row.id);
 
   const iglesiasDeSeccion = churches.filter(
     (c) =>
@@ -254,7 +255,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                           : `+1${director.phoneNumber}`
                       )?.formatNational()
                       : '';
-                  } catch (e) {
+                  } catch {
                     return director?.phoneNumber || '';
                   }
                 })()}
