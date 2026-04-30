@@ -23,6 +23,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import { getLocalInvoices } from 'src/utils/local-commerce-storage';
+import { isMemberSessionUser, filterInvoicesByMemberSession } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
@@ -45,6 +46,8 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { InvoiceAnalytic } from '../invoice-analytic';
 import { InvoiceTableRow } from '../invoice-table-row';
 import { InvoiceTableToolbar } from '../invoice-table-toolbar';
@@ -52,12 +55,20 @@ import { InvoiceTableFiltersResult } from '../invoice-table-filters-result';
 
 // ----------------------------------------------------------------------
 
+const INVOICE_STATUS_LABELS = {
+  all: 'Todos',
+  paid: 'Pagados',
+  pending: 'Pendientes',
+  overdue: 'Vencidos',
+  draft: 'Borradores',
+};
+
 const TABLE_HEAD = [
-  { id: 'invoiceNumber', label: 'Customer' },
-  { id: 'createDate', label: 'Crear' },
-  { id: 'dueDate', label: 'Due' },
-  { id: 'price', label: 'Amount' },
-  { id: 'sent', label: 'Sent', align: 'center' },
+  { id: 'invoiceNumber', label: 'Cliente' },
+  { id: 'createDate', label: 'Creación' },
+  { id: 'dueDate', label: 'Vence' },
+  { id: 'price', label: 'Monto' },
+  { id: 'sent', label: 'Enviado', align: 'center' },
   { id: 'status', label: 'Estado' },
   { id: '' },
 ];
@@ -65,9 +76,11 @@ const TABLE_HEAD = [
 // ----------------------------------------------------------------------
 
 export function InvoiceListView() {
+  const { user } = useAuthContext();
   const theme = useTheme();
 
   const table = useTable({ defaultOrderBy: 'createDate' });
+  const canDelete = !isMemberSessionUser(user);
 
   const confirmDialog = useBoolean();
 
@@ -87,9 +100,12 @@ export function InvoiceListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
+  const visibleTableData = isMemberSessionUser(user)
+    ? filterInvoicesByMemberSession(tableData, user)
+    : tableData;
 
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: visibleTableData,
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
     dateError,
@@ -105,44 +121,46 @@ export function InvoiceListView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const getInvoiceLength = (status) => tableData.filter((item) => item.status === status).length;
+  const getInvoiceLength = (status) =>
+    visibleTableData.filter((item) => item.status === status).length;
 
   const getTotalAmount = (status) =>
     sumBy(
-      tableData.filter((item) => item.status === status),
+      visibleTableData.filter((item) => item.status === status),
       (invoice) => invoice.totalAmount
     );
 
-  const getPercentByStatus = (status) => (getInvoiceLength(status) / tableData.length) * 100;
+  const getPercentByStatus = (status) =>
+    visibleTableData.length ? (getInvoiceLength(status) / visibleTableData.length) * 100 : 0;
 
   const TABS = [
     {
       value: 'all',
-      label: 'Todos',
+      label: INVOICE_STATUS_LABELS.all,
       color: 'default',
-      count: tableData.length,
+      count: visibleTableData.length,
     },
     {
       value: 'paid',
-      label: 'Paid',
+      label: INVOICE_STATUS_LABELS.paid,
       color: 'success',
       count: getInvoiceLength('paid'),
     },
     {
       value: 'pending',
-      label: 'Pending',
+      label: INVOICE_STATUS_LABELS.pending,
       color: 'warning',
       count: getInvoiceLength('pending'),
     },
     {
       value: 'overdue',
-      label: 'Overdue',
+      label: INVOICE_STATUS_LABELS.overdue,
       color: 'error',
       count: getInvoiceLength('overdue'),
     },
     {
       value: 'draft',
-      label: 'Draft',
+      label: INVOICE_STATUS_LABELS.draft,
       color: 'default',
       count: getInvoiceLength('draft'),
     },
@@ -152,7 +170,7 @@ export function InvoiceListView() {
     (id) => {
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+      toast.success('Eliminación exitosa');
 
       setTableData(deleteRow);
 
@@ -164,7 +182,7 @@ export function InvoiceListView() {
   const handleDeleteRows = useCallback(() => {
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+    toast.success('Eliminación exitosa');
 
     setTableData(deleteRows);
 
@@ -186,7 +204,7 @@ export function InvoiceListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que quieres eliminar <strong> {table.selected.length} </strong> elementos?
         </>
       }
       action={
@@ -198,7 +216,7 @@ export function InvoiceListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -208,21 +226,23 @@ export function InvoiceListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="List"
+          heading="Lista de recibos"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Invoice', href: paths.dashboard.invoice.root },
-            { name: 'List' },
+            { name: 'Recibos', href: paths.dashboard.invoice.root },
+            { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.invoice.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Add invoice
-            </Button>
+            !isMemberSessionUser(user) ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.invoice.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Agregar recibo
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -235,15 +255,15 @@ export function InvoiceListView() {
             >
               <InvoiceAnalytic
                 title="Total"
-                total={tableData.length}
+                total={visibleTableData.length}
                 percent={100}
-                price={sumBy(tableData, (invoice) => invoice.totalAmount)}
+                price={sumBy(visibleTableData, (invoice) => invoice.totalAmount)}
                 icon="solar:bill-list-bold-duotone"
                 color={theme.vars.palette.info.main}
               />
 
               <InvoiceAnalytic
-                title="Paid"
+                title="Pagados"
                 total={getInvoiceLength('paid')}
                 percent={getPercentByStatus('paid')}
                 price={getTotalAmount('paid')}
@@ -252,7 +272,7 @@ export function InvoiceListView() {
               />
 
               <InvoiceAnalytic
-                title="Pending"
+                title="Pendientes"
                 total={getInvoiceLength('pending')}
                 percent={getPercentByStatus('pending')}
                 price={getTotalAmount('pending')}
@@ -261,7 +281,7 @@ export function InvoiceListView() {
               />
 
               <InvoiceAnalytic
-                title="Overdue"
+                title="Vencidos"
                 total={getInvoiceLength('overdue')}
                 percent={getPercentByStatus('overdue')}
                 price={getTotalAmount('overdue')}
@@ -270,7 +290,7 @@ export function InvoiceListView() {
               />
 
               <InvoiceAnalytic
-                title="Draft"
+                title="Borradores"
                 total={getInvoiceLength('draft')}
                 percent={getPercentByStatus('draft')}
                 price={getTotalAmount('draft')}
@@ -358,11 +378,13 @@ export function InvoiceListView() {
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
+                  {canDelete && (
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
               }
             />
@@ -397,6 +419,7 @@ export function InvoiceListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        canDelete={canDelete}
                         editHref={paths.dashboard.invoice.edit(row.id)}
                         detailsHref={paths.dashboard.invoice.details(row.id)}
                       />
@@ -425,7 +448,7 @@ export function InvoiceListView() {
         </Card>
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      {canDelete && renderConfirmDialog()}
     </>
   );
 }
