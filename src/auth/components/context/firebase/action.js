@@ -14,7 +14,7 @@ import {
   createUserWithEmailAndPassword as _createUserWithEmailAndPassword,
 } from 'firebase/auth';
 
-import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -41,12 +41,22 @@ const getEmailVerificationSettings = () => ({
   handleCodeInApp: false,
 });
 
+const ensureFirebaseAuth = () => {
+  if (!isFirebaseConfigured || !AUTH) {
+    throw new Error(
+      'Firebase no está configurado en este entorno. Verifica las variables públicas de Firebase en Netlify.'
+    );
+  }
+
+  return AUTH;
+};
+
 /** **************************************
  * Sign in
  *************************************** */
 export const signInWithPassword = async ({ email, password }) => {
   try {
-    const userCredential = await _signInWithEmailAndPassword(AUTH, email, password);
+    const userCredential = await _signInWithEmailAndPassword(ensureFirebaseAuth(), email, password);
 
     return userCredential.user;
   } catch (error) {
@@ -60,17 +70,17 @@ export const signInWithPassword = async ({ email, password }) => {
 
 export const signInWithGoogle = async () => {
   const provider = new _GoogleAuthProvider();
-  await _signInWithPopup(AUTH, provider);
+  await _signInWithPopup(ensureFirebaseAuth(), provider);
 };
 
 export const signInWithGithub = async () => {
   const provider = new _GithubAuthProvider();
-  await _signInWithPopup(AUTH, provider);
+  await _signInWithPopup(ensureFirebaseAuth(), provider);
 };
 
 export const signInWithTwitter = async () => {
   const provider = new _TwitterAuthProvider();
-  await _signInWithPopup(AUTH, provider);
+  await _signInWithPopup(ensureFirebaseAuth(), provider);
 };
 
 /** **************************************
@@ -78,7 +88,7 @@ export const signInWithTwitter = async () => {
  *************************************** */
 export const signUp = async ({ email, password, firstName, lastName }) => {
   try {
-    const newUser = await _createUserWithEmailAndPassword(AUTH, email, password);
+    const newUser = await _createUserWithEmailAndPassword(ensureFirebaseAuth(), email, password);
     const displayName = `${firstName} ${lastName}`;
 
     await withTimeout(
@@ -117,7 +127,7 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
 };
 
 export const resendEmailVerification = async () => {
-  const user = AUTH.currentUser;
+  const user = ensureFirebaseAuth().currentUser;
 
   if (!user) {
     throw new Error('Debes iniciar sesión para reenviar el enlace de verificación.');
@@ -133,12 +143,12 @@ export const resendEmailVerification = async () => {
  * Sign out
  *************************************** */
 export const signOut = async () => {
-  await _signOut(AUTH);
+  await _signOut(ensureFirebaseAuth());
 };
 
 /** **************************************
  * Reset password
  *************************************** */
 export const sendPasswordResetEmail = async ({ email }) => {
-  await _sendPasswordResetEmail(AUTH, email);
+  await _sendPasswordResetEmail(ensureFirebaseAuth(), email);
 };

@@ -23,6 +23,8 @@ import { RouterLink } from 'src/routes/components';
 import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 
+import { isFirebaseConfigured } from 'src/lib/firebase';
+
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
@@ -74,6 +76,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
   const isAdminMode = mode === 'admin';
   const storageKey = SIGN_IN_STORAGE_KEYS[mode] ?? SIGN_IN_STORAGE_KEYS.member;
+  const isAuthReady = isFirebaseConfigured;
 
   const schema = useMemo(
     () => (isAdminMode ? AdminSignInSchema : MemberSignInSchema),
@@ -259,6 +262,13 @@ export function FirebaseSignInView({ mode = 'member' }) {
       {!!errorMessage && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {errorMessage}
+        </Alert>
+      )}
+
+      {!isAuthReady && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          El inicio de sesión de Firebase no está disponible en este entorno. Revisa las
+          variables públicas de Firebase en Netlify.
         </Alert>
       )}
 
