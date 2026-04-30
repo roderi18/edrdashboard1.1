@@ -22,8 +22,8 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { isMemberSessionUser } from 'src/utils/member-access';
 import { getLocalInvoices } from 'src/utils/local-commerce-storage';
-import { isMemberSessionUser, filterInvoicesByMemberSession } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
@@ -73,6 +73,65 @@ const TABLE_HEAD = [
   { id: '' },
 ];
 
+const normalizeMemberLookupValue = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+const getMemberIdentityKeys = (user = {}) =>
+  new Set(
+    [
+      user?.uid,
+      user?.id,
+      user?.idMiembros,
+      user?.memberId,
+      user?.codigoMiembro,
+      user?.codigo,
+      user?.correo,
+      user?.email,
+    ]
+      .filter((value) => value !== null && value !== undefined && value !== '')
+      .map((value) => normalizeMemberLookupValue(value))
+  );
+
+const filterInvoicesForMember = (invoices = [], user) => {
+  if (!isMemberSessionUser(user)) {
+    return invoices;
+  }
+
+  const memberKeys = getMemberIdentityKeys(user);
+
+  if (!memberKeys.size) {
+    return [];
+  }
+
+  return invoices.filter((invoice) => {
+    const sources = [invoice, invoice?.invoiceTo, invoice?.customer, invoice?.billing];
+
+    return sources.some((source) => {
+      if (!source || typeof source !== 'object') {
+        return false;
+      }
+
+      const sourceKeys = [
+        source?.uid,
+        source?.id,
+        source?.memberId,
+        source?.idMiembros,
+        source?.codigoMiembro,
+        source?.correo,
+        source?.email,
+        source?.company,
+      ]
+        .filter((value) => value !== null && value !== undefined && value !== '')
+        .map((value) => normalizeMemberLookupValue(value));
+
+      return sourceKeys.some((key) => memberKeys.has(key));
+    });
+  });
+};
+
 // ----------------------------------------------------------------------
 
 export function InvoiceListView() {
@@ -100,9 +159,7 @@ export function InvoiceListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
-  const visibleTableData = isMemberSessionUser(user)
-    ? filterInvoicesByMemberSession(tableData, user)
-    : tableData;
+  const visibleTableData = filterInvoicesForMember(tableData, user);
 
   const dataFiltered = applyFilter({
     inputData: visibleTableData,
