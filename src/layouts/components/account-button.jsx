@@ -8,6 +8,8 @@ import { varTap, varHover, AnimateBorder, transitionTap } from 'src/components/a
 // ----------------------------------------------------------------------
 
 export function AccountButton({ photoURL, displayName, sx, ...other }) {
+  const fallbackDisplayName = displayName || '';
+
   return (
     <IconButton
       component={m.button}
@@ -24,9 +26,9 @@ export function AccountButton({ photoURL, displayName, sx, ...other }) {
           primaryBorder: { size: 60, width: '1px', sx: { color: 'primary.main' } },
           secondaryBorder: { sx: { color: 'warning.main' } },
         }}
-      >
-        <Avatar src={photoURL} alt={displayName} sx={{ width: 1, height: 1 }}>
-          {displayName?.charAt(0).toUpperCase()}
+        >
+          <Avatar src={photoURL} alt={displayName} sx={{ width: 1, height: 1 }}>
+          {fallbackDisplayName?.charAt(0).toUpperCase() || '?'}
         </Avatar>
       </AnimateBorder>
     </IconButton>

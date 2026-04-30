@@ -30,6 +30,7 @@ export function AccountPopover({ data = [], sx, ...other }) {
 
   const { user } = useAuthContext();
   const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
+  const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -40,7 +41,7 @@ export function AccountPopover({ data = [], sx, ...other }) {
     >
       <Box sx={{ p: 2, pb: 1.5 }}>
         <Typography variant="subtitle2" noWrap>
-          {user?.displayName}
+          {accountName}
         </Typography>
 
         {!isMemberSessionUser(user) && (
@@ -116,7 +117,7 @@ export function AccountPopover({ data = [], sx, ...other }) {
       <AccountButton
         onClick={onOpen}
         photoURL={user?.photoURL}
-        displayName={user?.displayName}
+        displayName={accountName}
         sx={sx}
         {...other}
       />

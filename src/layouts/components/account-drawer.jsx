@@ -39,6 +39,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
 
   const { user } = useAuthContext();
   const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
+  const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -114,7 +115,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       <AccountButton
         onClick={onOpen}
         photoURL={user?.photoURL}
-        displayName={user?.displayName}
+        displayName={accountName}
         sx={sx}
         {...other}
       />
@@ -152,7 +153,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
             {renderAvatar()}
 
             <Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-              {user?.displayName}
+              {accountName}
             </Typography>
 
             {!isMemberSessionUser(user) && (

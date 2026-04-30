@@ -8,7 +8,6 @@ import { useRouter } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/global-config';
 
-import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -42,25 +41,28 @@ export function SignOutButton({ onClose, sx, ...other }) {
   const handleLogout = useCallback(async () => {
     try {
       await signOut();
-      await checkUserSession?.();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      try {
+        await checkUserSession?.();
+      } catch (error) {
+        console.error(error);
+      }
 
       onClose?.();
       router.replace(signInPath);
-    } catch (error) {
-      console.error(error);
-      toast.error('No se pudo cerrar la sesión.');
     }
   }, [checkUserSession, onClose, router]);
 
   const handleLogoutAuth0 = useCallback(async () => {
     try {
       await signOutAuth0();
-
-      onClose?.();
-      router.replace(signInPath);
     } catch (error) {
       console.error(error);
-      toast.error('No se pudo cerrar la sesión.');
+    } finally {
+      onClose?.();
+      router.replace(signInPath);
     }
   }, [onClose, router, signOutAuth0]);
 

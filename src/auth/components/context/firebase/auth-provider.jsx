@@ -6,7 +6,12 @@ import { useMemo, useEffect, useCallback } from 'react';
 
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
-import { loadAdminProfile, loadProfileByUid, buildAdminSessionUser } from 'src/utils/admin-profile';
+import {
+  loadAdminProfile,
+  loadProfileByUid,
+  buildAdminSessionUser,
+  findAdminProfileByLoginValue,
+} from 'src/utils/admin-profile';
 
 import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
@@ -61,6 +66,7 @@ export function AuthProvider({ children }) {
             : buildAdminSessionUser(
                 authUser,
                 (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
+                  (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
                   (await withTimeout(loadProfileByUid('users', authUser.uid), null)) ??
                   {}
               );
