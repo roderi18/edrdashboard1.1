@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
@@ -66,9 +66,9 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 const TABLE_HEAD = [
   { id: 'name', label: 'Nombre' },
   { id: 'destName', label: 'Destacamento', width: 250 },
-  { id: 'memberPosition', label: 'Posición', width: 180 },
-  { id: 'sectionalName', label: 'Sección', width: 160 },
-  { id: 'memberDivision', label: 'División', width: 90 },
+  { id: 'memberPosition', label: 'PosiciÃ³n', width: 180 },
+  { id: 'sectionalName', label: 'SecciÃ³n', width: 160 },
+  { id: 'memberDivision', label: 'DivisiÃ³n', width: 90 },
   { id: '', width: 88 },
 ];
 
@@ -212,7 +212,7 @@ export function MemberListView() {
 
   useEffect(() => {
     async function loadData() {
-      // 🚨 NO correr hasta que haya data
+      // ðŸš¨ NO correr hasta que haya data
       if (!dests.length || !churches.length || !sectionals.length) return;
 
       try {
@@ -224,9 +224,18 @@ export function MemberListView() {
 
           const dest = dests.find((d) => String(d.id) === String(member.idDestacamento));
 
-          const church = churches.find((c) => Number(c.id) === Number(dest?.churchId));
+          const church = churches.find(
+            (c) =>
+              String(c.id) === String(dest?.churchId) ||
+              String(c.idIglesia) === String(dest?.churchId) ||
+              Number(c.id) === Number(dest?.churchId)
+          );
 
-          const sectional = sectionals.find((s) => String(s.id) === String(church?.idSeccion));
+          const sectional = sectionals.find(
+            (s) =>
+              String(s.id) === String(church?.idSeccion) ||
+              String(s.idSeccion) === String(church?.idSeccion)
+          );
 
           return {
             ...member,
@@ -236,8 +245,10 @@ export function MemberListView() {
             avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
             name: getMemberFullName(member),
             memberDivision: resolveMemberDivision(member),
+            churchId: church?.id || church?.idIglesia || dest?.churchId || null,
+            churchName: church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
             sectionalId: sectional?.id,
-            sectionalName: sectional?.sectionalName || 'Sección desconocida',
+            sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
             memberPosition: [],
           };
         });

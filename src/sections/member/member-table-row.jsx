@@ -73,6 +73,7 @@ export function MemberTableRow({
   // );
 
   const sectionalName = row.sectionalName || '-';
+  const churchName = row.churchName || dest?.churchName || 'Iglesia desconocida';
 
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
@@ -211,7 +212,7 @@ export function MemberTableRow({
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {`Iglesia ${capitalize(dest?.churchName || 'desconocida')}`}
+                {`Iglesia ${capitalize(churchName)}`}
               </Box>
             </Stack>
           </Box>
