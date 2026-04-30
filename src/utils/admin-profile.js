@@ -104,34 +104,59 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
     return null;
   }
 
-  if (value.includes('@')) {
-    return findProfileByField(ADMIN_COLLECTION, 'correo', value.toLowerCase());
-  }
-
   const normalizedLogin = value.toLowerCase().replace(/\s+/g, '');
-  const collectionSnap = await getDocs(collection(FIRESTORE, ADMIN_COLLECTION));
 
-  const matchedSnapshot = collectionSnap.docs.find((snapshot) => {
-    const profile = snapshot.data() ?? {};
+  const findInCollection = async (collectionName) => {
+    if (value.includes('@')) {
+      const emailProfile = await findProfileByField(collectionName, 'correo', value.toLowerCase());
 
-    const candidates = [
-      profile.codigoUsuario,
-      profile.uid,
-      profile.correo,
-      profile.nombres,
-      profile.apellidos,
-    ]
-      .filter(Boolean)
-      .map((candidate) => String(candidate).trim().toLowerCase().replace(/\s+/g, ''));
+      if (emailProfile) {
+        return emailProfile;
+      }
+    }
 
-    return candidates.includes(normalizedLogin);
-  });
+    const collectionSnap = await getDocs(collection(FIRESTORE, collectionName));
 
-  if (!matchedSnapshot) {
-    return findProfileByField(ADMIN_COLLECTION, 'codigoUsuario', value);
+    const matchedSnapshot = collectionSnap.docs.find((snapshot) => {
+      const profile = snapshot.data() ?? {};
+
+      const candidates = [
+        profile.codigoUsuario,
+        profile.uid,
+        profile.correo,
+        profile.nombres,
+        profile.apellidos,
+      ]
+        .filter(Boolean)
+        .map((candidate) => String(candidate).trim().toLowerCase().replace(/\s+/g, ''));
+
+      return candidates.includes(normalizedLogin);
+    });
+
+    if (matchedSnapshot) {
+      return { ref: matchedSnapshot.ref, snap: matchedSnapshot, data: matchedSnapshot.data() };
+    }
+
+    return findProfileByField(collectionName, 'codigoUsuario', value);
+  };
+
+  const adminProfile = await findInCollection(ADMIN_COLLECTION);
+
+  if (adminProfile) {
+    return adminProfile;
   }
 
-  return { ref: matchedSnapshot.ref, snap: matchedSnapshot, data: matchedSnapshot.data() };
+  const userProfile = await findInCollection('users');
+
+  if (userProfile) {
+    const role = String(userProfile.data?.rol ?? userProfile.data?.role ?? '').toLowerCase();
+
+    if (!role || role === 'admin' || role === 'administrador') {
+      return userProfile;
+    }
+  }
+
+  return null;
 };
 
 export const resolveAdminSignInEmail = async (loginValue) => {
