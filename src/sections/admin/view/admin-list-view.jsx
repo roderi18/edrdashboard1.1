@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useSetState } from 'minimal-shared/hooks';
 
+import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
@@ -23,6 +26,8 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useTable, TableNoData, TableHeadCustom } from 'src/components/table';
+
+import { LogsFileManagerView } from 'src/sections/logs/view';
 
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
@@ -79,6 +84,7 @@ export function AdminListView() {
   const table = useTable();
   const [admins, setAdmins] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
+  const [activeTab, setActiveTab] = useState('administradores');
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
 
@@ -106,8 +112,8 @@ export function AdminListView() {
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;
 
-  return (
-    <DashboardContent>
+  const renderAdministradoresTab = () => (
+    <>
       <CustomBreadcrumbs
         heading="Administradores"
         links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Administradores' }]}
@@ -168,6 +174,23 @@ export function AdminListView() {
           <AdminCardList admins={dataFiltered} />
         )}
       </Card>
+    </>
+  );
+
+  return (
+    <DashboardContent>
+      <Box sx={{ mb: { xs: 2, md: 3 } }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          sx={{ minHeight: 44 }}
+        >
+          <Tab value="administradores" label="Administradores" />
+          <Tab value="logs" label="Historial - Logs" />
+        </Tabs>
+      </Box>
+
+      {activeTab === 'administradores' ? renderAdministradoresTab() : <LogsFileManagerView />}
     </DashboardContent>
   );
 }
