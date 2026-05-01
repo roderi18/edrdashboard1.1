@@ -339,7 +339,9 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('orden')) return Boolean(permissions.ordenes?.ver);
   if (title.includes('blog') || path.includes('/dashboard/post')) return Boolean(permissions.blog?.ver);
   if (title.includes('course') || path === paths.dashboard.general.course) return Boolean(permissions.course?.ver);
-  if (title.includes('archivo')) return Boolean(permissions.archivos?.ver);
+  if (title.includes('archivo') || title.includes('document') || path === paths.dashboard.fileManager) {
+    return Boolean(permissions.archivos?.ver);
+  }
   if (title.includes('chat')) return Boolean(permissions.chats?.ver);
   if (title.includes('calendario') || title.includes('actividades')) {
     return Boolean(permissions.calendario?.ver);
@@ -366,6 +368,7 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
             const isMemberDirectContentItem =
               title.includes('blog') ||
               title.includes('course') ||
+              title.includes('document') ||
               title.includes('archivo') ||
               title.includes('chat') ||
               title.includes('calendario') ||
