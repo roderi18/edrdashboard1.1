@@ -1,28 +1,77 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+
+import Alert from '@mui/material/Alert';
+
+import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { canMemberManageMembers } from 'src/utils/member-access';
+
+import { mapApiMemberToUI } from 'src/services/member-service';
 
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
-import { getMembers } from 'src/services/member-service';
 
-import { getStorageCollection } from 'src/utils/storage-service';
+import { useAuthContext } from 'src/auth/hooks';
 
 export default function Page() {
+  const { id } = useParams();
+  const { user, loading } = useAuthContext();
 
-    const { id } = useParams();
+  const [hydrated, setHydrated] = useState(false);
+  const [currentMember, setCurrentMember] = useState(null);
+  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
 
-    const storedMembers = getStorageCollection('members') || [];
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/members');
+      const data = await res.json();
+      const allMembers = data?.data || data?.Data || [];
 
-    const allMembers = getMembers();
+      const member = allMembers.find(
+        (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
+      );
 
-    const member = allMembers.find((m) => m.id === id);
+      if (!member) {
+        setCurrentMember(null);
+        setHydrated(true);
+        return;
+      }
 
-    if (!member) return null;
+      const mapped = mapApiMemberToUI(member);
+      const memberPhoto = await obtenerFotoPrincipal({
+        tipoEntidad: 'miembro',
+        idEntidad: mapped?.id,
+      });
 
+      setCurrentMember({
+        ...mapped,
+        avatarUrl: memberPhoto?.urlFoto || mapped?.avatarUrl || null,
+      });
+      setHydrated(true);
+    };
+
+    load();
+  }, [id]);
+
+  if (!hydrated || loading) return null;
+
+  if (!currentMember) {
+    return <div>Miembro no encontrado</div>;
+  }
+
+  if (!canManage) {
     return (
-        <MemberEditLayout member={member}>
-            <MemberEditAwardsForm currentMember={member} />
-        </MemberEditLayout>
+      <MemberEditLayout>
+        <Alert severity="warning">No tienes permisos para editar miembros.</Alert>
+      </MemberEditLayout>
     );
+  }
+
+  return (
+    <MemberEditLayout>
+      <MemberEditAwardsForm currentMember={currentMember} />
+    </MemberEditLayout>
+  );
 }
