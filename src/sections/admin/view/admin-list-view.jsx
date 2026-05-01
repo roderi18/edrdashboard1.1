@@ -184,8 +184,6 @@ export function AdminListView() {
           sx={{
             minHeight: 44,
             px: 0,
-            borderBottom: 1,
-            borderColor: 'divider',
             '& .MuiTab-root': {
               minHeight: 44,
               minWidth: 0,
