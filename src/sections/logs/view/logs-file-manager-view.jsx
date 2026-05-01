@@ -30,7 +30,7 @@ import { FileManagerCreateFolderDialog } from '../logs-file-manager-create-folde
 
 // ----------------------------------------------------------------------
 
-export function LogsFileManagerView() {
+export function LogsFileManagerView({ embedded = false }) {
   const table = useTable({ defaultRowsPerPage: 10 });
 
   const dateRange = useBoolean();
@@ -181,9 +181,8 @@ export function LogsFileManagerView() {
       />
     );
 
-  return (
+  const content = (
     <>
-      <DashboardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="h4">Historial - Logs</Typography>
           <Button
@@ -201,8 +200,12 @@ export function LogsFileManagerView() {
         </Stack>
 
         {notFound ? <EmptyContent filled sx={{ py: 10 }} /> : renderList()}
-      </DashboardContent>
+    </>
+  );
 
+  return (
+    <>
+      {embedded ? content : <DashboardContent>{content}</DashboardContent>}
       {renderUploadFilesDialog()}
       {renderConfirmDialog()}
     </>

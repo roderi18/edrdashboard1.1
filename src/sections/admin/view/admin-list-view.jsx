@@ -113,7 +113,54 @@ export function AdminListView() {
   const notFound = !dataFiltered.length;
 
   const renderAdministradoresTab = () => (
-    <>
+    <Card>
+      <AdminTableToolbar
+        filters={filters}
+        onResetPage={table.onResetPage}
+        displayMode={displayMode}
+        setDisplayMode={setDisplayMode}
+      />
+
+      {displayMode === 'panel' ? (
+        <Scrollbar>
+          <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 760 }}>
+            <TableHeadCustom
+              order={table.order}
+              orderBy={table.orderBy}
+              headCells={TABLE_HEAD}
+              rowCount={dataFiltered.length}
+              numSelected={table.selected.length}
+              onSort={table.onSort}
+              onSelectAllRows={(checked) =>
+                table.onSelectAllRows(
+                  checked,
+                  dataFiltered.map((row) => row.id)
+                )
+              }
+            />
+
+            <TableBody>
+              {dataFiltered.map((row) => (
+                <AdminTableRow
+                  key={row.adminId || row.id}
+                  row={row}
+                  selected={table.selected.includes(row.id)}
+                  onSelectRow={() => table.onSelectRow(row.id)}
+                />
+              ))}
+
+              <TableNoData notFound={notFound} />
+            </TableBody>
+          </Table>
+        </Scrollbar>
+      ) : (
+        <AdminCardList admins={dataFiltered} />
+      )}
+    </Card>
+  );
+
+  return (
+    <DashboardContent>
       <CustomBreadcrumbs
         heading="Administradores"
         links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Administradores' }]}
@@ -127,70 +174,48 @@ export function AdminListView() {
             Crear administrador
           </Button>
         }
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: { xs: 1.5, md: 2 } }}
       />
 
-      <Card>
-        <AdminTableToolbar
-          filters={filters}
-          onResetPage={table.onResetPage}
-          displayMode={displayMode}
-          setDisplayMode={setDisplayMode}
-        />
-
-        {displayMode === 'panel' ? (
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 760 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headCells={TABLE_HEAD}
-                rowCount={dataFiltered.length}
-                numSelected={table.selected.length}
-                onSort={table.onSort}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-              />
-
-              <TableBody>
-                {dataFiltered.map((row) => (
-                  <AdminTableRow
-                    key={row.adminId || row.id}
-                    row={row}
-                    selected={table.selected.includes(row.id)}
-                    onSelectRow={() => table.onSelectRow(row.id)}
-                  />
-                ))}
-
-                <TableNoData notFound={notFound} />
-              </TableBody>
-            </Table>
-          </Scrollbar>
-        ) : (
-          <AdminCardList admins={dataFiltered} />
-        )}
-      </Card>
-    </>
-  );
-
-  return (
-    <DashboardContent>
       <Box sx={{ mb: { xs: 2, md: 3 } }}>
         <Tabs
           value={activeTab}
           onChange={(_, value) => setActiveTab(value)}
-          sx={{ minHeight: 44 }}
+          sx={{
+            minHeight: 44,
+            px: 0,
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              minHeight: 44,
+              minWidth: 0,
+              px: 0,
+              mr: 4,
+              alignItems: 'center',
+              gap: 1,
+            },
+          }}
         >
-          <Tab value="administradores" label="Administradores" />
-          <Tab value="logs" label="Historial - Logs" />
+          <Tab
+            value="administradores"
+            icon={<Iconify icon="solar:users-group-rounded-bold" />}
+            iconPosition="start"
+            label="Administradores"
+          />
+          <Tab
+            value="logs"
+            icon={<Iconify icon="solar:document-text-bold" />}
+            iconPosition="start"
+            label="Historial - Logs"
+          />
         </Tabs>
       </Box>
 
-      {activeTab === 'administradores' ? renderAdministradoresTab() : <LogsFileManagerView />}
+      {activeTab === 'administradores' ? (
+        renderAdministradoresTab()
+      ) : (
+        <LogsFileManagerView embedded />
+      )}
     </DashboardContent>
   );
 }
