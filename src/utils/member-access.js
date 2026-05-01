@@ -11,7 +11,8 @@ import { MEMBER_AUTH_DOMAIN, normalizeMemberUsername } from './member-auth-crede
 
 // ----------------------------------------------------------------------
 
-export const isMemberSessionUser = (user) => user?.role === 'member' || user?.role === 'miembro';
+export const isMemberSessionUser = (user) =>
+  Boolean(user) && user?.role !== 'admin' && user?.role !== 'administrador';
 
 export const getMemberPermissions = (user) => user?.permisos ?? user?.permissions ?? {};
 
@@ -21,6 +22,27 @@ export const getMemberCodeLabel = (user) =>
   String(user?.codigoMiembro ?? user?.memberId ?? user?.codigo ?? '')
     .trim()
     .toUpperCase();
+
+const getMemberIdentityKeys = (user = {}) =>
+  new Set(
+    [
+      user?.uid,
+      user?.id,
+      user?.idMiembros,
+      user?.memberId,
+      user?.codigoMiembro,
+      user?.codigo,
+      user?.correo,
+      user?.email,
+    ]
+      .filter((value) => value !== null && value !== undefined && value !== '')
+      .map((value) =>
+        String(value)
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '')
+      )
+  );
 
 export const buildDefaultMemberPermissions = () => ({
   miembros: {
@@ -55,6 +77,24 @@ export const buildDefaultMemberPermissions = () => ({
     editar: false,
     eliminar: false,
   },
+  blog: {
+    ver: true,
+  },
+  course: {
+    ver: true,
+  },
+  archivos: {
+    ver: true,
+  },
+  chats: {
+    ver: true,
+  },
+  calendario: {
+    ver: true,
+  },
+  flujoTrabajo: {
+    ver: true,
+  },
 });
 
 const mergeMemberPermissions = (permissions = {}) => ({
@@ -79,6 +119,30 @@ const mergeMemberPermissions = (permissions = {}) => ({
   productos: {
     ...buildDefaultMemberPermissions().productos,
     ...(permissions?.productos ?? {}),
+  },
+  blog: {
+    ...buildDefaultMemberPermissions().blog,
+    ...(permissions?.blog ?? {}),
+  },
+  course: {
+    ...buildDefaultMemberPermissions().course,
+    ...(permissions?.course ?? {}),
+  },
+  archivos: {
+    ...buildDefaultMemberPermissions().archivos,
+    ...(permissions?.archivos ?? {}),
+  },
+  chats: {
+    ...buildDefaultMemberPermissions().chats,
+    ...(permissions?.chats ?? {}),
+  },
+  calendario: {
+    ...buildDefaultMemberPermissions().calendario,
+    ...(permissions?.calendario ?? {}),
+  },
+  flujoTrabajo: {
+    ...buildDefaultMemberPermissions().flujoTrabajo,
+    ...(permissions?.flujoTrabajo ?? {}),
   },
 });
 
@@ -188,6 +252,47 @@ export const filterDestsByMemberScope = (dests = [], user) => {
   });
 };
 
+export const filterOrdersByMemberSession = (orders = [], user) => {
+  if (!isMemberSessionUser(user)) {
+    return orders;
+  }
+
+  const memberKeys = getMemberIdentityKeys(user);
+
+  if (!memberKeys.size) {
+    return [];
+  }
+
+  return orders.filter((order) => {
+    const sources = [order, order?.customer, order?.billing, order?.shippingAddress];
+
+    return sources.some((source) => {
+      if (!source || typeof source !== 'object') {
+        return false;
+      }
+
+      const sourceKeys = [
+        source?.uid,
+        source?.id,
+        source?.memberId,
+        source?.idMiembros,
+        source?.codigoMiembro,
+        source?.correo,
+        source?.email,
+      ]
+        .filter((value) => value !== null && value !== undefined && value !== '')
+        .map((value) =>
+          String(value)
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '')
+        );
+
+      return sourceKeys.some((key) => memberKeys.has(key));
+    });
+  });
+};
+
 const navPermissionByItem = (item, user) => {
   const permissions = getMemberPermissions(user);
   const title = normalizeText(item.title || '');
@@ -232,6 +337,8 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('recibo') || title.includes('invoice'))
     return Boolean(permissions.recibos?.ver);
   if (title.includes('orden')) return Boolean(permissions.ordenes?.ver);
+  if (title.includes('blog') || path.includes('/dashboard/post')) return Boolean(permissions.blog?.ver);
+  if (title.includes('course') || path === paths.dashboard.general.course) return Boolean(permissions.course?.ver);
   if (title.includes('archivo')) return Boolean(permissions.archivos?.ver);
   if (title.includes('chat')) return Boolean(permissions.chats?.ver);
   if (title.includes('calendario') || title.includes('actividades')) {
@@ -256,6 +363,15 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
               title.includes('tienda') ||
               title.includes('producto') ||
               item.path === paths.dashboard.product.root;
+            const isMemberDirectContentItem =
+              title.includes('blog') ||
+              title.includes('course') ||
+              title.includes('archivo') ||
+              title.includes('chat') ||
+              title.includes('calendario') ||
+              title.includes('actividades') ||
+              title.includes('flujo') ||
+              title.includes('kanban');
 
             if (item.children) {
               if (isMemberSessionUser(user) && isShopItem) {
@@ -270,13 +386,13 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
                         memberShopChild: true,
                       },
                       {
-                        title: 'Ordenes',
+                        title: 'Mis ordenes',
                         path: paths.dashboard.order.root,
                         deepMatch: true,
                         memberShopChild: true,
                       },
                       {
-                        title: 'Recibos',
+                        title: 'Mis recibos',
                         path: paths.dashboard.invoice.root,
                         deepMatch: true,
                         memberShopChild: true,
@@ -292,9 +408,20 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
                   : null;
               }
 
-              if (itemAllowed || childItems.length) {
+              if (isMemberSessionUser(user) && isMemberDirectContentItem && itemAllowed) {
                 return {
                   ...item,
+                  children: undefined,
+                };
+              }
+
+              if (itemAllowed || childItems.length) {
+                const memberShopTitle =
+                  isMemberSessionUser(user) && isShopItem ? 'Tienda Virtual' : item.title;
+
+                return {
+                  ...item,
+                  title: memberShopTitle,
                   children: childItems,
                 };
               }
@@ -428,3 +555,4 @@ export const buildMemberSessionUser = (authUser, access = {}) => {
     alcance: mergeMemberScope(profile?.alcance, member),
   };
 };
+
