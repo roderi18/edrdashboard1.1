@@ -12,7 +12,7 @@ export function OrderDetailsDelivery({ delivery }) {
   return (
     <>
       <CardHeader
-        title="Delivery"
+        title="Entrega"
         action={
           <IconButton>
             <Iconify icon="solar:pen-bold" />
@@ -22,7 +22,7 @@ export function OrderDetailsDelivery({ delivery }) {
       <Stack spacing={1.5} sx={{ p: 3, typography: 'body2' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Ship by
+            Enviado por
           </Box>
 
           {delivery?.shipBy}
@@ -30,7 +30,7 @@ export function OrderDetailsDelivery({ delivery }) {
 
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Speedy
+            Rapidez
           </Box>
 
           {delivery?.speedy}
@@ -38,7 +38,7 @@ export function OrderDetailsDelivery({ delivery }) {
 
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Tracking No.
+            Numero de seguimiento
           </Box>
 
           <Link underline="always" color="inherit">

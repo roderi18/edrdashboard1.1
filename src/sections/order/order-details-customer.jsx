@@ -10,11 +10,17 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
+const ROLE_LABELS = {
+  member: 'Miembro',
+  admin: 'Administrador',
+  user: 'Usuario',
+};
+
 export function OrderDetailsCustomer({ customer }) {
   return (
     <>
       <CardHeader
-        title="Customer"
+        title="Miembro"
         action={
           <IconButton>
             <Iconify icon="solar:pen-bold" />
@@ -30,26 +36,27 @@ export function OrderDetailsCustomer({ customer }) {
 
         <Stack spacing={0.5} sx={{ typography: 'body2', alignItems: 'flex-start' }}>
           <Typography variant="subtitle2">{customer?.name}</Typography>
-          <Box sx={{ color: 'text.secondary' }}>{customer?.email}</Box>
           {customer?.codigoMiembro && (
             <Box sx={{ color: 'text.secondary' }}>{String(customer.codigoMiembro).toUpperCase()}</Box>
           )}
           {customer?.memberRole && (
-            <Box sx={{ color: 'text.secondary' }}>{customer.memberRole}</Box>
+            <Box sx={{ color: 'text.secondary' }}>
+              {ROLE_LABELS[String(customer.memberRole).toLowerCase()] || customer.memberRole}
+            </Box>
           )}
           {(customer?.destName || customer?.sectionalName || customer?.regionalName) && (
             <Box sx={{ color: 'text.secondary' }}>
               {[customer?.destName, customer?.sectionalName, customer?.regionalName]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(' / ')}
             </Box>
           )}
           {customer?.phoneNumber && (
-            <Box sx={{ color: 'text.secondary' }}>Phone: {customer.phoneNumber}</Box>
+            <Box sx={{ color: 'text.secondary' }}>Telefono: {customer.phoneNumber}</Box>
           )}
 
           <div>
-            IP address:
+            Direccion IP:
             <Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
               {customer?.ipAddress}
             </Box>
@@ -61,7 +68,7 @@ export function OrderDetailsCustomer({ customer }) {
             startIcon={<Iconify icon="mingcute:add-line" />}
             sx={{ mt: 1 }}
           >
-            Add to blacklist
+            Agregar a lista negra
           </Button>
         </Stack>
       </Box>

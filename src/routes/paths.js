@@ -212,6 +212,7 @@ export const paths = {
     admin: {
       root: `${ROOTS.DASHBOARD}/admin`,
       new: `${ROOTS.DASHBOARD}/admin/new`,
+      logs: `${ROOTS.DASHBOARD}/admin/logs`,
     },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,

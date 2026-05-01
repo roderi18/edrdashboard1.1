@@ -66,7 +66,7 @@ export function InvoiceCreateEditAddress() {
         <Stack sx={{ width: 1 }}>
           <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-              To:
+              Para:
             </Typography>
 
             <IconButton onClick={addressTo.onTrue}>
@@ -89,7 +89,7 @@ export function InvoiceCreateEditAddress() {
       </Stack>
 
       <AddressListDialog
-        title="Clientes"
+        title="Direcciones"
         open={addressForm.value}
         onClose={addressForm.onFalse}
         selected={(selectedId) => invoiceFrom?.id === selectedId}
@@ -101,13 +101,13 @@ export function InvoiceCreateEditAddress() {
             startIcon={<Iconify icon="mingcute:add-line" />}
             sx={{ alignSelf: 'flex-end' }}
           >
-            Add
+            Agregar
           </Button>
         }
       />
 
       <AddressListDialog
-        title="Clientes"
+        title="Direcciones"
         open={addressTo.value}
         onClose={addressTo.onFalse}
         selected={(selectedId) => invoiceTo?.id === selectedId}
@@ -119,7 +119,7 @@ export function InvoiceCreateEditAddress() {
             startIcon={<Iconify icon="mingcute:add-line" />}
             sx={{ alignSelf: 'flex-end' }}
           >
-            Add
+            Agregar
           </Button>
         }
       />

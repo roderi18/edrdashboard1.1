@@ -60,15 +60,15 @@ const normalizeInvoice = (invoice) => {
 export const InvoiceCreateSchema = z
   .object({
     invoiceTo: schemaUtils.nullableInput(z.custom(), {
-      error: 'Invoice to is required!',
+      error: 'La factura destino es obligatoria!',
     }),
-    createDate: schemaUtils.date({ error: { required: 'Create date is required!' } }),
-    dueDate: schemaUtils.date({ error: { required: 'Due date is required!' } }),
+    createDate: schemaUtils.date({ error: { required: 'La fecha de creacion es obligatoria!' } }),
+    dueDate: schemaUtils.date({ error: { required: 'La fecha de vencimiento es obligatoria!' } }),
     items: z.array(
       z.object({
-        title: z.string().min(1, { error: 'Title is required!' }),
-        service: z.string().min(1, { error: 'Service is required!' }),
-        quantity: z.number().int().positive().min(1, { error: 'Quantity must be more than 0' }),
+        title: z.string().min(1, { error: 'El titulo es obligatorio!' }),
+        service: z.string().min(1, { error: 'El servicio es obligatorio!' }),
+        quantity: z.number().int().positive().min(1, { error: 'La cantidad debe ser mayor que 0' }),
         // Not required
         price: z.number(),
         total: z.number(),
@@ -86,7 +86,7 @@ export const InvoiceCreateSchema = z
     invoiceFrom: z.custom().nullable(),
   })
   .refine((val) => !fIsAfter(val.createDate, val.dueDate), {
-    error: 'Due date cannot be earlier than create date!',
+    error: 'La fecha de vencimiento no puede ser anterior a la fecha de creacion!',
     path: ['dueDate'],
   });
 
@@ -189,7 +189,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
           loading={loadingSave.value && isSubmitting}
           onClick={handleSaveAsDraft}
         >
-          Save as draft
+          Guardar borrador
         </Button>
 
         <Button
@@ -198,7 +198,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
           loading={loadingSend.value && isSubmitting}
           onClick={handleCreateAndSend}
         >
-          {currentInvoice ? 'Update' : 'Crear'} & send
+          {currentInvoice ? 'Actualizar' : 'Crear'} y enviar
         </Button>
       </Box>
     </Form>

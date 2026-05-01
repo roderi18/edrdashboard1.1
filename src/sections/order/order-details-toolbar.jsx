@@ -18,6 +18,13 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
+const STATUS_LABELS = {
+  pending: 'Pendiente',
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  refunded: 'Reembolsado',
+};
+
 export function OrderDetailsToolbar({
   status,
   backHref,
@@ -69,7 +76,7 @@ export function OrderDetailsToolbar({
 
           <Stack spacing={0.5}>
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="h4"> Order {orderNumber} </Typography>
+              <Typography variant="h4"> Pedido {orderNumber} </Typography>
               <Label
                 variant="soft"
                 color={
@@ -79,7 +86,7 @@ export function OrderDetailsToolbar({
                   'default'
                 }
               >
-                {status}
+                {STATUS_LABELS[status] || status}
               </Label>
             </Box>
 
@@ -105,7 +112,7 @@ export function OrderDetailsToolbar({
             onClick={menuActions.onOpen}
             sx={{ textTransform: 'capitalize' }}
           >
-            {status}
+            {STATUS_LABELS[status] || status}
           </Button>
 
           <Button
@@ -113,11 +120,11 @@ export function OrderDetailsToolbar({
             variant="outlined"
             startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
           >
-            Print
+            Imprimir
           </Button>
 
           <Button color="inherit" variant="contained" startIcon={<Iconify icon="solar:pen-bold" />}>
-            Edit
+            Editar
           </Button>
         </Box>
       </Box>

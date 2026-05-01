@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
+import { isMemberSessionUser } from 'src/utils/member-access';
 import { getLocalProductById } from 'src/utils/local-product-storage';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
@@ -21,6 +22,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 
 import { ProductDetailsSkeleton } from 'src/sections/product/product-skeleton';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { useCheckoutContext } from '../../checkout/context';
 import { ProductDetailsReview } from '../product-details-review';
@@ -54,12 +57,14 @@ const SUMMARY = [
 export function ProductDetailsView({ product, productId }) {
   const tabs = useTabs('description');
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
+  const { user } = useAuthContext();
 
   const [publish, setPublish] = useState('');
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
   const [isLoading, setIsLoading] = useState(!product && !!productId?.startsWith('local-product-'));
 
   const isLocalProduct = productId?.startsWith('local-product-');
+  const isMemberUser = isMemberSessionUser(user);
 
   useEffect(() => {
     if (product) {
@@ -96,6 +101,7 @@ export function ProductDetailsView({ product, productId }) {
             publish={publish}
             onChangePublish={handleChangePublish}
             publishOptions={PRODUCT_PUBLISH_OPTIONS}
+            isMemberUser={isMemberUser}
           />
 
           <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>

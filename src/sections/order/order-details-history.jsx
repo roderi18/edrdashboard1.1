@@ -19,10 +19,10 @@ import { Iconify } from 'src/components/iconify';
 
 export function OrderDetailsHistory({ history }) {
   const items = [
-    { label: 'Order placed', value: fDateTime(history?.orderTime) },
-    { label: 'Payment time', value: fDateTime(history?.orderTime) },
-    { label: 'Delivery time for the carrier', value: fDateTime(history?.orderTime) },
-    { label: 'Completion time', value: fDateTime(history?.orderTime) },
+    { label: 'Pedido realizado', value: fDateTime(history?.orderTime) },
+    { label: 'Hora de pago', value: fDateTime(history?.orderTime) },
+    { label: 'Hora de entrega al transportista', value: fDateTime(history?.orderTime) },
+    { label: 'Hora de finalización', value: fDateTime(history?.orderTime) },
   ];
 
   const renderSummary = () => (
@@ -83,7 +83,7 @@ export function OrderDetailsHistory({ history }) {
 
   return (
     <Card>
-      <CardHeader title="History" />
+      <CardHeader title="Historial" />
       <Box
         sx={{
           p: 3,
@@ -100,7 +100,7 @@ export function OrderDetailsHistory({ history }) {
             color="inherit"
             endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} />}
           >
-            Show more
+            Ver más
           </Button>
         </Box>
         {renderSummary()}

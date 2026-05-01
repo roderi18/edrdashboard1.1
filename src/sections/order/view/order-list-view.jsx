@@ -18,6 +18,7 @@ import { paths } from 'src/routes/paths';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import { getLocalOrders } from 'src/utils/local-commerce-storage';
+import { isMemberSessionUser, filterOrdersByMemberSession } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _orders, ORDER_STATUS_OPTIONS } from 'src/_mock';
@@ -30,15 +31,15 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
-  emptyRows,
   rowInPage,
   TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { OrderTableRow } from '../order-table-row';
 import { OrderTableToolbar } from '../order-table-toolbar';
@@ -49,11 +50,11 @@ import { OrderTableFiltersResult } from '../order-table-filters-result';
 const STATUS_OPTIONS = [{ value: 'all', label: 'Todos' }, ...ORDER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
-  { id: 'orderNumber', label: 'Order', width: 88 },
-  { id: 'name', label: 'Customer' },
-  { id: 'createdAt', label: 'Date', width: 140 },
-  { id: 'totalQuantity', label: 'Items', width: 120, align: 'center' },
-  { id: 'totalAmount', label: 'Price', width: 140 },
+  { id: 'orderNumber', label: 'Pedido', width: 88 },
+  { id: 'name', label: 'Miembro' },
+  { id: 'createdAt', label: 'Fecha', width: 140 },
+  { id: 'totalQuantity', label: 'Cantidad', width: 120, align: 'center' },
+  { id: 'totalAmount', label: 'Precio', width: 140 },
   { id: 'status', label: 'Estado', width: 110 },
   { id: '', width: 88 },
 ];
@@ -62,6 +63,8 @@ const TABLE_HEAD = [
 
 export function OrderListView() {
   const table = useTable({ defaultOrderBy: 'orderNumber' });
+  const { user } = useAuthContext();
+  const canDelete = !isMemberSessionUser(user);
 
   const confirmDialog = useBoolean();
 
@@ -80,9 +83,10 @@ export function OrderListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
+  const visibleTableData = filterOrdersByMemberSession(tableData, user);
 
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: visibleTableData,
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
     dateError,
@@ -101,7 +105,7 @@ export function OrderListView() {
     (id) => {
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+      toast.success('Eliminacion exitosa');
 
       setTableData(deleteRow);
 
@@ -113,7 +117,7 @@ export function OrderListView() {
   const handleDeleteRows = useCallback(() => {
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+    toast.success('Eliminacion exitosa');
 
     setTableData(deleteRows);
 
@@ -135,7 +139,7 @@ export function OrderListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          Seguro que deseas eliminar <strong> {table.selected.length} </strong> pedidos?
         </>
       }
       action={
@@ -147,7 +151,7 @@ export function OrderListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -157,11 +161,11 @@ export function OrderListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="List"
+          heading="Lista de ordenes"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Order', href: paths.dashboard.order.root },
-            { name: 'List' },
+            { name: 'Ordenes', href: paths.dashboard.order.root },
+            { name: 'Lista' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -197,7 +201,7 @@ export function OrderListView() {
                     }
                   >
                     {['completed', 'pending', 'cancelled', 'refunded'].includes(tab.value)
-                      ? tableData.filter((user) => user.status === tab.value).length
+                      ? tableData.filter((row) => row.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -232,15 +236,17 @@ export function OrderListView() {
                 )
               }
               action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
+                canDelete ? (
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                ) : null
               }
             />
 
-            <Scrollbar sx={{ minHeight: 444 }}>
+            <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
                   order={table.order}
@@ -270,14 +276,10 @@ export function OrderListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        canDelete={canDelete}
                         detailsHref={paths.dashboard.order.details(row.id)}
                       />
                     ))}
-
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                  />
 
                   <TableNoData notFound={notFound} />
                 </TableBody>
@@ -319,9 +321,13 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
 
   if (name) {
     inputData = inputData.filter(({ orderNumber, customer }) =>
-      [orderNumber, customer.name, customer.email].some((field) =>
-        field?.toLowerCase().includes(name.toLowerCase())
-      )
+      [
+        orderNumber,
+        customer.name,
+        customer.codigoMiembro,
+        customer.memberId,
+        customer.idMiembros,
+      ].some((field) => field?.toLowerCase().includes(name.toLowerCase()))
     );
   }
 
@@ -337,3 +343,4 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
 
   return inputData;
 }
+

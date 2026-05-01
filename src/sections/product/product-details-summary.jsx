@@ -145,17 +145,17 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     >
       <Link>
         <Iconify icon="mingcute:add-line" width={16} />
-        Compare
+        Comparar
       </Link>
 
       <Link>
         <Iconify icon="solar:heart-bold" width={16} />
-        Favorite
+        Favorito
       </Link>
 
       <Link>
         <Iconify icon="solar:share-bold" width={16} />
-        Share
+        Compartir
       </Link>
     </Box>
   );
@@ -192,7 +192,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         size="small"
         helperText={
           <Link underline="always" color="text.primary">
-            Size chart
+            Guía de tallas
           </Link>
         }
         sx={{
@@ -230,7 +230,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
           component="div"
           sx={{ textAlign: 'right', color: 'text.secondary' }}
         >
-          Available: {availableQuantity}
+          Disponible: {availableQuantity}
         </Typography>
       </Stack>
     </Box>
@@ -279,7 +279,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       }}
     >
       <Rating size="small" value={totalRatings} precision={0.1} readOnly sx={{ mr: 1 }} />
-      {`(${fShortenNumber(totalReviews)} reviews)`}
+      {`(${fShortenNumber(totalReviews)} reseñas)`}
     </Box>
   );
 

@@ -10,7 +10,6 @@ import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { mapApiMemberToUI } from 'src/services/member-service';
 
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -84,16 +83,8 @@ export default function Page() {
   }
 
   if (!canManage) {
-    return (
-      <MemberEditLayout>
-        <Alert severity="warning">No tienes permisos para editar miembros.</Alert>
-      </MemberEditLayout>
-    );
+    return <Alert severity="warning">No tienes permisos para editar miembros.</Alert>;
   }
 
-  return (
-    <MemberEditLayout>
-      <MemberCreateEditForm currentMember={currentMember} />
-    </MemberEditLayout>
-  );
+  return <MemberCreateEditForm currentMember={currentMember} />;
 }

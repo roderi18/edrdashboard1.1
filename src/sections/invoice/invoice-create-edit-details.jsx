@@ -60,7 +60,7 @@ export function InvoiceCreateEditDetails() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
-        Details:
+        Detalles:
       </Typography>
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
@@ -90,7 +90,7 @@ export function InvoiceCreateEditDetails() {
           onClick={() => append(defaultItem)}
           sx={{ flexShrink: 0 }}
         >
-          Add item
+          Agregar item
         </Button>
 
         <Box
@@ -104,7 +104,7 @@ export function InvoiceCreateEditDetails() {
         >
           <Field.Text
             size="small"
-            label="Shipping($)"
+            label="Envio($)"
             name="shipping"
             type="number"
             sx={{ maxWidth: { md: 120 } }}
@@ -113,7 +113,7 @@ export function InvoiceCreateEditDetails() {
 
           <Field.Text
             size="small"
-            label="Discount($)"
+            label="Descuento($)"
             name="discount"
             type="number"
             sx={{ maxWidth: { md: 120 } }}
@@ -122,7 +122,7 @@ export function InvoiceCreateEditDetails() {
 
           <Field.Text
             size="small"
-            label="Taxes(%)"
+            label="Impuestos(%)"
             name="taxes"
             type="number"
             sx={{ maxWidth: { md: 120 } }}
@@ -191,7 +191,7 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
         <Field.Text
           size="small"
           name={fieldNames.title}
-          label="Title"
+          label="Titulo"
           slotProps={{ inputLabel: { shrink: true } }}
         />
 
@@ -200,14 +200,14 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
           maxRows={3}
           size="small"
           name={fieldNames.description}
-          label="Description"
+          label="Descripcion"
           slotProps={{ inputLabel: { shrink: true } }}
         />
 
         <Field.Select
           size="small"
           name={fieldNames.service}
-          label="Service"
+          label="Servicio"
           slotProps={{ inputLabel: { shrink: true } }}
           sx={{ maxWidth: { md: 160 } }}
         >
@@ -216,7 +216,7 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
             onClick={handleClearService}
             sx={{ fontStyle: 'italic', color: 'text.secondary' }}
           >
-            None
+            Ninguno
           </MenuItem>
 
           <Divider sx={{ borderStyle: 'dashed' }} />
@@ -236,7 +236,7 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
           size="small"
           type="number"
           name={fieldNames.quantity}
-          label="Quantity"
+          label="Cantidad"
           placeholder="0"
           slotProps={{ inputLabel: { shrink: true } }}
           sx={{ maxWidth: { md: 96 } }}
@@ -246,7 +246,7 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
           size="small"
           type="number"
           name={fieldNames.price}
-          label="Price"
+          label="Precio"
           placeholder="0.00"
           slotProps={{
             input: {
@@ -289,7 +289,7 @@ export function InvoiceItem({ onRemoveItem, fieldNames }) {
         startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
         onClick={onRemoveItem}
       >
-        Remove
+        Eliminar
       </Button>
     </Box>
   );

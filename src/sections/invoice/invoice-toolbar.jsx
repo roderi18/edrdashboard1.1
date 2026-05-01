@@ -38,7 +38,7 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
       <Box sx={{ height: 1, display: 'flex', flexDirection: 'column' }}>
         <DialogActions sx={{ p: 1.5 }}>
           <Button color="inherit" variant="contained" onClick={onClose}>
-            Close
+            Cerrar
           </Button>
         </DialogActions>
         <Box sx={{ flexGrow: 1, height: 1, overflow: 'hidden' }}>
@@ -76,7 +76,7 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="View">
+          <Tooltip title="Ver">
             <IconButton onClick={onOpen}>
               <Iconify icon="solar:eye-bold" />
             </IconButton>
@@ -84,19 +84,19 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
 
           {renderDownloadButton()}
 
-          <Tooltip title="Print">
+          <Tooltip title="Imprimir">
             <IconButton>
               <Iconify icon="solar:printer-minimalistic-bold" />
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Send">
+          <Tooltip title="Enviar">
             <IconButton>
               <Iconify icon="custom:send-fill" />
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Share">
+          <Tooltip title="Compartir">
             <IconButton>
               <Iconify icon="solar:share-bold" />
             </IconButton>

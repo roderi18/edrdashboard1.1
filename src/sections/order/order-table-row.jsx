@@ -26,7 +26,21 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, detailsHref }) {
+const STATUS_LABELS = {
+  pending: 'Pendiente',
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  refunded: 'Reembolsado',
+};
+
+export function OrderTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onDeleteRow,
+  detailsHref,
+  canDelete = true,
+}) {
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
@@ -57,7 +71,13 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
           <Avatar alt={row.customer.name} src={row.customer.avatarUrl} />
           <ListItemText
             primary={row.customer.name}
-            secondary={row.customer.email}
+            secondary={
+              row.customer.codigoMiembro ||
+              row.customer.memberId ||
+              row.customer.idMiembros ||
+              row.customer.id ||
+              'Sin codigo'
+            }
             slotProps={{
               primary: {
                 sx: { typography: 'body2' },
@@ -91,17 +111,17 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
       <TableCell> {fDopCurrency(row.subtotal)} </TableCell>
 
       <TableCell>
-        <Label
-          variant="soft"
-          color={
-            (row.status === 'completed' && 'success') ||
-            (row.status === 'pending' && 'warning') ||
-            (row.status === 'cancelled' && 'error') ||
-            'default'
-          }
-        >
-          {row.status}
-        </Label>
+          <Label
+            variant="soft"
+            color={
+              (row.status === 'completed' && 'success') ||
+              (row.status === 'pending' && 'warning') ||
+              (row.status === 'cancelled' && 'error') ||
+              'default'
+            }
+          >
+          {STATUS_LABELS[row.status] || row.status}
+          </Label>
       </TableCell>
 
       <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
@@ -176,21 +196,23 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {canDelete ? (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        ) : null}
 
         <li>
           <MenuItem component={RouterLink} href={detailsHref} onClick={() => menuActions.onClose()}>
             <Iconify icon="solar:eye-bold" />
-            View
+            Ver
           </MenuItem>
         </li>
       </MenuList>
@@ -202,10 +224,10 @@ export function OrderTableRow({ row, selected, onSelectRow, onDeleteRow, details
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="Seguro que deseas eliminar este pedido?"
       action={
         <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+          Eliminar
         </Button>
       }
     />

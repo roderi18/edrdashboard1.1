@@ -21,6 +21,7 @@ export const dynamic = 'force-dynamic';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardLayout } from 'src/layouts/dashboard';
+
 import { AuthGuard } from 'src/auth/guard';
 
 // ----------------------------------------------------------------------

@@ -11,7 +11,7 @@ export function OrderDetailsShipping({ shippingAddress }) {
   return (
     <>
       <CardHeader
-        title="Shipping"
+        title="Envio"
         action={
           <IconButton>
             <Iconify icon="solar:pen-bold" />
@@ -21,7 +21,7 @@ export function OrderDetailsShipping({ shippingAddress }) {
       <Stack spacing={1.5} sx={{ p: 3, typography: 'body2' }}>
         <Box sx={{ display: 'flex' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Address
+            Direccion
           </Box>
 
           {shippingAddress?.fullAddress}
@@ -29,7 +29,7 @@ export function OrderDetailsShipping({ shippingAddress }) {
 
         <Box sx={{ display: 'flex' }}>
           <Box component="span" sx={{ color: 'text.secondary', width: 120, flexShrink: 0 }}>
-            Número de teléfono
+            Numero de telefono
           </Box>
 
           {shippingAddress?.phoneNumber}

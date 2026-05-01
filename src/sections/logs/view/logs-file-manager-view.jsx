@@ -183,14 +183,16 @@ export function LogsFileManagerView({ embedded = false }) {
 
   const content = (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h4">Historial - Logs</Typography>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h4">Historial - Logs</Typography>
+        </Box>
+      )}
 
-        <Stack spacing={2.5} sx={{ my: { xs: 3, md: 5 } }}>
-          {renderFilters()}
-          {canReset && renderResults()}
-        </Stack>
+      <Stack spacing={2.5} sx={{ my: { xs: 3, md: 5 } }}>
+        {renderFilters()}
+        {canReset && renderResults()}
+      </Stack>
 
         {notFound ? <EmptyContent filled sx={{ py: 10 }} /> : renderList()}
     </>

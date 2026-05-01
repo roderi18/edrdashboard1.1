@@ -24,6 +24,13 @@ import { InvoiceTotalSummary } from './invoice-total-summary';
 
 // ----------------------------------------------------------------------
 
+const STATUS_LABELS = {
+  paid: 'Pagado',
+  pending: 'Pendiente',
+  overdue: 'Vencido',
+  draft: 'Borrador',
+};
+
 export function InvoiceDetails({ invoice }) {
   const [currentStatus, setCurrentStatus] = useState(invoice?.status);
 
@@ -43,16 +50,16 @@ export function InvoiceDetails({ invoice }) {
     >
       <div>
         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          NOTES
+          NOTAS
         </Typography>
         <Typography variant="body2">
-          We appreciate your business. Should you need us to add VAT or extra notes let us know!
+          Agradecemos tu compra. Si necesitas agregar ITBIS o notas extra, avisanos.
         </Typography>
       </div>
 
       <Box sx={{ flexGrow: { md: 1 }, textAlign: { md: 'right' } }}>
         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          Have a question?
+          Tienes una pregunta?
         </Typography>
         <Typography variant="body2">soporte@soporte.com</Typography>
       </Box>
@@ -65,9 +72,9 @@ export function InvoiceDetails({ invoice }) {
         <TableHead>
           <TableRow>
             <TableCell width={40}>#</TableCell>
-            <TableCell sx={{ typography: 'subtitle2' }}>Description</TableCell>
-            <TableCell>Qty</TableCell>
-            <TableCell align="right">Unit price</TableCell>
+            <TableCell sx={{ typography: 'subtitle2' }}>Descripcion</TableCell>
+            <TableCell>Cant.</TableCell>
+            <TableCell align="right">Precio unitario</TableCell>
             <TableCell align="right">Total</TableCell>
           </TableRow>
         </TableHead>
@@ -132,7 +139,7 @@ export function InvoiceDetails({ invoice }) {
                 'default'
               }
             >
-              {currentStatus}
+              {STATUS_LABELS[currentStatus] || currentStatus}
             </Label>
 
             <Typography variant="h6">{invoice?.invoiceNumber}</Typography>
@@ -140,47 +147,47 @@ export function InvoiceDetails({ invoice }) {
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Invoice from
+              Factura desde
             </Typography>
             {invoice?.invoiceFrom.name}
             <br />
             {invoice?.invoiceFrom.fullAddress}
             <br />
-            Phone: {invoice?.invoiceFrom.phoneNumber}
+            Telefono: {invoice?.invoiceFrom.phoneNumber}
             <br />
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Invoice to
+              Factura a
             </Typography>
             {invoice?.invoiceTo.name}
             <br />
             {invoice?.invoiceTo.fullAddress}
             <br />
-            Phone: {invoice?.invoiceTo.phoneNumber}
+            Telefono: {invoice?.invoiceTo.phoneNumber}
             <br />
             {invoice?.invoiceTo.codigoMiembro && (
               <>
-                Code: {String(invoice.invoiceTo.codigoMiembro).toUpperCase()}
+                Codigo: {String(invoice.invoiceTo.codigoMiembro).toUpperCase()}
                 <br />
               </>
             )}
             {invoice?.invoiceTo.memberRole && (
               <>
-                Role: {invoice.invoiceTo.memberRole}
+                Rol: {invoice.invoiceTo.memberRole}
                 <br />
               </>
             )}
             {(invoice?.invoiceTo.memberId || invoice?.invoiceTo.idMiembros) && (
               <>
-                Member ID: {invoice.invoiceTo.memberId || invoice.invoiceTo.idMiembros}
+                ID miembro: {invoice.invoiceTo.memberId || invoice.invoiceTo.idMiembros}
                 <br />
               </>
             )}
             {invoice?.invoiceTo.company && (
               <>
-                Email: {invoice.invoiceTo.company}
+                Correo: {invoice.invoiceTo.company}
                 <br />
               </>
             )}
@@ -188,14 +195,14 @@ export function InvoiceDetails({ invoice }) {
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Date create
+              Fecha de creacion
             </Typography>
             {fDate(invoice?.createDate)}
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Due date
+              Fecha de vencimiento
             </Typography>
             {fDate(invoice?.dueDate)}
           </Stack>

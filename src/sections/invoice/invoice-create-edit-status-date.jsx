@@ -29,7 +29,7 @@ export function InvoiceCreateEditStatusDate() {
       <Field.Text
         disabled
         name="invoiceNumber"
-        label="Invoice number"
+        label="Numero de recibo"
         value={values.invoiceNumber}
       />
 
@@ -46,8 +46,8 @@ export function InvoiceCreateEditStatusDate() {
         ))}
       </Field.Select>
 
-      <Field.DatePicker name="createDate" label="Date create" />
-      <Field.DatePicker name="dueDate" label="Due date" />
+      <Field.DatePicker name="createDate" label="Fecha de creacion" />
+      <Field.DatePicker name="dueDate" label="Fecha de vencimiento" />
     </Box>
   );
 }

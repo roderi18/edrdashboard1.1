@@ -119,7 +119,7 @@ export function UploadView() {
             if (fileData.size > 1000000) {
               return {
                 code: 'file-too-large',
-                message: `File is larger than ${fData(1000000)}`,
+                message: `El archivo es más pesado que ${(1000000 / (1024 * 1024)).toFixed(2)} MB`,
               };
             }
             return null;

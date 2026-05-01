@@ -15,8 +15,6 @@ import { OrderCompleteIllustration } from 'src/assets/illustrations';
 
 import { Iconify } from 'src/components/iconify';
 
-import { useAuthContext } from 'src/auth/hooks';
-
 // ----------------------------------------------------------------------
 
 const InvoicePDFDownload = dynamic(
@@ -34,17 +32,13 @@ export function CheckoutOrderComplete({
   slotProps,
   ...other
 }) {
-  const { user } = useAuthContext();
   const pathname = usePathname();
   const continueShoppingPath = pathname.includes(paths.dashboard.root)
     ? paths.dashboard.product.root
     : paths.product.root;
   const dialogPaperSx = slotProps?.paper?.sx;
-  const isAdmin = String(user?.role || '')
-    .toLowerCase()
-    .includes('admin');
-  const orderLabel = orderNumber || 'Orden local creada';
-  const orderDetailsPath = orderId ? paths.dashboard.order.details(orderId) : '';
+  const receiptLabel = receipt?.invoiceNumber || orderNumber || 'Recibo local creado';
+  const receiptDetailsPath = receipt?.id ? paths.dashboard.invoice.details(receipt.id) : '';
 
   return (
     <Dialog
@@ -82,16 +76,16 @@ export function CheckoutOrderComplete({
 
         <OrderCompleteIllustration />
 
-        <Typography>
-          Orden creada correctamente
-          <br />
-          <br />
-          {isAdmin && orderDetailsPath ? (
-            <Link component={RouterLink} href={orderDetailsPath}>
-              {orderLabel}
+          <Typography>
+            Orden creada correctamente
+            <br />
+            <br />
+          {receiptDetailsPath ? (
+            <Link component={RouterLink} href={receiptDetailsPath}>
+              {receiptLabel}
             </Link>
           ) : (
-            <Link component="span">{orderLabel}</Link>
+            <Link component="span">{receiptLabel}</Link>
           )}
           <br />
           <br />

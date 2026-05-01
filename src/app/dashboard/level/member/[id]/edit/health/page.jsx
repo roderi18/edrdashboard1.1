@@ -1,34 +1,69 @@
 'use client';
 
-import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
-import { useParams } from 'next/navigation';
-import { getStorageCollection } from 'src/utils/storage-service';
 import { useState, useEffect } from 'react';
-import { getMembers } from 'src/services/member-service';
+import { useParams } from 'next/navigation';
 
-const allMembers = getMembers();
+import Alert from '@mui/material/Alert';
+
+import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { canMemberManageMembers } from 'src/utils/member-access';
+
+import { mapApiMemberToUI } from 'src/services/member-service';
+
+import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
+
+import { useAuthContext } from 'src/auth/hooks';
+
 export default function Page() {
-    const { id } = useParams();
+  const { id } = useParams();
+  const { user, loading } = useAuthContext();
 
-    const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const [currentMember, setCurrentMember] = useState(null);
+  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
 
-    useEffect(() => {
+  useEffect(() => {
+    const load = async () => {
+      const res = await fetch('/api/members');
+      const data = await res.json();
+
+      const allMembers = data?.data || data?.Data || [];
+      const member = allMembers.find(
+        (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
+      );
+
+      if (!member) {
+        setCurrentMember(null);
         setHydrated(true);
-    }, []);
+        return;
+      }
 
-    if (!hydrated) return null;
+      const mapped = mapApiMemberToUI(member);
+      const memberPhoto = await obtenerFotoPrincipal({
+        tipoEntidad: 'miembro',
+        idEntidad: mapped?.id,
+      });
 
-    const storedMembers = getStorageCollection('members') || [];
+      setCurrentMember({
+        ...mapped,
+        avatarUrl: memberPhoto?.urlFoto || mapped?.avatarUrl || null,
+      });
+      setHydrated(true);
+    };
 
-    const allMembers = getMembers();
+    load();
+  }, [id]);
 
-    if (!currentMember) return null;
+  if (!hydrated) return null;
+  if (loading) return null;
 
+  if (!currentMember) {
+    return <div>Miembro no encontrado</div>;
+  }
 
-    return (
-        <MemberEditLayout>
-            <MemberEditHealthForm currentMember={currentMember} />
-        </MemberEditLayout>
-    );
+  if (!canManage) {
+    return <Alert severity="warning">No tienes permisos para editar miembros.</Alert>;
+  }
+
+  return <MemberEditHealthForm currentMember={currentMember} />;
 }

@@ -12,6 +12,7 @@ import { DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { isMemberSessionUser } from 'src/utils/member-access';
 import { getLocalProducts, removeLocalProduct } from 'src/utils/local-product-storage';
 
 import { PRODUCT_STOCK_OPTIONS } from 'src/_mock';
@@ -24,6 +25,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { ProductTableToolbar } from '../product-table-toolbar';
 import {
@@ -50,6 +53,7 @@ export function ProductListView() {
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
   const { products, productsLoading } = useGetProducts();
+  const { user } = useAuthContext();
 
   const [tableData, setTableData] = useState(products);
   const [selectedRows, setSelectedRows] = useState({
@@ -63,6 +67,7 @@ export function ProductListView() {
   });
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
+  const isMemberUser = isMemberSessionUser(user);
 
   useEffect(() => {
     const localProducts = getLocalProducts();
@@ -90,7 +95,7 @@ export function ProductListView() {
     toast.success('Productos eliminados!');
   }, [selectedRows.ids]);
 
-  const columns = useGetColumns({ onDeleteRow: handleDeleteRow });
+  const columns = useGetColumns({ onDeleteRow: handleDeleteRow, isMemberUser });
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -128,14 +133,16 @@ export function ProductListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.product.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Agregar producto
-            </Button>
+            !isMemberUser ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.product.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Agregar producto
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -174,6 +181,7 @@ export function ProductListView() {
                   selectedRowCount={selectedRows.ids.size}
                   onOpenConfirmDeleteRows={confirmDialog.onTrue}
                   options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
+                  isMemberUser={isMemberUser}
                   /********/
                   settings={toolbarOptions.settings}
                   onChangeSettings={toolbarOptions.onChangeSettings}
@@ -205,7 +213,7 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow }) => {
+const useGetColumns = ({ onDeleteRow, isMemberUser }) => {
   const theme = useTheme();
 
   const columns = useMemo(
@@ -270,30 +278,39 @@ const useGetColumns = ({ onDeleteRow }) => {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
-        getActions: (params) => [
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Ver"
-            icon={<Iconify icon="solar:eye-bold" />}
-            href={paths.dashboard.product.details(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.product.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => onDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
-        ],
+        getActions: (params) => {
+          const actions = [
+            <CustomGridActionsCellItem
+              showInMenu
+              label="Ver"
+              icon={<Iconify icon="solar:eye-bold" />}
+              href={paths.dashboard.product.details(params.row.id)}
+            />,
+          ];
+
+          if (!isMemberUser) {
+            actions.push(
+              <CustomGridActionsCellItem
+                showInMenu
+                label="Editar"
+                icon={<Iconify icon="solar:pen-bold" />}
+                href={paths.dashboard.product.edit(params.row.id)}
+              />,
+              <CustomGridActionsCellItem
+                showInMenu
+                label="Eliminar"
+                icon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                onClick={() => onDeleteRow(params.row.id)}
+                style={{ color: theme.vars.palette.error.main }}
+              />
+            );
+          }
+
+          return actions;
+        },
       },
     ],
-    [onDeleteRow, theme.vars.palette.error.main]
+    [onDeleteRow, isMemberUser, theme.vars.palette.error.main]
   );
 
   return columns;

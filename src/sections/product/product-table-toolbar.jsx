@@ -32,6 +32,7 @@ export function ProductTableToolbar({
   filteredResults,
   selectedRowCount,
   onOpenConfirmDeleteRows,
+  isMemberUser = false,
   /********/
   settings,
   onChangeSettings,
@@ -59,23 +60,33 @@ export function ProductTableToolbar({
         options={options.stocks}
         onChange={handleSelect(setStock)}
         onApply={() => updateFilters({ stock })}
+        width={isMemberUser ? 200 : 170}
       />
 
-      <FilterSelect
-        label="Publicado"
-        value={publish}
-        options={options.publishs}
-        onChange={handleSelect(setPublish)}
-        onApply={() => updateFilters({ publish })}
-      />
+      {!isMemberUser && (
+        <FilterSelect
+          label="Publicado"
+          value={publish}
+          options={options.publishs}
+          onChange={handleSelect(setPublish)}
+          onApply={() => updateFilters({ publish })}
+          width={150}
+        />
+      )}
 
-      <CustomToolbarQuickFilter />
+      <CustomToolbarQuickFilter
+        sx={{
+          flexGrow: 1,
+          minWidth: { xs: 1, md: isMemberUser ? 320 : 180 },
+          maxWidth: { md: isMemberUser ? 'none' : 220 },
+        }}
+      />
     </>
   );
 
   const renderRightPanel = () => (
     <>
-      {!!selectedRowCount && (
+      {!isMemberUser && !!selectedRowCount && (
         <Button
           size="small"
           color="error"
@@ -119,11 +130,11 @@ export function ProductTableToolbar({
 
 // ----------------------------------------------------------------------
 
-function FilterSelect({ label, value, options, onChange, onApply }) {
+function FilterSelect({ label, value, options, onChange, onApply, width = 200 }) {
   const id = `filter-${label.toLowerCase()}-select`;
 
   return (
-    <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
+    <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: width } }}>
       <InputLabel htmlFor={id}>{label}</InputLabel>
       <Select
         multiple

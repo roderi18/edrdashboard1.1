@@ -7,10 +7,10 @@ import { _addressBooks } from './_others';
 // ----------------------------------------------------------------------
 
 export const INVOICE_STATUS_OPTIONS = [
-  { value: 'paid', label: 'Paid' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'draft', label: 'Draft' },
+  { value: 'paid', label: 'Pagado' },
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'overdue', label: 'Vencido' },
+  { value: 'draft', label: 'Borrador' },
 ];
 
 export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => ({

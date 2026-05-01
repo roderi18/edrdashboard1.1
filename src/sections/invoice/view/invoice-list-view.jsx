@@ -36,11 +36,9 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
-  emptyRows,
   rowInPage,
   TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
@@ -65,7 +63,7 @@ const INVOICE_STATUS_LABELS = {
 
 const TABLE_HEAD = [
   { id: 'invoiceNumber', label: 'Cliente' },
-  { id: 'createDate', label: 'Creación' },
+  { id: 'createDate', label: 'Creacion' },
   { id: 'dueDate', label: 'Vence' },
   { id: 'price', label: 'Monto' },
   { id: 'sent', label: 'Enviado', align: 'center' },
@@ -227,7 +225,7 @@ export function InvoiceListView() {
     (id) => {
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Eliminación exitosa');
+      toast.success('Eliminacion exitosa');
 
       setTableData(deleteRow);
 
@@ -239,7 +237,7 @@ export function InvoiceListView() {
   const handleDeleteRows = useCallback(() => {
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Eliminación exitosa');
+    toast.success('Eliminacion exitosa');
 
     setTableData(deleteRows);
 
@@ -261,7 +259,7 @@ export function InvoiceListView() {
       title="Eliminar"
       content={
         <>
-          ¿Seguro que quieres eliminar <strong> {table.selected.length} </strong> elementos?
+          Seguro que deseas eliminar <strong> {table.selected.length} </strong> recibos?
         </>
       }
       action={
@@ -417,19 +415,19 @@ export function InvoiceListView() {
               }}
               action={
                 <Box sx={{ display: 'flex' }}>
-                  <Tooltip title="Sent">
+                  <Tooltip title="Enviar">
                     <IconButton color="primary">
                       <Iconify icon="custom:send-fill" />
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Download">
+                  <Tooltip title="Descargar">
                     <IconButton color="primary">
                       <Iconify icon="solar:download-bold" />
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Print">
+                  <Tooltip title="Imprimir">
                     <IconButton color="primary">
                       <Iconify icon="solar:printer-minimalistic-bold" />
                     </IconButton>
@@ -446,7 +444,7 @@ export function InvoiceListView() {
               }
             />
 
-            <Scrollbar sx={{ minHeight: 444 }}>
+            <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
                 <TableHeadCustom
                   order={table.order}
@@ -481,11 +479,6 @@ export function InvoiceListView() {
                         detailsHref={paths.dashboard.invoice.details(row.id)}
                       />
                     ))}
-
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                  />
 
                   <TableNoData notFound={notFound} />
                 </TableBody>
@@ -527,9 +520,15 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
 
   if (name) {
     inputData = inputData.filter(({ invoiceNumber, invoiceTo }) =>
-      [invoiceNumber, invoiceTo.name, invoiceTo.company, invoiceTo.phoneNumber].some((field) =>
-        field?.toLowerCase().includes(name.toLowerCase())
-      )
+      [
+        invoiceNumber,
+        invoiceTo.name,
+        invoiceTo.codigoMiembro,
+        invoiceTo.memberId,
+        invoiceTo.idMiembros,
+        invoiceTo.company,
+        invoiceTo.phoneNumber,
+      ].some((field) => field?.toLowerCase().includes(name.toLowerCase()))
     );
   }
 
@@ -551,3 +550,4 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
 
   return inputData;
 }
+

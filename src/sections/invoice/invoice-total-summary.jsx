@@ -53,7 +53,7 @@ export function InvoiceTotalSummary({
 
       <Box sx={rowStyles}>
         <Box component="span" sx={labelStyles}>
-          Shipping
+          Envío
         </Box>
         <Box component="span" sx={[{ ...valueStyles }, !!shipping && { color: 'error.main' }]}>
           {shipping ? `- ${fDopCurrency(shipping)}` : '-'}
@@ -62,7 +62,7 @@ export function InvoiceTotalSummary({
 
       <Box sx={rowStyles}>
         <Box component="span" sx={labelStyles}>
-          Discount
+          Descuento
         </Box>
 
         <Box component="span" sx={[{ ...valueStyles }, !!discount && { color: 'error.main' }]}>
@@ -72,7 +72,7 @@ export function InvoiceTotalSummary({
 
       <Box sx={rowStyles}>
         <Box component="span" sx={labelStyles}>
-          Taxes
+          Impuestos
         </Box>
         <Box component="span" sx={valueStyles}>
           {taxes ? fDopCurrency(taxes) : '-'}

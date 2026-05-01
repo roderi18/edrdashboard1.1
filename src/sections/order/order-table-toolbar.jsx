@@ -54,17 +54,17 @@ export function OrderTableToolbar({ filters, onResetPage, dateError }) {
       <MenuList>
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
+          Imprimir
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:import-bold" />
-          Import
+          Importar
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:export-bold" />
-          Export
+          Exportar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -83,20 +83,20 @@ export function OrderTableToolbar({ filters, onResetPage, dateError }) {
         }}
       >
         <DatePicker
-          label="Start date"
+          label="Fecha inicial"
           value={currentFilters.startDate}
           onChange={handleFilterStartDate}
           sx={{ maxWidth: { md: 200 } }}
         />
 
         <DatePicker
-          label="End date"
+          label="Fecha final"
           value={currentFilters.endDate}
           onChange={handleFilterEndDate}
           slotProps={{
             textField: {
               error: dateError,
-              helperText: dateError ? 'End date must be later than start date' : null,
+              helperText: dateError ? 'La fecha final debe ser posterior a la fecha inicial' : null,
             },
           }}
           sx={{
@@ -121,7 +121,7 @@ export function OrderTableToolbar({ filters, onResetPage, dateError }) {
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Search customer or order number..."
+            placeholder="Buscar miembro o numero de pedido..."
             slotProps={{
               input: {
                 startAdornment: (

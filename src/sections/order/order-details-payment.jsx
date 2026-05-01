@@ -10,7 +10,7 @@ export function OrderDetailsPayment({ payment }) {
   return (
     <>
       <CardHeader
-        title="Payment"
+        title="Pago"
         action={
           <IconButton>
             <Iconify icon="solar:pen-bold" />

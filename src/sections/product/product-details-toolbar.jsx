@@ -22,6 +22,7 @@ export function ProductDetailsToolbar({
   liveHref,
   publishOptions,
   onChangePublish,
+  isMemberUser = false,
   ...other
 }) {
   const menuActions = usePopover();
@@ -45,7 +46,11 @@ export function ProductDetailsToolbar({
           >
             {option.value === 'published' && <Iconify icon="eva:cloud-upload-fill" />}
             {option.value === 'draft' && <Iconify icon="solar:file-text-bold" />}
-            {option.label}
+            {option.value === 'published'
+              ? 'Publicado'
+              : option.value === 'draft'
+                ? 'Borrador'
+                : option.label}
           </MenuItem>
         ))}
       </MenuList>
@@ -66,39 +71,43 @@ export function ProductDetailsToolbar({
           href={backHref}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
         >
-          Back
+          Volver
         </Button>
 
         <Box sx={{ flexGrow: 1 }} />
 
-        {publish === 'published' && (
-          <Tooltip title="Go live">
+        {!isMemberUser && publish === 'published' && (
+          <Tooltip title="Ir en vivo">
             <IconButton component={RouterLink} href={liveHref}>
               <Iconify icon="eva:external-link-fill" />
             </IconButton>
           </Tooltip>
         )}
 
-        <Tooltip title="Editar">
-          <IconButton component={RouterLink} href={editHref}>
-            <Iconify icon="solar:pen-bold" />
-          </IconButton>
-        </Tooltip>
+        {!isMemberUser && (
+          <>
+            <Tooltip title="Editar">
+              <IconButton component={RouterLink} href={editHref}>
+                <Iconify icon="solar:pen-bold" />
+              </IconButton>
+            </Tooltip>
 
-        <Button
-          color="inherit"
-          variant="contained"
-          loading={!publish}
-          loadingIndicator="Loading…"
-          endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
-          onClick={menuActions.onOpen}
-          sx={{ textTransform: 'capitalize' }}
-        >
-          {publish}
-        </Button>
+            <Button
+              color="inherit"
+              variant="contained"
+              loading={!publish}
+              loadingIndicator="Cargando…"
+              endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+              onClick={menuActions.onOpen}
+              sx={{ textTransform: 'capitalize' }}
+            >
+              {publish === 'published' ? 'Publicado' : publish === 'draft' ? 'Borrador' : publish}
+            </Button>
+          </>
+        )}
       </Box>
 
-      {renderMenuActions()}
+      {!isMemberUser && renderMenuActions()}
     </>
   );
 }

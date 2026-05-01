@@ -14,10 +14,10 @@ export function InvoiceCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Crear nuevo invoice"
+        heading="Crear nuevo recibo"
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Invoice', href: paths.dashboard.invoice.root },
+          { name: 'Recibos', href: paths.dashboard.invoice.root },
           { name: 'Crear' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

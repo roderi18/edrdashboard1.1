@@ -69,17 +69,17 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
       <MenuList>
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
+          Imprimir
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:import-bold" />
-          Import
+          Importar
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:export-bold" />
-          Export
+          Exportar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -98,10 +98,10 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
-          <InputLabel htmlFor="filter-service-select">Service</InputLabel>
+          <InputLabel htmlFor="filter-service-select">Servicio</InputLabel>
           <Select
             multiple
-            label="Service"
+            label="Servicio"
             value={currentFilters.service}
             onChange={handleFilterService}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
@@ -125,20 +125,20 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
         </FormControl>
 
         <DatePicker
-          label="Start date"
+          label="Fecha inicial"
           value={currentFilters.startDate}
           onChange={handleFilterStartDate}
           sx={{ maxWidth: { md: 180 } }}
         />
 
         <DatePicker
-          label="End date"
+          label="Fecha final"
           value={currentFilters.endDate}
           onChange={handleFilterEndDate}
           slotProps={{
             textField: {
               error: dateError,
-              helperText: dateError ? 'End date must be later than start date' : null,
+              helperText: dateError ? 'La fecha final debe ser posterior a la fecha inicial' : null,
             },
           }}
           sx={{
@@ -163,7 +163,7 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Search customer or invoice number..."
+            placeholder="Buscar miembro o numero de recibo..."
             slotProps={{
               input: {
                 startAdornment: (

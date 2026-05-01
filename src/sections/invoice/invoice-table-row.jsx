@@ -25,6 +25,13 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
+const STATUS_LABELS = {
+  paid: 'Pagado',
+  pending: 'Pendiente',
+  overdue: 'Vencido',
+  draft: 'Borrador',
+};
+
 export function InvoiceTableRow({
   row,
   selected,
@@ -47,14 +54,14 @@ export function InvoiceTableRow({
         <li>
           <MenuItem component={RouterLink} href={detailsHref} onClick={menuActions.onClose}>
             <Iconify icon="solar:eye-bold" />
-            View
+            Ver
           </MenuItem>
         </li>
 
         <li>
           <MenuItem component={RouterLink} href={editHref} onClick={menuActions.onClose}>
             <Iconify icon="solar:pen-bold" />
-            Edit
+            Editar
           </MenuItem>
         </li>
 
@@ -68,7 +75,7 @@ export function InvoiceTableRow({
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -79,10 +86,10 @@ export function InvoiceTableRow({
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="Seguro que deseas eliminar este recibo?"
       action={
         <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -161,7 +168,7 @@ export function InvoiceTableRow({
               'default'
             }
           >
-            {row.status}
+            {STATUS_LABELS[row.status] || row.status}
           </Label>
         </TableCell>
 

@@ -33,7 +33,7 @@ export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="Status:" isShow={currentFilters.status !== 'all'}>
+      <FiltersBlock label="Estado:" isShow={currentFilters.status !== 'all'}>
         <Chip
           {...chipProps}
           label={currentFilters.status}
@@ -43,7 +43,7 @@ export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx
       </FiltersBlock>
 
       <FiltersBlock
-        label="Date:"
+        label="Fecha:"
         isShow={Boolean(currentFilters.startDate && currentFilters.endDate)}
       >
         <Chip
@@ -53,7 +53,7 @@ export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.name}>
+      <FiltersBlock label="Palabra clave:" isShow={!!currentFilters.name}>
         <Chip {...chipProps} label={currentFilters.name} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
     </FiltersResult>

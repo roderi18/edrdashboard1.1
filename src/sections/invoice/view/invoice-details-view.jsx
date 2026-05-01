@@ -30,7 +30,7 @@ export function InvoiceDetailsView({ invoice, invoiceId }) {
         backHref={paths.dashboard.invoice.root}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Invoice', href: paths.dashboard.invoice.root },
+          { name: 'Recibos', href: paths.dashboard.invoice.root },
           { name: resolvedInvoice?.invoiceNumber },
         ]}
         sx={{ mb: 3 }}
