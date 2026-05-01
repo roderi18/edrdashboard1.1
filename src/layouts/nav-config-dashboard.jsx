@@ -67,12 +67,12 @@ export const navData = [
     subheader: 'Overview',
     items: [
       { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
-      // { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
-      // { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
-      // { title: 'Banking', path: paths.dashboard.general.banking, icon: ICONS.banking },
-      // { title: 'Booking', path: paths.dashboard.general.booking, icon: ICONS.booking },
-      // { title: 'File', path: paths.dashboard.general.file, icon: ICONS.file },
-      // { title: 'Course', path: paths.dashboard.general.course, icon: ICONS.course },
+      { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
+      { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
+      { title: 'Banking', path: paths.dashboard.general.banking, icon: ICONS.banking },
+      { title: 'Booking', path: paths.dashboard.general.booking, icon: ICONS.booking },
+      { title: 'File', path: paths.dashboard.general.file, icon: ICONS.file },
+      { title: 'Course', path: paths.dashboard.general.course, icon: ICONS.course },
     ],
   },
   /**
@@ -130,7 +130,7 @@ export const navData = [
         ],
       },
       {
-        title: 'Productos - DEV',
+        title: 'Tienda Virtual',
         path: paths.dashboard.product.root,
         icon: ICONS.product,
         children: [
@@ -143,7 +143,7 @@ export const navData = [
       {
         title: 'Ordenes - DEV',
         path: paths.dashboard.order.root,
-        icon: ICONS.order,
+        icon: ICONS.ecommerce,
         children: [
           { title: 'Lista', path: paths.dashboard.order.root },
           { title: 'Detalles', path: paths.dashboard.order.demo.details },
@@ -161,9 +161,9 @@ export const navData = [
         ],
       },
       {
-        title: 'Compra - DEV',
+        title: 'Mi carrito',
         path: paths.dashboard.checkout,
-        icon: ICONS.ecommerce,
+        icon: ICONS.order,
         info: <CheckoutCartNavInfo />,
       },
       {
@@ -171,50 +171,50 @@ export const navData = [
         path: paths.dashboard.admin.root,
         icon: ICONS.lock,
       },
-      // {
-      //   title: 'Blog',
-      //   path: paths.dashboard.post.root,
-      //   icon: ICONS.blog,
-      //   children: [
-      //     { title: 'Lista', path: paths.dashboard.post.root },
-      //     { title: 'Detalles', path: paths.dashboard.post.demo.details },
-      //     { title: 'Crear', path: paths.dashboard.post.new },
-      //     { title: 'Editar', path: paths.dashboard.post.demo.edit },
-      //   ],
-      // },
-      // {
-      //   title: 'Job',
-      //   path: paths.dashboard.job.root,
-      //   icon: ICONS.job,
-      //   children: [
-      //     { title: 'Lista', path: paths.dashboard.job.root },
-      //     { title: 'Detalles', path: paths.dashboard.job.demo.details },
-      //     { title: 'Crear', path: paths.dashboard.job.new },
-      //     { title: 'Editar', path: paths.dashboard.job.demo.edit },
-      //   ],
-      // },
-      // {
-      //   title: 'Tour',
-      //   path: paths.dashboard.tour.root,
-      //   icon: ICONS.tour,
-      //   children: [
-      //     { title: 'Lista', path: paths.dashboard.tour.root },
-      //     { title: 'Detalles', path: paths.dashboard.tour.demo.details },
-      //     { title: 'Crear', path: paths.dashboard.tour.new },
-      //     { title: 'Editar', path: paths.dashboard.tour.demo.edit },
-      //   ],
-      // },
-      { title: 'Gestor archivos', path: paths.dashboard.fileManager, icon: ICONS.folder },
-      // {
-      //   title: 'Mail',
-      //   path: paths.dashboard.mail,
-      //   icon: ICONS.mail,
-      //   info: (
-      //     <Label color="error" variant="inverted">
-      //       +32
-      //     </Label>
-      //   ),
-      // },
+      {
+        title: 'Blog',
+        path: paths.dashboard.post.root,
+        icon: ICONS.blog,
+        children: [
+          { title: 'Lista', path: paths.dashboard.post.root },
+          { title: 'Detalles', path: paths.dashboard.post.demo.details },
+          { title: 'Crear', path: paths.dashboard.post.new },
+          { title: 'Editar', path: paths.dashboard.post.demo.edit },
+        ],
+      },
+      {
+        title: 'Job',
+        path: paths.dashboard.job.root,
+        icon: ICONS.job,
+        children: [
+          { title: 'Lista', path: paths.dashboard.job.root },
+          { title: 'Detalles', path: paths.dashboard.job.demo.details },
+          { title: 'Crear', path: paths.dashboard.job.new },
+          { title: 'Editar', path: paths.dashboard.job.demo.edit },
+        ],
+      },
+      {
+        title: 'Tour',
+        path: paths.dashboard.tour.root,
+        icon: ICONS.tour,
+        children: [
+          { title: 'Lista', path: paths.dashboard.tour.root },
+          { title: 'Detalles', path: paths.dashboard.tour.demo.details },
+          { title: 'Crear', path: paths.dashboard.tour.new },
+          { title: 'Editar', path: paths.dashboard.tour.demo.edit },
+        ],
+      },
+      { title: 'Documentos Ministeriales', path: paths.dashboard.fileManager, icon: ICONS.folder },
+      {
+        title: 'Mail',
+        path: paths.dashboard.mail,
+        icon: ICONS.mail,
+        info: (
+          <Label color="error" variant="inverted">
+            +32
+          </Label>
+        ),
+      },
       { title: 'Chats', path: paths.dashboard.chat, icon: ICONS.chat },
       { title: 'Calendario actividades', path: paths.dashboard.calendar, icon: ICONS.calendar },
       { title: 'Flujo de trabajo', path: paths.dashboard.kanban, icon: ICONS.kanban },
@@ -303,17 +303,17 @@ export const navData = [
         caption:
           'Quisque malesuada placerat nisl. In hac habitasse platea dictumst. Cras id dui. Pellentesque commodo eros a enim. Morbi mollis tellus ac sapien.',
       },
-      // {
-      //   title: 'Params',
-      //   path: '/dashboard/params?id=e99f09a7-dd88-49d5-b1c8-1daf80c2d7b1',
-      //   icon: ICONS.params,
-      // },
-      // {
-      //   title: 'Subpaths',
-      //   path: '/dashboard/subpaths',
-      //   icon: ICONS.subpaths,
-      //   deepMatch: true,
-      // },
+      {
+        title: 'Params',
+        path: '/dashboard/params?id=e99f09a7-dd88-49d5-b1c8-1daf80c2d7b1',
+        icon: ICONS.params,
+      },
+      {
+        title: 'Subpaths',
+        path: '/dashboard/subpaths',
+        icon: ICONS.subpaths,
+        deepMatch: true,
+      },
       {
         title: 'Enlaces externos',
         path: 'https://www.google.com/',
