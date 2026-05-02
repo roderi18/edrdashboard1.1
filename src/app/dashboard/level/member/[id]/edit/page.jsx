@@ -8,7 +8,7 @@ import Alert from '@mui/material/Alert';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
-import { mapApiMemberToUI } from 'src/services/member-service';
+import { getMembers } from 'src/services/member-service';
 
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
@@ -24,11 +24,7 @@ export default function Page() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/members');
-
-      const data = await res.json();
-
-      const allMembers = data?.data || data?.Data || [];
+      const allMembers = await getMembers();
       const resDests = await fetch('/api/dest');
       const dataDests = await resDests.json();
       const dests = dataDests?.data || dataDests?.Data || [];
@@ -46,10 +42,17 @@ export default function Page() {
       const regionals = dataRegionals?.data || dataRegionals?.Data || [];
 
       const member = allMembers.find(
-        (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
+        (m) => String(m.id) === String(id) || String(m.memberId) === String(id)
       );
 
-      const dest = dests.find((d) => Number(d.idDestacamento) === Number(member?.idDestacamento));
+      if (!member) {
+        setCurrentMember(null);
+        setHydrated(true);
+        return;
+      }
+
+      const memberDestId = member?.idDestacamento ?? member?.destId;
+      const dest = dests.find((d) => Number(d.idDestacamento) === Number(memberDestId));
 
       const church = churches.find((c) => Number(c.idIglesia) === Number(dest?.idIglesia));
 
@@ -57,15 +60,14 @@ export default function Page() {
 
       const regional = regionals.find((r) => Number(r.id) === Number(sectional?.idRegion));
 
-      const mapped = mapApiMemberToUI(member);
       const memberPhoto = await obtenerFotoPrincipal({
         tipoEntidad: 'miembro',
-        idEntidad: mapped?.id,
+        idEntidad: member?.id,
       });
 
       setCurrentMember({
-        ...mapped,
-        avatarUrl: memberPhoto?.urlFoto || mapped?.avatarUrl || null,
+        ...member,
+        avatarUrl: memberPhoto?.urlFoto || member?.avatarUrl || null,
         sectionalName: sectional?.nombre || '-',
         regionalName: regional?.nombre || '-',
       });

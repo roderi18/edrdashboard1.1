@@ -8,7 +8,7 @@ import Alert from '@mui/material/Alert';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
-import { mapApiMemberToUI } from 'src/services/member-service';
+import { getMembers, mapApiMemberToUI } from 'src/services/member-service';
 
 import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
 
@@ -24,10 +24,7 @@ export default function Page() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/members');
-      const data = await res.json();
-
-      const allMembers = data?.data || data?.Data || [];
+      const allMembers = await getMembers();
       const member = allMembers.find(
         (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
       );

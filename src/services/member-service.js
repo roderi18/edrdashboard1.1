@@ -42,6 +42,38 @@ export function mapApiMemberToUI(member) {
     };
 }
 
+function mapPayloadToStoredMember(payload) {
+    return {
+        id: String(payload.idMiembros ?? payload.id ?? ''),
+        memberId: payload.codigoMiembro ?? '',
+        firstName: payload.nombres ?? '',
+        lastName: payload.apellidos ?? '',
+        avatarUrl: payload.avatarUrl ?? null,
+        email: payload.correo ?? '',
+        phoneNumber: payload.telefono ?? '',
+        country: payload.country ?? '',
+        province: payload.province ?? '',
+        city: payload.city ?? '',
+        memberAddress: payload.direccion ?? '',
+        birthDate: payload.fechaNacimiento ?? null,
+        destId: payload.idDestacamento ? String(payload.idDestacamento) : '',
+        ocupation: payload.ocupation ?? '',
+        memberDivision: payload.memberDivision ?? '',
+        gender: payload.genero === 'M' ? 'Masculino' : payload.genero === 'F' ? 'Femenino' : '',
+        shirtSize: payload.shirtSize ?? '',
+        InstructorCertificadoCI:
+            payload.instructorCertificadoCi === true
+                ? 1
+                : payload.instructorCertificadoCi === false
+                  ? 0
+                  : payload.InstructorCertificadoCI ?? 0,
+        EstatusVigenciaCI: payload.estatusVigenciaCi ?? payload.EstatusVigenciaCI ?? 'na',
+        FechaInicioCI: payload.fechaInicioCertificado ?? payload.FechaInicioCI ?? null,
+        FechaVencimientoCI: payload.fechaFinCertificado ?? payload.FechaVencimientoCI ?? null,
+        status: payload.estatusMiembro ?? payload.status ?? 'active',
+    };
+}
+
 // ------------------------------------------------------------
 // MEMBERS
 // ------------------------------------------------------------
@@ -60,18 +92,35 @@ export async function getMembers() {
         const response = await res.json();
 
         const data = response.data || response.Data || response.items || response;
+        const apiMembers = Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
+        const localMembers = getStorageCollection(MEMBERS_KEY) || [];
+        const mergedMembers = new Map();
 
-        return Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
+        apiMembers.forEach((member) => {
+            mergedMembers.set(String(member.id), { ...member });
+        });
+
+        localMembers.forEach((member) => {
+            if (!member?.id) return;
+
+            const current = mergedMembers.get(String(member.id)) || {};
+            mergedMembers.set(String(member.id), {
+                ...current,
+                ...member,
+                id: String(member.id),
+            });
+        });
+
+        return Array.from(mergedMembers.values());
     } catch (error) {
-        console.error('❌ FETCH ERROR:', error);
-        return [];
+        console.error('âŒ FETCH ERROR:', error);
+        return getStorageCollection(MEMBERS_KEY) || [];
     }
 }
 
-
-export function getMemberById(id) {
-    const members = getMembers();
-    return members.find((m) => m.id === id);
+export async function getMemberById(id) {
+    const members = await getMembers();
+    return members.find((m) => String(m.id) === String(id));
 }
 
 export async function createMemberApi(payload) {
@@ -102,16 +151,25 @@ export async function updateMemberApi(payload) {
     });
 
     const text = await res.text();
+    const response = text ? JSON.parse(text) : {};
+    const storedMember = mapPayloadToStoredMember(payload);
+
+    saveMember(storedMember);
 
     if (!res.ok) {
-        throw new Error(text || 'Error actualizando miembro');
+        return {
+            ...response,
+            localFallback: true,
+        };
     }
 
     return text ? JSON.parse(text) : {};
 }
 
 export function deleteMember(memberId) {
-    const members = getMembers().filter((m) => m.id !== memberId);
+    const members = getStorageCollection(MEMBERS_KEY).filter(
+        (m) => String(m.id) !== String(memberId)
+    );
     setStorageCollection(MEMBERS_KEY, members);
 }
 
@@ -153,7 +211,6 @@ export function saveMemberWithLeadership({
     nationalLeadershipLevel,
     nationalLeadershipRole,
 }) {
-
     // guardar miembro
     saveMember(member);
 

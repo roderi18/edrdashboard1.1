@@ -24,7 +24,22 @@ export async function PUT(req) {
             estatusMiembro: body.estatusMiembro ?? null,
         };
 
+        const createLikePayload = {
+            ...payload,
+            idMiembros: Number(body.idMiembros) || 0,
+            cargosmiembros: body.cargosmiembros ?? [],
+            idDestacamentoNavigation: body.idDestacamentoNavigation ?? null,
+            idDivisionNavigation: body.idDivisionNavigation ?? null,
+            miembromeritos: body.miembromeritos ?? [],
+            participanteseventos: body.participanteseventos ?? [],
+            tutores: body.tutores ?? [],
+            usuarios: body.usuarios ?? [],
+            idUniformes: body.idUniformes ?? [],
+            uniformesMiembros: body.uniformesMiembros ?? [],
+        };
+
         const endpoint = 'https://systexploradores.somee.com/api/Miembros/UpdateMiembros';
+        const createEndpoint = 'https://systexploradores.somee.com/api/Miembros/SetMiembros';
         const normalize = (value) => String(value ?? '').trim().toLowerCase();
 
         const verifyPersisted = async () => {
@@ -77,12 +92,18 @@ export async function PUT(req) {
             { label: 'UpdateMiembros POST normalized', method: 'POST', body: payload },
             { label: 'UpdateMiembros PUT raw', method: 'PUT', body },
             { label: 'UpdateMiembros POST raw', method: 'POST', body },
+            { label: 'SetMiembros PUT normalized', method: 'PUT', body: createLikePayload, endpoint: createEndpoint },
+            { label: 'SetMiembros POST normalized', method: 'POST', body: createLikePayload, endpoint: createEndpoint },
+            { label: 'SetMiembros PUT raw', method: 'PUT', body: createLikePayload, endpoint: createEndpoint },
+            { label: 'SetMiembros POST raw', method: 'POST', body: createLikePayload, endpoint: createEndpoint },
         ];
 
         const attemptResults = [];
 
         for (const attempt of attempts) {
-            const res = await fetch(endpoint, {
+            const targetEndpoint = attempt.endpoint || endpoint;
+
+            const res = await fetch(targetEndpoint, {
                 method: attempt.method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,4 +180,3 @@ export async function PUT(req) {
         );
     }
 }
-
