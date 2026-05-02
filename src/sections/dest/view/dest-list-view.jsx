@@ -26,6 +26,7 @@ import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getChurches } from 'src/services/church-service';
+import { getDestsApi } from 'src/services/dest-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
@@ -186,14 +187,13 @@ export function DestListView() {
     }
 
     const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
+      const data = await getDestsApi();
 
       console.log('DATA DEST RAW 👉', data?.data);
 
       const scopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(data?.data || [], user)
-        : data?.data || [];
+        ? filterDestsByMemberScope(data || [], user)
+        : data || [];
 
       const built = buildDestList(scopedDests);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-import { mapApiDestToUI } from 'src/services/dest-service';
+import { getDestsApi } from 'src/services/dest-service';
 
 import { DestCreateEditForm } from '../dest-create-edit-form';
 
@@ -14,14 +14,10 @@ export function DestEditView({ id }) {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
+      const dests = await getDestsApi();
+      const dest = (Array.isArray(dests) ? dests : []).find((item) => String(item.id) === String(id));
 
-      const dest = (data?.data || []).find(
-        (d) => String(d.idDestacamento) === String(id)
-      );
-
-      setCurrentDest(dest ? mapApiDestToUI(dest) : null);
+      setCurrentDest(dest || null);
     };
 
     load();

@@ -17,6 +17,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useEffect, useState } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+import { AUTH } from 'src/lib/firebase';
 import { ContextInfo } from 'src/components/info/context-info';
 import { fData } from 'src/utils/format-number';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -31,6 +32,7 @@ import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import { mapApiDestToUI } from 'src/services/dest-service';
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import barriosData from 'src/data/barrios.json';
@@ -39,7 +41,7 @@ import barriosData from 'src/data/barrios.json';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
 // import { createChurchApi } from 'src/services/church-service';
-import { createDestApi, updateDestApi } from 'src/services/dest-service';
+import { createDestApi, getDestsApi, updateDestApi } from 'src/services/dest-service';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -116,6 +118,7 @@ export function DestCreateEditForm({ currentDest }) {
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
 
 
@@ -230,6 +233,51 @@ export function DestCreateEditForm({ currentDest }) {
     ? regionals.find((r) => String(r.id) === String(sectional.regionalId))
     : null;
 
+  const resolveDestId = async (destNameValue, destNumberValue) => {
+    if (currentDest?.id) return currentDest.id;
+
+    const destsData = await getDestsApi();
+    const savedDest = destsData.find(
+      (dest) =>
+        String(dest?.name || '').trim().toLowerCase() === String(destNameValue || '').trim().toLowerCase() &&
+        String(dest?.destNumber || '').trim() === String(destNumberValue || '').trim()
+    );
+
+    return savedDest?.id || null;
+  };
+
+  const handleUploadDestPhoto = async (acceptedFiles) => {
+    const file = acceptedFiles?.[0];
+    const destId = currentDest?.id;
+
+    if (!currentDest || !destId) {
+      toast.error('Primero guarda el destacamento antes de subir una foto.');
+      return null;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      const photo = await subirFotoEntidad({
+        file,
+        tipoEntidad: 'destacamento',
+        idEntidad: destId,
+        tipoFoto: 'perfil',
+        subidoPor: AUTH.currentUser?.uid || '',
+      });
+
+      toast.success('Foto subida correctamente.');
+
+      return photo.urlFoto;
+    } catch (error) {
+      console.error('[dest form] photo upload failed', error);
+      toast.error(error.message || 'No se pudo subir la foto.');
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -255,12 +303,17 @@ export function DestCreateEditForm({ currentDest }) {
       } else {
         await createDestApi(destPayloadData);
       }
-      reset();
 
       toast.success(
         currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
       );
 
+      if (currentDest) {
+        router.refresh();
+        return;
+      }
+
+      reset();
       router.push(paths.dashboard.level.dest.root);
       router.refresh();
     } catch (error) {
@@ -291,6 +344,9 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 maxSize={1050000}
+                loading={uploadingPhoto}
+                disabled={uploadingPhoto}
+                onDrop={handleUploadDestPhoto}
                 helperText={
                   <Typography
                     variant="caption"

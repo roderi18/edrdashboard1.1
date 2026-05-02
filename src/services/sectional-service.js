@@ -1,3 +1,5 @@
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+
 function mapApiSectionalToUI(sectional) {
     return {
         id: String(sectional.idSeccion || sectional.id),
@@ -34,9 +36,15 @@ export const getSectionals = async () => {
 
         const data = response.data || response.Data || response;
 
-        return Array.isArray(data)
+        const mappedSectionals = Array.isArray(data)
             ? data.map(mapApiSectionalToUI)
             : [];
+        const photosBySectionalId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' });
+
+        return mappedSectionals.map((sectional) => ({
+            ...sectional,
+            avatarUrl: photosBySectionalId[String(sectional.id)]?.urlFoto || sectional.avatarUrl || null,
+        }));
     } catch (error) {
         console.error('getSectionals error:', error);
         return [];

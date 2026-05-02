@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -14,10 +14,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
+import { AUTH } from 'src/lib/firebase';
 
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
-import { saveSectional, updateSectional } from 'src/services/sectional-service';
+import { getSectionals, saveSectional, updateSectional } from 'src/services/sectional-service';
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -29,6 +31,7 @@ import SectionalGeneralSection from 'src/components/form/sectional-form/Sectiona
 
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -55,6 +58,51 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
   const values = watch();
 
+  const resolveSectionalId = async (sectionalName, regionalId) => {
+    if (currentSectional?.id) return currentSectional.id;
+
+    const sectionals = await getSectionals();
+    const savedSectional = sectionals.find(
+      (sectional) =>
+        String(sectional?.sectionalName || '').trim().toLowerCase() === String(sectionalName || '').trim().toLowerCase() &&
+        String(sectional?.regionalId || '') === String(regionalId || '')
+    );
+
+    return savedSectional?.id || savedSectional?.idSeccion || null;
+  };
+
+  const handleUploadSectionalPhoto = async (acceptedFiles) => {
+    const file = acceptedFiles?.[0];
+    const sectionalId = currentSectional?.id;
+
+    if (!currentSectional || !sectionalId) {
+      toast.error('Primero guarda la seccion antes de subir una foto.');
+      return null;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      const photo = await subirFotoEntidad({
+        file,
+        tipoEntidad: 'seccion',
+        idEntidad: sectionalId,
+        tipoFoto: 'perfil',
+        subidoPor: AUTH.currentUser?.uid || '',
+      });
+
+      toast.success('Foto subida correctamente.');
+
+      return photo.urlFoto;
+    } catch (error) {
+      console.error('[sectional form] photo upload failed', error);
+      toast.error(error.message || 'No se pudo subir la foto.');
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (!data.regionalId) {
@@ -74,8 +122,14 @@ export function SectionalCreateEditForm({ currentSectional }) {
         await saveSectional(payload);
       }
 
-      reset();
       toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
+
+      if (currentSectional) {
+        router.refresh();
+        return;
+      }
+
+      reset();
       router.push('/dashboard/level/sectional');
     } catch (error) {
       console.error(error);
@@ -105,6 +159,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 maxSize={1050000}
+                loading={uploadingPhoto}
+                disabled={uploadingPhoto}
+                onDrop={handleUploadSectionalPhoto}
                 helperText={
                   <Typography
                     variant="caption"

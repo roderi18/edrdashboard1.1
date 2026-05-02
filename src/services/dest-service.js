@@ -2,6 +2,7 @@ import {
     saveItem,
     getStorageCollection,
 } from 'src/utils/storage-service';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 // ------------------------------------------------------------
 // DESTS
 // ------------------------------------------------------------
@@ -80,10 +81,15 @@ export async function getDestsApi() {
         }
 
         const data = parsed?.data || parsed?.Data || parsed;
-
-        return Array.isArray(data)
+        const mappedDests = Array.isArray(data)
             ? data.map(mapApiDestToUI)
             : [];
+        const photosByDestId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' });
+
+        return mappedDests.map((dest) => ({
+            ...dest,
+            avatarUrl: photosByDestId[String(dest.id)]?.urlFoto || dest.avatarUrl || null,
+        }));
     } catch (error) {
         console.error('❌ ERROR DEST API:', error);
         return [];

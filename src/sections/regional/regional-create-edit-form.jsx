@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
@@ -15,8 +15,11 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
+import { AUTH } from 'src/lib/firebase';
 
 import { RegionalSchema } from 'src/models/regional-schema';
+import { getRegionals } from 'src/services/regional-service';
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -37,6 +40,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -55,6 +59,49 @@ export function RegionalCreateEditForm({ currentRegional }) {
   } = methods;
 
   const values = watch();
+
+  const resolveRegionalId = async (regionalName) => {
+    if (currentRegional?.id) return currentRegional.id;
+
+    const regionals = await getRegionals();
+    const savedRegional = regionals.find(
+      (regional) => String(regional?.name || '').trim().toLowerCase() === String(regionalName || '').trim().toLowerCase()
+    );
+
+    return savedRegional?.id || savedRegional?.regionId || null;
+  };
+
+  const handleUploadRegionalPhoto = async (acceptedFiles) => {
+    const file = acceptedFiles?.[0];
+    const regionalId = currentRegional?.id;
+
+    if (!currentRegional || !regionalId) {
+      toast.error('Primero guarda la region antes de subir una foto.');
+      return null;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      const photo = await subirFotoEntidad({
+        file,
+        tipoEntidad: 'region',
+        idEntidad: regionalId,
+        tipoFoto: 'perfil',
+        subidoPor: AUTH.currentUser?.uid || '',
+      });
+
+      toast.success('Foto subida correctamente.');
+
+      return photo.urlFoto;
+    } catch (error) {
+      console.error('[regional form] photo upload failed', error);
+      toast.error(error.message || 'No se pudo subir la foto.');
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     if (currentRegional) {
@@ -103,6 +150,11 @@ export function RegionalCreateEditForm({ currentRegional }) {
           : 'Región creada exitosamente!'
       );
 
+      if (currentRegional) {
+        router.refresh();
+        return;
+      }
+
       router.push('/dashboard/level/regional');
     } catch (error) {
       console.error(error);
@@ -132,6 +184,9 @@ export function RegionalCreateEditForm({ currentRegional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 maxSize={1050000}
+                loading={uploadingPhoto}
+                disabled={uploadingPhoto}
+                onDrop={handleUploadRegionalPhoto}
                 helperText={
                   <Typography
                     variant="caption"
