@@ -1,12 +1,9 @@
 import dayjs from 'dayjs';
 
 import {
-    saveItem,
     getStorageCollection,
     setStorageCollection,
 } from 'src/utils/storage-service';
-
-import { createMember } from 'src/models/member-model';
 
 // ------------------------------------------------------------
 // STORAGE KEYS
@@ -42,46 +39,9 @@ export function mapApiMemberToUI(member) {
     };
 }
 
-function mapPayloadToStoredMember(payload) {
-    return {
-        id: String(payload.idMiembros ?? payload.id ?? ''),
-        memberId: payload.codigoMiembro ?? '',
-        firstName: payload.nombres ?? '',
-        lastName: payload.apellidos ?? '',
-        avatarUrl: payload.avatarUrl ?? null,
-        email: payload.correo ?? '',
-        phoneNumber: payload.telefono ?? '',
-        country: payload.country ?? '',
-        province: payload.province ?? '',
-        city: payload.city ?? '',
-        memberAddress: payload.direccion ?? '',
-        birthDate: payload.fechaNacimiento ?? null,
-        destId: payload.idDestacamento ? String(payload.idDestacamento) : '',
-        ocupation: payload.ocupation ?? '',
-        memberDivision: payload.memberDivision ?? '',
-        gender: payload.genero === 'M' ? 'Masculino' : payload.genero === 'F' ? 'Femenino' : '',
-        shirtSize: payload.shirtSize ?? '',
-        InstructorCertificadoCI:
-            payload.instructorCertificadoCi === true
-                ? 1
-                : payload.instructorCertificadoCi === false
-                  ? 0
-                  : payload.InstructorCertificadoCI ?? 0,
-        EstatusVigenciaCI: payload.estatusVigenciaCi ?? payload.EstatusVigenciaCI ?? 'na',
-        FechaInicioCI: payload.fechaInicioCertificado ?? payload.FechaInicioCI ?? null,
-        FechaVencimientoCI: payload.fechaFinCertificado ?? payload.FechaVencimientoCI ?? null,
-        status: payload.estatusMiembro ?? payload.status ?? 'active',
-    };
-}
-
 // ------------------------------------------------------------
 // MEMBERS
 // ------------------------------------------------------------
-
-export function saveMember(member) {
-    const normalizedMember = createMember(member);
-    saveItem(MEMBERS_KEY, normalizedMember);
-}
 
 export async function getMembers() {
     try {
@@ -102,10 +62,9 @@ export async function getMembers() {
 
         localMembers.forEach((member) => {
             if (!member?.id) return;
+            if (mergedMembers.has(String(member.id))) return;
 
-            const current = mergedMembers.get(String(member.id)) || {};
             mergedMembers.set(String(member.id), {
-                ...current,
                 ...member,
                 id: String(member.id),
             });
@@ -152,18 +111,18 @@ export async function updateMemberApi(payload) {
 
     const text = await res.text();
     const response = text ? JSON.parse(text) : {};
-    const storedMember = mapPayloadToStoredMember(payload);
-
-    saveMember(storedMember);
 
     if (!res.ok) {
-        return {
-            ...response,
-            localFallback: true,
-        };
+        throw new Error(
+            response?.message ||
+                response?.Message ||
+                response?.error ||
+                text ||
+                'Error actualizando miembro'
+        );
     }
 
-    return text ? JSON.parse(text) : {};
+    return response;
 }
 
 export function deleteMember(memberId) {
@@ -200,20 +159,16 @@ export function getMemberLeadership(memberId) {
 }
 
 // ------------------------------------------------------------
-// SAVE MEMBER + LEADERSHIP
+// SAVE LEADERSHIP
 // ------------------------------------------------------------
 
 export function saveMemberWithLeadership({
-    member,
     memberUUID,
     destLeadershipRole,
     destId,
     nationalLeadershipLevel,
     nationalLeadershipRole,
 }) {
-    // guardar miembro
-    saveMember(member);
-
     const assignments = getLeadershipAssignments();
 
     // eliminar asignaciones anteriores del miembro

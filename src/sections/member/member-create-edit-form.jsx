@@ -53,7 +53,7 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 // services
-import { getMembers, getLeadershipAssignments, saveMember } from 'src/services/member-service';
+import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 // components
@@ -687,50 +687,32 @@ export function MemberCreateEditForm({ currentMember }) {
 
         if (!res.ok) {
           throw new Error(
+            responseData?.message ||
             responseData?.Message ||
-              responseData?.error ||
-              text ||
-              `Error de red o servidor (${res.status})`
+            responseData?.error ||
+            text ||
+            `Error de red o servidor (${res.status})`
           );
         }
 
-        const completedMessage = responseData?.Message?.toLowerCase().includes('completada');
+        const completedMessage = (responseData?.message || responseData?.Message)
+          ?.toLowerCase()
+          .includes('completada');
 
-        if (responseData?.Success === false && !completedMessage) {
+        if (
+          (responseData?.success === false || responseData?.Success === false) &&
+          !completedMessage
+        ) {
           console.error('API ERROR Ã°Å¸â€˜â€°', responseData);
-          throw new Error(responseData?.Message || 'Error guardando en API');
+          throw new Error(
+            responseData?.message || responseData?.Message || 'Error guardando en API'
+          );
         }
         console.log('RESPONSE API Ã°Å¸â€˜â€°', responseData || text);
 
         toast.success(
-          currentMember ? 'ActualizaciÃƒÂ³n exitosa!' : `Miembro ${codigoMiembro} creado!`
+          currentMember ? 'Actualizacion exitosa!' : `Miembro ${codigoMiembro} creado!`
         );
-
-        if (currentMember) {
-          saveMember({
-            ...currentMember,
-            id: String(memberUUID),
-            memberId: codigoMiembro,
-            firstName: submittedFirstName,
-            lastName: submittedLastName,
-            avatarUrl: currentMember?.avatarUrl ?? null,
-            email: payload.correo ?? currentMember?.email ?? '',
-            phoneNumber: payload.telefono ?? currentMember?.phoneNumber ?? '',
-            memberAddress: payload.direccion ?? currentMember?.memberAddress ?? '',
-            birthDate: payload.fechaNacimiento ?? currentMember?.birthDate ?? null,
-            destId:
-              (payload.idDestacamento ? String(payload.idDestacamento) : '') ||
-              currentMember?.destId ||
-              '',
-            gender:
-              payload.genero === 'M'
-                ? 'Masculino'
-                : payload.genero === 'F'
-                  ? 'Femenino'
-                  : currentMember?.gender ?? '',
-            status: payload.estatusMiembro ?? currentMember?.status ?? 'active',
-          });
-        }
 
         if (!currentMember) {
           try {
@@ -765,8 +747,6 @@ export function MemberCreateEditForm({ currentMember }) {
           }
         }
 
-        router.push(paths.dashboard.level.member.root);
-
         if (currentMember) {
           const updatedMembers = await getMembers();
           const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : []).find(
@@ -776,6 +756,8 @@ export function MemberCreateEditForm({ currentMember }) {
           if (updatedMember) {
             reset(mapMemberToForm(updatedMember));
           }
+        } else {
+          router.push(paths.dashboard.level.member.root);
         }
       } catch (error) {
         console.log('[member form] save failed', error);

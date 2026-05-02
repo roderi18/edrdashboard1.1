@@ -3,13 +3,12 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-import Alert from '@mui/material/Alert';
-
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { getMembers } from 'src/services/member-service';
 
+import { MemberCard } from 'src/sections/member/member-card';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -85,7 +84,7 @@ export default function Page() {
   }
 
   if (!canManage) {
-    return <Alert severity="warning">No tienes permisos para editar miembros.</Alert>;
+    return <MemberCard member={currentMember} canManage={false} />;
   }
 
   return <MemberCreateEditForm currentMember={currentMember} />;

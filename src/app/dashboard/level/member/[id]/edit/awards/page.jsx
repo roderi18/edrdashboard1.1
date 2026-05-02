@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import Alert from '@mui/material/Alert';
-
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
-import { getMembers, mapApiMemberToUI } from 'src/services/member-service';
+import { getMembers } from 'src/services/member-service';
 
+import { MemberCard } from 'src/sections/member/member-card';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -27,7 +26,7 @@ export default function Page() {
       const allMembers = await getMembers();
 
       const member = allMembers.find(
-        (m) => String(m.idMiembros) === String(id) || String(m.codigoMiembro) === String(id)
+        (m) => String(m.id) === String(id) || String(m.memberId) === String(id)
       );
 
       if (!member) {
@@ -36,15 +35,14 @@ export default function Page() {
         return;
       }
 
-      const mapped = mapApiMemberToUI(member);
       const memberPhoto = await obtenerFotoPrincipal({
         tipoEntidad: 'miembro',
-        idEntidad: mapped?.id,
+        idEntidad: member?.id,
       });
 
       setCurrentMember({
-        ...mapped,
-        avatarUrl: memberPhoto?.urlFoto || mapped?.avatarUrl || null,
+        ...member,
+        avatarUrl: memberPhoto?.urlFoto || member?.avatarUrl || null,
       });
       setHydrated(true);
     };
@@ -59,7 +57,7 @@ export default function Page() {
   }
 
   if (!canManage) {
-    return <Alert severity="warning">No tienes permisos para editar miembros.</Alert>;
+    return <MemberCard member={currentMember} canManage={false} />;
   }
 
   return <MemberEditAwardsForm currentMember={currentMember} />;

@@ -79,7 +79,6 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
   }
 
   const handleEdit = () => {
-    if (!canManage) return;
     router.push(`/dashboard/level/member/${member.idMiembros}/edit`);
   };
 
@@ -99,7 +98,7 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
         />
 
         <Avatar
-          onClick={canManage ? handleEdit : undefined}
+          onClick={handleEdit}
           alt={member.name}
           src={member.avatarUrl}
           sx={{
@@ -111,7 +110,7 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
             mx: 'auto',
             bottom: -32,
             position: 'absolute',
-            cursor: canManage ? 'pointer' : 'default',
+            cursor: 'pointer',
           }}
         />
 
@@ -135,11 +134,11 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
         sx={{ mt: 6, mb: 0.5 }}
         primary={
           <Box
-            onClick={canManage ? handleEdit : undefined}
+            onClick={handleEdit}
             sx={{
               typography: 'subtitle1',
-              cursor: canManage ? 'pointer' : 'default',
-              '&:hover': canManage ? { textDecoration: 'underline' } : undefined,
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
             }}
           >
             {member.name}

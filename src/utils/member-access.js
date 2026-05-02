@@ -171,6 +171,10 @@ const normalizeMemberProfile = (profile = {}, member = {}, authUser = {}) => ({
 });
 
 export const canMemberManageMembers = (user) => {
+  if (isMemberSessionUser(user)) {
+    return false;
+  }
+
   const permissions = getMemberPermissions(user);
   const members = permissions.miembros ?? {};
 
