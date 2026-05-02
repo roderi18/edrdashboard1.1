@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -30,6 +30,10 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedCard, setSelectedCard] = useState(primaryCard);
   const [selectedAddress, setSelectedAddress] = useState(primaryAddress);
+
+  useEffect(() => {
+    setSelectedAddress(primaryAddress);
+  }, [primaryAddress]);
 
   const handleSelectPlan = useCallback(
     (newValue) => {
@@ -74,7 +78,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
               startIcon={<Iconify icon="eva:star-fill" />}
               sx={{ position: 'absolute', top: 8, right: 8 }}
             >
-              Current
+              Actual
             </Label>
           )}
 
@@ -94,11 +98,11 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
           </Box>
 
           <Box sx={{ display: 'flex', typography: 'h4', alignItems: 'center' }}>
-            {plan.price || 'Free'}
+            {plan.price || 'Gratis'}
 
             {!!plan.price && (
               <Box component="span" sx={{ typography: 'body2', color: 'text.disabled', ml: 0.5 }}>
-                /mo
+                /mes
               </Box>
             )}
           </Box>
@@ -127,7 +131,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
           ),
         },
         {
-          name: 'Billing name',
+          name: 'Nombre de facturacion',
           content: (
             <ButtonBase
               disableRipple
@@ -139,14 +143,14 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
             </ButtonBase>
           ),
         },
-        { name: 'Billing address', content: selectedAddress?.fullAddress },
-        { name: 'Billing Número de teléfono', content: selectedAddress?.phoneNumber },
+        { name: 'Direccion de facturacion', content: selectedAddress?.fullAddress },
+        { name: 'Telefono de facturacion', content: selectedAddress?.phoneNumber },
         {
-          name: 'Payment method',
+          name: 'Metodo de pago',
           content: (
             <ButtonBase
               disableRipple
-              onClick={openAddress.onTrue}
+              onClick={openCards.onTrue}
               sx={{ gap: 1, typography: 'subtitle2' }}
             >
               {selectedCard?.cardNumber}
@@ -176,7 +180,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
       })}
     >
       <Button variant="outlined">Cancelar plan</Button>
-      <Button variant="contained">Upgrade plan</Button>
+      <Button variant="contained">Mejorar plan</Button>
     </Box>
   );
 
@@ -188,9 +192,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
       selected={(selectedId) => selectedCard?.id === selectedId}
       onSelect={handleSelectCard}
       action={
-        <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />}>
-          Add
-        </Button>
+        <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />}>Agregar</Button>
       }
     />
   );
@@ -203,9 +205,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
       selected={(selectedId) => selectedAddress?.id === selectedId}
       onSelect={handleSelectAddress}
       action={
-        <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />}>
-          Add
-        </Button>
+        <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />}>Agregar</Button>
       }
     />
   );
@@ -226,3 +226,5 @@ export function AccountBillingPlan({ cardList, addressBook, plans }) {
     </>
   );
 }
+
+

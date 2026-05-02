@@ -20,7 +20,7 @@ export function AccountBillingPayment({ cards, sx, ...other }) {
 
   const renderCardCreateFormDialog = () => (
     <Dialog fullWidth maxWidth="xs" open={openForm.value} onClose={openForm.onFalse}>
-      <DialogTitle>Add card</DialogTitle>
+      <DialogTitle>Agregar tarjeta</DialogTitle>
 
       <PaymentCardCreateForm sx={{ px: 3 }} />
 
@@ -29,7 +29,7 @@ export function AccountBillingPayment({ cards, sx, ...other }) {
           Cancelar
         </Button>
         <Button color="inherit" variant="contained" onClick={openForm.onFalse}>
-          Add
+          Agregar
         </Button>
       </DialogActions>
     </Dialog>
@@ -39,7 +39,7 @@ export function AccountBillingPayment({ cards, sx, ...other }) {
     <>
       <Card sx={[{ my: 3 }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
         <CardHeader
-          title="Payment method"
+          title="Metodo de pago"
           action={
             <Button
               size="small"
@@ -47,7 +47,7 @@ export function AccountBillingPayment({ cards, sx, ...other }) {
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={openForm.onTrue}
             >
-              Add card
+              Agregar tarjeta
             </Button>
           }
         />
@@ -71,3 +71,4 @@ export function AccountBillingPayment({ cards, sx, ...other }) {
     </>
   );
 }
+

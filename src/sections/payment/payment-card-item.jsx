@@ -25,17 +25,17 @@ export function PaymentCardItem({ card, sx, ...other }) {
       <MenuList>
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="eva:star-fill" />
-          Set as primary
+          Usar como predeterminada
         </MenuItem>
 
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Editar
         </MenuItem>
 
         <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -60,7 +60,7 @@ export function PaymentCardItem({ card, sx, ...other }) {
           {card.cardType === 'mastercard' && (
             <Iconify icon="payments:mastercard" width={40} height="auto" />
           )}
-          {card.primary && <Label color="info">Default</Label>}
+          {card.primary && <Label color="info">Predeterminada</Label>}
         </Box>
 
         <Typography variant="subtitle2">{card.cardNumber}</Typography>
@@ -74,3 +74,4 @@ export function PaymentCardItem({ card, sx, ...other }) {
     </>
   );
 }
+

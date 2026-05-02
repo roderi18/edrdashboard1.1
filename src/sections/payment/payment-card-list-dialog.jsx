@@ -22,7 +22,7 @@ export function PaymentCardListDialog({
   onClose,
   selected,
   onSelect,
-  title = 'Cards',
+  title = 'Tarjetas',
   ...other
 }) {
   const [searchCard, setSearchCard] = useState('');
@@ -121,3 +121,4 @@ function applyFilter({ inputData, query }) {
     [cardNumber].some((field) => field?.toLowerCase().includes(query.toLowerCase()))
   );
 }
+

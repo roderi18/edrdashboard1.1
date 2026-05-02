@@ -22,6 +22,7 @@ export const mapApiChurchesToUI = (apiChurch) => {
         name: apiChurch.nombre ?? '',
         pastor: apiChurch.pastor ?? '',
         address: apiChurch.direccion ?? '',
+        telefono: apiChurch.telefono ?? '',
         correo: apiChurch.correo ?? '',
         provinceId: apiChurch.idProvincia?.toString() ?? '',
         countryId: apiChurch.idPais?.toString() ?? '',
