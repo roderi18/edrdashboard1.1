@@ -94,64 +94,71 @@ export function AccountBillingView() {
   const { user } = useAuthContext();
   const [addressBook, setAddressBook] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(true);
 
   useEffect(() => {
     const loadBillingData = async () => {
-      const [members, dests, churches] = await Promise.all([
-        getMembers(),
-        getDestsApi(),
-        getChurches(),
-      ]);
+      try {
+        setLoadingInvoices(true);
 
-      const member = findCurrentMember(members, user);
-      const destId =
-        member?.idDestacamento ||
-        member?.destId ||
-        user?.idDestacamento ||
-        user?.destId ||
-        user?.alcance?.destacamentos?.[0] ||
-        null;
-      const dest = dests.find((item) => String(item.id) === String(destId));
-      const church = churches.find((item) => String(item.id) === String(dest?.churchId));
-      const profileName =
-        user?.displayName ||
-        user?.nombre ||
-        member?.name ||
-        [member?.firstName, member?.lastName].filter(Boolean).join(' ') ||
-        'Perfil';
-      const memberAddress = member?.memberAddress || member?.direccion || user?.direccion || '';
-      const memberPhone = member?.phoneNumber || user?.phoneNumber || user?.telefono || '';
+        const [members, dests, churches] = await Promise.all([
+          getMembers(),
+          getDestsApi(),
+          getChurches(),
+        ]);
 
-      const nextAddressBook = [
-        {
-          id: 'member-primary-address',
-          name: profileName,
-          addressType: 'Primaria',
-          fullAddress: memberAddress || NO_ADDRESS,
-          addressFields: splitAddressFields(memberAddress),
-          phoneNumber: memberPhone || NO_PHONE,
-          primary: false,
-          locked: true,
-        },
-        {
-          id: 'dest-address',
-          name: church?.name || dest?.name || 'Iglesia del destacamento',
-          addressType: 'Destacamento',
-          fullAddress: church?.address || NO_ADDRESS,
-          phoneNumber: church?.telefono || NO_PHONE,
-          primary: true,
-          locked: true,
-          editLocked: true,
-        },
-      ];
+        const member = findCurrentMember(members, user);
+        const destId =
+          member?.idDestacamento ||
+          member?.destId ||
+          user?.idDestacamento ||
+          user?.destId ||
+          user?.alcance?.destacamentos?.[0] ||
+          null;
+        const dest = dests.find((item) => String(item.id) === String(destId));
+        const church = churches.find((item) => String(item.id) === String(dest?.churchId));
+        const profileName =
+          user?.displayName ||
+          user?.nombre ||
+          member?.name ||
+          [member?.firstName, member?.lastName].filter(Boolean).join(' ') ||
+          'Perfil';
+        const memberAddress = member?.memberAddress || member?.direccion || user?.direccion || '';
+        const memberPhone = member?.phoneNumber || user?.phoneNumber || user?.telefono || '';
 
-      const userKeys = getUserKeys(user, member);
-      const nextInvoices = getLocalInvoices().filter((invoice) =>
-        invoiceBelongsToUser(invoice, userKeys)
-      );
+        const nextAddressBook = [
+          {
+            id: 'member-primary-address',
+            name: profileName,
+            addressType: 'Primaria',
+            fullAddress: memberAddress || NO_ADDRESS,
+            addressFields: splitAddressFields(memberAddress),
+            phoneNumber: memberPhone || NO_PHONE,
+            primary: false,
+            locked: true,
+          },
+          {
+            id: 'dest-address',
+            name: church?.name || dest?.name || 'Iglesia del destacamento',
+            addressType: 'Destacamento',
+            fullAddress: church?.address || NO_ADDRESS,
+            phoneNumber: church?.telefono || NO_PHONE,
+            primary: true,
+            locked: true,
+            editLocked: true,
+          },
+        ];
 
-      setAddressBook(nextAddressBook);
-      setInvoices(nextInvoices);
+        const userKeys = getUserKeys(user, member);
+        const nextInvoices = getLocalInvoices().filter((invoice) =>
+          invoiceBelongsToUser(invoice, userKeys)
+        );
+
+        setAddressBook(nextAddressBook);
+        setInvoices(nextInvoices);
+      } finally {
+        setLoadingInvoices(false);
+      }
     };
 
     loadBillingData();
@@ -163,6 +170,7 @@ export function AccountBillingView() {
       cards={_userPayment}
       invoices={invoices}
       addressBook={addressBook}
+      loadingInvoices={loadingInvoices}
     />
   );
 }

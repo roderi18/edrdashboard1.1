@@ -22,6 +22,7 @@ import { SignOutButton } from 'src/layouts/components/sign-out-button';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -66,6 +67,10 @@ export function AccountGeneral() {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  if (!user) {
+    return <AccountSectionSkeleton variant="profile" />;
+  }
 
   const onSubmit = handleSubmit(async (data) => {
     try {

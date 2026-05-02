@@ -32,6 +32,7 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import LocationSelect from 'src/components/location/location-select';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -196,6 +197,10 @@ export function UserAccountGeneral() {
     let active = true;
 
     const loadMember = async () => {
+      if (!user) {
+        return;
+      }
+
       try {
         setLoadingMember(true);
 
@@ -413,14 +418,8 @@ export function UserAccountGeneral() {
     }
   });
 
-  if (loadingMember) {
-    return (
-      <Card sx={{ p: 3 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Cargando información de la cuenta...
-        </Typography>
-      </Card>
-    );
+  if (!user || loadingMember) {
+    return <AccountSectionSkeleton variant="profile" />;
   }
 
   if (!member) {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -64,6 +64,15 @@ export function CheckoutBillingAddress() {
 
   const addressForm = useBoolean();
   const [addressBook, setAddressBook] = useState([]);
+
+  const handleSetPrimaryAddress = useCallback((addressId) => {
+    setAddressBook((current) =>
+      current.map((address) => ({
+        ...address,
+        primary: String(address.id) === String(addressId),
+      }))
+    );
+  }, []);
 
   useEffect(() => {
     const loadAddresses = async () => {
@@ -131,6 +140,16 @@ export function CheckoutBillingAddress() {
                       Eliminar
                     </Button>
                   )}
+                  {!address.primary && (
+                    <Button
+                      size="small"
+                      color="inherit"
+                      sx={{ mr: 1 }}
+                      onClick={() => handleSetPrimaryAddress(address.id)}
+                    >
+                      Usar como predeterminada
+                    </Button>
+                  )}
                   <Button
                     variant="outlined"
                     size="small"
@@ -184,6 +203,11 @@ export function CheckoutBillingAddress() {
         open={addressForm.value}
         onClose={addressForm.onFalse}
         onCreate={(address) => {
+          setAddressBook((current) =>
+            address.primary
+              ? [...current.map((item) => ({ ...item, primary: false })), address]
+              : [...current, address]
+          );
           onChangeStep('next');
           onCreateBillingAddress(address);
         }}

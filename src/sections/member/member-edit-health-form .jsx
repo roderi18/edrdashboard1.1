@@ -12,6 +12,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useRouter } from 'src/routes/hooks';
 
 // MUI components
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 
@@ -151,6 +152,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     const {
         watch,
+        reset,
         setValue,
         setError,
         clearErrors,

@@ -14,6 +14,7 @@ import { fDate } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
+import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
 
 // ----------------------------------------------------------------------
 
@@ -22,9 +23,13 @@ const InvoicePDFDownload = dynamic(
   { ssr: false }
 );
 
-export function AccountBillingHistory({ invoices, sx, ...other }) {
+export function AccountBillingHistory({ invoices, loading = false, sx, ...other }) {
   const showMore = useBoolean();
   const visibleInvoices = showMore.value ? invoices : invoices.slice(0, 8);
+
+  if (loading) {
+    return <AccountSectionSkeleton variant="history" sx={sx} {...other} />;
+  }
 
   return (
     <Card sx={sx} {...other}>

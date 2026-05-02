@@ -18,19 +18,32 @@ const getAddressOrder = (address) => {
 const sortBillingAddresses = (addresses = []) =>
   [...addresses].sort((a, b) => getAddressOrder(a) - getAddressOrder(b));
 
-export function AccountBilling({ cards, plans, invoices, addressBook }) {
-  const [billingAddresses, setBillingAddresses] = useState(() => sortBillingAddresses(addressBook));
+const normalizePrimaryAddress = (addresses = []) => {
+  const primaryAddress = addresses.find((address) => address.primary) || addresses[0];
+
+  return sortBillingAddresses(
+    addresses.map((address) => ({
+      ...address,
+      primary: String(address.id) === String(primaryAddress?.id),
+    }))
+  );
+};
+
+export function AccountBilling({ cards, plans, invoices, addressBook, loadingInvoices = false }) {
+  const [billingAddresses, setBillingAddresses] = useState(() =>
+    normalizePrimaryAddress(addressBook)
+  );
 
   useEffect(() => {
-    setBillingAddresses(sortBillingAddresses(addressBook));
+    setBillingAddresses(normalizePrimaryAddress(addressBook));
   }, [addressBook]);
 
   const handleSetPrimaryAddress = useCallback((addressId) => {
     setBillingAddresses((current) =>
-      sortBillingAddresses(
+      normalizePrimaryAddress(
         current.map((address) => ({
           ...address,
-          primary: address.id === 'dest-address',
+          primary: String(address.id) === String(addressId),
         }))
       )
     );
@@ -45,17 +58,24 @@ export function AccountBilling({ cards, plans, invoices, addressBook }) {
         editLocked: false,
       };
 
-      const nextAddresses = [...current, { ...nextAddress, primary: false }];
+      const nextAddresses = nextAddress.primary
+        ? [...current.map((item) => ({ ...item, primary: false })), nextAddress]
+        : [...current, nextAddress];
 
-      return sortBillingAddresses(nextAddresses);
+      return normalizePrimaryAddress(nextAddresses);
     });
   }, []);
 
   const handleUpdateAddress = useCallback((addressId, updates) => {
     setBillingAddresses((current) =>
-      sortBillingAddresses(
+      normalizePrimaryAddress(
         current.map((address) =>
-          String(address.id) === String(addressId) ? { ...address, ...updates } : address
+          String(address.id) === String(addressId)
+            ? { ...address, ...updates }
+            : {
+                ...address,
+                ...(updates.primary ? { primary: false } : {}),
+              }
         )
       )
     );
@@ -75,7 +95,7 @@ export function AccountBilling({ cards, plans, invoices, addressBook }) {
       </Grid>
 
       <Grid size={{ xs: 12, md: 4 }}>
-        <AccountBillingHistory invoices={invoices} />
+        <AccountBillingHistory invoices={invoices} loading={loadingInvoices} />
       </Grid>
     </Grid>
   );
