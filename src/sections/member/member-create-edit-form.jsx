@@ -53,7 +53,7 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 // services
-import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
+import { getMembers, getLeadershipAssignments, saveMember } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 // components
@@ -705,6 +705,32 @@ export function MemberCreateEditForm({ currentMember }) {
         toast.success(
           currentMember ? 'ActualizaciÃƒÂ³n exitosa!' : `Miembro ${codigoMiembro} creado!`
         );
+
+        if (currentMember) {
+          saveMember({
+            ...currentMember,
+            id: String(memberUUID),
+            memberId: codigoMiembro,
+            firstName: submittedFirstName,
+            lastName: submittedLastName,
+            avatarUrl: currentMember?.avatarUrl ?? null,
+            email: payload.correo ?? currentMember?.email ?? '',
+            phoneNumber: payload.telefono ?? currentMember?.phoneNumber ?? '',
+            memberAddress: payload.direccion ?? currentMember?.memberAddress ?? '',
+            birthDate: payload.fechaNacimiento ?? currentMember?.birthDate ?? null,
+            destId:
+              (payload.idDestacamento ? String(payload.idDestacamento) : '') ||
+              currentMember?.destId ||
+              '',
+            gender:
+              payload.genero === 'M'
+                ? 'Masculino'
+                : payload.genero === 'F'
+                  ? 'Femenino'
+                  : currentMember?.gender ?? '',
+            status: payload.estatusMiembro ?? currentMember?.status ?? 'active',
+          });
+        }
 
         if (!currentMember) {
           try {

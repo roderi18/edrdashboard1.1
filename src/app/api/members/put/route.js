@@ -143,13 +143,21 @@ export async function PUT(req) {
                     : null,
             });
 
-            if (verification.persisted) {
+            if (verification.persisted || completedMessage) {
                 return Response.json({
                     success: true,
                     message: 'Actualización exitosa',
                     data: {
                         attempt: attempt.label,
                         upstream: normalizeApiResponse(parsed ?? { raw: text }),
+                        verified: verification.persisted,
+                        verifiedMember: verification.updatedMember
+                            ? {
+                                idMiembros: verification.updatedMember.idMiembros,
+                                nombres: verification.updatedMember.nombres,
+                                apellidos: verification.updatedMember.apellidos,
+                            }
+                            : null,
                     },
                 });
             }
