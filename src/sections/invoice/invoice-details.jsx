@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,13 +11,19 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 
-import { fDate } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
+import { isMemberSessionUser } from 'src/utils/member-access';
+import { fDate, fDateTimeEsLong } from 'src/utils/format-time';
+import { TEXTO_SIN_TELEFONO, TEXTO_SIN_DIRECCION } from 'src/utils/firestore-commerce';
 
 import { INVOICE_STATUS_OPTIONS } from 'src/_mock';
+import { actualizarEstadoReciboFirestore } from 'src/services/receipt-service';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { InvoiceToolbar } from './invoice-toolbar';
 import { InvoiceTotalSummary } from './invoice-total-summary';
@@ -32,11 +38,39 @@ const STATUS_LABELS = {
 };
 
 export function InvoiceDetails({ invoice }) {
-  const [currentStatus, setCurrentStatus] = useState(invoice?.status);
+  const { user } = useAuthContext();
+  const canEditStatus = !isMemberSessionUser(user);
+  const [currentStatus, setCurrentStatus] = useState(invoice?.status || 'paid');
 
-  const handleChangeStatus = useCallback((event) => {
-    setCurrentStatus(event.target.value);
-  }, []);
+  useEffect(() => {
+    setCurrentStatus(invoice?.status || 'paid');
+  }, [invoice?.status]);
+
+  const handleChangeStatus = useCallback(
+    async (event) => {
+      const nextStatus = event.target.value;
+
+      if (!canEditStatus || !invoice?.id) {
+        return;
+      }
+
+      const previousStatus = currentStatus;
+      setCurrentStatus(nextStatus);
+
+      try {
+        const updatedInvoice = await actualizarEstadoReciboFirestore(invoice.id, nextStatus);
+
+        setCurrentStatus(updatedInvoice?.status || nextStatus);
+        toast.success('Estado del recibo actualizado');
+      } catch {
+        setCurrentStatus(previousStatus);
+        toast.error('No se pudo actualizar el estado del recibo');
+      }
+    },
+    [canEditStatus, currentStatus, invoice?.id]
+  );
+
+  const displayStatus = currentStatus || 'paid';
 
   const renderFooter = () => (
     <Box
@@ -108,8 +142,9 @@ export function InvoiceDetails({ invoice }) {
     <>
       <InvoiceToolbar
         invoice={invoice}
-        currentStatus={currentStatus || ''}
+        currentStatus={displayStatus}
         onChangeStatus={handleChangeStatus}
+        canEditStatus={canEditStatus}
         statusOptions={INVOICE_STATUS_OPTIONS}
       />
 
@@ -133,13 +168,13 @@ export function InvoiceDetails({ invoice }) {
             <Label
               variant="soft"
               color={
-                (currentStatus === 'paid' && 'success') ||
-                (currentStatus === 'pending' && 'warning') ||
-                (currentStatus === 'overdue' && 'error') ||
+                (displayStatus === 'paid' && 'success') ||
+                (displayStatus === 'pending' && 'warning') ||
+                (displayStatus === 'overdue' && 'error') ||
                 'default'
               }
             >
-              {STATUS_LABELS[currentStatus] || currentStatus}
+              {STATUS_LABELS[displayStatus] || displayStatus}
             </Label>
 
             <Typography variant="h6">{invoice?.invoiceNumber}</Typography>
@@ -163,9 +198,9 @@ export function InvoiceDetails({ invoice }) {
             </Typography>
             {invoice?.invoiceTo.name}
             <br />
-            {invoice?.invoiceTo.fullAddress}
+            {invoice?.invoiceTo.fullAddress || TEXTO_SIN_DIRECCION}
             <br />
-            Telefono: {invoice?.invoiceTo.phoneNumber}
+            Telefono: {invoice?.invoiceTo.phoneNumber || TEXTO_SIN_TELEFONO}
             <br />
             {invoice?.invoiceTo.codigoMiembro && (
               <>
@@ -191,13 +226,19 @@ export function InvoiceDetails({ invoice }) {
                 <br />
               </>
             )}
+            {!invoice?.invoiceTo.company && (
+              <>
+                Correo no especificado
+                <br />
+              </>
+            )}
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Fecha de creacion
             </Typography>
-            {fDate(invoice?.createDate)}
+            {fDateTimeEsLong(invoice?.createDate)}
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>

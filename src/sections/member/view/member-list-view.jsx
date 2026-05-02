@@ -66,9 +66,9 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 const TABLE_HEAD = [
   { id: 'name', label: 'Nombre' },
   { id: 'destName', label: 'Destacamento', width: 250 },
-  { id: 'memberPosition', label: 'PosiciÃ³n', width: 180 },
-  { id: 'sectionalName', label: 'SecciÃ³n', width: 160 },
-  { id: 'memberDivision', label: 'DivisiÃ³n', width: 90 },
+  { id: 'memberPosition', label: 'Posición', width: 180 },
+  { id: 'sectionalName', label: 'Sección', width: 160 },
+  { id: 'memberDivision', label: 'División', width: 90 },
   { id: '', width: 88 },
 ];
 
@@ -468,7 +468,7 @@ export function MemberListView() {
                       tab.value
                     )
                       ? visibleMembers.filter((sectional) => sectional.memberDivision === tab.value)
-                          .length
+                        .length
                       : visibleMembers.length}
                   </Label>
                 }

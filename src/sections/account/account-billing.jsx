@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 
 import Grid from '@mui/material/Grid';
 
+import {
+  guardarDireccionUsuario,
+  eliminarDireccionUsuario,
+  marcarDireccionPredeterminadaUsuario,
+} from 'src/services/address-service';
+
 import { AccountBillingPlan } from './account-billing-plan';
 import { AccountBillingPayment } from './account-billing-payment';
 import { AccountBillingHistory } from './account-billing-history';
@@ -29,7 +35,14 @@ const normalizePrimaryAddress = (addresses = []) => {
   );
 };
 
-export function AccountBilling({ cards, plans, invoices, addressBook, loadingInvoices = false }) {
+export function AccountBilling({
+  user,
+  cards,
+  plans,
+  invoices,
+  addressBook,
+  loadingInvoices = false,
+}) {
   const [billingAddresses, setBillingAddresses] = useState(() =>
     normalizePrimaryAddress(addressBook)
   );
@@ -38,48 +51,95 @@ export function AccountBilling({ cards, plans, invoices, addressBook, loadingInv
     setBillingAddresses(normalizePrimaryAddress(addressBook));
   }, [addressBook]);
 
-  const handleSetPrimaryAddress = useCallback((addressId) => {
-    setBillingAddresses((current) =>
-      normalizePrimaryAddress(
-        current.map((address) => ({
-          ...address,
-          primary: String(address.id) === String(addressId),
-        }))
-      )
-    );
-  }, []);
-
-  const handleCreateAddress = useCallback((address) => {
-    setBillingAddresses((current) => {
-      const nextAddress = {
-        ...address,
-        id: address.id || `address-${Date.now()}`,
-        locked: false,
-        editLocked: false,
-      };
-
-      const nextAddresses = nextAddress.primary
-        ? [...current.map((item) => ({ ...item, primary: false })), nextAddress]
-        : [...current, nextAddress];
-
-      return normalizePrimaryAddress(nextAddresses);
-    });
-  }, []);
-
-  const handleUpdateAddress = useCallback((addressId, updates) => {
-    setBillingAddresses((current) =>
-      normalizePrimaryAddress(
-        current.map((address) =>
-          String(address.id) === String(addressId)
-            ? { ...address, ...updates }
-            : {
-                ...address,
-                ...(updates.primary ? { primary: false } : {}),
-              }
+  const handleSetPrimaryAddress = useCallback(
+    async (addressId) => {
+      setBillingAddresses((current) =>
+        normalizePrimaryAddress(
+          current.map((address) => ({
+            ...address,
+            primary: String(address.id) === String(addressId),
+          }))
         )
-      )
-    );
-  }, []);
+      );
+
+      if (user) {
+        await marcarDireccionPredeterminadaUsuario({ user, addressId });
+      }
+    },
+    [user]
+  );
+
+  const handleCreateAddress = useCallback(
+    async (address) => {
+      const savedAddress = user
+        ? await guardarDireccionUsuario({
+            user,
+            address: {
+              ...address,
+              locked: false,
+              editLocked: false,
+            },
+          })
+        : {
+            ...address,
+            id: address.id || `address-${Date.now()}`,
+            locked: false,
+            editLocked: false,
+          };
+
+      if (!savedAddress) return;
+
+      setBillingAddresses((current) => {
+        const nextAddresses = savedAddress.primary
+          ? [...current.map((item) => ({ ...item, primary: false })), savedAddress]
+          : [...current, savedAddress];
+
+        return normalizePrimaryAddress(nextAddresses);
+      });
+    },
+    [user]
+  );
+
+  const handleUpdateAddress = useCallback(
+    async (addressId, updates) => {
+      const savedAddress = user
+        ? await guardarDireccionUsuario({
+            user,
+            addressId,
+            address: updates,
+          })
+        : { ...updates, id: addressId };
+
+      if (!savedAddress) return;
+
+      setBillingAddresses((current) =>
+        normalizePrimaryAddress(
+          current.map((address) =>
+            String(address.id) === String(addressId)
+              ? { ...address, ...savedAddress }
+              : {
+                  ...address,
+                  ...(savedAddress.primary ? { primary: false } : {}),
+                }
+          )
+        )
+      );
+    },
+    [user]
+  );
+
+  const handleDeleteAddress = useCallback(
+    async (addressId) => {
+      setBillingAddresses((current) =>
+        normalizePrimaryAddress(current.filter((address) => String(address.id) !== String(addressId)))
+      );
+
+      if (user) {
+        await eliminarDireccionUsuario(addressId);
+      }
+    },
+    [user]
+  );
 
   return (
     <Grid container spacing={5}>
@@ -91,6 +151,7 @@ export function AccountBilling({ cards, plans, invoices, addressBook, loadingInv
           onSetPrimary={handleSetPrimaryAddress}
           onCreateAddress={handleCreateAddress}
           onUpdateAddress={handleUpdateAddress}
+          onDeleteAddress={handleDeleteAddress}
         />
       </Grid>
 

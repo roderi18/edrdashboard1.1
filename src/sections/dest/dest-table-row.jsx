@@ -78,9 +78,14 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const sectionalName = sectional?.sectionalName || '';
   const regionalName = row.regionalName || regional?.regionalName || regional?.name || regional?.nombre || '-';
 
-  const coordinator = members.find(
-    (m) => String(m.memberId) === String(row.coordinatorId)
-  );
+  const coordinator =
+    row.coordinatorId
+      ? members.find(
+          (m) =>
+            String(m.memberId) === String(row.coordinatorId) ||
+            String(m.id) === String(row.coordinatorId)
+        )
+      : null;
 
   const id = row.id || row.idDestacamento;
 
@@ -214,9 +219,19 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
                 {row.phoneNumber}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {coordinator?.phoneNumber
-                  ? parsePhoneNumber(coordinator.phoneNumber)?.formatNational()
-                  : ''}
+                {coordinator ? (() => {
+                  try {
+                    return coordinator?.phoneNumber
+                      ? parsePhoneNumber(
+                          coordinator.phoneNumber.startsWith('+')
+                            ? coordinator.phoneNumber
+                            : `+1${coordinator.phoneNumber}`
+                        )?.formatNational()
+                      : '';
+                  } catch (e) {
+                    return coordinator?.phoneNumber || '';
+                  }
+                })() : ''}
               </Box>
             </Stack>
           </Box>

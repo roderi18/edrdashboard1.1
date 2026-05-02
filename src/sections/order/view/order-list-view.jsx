@@ -17,11 +17,11 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
-import { getLocalOrders } from 'src/utils/local-commerce-storage';
 import { isMemberSessionUser, filterOrdersByMemberSession } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _orders, ORDER_STATUS_OPTIONS } from 'src/_mock';
+import { listarOrdenesFirestore } from 'src/services/order-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -29,6 +29,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { CommerceListSkeleton } from 'src/components/commerce/commerce-list-skeleton';
 import {
   useTable,
   rowInPage,
@@ -68,10 +69,25 @@ export function OrderListView() {
 
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState(_orders);
+  const [tableData, setTableData] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
-    setTableData([...getLocalOrders(), ..._orders]);
+    const loadOrders = async () => {
+      try {
+        const firestoreOrders = await listarOrdenesFirestore();
+        const firestoreIds = new Set(firestoreOrders.map((order) => order.id));
+
+        setTableData([
+          ...firestoreOrders,
+          ..._orders.filter((order) => !firestoreIds.has(order.id)),
+        ]);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
+    loadOrders();
   }, []);
 
   const filters = useSetState({
@@ -170,6 +186,9 @@ export function OrderListView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
+        {loadingOrders ? (
+          <CommerceListSkeleton rowCount={6} cellCount={7} />
+        ) : (
         <Card>
           <Tabs
             value={currentFilters.status}
@@ -297,6 +316,7 @@ export function OrderListView() {
             onRowsPerPageChange={table.onChangeRowsPerPage}
           />
         </Card>
+        )}
       </DashboardContent>
 
       {renderConfirmDialog()}

@@ -43,6 +43,20 @@ export const FORMAT_PATTERNS = {
 };
 
 const INVALID_DATE = 'Invalid';
+const MONTHS_ES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
 
 // ----------------------------------------------------------------------
 
@@ -99,6 +113,28 @@ export function fTime(input, template = FORMAT_PATTERNS.time) {
   if (!date.isValid()) return INVALID_DATE;
 
   return date.format(template);
+}
+
+// ----------------------------------------------------------------------
+
+export function fDateEsLong(input) {
+  if (!input) return '';
+
+  const date = dayjs(input);
+  if (!date.isValid()) return INVALID_DATE;
+
+  return `${date.format('DD')} ${MONTHS_ES[date.month()]} ${date.format('YYYY')}`;
+}
+
+// ----------------------------------------------------------------------
+
+export function fDateTimeEsLong(input) {
+  if (!input) return '';
+
+  const date = dayjs(input);
+  if (!date.isValid()) return INVALID_DATE;
+
+  return `${fDateEsLong(date)} ${date.format('hh:mm:ss A')}`;
 }
 
 // ----------------------------------------------------------------------

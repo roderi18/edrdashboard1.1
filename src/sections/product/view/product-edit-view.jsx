@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 
 import { paths } from 'src/routes/paths';
 
-import { getLocalProductById } from 'src/utils/local-product-storage';
-
 import { DashboardContent } from 'src/layouts/dashboard';
+import { resolverProductoCombinadoPorId } from 'src/services/product-service';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
@@ -18,25 +17,24 @@ import { ProductCreateEditForm } from '../product-create-edit-form';
 
 export function ProductEditView({ product, productId }) {
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
-  const [isLoading, setIsLoading] = useState(!product && !!productId?.startsWith('local-product-'));
-
-  const isLocalProduct = productId?.startsWith('local-product-');
+  const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
 
   useEffect(() => {
-    if (product) {
-      setResolvedProduct(product);
+    const loadProduct = async () => {
+      if (!productId) return;
+
+      setIsLoading(true);
+      const nextProduct = await resolverProductoCombinadoPorId({
+        productId,
+        productoRemoto: product,
+      });
+
+      setResolvedProduct(nextProduct);
       setIsLoading(false);
-    }
-  }, [product]);
+    };
 
-  useEffect(() => {
-    if (!isLocalProduct) return;
-
-    const localProduct = getLocalProductById(productId);
-
-    setResolvedProduct(localProduct);
-    setIsLoading(false);
-  }, [isLocalProduct, productId]);
+    loadProduct();
+  }, [product, productId]);
 
   return (
     <DashboardContent>

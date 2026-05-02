@@ -8,6 +8,7 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import DialogActions from '@mui/material/DialogActions';
 
 import { paths } from 'src/routes/paths';
@@ -27,7 +28,21 @@ const InvoicePDFViewer = dynamic(
   { ssr: false }
 );
 
-export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChangeStatus }) {
+const STATUS_LABELS = {
+  paid: 'Pagado',
+  pending: 'Pendiente',
+  overdue: 'Vencido',
+  draft: 'Borrador',
+  cancelled: 'Cancelado',
+};
+
+export function InvoiceToolbar({
+  invoice,
+  currentStatus,
+  statusOptions,
+  onChangeStatus,
+  canEditStatus = false,
+}) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
   const renderDownloadButton = () =>
@@ -103,24 +118,44 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
           </Tooltip>
         </Box>
 
-        <TextField
-          fullWidth
-          select
-          label="Estado"
-          value={currentStatus}
-          onChange={onChangeStatus}
-          sx={{ maxWidth: 160 }}
-          slotProps={{
-            htmlInput: { id: 'status-select' },
-            inputLabel: { htmlFor: 'status-select' },
-          }}
-        >
-          {statusOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
+        {canEditStatus ? (
+          <TextField
+            fullWidth
+            select
+            label="Estado"
+            value={currentStatus}
+            onChange={onChangeStatus}
+            sx={{ maxWidth: 160 }}
+            slotProps={{
+              htmlInput: { id: 'status-select' },
+              inputLabel: { htmlFor: 'status-select' },
+            }}
+          >
+            {statusOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <Box
+            sx={{
+              minWidth: 160,
+              maxWidth: 160,
+              px: 2,
+              py: 1.75,
+              borderRadius: 1,
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+              Estado
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {STATUS_LABELS[currentStatus] || 'Pagado'}
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {renderDetailsDialog()}

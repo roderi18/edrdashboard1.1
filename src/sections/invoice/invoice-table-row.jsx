@@ -23,6 +23,8 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { InvoicePDFDownload } from './invoice-pdf';
+
 // ----------------------------------------------------------------------
 
 const STATUS_LABELS = {
@@ -36,6 +38,7 @@ export function InvoiceTableRow({
   row,
   selected,
   editHref,
+  canDelete = true,
   onSelectRow,
   onDeleteRow,
   detailsHref,
@@ -59,24 +62,44 @@ export function InvoiceTableRow({
         </li>
 
         <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={menuActions.onClose}>
-            <Iconify icon="solar:pen-bold" />
-            Editar
-          </MenuItem>
+          <InvoicePDFDownload
+            invoice={row}
+            currentStatus={row.status}
+            fileName={`${row.invoiceNumber || row.id}.pdf`}
+            renderButton={(loading) => (
+              <MenuItem onClick={menuActions.onClose} disabled={loading} sx={{ color: 'text.primary' }}>
+                <Iconify
+                  icon={loading ? 'line-md:loading-twotone-loop' : 'solar:printer-minimalistic-bold'}
+                />
+                Descargar PDF
+              </MenuItem>
+            )}
+          />
         </li>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
+        {canDelete && (
+          <li>
+            <MenuItem component={RouterLink} href={editHref} onClick={menuActions.onClose}>
+              <Iconify icon="solar:pen-bold" />
+              Editar
+            </MenuItem>
+          </li>
+        )}
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Eliminar
-        </MenuItem>
+        {canDelete && <Divider sx={{ borderStyle: 'dashed' }} />}
+
+        {canDelete && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -180,7 +203,7 @@ export function InvoiceTableRow({
       </TableRow>
 
       {renderMenuActions()}
-      {renderConfirmDialog()}
+      {canDelete && renderConfirmDialog()}
     </>
   );
 }

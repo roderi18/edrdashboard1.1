@@ -14,10 +14,15 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { getLocalProductById } from 'src/utils/local-product-storage';
+import { isMemberSessionUser } from 'src/utils/member-access';
+
+import { resolverProductoCombinadoPorId } from 'src/services/product-service';
 
 import { Iconify } from 'src/components/iconify';
+import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { CartIcon } from '../cart-icon';
 import { useCheckoutContext } from '../../checkout/context';
@@ -51,27 +56,29 @@ const SUMMARY = [
 
 export function ProductShopDetailsView({ product, productId }) {
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
+  const { user } = useAuthContext();
 
   const tabs = useTabs('description');
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
-  const [isLoading, setIsLoading] = useState(!product && !!productId?.startsWith('local-product-'));
-  const isLocalProduct = productId?.startsWith('local-product-');
+  const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
+  const isMemberUser = isMemberSessionUser(user);
 
   useEffect(() => {
-    if (product) {
-      setResolvedProduct(product);
+    const loadProduct = async () => {
+      if (!productId) return;
+
+      setIsLoading(true);
+      const nextProduct = await resolverProductoCombinadoPorId({
+        productId,
+        productoRemoto: product,
+      });
+
+      setResolvedProduct(nextProduct);
       setIsLoading(false);
-    }
-  }, [product]);
+    };
 
-  useEffect(() => {
-    if (!isLocalProduct) return;
-
-    const localProduct = getLocalProductById(productId);
-
-    setResolvedProduct(localProduct);
-    setIsLoading(false);
-  }, [isLocalProduct, productId]);
+    loadProduct();
+  }, [product, productId]);
 
   return (
     <>
@@ -80,6 +87,8 @@ export function ProductShopDetailsView({ product, productId }) {
       <Container sx={{ mb: 10 }}>
         {isLoading && !resolvedProduct ? (
           <ProductDetailsSkeleton />
+        ) : isMemberUser && resolvedProduct?.publish !== 'published' ? (
+          <EmptyContent title="Producto no disponible" filled sx={{ py: 10 }} />
         ) : (
           <>
             <CustomBreadcrumbs

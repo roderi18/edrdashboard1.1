@@ -13,11 +13,14 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
-import { getLocalProducts, removeLocalProduct } from 'src/utils/local-product-storage';
 
 import { PRODUCT_STOCK_OPTIONS } from 'src/_mock';
 import { useGetProducts } from 'src/actions/product';
 import { DashboardContent } from 'src/layouts/dashboard';
+import {
+  eliminarProductoFirestore,
+  actualizarPublicacionProductoFirestore,
+} from 'src/services/product-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -70,11 +73,10 @@ export function ProductListView() {
   const isMemberUser = isMemberSessionUser(user);
 
   useEffect(() => {
-    const localProducts = getLocalProducts();
-    const localProductIds = new Set(localProducts.map((product) => product.id));
-
-    setTableData([...localProducts, ...products.filter((product) => !localProductIds.has(product.id))]);
-  }, [products]);
+    setTableData(
+      isMemberUser ? products.filter((product) => product.publish === 'published') : products
+    );
+  }, [isMemberUser, products]);
 
   const canReset = filters.state.publish.length > 0 || filters.state.stock.length > 0;
 
@@ -83,19 +85,37 @@ export function ProductListView() {
     filters: filters.state,
   });
 
-  const handleDeleteRow = useCallback((id) => {
-    removeLocalProduct(id);
+  const handleDeleteRow = useCallback(async (id) => {
+    await eliminarProductoFirestore(id);
     setTableData((prev) => prev.filter((row) => row.id !== id));
     toast.success('Producto eliminado!');
   }, []);
 
-  const handleDeleteRows = useCallback(() => {
-    selectedRows.ids.forEach((id) => removeLocalProduct(id));
+  const handlePublishRow = useCallback(async (id) => {
+    const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published');
+
+    if (!updatedProduct) {
+      toast.error('No se pudo publicar el producto');
+      return;
+    }
+
+    setTableData((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, ...updatedProduct } : row))
+    );
+    toast.success('Producto publicado!');
+  }, []);
+
+  const handleDeleteRows = useCallback(async () => {
+    await Promise.all(Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id)));
     setTableData((prev) => prev.filter((row) => !selectedRows.ids.has(row.id)));
     toast.success('Productos eliminados!');
   }, [selectedRows.ids]);
 
-  const columns = useGetColumns({ onDeleteRow: handleDeleteRow, isMemberUser });
+  const columns = useGetColumns({
+    onDeleteRow: handleDeleteRow,
+    onPublishRow: handlePublishRow,
+    isMemberUser,
+  });
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -213,7 +233,7 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow, isMemberUser }) => {
+const useGetColumns = ({ onDeleteRow, onPublishRow, isMemberUser }) => {
   const theme = useTheme();
 
   const columns = useMemo(
@@ -289,6 +309,17 @@ const useGetColumns = ({ onDeleteRow, isMemberUser }) => {
           ];
 
           if (!isMemberUser) {
+            if (params.row.publish !== 'published') {
+              actions.push(
+                <CustomGridActionsCellItem
+                  showInMenu
+                  label="Publicar"
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                  onClick={() => onPublishRow(params.row.id)}
+                />
+              );
+            }
+
             actions.push(
               <CustomGridActionsCellItem
                 showInMenu
@@ -310,7 +341,7 @@ const useGetColumns = ({ onDeleteRow, isMemberUser }) => {
         },
       },
     ],
-    [onDeleteRow, isMemberUser, theme.vars.palette.error.main]
+    [onDeleteRow, onPublishRow, isMemberUser, theme.vars.palette.error.main]
   );
 
   return columns;

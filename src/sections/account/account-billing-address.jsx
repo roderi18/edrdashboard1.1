@@ -21,6 +21,7 @@ export function AccountBillingAddress({
   onSetPrimary,
   onCreateAddress,
   onUpdateAddress,
+  onDeleteAddress,
   sx,
   ...other
 }) {
@@ -90,9 +91,9 @@ export function AccountBillingAddress({
 
         {selectedAddress && !selectedAddress.locked && (
           <MenuItem
-            onClick={() => {
+            onClick={async () => {
               handleClose();
-              console.info('DELETE', addressId);
+              await onDeleteAddress?.(addressId);
             }}
             sx={{ color: 'error.main' }}
           >

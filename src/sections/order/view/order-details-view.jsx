@@ -9,10 +9,13 @@ import Divider from '@mui/material/Divider';
 
 import { paths } from 'src/routes/paths';
 
-import { getLocalOrderById } from 'src/utils/local-commerce-storage';
+import { isMemberSessionUser } from 'src/utils/member-access';
 
 import { ORDER_STATUS_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { obtenerOrdenFirestorePorId, cambiarEstadoOrdenFirestore } from 'src/services/order-service';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { OrderDetailsItems } from '../order-details-items';
 import { OrderDetailsToolbar } from '../order-details-toolbar';
@@ -25,20 +28,45 @@ import { OrderDetailsShipping } from '../order-details-shipping';
 // ----------------------------------------------------------------------
 
 export function OrderDetailsView({ order, orderId }) {
+  const { user } = useAuthContext();
   const [resolvedOrder, setResolvedOrder] = useState(order);
   const [status, setStatus] = useState(order?.status);
+  const canManageStatus = !isMemberSessionUser(user);
 
   useEffect(() => {
-    if (order || !orderId?.startsWith('local-order-')) return;
+    const loadOrder = async () => {
+      if (order?.id === orderId) return;
 
-    const localOrder = getLocalOrderById(orderId);
-    setResolvedOrder(localOrder);
-    setStatus(localOrder?.status);
+      const firestoreOrder = await obtenerOrdenFirestorePorId(orderId);
+      if (firestoreOrder) {
+        setResolvedOrder(firestoreOrder);
+        setStatus(firestoreOrder?.status);
+      }
+    };
+
+    loadOrder();
   }, [order, orderId]);
 
-  const handleChangeStatus = useCallback((newValue) => {
-    setStatus(newValue);
-  }, []);
+  const handleChangeStatus = useCallback(
+    async (newValue) => {
+      if (!canManageStatus || !resolvedOrder?.id) return;
+
+      const updatedOrder = await cambiarEstadoOrdenFirestore({
+        orderId: resolvedOrder.id,
+        nextStatus: newValue,
+        user,
+      });
+
+      if (updatedOrder) {
+        setResolvedOrder(updatedOrder);
+        setStatus(updatedOrder.status);
+        return;
+      }
+
+      setStatus(newValue);
+    },
+    [canManageStatus, resolvedOrder?.id, user]
+  );
 
   return (
     <DashboardContent>
@@ -49,6 +77,7 @@ export function OrderDetailsView({ order, orderId }) {
         backHref={paths.dashboard.order.root}
         onChangeStatus={handleChangeStatus}
         statusOptions={ORDER_STATUS_OPTIONS}
+        canManageStatus={canManageStatus}
       />
 
       <Grid container spacing={3}>

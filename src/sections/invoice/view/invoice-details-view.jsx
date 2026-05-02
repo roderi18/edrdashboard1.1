@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 
 import { paths } from 'src/routes/paths';
 
-import { getLocalInvoiceById } from 'src/utils/local-commerce-storage';
-
 import { DashboardContent } from 'src/layouts/dashboard';
+import { obtenerReciboFirestorePorId } from 'src/services/receipt-service';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
@@ -18,9 +17,17 @@ export function InvoiceDetailsView({ invoice, invoiceId }) {
   const [resolvedInvoice, setResolvedInvoice] = useState(invoice);
 
   useEffect(() => {
-    if (invoice || !invoiceId?.startsWith('local-invoice-')) return;
+    const loadInvoice = async () => {
+      if (invoice?.id === invoiceId) return;
 
-    setResolvedInvoice(getLocalInvoiceById(invoiceId));
+      const currentInvoice = await obtenerReciboFirestorePorId(invoiceId);
+
+      if (currentInvoice) {
+        setResolvedInvoice(currentInvoice);
+      }
+    };
+
+    loadInvoice();
   }, [invoice, invoiceId]);
 
   return (

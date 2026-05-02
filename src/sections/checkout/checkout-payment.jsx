@@ -3,9 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import FormHelperText from '@mui/material/FormHelperText';
 
 import { Form } from 'src/components/hook-form';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useCheckoutContext } from './context';
@@ -73,16 +76,17 @@ export function CheckoutPayment() {
 
   const {
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      onCreateOrder(data);
+      await onCreateOrder(data);
       onChangeStep('next');
       console.info('DATA', data);
     } catch (error) {
       console.error(error);
+      toast.error('No se pudo completar la orden.');
     }
   });
 
@@ -98,6 +102,7 @@ export function CheckoutPayment() {
 
           <CheckoutPaymentMethods
             name="payment"
+            hideError
             options={{ cards: CARD_OPTIONS, payments: PAYMENT_OPTIONS }}
             sx={{ my: 3 }}
           />
@@ -121,9 +126,17 @@ export function CheckoutPayment() {
 
           <CheckoutSummary checkoutState={checkoutState} onEdit={() => onChangeStep('go', 0)} />
 
-          <Button fullWidth size="large" type="submit" variant="contained" loading={isSubmitting}>
-            Completar orden
-          </Button>
+          <Stack spacing={1}>
+            <Button fullWidth size="large" type="submit" variant="contained" loading={isSubmitting}>
+              Completar orden
+            </Button>
+
+            {!!errors.payment && (
+              <FormHelperText error sx={{ textAlign: 'center' }}>
+                {errors.payment.message}
+              </FormHelperText>
+            )}
+          </Stack>
         </Grid>
       </Grid>
     </Form>

@@ -1,14 +1,19 @@
 'use client';
 
 import { union, isEqual } from 'es-toolkit';
-import { getStorage } from 'minimal-shared/utils';
-import { useLocalStorage } from 'minimal-shared/hooks';
 import { useMemo, useState, Suspense, useEffect, useCallback } from 'react';
 
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { createLocalPurchase } from 'src/utils/local-commerce-storage';
+import {
+  crearOrdenFirestore,
+} from 'src/services/order-service';
+import {
+  guardarCarritoUsuario,
+  limpiarCarritoUsuario,
+  obtenerCarritoUsuario,
+} from 'src/services/cart-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -18,7 +23,6 @@ import { CheckoutContext } from './checkout-context';
 
 // ----------------------------------------------------------------------
 
-const CHECKOUT_STORAGE_KEY = 'app-checkout';
 const CHECKOUT_STEPS = ['Carrito', 'Direccion', 'Pago'];
 
 const initialState = {
@@ -60,40 +64,77 @@ function CheckoutContainer({ children }) {
     : null;
 
   const [loading, setLoading] = useState(true);
+  const [state, setState] = useState(initialState);
 
-  const { state, setState, setField, resetState } = useLocalStorage(
-    CHECKOUT_STORAGE_KEY,
-    initialState,
-    { initializeWithValue: false }
+  const normalizeCheckoutState = useCallback((nextState = {}) => {
+    const items = Array.isArray(nextState?.items) ? nextState.items : [];
+    const totalItems = items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+    const subtotal = items.reduce(
+      (total, item) => total + Number(item.quantity || 0) * Number(item.price || 0),
+      0
+    );
+    const discount = Number(nextState?.discount ?? 0);
+    const shipping = Number(nextState?.shipping ?? 0);
+
+    return {
+      ...initialState,
+      ...nextState,
+      items,
+      subtotal,
+      totalItems,
+      discount,
+      shipping,
+      total: subtotal - discount + shipping,
+    };
+  }, []);
+
+  const commitState = useCallback(
+    (updater, { persist = true } = {}) => {
+      setState((previousState) => {
+        const nextCandidate =
+          typeof updater === 'function'
+            ? updater(previousState)
+            : { ...previousState, ...updater };
+        const nextState = normalizeCheckoutState(nextCandidate);
+
+        if (persist && user) {
+          void guardarCarritoUsuario({ user, state: nextState });
+        }
+
+        return nextState;
+      });
+    },
+    [normalizeCheckoutState, user]
+  );
+
+  const setField = useCallback(
+    (field, value) => {
+      commitState({ [field]: value });
+    },
+    [commitState]
   );
 
   const canReset = !isEqual(state, initialState);
   const completed = activeStep === CHECKOUT_STEPS.length;
 
-  const updateTotals = useCallback(() => {
-    const totalItems = state.items.reduce((total, item) => total + item.quantity, 0);
-    const subtotal = state.items.reduce((total, item) => total + item.quantity * item.price, 0);
-
-    setField('subtotal', subtotal);
-    setField('totalItems', totalItems);
-    setField('total', subtotal - state.discount + state.shipping);
-  }, [setField, state.discount, state.items, state.shipping]);
-
   useEffect(() => {
     const initializeCheckout = async () => {
       try {
         setLoading(true);
-        const restoredValue = getStorage(CHECKOUT_STORAGE_KEY);
-        if (restoredValue) {
-          updateTotals();
+        if (!user) {
+          setState(initialState);
+          return;
         }
+
+        const restoredValue = await obtenerCarritoUsuario(user);
+        setState(normalizeCheckoutState(restoredValue));
       } finally {
         setLoading(false);
       }
     };
 
     initializeCheckout();
-  }, [updateTotals]);
+  }, [normalizeCheckoutState, user]);
 
   const onChangeStep = useCallback(
     (type, step) => {
@@ -114,92 +155,112 @@ function CheckoutContainer({ children }) {
 
   const onAddToCart = useCallback(
     (newItem) => {
-      const updatedItems = state.items.map((item) => {
-        if (item.id === newItem.id) {
-          return {
-            ...item,
-            colors: union(item.colors, newItem.colors),
-            quantity: item.quantity + newItem.quantity,
-          };
+      commitState((previousState) => {
+        const updatedItems = previousState.items.map((item) => {
+          if (item.id === newItem.id) {
+            return {
+              ...item,
+              colors: union(item.colors, newItem.colors),
+              quantity: item.quantity + newItem.quantity,
+            };
+          }
+          return item;
+        });
+
+        if (!updatedItems.some((item) => item.id === newItem.id)) {
+          updatedItems.push(newItem);
         }
-        return item;
+
+        return { ...previousState, items: updatedItems };
       });
-
-      if (!updatedItems.some((item) => item.id === newItem.id)) {
-        updatedItems.push(newItem);
-      }
-
-      setField('items', updatedItems);
     },
-    [setField, state.items]
+    [commitState]
   );
 
   const onDeleteCartItem = useCallback(
     (itemId) => {
-      const updatedItems = state.items.filter((item) => item.id !== itemId);
-
-      setField('items', updatedItems);
+      commitState((previousState) => ({
+        ...previousState,
+        items: previousState.items.filter((item) => item.id !== itemId),
+      }));
     },
-    [setField, state.items]
+    [commitState]
   );
 
   const onChangeItemQuantity = useCallback(
     (itemId, quantity) => {
-      const updatedItems = state.items.map((item) => {
-        if (item.id === itemId) {
-          return { ...item, quantity };
-        }
-        return item;
-      });
-
-      setField('items', updatedItems);
+      commitState((previousState) => ({
+        ...previousState,
+        items: previousState.items.map((item) =>
+          item.id === itemId ? { ...item, quantity } : item
+        ),
+      }));
     },
-    [setField, state.items]
+    [commitState]
   );
 
   const onCreateBillingAddress = useCallback(
     (address) => {
-      setField('billing', address);
+      commitState({ billing: address });
     },
-    [setField]
+    [commitState]
   );
 
   const onApplyDiscount = useCallback(
     (discount) => {
-      setField('discount', discount);
+      commitState({ discount });
     },
-    [setField]
+    [commitState]
   );
 
   const onApplyShipping = useCallback(
     (shipping) => {
-      setField('shipping', shipping);
+      commitState({ shipping });
     },
-    [setField]
+    [commitState]
   );
 
   const onResetCart = useCallback(() => {
     if (completed) {
-      resetState(initialState);
+      setState(initialState);
+      if (user) {
+        void limpiarCarritoUsuario(user);
+      }
     }
-  }, [completed, resetState]);
+  }, [completed, user]);
 
   const onCreateOrder = useCallback(
-    (paymentData) => {
-      const purchase = createLocalPurchase(state, paymentData, user);
+    async (paymentData) => {
+      const purchase = await crearOrdenFirestore({
+        user,
+        checkoutState: state,
+        paymentData,
+      });
 
-      setField('order', purchase.order);
-      setField('receipt', purchase.invoice);
+      if (purchase) {
+        commitState(
+          {
+            ...state,
+            items: [],
+            subtotal: 0,
+            total: 0,
+            totalItems: 0,
+            order: purchase.order,
+            receipt: purchase.invoice,
+          },
+          { persist: false }
+        );
+      }
 
       return purchase;
     },
-    [setField, state, user]
+    [commitState, state, user]
   );
 
   const memoizedValue = useMemo(
     () => ({
       state,
-      setState,
+      setState: commitState,
       setField,
       /********/
       activeStep,
@@ -224,7 +285,7 @@ function CheckoutContainer({ children }) {
       loading,
       canReset,
       setField,
-      setState,
+      commitState,
       completed,
       activeStep,
       onResetCart,

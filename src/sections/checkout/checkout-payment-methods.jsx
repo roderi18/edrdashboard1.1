@@ -18,7 +18,7 @@ import { PaymentCardCreateForm } from '../payment/payment-card-create-form';
 
 // ----------------------------------------------------------------------
 
-export function CheckoutPaymentMethods({ name, options, sx, ...other }) {
+export function CheckoutPaymentMethods({ name, options, hideError = false, sx, ...other }) {
   const { control } = useFormContext();
 
   const openForm = useBoolean();
@@ -56,7 +56,7 @@ export function CheckoutPaymentMethods({ name, options, sx, ...other }) {
                 );
               })}
 
-              {!!error && (
+              {!!error && !hideError && (
                 <FormHelperText error sx={{ mt: 0, px: 2 }}>
                   {error.message}
                 </FormHelperText>

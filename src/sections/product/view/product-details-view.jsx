@@ -14,10 +14,10 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
-import { getLocalProductById } from 'src/utils/local-product-storage';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { resolverProductoCombinadoPorId } from 'src/services/product-service';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -61,28 +61,26 @@ export function ProductDetailsView({ product, productId }) {
 
   const [publish, setPublish] = useState('');
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
-  const [isLoading, setIsLoading] = useState(!product && !!productId?.startsWith('local-product-'));
-
-  const isLocalProduct = productId?.startsWith('local-product-');
+  const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
   const isMemberUser = isMemberSessionUser(user);
 
   useEffect(() => {
-    if (product) {
-      setResolvedProduct(product);
-      setPublish(product?.publish);
+    const loadProduct = async () => {
+      if (!productId) return;
+
+      setIsLoading(true);
+      const nextProduct = await resolverProductoCombinadoPorId({
+        productId,
+        productoRemoto: product,
+      });
+
+      setResolvedProduct(nextProduct);
+      setPublish(nextProduct?.publish || '');
       setIsLoading(false);
-    }
-  }, [product]);
+    };
 
-  useEffect(() => {
-    if (!isLocalProduct) return;
-
-    const localProduct = getLocalProductById(productId);
-
-    setResolvedProduct(localProduct);
-    setPublish(localProduct?.publish || '');
-    setIsLoading(false);
-  }, [isLocalProduct, productId]);
+    loadProduct();
+  }, [product, productId]);
 
   const handleChangePublish = useCallback((newValue) => {
     setPublish(newValue);

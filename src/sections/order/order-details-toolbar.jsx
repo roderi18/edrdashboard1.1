@@ -32,6 +32,7 @@ export function OrderDetailsToolbar({
   orderNumber,
   statusOptions,
   onChangeStatus,
+  canManageStatus = true,
 }) {
   const menuActions = usePopover();
 
@@ -105,15 +106,17 @@ export function OrderDetailsToolbar({
             justifyContent: 'flex-end',
           }}
         >
-          <Button
-            color="inherit"
-            variant="outlined"
-            endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
-            onClick={menuActions.onOpen}
-            sx={{ textTransform: 'capitalize' }}
-          >
-            {STATUS_LABELS[status] || status}
-          </Button>
+          {canManageStatus ? (
+            <Button
+              color="inherit"
+              variant="outlined"
+              endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+              onClick={menuActions.onOpen}
+              sx={{ textTransform: 'capitalize' }}
+            >
+              {STATUS_LABELS[status] || status}
+            </Button>
+          ) : null}
 
           <Button
             color="inherit"

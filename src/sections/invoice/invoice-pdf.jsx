@@ -15,8 +15,9 @@ import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { fDate } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
+import { fDateEsLong, fDateTimeEsLong } from 'src/utils/format-time';
+import { TEXTO_SIN_TELEFONO, TEXTO_SIN_DIRECCION } from 'src/utils/firestore-commerce';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -175,8 +176,14 @@ export function InvoicePdfDocument({ invoice, currentStatus }) {
       <View style={{ width: '50%' }}>
         <Text style={[styles.text1Bold, styles.mb4]}>Recibo para</Text>
         <Text style={[styles.text2]}>{invoiceTo?.name}</Text>
-        <Text style={[styles.text2]}>{invoiceTo?.fullAddress}</Text>
-        <Text style={[styles.text2]}>{invoiceTo?.phoneNumber}</Text>
+        <Text style={[styles.text2]}>{invoiceTo?.fullAddress || TEXTO_SIN_DIRECCION}</Text>
+        <Text style={[styles.text2]}>Telefono: {invoiceTo?.phoneNumber || TEXTO_SIN_TELEFONO}</Text>
+        {invoiceTo?.codigoMiembro && (
+          <Text style={[styles.text2]}>Codigo: {String(invoiceTo.codigoMiembro).toUpperCase()}</Text>
+        )}
+        <Text style={[styles.text2]}>
+          {invoiceTo?.company ? `Correo: ${invoiceTo.company}` : 'Correo no especificado'}
+        </Text>
       </View>
     </View>
   );
@@ -184,12 +191,12 @@ export function InvoicePdfDocument({ invoice, currentStatus }) {
   const renderDates = () => (
     <View style={[styles.container, styles.mb40]}>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.text1Bold, styles.mb4]}>Fecha</Text>
-        <Text style={[styles.text2]}>{fDate(createDate)}</Text>
+        <Text style={[styles.text1Bold, styles.mb4]}>Fecha de creacion</Text>
+        <Text style={[styles.text2]}>{fDateTimeEsLong(createDate)}</Text>
       </View>
       <View style={{ width: '50%' }}>
         <Text style={[styles.text1Bold, styles.mb4]}>Vencimiento</Text>
-        <Text style={[styles.text2]}>{fDate(dueDate)}</Text>
+        <Text style={[styles.text2]}>{fDateEsLong(dueDate)}</Text>
       </View>
     </View>
   );

@@ -11,8 +11,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { getLocalProducts } from 'src/utils/local-product-storage';
-
+import { listarProductosCombinados } from 'src/services/product-service';
 import {
   PRODUCT_SORT_OPTIONS,
   PRODUCT_COLOR_OPTIONS,
@@ -27,6 +26,7 @@ import { CartIcon } from '../cart-icon';
 import { ProductList } from '../product-list';
 import { ProductSort } from '../product-sort';
 import { ProductSearch } from '../product-search';
+import { ProductItemSkeleton } from '../product-skeleton';
 import { useCheckoutContext } from '../../checkout/context';
 import { ProductFiltersDrawer } from '../product-filters-drawer';
 import { ProductFiltersResult } from '../product-filters-result';
@@ -39,13 +39,20 @@ export function ProductShopView({ products }) {
   const openFilters = useBoolean();
 
   const [tableProducts, setTableProducts] = useState(products);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [sortBy, setSortBy] = useState('featured');
 
   useEffect(() => {
-    const localProducts = getLocalProducts();
-    const localProductIds = new Set(localProducts.map((product) => product.id));
+    const loadProducts = async () => {
+      try {
+        const nextProducts = await listarProductosCombinados(products);
+        setTableProducts(nextProducts.filter((product) => product.publish === 'published'));
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
 
-    setTableProducts([...localProducts, ...products.filter((product) => !localProductIds.has(product.id))]);
+    loadProducts();
   }, [products]);
 
   const filters = useSetState({
@@ -116,6 +123,23 @@ export function ProductShopView({ products }) {
 
   const renderNotFound = () => <EmptyContent filled sx={{ py: 10 }} />;
 
+  const renderLoading = () => (
+    <Box
+      sx={{
+        gap: 3,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: 'repeat(1, 1fr)',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(3, 1fr)',
+          lg: 'repeat(4, 1fr)',
+        },
+      }}
+    >
+      <ProductItemSkeleton itemCount={8} />
+    </Box>
+  );
+
   return (
     <>
       <CartIcon totalItems={checkoutState.totalItems} />
@@ -130,7 +154,11 @@ export function ProductShopView({ products }) {
           {canReset && renderResults()}
         </Stack>
 
-        {notFound || isEmpty ? renderNotFound() : <ProductList products={dataFiltered} />}
+        {loadingProducts
+          ? renderLoading()
+          : notFound || isEmpty
+            ? renderNotFound()
+            : <ProductList products={dataFiltered} />}
       </Container>
     </>
   );
@@ -146,7 +174,7 @@ function applyFilter({ inputData, filters, sortBy }) {
 
   // Sort by
   if (sortBy === 'featured') {
-    inputData = orderBy(inputData, ['totalSold'], ['desc']);
+    inputData = orderBy(inputData, ['totalSold', 'createdAt'], ['desc', 'desc']);
   }
 
   if (sortBy === 'newest') {

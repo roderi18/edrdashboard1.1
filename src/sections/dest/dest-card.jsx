@@ -82,7 +82,9 @@ export function DestCard({ dest, sx, ...other }) {
   }, []);
 
   const coordinator = members.find(
-    (m) => m.memberId === dest.coordinatorId
+    (m) =>
+      String(m.memberId) === String(dest.coordinatorId) ||
+      String(m.id) === String(dest.coordinatorId)
   );
 
   const handleGoToDest = () => {

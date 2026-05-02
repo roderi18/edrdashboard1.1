@@ -23,10 +23,10 @@ import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import { isMemberSessionUser } from 'src/utils/member-access';
-import { getLocalInvoices } from 'src/utils/local-commerce-storage';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
+import { listarRecibosFirestore } from 'src/services/receipt-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -34,6 +34,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { CommerceListSkeleton } from 'src/components/commerce/commerce-list-skeleton';
 import {
   useTable,
   rowInPage,
@@ -141,10 +142,25 @@ export function InvoiceListView() {
 
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState(_invoices);
+  const [tableData, setTableData] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(true);
 
   useEffect(() => {
-    setTableData([...getLocalInvoices(), ..._invoices]);
+    const loadInvoices = async () => {
+      try {
+        const firestoreInvoices = await listarRecibosFirestore();
+        const firestoreIds = new Set(firestoreInvoices.map((invoice) => invoice.id));
+
+        setTableData([
+          ...firestoreInvoices,
+          ..._invoices.filter((invoice) => !firestoreIds.has(invoice.id)),
+        ]);
+      } finally {
+        setLoadingInvoices(false);
+      }
+    };
+
+    loadInvoices();
   }, []);
 
   const filters = useSetState({
@@ -302,6 +318,10 @@ export function InvoiceListView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
+        {loadingInvoices ? (
+          <CommerceListSkeleton showAnalytics rowCount={6} cellCount={8} />
+        ) : (
+        <>
         <Card sx={{ mb: { xs: 3, md: 5 } }}>
           <Scrollbar sx={{ minHeight: 108 }}>
             <Stack
@@ -496,6 +516,8 @@ export function InvoiceListView() {
             onRowsPerPageChange={table.onChangeRowsPerPage}
           />
         </Card>
+        </>
+        )}
       </DashboardContent>
 
       {canDelete && renderConfirmDialog()}

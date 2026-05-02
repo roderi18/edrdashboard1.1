@@ -3,6 +3,7 @@ import {
     getStorageCollection,
 } from 'src/utils/storage-service';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+const DESTS_STORAGE_KEY = 'dests';
 // ------------------------------------------------------------
 // DESTS
 // ------------------------------------------------------------
@@ -59,11 +60,11 @@ export const mapApiDestToUI = (apiDest) => ({
         updatedAt: new Date().toISOString(),
     });
 export function saveDest(dest) {
-    saveItem('dests', dest);
+    saveItem(DESTS_STORAGE_KEY, dest);
 }
 
 export function getDests() {
-    return getStorageCollection('dests') || [];
+    return getStorageCollection(DESTS_STORAGE_KEY) || [];
 }
 
 export async function getDestsApi() {
@@ -85,11 +86,26 @@ export async function getDestsApi() {
             ? data.map(mapApiDestToUI)
             : [];
         const photosByDestId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' });
+        const localDests = getDests();
+        const localDestsById = new Map(
+            localDests
+                .filter((dest) => dest?.id)
+                .map((dest) => [String(dest.id), dest])
+        );
 
-        return mappedDests.map((dest) => ({
-            ...dest,
-            avatarUrl: photosByDestId[String(dest.id)]?.urlFoto || dest.avatarUrl || null,
-        }));
+        return mappedDests.map((dest) => {
+            const localDest = localDestsById.get(String(dest.id));
+
+            return {
+                ...dest,
+                coordinatorId: localDest?.coordinatorId ?? dest.coordinatorId ?? null,
+                avatarUrl:
+                    photosByDestId[String(dest.id)]?.urlFoto ||
+                    localDest?.avatarUrl ||
+                    dest.avatarUrl ||
+                    null,
+            };
+        });
     } catch (error) {
         console.error('❌ ERROR DEST API:', error);
         return [];

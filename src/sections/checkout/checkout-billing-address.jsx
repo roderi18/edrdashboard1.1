@@ -5,9 +5,11 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Button from '@mui/material/Button';
 
-import { getDestsApi } from 'src/services/dest-service';
-import { getMembers } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
+import {
+  guardarDireccionUsuario,
+  cargarDireccionesUsuarioFirestore,
+  marcarDireccionPredeterminadaUsuario,
+} from 'src/services/address-service';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -19,45 +21,6 @@ import { AddressItem, AddressCreateForm } from '../address';
 
 // ----------------------------------------------------------------------
 
-const NO_PHONE = 'Sin numero de telefono';
-const NO_ADDRESS = 'Direccion no especificada';
-
-const normalizeKey = (value) =>
-  String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '');
-
-const hasValue = (value) => value !== null && value !== undefined && value !== '';
-
-const getUserKeys = (user) =>
-  new Set(
-    [
-      user?.uid,
-      user?.id,
-      user?.idMiembros,
-      user?.memberId,
-      user?.codigoMiembro,
-      user?.codigo,
-      user?.email,
-      user?.correo,
-    ]
-      .filter(hasValue)
-      .map(normalizeKey)
-  );
-
-const findCurrentMember = (members, user) => {
-  const keys = getUserKeys(user);
-
-  return (
-    members.find((member) =>
-      [member?.id, member?.memberId, member?.codigoMiembro, member?.email].some((value) =>
-        keys.has(normalizeKey(value))
-      )
-    ) || null
-  );
-};
-
 export function CheckoutBillingAddress() {
   const { user } = useAuthContext();
   const { onChangeStep, onCreateBillingAddress, state: checkoutState } = useCheckoutContext();
@@ -65,65 +28,30 @@ export function CheckoutBillingAddress() {
   const addressForm = useBoolean();
   const [addressBook, setAddressBook] = useState([]);
 
-  const handleSetPrimaryAddress = useCallback((addressId) => {
-    setAddressBook((current) =>
-      current.map((address) => ({
-        ...address,
-        primary: String(address.id) === String(addressId),
-      }))
-    );
-  }, []);
+  const loadAddresses = useCallback(async () => {
+    const addresses = await cargarDireccionesUsuarioFirestore(user);
+    setAddressBook(addresses);
+  }, [user]);
+
+  const handleSetPrimaryAddress = useCallback(
+    async (addressId) => {
+      setAddressBook((current) =>
+        current.map((address) => ({
+          ...address,
+          primary: String(address.id) === String(addressId),
+        }))
+      );
+
+      if (user) {
+        await marcarDireccionPredeterminadaUsuario({ user, addressId });
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
-    const loadAddresses = async () => {
-      const [members, dests, churches] = await Promise.all([
-        getMembers(),
-        getDestsApi(),
-        getChurches(),
-      ]);
-      const member = findCurrentMember(members, user);
-      const destId =
-        member?.idDestacamento ||
-        member?.destId ||
-        user?.idDestacamento ||
-        user?.destId ||
-        user?.alcance?.destacamentos?.[0] ||
-        null;
-      const dest = dests.find((item) => String(item.id) === String(destId));
-      const church = churches.find((item) => String(item.id) === String(dest?.churchId));
-      const profileName =
-        user?.displayName ||
-        user?.nombre ||
-        member?.name ||
-        [member?.firstName, member?.lastName].filter(Boolean).join(' ') ||
-        'Perfil';
-      const memberAddress = member?.memberAddress || member?.direccion || user?.direccion || '';
-      const memberPhone = member?.phoneNumber || user?.phoneNumber || user?.telefono || '';
-
-      setAddressBook([
-        {
-          id: 'dest-address',
-          name: church?.name || dest?.name || 'Iglesia del destacamento',
-          addressType: 'Destacamento',
-          fullAddress: church?.address || NO_ADDRESS,
-          phoneNumber: church?.telefono || NO_PHONE,
-          primary: true,
-          locked: true,
-        },
-        {
-          id: 'member-primary-address',
-          name: profileName,
-          addressType: 'Primaria',
-          fullAddress: memberAddress || NO_ADDRESS,
-          phoneNumber: memberPhone || NO_PHONE,
-          primary: false,
-          locked: true,
-        },
-      ]);
-    };
-
     loadAddresses();
-  }, [user]);
+  }, [loadAddresses]);
 
   return (
     <>
@@ -135,11 +63,6 @@ export function CheckoutBillingAddress() {
               address={address}
               action={
                 <Box sx={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap' }}>
-                  {!address.locked && (
-                    <Button size="small" color="error" sx={{ mr: 1 }}>
-                      Eliminar
-                    </Button>
-                  )}
                   {!address.primary && (
                     <Button
                       size="small"
@@ -202,14 +125,28 @@ export function CheckoutBillingAddress() {
       <AddressCreateForm
         open={addressForm.value}
         onClose={addressForm.onFalse}
-        onCreate={(address) => {
+        onCreate={async (address) => {
+          const savedAddress = await guardarDireccionUsuario({
+            user,
+            address: {
+              ...address,
+              locked: false,
+              editLocked: false,
+            },
+          });
+
+          if (!savedAddress) return;
+
           setAddressBook((current) =>
-            address.primary
-              ? [...current.map((item) => ({ ...item, primary: false })), address]
-              : [...current, address]
+            savedAddress.primary
+              ? [
+                  ...current.map((item) => ({ ...item, primary: false })),
+                  savedAddress,
+                ]
+              : [...current, savedAddress]
           );
           onChangeStep('next');
-          onCreateBillingAddress(address);
+          onCreateBillingAddress(savedAddress);
         }}
         slotProps={{
           submitButton: { label: 'Enviar a esta direccion' },

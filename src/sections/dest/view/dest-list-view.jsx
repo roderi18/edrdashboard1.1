@@ -78,6 +78,24 @@ export function DestListView() {
   const [churches, setChurches] = useState([]);
   const [members, setMembers] = useState([]);
 
+  const isValidCoordinator = (member) => {
+    if (!member) return false;
+
+    const firstName = String(member.firstName || '').trim().toLowerCase();
+    const lastName = String(member.lastName || '').trim().toLowerCase();
+    const phoneNumber = String(member.phoneNumber || '').trim();
+
+    if (firstName === 'juan' && lastName === 'perez' && phoneNumber === '8090000000') {
+      return false;
+    }
+
+    if (firstName === 'juan' && lastName === 'perez' && phoneNumber === '(809) 000-0000') {
+      return false;
+    }
+
+    return true;
+  };
+
   const buildDestList = (apiDests) => {
     console.log('DESTS API:', apiDests);
     const allDests = apiDests;
@@ -86,6 +104,7 @@ export function DestListView() {
       if (dest.name === 'Leones De Sion') {
         console.log('DEST PROCESADO:', dest);
       }
+      const allMembers = members;
       const leadershipAssignments = getLeadershipAssignments();
 
       const leadership = leadershipAssignments.find(
@@ -96,20 +115,42 @@ export function DestListView() {
           l.status === 'active'
       );
 
-      const coordinator =
-        members.find((m) => String(m.memberId) === String(dest.coordinatorId)) ||
-        (leadership
+      const coordinatorByDestField = dest.coordinatorId
+        ? members.find(
+            (m) =>
+              String(m.memberId) === String(dest.coordinatorId) ||
+              String(m.id) === String(dest.coordinatorId)
+          )
+        : null;
+
+      const coordinatorByLeadership =
+        leadership && leadership.memberId
           ? members.find(
               (m) =>
                 String(m.memberId) === String(leadership.memberId) ||
                 String(m.id) === String(leadership.memberId)
             )
-          : null);
-      const allMembers = members;
+          : null;
+
+      const realMembersInDest = allMembers.filter(
+        (member) =>
+          String(member.destId || member.idDestacamento || '') === String(dest.id) &&
+          isValidCoordinator(member)
+      );
+
+      const fallbackCoordinator =
+        realMembersInDest.length === 1 ? realMembersInDest[0] : null;
+
+      const coordinator = isValidCoordinator(coordinatorByDestField)
+        ? coordinatorByDestField
+        : isValidCoordinator(coordinatorByLeadership)
+          ? coordinatorByLeadership
+          : fallbackCoordinator;
 
       const church = churches.find(
         (c) =>
-          Number(c.idIglesia) === Number(dest.idIglesia) || Number(c.id) === Number(dest.idIglesia)
+          Number(c.idIglesia) === Number(dest.idIglesia || dest.churchId) ||
+          Number(c.id) === Number(dest.idIglesia || dest.churchId)
       );
 
       console.log('MATCH CHURCH 👉', {
@@ -143,6 +184,9 @@ export function DestListView() {
       const sectionalName = sectional?.nombre || sectional?.name || null;
       return {
         ...dest,
+        idIglesia: dest.idIglesia || dest.churchId || null,
+        nombre: dest.nombre || dest.name || '',
+        numero: dest.numero || dest.destNumber || '',
 
         destName: dest.nombre || dest.name || '',
         debugDestName: dest.name || dest.destName || '',
@@ -152,9 +196,11 @@ export function DestListView() {
         memberFullName: coordinator
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
           : 'Desconocido',
+        coordinatorId: coordinator?.memberId || coordinator?.id || null,
 
         memberFirstName: coordinator?.firstName ?? '',
         memberLastName: coordinator?.lastName ?? '',
+        coordinatorPhoneNumber: coordinator?.phoneNumber || '',
 
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 

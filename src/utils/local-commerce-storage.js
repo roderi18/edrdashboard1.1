@@ -1,3 +1,5 @@
+import { adjustLocalProductStock } from 'src/utils/local-product-storage';
+
 const LOCAL_ORDERS_KEY = 'dashboard-local-orders';
 const LOCAL_INVOICES_KEY = 'dashboard-local-invoices';
 
@@ -57,6 +59,7 @@ const mapOrderItems = (items = []) =>
     name: item.name,
     coverUrl: item.coverUrl,
     price: Number(item.price) || 0,
+    available: Number(item.available) || 0,
   }));
 
 const mapInvoiceItems = (items = []) =>
@@ -94,6 +97,63 @@ export const updateLocalInvoice = (updatedInvoice) => {
   writeItems(LOCAL_INVOICES_KEY, nextInvoices);
 
   return nextInvoices.find((invoice) => invoice.id === updatedInvoice.id) || null;
+};
+
+export const updateLocalOrder = (updatedOrder) => {
+  if (!updatedOrder?.id) return null;
+
+  const orders = getLocalOrders();
+  const nextOrders = orders.map((order) =>
+    order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
+  );
+
+  writeItems(LOCAL_ORDERS_KEY, nextOrders);
+
+  return nextOrders.find((order) => order.id === updatedOrder.id) || null;
+};
+
+const applyOrderStockMovement = (order, direction = 'decrease') => {
+  if (!order?.items?.length) return;
+
+  order.items.forEach((item) => {
+    const quantity = Number(item.quantity) || 0;
+    if (!quantity) return;
+
+    const delta = direction === 'increase' ? quantity : -quantity;
+    adjustLocalProductStock(item.id, delta, item);
+  });
+};
+
+export const changeLocalOrderStatus = (orderId, nextStatus) => {
+  const currentOrder = getLocalOrderById(orderId);
+
+  if (!currentOrder) return null;
+
+  const previousStatus = currentOrder.status;
+  const isCancelling = previousStatus !== 'cancelled' && nextStatus === 'cancelled';
+  const isReactivating = previousStatus === 'cancelled' && nextStatus !== 'cancelled';
+
+  if (isCancelling) {
+    applyOrderStockMovement(currentOrder, 'increase');
+  }
+
+  if (isReactivating) {
+    applyOrderStockMovement(currentOrder, 'decrease');
+  }
+
+  const updatedOrder = updateLocalOrder({
+    ...currentOrder,
+    status: nextStatus,
+  });
+
+  if (updatedOrder?.receiptId) {
+    updateLocalInvoice({
+      id: updatedOrder.receiptId,
+      status: nextStatus === 'cancelled' ? 'cancelled' : 'paid',
+    });
+  }
+
+  return updatedOrder;
 };
 
 export const createLocalPurchase = (checkoutState, paymentData = {}, sessionUser = null) => {
@@ -171,6 +231,7 @@ export const createLocalPurchase = (checkoutState, paymentData = {}, sessionUser
 
   writeItems(LOCAL_ORDERS_KEY, [order, ...getLocalOrders()]);
   writeItems(LOCAL_INVOICES_KEY, [invoice, ...getLocalInvoices()]);
+  applyOrderStockMovement(order, 'decrease');
 
   return { order, invoice };
 };

@@ -1,7 +1,10 @@
 import useSWR from 'swr';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+
+import { mergeProductWithLocalInventory, mergeProductsWithLocalInventory } from 'src/utils/local-product-storage';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { listarProductosCombinados, resolverProductoCombinadoPorId } from 'src/services/product-service';
 
 // ----------------------------------------------------------------------
 
@@ -19,16 +22,35 @@ export function useGetProducts() {
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
   });
+  const [resolvedProducts, setResolvedProducts] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProducts = async () => {
+      const combinedProducts = await listarProductosCombinados(data?.products || []);
+
+      if (!active) return;
+
+      setResolvedProducts(mergeProductsWithLocalInventory(combinedProducts));
+    };
+
+    loadProducts();
+
+    return () => {
+      active = false;
+    };
+  }, [data?.products]);
 
   const memoizedValue = useMemo(
     () => ({
-      products: data?.products || [],
-      productsLoading: isLoading,
+      products: resolvedProducts,
+      productsLoading: isLoading && !resolvedProducts.length,
       productsError: error,
       productsValidating: isValidating,
-      productsEmpty: !isLoading && !isValidating && !data?.products.length,
+      productsEmpty: !isLoading && !isValidating && !resolvedProducts.length,
     }),
-    [data?.products, error, isLoading, isValidating]
+    [error, isLoading, isValidating, resolvedProducts]
   );
 
   return memoizedValue;
@@ -42,15 +64,42 @@ export function useGetProduct(productId) {
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
   });
+  const [resolvedProduct, setResolvedProduct] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProduct = async () => {
+      if (!productId) {
+        setResolvedProduct(null);
+        return;
+      }
+
+      const combinedProduct = await resolverProductoCombinadoPorId({
+        productId,
+        productoRemoto: data?.product || null,
+      });
+
+      if (!active) return;
+
+      setResolvedProduct(mergeProductWithLocalInventory(combinedProduct));
+    };
+
+    loadProduct();
+
+    return () => {
+      active = false;
+    };
+  }, [data?.product, productId]);
 
   const memoizedValue = useMemo(
     () => ({
-      product: data?.product,
-      productLoading: isLoading,
+      product: resolvedProduct,
+      productLoading: isLoading && !resolvedProduct,
       productError: error,
       productValidating: isValidating,
     }),
-    [data?.product, error, isLoading, isValidating]
+    [error, isLoading, isValidating, resolvedProduct]
   );
 
   return memoizedValue;

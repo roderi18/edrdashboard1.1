@@ -1,4 +1,3 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   doc,
   query,
@@ -9,6 +8,8 @@ import {
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
+
+import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -25,14 +26,6 @@ const PHOTO_FOLDERS = {
 
 const getPhotoDocumentId = ({ tipoEntidad, idEntidad, tipoFoto = 'perfil' }) =>
   `${tipoEntidad}_${idEntidad}_${tipoFoto}`;
-
-const getFileExtension = (file) => {
-  const extensionFromName = file?.name?.split('.').pop()?.toLowerCase();
-
-  if (extensionFromName) return extensionFromName;
-
-  return file?.type?.split('/').pop()?.toLowerCase() || 'jpg';
-};
 
 export async function subirFotoEntidad({
   file,
@@ -53,21 +46,20 @@ export async function subirFotoEntidad({
 
   if (!folder) throw new Error(`Tipo de entidad no soportado: ${tipoEntidad}`);
 
-  const extension = getFileExtension(file);
-  const rutaArchivo = `${folder}/${idEntidad}/${tipoFoto}.${extension}`;
-  const storageRef = ref(FIREBASE_STORAGE, rutaArchivo);
-
-  await uploadBytes(storageRef, file, {
-    contentType: file.type || 'image/jpeg',
-    customMetadata: {
+  const basePath = `${folder}/${idEntidad}/${tipoFoto}.webp`;
+  const uploadResult = await uploadOptimizedImage({
+    file,
+    preset: 'avatar',
+    storagePath: basePath,
+    metadata: {
       tipoEntidad,
       idEntidad: String(idEntidad),
       tipoFoto,
       subidoPor: subidoPor || '',
     },
   });
-
-  const urlFoto = await getDownloadURL(storageRef);
+  const rutaArchivo = uploadResult.storagePath;
+  const urlFoto = uploadResult.downloadUrl;
   const documentId = getPhotoDocumentId({ tipoEntidad, idEntidad, tipoFoto });
   const photoRef = doc(FIRESTORE, COLLECTION_NAME, documentId);
 

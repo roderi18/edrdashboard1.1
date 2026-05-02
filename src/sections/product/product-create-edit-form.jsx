@@ -20,8 +20,9 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { saveLocalProduct } from 'src/utils/local-product-storage';
+import { fPercent } from 'src/utils/format-number';
 
+import { guardarProductoFirestore } from 'src/services/product-service';
 import {
   _tags,
   PRODUCT_SIZE_OPTIONS,
@@ -86,6 +87,21 @@ const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
     ],
   },
 ];
+
+const formatStorageSizeEs = (bytes) => {
+  const value = Number(bytes || 0);
+  if (!value) return '0 mb';
+
+  const units = ['bytes', 'kb', 'mb', 'gb', 'tb'];
+  const base = 1024;
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(base)), units.length - 1);
+  const amount = value / base ** index;
+
+  return `${amount.toLocaleString('es-DO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  })} ${units[index]}`;
+};
 
 export const ProductCreateSchema = z.object({
   name: z.string().min(1, { error: 'El nombre es requerido.' }),
@@ -176,9 +192,21 @@ export function ProductCreateEditForm({ currentProduct }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      await saveLocalProduct(updatedData, { publish });
+      const result = await guardarProductoFirestore(updatedData, { publish });
       reset();
-      toast.success(currentProduct ? 'Actualizacion exitosa!' : 'Producto creado!');
+      const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
+        ? `${formatStorageSizeEs(result.imageStats.totalOriginalSizeBytes)} a ${formatStorageSizeEs(
+            result.imageStats.totalOptimizedSizeBytes
+          )} (${fPercent(result.imageStats.reductionPercent)})`
+        : null;
+
+      toast.success(
+        compressionMessage
+          ? `${currentProduct ? 'Actualizacion exitosa!' : 'Producto creado!'} Imagenes optimizadas: ${compressionMessage}`
+          : currentProduct
+            ? 'Actualizacion exitosa!'
+            : 'Producto creado!'
+      );
       router.push(paths.dashboard.product.root);
       console.info('DATA', updatedData);
     } catch (error) {

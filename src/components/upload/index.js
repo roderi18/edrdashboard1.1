@@ -4,6 +4,8 @@ export * from './avatar/upload-avatar';
 
 export * from './default/upload-default';
 
+export * from './optimized-image-upload';
+
 export * from './components/rejected-files';
 
 export * from './components/multi-file-preview';

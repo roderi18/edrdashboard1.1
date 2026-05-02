@@ -31,7 +31,7 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
-import { mapApiDestToUI } from 'src/services/dest-service';
+import { mapApiDestToUI, saveDest } from 'src/services/dest-service';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
@@ -302,6 +302,19 @@ export function DestCreateEditForm({ currentDest }) {
         await updateDestApi(destPayloadData);
       } else {
         await createDestApi(destPayloadData);
+      }
+
+      const resolvedDestId = await resolveDestId(data.name, data.destNumber);
+
+      if (resolvedDestId) {
+        saveDest({
+          ...(currentDest || {}),
+          ...destPayloadData,
+          id: String(resolvedDestId),
+          coordinatorId: data.coordinatorId ?? null,
+          churchId: data.churchId ? String(data.churchId) : null,
+          avatarUrl: data.avatarUrl ?? currentDest?.avatarUrl ?? null,
+        });
       }
 
       toast.success(
