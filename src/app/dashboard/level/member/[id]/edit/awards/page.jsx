@@ -56,9 +56,5 @@ export default function Page() {
     return <div>Miembro no encontrado</div>;
   }
 
-  if (!canManage) {
-    return <MemberCard member={currentMember} canManage={false} />;
-  }
-
-  return <MemberEditAwardsForm currentMember={currentMember} />;
+  return <MemberEditAwardsForm currentMember={currentMember} readOnly={!canManage} />;
 }

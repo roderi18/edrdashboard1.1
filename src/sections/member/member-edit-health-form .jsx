@@ -45,7 +45,7 @@ import { MEDICAL_DOCUMENTS } from 'src/_mock/health';
 
 import { countMembersByDestId } from 'src/utils/member-count';
 
-export function MemberEditHealthForm({ currentMember }) {
+export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const memberId = currentMember?.id;
 
     const normalizedMember = {
@@ -244,7 +244,8 @@ export function MemberEditHealthForm({ currentMember }) {
     );
 
     return (
-        <Form methods={methods} onSubmit={onSubmit}>
+        <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
+            <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
             <Stack
                 spacing={5}
                 sx={{
@@ -307,6 +308,7 @@ export function MemberEditHealthForm({ currentMember }) {
                 />
 
             </Stack>
+            </Box>
             <FileManagerCreateFolderDialog
                 open={newFilesDialog.value}
                 onClose={newFilesDialog.onFalse}

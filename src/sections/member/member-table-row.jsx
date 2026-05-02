@@ -62,6 +62,7 @@ export function MemberTableRow({
     text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
   const dest = dests.find((d) => String(d.id) === String(row.destId));
+  const memberEditId = row.idMiembros ?? row.id ?? row.memberId;
 
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
@@ -145,6 +146,11 @@ export function MemberTableRow({
     />
   );
 
+  const handleOpenMemberEdit = () => {
+    if (!memberEditId) return;
+    window.location.href = `/dashboard/level/member/${memberEditId}/edit`;
+  };
+
   return (
     <>
       <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -164,16 +170,21 @@ export function MemberTableRow({
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar
+              alt={row.name}
+              src={row.avatarUrl}
+              onClick={handleOpenMemberEdit}
+              sx={{ cursor: 'pointer' }}
+            />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              {canManage ? (
-                <UnderlineLink href={editHref} color="inherit" underline="always">
-                  {row.name}
-                </UnderlineLink>
-              ) : (
-                <Box component="span">{row.name}</Box>
-              )}
+              <UnderlineLink
+                href={editHref || `/dashboard/level/member/${memberEditId}/edit`}
+                color="inherit"
+                underline="always"
+              >
+                {row.name}
+              </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {(() => {

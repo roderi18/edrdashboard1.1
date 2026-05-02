@@ -8,7 +8,7 @@ import { AwardsManagerView } from 'src/sections/member/awards/view/awards-manage
 
 // ----------------------------------------------------------------------
 
-export function MemberEditAwardsForm({ currentMember }) {
+export function MemberEditAwardsForm({ currentMember, readOnly = false }) {
     const memberId = currentMember?.id;
 
     // Seguridad básica
@@ -18,7 +18,7 @@ export function MemberEditAwardsForm({ currentMember }) {
 
     return (
         <Box sx={{ width: '100%' }}>
-            <AwardsManagerView memberId={memberId} />
+            <AwardsManagerView memberId={memberId} readOnly={readOnly} />
         </Box>
 
     );

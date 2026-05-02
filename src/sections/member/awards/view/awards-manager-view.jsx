@@ -36,7 +36,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
 
-export function AwardsManagerView({ memberId }) {
+export function AwardsManagerView({ memberId, readOnly = false }) {
     const ROOT_TABLE_HEAD = [
         { id: 'program', label: 'Programa' },
         { id: 'target', label: 'Dirigido a', width: 160 },
@@ -273,6 +273,7 @@ export function AwardsManagerView({ memberId }) {
 
     const handleDeleteItem = useCallback(
         (id) => {
+            if (readOnly) return;
             const deleteRow = tableData.filter((row) => row.id !== id);
 
             toast.success('Delete success!');
@@ -285,6 +286,7 @@ export function AwardsManagerView({ memberId }) {
     );
 
     const handleDeleteItems = useCallback(() => {
+        if (readOnly) return;
         const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
         toast.success('Delete success!');
@@ -392,11 +394,13 @@ export function AwardsManagerView({ memberId }) {
         />
     );
 
-    const renderUploadAwardsDialog = () => (
-        <AwardsManagerCreateFolderDialog open={newAwardsDialog.value} onClose={newAwardsDialog.onFalse} />
-    );
+    const renderUploadAwardsDialog = () =>
+        readOnly ? null : (
+            <AwardsManagerCreateFolderDialog open={newAwardsDialog.value} onClose={newAwardsDialog.onFalse} />
+        );
 
-    const renderConfirmDialog = () => (
+    const renderConfirmDialog = () =>
+        readOnly ? null : (
         <ConfirmDialog
             open={confirmDialog.value}
             onClose={confirmDialog.onFalse}

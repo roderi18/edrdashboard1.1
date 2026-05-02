@@ -78,8 +78,11 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
     ];
   }
 
+  const memberEditId = member?.idMiembros ?? member?.id ?? member?.memberId;
+
   const handleEdit = () => {
-    router.push(`/dashboard/level/member/${member.idMiembros}/edit`);
+    if (!memberEditId) return;
+    router.push(`/dashboard/level/member/${memberEditId}/edit`);
   };
 
   return (

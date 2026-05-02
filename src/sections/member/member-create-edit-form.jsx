@@ -255,7 +255,7 @@ const mapMemberToForm = (member) => {
   };
 };
 
-export function MemberCreateEditForm({ currentMember }) {
+export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   const { user } = useAuthContext();
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
@@ -777,7 +777,8 @@ export function MemberCreateEditForm({ currentMember }) {
   );
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
+      <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -1155,6 +1156,7 @@ export function MemberCreateEditForm({ currentMember }) {
               </Box>
             )}
 
+            {!readOnly && (
             <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
               {/* SOLO /new */}
               {isCreateView && step === 2 && (
@@ -1182,7 +1184,8 @@ export function MemberCreateEditForm({ currentMember }) {
                 </LoadingButton>
               )}
             </Stack>
-            {formErrorMessage && (
+            )}
+            {!readOnly && formErrorMessage && (
               <Typography
                 sx={{
                   mt: 1,
@@ -1194,6 +1197,7 @@ export function MemberCreateEditForm({ currentMember }) {
                 Faltan campos obligatorios por completar
               </Typography>
             )}
+            {!readOnly && (
             <DebugPayloadButton
               getValues={methods.getValues}
               buildPayload={(data) => {
@@ -1238,9 +1242,11 @@ export function MemberCreateEditForm({ currentMember }) {
                 };
               }}
             />
+            )}
           </Card>
         </Grid>
       </Grid>
+      </Box>
     </Form>
   );
 }
