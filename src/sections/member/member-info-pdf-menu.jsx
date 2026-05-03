@@ -43,6 +43,91 @@ const getValue = (value) => {
   return value ? String(value) : '-';
 };
 
+const imageToCompactDataUrl = (src) =>
+  new Promise((resolve, reject) => {
+    const img = new window.Image();
+
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const maxSize = 180;
+      const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.78));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+
+const fileToCompactDataUrl = async (file) => {
+  const url = URL.createObjectURL(file);
+
+  try {
+    return await imageToCompactDataUrl(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+};
+
+const getAvatarForPdf = async (value) => {
+  if (!value) return null;
+
+  if (value instanceof Blob) {
+    return fileToCompactDataUrl(value);
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  if (value.startsWith('data:image/')) {
+    try {
+      return await imageToCompactDataUrl(value);
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const proxyResponse = await fetch(`/api/image-data-url/?url=${encodeURIComponent(value)}`);
+
+    if (proxyResponse.ok) {
+      const data = await proxyResponse.json();
+
+      if (data?.dataUrl) {
+        return await imageToCompactDataUrl(data.dataUrl);
+      }
+    }
+  } catch {
+    // Continue with browser-side fallbacks below.
+  }
+
+  try {
+    const response = await fetch(value);
+
+    if (response.ok) {
+      return fileToCompactDataUrl(await response.blob());
+    }
+  } catch {
+    // Continue with direct image loading below.
+  }
+
+  try {
+    return await imageToCompactDataUrl(value);
+  } catch {
+    return null;
+  }
+};
+
 function InfoRow({ label, value }) {
   return (
     <View style={styles.row}>
@@ -61,9 +146,7 @@ function Section({ title, children }) {
   );
 }
 
-function MemberInfoPdfDocument({ values, memberCode, fullName, destName, selectedSections }) {
-  const avatarSrc = typeof values.avatarUrl === 'string' ? values.avatarUrl : null;
-
+function MemberInfoPdfDocument({ values, memberCode, fullName, destName, avatarSrc, selectedSections }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -115,7 +198,7 @@ function MemberInfoPdfDocument({ values, memberCode, fullName, destName, selecte
   );
 }
 
-export function MemberInfoPdfMenu({ values, memberCode, fullName, destName }) {
+export function MemberInfoPdfMenu({ values, memberCode, fullName, destName, avatarUrl }) {
   const menuActions = usePopover();
   const [selectedSections, setSelectedSections] = useState(['general']);
 
@@ -128,12 +211,14 @@ export function MemberInfoPdfMenu({ values, memberCode, fullName, destName }) {
   };
 
   const handleDownload = async () => {
+    const avatarSrc = await getAvatarForPdf(values.avatarUrl || avatarUrl);
     const blob = await pdf(
       <MemberInfoPdfDocument
         values={values}
         memberCode={memberCode}
         fullName={fullName}
         destName={destName}
+        avatarSrc={avatarSrc}
         selectedSections={selectedSections}
       />
     ).toBlob();
@@ -155,7 +240,7 @@ export function MemberInfoPdfMenu({ values, memberCode, fullName, destName }) {
         onClick={menuActions.onOpen}
         endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
       >
-        Imprimir información
+        Descargar información
       </Button>
 
       <CustomPopover
