@@ -31,6 +31,12 @@ export function mapApiMemberToUI(member) {
         email: member.correo || '',
 
         status: member.estatusMiembro || 'active',
+        province: member.provincia || member.province || '',
+        region: member.region || '',
+        createdAt: member.createdAt || member.fechaCreacion || null,
+        updatedAt: member.updatedAt || member.fechaActualizacion || null,
+        lastActivityAt: member.lastActivityAt || member.ultimaActividad || member.updatedAt || member.fechaActualizacion || null,
+        deletedAt: member.deletedAt || member.fechaEliminacion || null,
 
         InstructorCertificadoCI: member.instructorCertificadoCi ? 1 : 0,
         EstatusVigenciaCI: member.estatusVigenciaCi ? 1 : 0,
