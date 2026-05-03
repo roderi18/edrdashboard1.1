@@ -17,6 +17,10 @@ export function RenderCellPrice({ params }) {
   return fDopCurrency(params.row.price);
 }
 
+export function RenderCellCategory({ params }) {
+  return translateProductCategory(params.row.category);
+}
+
 export function RenderCellPublish({ params }) {
   const label = params.row.publish === 'published' ? 'Publicado' : 'Borrador';
 

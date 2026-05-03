@@ -38,6 +38,7 @@ import {
   RenderCellPrice,
   RenderCellProduct,
   RenderCellPublish,
+  RenderCellCategory,
   RenderCellCreatedAt,
 } from '../product-table-row';
 
@@ -48,8 +49,8 @@ const PUBLISH_OPTIONS = [
   { value: 'draft', label: 'Borrador' },
 ];
 
-const HIDE_COLUMNS = { category: false };
-const HIDE_COLUMNS_TOGGLABLE = ['category', 'actions'];
+const HIDE_COLUMNS = {};
+const HIDE_COLUMNS_TOGGLABLE = ['actions'];
 
 // ----------------------------------------------------------------------
 
@@ -271,11 +272,6 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
   const columns = useMemo(
     () => [
       {
-        field: 'category',
-        headerName: 'Categoria',
-        filterable: false,
-      },
-      {
         field: 'name',
         headerName: 'Producto',
         flex: 1,
@@ -310,14 +306,19 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         editable: true,
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
-      isMemberUser
-        ? {
-            field: 'category',
-            headerName: 'Categoria',
-            width: 140,
-            filterable: false,
-          }
-        : {
+      ...(isMemberUser
+        ? [
+            {
+              field: 'category',
+              headerName: 'Categoria',
+              width: 140,
+              filterable: false,
+              renderCell: (params) => <RenderCellCategory params={params} />,
+            },
+          ]
+        : []),
+      ...(!isMemberUser
+        ? [{
             field: 'publish',
             headerName: 'Estado',
             width: 120,
@@ -326,7 +327,8 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
             filterable: false,
             valueOptions: PUBLISH_OPTIONS,
             renderCell: (params) => <RenderCellPublish params={params} />,
-          },
+          }]
+        : []),
       {
         type: 'actions',
         field: 'actions',
