@@ -12,7 +12,6 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -20,6 +19,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { paths } from 'src/routes/paths';
 
 import { getMemberCodeLabel } from 'src/utils/member-access';
+import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
@@ -44,6 +44,7 @@ const AccountMemberSchema = z.object({
   municipioId: z.string().optional(),
   sectorId: z.string().optional(),
   street: z.string().optional(),
+  avatarUrl: z.any().optional(),
 });
 
 const formatGender = (gender) => {
@@ -86,6 +87,7 @@ const buildFallbackMemberFromUser = (user = {}) => {
     fechaInicioCertificado: user?.fechaInicioCertificado ?? null,
     fechaFinCertificado: user?.fechaFinCertificado ?? null,
     estatusMiembro: user?.estatusMiembro ?? user?.status ?? 'active',
+    avatarUrl: user?.avatarUrl ?? user?.photoURL ?? '',
   };
 };
 
@@ -168,6 +170,7 @@ const mapMemberToValues = (member) => {
     municipioId: municipio?.id ? String(municipio.id) : '',
     sectorId: sector?.id ? String(sector.id) : '',
     street: street ?? '',
+    avatarUrl: member?.avatarUrl ?? member?.photoURL ?? '',
   };
 };
 
@@ -186,6 +189,7 @@ export function UserAccountGeneral() {
   const [member, setMember] = useState(null);
   const [dests, setDests] = useState([]);
   const [loadingMember, setLoadingMember] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const canEditAll = user?.role === 'admin' || user?.role === 'administrator' || user?.memberRole === 'admin';
 
   const memberCode = useMemo(
@@ -228,8 +232,17 @@ export function UserAccountGeneral() {
           );
         });
 
+        const resolvedMember = currentMember || buildFallbackMemberFromUser(user);
+        const memberId = Number(resolvedMember?.idMiembros ?? 0) || null;
+        const memberPhoto = memberId
+          ? await obtenerFotoPrincipal({ tipoEntidad: 'miembro', idEntidad: memberId })
+          : null;
+
         if (active) {
-          setMember(currentMember || buildFallbackMemberFromUser(user));
+          setMember({
+            ...resolvedMember,
+            avatarUrl: memberPhoto?.urlFoto || resolvedMember?.avatarUrl || user?.photoURL || '',
+          });
         }
       } catch (error) {
         console.error('[user-account] load member failed', error);
@@ -337,6 +350,58 @@ export function UserAccountGeneral() {
     }
   }, [member, reset]);
 
+  const handleUploadAvatar = async (acceptedFiles) => {
+    const file = acceptedFiles?.[0];
+    const memberId = Number(member?.idMiembros ?? user?.idMiembros ?? 0) || null;
+
+    if (!file) {
+      return null;
+    }
+
+    if (!memberId) {
+      toast.error('No se pudo identificar el miembro para subir la foto.');
+      return null;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      const photo = await subirFotoEntidad({
+        file,
+        tipoEntidad: 'miembro',
+        idEntidad: memberId,
+        subidoPor: user?.uid || user?.id || '',
+      });
+      const avatarUrl = photo?.urlFoto || '';
+
+      if (isFirebaseConfigured && FIRESTORE && avatarUrl) {
+        await setDoc(
+          doc(FIRESTORE, 'usuarios_roles', String(memberId)),
+          {
+            idMiembros: Number(memberId),
+            avatarUrl,
+            photoURL: avatarUrl,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
+
+      setMember((prev) => ({ ...prev, avatarUrl }));
+      setValue('avatarUrl', avatarUrl, { shouldValidate: true });
+      await checkUserSession?.();
+      toast.success('Foto de perfil actualizada.');
+
+      return avatarUrl;
+    } catch (error) {
+      console.error('[user-account] upload photo failed', error);
+      toast.error(error?.message || 'No se pudo subir la foto.');
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     const memberId = Number(member?.idMiembros ?? user?.idMiembros ?? 0) || null;
 
@@ -440,13 +505,14 @@ export function UserAccountGeneral() {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 5, pb: 4, px: 3, textAlign: 'center' }}>
-            <Avatar
-              alt={member.nombres}
-              src={user?.photoURL || ''}
-              sx={{ width: 96, height: 96, mx: 'auto', mb: 2, bgcolor: 'warning.main' }}
-            >
-              {(member.nombres || 'M').charAt(0)}
-            </Avatar>
+            <Field.UploadAvatar
+              name="avatarUrl"
+              maxSize={1050000}
+              loading={uploadingPhoto}
+              disabled={uploadingPhoto}
+              onDrop={handleUploadAvatar}
+              sx={{ width: 96, height: 96, mx: 'auto', mb: 2 }}
+            />
 
             <Typography variant="subtitle1">{`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}</Typography>
 
