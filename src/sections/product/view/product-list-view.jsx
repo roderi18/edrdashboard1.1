@@ -31,6 +31,7 @@ import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/cu
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { useCheckoutContext } from '../../checkout/context';
 import { ProductTableToolbar } from '../product-table-toolbar';
 import {
   RenderCellStock,
@@ -57,6 +58,7 @@ export function ProductListView() {
   const toolbarOptions = useToolbarSettings();
   const { products, productsLoading } = useGetProducts();
   const { user } = useAuthContext();
+  const { state: checkoutState, onAddToCart } = useCheckoutContext();
 
   const [tableData, setTableData] = useState(products);
   const [selectedRows, setSelectedRows] = useState({
@@ -105,6 +107,35 @@ export function ProductListView() {
     toast.success('Producto publicado!');
   }, []);
 
+  const handleAddProductToCart = useCallback(
+    (product) => {
+      const available = Number(product?.available ?? 0);
+      const currentQuantity =
+        checkoutState.items
+          ?.filter((item) => item.id === product.id)
+          .reduce((total, item) => total + Number(item.quantity || 0), 0) || 0;
+
+      if (available <= 0 || currentQuantity >= available) {
+        toast.error('Producto sin existencia disponible');
+        return;
+      }
+
+      onAddToCart?.({
+        id: product.id,
+        name: product.name,
+        coverUrl: product.coverUrl,
+        available,
+        price: Number(product.price || 0),
+        colors: [product.colors?.[0] || ''],
+        size: product.sizes?.[0] || '',
+        quantity: 1,
+        subtotal: Number(product.price || 0),
+      });
+      toast.success('Producto agregado al carrito');
+    },
+    [checkoutState.items, onAddToCart]
+  );
+
   const handleDeleteRows = useCallback(async () => {
     await Promise.all(Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id)));
     setTableData((prev) => prev.filter((row) => !selectedRows.ids.has(row.id)));
@@ -114,6 +145,7 @@ export function ProductListView() {
   const columns = useGetColumns({
     onDeleteRow: handleDeleteRow,
     onPublishRow: handlePublishRow,
+    onAddProductToCart: handleAddProductToCart,
     isMemberUser,
   });
 
@@ -233,7 +265,7 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow, onPublishRow, isMemberUser }) => {
+const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMemberUser }) => {
   const theme = useTheme();
 
   const columns = useMemo(
@@ -278,21 +310,28 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, isMemberUser }) => {
         editable: true,
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
-      {
-        field: 'publish',
-        headerName: 'Estado',
-        width: 120,
-        type: 'singleSelect',
-        editable: true,
-        filterable: false,
-        valueOptions: PUBLISH_OPTIONS,
-        renderCell: (params) => <RenderCellPublish params={params} />,
-      },
+      isMemberUser
+        ? {
+            field: 'category',
+            headerName: 'Categoria',
+            width: 140,
+            filterable: false,
+          }
+        : {
+            field: 'publish',
+            headerName: 'Estado',
+            width: 120,
+            type: 'singleSelect',
+            editable: true,
+            filterable: false,
+            valueOptions: PUBLISH_OPTIONS,
+            renderCell: (params) => <RenderCellPublish params={params} />,
+          },
       {
         type: 'actions',
         field: 'actions',
         headerName: ' ',
-        width: 64,
+        width: isMemberUser ? 96 : 64,
         align: 'right',
         headerAlign: 'right',
         sortable: false,
@@ -300,6 +339,16 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, isMemberUser }) => {
         disableColumnMenu: true,
         getActions: (params) => {
           const actions = [
+            ...(isMemberUser
+              ? [
+                  <CustomGridActionsCellItem
+                    label="Agregar al carrito"
+                    icon={<Iconify icon="solar:cart-3-bold" />}
+                    disabled={Number(params.row.available || 0) <= 0}
+                    onClick={() => onAddProductToCart(params.row)}
+                  />,
+                ]
+              : []),
             <CustomGridActionsCellItem
               showInMenu
               label="Ver"
@@ -341,7 +390,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, isMemberUser }) => {
         },
       },
     ],
-    [onDeleteRow, onPublishRow, isMemberUser, theme.vars.palette.error.main]
+    [onDeleteRow, onPublishRow, onAddProductToCart, isMemberUser, theme.vars.palette.error.main]
   );
 
   return columns;
