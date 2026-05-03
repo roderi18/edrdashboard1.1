@@ -151,14 +151,23 @@ export const guardarSnapshotProductoFirestore = async (product) => {
 
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(product.id));
   const previous = await getDoc(productRef);
+  if (previous.exists()) {
+    return mapearProductoFirestoreAUi({ id: product.id, ...previous.data() });
+  }
+
+  const selectedQuantity = Number(product?.quantity ?? product?.cantidad ?? 0);
+  const availableQuantity = Number(product?.available ?? product?.disponibles ?? 0);
+  const productData = {
+    ...product,
+    quantity: Math.max(selectedQuantity, availableQuantity),
+  };
   const productDoc = crearDocumentoProducto({
     productoId: String(product.id),
-    data: product,
-    publicacion: product?.publish === 'published' ? 'publicado' : 'borrador',
-    fechaCreacion: previous.exists() ? previous.data()?.fechaCreacion : null,
+    data: productData,
+    publicacion: product?.publish === 'draft' ? 'borrador' : 'publicado',
   });
 
-  await setDoc(productRef, productDoc, { merge: true });
+  await setDoc(productRef, productDoc);
 
   return mapearProductoFirestoreAUi({ id: product.id, ...productDoc });
 };

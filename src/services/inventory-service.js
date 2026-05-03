@@ -1,10 +1,10 @@
-import { doc, getDoc, setDoc, addDoc, collection, runTransaction } from 'firebase/firestore';
-
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { doc, addDoc, collection, runTransaction } from 'firebase/firestore';
 
 import { COLECCIONES_COMERCIO, obtenerIdUsuarioComercio } from 'src/utils/firestore-commerce';
-import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
+
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearDocumentoMovimientoInventario } from 'src/models/inventory-movement-model';
+import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
 const mapInventoryTypeEs = (available) => {
   const currentAvailable = Number(available) || 0;
@@ -34,7 +34,7 @@ export const ajustarInventarioProducto = async ({
       : crearDocumentoProducto({
           productoId: String(producto.id),
           data: producto,
-          publicacion: producto?.publish === 'published' ? 'publicado' : 'borrador',
+          publicacion: producto?.publish === 'draft' ? 'borrador' : 'publicado',
         });
 
     const previousAvailable = Number(

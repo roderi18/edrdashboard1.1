@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-import { optimizeImageFile, optimizeImageFiles } from 'src/utils/image-optimizer';
+import { optimizeImageFile } from 'src/utils/image-optimizer';
 
 import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -62,10 +62,8 @@ export async function uploadOptimizedImages({
   preset = 'general',
   metadataBuilder,
 } = {}) {
-  const optimizedFiles = await optimizeImageFiles(files, preset);
-
   const uploads = await Promise.all(
-    optimizedFiles.map((file, index) =>
+    files.map((file, index) =>
       uploadOptimizedImage({
         file,
         preset,

@@ -16,10 +16,15 @@ export const IMAGE_UPLOAD_PRESETS = {
     maxHeight: 1800,
     quality: 0.92,
     mimeType: 'image/webp',
+    maxSizeBytes: 1050000,
   },
 };
 
-const PRESERVE_MIME_TYPES = new Set(['image/gif', 'image/svg+xml']);
+const PRESERVE_MIME_TYPES = new Set(['image/svg+xml']);
+const MIN_QUALITY = 0.52;
+const QUALITY_STEP = 0.08;
+const DIMENSION_STEP = 0.86;
+const MIN_DIMENSION = 420;
 
 const getPresetOptions = (presetOrOptions = 'general') =>
   typeof presetOrOptions === 'string'
@@ -69,12 +74,33 @@ const blobToFile = (blob, originalFile, mimeType) => {
   });
 };
 
+const canvasToBlob = (canvas, mimeType, quality) =>
+  new Promise((resolve) => {
+    canvas.toBlob(resolve, mimeType, quality);
+  });
+
+const drawImageToCanvas = ({ image, width, height }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) return null;
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas;
+};
+
 export async function optimizeImageFile(file, presetOrOptions = 'general') {
   if (!(file instanceof File)) return file;
   if (!String(file.type || '').startsWith('image/')) return file;
   if (PRESERVE_MIME_TYPES.has(file.type)) return file;
 
-  const { maxWidth, maxHeight, quality, mimeType } = getPresetOptions(presetOrOptions);
+  const { maxWidth, maxHeight, quality, mimeType, maxSizeBytes } =
+    getPresetOptions(presetOrOptions);
   const image = await loadImageElement(file);
   const { width, height } = getTargetDimensions({
     width: image.naturalWidth || image.width,
@@ -82,26 +108,47 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
     maxWidth,
     maxHeight,
   });
+  let targetWidth = width;
+  let targetHeight = height;
+  let bestBlob = null;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  while (targetWidth >= MIN_DIMENSION && targetHeight >= MIN_DIMENSION) {
+    const canvas = drawImageToCanvas({ image, width: targetWidth, height: targetHeight });
+    if (!canvas) return file;
 
-  const context = canvas.getContext('2d', { alpha: true });
-  if (!context) return file;
+    for (
+      let currentQuality = quality;
+      currentQuality >= MIN_QUALITY;
+      currentQuality -= QUALITY_STEP
+    ) {
+      const blob = await canvasToBlob(canvas, mimeType, currentQuality);
+      if (!blob) continue;
 
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  context.drawImage(image, 0, 0, width, height);
+      if (!bestBlob || blob.size < bestBlob.size) {
+        bestBlob = blob;
+      }
 
-  const blob = await new Promise((resolve) => {
-    canvas.toBlob(resolve, mimeType, quality);
-  });
+      if (!maxSizeBytes || blob.size <= maxSizeBytes) {
+        if (blob.size >= file.size && targetWidth === (image.naturalWidth || image.width)) {
+          return file;
+        }
 
-  if (!blob) return file;
-  if (blob.size >= file.size && width === (image.naturalWidth || image.width)) return file;
+        return blobToFile(blob, file, mimeType);
+      }
+    }
 
-  return blobToFile(blob, file, mimeType);
+    targetWidth = Math.max(MIN_DIMENSION, Math.round(targetWidth * DIMENSION_STEP));
+    targetHeight = Math.max(MIN_DIMENSION, Math.round(targetHeight * DIMENSION_STEP));
+
+    if (targetWidth === MIN_DIMENSION || targetHeight === MIN_DIMENSION) break;
+  }
+
+  if (!bestBlob) return file;
+  if (!maxSizeBytes && bestBlob.size >= file.size && width === (image.naturalWidth || image.width)) {
+    return file;
+  }
+
+  return blobToFile(bestBlob, file, mimeType);
 }
 
 export async function optimizeImageFiles(files = [], presetOrOptions = 'general') {

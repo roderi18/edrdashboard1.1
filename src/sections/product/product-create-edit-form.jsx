@@ -1,11 +1,12 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
@@ -88,6 +89,8 @@ const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
   },
 ];
 
+const PRODUCT_IMAGE_MAX_SIZE_BYTES = 1050000;
+
 const formatStorageSizeEs = (bytes) => {
   const value = Number(bytes || 0);
   if (!value) return '0 mb';
@@ -145,6 +148,7 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const [includeTaxes, setIncludeTaxes] = useState(false);
   const [publish, setPublish] = useState(currentProduct?.publish !== 'draft');
+  const [submissionMessage, setSubmissionMessage] = useState('');
 
   const defaultValues = {
     name: '',
@@ -183,6 +187,19 @@ export function ProductCreateEditForm({ currentProduct }) {
   } = methods;
 
   const values = watch();
+  const oversizedImages = useMemo(
+    () =>
+      (values.images || []).filter(
+        (image) => image instanceof File && Number(image.size || 0) > PRODUCT_IMAGE_MAX_SIZE_BYTES
+      ),
+    [values.images]
+  );
+  const oversizedImagesTotalSize = oversizedImages.reduce(
+    (total, image) => total + Number(image.size || 0),
+    0
+  );
+  const oversizedImagesAllowedSize = oversizedImages.length * PRODUCT_IMAGE_MAX_SIZE_BYTES;
+  const shouldCompactImages = oversizedImages.length > 0;
 
   const onSubmit = handleSubmit(async (data) => {
     const updatedData = {
@@ -192,6 +209,9 @@ export function ProductCreateEditForm({ currentProduct }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      setSubmissionMessage(
+        shouldCompactImages ? 'Compactando imagenes...' : 'Publicando producto...'
+      );
       const result = await guardarProductoFirestore(updatedData, { publish });
       reset();
       const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
@@ -211,6 +231,8 @@ export function ProductCreateEditForm({ currentProduct }) {
       console.info('DATA', updatedData);
     } catch (error) {
       console.error(error);
+    } finally {
+      setSubmissionMessage('');
     }
   });
 
@@ -263,11 +285,18 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Field.Upload
               multiple
               name="images"
-              maxSize={1050000}
               onRemove={handleRemoveFile}
               onRemoveAll={handleRemoveAllFiles}
               onUpload={() => console.info('ON UPLOAD')}
             />
+            {shouldCompactImages && (
+              <Alert severity="info" variant="outlined">
+                Estas imagenes pesan {formatStorageSizeEs(oversizedImagesTotalSize)}. Lo permitido
+                es {formatStorageSizeEs(oversizedImagesAllowedSize)} para{' '}
+                {oversizedImages.length} imagenes; se compactaran antes de publicarse y puede
+                tardar unos segundos mas.
+              </Alert>
+            )}
           </Stack>
         </Stack>
       </Collapse>
@@ -494,9 +523,17 @@ export function ProductCreateEditForm({ currentProduct }) {
         sx={{ pl: 3, flexGrow: 1 }}
       />
 
-      <Button type="submit" variant="contained" size="large" loading={isSubmitting}>
-        {!currentProduct ? 'Crear producto' : 'Guardar cambios'}
-      </Button>
+      <Stack spacing={0.75} alignItems="flex-end">
+        <Button type="submit" variant="contained" size="large" loading={isSubmitting}>
+          {!currentProduct ? 'Crear producto' : 'Guardar cambios'}
+        </Button>
+
+        {submissionMessage && (
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {submissionMessage}
+          </Typography>
+        )}
+      </Stack>
     </Box>
   );
 
