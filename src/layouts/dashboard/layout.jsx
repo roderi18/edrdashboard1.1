@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -13,6 +13,11 @@ import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/
 
 import { allLangs } from 'src/locales';
 import { _contacts, _notifications } from 'src/_mock';
+import {
+  sembrarNotificacionesPrueba,
+  listarNotificacionesDrawerPorUsuario,
+  marcarNotificacionesComoLeidasPorUsuario,
+} from 'src/services/notification-service';
 
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
@@ -43,12 +48,67 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const theme = useTheme();
 
   const { user } = useAuthContext();
+  const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
 
   const settings = useSettingsContext();
 
   const navVars = dashboardNavColorVars(theme, settings.state.navColor, settings.state.navLayout);
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+
+  const handleMarcarTodasComoLeidas = async () => {
+    const notificacionesActualizadas = notificacionesDrawer.map((notification) => ({
+      ...notification,
+      isUnRead: false,
+      estado: notification.estado === 'archivada' ? 'archivada' : 'leida',
+    }));
+
+    setNotificacionesDrawer(notificacionesActualizadas);
+
+    if (!user?.uid) {
+      return;
+    }
+
+    try {
+      await marcarNotificacionesComoLeidasPorUsuario(user.uid);
+    } catch (error) {
+      console.error('[notifications test] no se pudieron marcar como leidas', error);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const cargarNotificaciones = async () => {
+      if (!user?.uid) {
+        if (isMounted) {
+          setNotificacionesDrawer(_notifications);
+        }
+        return;
+      }
+
+      try {
+        await sembrarNotificacionesPrueba(user);
+        const notificacionesFirestore = await listarNotificacionesDrawerPorUsuario(user.uid);
+
+        if (!isMounted) return;
+
+        setNotificacionesDrawer([...notificacionesFirestore, ..._notifications]);
+      } catch (error) {
+        console.error('[notifications test] no se pudo cargar la prueba', error);
+
+        if (isMounted) {
+          setNotificacionesDrawer(_notifications);
+        }
+      }
+    };
+
+    cargarNotificaciones();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const navData = useMemo(() => {
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
@@ -141,7 +201,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <LanguagePopover data={allLangs} />
 
           {/** @slot Notifications popover */}
-          <NotificationsDrawer data={_notifications} />
+          <NotificationsDrawer
+            data={notificacionesDrawer}
+            onMarkAllAsRead={handleMarcarTodasComoLeidas}
+          />
 
           {/** @slot Contacts popover */}
           <ContactsPopover data={_contacts} />

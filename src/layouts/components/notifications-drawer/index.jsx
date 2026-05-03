@@ -1,8 +1,8 @@
 'use client';
 
 import { m } from 'framer-motion';
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
@@ -25,27 +25,44 @@ import { NotificationItem } from './notification-item';
 
 const TABS = [
   { value: 'all', label: 'Todos', count: 22 },
-  { value: 'Unread', label: 'Unread', count: 12 },
-  { value: 'archived', label: 'Archived', count: 10 },
+  { value: 'Unread', label: 'No leídas', count: 12 },
+  { value: 'archived', label: 'Archivadas', count: 10 },
 ];
 
 // ----------------------------------------------------------------------
 
-export function NotificationsDrawer({ data = [], sx, ...other }) {
+export function NotificationsDrawer({ data = [], onMarkAllAsRead, sx, ...other }) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
   const [currentTab, setCurrentTab] = useState('all');
+  const [notifications, setNotifications] = useState(data);
+
+  useEffect(() => {
+    setNotifications(data);
+  }, [data]);
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
   }, []);
 
-  const [notifications, setNotifications] = useState(data);
-
   const totalUnRead = notifications.filter((item) => item.isUnRead === true).length;
+  const totalArchivadas = notifications.filter((item) => item.estado === 'archivada').length;
+
+  const notificationsFiltradas = notifications.filter((notification) => {
+    if (currentTab === 'Unread') {
+      return notification.isUnRead === true;
+    }
+
+    if (currentTab === 'archived') {
+      return notification.estado === 'archivada';
+    }
+
+    return true;
+  });
 
   const handleMarkAllAsRead = () => {
     setNotifications(notifications.map((notification) => ({ ...notification, isUnRead: false })));
+    onMarkAllAsRead?.();
   };
 
   const renderHead = () => (
@@ -83,7 +100,14 @@ export function NotificationsDrawer({ data = [], sx, ...other }) {
 
   const renderTabs = () => (
     <Tabs variant="fullWidth" value={currentTab} onChange={handleChangeTab} indicatorColor="custom">
-      {TABS.map((tab) => (
+      {TABS.map((tab) => {
+        const count =
+          (tab.value === 'all' && notifications.length) ||
+          (tab.value === 'Unread' && totalUnRead) ||
+          (tab.value === 'archived' && totalArchivadas) ||
+          0;
+
+        return (
         <Tab
           key={tab.value}
           iconPosition="end"
@@ -98,18 +122,19 @@ export function NotificationsDrawer({ data = [], sx, ...other }) {
                 'default'
               }
             >
-              {tab.count}
+              {count}
             </Label>
           }
         />
-      ))}
+        );
+      })}
     </Tabs>
   );
 
   const renderList = () => (
-    <Scrollbar>
+      <Scrollbar>
       <Box component="ul">
-        {notifications?.map((notification) => (
+        {notificationsFiltradas?.map((notification) => (
           <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
             <NotificationItem notification={notification} />
           </Box>
@@ -149,8 +174,8 @@ export function NotificationsDrawer({ data = [], sx, ...other }) {
         {renderList()}
 
         <Box sx={{ p: 1 }}>
-          <Button fullWidth size="large">
-            View all
+          <Button fullWidth size="large" onClick={handleMarkAllAsRead} disabled={!totalUnRead}>
+            Marcar todo como leído
           </Button>
         </Box>
       </Drawer>
