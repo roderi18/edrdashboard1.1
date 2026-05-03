@@ -16,21 +16,17 @@ import { fToNow } from 'src/utils/format-time';
 
 import { clickConversation } from 'src/actions/chat';
 
-import { useMockedUser } from 'src/auth/hooks';
-
 import { getNavItem } from './utils/get-nav-item';
 
 // ----------------------------------------------------------------------
 
-export function ChatNavItem({ selected, collapse, conversation, onCloseMobile }) {
-  const { user } = useMockedUser();
-
+export function ChatNavItem({ selected, collapse, conversation, currentContact, onCloseMobile }) {
   const router = useRouter();
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
   const { group, displayName, displayText, participants, lastActivity, hasOnlineInGroup } =
-    getNavItem({ conversation, currentUserId: `${user?.id}` });
+    getNavItem({ conversation, currentUserId: currentContact.id });
 
   const singleParticipant = participants[0];
 
@@ -40,7 +36,7 @@ export function ChatNavItem({ selected, collapse, conversation, onCloseMobile })
         onCloseMobile();
       }
 
-      await clickConversation(conversation.id);
+      await clickConversation(conversation.id, currentContact.idMiembros);
 
       const redirectPath = `${paths.dashboard.chat}?id=${conversation.id}`;
 
@@ -50,7 +46,7 @@ export function ChatNavItem({ selected, collapse, conversation, onCloseMobile })
     } catch (error) {
       console.error(error);
     }
-  }, [conversation.id, mdUp, onCloseMobile, router]);
+  }, [conversation.id, currentContact.idMiembros, mdUp, onCloseMobile, router]);
 
   const renderGroup = () => (
     <Badge variant={hasOnlineInGroup ? 'online' : 'invisible'} badgeContent=" ">

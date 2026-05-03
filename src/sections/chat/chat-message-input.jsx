@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import InputBase from '@mui/material/InputBase';
@@ -7,13 +7,9 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { today } from 'src/utils/format-time';
-
 import { sendMessage, createConversation } from 'src/actions/chat';
 
 import { Iconify } from 'src/components/iconify';
-
-import { useMockedUser } from 'src/auth/hooks';
 
 import { initialConversation } from './utils/initial-conversation';
 
@@ -22,36 +18,20 @@ import { initialConversation } from './utils/initial-conversation';
 export function ChatMessageInput({
   disabled,
   recipients,
+  currentContact,
   onAddRecipients,
   selectedConversationId,
 }) {
   const router = useRouter();
 
-  const { user } = useMockedUser();
-
   const fileRef = useRef(null);
 
   const [message, setMessage] = useState('');
 
-  const myContact = useMemo(
-    () => ({
-      id: `${user?.id}`,
-      role: `${user?.role}`,
-      email: `${user?.email}`,
-      address: `${user?.address}`,
-      name: `${user?.displayName}`,
-      lastActivity: today(),
-      avatarUrl: `${user?.photoURL}`,
-      phoneNumber: `${user?.phoneNumber}`,
-      status: 'online',
-    }),
-    [user]
-  );
-
   const { messageData, conversationData } = initialConversation({
     message,
     recipients,
-    me: myContact,
+    me: currentContact,
   });
 
   const handleAttach = useCallback(() => {
@@ -70,11 +50,9 @@ export function ChatMessageInput({
 
       try {
         if (selectedConversationId) {
-          // If the conversation already exists
-          await sendMessage(selectedConversationId, messageData);
+          await sendMessage(selectedConversationId, messageData, currentContact.idMiembros);
         } else {
-          // If the conversation does not exist
-          const res = await createConversation(conversationData);
+          const res = await createConversation(conversationData, currentContact.idMiembros);
           router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
 
           onAddRecipients([]);
@@ -85,7 +63,15 @@ export function ChatMessageInput({
         setMessage('');
       }
     },
-    [conversationData, message, messageData, onAddRecipients, router, selectedConversationId]
+    [
+      conversationData,
+      currentContact.idMiembros,
+      message,
+      messageData,
+      onAddRecipients,
+      router,
+      selectedConversationId,
+    ]
   );
 
   return (
@@ -96,7 +82,7 @@ export function ChatMessageInput({
         value={message}
         onKeyUp={handleSendMessage}
         onChange={handleChangeMessage}
-        placeholder="Type a message"
+        placeholder="Escribe un mensaje"
         disabled={disabled}
         startAdornment={
           <IconButton>

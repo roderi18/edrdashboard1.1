@@ -9,7 +9,7 @@ import { useMessagesScroll } from './hooks/use-messages-scroll';
 
 // ----------------------------------------------------------------------
 
-export function ChatMessageList({ messages = [], participants, loading }) {
+export function ChatMessageList({ messages = [], participants, currentContact, loading }) {
   const { messagesEndRef } = useMessagesScroll(messages);
 
   const slides = messages
@@ -52,6 +52,7 @@ export function ChatMessageList({ messages = [], participants, loading }) {
             key={message.id}
             message={message}
             participants={participants}
+            currentContact={currentContact}
             onOpenLightbox={() => lightbox.onOpen(message.body)}
           />
         ))}

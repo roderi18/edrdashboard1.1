@@ -16,6 +16,7 @@ import {
 import { limpiarCarritoUsuario } from './cart-service';
 import { ajustarInventarioProducto } from './inventory-service';
 import { guardarSnapshotProductoFirestore } from './product-service';
+import { crearNotificacionesPedidoCreado } from './notification-service';
 import { guardarReciboFirestore, actualizarEstadoReciboFirestore } from './receipt-service';
 
 const ordersCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes);
@@ -58,6 +59,19 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   await setDoc(orderRef, orderDoc);
   await limpiarCarritoUsuario(user);
 
+  try {
+    await crearNotificacionesPedidoCreado({
+      orden: orderDoc,
+      usuario: user,
+    });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('notificaciones:actualizar'));
+    }
+  } catch (notificationError) {
+    console.error('[order service] no se pudieron crear notificaciones del pedido', notificationError);
+  }
+
   return {
     order: mapearOrdenFirestoreAUi({ id: orderId, ...orderDoc }),
     invoice: receipt,
@@ -88,7 +102,17 @@ export const obtenerOrdenFirestorePorId = async (orderId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !orderId) return null;
 
   const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, String(orderId)));
-  if (!snapshot.exists()) return null;
+  if (!snapshot.exists()) {
+    const byNumberSnapshot = await getDocs(
+      query(ordersCollection(), where('numeroOrden', '==', String(orderId)))
+    );
+
+    if (byNumberSnapshot.empty) return null;
+
+    const orderSnapshot = byNumberSnapshot.docs[0];
+
+    return mapearOrdenFirestoreAUi({ id: orderSnapshot.id, ...orderSnapshot.data() });
+  }
 
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...snapshot.data() });
 };

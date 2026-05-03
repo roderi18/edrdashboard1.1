@@ -3,8 +3,6 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import ListItemButton from '@mui/material/ListItemButton';
 
-import { SearchNotFound } from 'src/components/search-not-found';
-
 // ----------------------------------------------------------------------
 
 export function ChatNavSearchResults({ query, results, onClickResult }) {
@@ -13,15 +11,21 @@ export function ChatNavSearchResults({ query, results, onClickResult }) {
   const notFound = !totalResults && !!query;
 
   const renderNotFound = () => (
-    <SearchNotFound
-      query={query}
+    <Box
       sx={{
         p: 3,
         mx: 'auto',
         width: `calc(100% - 40px)`,
+        borderRadius: 1.5,
+        textAlign: 'center',
         bgcolor: 'background.neutral',
       }}
-    />
+    >
+      <Typography variant="h6">Sin resultados</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        No se encontraron contactos para <strong>{`"${query}"`}</strong>.
+      </Typography>
+    </Box>
   );
 
   const renderResults = () => (
@@ -50,7 +54,7 @@ export function ChatNavSearchResults({ query, results, onClickResult }) {
   return (
     <>
       <Typography variant="h6" sx={{ px: 2.5, mb: 2 }}>
-        Contacts ({totalResults})
+        Contactos ({totalResults})
       </Typography>
 
       {notFound ? renderNotFound() : renderResults()}

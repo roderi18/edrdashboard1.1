@@ -9,11 +9,14 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetContacts, useGetConversation, useGetConversations } from 'src/actions/chat';
+import {
+  useGetContacts,
+  clickConversation,
+  useGetConversation,
+  useGetConversations,
+} from 'src/actions/chat';
 
 import { EmptyContent } from 'src/components/empty-content';
-
-import { useMockedUser } from 'src/auth/hooks';
 
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
@@ -23,22 +26,27 @@ import { ChatMessageInput } from '../chat-message-input';
 import { ChatHeaderDetails } from '../chat-header-details';
 import { ChatHeaderCompose } from '../chat-header-compose';
 import { useCollapseNav } from '../hooks/use-collapse-nav';
+import { useChatCurrentContact } from '../hooks/use-chat-current-contact';
 
 // ----------------------------------------------------------------------
+
+const isSameMember = (participant, currentContact) =>
+  [participant?.idMiembros, participant?.id]
+    .filter(Boolean)
+    .some((value) => String(value) === String(currentContact?.idMiembros ?? currentContact?.id));
 
 export function ChatView() {
   const router = useRouter();
 
-  const { user } = useMockedUser();
-
   const { contacts } = useGetContacts();
+  const currentContact = useChatCurrentContact(contacts);
 
   const searchParams = useSearchParams();
   const selectedConversationId = searchParams.get('id') || '';
 
-  const { conversations, conversationsLoading } = useGetConversations();
+  const { conversations, conversationsLoading } = useGetConversations(currentContact.idMiembros);
   const { conversation, conversationError, conversationLoading } =
-    useGetConversation(selectedConversationId);
+    useGetConversation(selectedConversationId, currentContact.idMiembros);
 
   const roomNav = useCollapseNav();
   const conversationsNav = useCollapseNav();
@@ -53,12 +61,22 @@ export function ChatView() {
     }
   }, [conversationError, router, selectedConversationId]);
 
+  useEffect(() => {
+    if (!selectedConversationId || !currentContact.idMiembros || !conversation?.unreadCount) {
+      return;
+    }
+
+    clickConversation(selectedConversationId, currentContact.idMiembros).catch((error) => {
+      console.error('[chat] no se pudo marcar la conversación como leída', error);
+    });
+  }, [conversation?.unreadCount, currentContact.idMiembros, selectedConversationId]);
+
   const handleAddRecipients = useCallback((selected) => {
     setRecipients(selected);
   }, []);
 
   const filteredParticipants = conversation
-    ? conversation.participants.filter((participant) => participant.id !== `${user?.id}`)
+    ? conversation.participants.filter((participant) => !isSameMember(participant, currentContact))
     : [];
 
   return (
@@ -67,7 +85,7 @@ export function ChatView() {
       sx={{ display: 'flex', flex: '1 1 auto', flexDirection: 'column' }}
     >
       <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-        Chat
+        Mensajes
       </Typography>
 
       <ChatLayout
@@ -101,20 +119,22 @@ export function ChatView() {
                 ) : (
                   <ChatMessageList
                     messages={conversation?.messages ?? []}
-                    participants={filteredParticipants}
+                    participants={conversation?.participants ?? []}
+                    currentContact={currentContact}
                     loading={conversationLoading}
                   />
                 )
               ) : (
                 <EmptyContent
-                  title="Good morning!"
-                  description="Write something awesome..."
+                  title="Selecciona una conversación"
+                  description="Busca un contacto o escribe un mensaje nuevo."
                   imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-chat-active.svg`}
                 />
               )}
 
               <ChatMessageInput
                 recipients={recipients}
+                currentContact={currentContact}
                 onAddRecipients={handleAddRecipients}
                 selectedConversationId={selectedConversationId}
                 disabled={!recipients.length && !selectedConversationId}

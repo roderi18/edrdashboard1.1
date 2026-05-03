@@ -24,7 +24,7 @@ export function ChatRoomAttachments({ attachments }) {
         <FileThumbnail
           showImage
           file={attachment.preview}
-          onDownload={() => console.info('DOWNLOAD')}
+          onDownload={() => console.info('DESCARGAR')}
           slotProps={{ icon: { sx: { width: 24, height: 24 } } }}
           sx={{ width: 40, height: 40, bgcolor: 'background.neutral' }}
         />
@@ -54,7 +54,7 @@ export function ChatRoomAttachments({ attachments }) {
         disabled={!totalAttachments}
         onClick={collapse.onToggle}
       >
-        {`Attachments (${totalAttachments})`}
+        {`Adjuntos (${totalAttachments})`}
       </CollapseButton>
 
       {!!totalAttachments && (

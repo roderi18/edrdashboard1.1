@@ -9,7 +9,6 @@ import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 
 import { Iconify } from 'src/components/iconify';
-import { SearchNotFound } from 'src/components/search-not-found';
 
 // ----------------------------------------------------------------------
 
@@ -27,7 +26,7 @@ export function ChatHeaderCompose({ contacts, onAddRecipients }) {
   return (
     <>
       <Typography variant="subtitle2" sx={{ color: 'text.primary', mr: 2 }}>
-        To:
+        Para:
       </Typography>
 
       <Autocomplete
@@ -37,13 +36,13 @@ export function ChatHeaderCompose({ contacts, onAddRecipients }) {
         popupIcon={null}
         defaultValue={[]}
         disableCloseOnSelect
-        noOptionsText={<SearchNotFound query={searchRecipients} />}
+        noOptionsText={searchRecipients ? 'No se encontraron destinatarios' : 'Escribe para buscar'}
         onChange={(event, newValue) => handleAddRecipients(newValue)}
         onInputChange={(event, newValue) => setSearchRecipients(newValue)}
         options={contacts}
         getOptionLabel={(recipient) => recipient.name}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={(params) => <TextField {...params} placeholder="+ Recipients" />}
+        renderInput={(params) => <TextField {...params} placeholder="+ Destinatarios" />}
         renderOption={(props, option, state) => {
           const { key, ...otherProps } = props;
 

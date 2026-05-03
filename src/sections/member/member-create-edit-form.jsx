@@ -54,6 +54,7 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 // services
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
+import { crearNotificacionMiembroCreado } from 'src/services/notification-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 
 // components
@@ -552,29 +553,45 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     })
     .filter(Boolean);
 
+  const uploadMemberPhoto = async ({ file, idMiembros, showSuccess = true }) => {
+    if (!file || !(file instanceof File)) {
+      return null;
+    }
+
+    if (!idMiembros) {
+      throw new Error('No se pudo identificar el miembro para subir la foto.');
+    }
+
+    const photo = await subirFotoEntidad({
+      file,
+      tipoEntidad: 'miembro',
+      idEntidad: idMiembros,
+      tipoFoto: 'perfil',
+      subidoPor: user?.uid || user?.id || null,
+    });
+
+    if (showSuccess) {
+      toast.success('Foto subida correctamente.');
+    }
+
+    return photo.urlFoto;
+  };
+
   const handleUploadMemberPhoto = async (acceptedFiles) => {
     const file = acceptedFiles?.[0];
     const idMiembros = currentMember?.id;
 
     if (!currentMember || !idMiembros) {
-      toast.error('Primero guarda el miembro antes de subir una foto.');
       return null;
     }
 
     try {
       setUploadingPhoto(true);
 
-      const photo = await subirFotoEntidad({
+      return await uploadMemberPhoto({
         file,
-        tipoEntidad: 'miembro',
-        idEntidad: idMiembros,
-        tipoFoto: 'perfil',
-        subidoPor: user?.uid || user?.id || null,
+        idMiembros,
       });
-
-      toast.success('Foto subida correctamente.');
-
-      return photo.urlFoto;
     } catch (error) {
       console.error('[member form] photo upload failed', error);
       toast.error(error.message || 'No se pudo subir la foto.');
@@ -714,21 +731,23 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           currentMember ? 'Actualizacion exitosa!' : `Miembro ${codigoMiembro} creado!`
         );
 
-        if (!currentMember) {
-          try {
-            const createdMembers = await getMembers();
-            const createdMember = (Array.isArray(createdMembers) ? createdMembers : []).find(
-              (member) =>
-                normalizeMemberUsername(member?.memberId || member?.codigoMiembro || member?.id) ===
-                normalizeMemberUsername(codigoMiembro)
-            );
+        let savedMember = null;
 
+        if (!currentMember) {
+          const createdMembers = await getMembers();
+          savedMember = (Array.isArray(createdMembers) ? createdMembers : []).find(
+            (member) =>
+              normalizeMemberUsername(member?.memberId || member?.codigoMiembro || member?.id) ===
+              normalizeMemberUsername(codigoMiembro)
+          );
+
+          try {
             const authCredentials = await createFirebaseAuthForMember({
               codigoMiembro,
               firstName: submittedFirstName,
               lastName: submittedLastName,
               destId: selectedDestId,
-              memberId: createdMember?.id || null,
+              memberId: savedMember?.id || null,
             });
 
             console.log('[member form] firebase auth user created', {
@@ -744,6 +763,57 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                 'Miembro creado, pero no se pudo crear su usuario de inicio de sesiÃƒÂ³n.'
               );
             }
+          }
+
+          try {
+            await crearNotificacionMiembroCreado({
+              miembro: savedMember || {
+                id: responseData?.idMiembros || responseData?.data?.idMiembros,
+                memberId: codigoMiembro,
+                firstName: submittedFirstName,
+                lastName: submittedLastName,
+                phoneNumber: formData.phoneNumber || '',
+                email: formData.email || '',
+                status: formData.status ?? 'active',
+              },
+              usuario: user,
+            });
+
+            window.dispatchEvent(new Event('notificaciones:actualizar'));
+          } catch (notificationError) {
+            console.error('[member form] member notification failed', notificationError);
+          }
+        }
+
+        const selectedPhoto = formData.avatarUrl;
+
+        if (!currentMember && selectedPhoto instanceof File) {
+          try {
+            setUploadingPhoto(true);
+
+            const createdMemberId =
+              savedMember?.id ||
+              responseData?.idMiembros ||
+              responseData?.data?.idMiembros ||
+              responseData?.Data?.idMiembros;
+
+            const uploadedPhotoUrl = await uploadMemberPhoto({
+              file: selectedPhoto,
+              idMiembros: createdMemberId,
+              showSuccess: false,
+            });
+
+            if (uploadedPhotoUrl) {
+              methods.setValue('avatarUrl', uploadedPhotoUrl, { shouldValidate: true });
+              toast.success('Miembro creado y foto subida correctamente.');
+            }
+          } catch (photoError) {
+            console.error('[member form] deferred photo upload failed', photoError);
+            toast.error(
+              photoError.message || 'Miembro creado, pero no se pudo subir la foto.'
+            );
+          } finally {
+            setUploadingPhoto(false);
           }
         }
 

@@ -13,7 +13,7 @@ export function initialConversation({ message = '', recipients, me }) {
     body: message,
     contentType: 'text',
     createdAt: fSub({ minutes: 1 }),
-    senderId: me.id,
+    senderId: me.idMiembros ? String(me.idMiembros) : me.id,
   };
 
   const conversationData = {

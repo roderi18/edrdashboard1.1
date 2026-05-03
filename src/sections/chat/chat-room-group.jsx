@@ -56,7 +56,7 @@ export function ChatRoomGroup({ participants }) {
         disabled={!totalParticipants}
         onClick={collapse.onToggle}
       >
-        {`In room (${totalParticipants})`}
+        {`En la conversación (${totalParticipants})`}
       </CollapseButton>
 
       <Collapse in={collapse.value}>{renderList()}</Collapse>

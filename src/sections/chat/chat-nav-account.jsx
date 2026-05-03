@@ -22,6 +22,13 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
+const STATUS_OPTIONS = [
+  { value: 'online', label: 'En línea' },
+  { value: 'always', label: 'Siempre disponible' },
+  { value: 'busy', label: 'Ocupado' },
+  { value: 'offline', label: 'Desconectado' },
+];
+
 export function ChatNavAccount() {
   const { user } = useAuthContext();
 
@@ -55,7 +62,7 @@ export function ChatNavAccount() {
       >
         <ListItemText primary={user?.displayName} secondary={user?.email} />
 
-        <Tooltip title="Log out">
+        <Tooltip title="Cerrar sesión">
           <IconButton color="error">
             <Iconify icon="ic:round-power-settings-new" />
           </IconButton>
@@ -99,9 +106,9 @@ export function ChatNavAccount() {
                 },
               }}
             >
-              {['online', 'always', 'busy', 'offline'].map((option) => (
-                <option key={option} value={option}>
-                  {option}
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </Select>
@@ -110,12 +117,12 @@ export function ChatNavAccount() {
 
         <MenuItem>
           <Iconify width={24} icon="solar:user-id-bold" />
-          Profile
+          Perfil
         </MenuItem>
 
         <MenuItem>
           <Iconify width={24} icon="solar:settings-bold" />
-          Settings
+          Configuración
         </MenuItem>
       </MenuList>
     </CustomPopover>

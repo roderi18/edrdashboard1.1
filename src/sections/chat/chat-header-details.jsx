@@ -87,24 +87,24 @@ export function ChatHeaderDetails({ collapseNav, participants, loading }) {
       <MenuList>
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:bell-off-bold" />
-          Hide notifications
+          Silenciar notificaciones
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:forbidden-circle-bold" />
-          Block
+          Bloquear
         </MenuItem>
 
         <MenuItem onClick={() => menuActions.onClose()}>
           <Iconify icon="solar:danger-triangle-bold" />
-          Report
+          Reportar
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
         <MenuItem onClick={() => menuActions.onClose()} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>

@@ -13,14 +13,17 @@ import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/
 
 import { allLangs } from 'src/locales';
 import { _contacts, _notifications } from 'src/_mock';
+import { useGetContacts, useGetConversations } from 'src/actions/chat';
 import {
-  sembrarNotificacionesPrueba,
-  listarNotificacionesDrawerPorUsuario,
+  listarNotificacionesDrawerParaUsuario,
   marcarNotificacionesComoLeidasPorUsuario,
 } from 'src/services/notification-service';
 
 import { Logo } from 'src/components/logo';
+import { Label } from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+
+import { useChatCurrentContact } from 'src/sections/chat/hooks/use-chat-current-contact';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -44,10 +47,37 @@ import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../cor
 
 // ----------------------------------------------------------------------
 
+const agregarIndicadorChats = (sections = [], unreadCount = 0) =>
+  sections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => {
+      if (item.title !== 'Chats') {
+        return item;
+      }
+
+      return {
+        ...item,
+        info: unreadCount ? (
+          <Label color="error" variant="filled">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Label>
+        ) : null,
+      };
+    }),
+  }));
+
 export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }) {
   const theme = useTheme();
 
   const { user } = useAuthContext();
+  const { contacts } = useGetContacts();
+  const currentContact = useChatCurrentContact(contacts);
+  const { conversations } = useGetConversations(currentContact.idMiembros);
+  const chatsSinLeer = conversations.allIds.reduce(
+    (total, conversationId) =>
+      total + (Number(conversations.byId[conversationId]?.unreadCount || 0) > 0 ? 1 : 0),
+    0
+  );
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
 
   const settings = useSettingsContext();
@@ -88,8 +118,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       }
 
       try {
-        await sembrarNotificacionesPrueba(user);
-        const notificacionesFirestore = await listarNotificacionesDrawerPorUsuario(user.uid);
+        const notificacionesFirestore = await listarNotificacionesDrawerParaUsuario(user);
 
         if (!isMounted) return;
 
@@ -104,21 +133,24 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
 
     cargarNotificaciones();
+    window.addEventListener('notificaciones:actualizar', cargarNotificaciones);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('notificaciones:actualizar', cargarNotificaciones);
     };
   }, [user]);
 
   const navData = useMemo(() => {
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
+    const navDataConChats = agregarIndicadorChats(baseNavData, chatsSinLeer);
 
     if (!isMemberSessionUser(user)) {
-      return baseNavData;
+      return navDataConChats;
     }
 
-    return filterDashboardNavDataForMember(baseNavData, user);
-  }, [slotProps?.nav?.data, user]);
+    return filterDashboardNavDataForMember(navDataConChats, user);
+  }, [chatsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

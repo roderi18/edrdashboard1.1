@@ -8,19 +8,15 @@ import { fToNow } from 'src/utils/format-time';
 
 import { Iconify } from 'src/components/iconify';
 
-import { useMockedUser } from 'src/auth/hooks';
-
 import { getMessage } from './utils/get-message';
 
 // ----------------------------------------------------------------------
 
-export function ChatMessageItem({ message, participants, onOpenLightbox }) {
-  const { user } = useMockedUser();
-
+export function ChatMessageItem({ message, participants, currentContact, onOpenLightbox }) {
   const { me, senderDetails, hasImage } = getMessage({
     message,
     participants,
-    currentUserId: `${user?.id}`,
+    currentUserId: currentContact.id,
   });
 
   const { firstName, avatarUrl } = senderDetails;
@@ -55,7 +51,7 @@ export function ChatMessageItem({ message, participants, onOpenLightbox }) {
       {hasImage ? (
         <Box
           component="img"
-          alt="Attachment"
+          alt="Adjunto"
           src={body}
           onClick={() => onOpenLightbox(body)}
           sx={{

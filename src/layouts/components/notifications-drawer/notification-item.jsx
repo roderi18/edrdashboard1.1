@@ -6,6 +6,8 @@ import ListItemText from '@mui/material/ListItemText';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
 
+import { useRouter } from 'src/routes/hooks';
+
 import { fToNow } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
@@ -34,7 +36,36 @@ const renderIcon = (type) =>
     delivery: notificationIcons.delivery,
   })[type];
 
+const getNotificationRoute = (notification = {}) => {
+  const idConversacion =
+    notification.metadatos?.idConversacion ||
+    notification.metadatos?.conversationId ||
+    notification.metadatos?.idConversation;
+
+  if (notification.tipoNotificacion === 'mensaje_recibido' && idConversacion) {
+    return `/dashboard/chat?id=${idConversacion}`;
+  }
+
+  if (
+    ['pedido_recibido', 'pedido_creado'].includes(notification.tipoNotificacion) &&
+    notification.metadatos?.numeroOrden
+  ) {
+    return `/dashboard/order/${notification.metadatos.numeroOrden}`;
+  }
+
+  return notification.ruta;
+};
+
 export function NotificationItem({ notification }) {
+  const router = useRouter();
+  const notificationRoute = getNotificationRoute(notification);
+
+  const handleClickNotification = () => {
+    if (notificationRoute) {
+      router.push(notificationRoute);
+    }
+  };
+
   const renderAvatar = () => (
     <ListItemAvatar>
       {notification.avatarUrl ? (
@@ -208,10 +239,12 @@ export function NotificationItem({ notification }) {
   return (
     <ListItemButton
       disableRipple
+      onClick={handleClickNotification}
       sx={[
         (theme) => ({
           p: 2.5,
           alignItems: 'flex-start',
+          cursor: notificationRoute ? 'pointer' : 'default',
           borderBottom: `dashed 1px ${theme.vars.palette.divider}`,
         }),
       ]}

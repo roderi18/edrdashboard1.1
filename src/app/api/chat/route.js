@@ -1,0 +1,610 @@
+import {
+  doc,
+  query,
+  where,
+  setDoc,
+  getDoc,
+  getDocs,
+  orderBy,
+  collection,
+} from 'firebase/firestore';
+
+import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+
+import { _contacts } from 'src/_mock/_others';
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+
+// ----------------------------------------------------------------------
+
+const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const SUBCOLECCION_MENSAJES = 'mensajes';
+const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
+const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
+
+const nowIso = () => new Date().toISOString();
+
+const toNumberOrNull = (value) => {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number !== 0 ? number : null;
+};
+
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const normalizeLookupKey = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+const buildNombreCompleto = (member = {}) =>
+  [member.nombres, member.apellidos].filter(Boolean).join(' ').trim() ||
+  member.nombre ||
+  member.name ||
+  member.displayName ||
+  member.codigoMiembro ||
+  `Miembro ${member.idMiembros ?? member.id ?? ''}`.trim();
+
+const normalizeMember = (member = {}) => {
+  const idMiembros = toNumberOrNull(member.idMiembros ?? member.id ?? member.memberId);
+
+  return {
+    idMiembros,
+    codigoMiembro: member.codigoMiembro ?? member.memberId ?? '',
+    nombres: member.nombres ?? member.firstName ?? member.nombre ?? '',
+    apellidos: member.apellidos ?? member.lastName ?? '',
+    genero: member.genero ?? member.gender ?? '',
+    fechaNacimiento: member.fechaNacimiento ?? member.birthDate ?? null,
+    idDestacamento: toNumberOrNull(member.idDestacamento ?? member.destId),
+    telefono: member.telefono ?? member.phoneNumber ?? '',
+    direccion: member.direccion ?? member.address ?? member.memberAddress ?? '',
+    correo: member.correo ?? member.email ?? '',
+    idDivision: toNumberOrNull(member.idDivision),
+    instructorCertificadoCi: Boolean(member.instructorCertificadoCi),
+    estatusVigenciaCi: Boolean(member.estatusVigenciaCi),
+    fechaInicioCertificado: member.fechaInicioCertificado ?? null,
+    fechaFinCertificado: member.fechaFinCertificado ?? null,
+    estatusMiembro: member.estatusMiembro ?? member.status ?? 'activo',
+    avatarUrl: member.avatarUrl ?? member.photoURL ?? '',
+  };
+};
+
+const memberToContact = (member = {}) => {
+  const normalizedMember = normalizeMember(member);
+  const id = String(normalizedMember.idMiembros ?? '');
+
+  return {
+    ...normalizedMember,
+    id,
+    name: buildNombreCompleto(normalizedMember),
+    role: normalizedMember.estatusMiembro,
+    email: normalizedMember.correo,
+    address: normalizedMember.direccion,
+    phoneNumber: normalizedMember.telefono,
+    status: 'offline',
+    lastActivity: nowIso(),
+  };
+};
+
+const mockContactToMember = (contact = {}, index = 0) =>
+  normalizeMember({
+    idMiembros: contact.idMiembros ?? -(index + 1),
+    codigoMiembro: contact.codigoMiembro ?? `MOCK-${index + 1}`,
+    nombres: String(contact.name ?? '').split(' ')[0] ?? 'Contacto',
+    apellidos: String(contact.name ?? '').split(' ').slice(1).join(' '),
+    telefono: contact.phoneNumber ?? '',
+    direccion: contact.address ?? '',
+    correo: contact.email ?? '',
+    estatusMiembro: contact.role ?? 'mock',
+    avatarUrl: contact.avatarUrl ?? '',
+  });
+
+const getAllContacts = (members = []) => {
+  const contacts = new Map();
+
+  const mergeContact = (currentContact, nextContact) => ({
+    ...nextContact,
+    ...currentContact,
+    avatarUrl: currentContact.avatarUrl || nextContact.avatarUrl,
+    status: currentContact.status || nextContact.status,
+    lastActivity: currentContact.lastActivity || nextContact.lastActivity,
+  });
+
+  members.forEach((member) => {
+    const contact = memberToContact(member);
+
+    if (contact.id) {
+      contacts.set(contact.id, contacts.has(contact.id) ? mergeContact(contacts.get(contact.id), contact) : contact);
+    }
+  });
+
+  _contacts.map(mockContactToMember).forEach((member) => {
+    const contact = {
+      ...memberToContact(member),
+      status: _contacts[Math.abs(member.idMiembros) - 1]?.status ?? 'offline',
+      lastActivity: _contacts[Math.abs(member.idMiembros) - 1]?.lastActivity ?? nowIso(),
+    };
+
+    if (contact.id && !contacts.has(contact.id)) {
+      contacts.set(contact.id, contact);
+    }
+  });
+
+  return Array.from(contacts.values());
+};
+
+const getMemberLookupKeys = (member = {}) =>
+  [
+    member.idMiembros,
+    member.id,
+    member.codigoMiembro,
+    member.memberId,
+    member.codigoUsuario,
+    member.correo,
+    member.email,
+    member.uid,
+  ]
+    .map(normalizeLookupKey)
+    .filter(Boolean);
+
+const resolveParticipantFromContacts = (participant = {}, contacts = []) => {
+  const normalizedParticipant = normalizeMember(participant);
+
+  if (normalizedParticipant.idMiembros) {
+    return normalizedParticipant;
+  }
+
+  const participantKeys = new Set(getMemberLookupKeys(participant));
+
+  if (!participantKeys.size) {
+    return normalizedParticipant;
+  }
+
+  const contact = contacts.find((item) =>
+    getMemberLookupKeys(item).some((key) => participantKeys.has(key))
+  );
+
+  return normalizeMember({ ...participant, ...contact });
+};
+
+async function resolveConversationParticipants(conversationData = {}) {
+  const rawParticipants = asArray(conversationData.participantes ?? conversationData.participants);
+  const participants = rawParticipants.map(normalizeMember);
+
+  if (participants.filter((member) => member.idMiembros).length >= 2) {
+    return participants.filter((member) => member.idMiembros);
+  }
+
+  const [members, firestoreProfiles] = await Promise.all([
+    getMembersFromApi().catch(() => []),
+    getMembersFromFirestoreProfiles().catch(() => []),
+  ]);
+  const contacts = getAllContacts([...members, ...firestoreProfiles]);
+
+  return rawParticipants
+    .map((participant) => resolveParticipantFromContacts(participant, contacts))
+    .filter((member) => member.idMiembros);
+}
+
+const messageToFirestore = (message = {}, fallbackSender = {}) => {
+  const remitenteIdMiembros =
+    toNumberOrNull(message.remitenteIdMiembros ?? message.senderId) ??
+    toNumberOrNull(fallbackSender.idMiembros);
+  const enviadoEn = message.enviadoEn ?? message.createdAt ?? nowIso();
+
+  return {
+    idMensaje: message.idMensaje ?? message.id ?? crypto.randomUUID(),
+    texto: message.texto ?? message.body ?? '',
+    tipoContenido: message.tipoContenido ?? message.contentType ?? 'text',
+    remitenteIdMiembros,
+    remitente: normalizeMember({
+      ...fallbackSender,
+      idMiembros: remitenteIdMiembros,
+    }),
+    adjuntos: asArray(message.adjuntos ?? message.attachments),
+    enviadoEn,
+    actualizadoEn: message.actualizadoEn ?? enviadoEn,
+    editado: Boolean(message.editado),
+    eliminado: Boolean(message.eliminado),
+    eliminadoEn: message.eliminadoEn ?? null,
+    vistoPorIdMiembros: message.vistoPorIdMiembros ?? {},
+  };
+};
+
+const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
+  const participants = asArray(conversation.participantes);
+  const participantIds = asArray(conversation.participantesIds);
+  const senderId = messageData.remitenteIdMiembros ?? messageData.senderId;
+  const directMatch = participants.find(
+    (participant) => Number(participant.idMiembros) === Number(senderId)
+  );
+
+  if (directMatch) return directMatch;
+
+  const normalizedSender = String(senderId ?? '').trim().toLowerCase();
+
+  return (
+    participants.find((participant) =>
+      [
+        participant.codigoMiembro,
+        participant.correo,
+        participant.email,
+        participant.uid,
+        participant.id,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase())
+        .includes(normalizedSender)
+    ) ||
+    participants.find((participant) => participant.idMiembros) ||
+    (participantIds[0] ? { idMiembros: participantIds[0] } : null)
+  );
+};
+
+const messageToUi = (message = {}) => ({
+  id: String(message.idMensaje ?? message.id ?? ''),
+  body: message.texto ?? message.body ?? '',
+  contentType: message.tipoContenido ?? message.contentType ?? 'text',
+  attachments: asArray(message.adjuntos ?? message.attachments),
+  createdAt: message.enviadoEn ?? message.createdAt ?? nowIso(),
+  senderId: String(message.remitenteIdMiembros ?? message.senderId ?? ''),
+});
+
+const conversationToUi = async (conversation = {}, messages = null, viewerIdMiembros = null) => {
+  const loadedMessages =
+    messages ??
+    (await getMessages(conversation.idConversacion ?? conversation.id)).map((message) =>
+      messageToUi(message)
+    );
+  const viewerUnreadCount =
+    viewerIdMiembros && conversation.noLeidosPorIdMiembros
+      ? Number(conversation.noLeidosPorIdMiembros[String(viewerIdMiembros)] || 0)
+      : null;
+
+  return {
+    id: String(conversation.idConversacion ?? conversation.id ?? ''),
+    type:
+      conversation.tipoConversacion === 'GRUPAL' || conversation.type === 'GROUP'
+        ? 'GROUP'
+        : 'ONE_TO_ONE',
+    participants: asArray(conversation.participantes).map(memberToContact),
+    messages: loadedMessages,
+    unreadCount:
+      viewerUnreadCount ??
+      Object.values(conversation.noLeidosPorIdMiembros ?? {}).reduce(
+        (total, count) => total + Number(count || 0),
+        0
+      ),
+  };
+};
+
+const ensureFirestore = () => {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    throw new Error('Firebase no está configurado para usar Firestore.');
+  }
+};
+
+async function getMembersFromApi() {
+  const response = await fetch(MEMBERS_API_URL, { cache: 'no-store' });
+  const payload = await response.json();
+  const normalized = normalizeApiResponse(payload);
+
+  return asArray(normalized.data).map(normalizeMember).filter((member) => member.idMiembros);
+}
+
+async function getMembersFromFirestoreProfiles() {
+  const snapshots = await Promise.all(
+    COLECCIONES_USUARIOS.map((collectionName) =>
+      getDocs(collection(FIRESTORE, collectionName)).catch(() => ({ docs: [] }))
+    )
+  );
+
+  return snapshots
+    .flatMap((snapshot) => snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))
+    .map((profile) =>
+      normalizeMember({
+        ...profile,
+        nombres: profile.nombres ?? profile.nombre ?? profile.displayName,
+        apellidos: profile.apellidos ?? '',
+        correo: profile.correo ?? profile.email,
+        telefono: profile.telefono ?? profile.phoneNumber,
+        direccion: profile.direccion ?? profile.address,
+        estatusMiembro: profile.estatusMiembro ?? profile.estado ?? profile.status ?? profile.rol,
+        avatarUrl: profile.avatarUrl ?? profile.photoURL,
+      })
+    )
+    .filter((member) => member.idMiembros);
+}
+
+async function getMessages(idConversacion) {
+  if (!idConversacion) return [];
+
+  const messagesQuery = query(
+    collection(FIRESTORE, COLECCION_CONVERSACIONES, String(idConversacion), SUBCOLECCION_MENSAJES),
+    orderBy('enviadoEn', 'asc')
+  );
+  const snapshot = await getDocs(messagesQuery);
+
+  return snapshot.docs.map((item) => item.data());
+}
+
+function buildConversationId({ tipoConversacion, participantesIds, providedId }) {
+  if (tipoConversacion === 'GRUPAL') {
+    return providedId && !/^\d+$/.test(String(providedId))
+      ? String(providedId)
+      : `grupal_${crypto.randomUUID()}`;
+  }
+
+  const ids = [...new Set(participantesIds.map((id) => Number(id)).filter(Boolean))].sort(
+    (a, b) => a - b
+  );
+
+  return ids.length >= 2 ? `individual_${ids.join('_')}` : String(providedId || ids[0] || '');
+}
+
+async function getConversationDoc(idConversacion) {
+  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(idConversacion));
+  const snapshot = await getDoc(conversationRef);
+
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+}
+
+async function getConversations(viewerIdMiembros = null) {
+  const viewerId = toNumberOrNull(viewerIdMiembros);
+  const conversationsQuery = viewerId
+    ? query(
+        collection(FIRESTORE, COLECCION_CONVERSACIONES),
+        where('eliminada', '==', false),
+        where('participantesIds', 'array-contains', viewerId)
+      )
+    : query(collection(FIRESTORE, COLECCION_CONVERSACIONES), where('eliminada', '==', false));
+  const snapshot = await getDocs(conversationsQuery);
+
+  return Promise.all(
+    snapshot.docs.map(async (item) =>
+      conversationToUi({ idConversacion: item.id, ...item.data() }, null, viewerId)
+    )
+  );
+}
+
+async function createConversation(conversationData = {}) {
+  const participantes = await resolveConversationParticipants(conversationData);
+  const participantesIds = [...new Set(participantes.map((member) => member.idMiembros))];
+  const tipoConversacion =
+    conversationData.tipoConversacion ??
+    (conversationData.type === 'GROUP' || participantesIds.length > 2 ? 'GRUPAL' : 'INDIVIDUAL');
+  const idConversacion = buildConversationId({
+    tipoConversacion,
+    participantesIds,
+    providedId: conversationData.idConversacion ?? conversationData.id,
+  });
+
+  if (!idConversacion || participantesIds.length < 2) {
+    throw new Error('La conversación necesita al menos dos participantes con idMiembros.');
+  }
+
+  const primerMensaje = messageToFirestore(
+    asArray(conversationData.messages)[0],
+    resolveMessageSender({
+      messageData: asArray(conversationData.messages)[0],
+      conversation: { participantes, participantesIds },
+    })
+  );
+  const existingConversation = await getConversationDoc(idConversacion);
+
+  if (existingConversation) {
+    if (primerMensaje.texto) {
+      return addMessage(idConversacion, primerMensaje);
+    }
+
+    return conversationToUi(existingConversation);
+  }
+
+  const creadoEn = conversationData.creadoEn ?? conversationData.createdAt ?? nowIso();
+  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, idConversacion);
+  const noLeidosPorIdMiembros = Object.fromEntries(participantesIds.map((id) => [String(id), 0]));
+
+  const conversationDoc = {
+    idConversacion,
+    tipoConversacion,
+    participantesIds,
+    participantes,
+    creadoPorIdMiembros: primerMensaje.remitenteIdMiembros ?? participantesIds[0],
+    creadoEn,
+    actualizadoEn: primerMensaje.enviadoEn ?? creadoEn,
+    ultimoMensaje: {
+      idMensaje: primerMensaje.idMensaje,
+      texto: primerMensaje.texto,
+      tipoContenido: primerMensaje.tipoContenido,
+      remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
+      enviadoEn: primerMensaje.enviadoEn,
+    },
+    noLeidosPorIdMiembros,
+    activa: true,
+    eliminada: false,
+  };
+
+  await setDoc(conversationRef, conversationDoc);
+  await setDoc(
+    doc(conversationRef, SUBCOLECCION_MENSAJES, primerMensaje.idMensaje),
+    primerMensaje
+  );
+
+  return conversationToUi(conversationDoc, [messageToUi(primerMensaje)]);
+}
+
+async function addMessage(conversationId, messageData = {}, viewerIdMiembros = null) {
+  const existingConversation = await getConversationDoc(conversationId);
+
+  if (!existingConversation) {
+    throw new Error('La conversación no existe.');
+  }
+
+  const sender = resolveMessageSender({
+    messageData,
+    conversation: existingConversation,
+  });
+  const messageDoc = messageToFirestore(messageData, sender);
+
+  if (!messageDoc.remitenteIdMiembros) {
+    throw new Error('El mensaje necesita remitenteIdMiembros válido.');
+  }
+
+  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
+  const noLeidosPorIdMiembros = {
+    ...(existingConversation.noLeidosPorIdMiembros ?? {}),
+  };
+
+  asArray(existingConversation.participantesIds).forEach((idMiembros) => {
+    const key = String(idMiembros);
+
+    noLeidosPorIdMiembros[key] =
+      Number(idMiembros) === Number(messageDoc.remitenteIdMiembros)
+        ? 0
+        : Number(noLeidosPorIdMiembros[key] || 0) + 1;
+  });
+
+  await setDoc(doc(conversationRef, SUBCOLECCION_MENSAJES, messageDoc.idMensaje), messageDoc);
+  await setDoc(
+    conversationRef,
+    {
+      ...existingConversation,
+      actualizadoEn: messageDoc.enviadoEn,
+      ultimoMensaje: {
+        idMensaje: messageDoc.idMensaje,
+        texto: messageDoc.texto,
+        tipoContenido: messageDoc.tipoContenido,
+        remitenteIdMiembros: messageDoc.remitenteIdMiembros,
+        enviadoEn: messageDoc.enviadoEn,
+      },
+      noLeidosPorIdMiembros,
+    },
+    { merge: true }
+  );
+
+  return conversationToUi(
+    { ...existingConversation, actualizadoEn: messageDoc.enviadoEn, noLeidosPorIdMiembros },
+    (await getMessages(conversationId)).map(messageToUi),
+    viewerIdMiembros
+  );
+}
+
+async function markAsSeen(conversationId, viewerIdMiembros = null) {
+  const existingConversation = await getConversationDoc(conversationId);
+
+  if (!existingConversation) return null;
+
+  const viewerId = toNumberOrNull(viewerIdMiembros);
+  const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
+
+  if (viewerId) {
+    noLeidosPorIdMiembros[String(viewerId)] = 0;
+  } else {
+    Object.keys(noLeidosPorIdMiembros).forEach((idMiembros) => {
+      noLeidosPorIdMiembros[idMiembros] = 0;
+    });
+  }
+
+  await setDoc(
+    doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId)),
+    { noLeidosPorIdMiembros },
+    { merge: true }
+  );
+
+  return { ...existingConversation, noLeidosPorIdMiembros };
+}
+
+export async function GET(req) {
+  try {
+    ensureFirestore();
+
+    const { searchParams } = new URL(req.url);
+    const endpoint = searchParams.get('endpoint');
+    const conversationId = searchParams.get('conversationId');
+    const viewerIdMiembros = toNumberOrNull(searchParams.get('idMiembros'));
+
+    if (endpoint === 'contacts') {
+      const [members, firestoreProfiles] = await Promise.all([
+        getMembersFromApi(),
+        getMembersFromFirestoreProfiles(),
+      ]);
+
+      return Response.json({ contacts: getAllContacts([...members, ...firestoreProfiles]) });
+    }
+
+    if (endpoint === 'conversations') {
+      const conversations = await getConversations(viewerIdMiembros);
+
+      return Response.json({ conversations });
+    }
+
+    if (endpoint === 'conversation') {
+      const conversation = await getConversationDoc(conversationId);
+
+      if (!conversation) {
+        return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
+      }
+
+      if (
+        viewerIdMiembros &&
+        !asArray(conversation.participantesIds).some(
+          (idMiembros) => Number(idMiembros) === Number(viewerIdMiembros)
+        )
+      ) {
+        return Response.json(
+          { message: 'No tienes acceso a esta conversación.' },
+          { status: 403 }
+        );
+      }
+
+      return Response.json({
+        conversation: await conversationToUi(conversation, null, viewerIdMiembros),
+      });
+    }
+
+    if (endpoint === 'mark-as-seen') {
+      await markAsSeen(conversationId, viewerIdMiembros);
+
+      return Response.json({ success: true });
+    }
+
+    return Response.json({ message: 'Endpoint de chat inválido.' }, { status: 400 });
+  } catch (error) {
+    return Response.json(
+      { message: error?.message || 'Error procesando el chat.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req) {
+  try {
+    ensureFirestore();
+
+    const body = await req.json();
+    const conversation = await createConversation(body.conversationData);
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return Response.json(
+      { message: error?.message || 'Error creando la conversación.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    ensureFirestore();
+
+    const body = await req.json();
+    const conversation = await addMessage(body.conversationId, body.messageData, body.idMiembros);
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return Response.json(
+      { message: error?.message || 'Error enviando el mensaje.' },
+      { status: 500 }
+    );
+  }
+}

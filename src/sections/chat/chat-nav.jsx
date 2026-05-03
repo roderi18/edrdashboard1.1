@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -11,14 +11,10 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { today } from 'src/utils/format-time';
-
 import { createConversation } from 'src/actions/chat';
 
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-
-import { useMockedUser } from 'src/auth/hooks';
 
 import { ToggleButton } from './styles';
 import { ChatNavItem } from './chat-nav-item';
@@ -26,6 +22,7 @@ import { ChatNavAccount } from './chat-nav-account';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatNavSearchResults } from './chat-nav-search-results';
 import { initialConversation } from './utils/initial-conversation';
+import { useChatCurrentContact } from './hooks/use-chat-current-contact';
 
 // ----------------------------------------------------------------------
 
@@ -35,7 +32,7 @@ const NAV_COLLAPSE_WIDTH = 96;
 export function ChatNav({ loading, contacts, collapseNav, conversations, selectedConversationId }) {
   const router = useRouter();
 
-  const { user } = useMockedUser();
+  const myContact = useChatCurrentContact(contacts);
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
@@ -49,21 +46,6 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
   } = collapseNav;
 
   const [searchContacts, setSearchContacts] = useState({ query: '', results: [] });
-
-  const myContact = useMemo(
-    () => ({
-      id: `${user?.id}`,
-      role: `${user?.role}`,
-      email: `${user?.email}`,
-      address: `${user?.address}`,
-      name: `${user?.displayName}`,
-      lastActivity: today(),
-      avatarUrl: `${user?.photoURL}`,
-      phoneNumber: `${user?.phoneNumber}`,
-      status: 'online',
-    }),
-    [user]
-  );
 
   useEffect(() => {
     if (!mdUp) {
@@ -92,7 +74,9 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
 
       if (inputValue) {
         const results = contacts.filter((contact) =>
-          contact.name.toLowerCase().includes(inputValue.toLowerCase())
+          [contact.name, contact.codigoMiembro, contact.correo, contact.telefono]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(inputValue.toLowerCase()))
         );
 
         setSearchContacts((prevState) => ({ ...prevState, results }));
@@ -112,27 +96,30 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
       const linkTo = (id) => router.push(`${paths.dashboard.chat}?id=${id}`);
 
       try {
-        // Check if the conversation already exists
-        if (conversations.allIds.includes(result.id)) {
-          linkTo(result.id);
+        // Reusar una conversación individual existente con este miembro.
+        const existingConversation = Object.values(conversations.byId).find(
+          (conversation) =>
+            conversation.type === 'ONE_TO_ONE' &&
+            conversation.participants.some((participant) => participant.id === result.id)
+        );
+
+        if (existingConversation) {
+          linkTo(existingConversation.id);
           return;
         }
 
-        // Find the recipient in contacts
         const recipient = contacts.find((contact) => contact.id === result.id);
         if (!recipient) {
           console.error('Recipient not found');
           return;
         }
 
-        // Prepare conversation data
         const { conversationData } = initialConversation({
           recipients: [recipient],
           me: myContact,
         });
 
-        // Crear nuevo conversation
-        const res = await createConversation(conversationData);
+        const res = await createConversation(conversationData, myContact.idMiembros);
 
         if (!res || !res.conversation) {
           console.error('Failed to create conversation');
@@ -141,10 +128,10 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
         // Navigate to the new conversation
         linkTo(res.conversation.id);
       } catch (error) {
-        console.error('Error handling click result:', error);
+        console.error('Error al seleccionar el contacto:', error);
       }
     },
-    [contacts, conversations.allIds, handleClickAwaySearch, myContact, router]
+    [contacts, conversations.byId, handleClickAwaySearch, myContact, router]
   );
 
   const renderLoading = () => <ChatNavItemSkeleton />;
@@ -156,6 +143,7 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
           <ChatNavItem
             key={conversationId}
             collapse={collapseDesktop}
+            currentContact={myContact}
             conversation={conversations.byId[conversationId]}
             selected={conversationId === selectedConversationId}
             onCloseMobile={onCloseMobile}
@@ -179,7 +167,7 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
         fullWidth
         value={searchContacts.query}
         onChange={(event) => handleSearchContacts(event.target.value)}
-        placeholder="Search contacts..."
+        placeholder="Buscar contactos..."
         slotProps={{
           input: {
             startAdornment: (
@@ -231,7 +219,7 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
         renderLoading()
       ) : (
         <Scrollbar sx={{ pb: 1 }}>
-          {searchContacts.query && !!conversations.allIds.length
+          {searchContacts.query
             ? renderListResults()
             : renderList()}
         </Scrollbar>

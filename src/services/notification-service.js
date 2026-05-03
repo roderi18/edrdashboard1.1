@@ -32,12 +32,12 @@ const MODULOS_CATEGORIAS = {
 
 const TIPOS_VISUALES = {
   administrador_creado: 'mail',
-  cuenta_creada: 'friend',
+  cuenta_creada: 'mail',
   evento_reprogramado: 'tags',
   factura_disponible: 'mail',
   factura_generada: 'mail',
   miembro_actualizado: 'project',
-  miembro_creado: 'friend',
+  miembro_creado: 'mail',
   mensaje_recibido: 'chat',
   pedido_cancelado: 'order',
   pedido_confirmado: 'delivery',
@@ -136,6 +136,241 @@ const construirMetadatosMiembro = (miembro = {}) => ({
   fechaFinCertificado: miembro.FechaVencimientoCI || null,
   estatusMiembro: miembro.status || 'active',
 });
+
+const obtenerIdsAdministradoresNotificaciones = async (usuarioActual = {}) => {
+  const ids = new Set();
+  const currentRole = String(usuarioActual?.role ?? usuarioActual?.rol ?? '').toLowerCase();
+  const currentIsAdmin = currentRole === 'admin' || currentRole === 'administrador';
+
+  if (currentIsAdmin && usuarioActual?.uid) ids.add(String(usuarioActual.uid));
+  if (currentIsAdmin && usuarioActual?.id) ids.add(String(usuarioActual.id));
+
+  const leerColeccion = async (collectionName) => {
+    try {
+      const snapshot = await getDocs(collection(FIRESTORE, collectionName));
+
+      snapshot.docs.forEach((item) => {
+        const data = item.data() ?? {};
+        const rol = String(data.rol ?? data.role ?? '').toLowerCase();
+        const esAdmin =
+          collectionName === 'admins' || rol === 'admin' || rol === 'administrador';
+
+        if (!esAdmin) return;
+
+        const id = data.uid ?? data.idUsuario ?? item.id;
+
+        if (id) {
+          ids.add(String(id));
+        }
+      });
+    } catch (error) {
+      console.warn(`[notifications] no se pudo leer ${collectionName}`, error);
+    }
+  };
+
+  await Promise.all([leerColeccion('admins'), leerColeccion('users')]);
+
+  return Array.from(ids);
+};
+
+const obtenerIdUsuarioNotificaciones = (usuario = {}) =>
+  String(usuario?.uid || usuario?.id || usuario?.usuarioId || '').trim();
+
+const construirDescripcionPedido = (orden = {}) => {
+  const numeroOrden = orden?.numeroOrden || orden?.orderNumber || orden?.ordenId || orden?.id;
+  const monto = Number(orden?.montoTotal ?? orden?.totalAmount ?? 0);
+  const cantidad = Number(orden?.cantidadTotal ?? orden?.totalQuantity ?? 0);
+
+  return {
+    numeroOrden,
+    monto,
+    cantidad,
+    clienteNombre: orden?.cliente?.nombre || orden?.customer?.name || 'Cliente',
+    clienteCorreo: orden?.cliente?.correo || orden?.customer?.email || '',
+  };
+};
+
+export async function crearNotificacionMiembroCreado({ miembro = {}, usuario = {} }) {
+  asegurarFirebaseNotificaciones();
+
+  const idsDestinatarios = await obtenerIdsAdministradoresNotificaciones(usuario);
+
+  if (!idsDestinatarios.length) {
+    return null;
+  }
+
+  const idMiembro = Number(miembro.id ?? miembro.idMiembros ?? 0);
+  const codigoMiembro = miembro.memberId || miembro.codigoMiembro || '';
+  const nombreMiembro =
+    construirNombreCompletoMiembro(miembro) || codigoMiembro || `Miembro ${idMiembro}`;
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Sistema';
+  const fotoMiembro = miembro?.avatarUrl || miembro?.photoURL || null;
+  const fechaActual = new Date().toISOString();
+  const notificationId = `miembro_creado_${idMiembro || codigoMiembro || Date.now()}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'miembro_creado',
+    modulo: 'miembros',
+    titulo: 'Nuevo miembro creado',
+    tituloHtml: `<p><strong>${escapeHtml(nombreMiembro)}</strong> fue registrado como nuevo miembro</p>`,
+    mensaje: 'fue registrado como nuevo miembro.',
+    mensajeVisual: 'fue registrado como nuevo miembro.',
+    rolDestinatario: 'admin',
+    idsDestinatarios,
+    prioridad: 'informativa',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || 'sistema'),
+    actorTipo: usuario?.role === 'admin' ? 'admin' : 'sistema',
+    actorNombre,
+    actorFotoURL: usuario?.photoURL || fotoMiembro || null,
+    entidadTipo: 'miembro',
+    entidadId: idMiembro || codigoMiembro,
+    ruta: idMiembro ? `/dashboard/level/member/${idMiembro}/edit` : '/dashboard/level/member',
+    imagenTipo: 'persona',
+    imagenURL: fotoMiembro,
+    miniaturaURL: fotoMiembro,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver miembro',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: construirMetadatosMiembro(miembro),
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
+  );
+
+  return notificacion;
+}
+
+export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {} }) {
+  asegurarFirebaseNotificaciones();
+
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+  const idUsuario = obtenerIdUsuarioNotificaciones(usuario) || String(orden?.usuarioId || '');
+  const fechaActual = new Date().toISOString();
+  const ordenId = orden?.ordenId || orden?.id || '';
+  const { numeroOrden, monto, cantidad, clienteNombre, clienteCorreo } =
+    construirDescripcionPedido(orden);
+  const actorId = idUsuario || 'sistema';
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Cliente';
+  const actorFotoURL = usuario?.photoURL || null;
+  const baseMetadatos = {
+    ordenId,
+    numeroOrden,
+    montoTotal: monto,
+    cantidadTotal: cantidad,
+    clienteNombre,
+    clienteCorreo,
+    miembroId: orden?.miembroId ?? usuario?.idMiembros ?? null,
+    codigoMiembro: orden?.cliente?.codigoMiembro ?? usuario?.codigoMiembro ?? null,
+  };
+
+  const notificaciones = [];
+
+  if (idsAdministradores.length) {
+    notificaciones.push({
+      id: `pedido_recibido_${ordenId || Date.now()}`,
+      tipoNotificacion: 'pedido_recibido',
+      modulo: 'pedidos',
+      titulo: 'Nuevo pedido recibido',
+      tituloHtml: `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`,
+      mensaje: `realizó el pedido ${numeroOrden}.`,
+      mensajeVisual: `realizó el pedido ${numeroOrden}.`,
+      rolDestinatario: 'admin',
+      idsDestinatarios: idsAdministradores,
+      prioridad: 'importante',
+      estado: 'no_leida',
+      fechaCreacion: fechaActual,
+      fechaEnvio: fechaActual,
+      actorId,
+      actorTipo: 'usuario',
+      actorNombre,
+      actorFotoURL,
+      entidadTipo: 'pedido',
+      entidadId: ordenId,
+      ruta: numeroOrden ? `/dashboard/order/${numeroOrden}` : '/dashboard/order',
+      imagenTipo: 'icono',
+      imagenURL: null,
+      miniaturaURL: null,
+      tipoAccion: 'ver',
+      etiquetaAccion: 'Ver pedido',
+      tipoAccionSecundaria: null,
+      etiquetaAccionSecundaria: null,
+      leidaPor: [],
+      fechaProgramada: null,
+      fechaExpiracion: null,
+      fechaLectura: null,
+      metadatos: baseMetadatos,
+      creadoEnServidor: serverTimestamp(),
+      actualizadoEnServidor: serverTimestamp(),
+    });
+  }
+
+  if (idUsuario) {
+    notificaciones.push({
+      id: `pedido_creado_${ordenId || Date.now()}_${idUsuario}`,
+      tipoNotificacion: 'pedido_creado',
+      modulo: 'pedidos',
+      titulo: 'Pedido creado',
+      tituloHtml: `<p><strong>${escapeHtml(numeroOrden)}</strong> fue creado correctamente</p>`,
+      mensaje: `tu pedido ${numeroOrden} fue creado correctamente.`,
+      mensajeVisual: `tu pedido ${numeroOrden} fue creado correctamente.`,
+      rolDestinatario: 'usuario',
+      idsDestinatarios: [idUsuario],
+      prioridad: 'informativa',
+      estado: 'no_leida',
+      fechaCreacion: fechaActual,
+      fechaEnvio: fechaActual,
+      actorId: 'sistema',
+      actorTipo: 'sistema',
+      actorNombre: 'Tienda',
+      actorFotoURL: null,
+      entidadTipo: 'pedido',
+      entidadId: ordenId,
+      ruta: numeroOrden ? `/dashboard/order/${numeroOrden}` : '/dashboard/order',
+      imagenTipo: 'icono',
+      imagenURL: null,
+      miniaturaURL: null,
+      tipoAccion: 'ver',
+      etiquetaAccion: 'Ver pedido',
+      tipoAccionSecundaria: null,
+      etiquetaAccionSecundaria: null,
+      leidaPor: [],
+      fechaProgramada: null,
+      fechaExpiracion: null,
+      fechaLectura: null,
+      metadatos: baseMetadatos,
+      creadoEnServidor: serverTimestamp(),
+      actualizadoEnServidor: serverTimestamp(),
+    });
+  }
+
+  await Promise.all(
+    notificaciones.map((notificacion) =>
+      setDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
+        notificacion,
+        { merge: true }
+      )
+    )
+  );
+
+  return notificaciones;
+}
 
 const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {
   const idUsuario = String(usuario?.uid || usuario?.id || '');
@@ -471,10 +706,14 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}) =
   id,
   avatarUrl: notificacion.imagenURL || notificacion.actorFotoURL || null,
   type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
+  tipoNotificacion: notificacion.tipoNotificacion || '',
   category: obtenerCategoriaNotificacion(notificacion.modulo),
   estado: notificacion.estado || 'no_leida',
   isUnRead: notificacion.estado !== 'leida',
   createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,
+  ruta: notificacion.ruta || null,
+  entidadId: notificacion.entidadId || null,
+  metadatos: notificacion.metadatos || {},
   title: construirTituloHtml(notificacion),
 });
 
@@ -498,8 +737,35 @@ export async function listarNotificacionesFirestorePorUsuario(idUsuario) {
     .sort((a, b) => String(b.fechaCreacion || '').localeCompare(String(a.fechaCreacion || '')));
 }
 
+const esRolAdmin = (usuario = {}) => {
+  const role = String(usuario?.role ?? usuario?.rol ?? '').toLowerCase();
+
+  return role === 'admin' || role === 'administrador';
+};
+
+export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
+  const idUsuario = usuario?.uid || usuario?.id;
+  const notificaciones = await listarNotificacionesFirestorePorUsuario(idUsuario);
+  const usuarioEsAdmin = esRolAdmin(usuario);
+
+  return notificaciones.filter((notificacion) => {
+    const rolDestinatario = String(notificacion.rolDestinatario ?? '').toLowerCase();
+
+    if (rolDestinatario === 'admin') return usuarioEsAdmin;
+    if (rolDestinatario === 'usuario') return !usuarioEsAdmin;
+
+    return true;
+  });
+}
+
 export async function listarNotificacionesDrawerPorUsuario(idUsuario) {
   const notificaciones = await listarNotificacionesFirestorePorUsuario(idUsuario);
+  return notificaciones.map((item) => transformarNotificacionFirestoreADrawer(item.id, item));
+}
+
+export async function listarNotificacionesDrawerParaUsuario(usuario = {}) {
+  const notificaciones = await listarNotificacionesFirestoreParaUsuario(usuario);
+
   return notificaciones.map((item) => transformarNotificacionFirestoreADrawer(item.id, item));
 }
 
