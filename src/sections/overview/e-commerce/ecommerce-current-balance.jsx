@@ -32,17 +32,17 @@ export function EcommerceCurrentBalance({
       <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ typography: 'h3' }}>{fCurrency(currentBalance)}</Box>
 
-        {renderRow('Order total', orderTotal)}
-        {renderRow('Earning', earning)}
-        {renderRow('Refunded', refunded)}
+        {renderRow('Total de pedidos', orderTotal)}
+        {renderRow('Ganancias', earning)}
+        {renderRow('Reembolsado', refunded)}
 
         <Box sx={{ gap: 2, display: 'flex' }}>
           <Button fullWidth variant="contained" color="warning">
-            Request
+            Solicitar
           </Button>
 
           <Button fullWidth variant="contained" color="primary">
-            Transfer
+            Transferir
           </Button>
         </Box>
       </Box>

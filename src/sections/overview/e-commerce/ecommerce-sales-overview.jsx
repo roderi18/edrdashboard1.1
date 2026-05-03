@@ -35,8 +35,8 @@ export function EcommerceSalesOverview({ title, subheader, data, sx, ...other })
 
 function Item({ progress }) {
   const color =
-    (progress.label === 'Total income' && 'info') ||
-    (progress.label === 'Total expenses' && 'warning') ||
+    (progress.label === 'Ingresos totales' && 'info') ||
+    (progress.label === 'Gastos totales' && 'warning') ||
     'primary';
 
   return (

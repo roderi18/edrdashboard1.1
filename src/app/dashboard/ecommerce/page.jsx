@@ -4,7 +4,7 @@ import { OverviewEcommerceView } from 'src/sections/overview/e-commerce/view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `E-commerce | Dashboard - ${CONFIG.appName}` };
+export const metadata = { title: `Comercio electrónico | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   return <OverviewEcommerceView />;

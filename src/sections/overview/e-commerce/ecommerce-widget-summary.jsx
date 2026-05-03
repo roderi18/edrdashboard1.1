@@ -81,7 +81,7 @@ export function EcommerceWidgetSummary({ title, percent, total, chart, sx, ...ot
       </Box>
 
       <Box component="span" sx={{ color: 'text.secondary', typography: 'body2' }}>
-        last week
+        última semana
       </Box>
     </Box>
   );

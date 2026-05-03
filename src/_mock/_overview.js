@@ -122,7 +122,7 @@ export const _analyticTraffic = [
 // ECOMMERCE
 // ----------------------------------------------------------------------
 
-export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total expenses'].map(
+export const _ecommerceSalesOverview = ['Ganancia total', 'Ingresos totales', 'Gastos totales'].map(
   (label, index) => ({
     label,
     totalAmount: _mock.number.price(index) * 100,
@@ -131,12 +131,19 @@ export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total e
 );
 
 export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
-  const category = ['CAP', 'Branded shoes', 'Headphone', 'Cell phone', 'Earings'][index];
+  const category = ['Gorra', 'Zapatos de marca', 'Auriculares', 'Teléfono móvil', 'Pendientes'][index];
+  const productNames = [
+    'Chaqueta urbana',
+    'Bolso de mano',
+    'Reloj clásico',
+    'Gafas de sol',
+    'Zapatillas deportivas',
+  ];
 
   return {
     id: _mock.id(index),
-    category,
-    rank: `Top ${index + 1}`,
+    category: productNames[index] || category,
+    rank: `Puesto ${index + 1}`,
     email: _mock.email(index),
     name: _mock.fullName(index),
     totalAmount: _mock.number.price(index),
@@ -150,22 +157,38 @@ export const _ecommerceLatestProducts = Array.from({ length: 5 }, (_, index) => 
     (index === 1 && ['#92140C', '#FFCF99']) ||
     (index === 2 && ['#0CECDD', '#FFF338', '#FF67E7', '#C400FF', '#52006A', '#046582']) ||
     (index === 3 && ['#845EC2', '#E4007C', '#2A1A5E']) || ['#090088'];
+  const productNames = [
+    'Chaqueta urbana',
+    'Bolso de mano',
+    'Reloj clásico',
+    'Gafas de sol',
+    'Zapatillas deportivas',
+  ];
 
   return {
     id: _mock.id(index),
     colors,
-    name: _mock.productName(index),
+    name: productNames[index] || _mock.productName(index),
     price: _mock.number.price(index),
     coverUrl: _mock.image.product(index),
     priceSale: [1, 3].includes(index) ? _mock.number.price(index) : 0,
   };
 });
 
-export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => ({
-  id: _mock.id(index),
-  name: _mock.productName(index),
-  coverUrl: _mock.image.product(index),
-}));
+export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => {
+  const productNames = [
+    'Chaqueta urbana',
+    'Bolso de mano',
+    'Reloj clásico',
+    'Gafas de sol',
+  ];
+
+  return {
+    id: _mock.id(index),
+    name: productNames[index] || _mock.productName(index),
+    coverUrl: _mock.image.product(index),
+  };
+});
 
 // BANKING
 // ----------------------------------------------------------------------

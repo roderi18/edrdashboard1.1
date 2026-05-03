@@ -56,7 +56,7 @@ function CarouselItem({ item, ...other }) {
         }}
       >
         <Typography variant="overline" sx={{ opacity: 0.48 }}>
-          New
+          Nuevo
         </Typography>
 
         <Link color="inherit" underline="none" variant="h5" noWrap sx={{ mt: 1, mb: 3 }}>
@@ -64,7 +64,7 @@ function CarouselItem({ item, ...other }) {
         </Link>
 
         <Button color="primary" variant="contained" sx={{ alignSelf: 'flex-start' }}>
-          Buy now
+          Comprar ahora
         </Button>
       </Box>
 

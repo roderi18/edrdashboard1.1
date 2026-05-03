@@ -60,10 +60,10 @@ function RowItem({ row }) {
         <Label
           variant="soft"
           color={
-            (row.rank === 'Top 1' && 'primary') ||
-            (row.rank === 'Top 2' && 'secondary') ||
-            (row.rank === 'Top 3' && 'info') ||
-            (row.rank === 'Top 4' && 'warning') ||
+            (row.rank === 'Puesto 1' && 'primary') ||
+            (row.rank === 'Puesto 2' && 'secondary') ||
+            (row.rank === 'Puesto 3' && 'info') ||
+            (row.rank === 'Puesto 4' && 'warning') ||
             'error'
           }
         >
