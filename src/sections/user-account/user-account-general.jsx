@@ -504,15 +504,16 @@ export function UserAccountGeneral() {
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 5, pb: 4, px: 3, textAlign: 'center' }}>
-            <Field.UploadAvatar
-              name="avatarUrl"
-              maxSize={1050000}
-              loading={uploadingPhoto}
-              disabled={uploadingPhoto}
-              onDrop={handleUploadAvatar}
-              sx={{ width: 96, height: 96, mx: 'auto', mb: 2 }}
-            />
+          <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center' }}>
+            <Box sx={{ mb: 5 }}>
+              <Field.UploadAvatar
+                name="avatarUrl"
+                maxSize={1050000}
+                loading={uploadingPhoto}
+                disabled={uploadingPhoto}
+                onDrop={handleUploadAvatar}
+              />
+            </Box>
 
             <Typography variant="subtitle1">{`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}</Typography>
 

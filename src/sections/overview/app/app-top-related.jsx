@@ -20,9 +20,9 @@ import { Scrollbar } from 'src/components/scrollbar';
 // ----------------------------------------------------------------------
 
 const TABS = [
-  { value: '7days', label: 'Top 7 days' },
-  { value: '30days', label: 'Top 30 days' },
-  { value: 'all', label: 'All times' },
+  { value: '7days', label: 'Top 7 días' },
+  { value: '30days', label: 'Top 30 días' },
+  { value: 'all', label: 'Todo el tiempo' },
 ];
 
 // ----------------------------------------------------------------------
@@ -102,7 +102,7 @@ function Item({ item, sx, ...other }) {
           </Typography>
 
           <Label color={item.price === 0 ? 'default' : 'success'} sx={{ height: 20 }}>
-            {item.price === 0 ? 'Free' : fCurrency(item.price)}
+            {item.price === 0 ? 'Gratis' : fCurrency(item.price)}
           </Label>
         </Box>
 

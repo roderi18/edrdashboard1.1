@@ -6,27 +6,35 @@ const GET_ALL_ENDPOINT = `${MEMBERS_ENDPOINT}/GetAllMiembros`;
 
 const normalize = (value) => String(value ?? '').trim().toLowerCase();
 
-const buildMemberPayload = (body) => ({
-    idMiembros: Number(body.idMiembros),
-    codigoMiembro: body.codigoMiembro ?? null,
-    nombres: body.nombres ?? null,
-    apellidos: body.apellidos ?? null,
-    genero: body.genero ?? null,
-    fechaNacimiento: body.fechaNacimiento ?? null,
-    idDestacamento: body.idDestacamento ? Number(body.idDestacamento) : null,
-    telefono: body.telefono ?? null,
-    direccion: body.direccion ?? null,
-    correo: body.correo ?? null,
-    idDivision:
-        body.idDivision === undefined || body.idDivision === null || body.idDivision === ''
-            ? null
-            : Number(body.idDivision),
-    instructorCertificadoCi: body.instructorCertificadoCi ?? null,
-    estatusVigenciaCi: body.estatusVigenciaCi ?? null,
-    fechaInicioCertificado: body.fechaInicioCertificado ?? null,
-    fechaFinCertificado: body.fechaFinCertificado ?? null,
-    estatusMiembro: body.estatusMiembro ?? null,
-});
+const isValueProvided = (value) => value !== undefined && value !== null && value !== '';
+
+const optionalNumber = (value) => (isValueProvided(value) ? Number(value) : null);
+
+const buildMemberPayload = (body) => {
+    const payload = {
+        idMiembros: Number(body.idMiembros),
+        codigoMiembro: body.codigoMiembro ?? null,
+        nombres: body.nombres ?? null,
+        apellidos: body.apellidos ?? null,
+        genero: body.genero ?? null,
+        fechaNacimiento: body.fechaNacimiento ?? null,
+        idDestacamento: optionalNumber(body.idDestacamento),
+        telefono: body.telefono ?? null,
+        direccion: body.direccion ?? null,
+        correo: body.correo ?? null,
+        idDivision: optionalNumber(body.idDivision),
+        instructorCertificadoCi: body.instructorCertificadoCi ?? null,
+        estatusVigenciaCi: body.estatusVigenciaCi ?? null,
+        fechaInicioCertificado: body.fechaInicioCertificado ?? null,
+        fechaFinCertificado: body.fechaFinCertificado ?? null,
+    };
+
+    if (isValueProvided(body.estatusMiembro)) {
+        payload.estatusMiembro = body.estatusMiembro;
+    }
+
+    return payload;
+};
 
 const parseResponseText = (text) => {
     try {

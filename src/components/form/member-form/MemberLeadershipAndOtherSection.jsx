@@ -1,16 +1,40 @@
+import { useState, useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
-import DashedAccordion from 'src/components/expandable/DashedAccordion';
-import { Iconify } from 'src/components/iconify';
+
 import { Field } from 'src/components/hook-form';
-import { useState, useEffect } from 'react';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
+
 import {
-    MEMBER_OCUPATIONS_SORTED,
     MEMBER_GENDERS,
     MEMBER_SHIRT_SIZES,
+    MEMBER_OCUPATIONS_SORTED,
 
 } from 'src/sections/member/member-create-edit-options';
-import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
+
+const getRowsFromApi = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.Data)) return payload.Data;
+    if (Array.isArray(payload?.items)) return payload.items;
+
+    return [];
+};
+
+const normalizeDest = (dest) => {
+    const id = dest?.idDestacamento ?? dest?.id ?? dest?.value;
+    const name = dest?.nombre ?? dest?.name ?? dest?.label ?? '';
+    const destNumber = dest?.numero ?? dest?.destNumber ?? '';
+
+    return {
+        id: String(id ?? ''),
+        name: name || `Destacamento ${id}`,
+        destNumber,
+    };
+};
+
 export default function MemberLeadershipAndOtherSection({
     watch,
     methods,
@@ -19,30 +43,12 @@ export default function MemberLeadershipAndOtherSection({
 }) {
 
     const [dests, setDests] = useState([]);
-    const [cargos, setCargos] = useState([]);
-
-    useEffect(() => {
-        const loadCargos = async () => {
-            const res = await fetch('/api/cargos');
-            const data = await res.json();
-            setCargos(Array.isArray(data?.Data) ? data.Data : []);
-
-        };
-
-        loadCargos();
-    }, []);
 
     useEffect(() => {
         const load = async () => {
-            const res = await fetch('/api/dest');
+            const res = await fetch('/api/dest/');
             const data = await res.json();
-            setDests(
-                (data?.Data || []).map((d) => ({
-                    id: String(d.idDestacamento),
-                    name: d.nombre,
-                    destNumber: d.numero,
-                }))
-            );
+            setDests(getRowsFromApi(data).map(normalizeDest).filter((dest) => dest.id));
         };
 
         load();
@@ -79,11 +85,13 @@ export default function MemberLeadershipAndOtherSection({
                 label="Tu Destacamento"
                 options={dests}
                 freeSolo={false}
-                value={dests.find((d) => d.id === watch('destId')) || null}
+                value={dests.find((d) => String(d.id) === String(watch('destId'))) || null}
                 getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option?.name || ''
+                    typeof option === 'string'
+                        ? option
+                        : `${option?.name || ''} ${option?.destNumber || ''}`.trim()
                 }
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                 onChange={(event, option) => {
                     methods.setValue('destId', option?.id || '');
                 }}

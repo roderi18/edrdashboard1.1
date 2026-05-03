@@ -48,7 +48,7 @@ export function AppNewInvoices({ title, subheader, tableData, headCells, sx, ...
           color="inherit"
           endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} sx={{ ml: -0.5 }} />}
         >
-          View all
+          Ver todo
         </Button>
       </Box>
     </Card>
@@ -90,24 +90,24 @@ function RowItem({ row }) {
       <MenuList>
         <MenuItem onClick={handleDownload}>
           <Iconify icon="eva:cloud-download-fill" />
-          Download
+          Descargar
         </MenuItem>
 
         <MenuItem onClick={handlePrint}>
           <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
+          Imprimir
         </MenuItem>
 
         <MenuItem onClick={handleShare}>
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
         <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -126,8 +126,8 @@ function RowItem({ row }) {
           <Label
             variant="soft"
             color={
-              (row.status === 'progress' && 'warning') ||
-              (row.status === 'out of date' && 'error') ||
+              (row.status === 'en progreso' && 'warning') ||
+              (row.status === 'vencida' && 'error') ||
               'success'
             }
           >

@@ -180,6 +180,33 @@ const createFirebaseAuthForMember = async ({
   }
 };
 
+const getRowsFromApi = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.Data)) return payload.Data;
+  if (Array.isArray(payload?.items)) return payload.items;
+
+  return [];
+};
+
+const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
+
+const hasDuplicatedCodigoMiembro = (membersList, codigoMiembro, currentMemberId) => {
+  const normalizedCodigoMiembro = normalizeMemberUsername(codigoMiembro);
+
+  if (!normalizedCodigoMiembro) return false;
+
+  return (Array.isArray(membersList) ? membersList : []).some((member) => {
+    const memberId = member?.idMiembros ?? member?.id;
+    const memberCodigoMiembro = normalizeMemberUsername(getCodigoMiembro(member));
+
+    return (
+      memberCodigoMiembro === normalizedCodigoMiembro &&
+      String(memberId ?? '') !== String(currentMemberId ?? '')
+    );
+  });
+};
+
 const mapMemberToForm = (member) => {
   const leadershipAssignments = getLeadershipAssignments();
   const memberLeaderships = leadershipAssignments.filter(
@@ -384,7 +411,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/dest');
+      const res = await fetch('/api/dest/');
       let data = null;
 
       try {
@@ -394,7 +421,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
         return;
       }
 
-      setDests(data?.Data || []);
+      setDests(getRowsFromApi(data));
     };
 
     load();
@@ -615,6 +642,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
         const codigoMiembro = currentMember?.memberId || (await generateMemberId());
+
+        if (!currentMember) {
+          const existingMembers = await getMembers();
+
+          if (hasDuplicatedCodigoMiembro(existingMembers, codigoMiembro, currentMember?.id)) {
+            toast.error(`El codigo de miembro ${codigoMiembro} ya existe. No se creo el miembro.`);
+            return;
+          }
+        }
+
         const provinces = provinciasData;
         const municipios = municipiosData.map((m, index) => ({
           ...m,
@@ -671,7 +708,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           fechaFinCertificado: formData.FechaVencimientoCI
             ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
             : null,
-          estatusMiembro: formData.status ?? 'active',
         };
         console.log('PAYLOAD FINAL Ã°Å¸â€˜â€°', JSON.stringify(payload, null, 2));
         console.log('[member form] submitting member update', {
@@ -1011,6 +1047,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                   memberCode={currentMember?.memberId}
                   fullName={memberFullName}
                   destName={destName}
+                  avatarUrl={currentMember?.avatarUrl}
                 />
               </Stack>
             )}
@@ -1308,7 +1345,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                     : null,
                   idDivision: Number(formData.idDivision) || 0,
                   instructorCertificadoCi: formData.InstructorCertificadoCI === 1,
-                  estatusMiembro: formData.status ?? 'active',
                 };
               }}
             />

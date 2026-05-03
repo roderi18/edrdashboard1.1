@@ -22,6 +22,7 @@ export function ChatMessageItem({ message, participants, currentContact, onOpenL
   const { firstName, avatarUrl } = senderDetails;
 
   const { body, createdAt } = message;
+  const isSent = me && message.estadoEnvio !== 'enviando';
 
   const renderInfo = () => (
     <Typography
@@ -100,6 +101,25 @@ export function ChatMessageItem({ message, participants, currentContact, onOpenL
     </Box>
   );
 
+  const renderDeliveryStatus = () =>
+    isSent && (
+      <Typography
+        component="span"
+        aria-label="Mensaje enviado"
+        sx={{
+          ml: 0.75,
+          alignSelf: 'flex-end',
+          lineHeight: 1,
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'primary.main',
+          letterSpacing: 0,
+        }}
+      >
+        ✓
+      </Typography>
+    );
+
   if (!message.body) {
     return null;
   }
@@ -120,6 +140,7 @@ export function ChatMessageItem({ message, participants, currentContact, onOpenL
           }}
         >
           {renderBody()}
+          {renderDeliveryStatus()}
           {renderActions()}
         </Box>
       </Stack>

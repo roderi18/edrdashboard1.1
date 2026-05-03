@@ -9,12 +9,16 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
+import { paths } from 'src/routes/paths';
+import { usePathname, useSearchParams } from 'src/routes/hooks';
+
 import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
 import { _contacts, _notifications } from 'src/_mock';
 import { useGetContacts, useGetConversations } from 'src/actions/chat';
 import {
+  marcarNotificacionComoLeida,
   listarNotificacionesDrawerParaUsuario,
   marcarNotificacionesComoLeidasPorUsuario,
 } from 'src/services/notification-service';
@@ -68,14 +72,21 @@ const agregarIndicadorChats = (sections = [], unreadCount = 0) =>
 
 export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }) {
   const theme = useTheme();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const { user } = useAuthContext();
   const { contacts } = useGetContacts();
   const currentContact = useChatCurrentContact(contacts);
   const { conversations } = useGetConversations(currentContact.idMiembros);
+  const activeChatId = pathname?.startsWith(paths.dashboard.chat) ? searchParams.get('id') : null;
   const chatsSinLeer = conversations.allIds.reduce(
     (total, conversationId) =>
-      total + (Number(conversations.byId[conversationId]?.unreadCount || 0) > 0 ? 1 : 0),
+      total +
+      (conversationId !== activeChatId &&
+      Number(conversations.byId[conversationId]?.unreadCount || 0) > 0
+        ? 1
+        : 0),
     0
   );
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
@@ -103,6 +114,24 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       await marcarNotificacionesComoLeidasPorUsuario(user.uid);
     } catch (error) {
       console.error('[notifications test] no se pudieron marcar como leidas', error);
+    }
+  };
+
+  const handleMarcarNotificacionComoLeida = async (notificationId) => {
+    const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId];
+
+    setNotificacionesDrawer((prevState) =>
+      prevState.map((notification) =>
+        notificationIds.includes(notification.id)
+          ? { ...notification, isUnRead: false, estado: 'leida' }
+          : notification
+      )
+    );
+
+    try {
+      await marcarNotificacionComoLeida(notificationId);
+    } catch (error) {
+      console.error('[notifications] no se pudo marcar como leída', error);
     }
   };
 
@@ -134,9 +163,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
     cargarNotificaciones();
     window.addEventListener('notificaciones:actualizar', cargarNotificaciones);
+    const intervalId = window.setInterval(cargarNotificaciones, 5000);
 
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
       window.removeEventListener('notificaciones:actualizar', cargarNotificaciones);
     };
   }, [user]);
@@ -235,6 +266,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {/** @slot Notifications popover */}
           <NotificationsDrawer
             data={notificacionesDrawer}
+            onMarkAsRead={handleMarcarNotificacionComoLeida}
             onMarkAllAsRead={handleMarcarTodasComoLeidas}
           />
 

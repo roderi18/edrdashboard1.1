@@ -704,6 +704,7 @@ const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {
 
 export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}) => ({
   id,
+  idsNotificaciones: notificacion.idsNotificaciones || [id],
   avatarUrl: notificacion.imagenURL || notificacion.actorFotoURL || null,
   type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
   tipoNotificacion: notificacion.tipoNotificacion || '',
@@ -716,6 +717,72 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}) =
   metadatos: notificacion.metadatos || {},
   title: construirTituloHtml(notificacion),
 });
+
+const construirClaveGrupoNotificacion = (notificacion = {}) => {
+  if (notificacion.tipoNotificacion !== 'mensaje_recibido') {
+    return notificacion.id;
+  }
+
+  return [
+    notificacion.tipoNotificacion,
+    notificacion.metadatos?.idConversacion || notificacion.entidadId,
+    notificacion.metadatos?.remitenteIdMiembros || notificacion.actorId,
+  ]
+    .filter(Boolean)
+    .join('_');
+};
+
+const agruparNotificacionesMensaje = (notificaciones = []) => {
+  const grouped = new Map();
+
+  notificaciones.forEach((notificacion) => {
+    const key = construirClaveGrupoNotificacion(notificacion);
+
+    if (notificacion.tipoNotificacion !== 'mensaje_recibido') {
+      grouped.set(key, notificacion);
+      return;
+    }
+
+    const current = grouped.get(key);
+
+    if (!current) {
+      grouped.set(key, {
+        ...notificacion,
+        idsNotificaciones: [notificacion.id],
+        cantidadMensajes: 1,
+      });
+      return;
+    }
+
+    const cantidadMensajes = Number(current.cantidadMensajes || 1) + 1;
+    const newest =
+      String(notificacion.fechaCreacion || '').localeCompare(String(current.fechaCreacion || '')) > 0
+        ? notificacion
+        : current;
+    const hasUnread = current.estado !== 'leida' || notificacion.estado !== 'leida';
+
+    grouped.set(key, {
+      ...current,
+      ...newest,
+      idsNotificaciones: [...(current.idsNotificaciones || [current.id]), notificacion.id],
+      cantidadMensajes,
+      estado: hasUnread ? 'no_leida' : 'leida',
+      tituloHtml:
+        cantidadMensajes > 1
+          ? `<p><strong>${escapeHtml(newest.actorNombre || 'Usuario')}</strong> te envió ${cantidadMensajes} mensajes</p>`
+          : newest.tituloHtml,
+      metadatos: {
+        ...(current.metadatos || {}),
+        ...(newest.metadatos || {}),
+        cantidadMensajes,
+      },
+    });
+  });
+
+  return Array.from(grouped.values()).sort((a, b) =>
+    String(b.fechaCreacion || '').localeCompare(String(a.fechaCreacion || ''))
+  );
+};
 
 export async function listarNotificacionesFirestorePorUsuario(idUsuario) {
   if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) {
@@ -760,13 +827,37 @@ export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
 
 export async function listarNotificacionesDrawerPorUsuario(idUsuario) {
   const notificaciones = await listarNotificacionesFirestorePorUsuario(idUsuario);
-  return notificaciones.map((item) => transformarNotificacionFirestoreADrawer(item.id, item));
+  return agruparNotificacionesMensaje(notificaciones).map((item) =>
+    transformarNotificacionFirestoreADrawer(item.id, item)
+  );
 }
 
 export async function listarNotificacionesDrawerParaUsuario(usuario = {}) {
   const notificaciones = await listarNotificacionesFirestoreParaUsuario(usuario);
 
-  return notificaciones.map((item) => transformarNotificacionFirestoreADrawer(item.id, item));
+  return agruparNotificacionesMensaje(notificaciones).map((item) =>
+    transformarNotificacionFirestoreADrawer(item.id, item)
+  );
+}
+
+export async function marcarNotificacionComoLeida(notificationId) {
+  asegurarFirebaseNotificaciones();
+
+  const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId];
+
+  if (!notificationIds.filter(Boolean).length) {
+    return;
+  }
+
+  await Promise.all(
+    notificationIds.filter(Boolean).map((id) =>
+      updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id), {
+        estado: 'leida',
+        fechaLectura: new Date().toISOString(),
+        actualizadoEnServidor: serverTimestamp(),
+      })
+    )
+  );
 }
 
 export async function marcarNotificacionesComoLeidasPorUsuario(idUsuario) {

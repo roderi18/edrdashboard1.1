@@ -12,13 +12,14 @@ import { Chart, useChart, ChartSelect, ChartLegends } from 'src/components/chart
 
 export function AppAreaInstalled({ title, subheader, chart, sx, ...other }) {
   const theme = useTheme();
-
-  const [selectedSeries, setSelectedSeries] = useState('2023');
+  const hasMultipleSeries = chart.series.length > 1;
+  const [selectedSeries, setSelectedSeries] = useState(chart.series[0]?.name || '');
 
   const chartColors = chart.colors ?? [
     theme.palette.primary.dark,
     theme.palette.warning.main,
     theme.palette.info.main,
+    theme.palette.success.main,
   ];
 
   const chartOptions = useChart({
@@ -36,6 +37,9 @@ export function AppAreaInstalled({ title, subheader, chart, sx, ...other }) {
   }, []);
 
   const currentSeries = chart.series.find((i) => i.name === selectedSeries);
+  const legendValues = currentSeries?.data.map((item) =>
+    fShortenNumber(item.data.reduce((total, value) => total + value, 0))
+  );
 
   return (
     <Card sx={sx} {...other}>
@@ -43,11 +47,13 @@ export function AppAreaInstalled({ title, subheader, chart, sx, ...other }) {
         title={title}
         subheader={subheader}
         action={
-          <ChartSelect
-            options={chart.series.map((item) => item.name)}
-            value={selectedSeries}
-            onChange={handleChangeSeries}
-          />
+          hasMultipleSeries ? (
+            <ChartSelect
+              options={chart.series.map((item) => item.name)}
+              value={selectedSeries}
+              onChange={handleChangeSeries}
+            />
+          ) : null
         }
         sx={{ mb: 3 }}
       />
@@ -55,7 +61,7 @@ export function AppAreaInstalled({ title, subheader, chart, sx, ...other }) {
       <ChartLegends
         colors={chartOptions?.colors}
         labels={chart.series[0].data.map((item) => item.name)}
-        values={[fShortenNumber(1234), fShortenNumber(6789), fShortenNumber(1012)]}
+        values={legendValues}
         sx={{ px: 3, gap: 3 }}
       />
 

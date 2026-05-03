@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import * as z from 'zod';
 
 export const MEMBER_DEFAULT = {
     id: '',
@@ -32,6 +31,8 @@ export const MEMBER_DEFAULT = {
 
     createdAt: '',
     updatedAt: '',
+    lastActivityAt: '',
+    deletedAt: null,
 };
 
 export function createMember(data) {
@@ -83,6 +84,8 @@ export function createMember(data) {
 
         createdAt: data.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        lastActivityAt: data.lastActivityAt ?? data.updatedAt ?? data.createdAt ?? new Date().toISOString(),
+        deletedAt: data.deletedAt ?? null,
     };
 }
 

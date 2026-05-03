@@ -48,6 +48,8 @@ export function ChatMessageInput({
     async (event) => {
       if (event.key !== 'Enter' || !message) return;
 
+      setMessage('');
+
       try {
         if (selectedConversationId) {
           await sendMessage(selectedConversationId, messageData, currentContact.idMiembros);
@@ -59,8 +61,6 @@ export function ChatMessageInput({
         }
       } catch (error) {
         console.error(error);
-      } finally {
-        setMessage('');
       }
     },
     [

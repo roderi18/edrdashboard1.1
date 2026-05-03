@@ -31,7 +31,13 @@ const TABS = [
 
 // ----------------------------------------------------------------------
 
-export function NotificationsDrawer({ data = [], onMarkAllAsRead, sx, ...other }) {
+export function NotificationsDrawer({
+  data = [],
+  onMarkAsRead,
+  onMarkAllAsRead,
+  sx,
+  ...other
+}) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
   const [currentTab, setCurrentTab] = useState('all');
@@ -63,6 +69,17 @@ export function NotificationsDrawer({ data = [], onMarkAllAsRead, sx, ...other }
   const handleMarkAllAsRead = () => {
     setNotifications(notifications.map((notification) => ({ ...notification, isUnRead: false })));
     onMarkAllAsRead?.();
+  };
+
+  const handleClickNotification = async (notification) => {
+    setNotifications((prevState) =>
+      prevState.map((item) =>
+        item.id === notification.id ? { ...item, isUnRead: false, estado: 'leida' } : item
+      )
+    );
+
+    await onMarkAsRead?.(notification.idsNotificaciones || notification.id);
+    onClose();
   };
 
   const renderHead = () => (
@@ -136,7 +153,10 @@ export function NotificationsDrawer({ data = [], onMarkAllAsRead, sx, ...other }
       <Box component="ul">
         {notificationsFiltradas?.map((notification) => (
           <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
-            <NotificationItem notification={notification} />
+            <NotificationItem
+              notification={notification}
+              onClickNotification={handleClickNotification}
+            />
           </Box>
         ))}
       </Box>

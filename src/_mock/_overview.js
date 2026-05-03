@@ -24,14 +24,14 @@ export const _appRelated = [
   price: [2, 4].includes(index) ? _mock.number.price(index) : 0,
 }));
 
-export const _appInstalled = ['Germany', 'England', 'France', 'Korean', 'USA'].map(
-  (country, index) => ({
+export const _appInstalled = ['Santo Domingo', 'Santiago', 'La Altagracia', 'San Cristóbal', 'La Vega'].map(
+  (province, index) => ({
     id: _mock.id(index),
-    countryName: country,
+    countryName: province,
     android: _mock.number.nativeL(index),
     windows: _mock.number.nativeL(index + 1),
     apple: _mock.number.nativeL(index + 2),
-    countryCode: ['de', 'gb', 'fr', 'kr', 'us'][index],
+    countryCode: ['do', 'do', 'do', 'do', 'do'][index],
   })
 );
 
@@ -45,7 +45,7 @@ export const _appAuthors = Array.from({ length: 3 }, (_, index) => ({
 export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
   const category = ['Android', 'Mac', 'Windows', 'Android', 'Mac'][index];
 
-  const status = ['paid', 'out of date', 'progress', 'paid', 'paid'][index];
+  const status = ['pagada', 'vencida', 'en progreso', 'pagada', 'pagada'][index];
 
   return {
     id: _mock.id(index),
@@ -58,8 +58,12 @@ export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
 
 export const _appFeatured = Array.from({ length: 3 }, (_, index) => ({
   id: _mock.id(index + 3),
-  title: _mock.postTitle(index + 3),
-  description: _mock.sentence(index + 3),
+  title: ['Panel de métricas', 'Centro de productividad', 'Gestión inteligente'][index],
+  description: [
+    'Visualiza el rendimiento de tu equipo en un solo lugar.',
+    'Organiza tareas y sigue avances sin perder el contexto.',
+    'Toma decisiones rápidas con información clara y accionable.',
+  ][index],
   coverUrl: _mock.image.cover(index + 3),
 }));
 

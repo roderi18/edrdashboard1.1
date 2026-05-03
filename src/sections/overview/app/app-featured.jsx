@@ -80,7 +80,7 @@ function CarouselItem({ item, sx, ...other }) {
         }}
       >
         <Typography variant="overline" sx={{ color: 'primary.light' }}>
-          Featured App
+          Aplicación destacada
         </Typography>
 
         <Link color="inherit" underline="none" variant="h5" noWrap>

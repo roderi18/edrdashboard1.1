@@ -111,7 +111,7 @@ export function EntityInfoPdfMenu({ title, subtitle, avatarUrl, fileName, sectio
         onClick={menuActions.onOpen}
         endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
       >
-        Imprimir información
+        Descargar información
       </Button>
 
       <CustomPopover

@@ -7,9 +7,11 @@ import {
   getDocs,
   orderBy,
   collection,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { _contacts } from 'src/_mock/_others';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -20,6 +22,7 @@ const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
 const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
 const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
+const COLECCION_FOTOS = 'fotos';
 
 const nowIso = () => new Date().toISOString();
 
@@ -44,6 +47,14 @@ const buildNombreCompleto = (member = {}) =>
   member.displayName ||
   member.codigoMiembro ||
   `Miembro ${member.idMiembros ?? member.id ?? ''}`.trim();
+
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const normalizeMember = (member = {}) => {
   const idMiembros = toNumberOrNull(member.idMiembros ?? member.id ?? member.memberId);
@@ -316,6 +327,141 @@ async function getMembersFromFirestoreProfiles() {
     .filter((member) => member.idMiembros);
 }
 
+async function getNotificationProfilesByMemberIds(idMiembrosList = []) {
+  const targetIds = new Set(idMiembrosList.map((idMiembros) => Number(idMiembros)).filter(Boolean));
+
+  if (!targetIds.size) {
+    return [];
+  }
+
+  const snapshots = await Promise.all(
+    COLECCIONES_USUARIOS.map((collectionName) =>
+      getDocs(collection(FIRESTORE, collectionName)).catch(() => ({ docs: [], collectionName }))
+    )
+  );
+
+  return snapshots.flatMap((snapshot, index) => {
+    const collectionName = COLECCIONES_USUARIOS[index];
+
+    return snapshot.docs
+      .map((item) => {
+        const profile = item.data() ?? {};
+        const idMiembros = toNumberOrNull(profile.idMiembros ?? profile.memberId);
+
+        if (!targetIds.has(Number(idMiembros))) {
+          return null;
+        }
+
+        const role = String(profile.rol ?? profile.role ?? '').toLowerCase();
+        const isAdmin =
+          collectionName === 'admins' || role === 'admin' || role === 'administrador';
+
+        return {
+          idMiembros,
+          uid: String(profile.uid ?? profile.idUsuario ?? item.id ?? '').trim(),
+          rolDestinatario: isAdmin ? 'admin' : 'usuario',
+        };
+      })
+      .filter((profile) => profile?.uid);
+  });
+}
+
+async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
+  if (fallbackUrl) {
+    return fallbackUrl;
+  }
+
+  const memberId = toNumberOrNull(idMiembros);
+
+  if (!memberId) {
+    return '';
+  }
+
+  const snapshot = await getDoc(doc(FIRESTORE, COLECCION_FOTOS, `miembro_${memberId}_perfil`)).catch(
+    () => null
+  );
+
+  if (!snapshot?.exists()) {
+    return '';
+  }
+
+  const photo = snapshot.data() ?? {};
+
+  return photo.estado === 'activo' ? photo.urlFoto || '' : '';
+}
+
+async function createMessageNotifications({ conversation = {}, message = {} }) {
+  if (!message.texto) return;
+
+  const senderId = Number(message.remitenteIdMiembros);
+  const recipientsIds = asArray(conversation.participantesIds).filter(
+    (idMiembros) => Number(idMiembros) !== senderId
+  );
+
+  if (!recipientsIds.length) return;
+
+  const sender =
+    asArray(conversation.participantes).find(
+      (participant) => Number(participant.idMiembros) === senderId
+    ) ?? message.remitente;
+  const senderName = buildNombreCompleto(sender);
+  const senderPhotoUrl = await getMemberPhotoUrl(senderId, sender?.avatarUrl);
+  const recipientProfiles = await getNotificationProfilesByMemberIds(recipientsIds);
+
+  await Promise.all(
+    recipientProfiles.map((profile) => {
+      const notificationId = `mensaje_recibido_${conversation.idConversacion || conversation.id}_${message.idMensaje}_${profile.uid}`;
+
+      return setDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+        {
+          id: notificationId,
+          tipoNotificacion: 'mensaje_recibido',
+          modulo: 'mensajes',
+          titulo: 'Mensaje recibido',
+          tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> te envió un mensaje</p>`,
+          mensaje: 'te envió un mensaje.',
+          mensajeVisual: 'te envió un mensaje.',
+          rolDestinatario: profile.rolDestinatario,
+          idsDestinatarios: [profile.uid],
+          prioridad: 'informativa',
+          estado: 'no_leida',
+          fechaCreacion: message.enviadoEn ?? nowIso(),
+          fechaEnvio: message.enviadoEn ?? nowIso(),
+          actorId: String(senderId || ''),
+          actorTipo: 'usuario',
+          actorNombre: senderName,
+          actorFotoURL: senderPhotoUrl || null,
+          entidadTipo: 'mensaje',
+          entidadId: message.idMensaje,
+          ruta: `/dashboard/chat?id=${conversation.idConversacion || conversation.id}`,
+          imagenTipo: 'persona',
+          imagenURL: senderPhotoUrl || null,
+          miniaturaURL: senderPhotoUrl || null,
+          tipoAccion: 'responder',
+          etiquetaAccion: 'Responder',
+          tipoAccionSecundaria: null,
+          etiquetaAccionSecundaria: null,
+          leidaPor: [],
+          fechaProgramada: null,
+          fechaExpiracion: null,
+          fechaLectura: null,
+          metadatos: {
+            idMensaje: message.idMensaje,
+            idConversacion: conversation.idConversacion || conversation.id,
+            remitenteIdMiembros: senderId,
+            destinatarioIdMiembros: profile.idMiembros,
+            texto: message.texto,
+          },
+          creadoEnServidor: serverTimestamp(),
+          actualizadoEnServidor: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    })
+  );
+}
+
 async function getMessages(idConversacion) {
   if (!idConversacion) return [];
 
@@ -430,6 +576,12 @@ async function createConversation(conversationData = {}) {
     primerMensaje
   );
 
+  await createMessageNotifications({ conversation: conversationDoc, message: primerMensaje }).catch(
+    (error) => {
+      console.error('[chat] no se pudo crear la notificación del primer mensaje', error);
+    }
+  );
+
   return conversationToUi(conversationDoc, [messageToUi(primerMensaje)]);
 }
 
@@ -481,6 +633,13 @@ async function addMessage(conversationId, messageData = {}, viewerIdMiembros = n
     },
     { merge: true }
   );
+
+  await createMessageNotifications({
+    conversation: { ...existingConversation, idConversacion: conversationId },
+    message: messageDoc,
+  }).catch((error) => {
+    console.error('[chat] no se pudo crear la notificación de mensaje', error);
+  });
 
   return conversationToUi(
     { ...existingConversation, actualizadoEn: messageDoc.enviadoEn, noLeidosPorIdMiembros },

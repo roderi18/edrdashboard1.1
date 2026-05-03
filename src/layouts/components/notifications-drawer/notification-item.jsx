@@ -56,11 +56,13 @@ const getNotificationRoute = (notification = {}) => {
   return notification.ruta;
 };
 
-export function NotificationItem({ notification }) {
+export function NotificationItem({ notification, onClickNotification }) {
   const router = useRouter();
   const notificationRoute = getNotificationRoute(notification);
 
-  const handleClickNotification = () => {
+  const handleClickNotification = async () => {
+    await onClickNotification?.(notification);
+
     if (notificationRoute) {
       router.push(notificationRoute);
     }
@@ -69,7 +71,17 @@ export function NotificationItem({ notification }) {
   const renderAvatar = () => (
     <ListItemAvatar>
       {notification.avatarUrl ? (
-        <Avatar src={notification.avatarUrl} sx={{ bgcolor: 'background.neutral' }} />
+        <Avatar
+          src={notification.avatarUrl}
+          slotProps={{
+            img: {
+              loading: 'eager',
+              decoding: 'async',
+              referrerPolicy: 'no-referrer',
+            },
+          }}
+          sx={{ bgcolor: 'background.neutral' }}
+        />
       ) : (
         <Box
           sx={{

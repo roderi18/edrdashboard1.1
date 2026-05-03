@@ -119,20 +119,18 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
     { params: { conversationId, endpoint: 'conversation', idMiembros } },
   ];
   let serverConversation = null;
+  const optimisticMessage = { ...messageData, estadoEnvio: 'enviando' };
 
-  /**
-   * Work on server
-   */
-  if (enableServer) {
-    const data = { conversationId, messageData, idMiembros };
-    const res = await axios.put(CHAT_ENDPOINT, data);
-    serverConversation = res.data?.conversation ?? null;
-  }
+  const addOptimisticMessage = (messages = []) =>
+    messages.some((message) => message.id === optimisticMessage.id)
+      ? messages
+      : [...messages, optimisticMessage];
+  const replaceOptimisticMessage = (messages = []) =>
+    messages.map((message) =>
+      message.id === optimisticMessage.id ? { ...message, estadoEnvio: 'enviado' } : message
+    );
 
-  /**
-   * Work in local
-   */
-  const updateConversationCache = (currentData) => {
+  const updateConversationCache = ({ currentData, optimistic = false }) => {
     if (serverConversation) {
       return { ...(currentData ?? {}), conversation: serverConversation };
     }
@@ -145,13 +143,15 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
 
     const conversation = {
       ...currentConversation,
-      messages: [...(currentConversation.messages ?? []), messageData],
+      messages: optimistic
+        ? addOptimisticMessage(currentConversation.messages)
+        : replaceOptimisticMessage(currentConversation.messages),
     };
 
     return { ...currentData, conversation };
   };
 
-  const updateConversationsCache = (currentData) => {
+  const updateConversationsCache = ({ currentData, optimistic = false }) => {
     if (!currentData?.conversations) {
       return currentData;
     }
@@ -163,7 +163,10 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
         ? {
             ...(serverConversation ?? conversation),
             messages:
-              serverConversation?.messages ?? [...(conversation.messages ?? []), messageData],
+              serverConversation?.messages ??
+              (optimistic
+                ? addOptimisticMessage(conversation.messages)
+                : replaceOptimisticMessage(conversation.messages)),
           }
         : conversation
     );
@@ -173,25 +176,46 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
 
   await mutate(
     (key) => isConversationKey(key, conversationId),
-    updateConversationCache,
+    (currentData) => updateConversationCache({ currentData, optimistic: true }),
     { revalidate: false }
   );
 
   await mutate(
     (key) => isConversationsKey(key),
-    updateConversationsCache,
+    (currentData) => updateConversationsCache({ currentData, optimistic: true }),
     { revalidate: false }
   );
 
   await mutate(
     conversationUrl,
-    updateConversationCache,
+    (currentData) => updateConversationCache({ currentData, optimistic: true }),
     { revalidate: false }
   );
 
   await mutate(
     conversationsUrl,
-    updateConversationsCache,
+    (currentData) => updateConversationsCache({ currentData, optimistic: true }),
+    { revalidate: false }
+  );
+
+  /**
+   * Work on server
+   */
+  if (enableServer) {
+    const data = { conversationId, messageData, idMiembros };
+    const res = await axios.put(CHAT_ENDPOINT, data);
+    serverConversation = res.data?.conversation ?? null;
+  }
+
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => updateConversationCache({ currentData }),
+    { revalidate: false }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => updateConversationsCache({ currentData }),
     { revalidate: false }
   );
 
@@ -266,5 +290,20 @@ export async function clickConversation(conversationId, idMiembros) {
       return { ...currentData, conversations };
     },
     false
+  );
+
+  mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => {
+      if (!currentData?.conversation) {
+        return currentData;
+      }
+
+      return {
+        ...currentData,
+        conversation: { ...currentData.conversation, unreadCount: 0 },
+      };
+    },
+    { revalidate: false }
   );
 }
