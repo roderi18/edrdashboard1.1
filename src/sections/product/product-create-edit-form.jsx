@@ -24,7 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fPercent } from 'src/utils/format-number';
 
 import { guardarProductoFirestore } from 'src/services/product-service';
-import { _tags, PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
+import { PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -74,11 +74,46 @@ const PRODUCT_TYPE_OPTIONS = [
   { label: 'Restringido', value: 'restringido' },
 ];
 
+const PRODUCT_TAG_OPTIONS = [
+  'ERRD',
+  'General',
+  'Restringido',
+  'Insignias y emblemas',
+  'Cintas',
+  'Barras y numeros',
+  'Parches',
+  'Uniformes',
+  'Accesorios',
+  'Materiales y manuales',
+  'Campamentos y articulos especiales',
+  'Emblema',
+  'Distintivo',
+  'Rango',
+  'Liderazgo',
+  'Adiestramiento',
+  'Premios',
+  'Servicios',
+  'Nivel',
+  'Consejo nacional',
+  'Camiseta',
+  'Chaleco',
+  'Gorra',
+  'Correa',
+  'Corbata bolo',
+  'Manual',
+  'Carpeta',
+  'Campamento',
+  'Parche kilometraje',
+  'Requiere aprobacion',
+  'Precio pendiente',
+];
+
 const buildProductFormValues = (product) => {
   if (!product) return product;
 
   return {
     ...product,
+    publish: product.publish === 'published',
   };
 };
 
@@ -96,6 +131,16 @@ const getProductTypeByRenglon = (renglon, explicitValue) => {
 };
 
 const PRODUCT_IMAGE_MAX_SIZE_BYTES = 1050000;
+
+const optionalNumberInput = z.preprocess(
+  (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isNaN(value)) return null;
+
+    return value;
+  },
+  z.coerce.number().min(0).nullable()
+);
 
 const formatStorageSizeEs = (bytes) => {
   const value = Number(bytes || 0);
@@ -117,20 +162,18 @@ export const ProductCreateSchema = z
     name: z.string().min(1, { error: 'El nombre es requerido.' }),
     description: schemaUtils
       .editor({ error: 'La descripcion es requerida.' })
-      .min(100, { error: 'La descripcion debe tener al menos 100 caracteres.' }),
-    images: schemaUtils.files({ error: 'La imagen es requerida.' }).min(1, {
-      error: 'Debe subir al menos 1 imagen.',
-    }),
+      .min(10, { error: 'La descripcion debe tener al menos 10 caracteres.' }),
+    images: z.array(z.union([z.string(), z.file()])),
     code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
     sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
     quantity: schemaUtils.nullableInput(
-      z.coerce.number().min(1, { error: 'La cantidad es requerida.' }),
+      z.coerce.number().min(0, { error: 'La cantidad no puede ser menor que 0.' }),
       { error: 'La cantidad es requerida.' }
     ),
-    colors: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
-    sizes: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
-    tags: z.string().array().min(2, { error: 'Debe agregar al menos 2 etiquetas.' }),
-    price: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+    colors: z.string().array(),
+    sizes: z.string().array(),
+    tags: z.string().array().min(1, { error: 'Debe agregar al menos 1 etiqueta.' }),
+    price: optionalNumberInput,
     precioRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
     precioNoRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
     precioPendiente: z.boolean().optional(),
@@ -138,12 +181,12 @@ export const ProductCreateSchema = z
     requiereAprobacion: z.boolean().optional(),
     tipoProducto: z.string(),
     notasAdministrativas: z.string().optional(),
-    orden: z.coerce.number().nullable().optional(),
+    orden: optionalNumberInput.optional(),
     // Not required
     category: z.string(),
     subDescription: z.string(),
-    taxes: z.coerce.number().nullable(),
-    priceSale: z.coerce.number().nullable(),
+    taxes: optionalNumberInput,
+    priceSale: optionalNumberInput,
     saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
     newLabel: z.object({ enabled: z.boolean(), content: z.string() }),
     publish: z.boolean().optional(),
@@ -171,7 +214,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openPricing = useBoolean(true);
 
   const [includeTaxes, setIncludeTaxes] = useState(false);
-  const [publish, setPublish] = useState(currentProduct?.publish !== 'draft');
+  const [publish, setPublish] = useState(true);
   const [submissionMessage, setSubmissionMessage] = useState('');
 
   const defaultValues = {
@@ -238,45 +281,64 @@ export function ProductCreateEditForm({ currentProduct }) {
     values.precioNoRegistrado !== '' &&
     Number(values.precioNoRegistrado) === 0;
 
-  const onSubmit = handleSubmit(async (data) => {
-    const updatedData = {
-      ...data,
-      variantes: currentProduct?.variantes || [],
-      price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
-      sizes: data.category === 'uniformes' ? data.sizes : [],
-      requiereAprobacion: getApprovalByRenglon(data.renglon, data.requiereAprobacion),
-      tipoProducto: getProductTypeByRenglon(data.renglon, data.tipoProducto),
-      taxes: includeTaxes ? defaultValues.taxes : data.taxes,
-    };
+  const onSubmit = handleSubmit(
+    async (data) => {
+      if (!data.images.length) {
+        toast.error('Falta subir la imagen del producto.');
+        return;
+      }
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setSubmissionMessage(
-        shouldCompactImages ? 'Compactando imagenes...' : 'Publicando producto...'
-      );
-      const result = await guardarProductoFirestore(updatedData, { publish });
-      reset();
-      const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
-        ? `${formatStorageSizeEs(result.imageStats.totalOriginalSizeBytes)} a ${formatStorageSizeEs(
-          result.imageStats.totalOptimizedSizeBytes
-        )} (${fPercent(result.imageStats.reductionPercent)})`
-        : null;
+      const updatedData = {
+        ...data,
+        id: currentProduct?.id || data.id,
+        variantes: currentProduct?.variantes || [],
+        price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
+        sizes: data.category === 'uniformes' ? data.sizes : [],
+        requiereAprobacion: getApprovalByRenglon(data.renglon, data.requiereAprobacion),
+        tipoProducto: getProductTypeByRenglon(data.renglon, data.tipoProducto),
+        taxes: includeTaxes ? defaultValues.taxes : data.taxes,
+      };
 
-      toast.success(
-        compressionMessage
-          ? `${currentProduct ? 'Actualizacion exitosa!' : 'Producto creado!'} Imagenes optimizadas: ${compressionMessage}`
-          : currentProduct
-            ? 'Actualizacion exitosa!'
-            : 'Producto creado!'
-      );
-      router.push(paths.dashboard.product.root);
-      console.info('DATA', updatedData);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSubmissionMessage('');
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setSubmissionMessage(
+          shouldCompactImages ? 'Compactando imagenes...' : 'Publicando producto...'
+        );
+        const result = await guardarProductoFirestore(updatedData, { publish });
+        reset();
+        const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
+          ? `${formatStorageSizeEs(result.imageStats.totalOriginalSizeBytes)} a ${formatStorageSizeEs(
+            result.imageStats.totalOptimizedSizeBytes
+          )} (${fPercent(result.imageStats.reductionPercent)})`
+          : null;
+
+        toast.success(
+          compressionMessage
+            ? `${currentProduct ? 'Actualizacion exitosa!' : 'Producto creado!'} Imagenes optimizadas: ${compressionMessage}`
+            : currentProduct
+              ? 'Actualizacion exitosa!'
+              : 'Producto creado!'
+        );
+        router.push(paths.dashboard.product.root);
+        console.info('DATA', updatedData);
+      } catch (error) {
+        console.error(error);
+        toast.error(error?.message || 'No se pudo guardar el producto');
+      } finally {
+        setSubmissionMessage('');
+      }
+    },
+    (errors) => {
+      const errorSummary = Object.entries(errors || {}).map(([fieldName, error]) => ({
+        fieldName,
+        message: error?.message,
+        type: error?.type,
+      }));
+
+      console.warn('Errores del formulario de producto:', JSON.stringify(errorSummary), errors);
+      toast.error(errorSummary[0]?.message || 'Revisa los campos marcados antes de guardar.');
     }
-  });
+  );
 
   const handleRemoveFile = useCallback(
     (inputFile) => {
@@ -313,7 +375,11 @@ export function ProductCreateEditForm({ currentProduct }) {
       const currentValue = Number(getValues(fieldName) || 0);
       const registeredPrice = Number(getValues('precioRegistrado') || 0);
       const unregisteredPrice = Number(getValues('precioNoRegistrado') || 0);
-      const candidateValue = Math.max(currentValue + amount, 0);
+      const baseValue =
+        fieldName === 'precioNoRegistrado' && currentValue === 0 && amount > 0
+          ? registeredPrice
+          : currentValue;
+      const candidateValue = Math.max(baseValue + amount, 0);
       const nextValue =
         fieldName === 'precioNoRegistrado' && candidateValue > 0
           ? Math.max(candidateValue, registeredPrice)
@@ -328,15 +394,9 @@ export function ProductCreateEditForm({ currentProduct }) {
     [getValues, setValue]
   );
 
-  const renderPriceStepButtons = (fieldName, { showUnavailable = false } = {}) => (
+  const renderPriceStepButtons = (fieldName) => (
     <InputAdornment position="end" sx={{ gap: 0.5, ml: 0.75 }}>
-      {showUnavailable && (
-        <Box component="span" sx={{ typography: 'caption', color: 'text.disabled', mr: 0.25 }}>
-          (N/A)
-        </Box>
-      )}
-
-      {[-10, 10].map((amount) => (
+      {[-50, -10].map((amount) => (
         <Button
           key={amount}
           type="button"
@@ -345,11 +405,47 @@ export function ProductCreateEditForm({ currentProduct }) {
           onClick={() => handleAdjustPrice(fieldName, amount)}
           sx={{ minWidth: 42, px: 0.75 }}
         >
-          {amount > 0 ? `+${amount}` : amount}
+          {amount}
         </Button>
       ))}
+
+      <Box component="span" sx={{ color: 'text.disabled', mx: 0.25 }}>
+        |
+      </Box>
+
+      {[10, 50].map((amount) => (
+          <Button
+            key={amount}
+            type="button"
+            size="small"
+            variant="outlined"
+            onClick={() => handleAdjustPrice(fieldName, amount)}
+            sx={{ minWidth: 42, px: 0.75 }}
+          >
+            +{amount}
+          </Button>
+        ))}
     </InputAdornment>
   );
+
+  const renderUnavailablePriceIndicator = () =>
+    isUnregisteredPriceUnavailable ? (
+      <Box
+        component="span"
+        sx={{
+          left: 74,
+          top: '50%',
+          zIndex: 1,
+          pointerEvents: 'none',
+          position: 'absolute',
+          typography: 'body2',
+          color: 'text.disabled',
+          transform: 'translateY(-50%)',
+        }}
+      >
+        (N/A)
+      </Box>
+    ) : null;
 
   const renderCollapseButton = (value, onToggle) => (
     <IconButton onClick={onToggle}>
@@ -519,7 +615,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             multiple
             freeSolo
             disableCloseOnSelect
-            options={_tags.map((option) => option)}
+            options={PRODUCT_TAG_OPTIONS}
             getOptionLabel={(option) => option}
             slotProps={{
               chip: { color: 'info' },
@@ -617,27 +713,28 @@ export function ProductCreateEditForm({ currentProduct }) {
               }}
             />
 
-            <Field.Text
-              name="precioNoRegistrado"
-              label="Precio a Destacamentos NO registrados"
-              placeholder="0.00"
-              type="number"
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
-                      <Box component="span" sx={{ color: 'text.disabled' }}>
-                        RD$
-                      </Box>
-                    </InputAdornment>
-                  ),
-                  endAdornment: renderPriceStepButtons('precioNoRegistrado', {
-                    showUnavailable: isUnregisteredPriceUnavailable,
-                  }),
-                },
-              }}
-            />
+            <Box sx={{ position: 'relative' }}>
+              <Field.Text
+                name="precioNoRegistrado"
+                label="Precio a Destacamentos NO registrados"
+                placeholder="0.00"
+                type="number"
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                        <Box component="span" sx={{ color: 'text.disabled' }}>
+                          RD$
+                        </Box>
+                      </InputAdornment>
+                    ),
+                    endAdornment: renderPriceStepButtons('precioNoRegistrado'),
+                  },
+                }}
+              />
+              {renderUnavailablePriceIndicator()}
+            </Box>
           </Box>
 
           <Field.Text
