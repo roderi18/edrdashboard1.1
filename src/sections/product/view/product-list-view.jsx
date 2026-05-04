@@ -44,9 +44,9 @@ import {
 
 // ----------------------------------------------------------------------
 
-const PUBLISH_OPTIONS = [
-  { value: 'published', label: 'Publicados' },
-  { value: 'draft', label: 'Borrador' },
+const RENGLON_OPTIONS = [
+  { value: 'general', label: 'General' },
+  { value: 'restringido', label: 'Restringido' },
 ];
 
 const HIDE_COLUMNS = {};
@@ -76,7 +76,7 @@ export function ProductListView() {
   });
 
   const filters = useSetState({
-    publish: [],
+    renglon: [],
     stock: [],
   });
 
@@ -89,7 +89,7 @@ export function ProductListView() {
     );
   }, [isMemberUser, products]);
 
-  const canReset = filters.state.publish.length > 0 || filters.state.stock.length > 0;
+  const canReset = filters.state.renglon.length > 0 || filters.state.stock.length > 0;
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -241,7 +241,7 @@ export function ProductListView() {
                   filteredResults={dataFiltered.length}
                   selectedRowCount={selectedRows.ids.size}
                   onOpenConfirmDeleteRows={confirmDialog.onTrue}
-                  options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
+                  options={{ stocks: PRODUCT_STOCK_OPTIONS, renglones: RENGLON_OPTIONS }}
                   isMemberUser={isMemberUser}
                   /********/
                   settings={toolbarOptions.settings}
@@ -414,14 +414,14 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, filters }) {
-  const { stock, publish } = filters;
+  const { stock, renglon } = filters;
 
   if (stock.length) {
     inputData = inputData.filter((product) => stock.includes(product.inventoryType));
   }
 
-  if (publish.length) {
-    inputData = inputData.filter((product) => publish.includes(product.publish));
+  if (renglon.length) {
+    inputData = inputData.filter((product) => renglon.includes(product.renglon));
   }
 
   return inputData;

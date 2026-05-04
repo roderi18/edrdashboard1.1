@@ -13,6 +13,10 @@ import { Label } from 'src/components/label';
 // ----------------------------------------------------------------------
 
 export function RenderCellPrice({ params }) {
+  if (params.field === 'precioNoRegistrado' && Number(params.value || 0) <= 0) {
+    return 'N/A';
+  }
+
   return fDopCurrency(params.value ?? params.row.price);
 }
 

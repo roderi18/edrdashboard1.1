@@ -40,7 +40,7 @@ export function ProductTableToolbar({
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const [stock, setStock] = useState(currentFilters.stock || []);
-  const [publish, setPublish] = useState(currentFilters.publish || []);
+  const [renglon, setRenglon] = useState(currentFilters.renglon || []);
 
   const handleSelect = useCallback(
     (setter) => (event) => {
@@ -63,16 +63,14 @@ export function ProductTableToolbar({
         width={isMemberUser ? 200 : 170}
       />
 
-      {!isMemberUser && (
-        <FilterSelect
-          label="Publicado"
-          value={publish}
-          options={options.publishs}
-          onChange={handleSelect(setPublish)}
-          onApply={() => updateFilters({ publish })}
-          width={150}
-        />
-      )}
+      <FilterSelect
+        label="Renglón"
+        value={renglon}
+        options={options.renglones}
+        onChange={handleSelect(setRenglon)}
+        onApply={() => updateFilters({ renglon })}
+        width={150}
+      />
 
       <CustomToolbarQuickFilter
         sx={{

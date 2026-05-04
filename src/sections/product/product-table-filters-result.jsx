@@ -11,8 +11,8 @@ const FILTER_LABELS = {
   'in stock': 'En existencia',
   'low stock': 'Pocas existencias',
   'out of stock': 'Sin existencias',
-  published: 'Publicado',
-  draft: 'Borrador',
+  general: 'General',
+  restringido: 'Restringido',
 };
 
 export function ProductTableFiltersResult({ filters, totalResults, sx }) {
@@ -27,13 +27,13 @@ export function ProductTableFiltersResult({ filters, totalResults, sx }) {
     [updateFilters, currentFilters.stock]
   );
 
-  const handleRemovePublish = useCallback(
+  const handleRemoveRenglon = useCallback(
     (inputValue) => {
-      const newValue = currentFilters.publish.filter((item) => item !== inputValue);
+      const newValue = currentFilters.renglon.filter((item) => item !== inputValue);
 
-      updateFilters({ publish: newValue });
+      updateFilters({ renglon: newValue });
     },
-    [updateFilters, currentFilters.publish]
+    [updateFilters, currentFilters.renglon]
   );
 
   return (
@@ -49,13 +49,13 @@ export function ProductTableFiltersResult({ filters, totalResults, sx }) {
         ))}
       </FiltersBlock>
 
-      <FiltersBlock label="Publicado:" isShow={!!currentFilters.publish.length}>
-        {currentFilters.publish.map((item) => (
+      <FiltersBlock label="Renglón:" isShow={!!currentFilters.renglon.length}>
+        {currentFilters.renglon.map((item) => (
           <Chip
             {...chipProps}
             key={item}
             label={FILTER_LABELS[item] || upperFirst(item)}
-            onDelete={() => handleRemovePublish(item)}
+            onDelete={() => handleRemoveRenglon(item)}
           />
         ))}
       </FiltersBlock>
