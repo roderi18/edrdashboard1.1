@@ -37,6 +37,7 @@ import { ProductTableToolbar } from '../product-table-toolbar';
 import {
   RenderCellStock,
   RenderCellPrice,
+  RenderCellPublish,
   RenderCellRenglon,
   RenderCellProduct,
   RenderCellCategory,
@@ -283,7 +284,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         field: 'name',
         headerName: 'Producto',
         flex: 1,
-        minWidth: 360,
+        minWidth: 300,
         hideable: false,
         renderCell: (params) => (
           <RenderCellProduct
@@ -295,7 +296,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'inventoryType',
         headerName: 'Existencias',
-        width: 160,
+        width: 145,
         type: 'singleSelect',
         filterable: false,
         valueOptions: PRODUCT_STOCK_OPTIONS,
@@ -304,7 +305,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioRegistrado',
         headerName: 'Precio Dests. Registrados',
-        width: 145,
+        width: 130,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
@@ -312,7 +313,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioNoRegistrado',
         headerName: 'Precio Dests. NO Registrados',
-        width: 155,
+        width: 145,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
@@ -332,7 +333,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         ? [{
             field: 'renglon',
             headerName: 'Renglón',
-            width: 120,
+            width: 110,
             type: 'singleSelect',
             filterable: false,
             valueOptions: [
@@ -340,6 +341,18 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
               { value: 'restringido', label: 'Restringido' },
             ],
             renderCell: (params) => <RenderCellRenglon params={params} />,
+          },
+          {
+            field: 'publish',
+            headerName: 'Publicado',
+            width: 115,
+            type: 'singleSelect',
+            filterable: false,
+            valueOptions: [
+              { value: 'published', label: 'Publicado' },
+              { value: 'draft', label: 'Borrador' },
+            ],
+            renderCell: (params) => <RenderCellPublish params={params} />,
           }]
         : []),
       {
