@@ -42,13 +42,18 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     price,
     colors,
     coverUrl,
+    renglon,
     newLabel,
     available,
     priceSale,
     saleLabel,
+    tipoProducto,
+    precioRegistrado,
+    precioNoRegistrado,
     totalRatings,
     totalReviews,
     inventoryType,
+    requiereAprobacion,
     subDescription,
   } = product;
 
@@ -68,11 +73,29 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       coverUrl,
       available: availableQuantity,
       price,
+      precioRegistrado,
+      precioNoRegistrado,
+      renglon,
+      requiereAprobacion,
+      tipoProducto,
       colors: productColors[0] || '',
       size: productSizes[0] || '',
       quantity: availableQuantity < 1 ? 0 : 1,
     }),
-    [availableQuantity, coverUrl, id, name, price, productColors, productSizes]
+    [
+      availableQuantity,
+      coverUrl,
+      id,
+      name,
+      price,
+      precioNoRegistrado,
+      precioRegistrado,
+      productColors,
+      productSizes,
+      renglon,
+      requiereAprobacion,
+      tipoProducto,
+    ]
   );
 
   const methods = useForm({

@@ -24,23 +24,13 @@ import { useRouter } from 'src/routes/hooks';
 import { fPercent } from 'src/utils/format-number';
 
 import { guardarProductoFirestore } from 'src/services/product-service';
-import {
-  _tags,
-  PRODUCT_SIZE_OPTIONS,
-  PRODUCT_COLOR_NAME_OPTIONS,
-} from 'src/_mock';
+import { _tags, PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
-
-const PRODUCT_GENDER_OPTIONS_ES = [
-  { label: 'Hombre', value: 'Men' },
-  { label: 'Mujer', value: 'Women' },
-  { label: 'Ninos', value: 'Kids' },
-];
 
 const PRODUCT_COLOR_NAME_OPTIONS_ES = PRODUCT_COLOR_NAME_OPTIONS.map((option) => ({
   ...option,
@@ -59,35 +49,51 @@ const PRODUCT_COLOR_NAME_OPTIONS_ES = PRODUCT_COLOR_NAME_OPTIONS.map((option) =>
 
 const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
   {
-    group: 'Ropa',
+    group: 'ERRD',
     classify: [
-      { label: 'Camisas', value: 'Shirts' },
-      { label: 'T-shirts', value: 'T-shirts' },
-      { label: 'Jeans', value: 'Jeans' },
-      { label: 'Cuero', value: 'Leather' },
-      { label: 'Accesorios', value: 'Accessories' },
-    ],
-  },
-  {
-    group: 'Sastreria',
-    classify: [
-      { label: 'Trajes', value: 'Suits' },
-      { label: 'Blazers', value: 'Blazers' },
-      { label: 'Pantalones', value: 'Trousers' },
-      { label: 'Chalecos', value: 'Waistcoats' },
-      { label: 'Ropa', value: 'Apparel' },
-    ],
-  },
-  {
-    group: 'Accesorios',
-    classify: [
-      { label: 'Zapatos', value: 'Shoes' },
-      { label: 'Mochilas y bolsos', value: 'Backpacks and bags' },
-      { label: 'Brazaletes', value: 'Bracelets' },
-      { label: 'Mascarillas', value: 'Face masks' },
+      { label: 'Insignias y emblemas', value: 'insignias-emblemas' },
+      { label: 'Cintas', value: 'cintas' },
+      { label: 'Barras y numeros', value: 'barras-numeros' },
+      { label: 'Parches', value: 'parches' },
+      { label: 'Uniformes', value: 'uniformes' },
+      { label: 'Accesorios', value: 'accesorios' },
+      { label: 'Materiales / manuales', value: 'materiales-manuales' },
+      { label: 'Campamentos / articulos especiales', value: 'campamentos-especiales' },
     ],
   },
 ];
+
+const PRODUCT_RENGLON_OPTIONS = [
+  { label: 'General', value: 'general' },
+  { label: 'Restringido', value: 'restringido' },
+];
+
+const PRODUCT_TYPE_OPTIONS = [
+  { label: 'Simple', value: 'simple' },
+  { label: 'Con variantes', value: 'con_variantes' },
+  { label: 'Restringido', value: 'restringido' },
+];
+
+const buildProductFormValues = (product) => {
+  if (!product) return product;
+
+  return {
+    ...product,
+  };
+};
+
+const getApprovalByRenglon = (renglon, explicitValue) => {
+  if (renglon === 'restringido') return true;
+  return Boolean(explicitValue);
+};
+
+const getProductTypeByRenglon = (renglon, explicitValue) => {
+  if (renglon === 'restringido' && (!explicitValue || explicitValue === 'simple')) {
+    return 'restringido';
+  }
+
+  return explicitValue || 'simple';
+};
 
 const PRODUCT_IMAGE_MAX_SIZE_BYTES = 1050000;
 
@@ -111,8 +117,8 @@ export const ProductCreateSchema = z.object({
   description: schemaUtils
     .editor({ error: 'La descripcion es requerida.' })
     .min(100, { error: 'La descripcion debe tener al menos 100 caracteres.' }),
-  images: schemaUtils.files({ error: 'Las imagenes son requeridas.' }).min(2, {
-    error: 'Debe subir al menos 2 imagenes.',
+  images: schemaUtils.files({ error: 'La imagen es requerida.' }).min(1, {
+    error: 'Debe subir al menos 1 imagen.',
   }),
   code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
   sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
@@ -123,10 +129,15 @@ export const ProductCreateSchema = z.object({
   colors: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
   sizes: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
   tags: z.string().array().min(2, { error: 'Debe agregar al menos 2 etiquetas.' }),
-  gender: z.array(z.string()).min(1, { error: 'Elija al menos una opcion.' }),
-  price: schemaUtils.nullableInput(z.coerce.number().min(1, { error: 'El precio es requerido.' }), {
-    error: 'El precio es requerido.',
-  }),
+  price: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+  precioRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+  precioNoRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+  precioPendiente: z.boolean().optional(),
+  renglon: z.string(),
+  requiereAprobacion: z.boolean().optional(),
+  tipoProducto: z.string(),
+  notasAdministrativas: z.string().optional(),
+  orden: z.coerce.number().nullable().optional(),
   // Not required
   category: z.string(),
   subDescription: z.string(),
@@ -159,11 +170,18 @@ export function ProductCreateEditForm({ currentProduct }) {
     code: '',
     sku: '',
     price: null,
+    precioRegistrado: null,
+    precioNoRegistrado: null,
+    precioPendiente: false,
     taxes: null,
     priceSale: null,
     quantity: null,
     tags: [],
-    gender: [],
+    renglon: 'general',
+    requiereAprobacion: false,
+    tipoProducto: 'simple',
+    notasAdministrativas: '',
+    orden: 0,
     category: PRODUCT_CATEGORY_GROUP_OPTIONS_ES[0].classify[1].value,
     colors: [],
     sizes: [],
@@ -175,7 +193,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   const methods = useForm({
     resolver: zodResolver(ProductCreateSchema),
     defaultValues,
-    values: currentProduct,
+    values: buildProductFormValues(currentProduct),
   });
 
   const {
@@ -187,6 +205,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   } = methods;
 
   const values = watch();
+  const isUniformCategory = values.category === 'uniformes';
   const oversizedImages = useMemo(
     () =>
       (values.images || []).filter(
@@ -204,6 +223,11 @@ export function ProductCreateEditForm({ currentProduct }) {
   const onSubmit = handleSubmit(async (data) => {
     const updatedData = {
       ...data,
+      variantes: currentProduct?.variantes || [],
+      price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
+      sizes: data.category === 'uniformes' ? data.sizes : [],
+      requiereAprobacion: getApprovalByRenglon(data.renglon, data.requiereAprobacion),
+      tipoProducto: getProductTypeByRenglon(data.renglon, data.tipoProducto),
       taxes: includeTaxes ? defaultValues.taxes : data.taxes,
     };
 
@@ -216,8 +240,8 @@ export function ProductCreateEditForm({ currentProduct }) {
       reset();
       const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
         ? `${formatStorageSizeEs(result.imageStats.totalOriginalSizeBytes)} a ${formatStorageSizeEs(
-            result.imageStats.totalOptimizedSizeBytes
-          )} (${fPercent(result.imageStats.reductionPercent)})`
+          result.imageStats.totalOptimizedSizeBytes
+        )} (${fPercent(result.imageStats.reductionPercent)})`
         : null;
 
       toast.success(
@@ -251,6 +275,20 @@ export function ProductCreateEditForm({ currentProduct }) {
   const handleChangeIncludeTaxes = useCallback((event) => {
     setIncludeTaxes(event.target.checked);
   }, []);
+
+  const handleChangeRenglon = useCallback(
+    (event) => {
+      const nextRenglon = event.target.value;
+
+      setValue('renglon', nextRenglon);
+
+      if (nextRenglon === 'restringido') {
+        setValue('requiereAprobacion', true);
+        setValue('tipoProducto', 'restringido');
+      }
+    },
+    [setValue]
+  );
 
   const renderCollapseButton = (value, onToggle) => (
     <IconButton onClick={onToggle}>
@@ -355,6 +393,45 @@ export function ProductCreateEditForm({ currentProduct }) {
               ))}
             </Field.Select>
 
+            <Field.Select
+              name="renglon"
+              label="Renglon"
+              onChange={handleChangeRenglon}
+              slotProps={{
+                select: { native: true },
+                inputLabel: { shrink: true },
+              }}
+            >
+              {PRODUCT_RENGLON_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Field.Select>
+
+            <Field.Select
+              name="tipoProducto"
+              label="Tipo de producto"
+              slotProps={{
+                select: { native: true },
+                inputLabel: { shrink: true },
+              }}
+            >
+              {PRODUCT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Field.Select>
+
+            <Field.Text
+              name="orden"
+              label="Orden de aparicion"
+              placeholder="0"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
             <Field.MultiSelect
               checkbox
               name="colors"
@@ -362,7 +439,16 @@ export function ProductCreateEditForm({ currentProduct }) {
               options={PRODUCT_COLOR_NAME_OPTIONS_ES}
             />
 
-            <Field.MultiSelect checkbox name="sizes" label="Tallas" options={PRODUCT_SIZE_OPTIONS} />
+            <Field.MultiSelect
+              checkbox
+              name="sizes"
+              label="Tallas"
+              options={PRODUCT_SIZE_OPTIONS}
+              disabled={!isUniformCategory}
+              helperText={
+                !isUniformCategory ? 'Disponible solo para la categoria Uniformes.' : undefined
+              }
+            />
           </Box>
 
           <Field.Autocomplete
@@ -379,14 +465,28 @@ export function ProductCreateEditForm({ currentProduct }) {
             }}
           />
 
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Genero</Typography>
-            <Field.MultiCheckbox
-              row
-              name="gender"
-              options={PRODUCT_GENDER_OPTIONS_ES}
-              sx={{ gap: 2 }}
+          <Stack spacing={2}>
+            <Typography variant="subtitle2">Reglas de tienda ERRD</Typography>
+
+            <Field.Switch
+              name="requiereAprobacion"
+              label="Requiere aprobacion administrativa"
+              sx={{ m: 0 }}
             />
+
+            <Field.Switch
+              name="precioPendiente"
+              label="Tiene precio pendiente por confirmar"
+              sx={{ m: 0 }}
+            />
+
+            <Field.Text
+              name="notasAdministrativas"
+              label="Notas administrativas"
+              multiline
+              rows={3}
+            />
+
           </Stack>
 
           <Divider sx={{ borderStyle: 'dashed' }} />
@@ -428,24 +528,52 @@ export function ProductCreateEditForm({ currentProduct }) {
         <Divider />
 
         <Stack spacing={3} sx={{ p: 3 }}>
-          <Field.Text
-            name="price"
-            label="Precio regular"
-            placeholder="0.00"
-            type="number"
-            slotProps={{
-              inputLabel: { shrink: true },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start" sx={{ mr: 0.75 }}>
-                    <Box component="span" sx={{ color: 'text.disabled' }}>
-                      RD$
-                    </Box>
-                  </InputAdornment>
-                ),
-              },
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
-          />
+          >
+            <Field.Text
+              name="precioRegistrado"
+              label="Precio a Destacamentos registrados"
+              placeholder="0.00"
+              type="number"
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        RD$
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Field.Text
+              name="precioNoRegistrado"
+              label="Precio a Destacamentos NO registrados"
+              placeholder="0.00"
+              type="number"
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        RD$
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Box>
 
           <Field.Text
             name="priceSale"

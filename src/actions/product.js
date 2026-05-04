@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { mergeProductWithLocalInventory, mergeProductsWithLocalInventory } from 'src/utils/local-product-storage';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { listarProductosCombinados, resolverProductoCombinadoPorId } from 'src/services/product-service';
+import { listarProductosFirestore, resolverProductoCombinadoPorId } from 'src/services/product-service';
 
 // ----------------------------------------------------------------------
 
@@ -17,22 +17,33 @@ const swrOptions = {
 // ----------------------------------------------------------------------
 
 export function useGetProducts() {
-  const url = endpoints.product.list;
-
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
-    ...swrOptions,
-  });
   const [resolvedProducts, setResolvedProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState(null);
 
   useEffect(() => {
     let active = true;
 
     const loadProducts = async () => {
-      const combinedProducts = await listarProductosCombinados(data?.products || []);
+      setProductsLoading(true);
+      setProductsError(null);
 
-      if (!active) return;
+      try {
+        const firestoreProducts = await listarProductosFirestore();
 
-      setResolvedProducts(mergeProductsWithLocalInventory(combinedProducts));
+        if (!active) return;
+
+        setResolvedProducts(mergeProductsWithLocalInventory(firestoreProducts));
+      } catch (loadError) {
+        if (!active) return;
+
+        setProductsError(loadError);
+        setResolvedProducts([]);
+      } finally {
+        if (active) {
+          setProductsLoading(false);
+        }
+      }
     };
 
     loadProducts();
@@ -40,17 +51,17 @@ export function useGetProducts() {
     return () => {
       active = false;
     };
-  }, [data?.products]);
+  }, []);
 
   const memoizedValue = useMemo(
     () => ({
       products: resolvedProducts,
-      productsLoading: isLoading && !resolvedProducts.length,
-      productsError: error,
-      productsValidating: isValidating,
-      productsEmpty: !isLoading && !isValidating && !resolvedProducts.length,
+      productsLoading,
+      productsError,
+      productsValidating: productsLoading,
+      productsEmpty: !productsLoading && !resolvedProducts.length,
     }),
-    [error, isLoading, isValidating, resolvedProducts]
+    [productsError, productsLoading, resolvedProducts]
   );
 
   return memoizedValue;

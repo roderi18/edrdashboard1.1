@@ -3,6 +3,7 @@
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
@@ -36,10 +37,9 @@ import { ProductTableToolbar } from '../product-table-toolbar';
 import {
   RenderCellStock,
   RenderCellPrice,
+  RenderCellRenglon,
   RenderCellProduct,
-  RenderCellPublish,
   RenderCellCategory,
-  RenderCellCreatedAt,
 } from '../product-table-row';
 
 // ----------------------------------------------------------------------
@@ -51,6 +51,14 @@ const PUBLISH_OPTIONS = [
 
 const HIDE_COLUMNS = {};
 const HIDE_COLUMNS_TOGGLABLE = ['actions'];
+
+const renderTwoLineHeader = (firstLine, secondLine) => (
+  <Box component="span" sx={{ lineHeight: 1.15, whiteSpace: 'normal' }}>
+    {firstLine}
+    <br />
+    {secondLine}
+  </Box>
+);
 
 // ----------------------------------------------------------------------
 
@@ -285,12 +293,6 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         ),
       },
       {
-        field: 'createdAt',
-        headerName: 'Creado en fecha',
-        width: 160,
-        renderCell: (params) => <RenderCellCreatedAt params={params} />,
-      },
-      {
         field: 'inventoryType',
         headerName: 'Existencias',
         width: 160,
@@ -300,33 +302,44 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         renderCell: (params) => <RenderCellStock params={params} />,
       },
       {
-        field: 'price',
-        headerName: 'Precio',
-        width: 120,
+        field: 'precioRegistrado',
+        headerName: 'Precio Dests. Registrados',
+        width: 145,
         editable: true,
+        renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Registrados'),
+        renderCell: (params) => <RenderCellPrice params={params} />,
+      },
+      {
+        field: 'precioNoRegistrado',
+        headerName: 'Precio Dests. NO Registrados',
+        width: 155,
+        editable: true,
+        renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
       ...(isMemberUser
         ? [
-            {
-              field: 'category',
-              headerName: 'Categoria',
-              width: 140,
-              filterable: false,
-              renderCell: (params) => <RenderCellCategory params={params} />,
-            },
-          ]
+          {
+            field: 'category',
+            headerName: 'Categoria',
+            width: 140,
+            filterable: false,
+            renderCell: (params) => <RenderCellCategory params={params} />,
+          },
+        ]
         : []),
       ...(!isMemberUser
         ? [{
-            field: 'publish',
-            headerName: 'Estado',
+            field: 'renglon',
+            headerName: 'Renglón',
             width: 120,
             type: 'singleSelect',
-            editable: true,
             filterable: false,
-            valueOptions: PUBLISH_OPTIONS,
-            renderCell: (params) => <RenderCellPublish params={params} />,
+            valueOptions: [
+              { value: 'general', label: 'General' },
+              { value: 'restringido', label: 'Restringido' },
+            ],
+            renderCell: (params) => <RenderCellRenglon params={params} />,
           }]
         : []),
       {
@@ -343,13 +356,13 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
           const actions = [
             ...(isMemberUser
               ? [
-                  <CustomGridActionsCellItem
-                    label="Agregar al carrito"
-                    icon={<Iconify icon="solar:cart-3-bold" />}
-                    disabled={Number(params.row.available || 0) <= 0}
-                    onClick={() => onAddProductToCart(params.row)}
-                  />,
-                ]
+                <CustomGridActionsCellItem
+                  label="Agregar al carrito"
+                  icon={<Iconify icon="solar:cart-3-bold" />}
+                  disabled={Number(params.row.available || 0) <= 0}
+                  onClick={() => onAddProductToCart(params.row)}
+                />,
+              ]
               : []),
             <CustomGridActionsCellItem
               showInMenu

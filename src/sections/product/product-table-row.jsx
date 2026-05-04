@@ -6,7 +6,6 @@ import LinearProgress from '@mui/material/LinearProgress';
 
 import { RouterLink } from 'src/routes/components';
 
-import { fTime, fDate } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
@@ -14,7 +13,7 @@ import { Label } from 'src/components/label';
 // ----------------------------------------------------------------------
 
 export function RenderCellPrice({ params }) {
-  return fDopCurrency(params.row.price);
+  return fDopCurrency(params.value ?? params.row.price);
 }
 
 export function RenderCellCategory({ params }) {
@@ -31,14 +30,13 @@ export function RenderCellPublish({ params }) {
   );
 }
 
-export function RenderCellCreatedAt({ params }) {
+export function RenderCellRenglon({ params }) {
+  const isRestricted = params.row.renglon === 'restringido';
+
   return (
-    <Box sx={{ gap: 0.5, display: 'flex', flexDirection: 'column' }}>
-      <span>{fDate(params.row.createdAt)}</span>
-      <Box component="span" sx={{ typography: 'caption', color: 'text.secondary' }}>
-        {fTime(params.row.createdAt)}
-      </Box>
-    </Box>
+    <Label variant="soft" color={isRestricted ? 'warning' : 'success'}>
+      {isRestricted ? 'Restringido' : 'General'}
+    </Label>
   );
 }
 

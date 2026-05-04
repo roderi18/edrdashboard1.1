@@ -1,5 +1,4 @@
 import { CONFIG } from 'src/global-config';
-import { getProduct } from 'src/actions/product-ssr';
 
 import { ProductShopDetailsView } from 'src/sections/product/view';
 
@@ -10,9 +9,7 @@ export const metadata = { title: `Product details - ${CONFIG.appName}` };
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const product = id.startsWith('local-product-') ? null : (await getProduct(id)).product;
-
-  return <ProductShopDetailsView product={product} productId={id} />;
+  return <ProductShopDetailsView product={null} productId={id} />;
 }
 
 // ----------------------------------------------------------------------

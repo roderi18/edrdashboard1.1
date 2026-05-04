@@ -50,20 +50,39 @@ export const ORDEN_DEFAULT = {
   canceladoPor: null,
 };
 
-export const crearItemOrden = (item = {}) =>
-  sanitizarFirestoreData({
+export const crearItemOrden = (item = {}) => {
+  const requiereAprobacion = Boolean(item?.requiereAprobacion ?? item?.renglon === 'restringido');
+
+  return sanitizarFirestoreData({
     productoId: String(item?.id ?? item?.productoId ?? ''),
     nombre: item?.name ?? item?.nombre ?? '',
     sku: item?.sku ?? item?.id ?? '',
     imagenPortada: item?.coverUrl ?? item?.imagenPortada ?? '',
     precio: Number(item?.price ?? item?.precio ?? 0),
+    precioRegistrado: Number(item?.precioRegistrado ?? item?.registeredPrice ?? item?.price ?? 0),
+    precioNoRegistrado: Number(
+      item?.precioNoRegistrado ?? item?.unregisteredPrice ?? item?.price ?? 0
+    ),
     cantidad: Number(item?.quantity ?? item?.cantidad ?? 0),
     subtotal:
       Number(item?.subtotal ?? 0) ||
       Number(item?.price ?? item?.precio ?? 0) * Number(item?.quantity ?? item?.cantidad ?? 0),
     color: item?.colors?.[0] ?? item?.color ?? null,
     talla: item?.size ?? item?.talla ?? null,
+    renglon: item?.renglon ?? 'general',
+    requiereAprobacion,
+    tipoProducto: item?.tipoProducto ?? 'simple',
+    variante: item?.variante ?? item?.variant ?? null,
+    aprobacion: {
+      requerida: requiereAprobacion,
+      estado:
+        item?.estadoAprobacion ?? item?.aprobacion?.estado ?? (requiereAprobacion ? 'pendiente' : 'no_requerida'),
+      aprobadoPor: item?.aprobacion?.aprobadoPor ?? null,
+      fechaAprobacion: item?.aprobacion?.fechaAprobacion ?? null,
+      comentario: item?.aprobacion?.comentario ?? null,
+    },
   });
+};
 
 export const crearDocumentoOrden = ({
   user,
@@ -146,6 +165,13 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
     name: item?.nombre,
     coverUrl: item?.imagenPortada,
     price: Number(item?.precio ?? 0),
+    precioRegistrado: Number(item?.precioRegistrado ?? item?.precio ?? 0),
+    precioNoRegistrado: Number(item?.precioNoRegistrado ?? item?.precio ?? 0),
+    renglon: item?.renglon || 'general',
+    requiereAprobacion: Boolean(item?.requiereAprobacion ?? false),
+    tipoProducto: item?.tipoProducto || 'simple',
+    variante: item?.variante || null,
+    aprobacion: item?.aprobacion || null,
   })),
   history: {
     orderTime: timestampToIsoString(doc?.historial?.fechaOrden),
