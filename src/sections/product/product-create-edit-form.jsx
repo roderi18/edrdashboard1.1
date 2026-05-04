@@ -152,7 +152,7 @@ export const ProductCreateSchema = z
     const registeredPrice = Number(data.precioRegistrado || 0);
     const unregisteredPrice = Number(data.precioNoRegistrado || 0);
 
-    if (unregisteredPrice < registeredPrice) {
+    if (unregisteredPrice > 0 && unregisteredPrice < registeredPrice) {
       ctx.addIssue({
         code: 'custom',
         path: ['precioNoRegistrado'],
@@ -233,6 +233,10 @@ export function ProductCreateEditForm({ currentProduct }) {
   );
   const oversizedImagesAllowedSize = oversizedImages.length * PRODUCT_IMAGE_MAX_SIZE_BYTES;
   const shouldCompactImages = oversizedImages.length > 0;
+  const isUnregisteredPriceUnavailable =
+    values.precioNoRegistrado !== null &&
+    values.precioNoRegistrado !== '' &&
+    Number(values.precioNoRegistrado) === 0;
 
   const onSubmit = handleSubmit(async (data) => {
     const updatedData = {
@@ -309,22 +313,29 @@ export function ProductCreateEditForm({ currentProduct }) {
       const currentValue = Number(getValues(fieldName) || 0);
       const registeredPrice = Number(getValues('precioRegistrado') || 0);
       const unregisteredPrice = Number(getValues('precioNoRegistrado') || 0);
+      const candidateValue = Math.max(currentValue + amount, 0);
       const nextValue =
-        fieldName === 'precioNoRegistrado'
-          ? Math.max(currentValue + amount, registeredPrice, 0)
-          : Math.max(currentValue + amount, 0);
+        fieldName === 'precioNoRegistrado' && candidateValue > 0
+          ? Math.max(candidateValue, registeredPrice)
+          : candidateValue;
 
       setValue(fieldName, nextValue, { shouldDirty: true, shouldValidate: true });
 
-      if (fieldName === 'precioRegistrado' && unregisteredPrice < nextValue) {
+      if (fieldName === 'precioRegistrado' && unregisteredPrice > 0 && unregisteredPrice < nextValue) {
         setValue('precioNoRegistrado', nextValue, { shouldDirty: true, shouldValidate: true });
       }
     },
     [getValues, setValue]
   );
 
-  const renderPriceStepButtons = (fieldName) => (
+  const renderPriceStepButtons = (fieldName, { showUnavailable = false } = {}) => (
     <InputAdornment position="end" sx={{ gap: 0.5, ml: 0.75 }}>
+      {showUnavailable && (
+        <Box component="span" sx={{ typography: 'caption', color: 'text.disabled', mr: 0.25 }}>
+          (N/A)
+        </Box>
+      )}
+
       {[-10, 10].map((amount) => (
         <Button
           key={amount}
@@ -621,7 +632,9 @@ export function ProductCreateEditForm({ currentProduct }) {
                       </Box>
                     </InputAdornment>
                   ),
-                  endAdornment: renderPriceStepButtons('precioNoRegistrado'),
+                  endAdornment: renderPriceStepButtons('precioNoRegistrado', {
+                    showUnavailable: isUnregisteredPriceUnavailable,
+                  }),
                 },
               }}
             />
