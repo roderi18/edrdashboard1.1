@@ -112,41 +112,54 @@ const formatStorageSizeEs = (bytes) => {
   })} ${units[index]}`;
 };
 
-export const ProductCreateSchema = z.object({
-  name: z.string().min(1, { error: 'El nombre es requerido.' }),
-  description: schemaUtils
-    .editor({ error: 'La descripcion es requerida.' })
-    .min(100, { error: 'La descripcion debe tener al menos 100 caracteres.' }),
-  images: schemaUtils.files({ error: 'La imagen es requerida.' }).min(1, {
-    error: 'Debe subir al menos 1 imagen.',
-  }),
-  code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
-  sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
-  quantity: schemaUtils.nullableInput(
-    z.coerce.number().min(1, { error: 'La cantidad es requerida.' }),
-    { error: 'La cantidad es requerida.' }
-  ),
-  colors: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
-  sizes: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
-  tags: z.string().array().min(2, { error: 'Debe agregar al menos 2 etiquetas.' }),
-  price: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
-  precioRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
-  precioNoRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
-  precioPendiente: z.boolean().optional(),
-  renglon: z.string(),
-  requiereAprobacion: z.boolean().optional(),
-  tipoProducto: z.string(),
-  notasAdministrativas: z.string().optional(),
-  orden: z.coerce.number().nullable().optional(),
-  // Not required
-  category: z.string(),
-  subDescription: z.string(),
-  taxes: z.coerce.number().nullable(),
-  priceSale: z.coerce.number().nullable(),
-  saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
-  newLabel: z.object({ enabled: z.boolean(), content: z.string() }),
-  publish: z.boolean().optional(),
-});
+export const ProductCreateSchema = z
+  .object({
+    name: z.string().min(1, { error: 'El nombre es requerido.' }),
+    description: schemaUtils
+      .editor({ error: 'La descripcion es requerida.' })
+      .min(100, { error: 'La descripcion debe tener al menos 100 caracteres.' }),
+    images: schemaUtils.files({ error: 'La imagen es requerida.' }).min(1, {
+      error: 'Debe subir al menos 1 imagen.',
+    }),
+    code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
+    sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
+    quantity: schemaUtils.nullableInput(
+      z.coerce.number().min(1, { error: 'La cantidad es requerida.' }),
+      { error: 'La cantidad es requerida.' }
+    ),
+    colors: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
+    sizes: z.string().array().min(1, { error: 'Elija al menos una opcion.' }),
+    tags: z.string().array().min(2, { error: 'Debe agregar al menos 2 etiquetas.' }),
+    price: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+    precioRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+    precioNoRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+    precioPendiente: z.boolean().optional(),
+    renglon: z.string(),
+    requiereAprobacion: z.boolean().optional(),
+    tipoProducto: z.string(),
+    notasAdministrativas: z.string().optional(),
+    orden: z.coerce.number().nullable().optional(),
+    // Not required
+    category: z.string(),
+    subDescription: z.string(),
+    taxes: z.coerce.number().nullable(),
+    priceSale: z.coerce.number().nullable(),
+    saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
+    newLabel: z.object({ enabled: z.boolean(), content: z.string() }),
+    publish: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const registeredPrice = Number(data.precioRegistrado || 0);
+    const unregisteredPrice = Number(data.precioNoRegistrado || 0);
+
+    if (unregisteredPrice < registeredPrice) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['precioNoRegistrado'],
+        message: 'El precio a destacamentos no registrados no puede ser menor al registrado.',
+      });
+    }
+  });
 
 // ----------------------------------------------------------------------
 
@@ -200,6 +213,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     reset,
     watch,
     setValue,
+    getValues,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -288,6 +302,42 @@ export function ProductCreateEditForm({ currentProduct }) {
       }
     },
     [setValue]
+  );
+
+  const handleAdjustPrice = useCallback(
+    (fieldName, amount) => {
+      const currentValue = Number(getValues(fieldName) || 0);
+      const registeredPrice = Number(getValues('precioRegistrado') || 0);
+      const unregisteredPrice = Number(getValues('precioNoRegistrado') || 0);
+      const nextValue =
+        fieldName === 'precioNoRegistrado'
+          ? Math.max(currentValue + amount, registeredPrice, 0)
+          : Math.max(currentValue + amount, 0);
+
+      setValue(fieldName, nextValue, { shouldDirty: true, shouldValidate: true });
+
+      if (fieldName === 'precioRegistrado' && unregisteredPrice < nextValue) {
+        setValue('precioNoRegistrado', nextValue, { shouldDirty: true, shouldValidate: true });
+      }
+    },
+    [getValues, setValue]
+  );
+
+  const renderPriceStepButtons = (fieldName) => (
+    <InputAdornment position="end" sx={{ gap: 0.5, ml: 0.75 }}>
+      {[-10, 10].map((amount) => (
+        <Button
+          key={amount}
+          type="button"
+          size="small"
+          variant="outlined"
+          onClick={() => handleAdjustPrice(fieldName, amount)}
+          sx={{ minWidth: 42, px: 0.75 }}
+        >
+          {amount > 0 ? `+${amount}` : amount}
+        </Button>
+      ))}
+    </InputAdornment>
   );
 
   const renderCollapseButton = (value, onToggle) => (
@@ -551,6 +601,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                       </Box>
                     </InputAdornment>
                   ),
+                  endAdornment: renderPriceStepButtons('precioRegistrado'),
                 },
               }}
             />
@@ -570,6 +621,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                       </Box>
                     </InputAdornment>
                   ),
+                  endAdornment: renderPriceStepButtons('precioNoRegistrado'),
                 },
               }}
             />
