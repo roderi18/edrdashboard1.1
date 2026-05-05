@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -61,6 +61,8 @@ export function ChatMessageItem({
   onEdit,
   onDelete,
   onRestore,
+  onJumpToMessage,
+  highlighted = false,
 }) {
   const { me, senderDetails, hasImage } = getMessage({
     message,
@@ -71,11 +73,34 @@ export function ChatMessageItem({
   const { firstName, avatarUrl } = senderDetails;
 
   const { body, createdAt } = message;
+  const attachment = message.attachments?.[0] || null;
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
+  const [localReactions, setLocalReactions] = useState(message.reactions || {});
   const isSent = me && message.estadoEnvio !== 'enviando';
-  const reactions = Object.values(message.reactions || {});
+  const reactions = Object.values(localReactions);
   const isDeleted = message.eliminado;
   const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const reactionKey = String(currentContact.idMiembros || currentContact.id || 'usuario');
+
+  useEffect(() => {
+    setLocalReactions(message.reactions || {});
+  }, [message.reactions]);
+
+  const handleSelectEmoji = (emoji) => {
+    setEmojiAnchorEl(null);
+    setLocalReactions((currentReactions) => {
+      const nextReactions = { ...currentReactions };
+
+      if (nextReactions[reactionKey] === emoji) {
+        delete nextReactions[reactionKey];
+      } else {
+        nextReactions[reactionKey] = emoji;
+      }
+
+      return nextReactions;
+    });
+    onReact?.(message, emoji);
+  };
 
   const renderInfo = () => (
     <Typography
@@ -118,20 +143,54 @@ export function ChatMessageItem({
             '&:hover': { opacity: 0.9 },
           }}
         />
+      ) : message.contentType === 'file' && attachment ? (
+        <Box
+          component="a"
+          href={attachment.url || attachment.downloadURL}
+          target="_blank"
+          rel="noreferrer"
+          sx={{
+            gap: 1,
+            minWidth: 220,
+            display: 'flex',
+            color: 'inherit',
+            alignItems: 'center',
+            textDecoration: 'none',
+            '&:hover': { textDecoration: 'underline' },
+          }}
+        >
+          <Iconify icon="solar:file-bold" width={24} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography noWrap variant="body2" sx={{ fontWeight: 700 }}>
+              {attachment.nombre || body}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {attachment.tipo || 'Archivo'}
+            </Typography>
+          </Box>
+        </Box>
       ) : (
         <>
           {message.replyTo && (
             <Box
+              component="button"
+              type="button"
+              onClick={() => onJumpToMessage?.(message.replyTo.id)}
               sx={{
+                width: 1,
                 mb: 1,
                 px: 1,
                 py: 0.75,
+                border: 0,
                 borderRadius: 0.75,
+                textAlign: 'left',
+                cursor: 'pointer',
                 color: 'text.secondary',
                 bgcolor: 'background.paper',
                 maxWidth: 1,
                 overflow: 'hidden',
                 borderLeft: (theme) => `3px solid ${theme.vars.palette.primary.main}`,
+                '&:hover': { bgcolor: 'action.hover' },
               }}
             >
               <Typography
@@ -183,25 +242,29 @@ export function ChatMessageItem({
         </>
       )}
 
-      {!!reactions.length && (
-        <Box sx={{ mt: 0.75, display: 'flex', justifyContent: me ? 'flex-end' : 'flex-start' }}>
-          <Box
-            component="span"
-            sx={{
-              px: 0.75,
-              py: 0.25,
-              borderRadius: 10,
-              typography: 'caption',
-              bgcolor: 'background.paper',
-              boxShadow: 1,
-            }}
-          >
-            {reactions.join(' ')}
-          </Box>
-        </Box>
-      )}
     </Stack>
   );
+
+  const renderReactions = () =>
+    !!reactions.length && (
+      <Box
+        component="span"
+        sx={{
+          px: 0.75,
+          py: 0.25,
+          bottom: -10,
+          right: me ? 22 : -10,
+          zIndex: 1,
+          borderRadius: 10,
+          position: 'absolute',
+          typography: 'caption',
+          bgcolor: 'background.paper',
+          boxShadow: 1,
+        }}
+      >
+        {reactions.join(' ')}
+      </Box>
+    );
 
   const renderActions = () => (
     <>
@@ -258,10 +321,20 @@ export function ChatMessageItem({
               key={emoji}
               size="small"
               onClick={() => {
-                setEmojiAnchorEl(null);
-                onReact?.(message, emoji);
+                handleSelectEmoji(emoji);
               }}
-              sx={{ fontSize: 20 }}
+              sx={{
+                fontSize: 20,
+                bgcolor: localReactions[reactionKey] === emoji ? 'action.selected' : 'transparent',
+                boxShadow: (theme) =>
+                  localReactions[reactionKey] === emoji
+                    ? `0 0 0 1px ${theme.vars.palette.primary.main}`
+                    : 'none',
+                '&:hover': {
+                  bgcolor:
+                    localReactions[reactionKey] === emoji ? 'action.selected' : 'action.hover',
+                },
+              }}
             >
               {emoji}
             </IconButton>
@@ -291,7 +364,23 @@ export function ChatMessageItem({
   }
 
   return (
-    <Box sx={{ mb: 5, display: 'flex', justifyContent: me ? 'flex-end' : 'unset' }}>
+    <Box
+      id={`chat-message-${message.id}`}
+      sx={{
+        mb: 5,
+        display: 'flex',
+        justifyContent: me ? 'flex-end' : 'unset',
+        borderRadius: 1.5,
+        transition: (theme) =>
+          theme.transitions.create(['background-color', 'box-shadow'], {
+            duration: theme.transitions.duration.shorter,
+          }),
+        ...(highlighted && {
+          bgcolor: 'action.hover',
+          boxShadow: (theme) => `0 0 0 2px ${theme.vars.palette.primary.main}`,
+        }),
+      }}
+    >
       {!me && <Avatar alt={firstName} src={avatarUrl} sx={{ width: 32, height: 32, mr: 2 }} />}
 
       <Stack alignItems={me ? 'flex-end' : 'flex-start'}>
@@ -306,6 +395,7 @@ export function ChatMessageItem({
           }}
         >
           {renderBody()}
+          {renderReactions()}
           {renderDeliveryStatus()}
           {renderActions()}
         </Box>

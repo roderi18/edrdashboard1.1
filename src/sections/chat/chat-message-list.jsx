@@ -1,3 +1,5 @@
+import { useRef, useState, useCallback } from 'react';
+
 import Stack from '@mui/material/Stack';
 import LinearProgress from '@mui/material/LinearProgress';
 
@@ -26,6 +28,9 @@ export function ChatMessageList({
   onDelete,
   onRestore,
 }) {
+  const highlightTimeoutRef = useRef(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState('');
+
   const sortedMessages = [...messages].sort((firstMessage, secondMessage) => {
     const timeDifference = getMessageTime(firstMessage) - getMessageTime(secondMessage);
 
@@ -43,6 +48,25 @@ export function ChatMessageList({
     .map((message) => ({ src: message.body }));
 
   const lightbox = useLightbox(slides);
+
+  const handleJumpToMessage = useCallback((messageId) => {
+    if (!messageId) return;
+
+    const messageElement = document.getElementById(`chat-message-${messageId}`);
+
+    if (!messageElement) return;
+
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMessageId(String(messageId));
+
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightedMessageId('');
+    }, 1000);
+  }, []);
 
   if (loading) {
     return (
@@ -85,6 +109,8 @@ export function ChatMessageList({
             onEdit={onEdit}
             onDelete={onDelete}
             onRestore={onRestore}
+            onJumpToMessage={handleJumpToMessage}
+            highlighted={String(highlightedMessageId) === String(message.id)}
           />
         ))}
       </Scrollbar>
