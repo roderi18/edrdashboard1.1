@@ -1,5 +1,5 @@
 import { useForm, Controller } from 'react-hook-form';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -48,6 +48,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     priceSale,
     saleLabel,
     tipoProducto,
+    category,
     precioRegistrado,
     precioNoRegistrado,
     totalRatings,
@@ -60,6 +61,10 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
   const productSizes = sizes ?? EMPTY_OPTIONS;
   const productColors = colors ?? EMPTY_OPTIONS;
   const existProduct = !!items?.length && items.map((item) => item.id).includes(id);
+  const isUniformProduct = category === 'uniformes';
+  const isRestrictedProduct =
+    renglon === 'restringido' || tipoProducto === 'restringido' || requiereAprobacion;
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
 
   const availableQuantity = Number(available) || 0;
   const isMaxQuantity =
@@ -79,7 +84,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       requiereAprobacion,
       tipoProducto,
       colors: productColors[0] || '',
-      size: productSizes[0] || '',
+      size: isUniformProduct ? productSizes[0] || '' : '',
       quantity: availableQuantity < 1 ? 0 : 1,
     }),
     [
@@ -88,6 +93,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       id,
       name,
       price,
+      isUniformProduct,
       precioNoRegistrado,
       precioRegistrado,
       productColors,
@@ -106,6 +112,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
 
   const values = watch();
   const hasQuantity = Number(values.quantity) > 0;
+  const hasRequiredEvidence = !isRestrictedProduct || evidenceFiles.length > 0;
 
   useEffect(() => {
     reset(defaultValues);
@@ -135,6 +142,10 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
       console.error(error);
     }
   }, [onAddToCart, values]);
+
+  const handleEvidenceChange = useCallback((event) => {
+    setEvidenceFiles(Array.from(event.target.files || []).slice(0, 5));
+  }, []);
 
   const renderPrice = () => (
     <Box sx={{ typography: 'h5' }}>
@@ -259,6 +270,48 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     </Box>
   );
 
+  const renderRestrictedEvidence = () =>
+    isRestrictedProduct && (
+      <Box sx={{ display: 'flex' }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="subtitle2">Cargar evidencias</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Para adquirir este producto, es necesario haber completado el adiestramiento requerido.
+            Por ello, tu Certificado será evaluado antes de permitir la compra.
+            <br />
+            Al cargar Certificado se habilitará el botón de Enviar a evaluación.
+          </Typography>
+        </Box>
+
+        <Stack spacing={0.75} alignItems="flex-end">
+          <Button
+            component="label"
+            size="small"
+            variant="outlined"
+            startIcon={<Iconify icon="solar:upload-bold" />}
+            sx={{ width: 88, minHeight: 40 }}
+          >
+            Cargar
+            <Box
+              component="input"
+              hidden
+              multiple
+              type="file"
+              onChange={handleEvidenceChange}
+              accept="image/*,.pdf"
+            />
+          </Button>
+
+          {!!evidenceFiles.length && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {evidenceFiles.length} archivo{evidenceFiles.length > 1 ? 's' : ''} seleccionado
+              {evidenceFiles.length > 1 ? 's' : ''}
+            </Typography>
+          )}
+        </Stack>
+      </Box>
+    );
+
   const renderActions = () => (
     <Box sx={{ gap: 2, display: 'flex' }}>
       <Button
@@ -279,9 +332,9 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         size="large"
         type="submit"
         variant="contained"
-        disabled={disableActions || !hasQuantity}
+        disabled={disableActions || !hasQuantity || !hasRequiredEvidence}
       >
-        Comprar ahora
+        {isRestrictedProduct ? 'Enviar a evaluación' : 'Comprar ahora'}
       </Button>
     </Box>
   );
@@ -346,8 +399,9 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         <Divider sx={{ borderStyle: 'dashed' }} />
 
         {renderColorOptions()}
-        {renderSizeOptions()}
+        {isUniformProduct && renderSizeOptions()}
         {renderQuantity()}
+        {renderRestrictedEvidence()}
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 

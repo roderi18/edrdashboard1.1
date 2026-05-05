@@ -40,7 +40,6 @@ import {
   RenderCellPublish,
   RenderCellRenglon,
   RenderCellProduct,
-  RenderCellCategory,
 } from '../product-table-row';
 
 // ----------------------------------------------------------------------
@@ -186,7 +185,16 @@ export function ProductListView() {
 
   return (
     <>
-      <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <DashboardContent
+        sx={{
+          mx: 'auto',
+          width: 1,
+          maxWidth: 1120,
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <CustomBreadcrumbs
           heading="Lista de productos"
           links={[
@@ -284,7 +292,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         field: 'name',
         headerName: 'Producto',
         flex: 1,
-        minWidth: 300,
+        minWidth: 260,
         hideable: false,
         renderCell: (params) => (
           <RenderCellProduct
@@ -296,7 +304,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'inventoryType',
         headerName: 'Existencias',
-        width: 145,
+        width: 125,
         type: 'singleSelect',
         filterable: false,
         valueOptions: PRODUCT_STOCK_OPTIONS,
@@ -305,7 +313,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioRegistrado',
         headerName: 'Precio Dests. Registrados',
-        width: 130,
+        width: 120,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
@@ -313,39 +321,29 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioNoRegistrado',
         headerName: 'Precio Dests. NO Registrados',
-        width: 145,
+        width: 130,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
-      ...(isMemberUser
-        ? [
-          {
-            field: 'category',
-            headerName: 'Categoria',
-            width: 140,
-            filterable: false,
-            renderCell: (params) => <RenderCellCategory params={params} />,
-          },
-        ]
-        : []),
+      {
+        field: 'renglon',
+        headerName: 'Renglón',
+        width: 105,
+        type: 'singleSelect',
+        filterable: false,
+        valueOptions: [
+          { value: 'general', label: 'General' },
+          { value: 'restringido', label: 'Restringido' },
+        ],
+        renderCell: (params) => <RenderCellRenglon params={params} />,
+      },
       ...(!isMemberUser
-        ? [{
-            field: 'renglon',
-            headerName: 'Renglón',
-            width: 110,
-            type: 'singleSelect',
-            filterable: false,
-            valueOptions: [
-              { value: 'general', label: 'General' },
-              { value: 'restringido', label: 'Restringido' },
-            ],
-            renderCell: (params) => <RenderCellRenglon params={params} />,
-          },
+        ? [
           {
             field: 'publish',
             headerName: 'Publicado',
-            width: 115,
+            width: 105,
             type: 'singleSelect',
             filterable: false,
             valueOptions: [
@@ -353,13 +351,14 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
               { value: 'draft', label: 'Borrador' },
             ],
             renderCell: (params) => <RenderCellPublish params={params} />,
-          }]
+          },
+        ]
         : []),
       {
         type: 'actions',
         field: 'actions',
         headerName: ' ',
-        width: isMemberUser ? 96 : 64,
+        width: isMemberUser ? 72 : 56,
         align: 'right',
         headerAlign: 'right',
         sortable: false,

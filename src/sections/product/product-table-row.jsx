@@ -21,7 +21,7 @@ export function RenderCellPrice({ params }) {
 }
 
 export function RenderCellCategory({ params }) {
-  return translateProductCategory(params.row.category);
+  return toTitleCase(translateProductCategory(params.row.category));
 }
 
 export function RenderCellPublish({ params }) {
@@ -121,4 +121,13 @@ function translateProductCategory(category) {
   };
 
   return categories[category] || category;
+}
+
+function toTitleCase(value = '') {
+  return String(value)
+    .split(/(\s+|\/|-)/)
+    .map((part) =>
+      /^[a-zA-ZÀ-ÿ]/.test(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part
+    )
+    .join('');
 }

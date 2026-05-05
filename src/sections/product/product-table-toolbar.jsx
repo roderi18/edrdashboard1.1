@@ -54,6 +54,14 @@ export function ProductTableToolbar({
 
   const renderLeftPanel = () => (
     <>
+      <CustomToolbarQuickFilter
+        sx={{
+          flexGrow: 1,
+          minWidth: { xs: 1, md: isMemberUser ? 320 : 220 },
+          maxWidth: { md: isMemberUser ? 'none' : 260 },
+        }}
+      />
+
       <FilterSelect
         label="Existencias"
         value={stock}
@@ -70,14 +78,6 @@ export function ProductTableToolbar({
         onChange={handleSelect(setRenglon)}
         onApply={() => updateFilters({ renglon })}
         width={150}
-      />
-
-      <CustomToolbarQuickFilter
-        sx={{
-          flexGrow: 1,
-          minWidth: { xs: 1, md: isMemberUser ? 320 : 180 },
-          maxWidth: { md: isMemberUser ? 'none' : 220 },
-        }}
       />
     </>
   );
