@@ -13,7 +13,11 @@ import { isMemberSessionUser } from 'src/utils/member-access';
 
 import { ORDER_STATUS_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { obtenerOrdenFirestorePorId, cambiarEstadoOrdenFirestore } from 'src/services/order-service';
+import {
+  obtenerOrdenFirestorePorId,
+  cambiarEstadoOrdenFirestore,
+  evaluarOrdenRestringidaFirestore,
+} from 'src/services/order-service';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -24,6 +28,7 @@ import { OrderDetailsPayment } from '../order-details-payment';
 import { OrderDetailsCustomer } from '../order-details-customer';
 import { OrderDetailsDelivery } from '../order-details-delivery';
 import { OrderDetailsShipping } from '../order-details-shipping';
+import { OrderDetailsAttachments } from '../order-details-attachments';
 
 // ----------------------------------------------------------------------
 
@@ -32,6 +37,13 @@ export function OrderDetailsView({ order, orderId }) {
   const [resolvedOrder, setResolvedOrder] = useState(order);
   const [status, setStatus] = useState(order?.status);
   const canManageStatus = !isMemberSessionUser(user);
+  const showAttachments =
+    (resolvedOrder?.items || []).some(
+      (item) =>
+        item?.requiereAprobacion ||
+        item?.renglon === 'restringido' ||
+        item?.tipoProducto === 'restringido'
+    );
 
   useEffect(() => {
     const loadOrder = async () => {
@@ -64,6 +76,32 @@ export function OrderDetailsView({ order, orderId }) {
       }
 
       setStatus(newValue);
+    },
+    [canManageStatus, resolvedOrder?.id, user]
+  );
+
+  const handleEvaluateOrder = useCallback(
+    async (accion, razon = '') => {
+      if (!canManageStatus || !resolvedOrder?.id) return null;
+
+      const updatedOrder = await evaluarOrdenRestringidaFirestore({
+        orderId: resolvedOrder.id,
+        accion,
+        razon,
+        user,
+      });
+
+      if (updatedOrder) {
+        setResolvedOrder(updatedOrder);
+        setStatus(updatedOrder.status);
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('notificaciones:actualizar'));
+          window.dispatchEvent(new Event('chat:notificaciones:actualizar'));
+        }
+      }
+
+      return updatedOrder;
     },
     [canManageStatus, resolvedOrder?.id, user]
   );
@@ -101,6 +139,17 @@ export function OrderDetailsView({ order, orderId }) {
         <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <OrderDetailsCustomer customer={resolvedOrder?.customer} />
+
+            {showAttachments && (
+              <>
+                <Divider sx={{ borderStyle: 'dashed' }} />
+                <OrderDetailsAttachments
+                  order={resolvedOrder}
+                  canManageStatus={canManageStatus}
+                  onEvaluateOrder={handleEvaluateOrder}
+                />
+              </>
+            )}
 
             <Divider sx={{ borderStyle: 'dashed' }} />
             <OrderDetailsDelivery delivery={resolvedOrder?.delivery} />

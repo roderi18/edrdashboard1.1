@@ -190,6 +190,15 @@ const construirDescripcionPedido = (orden = {}) => {
   };
 };
 
+const tieneAdjuntosDeProductoRestringido = (orden = {}) =>
+  (orden?.items || []).some(
+    (item) =>
+      (item?.requiereAprobacion ||
+        item?.renglon === 'restringido' ||
+        item?.tipoProducto === 'restringido') &&
+      (item?.archivosAdjuntos || item?.aprobacion?.archivosAdjuntos || []).length
+  );
+
 export async function crearNotificacionMiembroCreado({ miembro = {}, usuario = {} }) {
   asegurarFirebaseNotificaciones();
 
@@ -268,6 +277,13 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
   const actorNombre =
     usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Cliente';
   const actorFotoURL = usuario?.photoURL || null;
+  const tieneAdjuntosRestringidos = tieneAdjuntosDeProductoRestringido(orden);
+  const mensajePedidoAdmin = tieneAdjuntosRestringidos
+    ? `realizó el pedido ${numeroOrden} con archivos adjuntos por producto restringido.`
+    : `realizó el pedido ${numeroOrden}.`;
+  const tituloPedidoAdmin = tieneAdjuntosRestringidos
+    ? `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong> con archivos adjuntos por producto restringido</p>`
+    : `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`;
   const baseMetadatos = {
     ordenId,
     numeroOrden,
@@ -287,9 +303,9 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
       tipoNotificacion: 'pedido_recibido',
       modulo: 'pedidos',
       titulo: 'Nuevo pedido recibido',
-      tituloHtml: `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`,
-      mensaje: `realizó el pedido ${numeroOrden}.`,
-      mensajeVisual: `realizó el pedido ${numeroOrden}.`,
+      tituloHtml: tituloPedidoAdmin,
+      mensaje: mensajePedidoAdmin,
+      mensajeVisual: mensajePedidoAdmin,
       rolDestinatario: 'admin',
       idsDestinatarios: idsAdministradores,
       prioridad: 'importante',
@@ -370,6 +386,81 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
   );
 
   return notificaciones;
+}
+
+export async function crearNotificacionEvaluacionPedido({
+  orden = {},
+  tipo = 'rechazada',
+  razon = '',
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const idUsuario = String(orden?.usuarioId || '').trim();
+
+  if (!idUsuario) {
+    return null;
+  }
+
+  const fechaActual = new Date().toISOString();
+  const ordenId = orden?.ordenId || orden?.id || '';
+  const { numeroOrden } = construirDescripcionPedido(orden);
+  const esRechazo = tipo === 'rechazada';
+  const estadoTexto = esRechazo ? 'fue rechazado' : 'fue aceptado para compra';
+  const mensaje = esRechazo
+    ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}`
+    : `tu pedido ${numeroOrden} fue aceptado para compra.`;
+  const notificationId = `pedido_${tipo}_${ordenId || Date.now()}_${idUsuario}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: esRechazo ? 'pedido_cancelado' : 'pedido_confirmado',
+    modulo: 'pedidos',
+    titulo: esRechazo ? 'Pedido rechazado' : 'Pedido aceptado',
+    tituloHtml: `<p><strong>${escapeHtml(numeroOrden)}</strong> ${escapeHtml(estadoTexto)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'usuario',
+    idsDestinatarios: [idUsuario],
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || 'sistema'),
+    actorTipo: 'admin',
+    actorNombre: usuario?.displayName || usuario?.nombre || usuario?.email || 'Administración',
+    actorFotoURL: usuario?.photoURL || null,
+    entidadTipo: 'pedido',
+    entidadId: ordenId,
+    ruta: numeroOrden ? `/dashboard/order/${numeroOrden}` : '/dashboard/order',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver pedido',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      ordenId,
+      numeroOrden,
+      razon,
+      estadoEvaluacion: tipo,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
+  );
+
+  return notificacion;
 }
 
 const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {

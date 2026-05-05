@@ -47,6 +47,10 @@ export const crearItemCarrito = (item = {}) =>
     subtotal:
       Number(item?.subtotal ?? 0) ||
       Number(item?.price ?? item?.precio ?? 0) * Number(item?.quantity ?? item?.cantidad ?? 0),
+    renglon: item?.renglon ?? 'general',
+    requiereAprobacion: Boolean(item?.requiereAprobacion ?? item?.renglon === 'restringido'),
+    tipoProducto: item?.tipoProducto ?? 'simple',
+    archivosAdjuntos: Array.isArray(item?.archivosAdjuntos) ? item.archivosAdjuntos : [],
   });
 
 export const crearDocumentoCarrito = ({ user, state = {}, createdAt = null } = {}) => {
@@ -86,6 +90,10 @@ export const mapearCarritoFirestoreAEstado = (doc = null) => ({
     colors: item?.color ? [item.color] : [],
     size: item?.talla ?? '',
     subtotal: Number(item?.subtotal ?? 0),
+    renglon: item?.renglon ?? 'general',
+    requiereAprobacion: Boolean(item?.requiereAprobacion ?? item?.renglon === 'restringido'),
+    tipoProducto: item?.tipoProducto ?? 'simple',
+    archivosAdjuntos: Array.isArray(item?.archivosAdjuntos) ? item.archivosAdjuntos : [],
   })) || [],
   order: null,
   receipt: null,

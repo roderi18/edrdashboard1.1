@@ -52,6 +52,7 @@ export const ORDEN_DEFAULT = {
 
 export const crearItemOrden = (item = {}) => {
   const requiereAprobacion = Boolean(item?.requiereAprobacion ?? item?.renglon === 'restringido');
+  const archivosAdjuntos = Array.isArray(item?.archivosAdjuntos) ? item.archivosAdjuntos : [];
 
   return sanitizarFirestoreData({
     productoId: String(item?.id ?? item?.productoId ?? ''),
@@ -73,6 +74,7 @@ export const crearItemOrden = (item = {}) => {
     requiereAprobacion,
     tipoProducto: item?.tipoProducto ?? 'simple',
     variante: item?.variante ?? item?.variant ?? null,
+    archivosAdjuntos,
     aprobacion: {
       requerida: requiereAprobacion,
       estado:
@@ -80,6 +82,7 @@ export const crearItemOrden = (item = {}) => {
       aprobadoPor: item?.aprobacion?.aprobadoPor ?? null,
       fechaAprobacion: item?.aprobacion?.fechaAprobacion ?? null,
       comentario: item?.aprobacion?.comentario ?? null,
+      archivosAdjuntos,
     },
   });
 };
@@ -171,6 +174,7 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
     requiereAprobacion: Boolean(item?.requiereAprobacion ?? false),
     tipoProducto: item?.tipoProducto || 'simple',
     variante: item?.variante || null,
+    archivosAdjuntos: Array.isArray(item?.archivosAdjuntos) ? item.archivosAdjuntos : [],
     aprobacion: item?.aprobacion || null,
   })),
   history: {

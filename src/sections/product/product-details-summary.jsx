@@ -15,6 +15,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
+import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -122,8 +123,23 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     console.info('DATA', JSON.stringify(data, null, 2));
 
     try {
+      const archivosAdjuntos = await uploadFilesToStorage({
+        files: evidenceFiles,
+        storagePathBuilder: (file, index) =>
+          `ordenes/evidencias/${id}/${buildStorageFileName(file, index)}`,
+        metadataBuilder: () => ({
+          productoId: String(id || ''),
+          productoNombre: name || '',
+          renglon: renglon || '',
+        }),
+      });
+
       if (!existProduct) {
-        onAddToCart?.({ ...data, colors: [values.colors] });
+        onAddToCart?.({
+          ...data,
+          colors: [values.colors],
+          archivosAdjuntos,
+        });
       }
       router.push(checkoutPath);
     } catch (error) {
@@ -131,17 +147,29 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
     }
   });
 
-  const handleAddCart = useCallback(() => {
+  const handleAddCart = useCallback(async () => {
     try {
+      const archivosAdjuntos = await uploadFilesToStorage({
+        files: evidenceFiles,
+        storagePathBuilder: (file, index) =>
+          `ordenes/evidencias/${id}/${buildStorageFileName(file, index)}`,
+        metadataBuilder: () => ({
+          productoId: String(id || ''),
+          productoNombre: name || '',
+          renglon: renglon || '',
+        }),
+      });
+
       onAddToCart?.({
         ...values,
         colors: [values.colors],
+        archivosAdjuntos,
         subtotal: values.price * values.quantity,
       });
     } catch (error) {
       console.error(error);
     }
-  }, [onAddToCart, values]);
+  }, [evidenceFiles, id, name, onAddToCart, renglon, values]);
 
   const handleEvidenceChange = useCallback((event) => {
     setEvidenceFiles(Array.from(event.target.files || []).slice(0, 5));
@@ -334,7 +362,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         variant="contained"
         disabled={disableActions || !hasQuantity || !hasRequiredEvidence}
       >
-        {isRestrictedProduct ? 'Enviar a evaluación' : 'Comprar ahora'}
+        {isRestrictedProduct ? 'Enviar a evaluación y compra' : 'Comprar ahora'}
       </Button>
     </Box>
   );
