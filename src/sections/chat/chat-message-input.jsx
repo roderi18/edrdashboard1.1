@@ -462,9 +462,9 @@ export function ChatMessageInput({
               gridTemplateColumns: 'repeat(8, 1fr)',
             }}
           >
-            {currentEmojiCategory.emojis.map((emoji) => (
+            {currentEmojiCategory.emojis.map((emoji, index) => (
               <IconButton
-                key={emoji}
+                key={`${emoji}-${index}`}
                 size="small"
                 onClick={() => handleInsertEmoji(emoji)}
                 sx={{ width: 38, height: 38, fontSize: 22 }}

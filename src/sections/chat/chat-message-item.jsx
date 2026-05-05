@@ -21,6 +21,61 @@ import { getMessage } from './utils/get-message';
 const ORDER_NUMBER_REGEX = /(ORD-\d+)/g;
 const ORDER_NUMBER_EXACT_REGEX = /^ORD-\d+$/;
 const EMOJI_OPTIONS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F64F}'];
+const REACTION_EMOJI_CATEGORIES = [
+  {
+    label: 'Caras',
+    emojis: [
+      '\u{1F600}', '\u{1F603}', '\u{1F604}', '\u{1F601}', '\u{1F606}', '\u{1F605}', '\u{1F602}', '\u{1F923}',
+      '\u{1F60A}', '\u{1F607}', '\u{1F642}', '\u{1F643}', '\u{1F609}', '\u{1F60C}', '\u{1F60D}', '\u{1F970}',
+      '\u{1F618}', '\u{1F617}', '\u{1F619}', '\u{1F61A}', '\u{1F60B}', '\u{1F61B}', '\u{1F61D}', '\u{1F61C}',
+      '\u{1F92A}', '\u{1F928}', '\u{1F9D0}', '\u{1F913}', '\u{1F60E}', '\u{1F929}', '\u{1F973}', '\u{1F60F}',
+      '\u{1F612}', '\u{1F61E}', '\u{1F614}', '\u{1F61F}', '\u{1F615}', '\u{1F641}', '\u{2639}\u{FE0F}', '\u{1F623}',
+      '\u{1F616}', '\u{1F62B}', '\u{1F629}', '\u{1F97A}', '\u{1F622}', '\u{1F62D}', '\u{1F624}', '\u{1F620}',
+      '\u{1F621}', '\u{1F92C}', '\u{1F92F}', '\u{1F633}', '\u{1F975}', '\u{1F976}', '\u{1F631}', '\u{1F628}',
+      '\u{1F630}', '\u{1F625}', '\u{1F613}', '\u{1F917}', '\u{1F914}', '\u{1F92D}', '\u{1F925}', '\u{1F636}',
+      '\u{1F610}', '\u{1F611}', '\u{1F62C}', '\u{1F644}', '\u{1F62F}', '\u{1F626}', '\u{1F627}', '\u{1F62E}',
+      '\u{1F632}', '\u{1F971}', '\u{1F634}', '\u{1F924}', '\u{1F62A}', '\u{1F635}', '\u{1F910}', '\u{1F974}',
+      '\u{1F922}', '\u{1F92E}', '\u{1F927}', '\u{1F637}', '\u{1F912}', '\u{1F915}',
+    ],
+  },
+  {
+    label: 'Gestos',
+    emojis: [
+      '\u{1F44D}', '\u{1F44E}', '\u{1F44A}', '\u{270A}', '\u{1F91B}', '\u{1F91C}', '\u{1F44F}', '\u{1F64C}',
+      '\u{1F450}', '\u{1F932}', '\u{1F91D}', '\u{1F64F}', '\u{270D}\u{FE0F}', '\u{1F4AA}', '\u{1F590}\u{FE0F}',
+      '\u{270B}', '\u{1F91A}', '\u{1F44B}', '\u{1F919}', '\u{1F90C}', '\u{1F90F}', '\u{270C}\u{FE0F}',
+      '\u{1F91E}', '\u{1FAF0}', '\u{1F91F}', '\u{1F918}', '\u{1F44C}', '\u{1F448}', '\u{1F449}', '\u{1F446}',
+      '\u{1F447}', '\u{261D}\u{FE0F}', '\u{1FAF5}',
+    ],
+  },
+  {
+    label: 'Corazones',
+    emojis: [
+      '\u{2764}\u{FE0F}', '\u{1F9E1}', '\u{1F49B}', '\u{1F49A}', '\u{1F499}', '\u{1F49C}', '\u{1F5A4}', '\u{1F90D}',
+      '\u{1F90E}', '\u{1F494}', '\u{2764}\u{FE0F}\u{200D}\u{1F525}', '\u{2764}\u{FE0F}\u{200D}\u{1FA79}',
+      '\u{2763}\u{FE0F}', '\u{1F495}', '\u{1F49E}', '\u{1F493}', '\u{1F497}', '\u{1F496}', '\u{1F498}', '\u{1F49D}',
+      '\u{1F49F}', '\u{1F48C}', '\u{1F48B}', '\u{1F4AF}', '\u{1F4A2}', '\u{1F4A5}', '\u{1F4AB}', '\u{1F4A6}',
+    ],
+  },
+  {
+    label: 'Objetos',
+    emojis: [
+      '\u{1F389}', '\u{1F38A}', '\u{1F381}', '\u{1F3C6}', '\u{1F947}', '\u{1F948}', '\u{1F949}', '\u{2B50}',
+      '\u{1F31F}', '\u{2728}', '\u{26A1}', '\u{1F525}', '\u{1F4A1}', '\u{1F4CC}', '\u{1F4CD}', '\u{1F4CE}',
+      '\u{1F4DD}', '\u{1F4E2}', '\u{1F4E3}', '\u{1F514}', '\u{1F515}', '\u{1F4AC}', '\u{1F4AD}', '\u{1F4E9}',
+      '\u{2705}', '\u{274C}', '\u{2757}', '\u{2753}', '\u{1F6AB}', '\u{1F6A8}', '\u{1F4B0}', '\u{1F4B3}',
+    ],
+  },
+  {
+    label: 'Naturaleza',
+    emojis: [
+      '\u{1F31E}', '\u{1F31D}', '\u{1F31A}', '\u{1F319}', '\u{2600}\u{FE0F}', '\u{1F324}\u{FE0F}', '\u{26C5}',
+      '\u{2601}\u{FE0F}', '\u{1F327}\u{FE0F}', '\u{26C8}\u{FE0F}', '\u{1F308}', '\u{2744}\u{FE0F}', '\u{2603}\u{FE0F}',
+      '\u{1F32A}\u{FE0F}', '\u{1F30A}', '\u{1F331}', '\u{1F33F}', '\u{2618}\u{FE0F}', '\u{1F340}', '\u{1F33A}',
+      '\u{1F33B}', '\u{1F339}', '\u{1F490}', '\u{1F384}',
+    ],
+  },
+];
 
 const formatChatTime = (input) => {
   const value = fToNow(input);
@@ -75,12 +130,20 @@ export function ChatMessageItem({
   const { body, createdAt } = message;
   const attachment = message.attachments?.[0] || null;
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
+  const [showAllReactionEmojis, setShowAllReactionEmojis] = useState(false);
+  const [reactionEmojiCategory, setReactionEmojiCategory] = useState(
+    REACTION_EMOJI_CATEGORIES[0].label
+  );
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
   const isSent = me && message.estadoEnvio !== 'enviando';
   const reactions = Object.values(localReactions);
   const isDeleted = message.eliminado;
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const reactionKey = String(currentContact.idMiembros || currentContact.id || 'usuario');
+  const selectedReactionEmoji = localReactions[reactionKey];
+  const currentReactionEmojiCategory =
+    REACTION_EMOJI_CATEGORIES.find((category) => category.label === reactionEmojiCategory) ||
+    REACTION_EMOJI_CATEGORIES[0];
 
   useEffect(() => {
     setLocalReactions(message.reactions || {});
@@ -88,6 +151,7 @@ export function ChatMessageItem({
 
   const handleSelectEmoji = (emoji) => {
     setEmojiAnchorEl(null);
+    setShowAllReactionEmojis(false);
     setLocalReactions((currentReactions) => {
       const nextReactions = { ...currentReactions };
 
@@ -291,7 +355,10 @@ export function ChatMessageItem({
         <IconButton
           size="small"
           disabled={isDeleted}
-          onClick={(event) => setEmojiAnchorEl(event.currentTarget)}
+          onClick={(event) => {
+            setShowAllReactionEmojis(false);
+            setEmojiAnchorEl(event.currentTarget);
+          }}
         >
           <Iconify icon="eva:smiling-face-fill" width={16} />
         </IconButton>
@@ -316,30 +383,105 @@ export function ChatMessageItem({
         slotProps={{ paper: { sx: { p: 0.75, borderRadius: 1.5 } } }}
       >
         <Box sx={{ display: 'flex', gap: 0.25 }}>
-          {EMOJI_OPTIONS.map((emoji) => (
+          {EMOJI_OPTIONS.map((emoji, index) => (
             <IconButton
-              key={emoji}
+              key={`${emoji}-${index}`}
               size="small"
               onClick={() => {
                 handleSelectEmoji(emoji);
               }}
               sx={{
-                fontSize: 20,
-                bgcolor: localReactions[reactionKey] === emoji ? 'action.selected' : 'transparent',
+                fontSize: 22,
+                bgcolor: selectedReactionEmoji === emoji ? 'action.selected' : 'transparent',
                 boxShadow: (theme) =>
-                  localReactions[reactionKey] === emoji
+                  selectedReactionEmoji === emoji
                     ? `0 0 0 1px ${theme.vars.palette.primary.main}`
                     : 'none',
                 '&:hover': {
-                  bgcolor:
-                    localReactions[reactionKey] === emoji ? 'action.selected' : 'action.hover',
+                  bgcolor: selectedReactionEmoji === emoji ? 'action.selected' : 'action.hover',
                 },
               }}
             >
               {emoji}
             </IconButton>
           ))}
+
+          <IconButton
+            size="small"
+            onClick={() => setShowAllReactionEmojis((value) => !value)}
+            sx={{
+              width: 34,
+              height: 34,
+              border: (theme) => `1px dashed ${theme.vars.palette.divider}`,
+            }}
+          >
+            <Iconify icon="mingcute:add-line" width={18} />
+          </IconButton>
         </Box>
+
+        {showAllReactionEmojis && (
+          <Box sx={{ width: 340, maxWidth: 'calc(100vw - 40px)', pt: 1 }}>
+            <Box sx={{ gap: 0.5, mb: 1, display: 'flex', overflowX: 'auto' }}>
+              {REACTION_EMOJI_CATEGORIES.map((category) => (
+                <Box
+                  key={category.label}
+                  component="button"
+                  type="button"
+                  onClick={() => setReactionEmojiCategory(category.label)}
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    border: 0,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    typography: 'caption',
+                    color:
+                      reactionEmojiCategory === category.label
+                        ? 'primary.contrastText'
+                        : 'text.primary',
+                    bgcolor:
+                      reactionEmojiCategory === category.label
+                        ? 'primary.main'
+                        : 'background.neutral',
+                  }}
+                >
+                  {category.label}
+                </Box>
+              ))}
+            </Box>
+
+            <Box
+              sx={{
+                gap: 0.25,
+                display: 'grid',
+                maxHeight: 220,
+                overflowY: 'auto',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+              }}
+            >
+              {currentReactionEmojiCategory.emojis.map((emoji, index) => (
+                <IconButton
+                  key={`${emoji}-${index}`}
+                  size="small"
+                  onClick={() => handleSelectEmoji(emoji)}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    fontSize: 24,
+                    bgcolor: selectedReactionEmoji === emoji ? 'action.selected' : 'transparent',
+                    boxShadow: (theme) =>
+                      selectedReactionEmoji === emoji
+                        ? `0 0 0 1px ${theme.vars.palette.primary.main}`
+                        : 'none',
+                  }}
+                >
+                  {emoji}
+                </IconButton>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Popover>
     </>
   );
