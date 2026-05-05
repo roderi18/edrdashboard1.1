@@ -307,3 +307,177 @@ export async function clickConversation(conversationId, idMiembros) {
     { revalidate: false }
   );
 }
+
+// ----------------------------------------------------------------------
+
+const updateMessageInConversation = (conversation, messageId, updater) => {
+  if (!conversation?.messages) {
+    return conversation;
+  }
+
+  return {
+    ...conversation,
+    messages: conversation.messages.map((message) =>
+      String(message.id) === String(messageId) ? updater(message) : message
+    ),
+  };
+};
+
+const mutateConversationMessage = async ({ conversationId, messageId, updater, revalidate = false }) => {
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => {
+      if (!currentData?.conversation) return currentData;
+
+      return {
+        ...currentData,
+        conversation: updateMessageInConversation(currentData.conversation, messageId, updater),
+      };
+    },
+    { revalidate }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => {
+      if (!currentData?.conversations) return currentData;
+
+      return {
+        ...currentData,
+        conversations: currentData.conversations.map((conversation) =>
+          String(conversation.id) === String(conversationId)
+            ? updateMessageInConversation(conversation, messageId, updater)
+            : conversation
+        ),
+      };
+    },
+    { revalidate }
+  );
+};
+
+const mutateConversationAction = async ({ conversationId, request }) => {
+  const res = await request();
+  const serverConversation = res.data?.conversation ?? null;
+
+  if (serverConversation) {
+    await mutate(
+      (key) => isConversationKey(key, conversationId),
+      (currentData) => ({ ...(currentData ?? {}), conversation: serverConversation }),
+      { revalidate: false }
+    );
+
+    await mutate(
+      (key) => isConversationsKey(key),
+      (currentData) => {
+        if (!currentData?.conversations) return currentData;
+
+        return {
+          ...currentData,
+          conversations: currentData.conversations.map((conversation) =>
+            conversation.id === conversationId ? serverConversation : conversation
+          ),
+        };
+      },
+      { revalidate: false }
+    );
+  }
+
+  mutate((key) => isConversationKey(key, conversationId));
+  mutate((key) => isConversationsKey(key));
+
+  return serverConversation;
+};
+
+export async function reactMessage(conversationId, messageId, idMiembros, reaction = '\u{1F44D}') {
+  const reactionKey = String(idMiembros || 'usuario');
+
+  await mutateConversationMessage({
+    conversationId,
+    messageId,
+    updater: (message) => {
+      const currentReactions = message.reactions || {};
+      const nextReactions = { ...currentReactions };
+
+      if (nextReactions[reactionKey] === reaction) {
+        delete nextReactions[reactionKey];
+      } else {
+        nextReactions[reactionKey] = reaction;
+      }
+
+      return { ...message, reactions: nextReactions };
+    },
+  });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'react',
+          conversationId,
+          messageId,
+          idMiembros,
+          reaction,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
+}
+export async function deleteMessage(conversationId, messageId, idMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'delete',
+        conversationId,
+        messageId,
+        idMiembros,
+      }),
+  });
+}
+
+export async function restoreMessage(conversationId, messageId, idMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'restore',
+        conversationId,
+        messageId,
+        idMiembros,
+      }),
+  });
+}
+
+export async function editMessage(conversationId, messageId, text, idMiembros) {
+  await mutateConversationMessage({
+    conversationId,
+    messageId,
+    updater: (message) => ({
+      ...message,
+      body: text,
+      editado: true,
+    }),
+  });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'edit',
+          conversationId,
+          messageId,
+          idMiembros,
+          text,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
+}

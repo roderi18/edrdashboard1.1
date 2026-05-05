@@ -6,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
@@ -29,6 +30,7 @@ export function OrderDetailsAttachments({
 }) {
   const [openReject, setOpenReject] = useState(false);
   const [openPreview, setOpenPreview] = useState(false);
+  const [hasEvaluated, setHasEvaluated] = useState(false);
   const [reason, setReason] = useState('');
   const [loadingAction, setLoadingAction] = useState('');
 
@@ -46,6 +48,10 @@ export function OrderDetailsAttachments({
   );
   const hasRestrictedItems = (order?.items || []).some(isRestrictedItem);
   const canSubmitReject = reason.trim().length >= 5;
+  const previewButtonLabel =
+    attachments.length === 1
+      ? `Ver archivo adjunto (${attachments.length})`
+      : `Ver archivos adjuntos (${attachments.length})`;
 
   const handleEvaluate = useCallback(
     async (action, actionReason = '') => {
@@ -83,35 +89,11 @@ export function OrderDetailsAttachments({
 
   return (
     <>
-      <CardHeader title="Archivo adjunto" />
+      <CardHeader title="Archivos adjuntos" />
 
       <Box sx={{ p: 3, pt: 0 }}>
         <Stack spacing={2}>
-          {attachments.length ? (
-            attachments.map((file) => (
-              <Box
-                key={file.id || `${file.nombre}-${file.productName}`}
-                sx={{
-                  gap: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  typography: 'body2',
-                }}
-              >
-                <Iconify icon="solar:file-text-bold" width={24} sx={{ color: 'text.secondary' }} />
-                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    {file.nombre || 'Archivo adjunto'}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {[file.productName, file.tamano ? fData(file.tamano) : null]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Typography>
-                </Box>
-              </Box>
-            ))
-          ) : (
+          {!attachments.length && (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Este pedido tiene producto restringido, pero no registra archivos adjuntos.
             </Typography>
@@ -125,7 +107,7 @@ export function OrderDetailsAttachments({
               startIcon={<Iconify icon="solar:eye-bold" />}
               onClick={() => setOpenPreview(true)}
             >
-              Ver archivo adjunto
+              {previewButtonLabel}
             </Button>
           )}
 
@@ -136,35 +118,59 @@ export function OrderDetailsAttachments({
                 variant="outlined"
                 color="inherit"
                 startIcon={<Iconify icon="solar:document-add-bold" />}
-                onClick={() => setOpenPreview(true)}
+                onClick={() => {
+                  setHasEvaluated(true);
+                  setOpenPreview(true);
+                }}
               >
-                Evaluar
+                Evaluar ({attachments.length})
               </Button>
 
               <Stack direction="row" spacing={1} alignItems="center">
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="error"
-                  disabled={!!loadingAction}
-                  onClick={() => setOpenReject(true)}
+                <Tooltip
+                  title={
+                    hasEvaluated
+                      ? 'Antes de rechazar la orden, confirma que revisaste los archivos adjuntos.'
+                      : 'Primero deben evaluarse los archivos adjuntos.'
+                  }
                 >
-                  Rechazar orden
-                </Button>
+                  <span style={{ flex: 1 }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="error"
+                      disabled={!hasEvaluated || !!loadingAction}
+                      onClick={() => setOpenReject(true)}
+                    >
+                      Rechazar orden
+                    </Button>
+                  </span>
+                </Tooltip>
 
                 <Divider orientation="vertical" flexItem>
                   |
                 </Divider>
 
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="success"
-                  loading={loadingAction === 'aceptar'}
-                  onClick={() => handleEvaluate('aceptar')}
+                <Tooltip
+                  title={
+                    hasEvaluated
+                      ? 'Antes de aceptar la orden, confirma que revisaste los archivos adjuntos.'
+                      : 'Primero deben evaluarse los archivos adjuntos.'
+                  }
                 >
-                  Aceptar
-                </Button>
+                  <span style={{ flex: 1 }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="success"
+                      disabled={!hasEvaluated}
+                      loading={loadingAction === 'aceptar'}
+                      onClick={() => handleEvaluate('aceptar')}
+                    >
+                      Aprobar
+                    </Button>
+                  </span>
+                </Tooltip>
               </Stack>
             </>
           )}

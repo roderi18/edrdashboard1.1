@@ -161,6 +161,14 @@ export const crearDocumentoRecibo = ({
         Number(item?.subtotal ?? 0) || Number(item?.price ?? 0) * Number(item?.quantity ?? 0),
     }))
     : [];
+  const requiereEvaluacion = Array.isArray(checkoutState?.items)
+    ? checkoutState.items.some(
+        (item) =>
+          item?.requiereAprobacion ||
+          item?.renglon === 'restringido' ||
+          item?.tipoProducto === 'restringido'
+      )
+    : false;
 
   return sanitizarFirestoreData({
     ...RECIBO_DEFAULT,
@@ -169,7 +177,7 @@ export const crearDocumentoRecibo = ({
     ordenId: orderId,
     usuarioId: obtenerIdUsuarioComercio(user) || '',
     miembroId: obtenerIdMiembroComercio(user),
-    estado: 'pagado',
+    estado: requiereEvaluacion ? 'pendiente' : 'pagado',
     emitidoPor: {
       nombre: 'Exploradores del Rey',
       direccionCompleta: 'Tienda Virtual, Rep. Dom.',

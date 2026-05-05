@@ -29,6 +29,7 @@ export function CheckoutOrderComplete({
   orderId,
   orderNumber,
   onResetCart,
+  evaluationInProcess = false,
   slotProps,
   ...other
 }) {
@@ -72,14 +73,16 @@ export function CheckoutOrderComplete({
           flexDirection: 'column',
         }}
       >
-        <Typography variant="h4">Gracias por tu compra!</Typography>
+        <Typography variant="h4">
+          {evaluationInProcess ? 'Evaluación en proceso' : 'Gracias por tu compra!'}
+        </Typography>
 
         <OrderCompleteIllustration />
 
-          <Typography>
-            Orden creada correctamente
-            <br />
-            <br />
+        <Typography>
+          {evaluationInProcess ? 'Tu solicitud fue enviada correctamente' : 'Orden creada correctamente'}
+          <br />
+          <br />
           {receiptDetailsPath ? (
             <Link component={RouterLink} href={receiptDetailsPath}>
               {receiptLabel}
@@ -89,7 +92,9 @@ export function CheckoutOrderComplete({
           )}
           <br />
           <br />
-          Te enviaremos una notificacion cuando la orden sea procesada.
+          {evaluationInProcess
+            ? 'Tu evaluación está en proceso. Te enviaremos una notificación cuando sea revisada.'
+            : 'Te enviaremos una notificacion cuando la orden sea procesada.'}
           <br /> Si tienes alguna pregunta, contacta a soporte. <br />
           Gracias,
         </Typography>
@@ -116,7 +121,7 @@ export function CheckoutOrderComplete({
             Continuar comprando
           </Button>
 
-          {receipt && (
+          {receipt && !evaluationInProcess && (
             <InvoicePDFDownload
               invoice={receipt}
               currentStatus={receipt.status}

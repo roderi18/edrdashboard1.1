@@ -10,6 +10,9 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
+  reactMessage,
+  deleteMessage,
+  restoreMessage,
   useGetContacts,
   clickConversation,
   useGetConversation,
@@ -52,6 +55,8 @@ export function ChatView() {
   const conversationsNav = useCollapseNav();
 
   const [recipients, setRecipients] = useState([]);
+  const [replyMessage, setReplyMessage] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -74,6 +79,55 @@ export function ChatView() {
   const handleAddRecipients = useCallback((selected) => {
     setRecipients(selected);
   }, []);
+
+  const handleReplyMessage = useCallback((message) => {
+    setReplyMessage(message);
+  }, []);
+
+  const handleClearReply = useCallback(() => {
+    setReplyMessage(null);
+  }, []);
+
+  const handleEditMessage = useCallback((message) => {
+    setReplyMessage(null);
+    setEditingMessage(message);
+  }, []);
+
+  const handleClearEditing = useCallback(() => {
+    setEditingMessage(null);
+  }, []);
+
+  const handleReactMessage = useCallback(
+    async (message, reaction) => {
+      if (!selectedConversationId) return;
+
+      await reactMessage(
+        selectedConversationId,
+        message.id,
+        currentContact.idMiembros,
+        reaction
+      );
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleDeleteMessage = useCallback(
+    async (message) => {
+      if (!selectedConversationId) return;
+
+      await deleteMessage(selectedConversationId, message.id, currentContact.idMiembros);
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleRestoreMessage = useCallback(
+    async (message) => {
+      if (!selectedConversationId) return;
+
+      await restoreMessage(selectedConversationId, message.id, currentContact.idMiembros);
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
 
   const filteredParticipants = conversation
     ? conversation.participants.filter((participant) => !isSameMember(participant, currentContact))
@@ -122,6 +176,11 @@ export function ChatView() {
                     participants={conversation?.participants ?? []}
                     currentContact={currentContact}
                     loading={conversationLoading}
+                    onReply={handleReplyMessage}
+                    onReact={handleReactMessage}
+                    onEdit={handleEditMessage}
+                    onDelete={handleDeleteMessage}
+                    onRestore={handleRestoreMessage}
                   />
                 )
               ) : (
@@ -136,6 +195,10 @@ export function ChatView() {
                 recipients={recipients}
                 currentContact={currentContact}
                 onAddRecipients={handleAddRecipients}
+                replyMessage={replyMessage}
+                editingMessage={editingMessage}
+                onClearReply={handleClearReply}
+                onClearEditing={handleClearEditing}
                 selectedConversationId={selectedConversationId}
                 disabled={!recipients.length && !selectedConversationId}
               />

@@ -15,6 +15,7 @@ import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';
+import { useSearchParams } from 'src/routes/hooks';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import { isMemberSessionUser, filterOrdersByMemberSession } from 'src/utils/member-access';
@@ -64,8 +65,11 @@ const TABLE_HEAD = [
 
 export function OrderListView() {
   const table = useTable({ defaultOrderBy: 'orderNumber' });
+  const { onResetPage } = table;
   const { user } = useAuthContext();
+  const searchParams = useSearchParams();
   const canDelete = !isMemberSessionUser(user);
+  const orderNumberParam = searchParams.get('orderNumber') || '';
 
   const confirmDialog = useBoolean();
 
@@ -97,6 +101,13 @@ export function OrderListView() {
     endDate: null,
   });
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  useEffect(() => {
+    if (!orderNumberParam) return;
+
+    onResetPage();
+    updateFilters({ name: orderNumberParam });
+  }, [orderNumberParam, onResetPage, updateFilters]);
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
   const visibleTableData = filterOrdersByMemberSession(tableData, user);

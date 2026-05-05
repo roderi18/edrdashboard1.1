@@ -218,6 +218,8 @@ const messageToFirestore = (message = {}, fallbackSender = {}) => {
     editado: Boolean(message.editado),
     eliminado: Boolean(message.eliminado),
     eliminadoEn: message.eliminadoEn ?? null,
+    respuestaA: message.respuestaA ?? message.replyTo ?? null,
+    reacciones: message.reacciones ?? message.reactions ?? {},
     vistoPorIdMiembros: message.vistoPorIdMiembros ?? {},
   };
 };
@@ -259,6 +261,9 @@ const messageToUi = (message = {}) => ({
   attachments: asArray(message.adjuntos ?? message.attachments),
   createdAt: message.enviadoEn ?? message.createdAt ?? nowIso(),
   senderId: String(message.remitenteIdMiembros ?? message.senderId ?? ''),
+  eliminado: Boolean(message.eliminado),
+  replyTo: message.respuestaA ?? message.replyTo ?? null,
+  reactions: message.reacciones ?? message.reactions ?? {},
 });
 
 const conversationToUi = async (conversation = {}, messages = null, viewerIdMiembros = null) => {
@@ -673,6 +678,116 @@ async function markAsSeen(conversationId, viewerIdMiembros = null) {
   return { ...existingConversation, noLeidosPorIdMiembros };
 }
 
+async function updateMessageAction({
+  conversationId,
+  messageId,
+  action,
+  viewerIdMiembros = null,
+  reaction = '👍',
+  text = '',
+}) {
+  const existingConversation = await getConversationDoc(conversationId);
+
+  if (!existingConversation) {
+    throw new Error('La conversación no existe.');
+  }
+
+  const messageRef = doc(
+    FIRESTORE,
+    COLECCION_CONVERSACIONES,
+    String(conversationId),
+    SUBCOLECCION_MENSAJES,
+    String(messageId)
+  );
+  const messageSnapshot = await getDoc(messageRef);
+
+  if (!messageSnapshot.exists()) {
+    throw new Error('El mensaje no existe.');
+  }
+
+  const messageData = messageSnapshot.data();
+  let nextMessage = messageData;
+
+  if (action === 'delete') {
+    nextMessage = {
+      ...messageData,
+      textoOriginal: messageData.textoOriginal ?? messageData.texto,
+      texto: 'Mensaje eliminado',
+      eliminado: true,
+      eliminadoEn: nowIso(),
+      actualizadoEn: nowIso(),
+    };
+  }
+
+  if (action === 'restore') {
+    nextMessage = {
+      ...messageData,
+      texto: messageData.textoOriginal ?? messageData.texto,
+      eliminado: false,
+      eliminadoEn: null,
+      actualizadoEn: nowIso(),
+    };
+  }
+
+  if (action === 'edit') {
+    nextMessage = {
+      ...messageData,
+      texto: text || messageData.texto,
+      textoOriginal: null,
+      editado: true,
+      actualizadoEn: nowIso(),
+    };
+  }
+
+  if (action === 'react') {
+    const reactionKey = String(viewerIdMiembros || 'usuario');
+    const currentReactions = messageData.reacciones ?? {};
+    const currentReaction = currentReactions[reactionKey];
+    const nextReactions = { ...currentReactions };
+
+    if (currentReaction === reaction) {
+      delete nextReactions[reactionKey];
+    } else {
+      nextReactions[reactionKey] = reaction;
+    }
+
+    nextMessage = {
+      ...messageData,
+      reacciones: nextReactions,
+      actualizadoEn: nowIso(),
+    };
+  }
+
+  await setDoc(messageRef, nextMessage, { merge: true });
+
+  if (String(existingConversation?.ultimoMensaje?.idMensaje) === String(messageId)) {
+    await setDoc(
+      doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId)),
+      {
+        ultimoMensaje: {
+          ...(existingConversation.ultimoMensaje || {}),
+          texto: nextMessage.texto,
+        },
+        actualizadoEn: nowIso(),
+      },
+      { merge: true }
+    );
+  }
+
+  return conversationToUi(
+    {
+      ...existingConversation,
+      idConversacion: conversationId,
+      ultimoMensaje:
+        String(existingConversation?.ultimoMensaje?.idMensaje) === String(messageId)
+          ? { ...(existingConversation.ultimoMensaje || {}), texto: nextMessage.texto }
+          : existingConversation.ultimoMensaje,
+    },
+    (await getMessages(conversationId)).map(messageToUi),
+    viewerIdMiembros
+  );
+}
+
 export async function GET(req) {
   try {
     ensureFirestore();
@@ -763,6 +878,29 @@ export async function PUT(req) {
   } catch (error) {
     return Response.json(
       { message: error?.message || 'Error enviando el mensaje.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req) {
+  try {
+    ensureFirestore();
+
+    const body = await req.json();
+    const conversation = await updateMessageAction({
+      conversationId: body.conversationId,
+      messageId: body.messageId,
+      action: body.action,
+      viewerIdMiembros: toNumberOrNull(body.idMiembros),
+      reaction: body.reaction,
+      text: body.text,
+    });
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return Response.json(
+      { message: error?.message || 'Error actualizando el mensaje.' },
       { status: 500 }
     );
   }

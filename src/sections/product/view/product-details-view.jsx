@@ -56,7 +56,7 @@ const SUMMARY = [
 
 export function ProductDetailsView({ product, productId }) {
   const tabs = useTabs('description');
-  const { state: checkoutState, onAddToCart } = useCheckoutContext();
+  const { state: checkoutState, onAddToCart, onCreateEvaluationOrder } = useCheckoutContext();
   const { user } = useAuthContext();
 
   const [publish, setPublish] = useState('');
@@ -113,6 +113,7 @@ export function ProductDetailsView({ product, productId }) {
                   product={resolvedProduct}
                   items={checkoutState.items}
                   onAddToCart={onAddToCart}
+                  onCreateEvaluationOrder={onCreateEvaluationOrder}
                   disableActions={!resolvedProduct?.available}
                 />
               )}

@@ -6,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import Rating from '@mui/material/Rating';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Link, { linkClasses } from '@mui/material/Link';
@@ -26,10 +27,21 @@ import { NumberInput } from 'src/components/number-input';
 // ----------------------------------------------------------------------
 
 const EMPTY_OPTIONS = [];
+const ALLOWED_EVIDENCE_TYPES = new Set(['application/pdf']);
+
+const isAllowedEvidenceFile = (file) =>
+  String(file?.type || '').startsWith('image/') || ALLOWED_EVIDENCE_TYPES.has(file?.type);
 
 // ----------------------------------------------------------------------
 
-export function ProductDetailsSummary({ items, product, onAddToCart, disableActions, ...other }) {
+export function ProductDetailsSummary({
+  items,
+  product,
+  onAddToCart,
+  disableActions,
+  onCreateEvaluationOrder,
+  ...other
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const checkoutPath = pathname.includes(paths.dashboard.root)
@@ -110,6 +122,9 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
   });
 
   const { reset, watch, control, setValue, handleSubmit } = methods;
+  const {
+    formState: { isSubmitting },
+  } = methods;
 
   const values = watch();
   const hasQuantity = Number(values.quantity) > 0;
@@ -134,11 +149,22 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
         }),
       });
 
+      const itemToOrder = {
+        ...data,
+        colors: [values.colors],
+        archivosAdjuntos,
+        subtotal: values.price * values.quantity,
+      };
+
+      if (isRestrictedProduct) {
+        await onCreateEvaluationOrder?.({ item: itemToOrder });
+        router.push(`${checkoutPath}?step=3`);
+        return;
+      }
+
       if (!existProduct) {
         onAddToCart?.({
-          ...data,
-          colors: [values.colors],
-          archivosAdjuntos,
+          ...itemToOrder,
         });
       }
       router.push(checkoutPath);
@@ -172,7 +198,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
   }, [evidenceFiles, id, name, onAddToCart, renglon, values]);
 
   const handleEvidenceChange = useCallback((event) => {
-    setEvidenceFiles(Array.from(event.target.files || []).slice(0, 5));
+    setEvidenceFiles(Array.from(event.target.files || []).filter(isAllowedEvidenceFile).slice(0, 10));
   }, []);
 
   const renderPrice = () => (
@@ -307,7 +333,8 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
             Para adquirir este producto, es necesario haber completado el adiestramiento requerido.
             Por ello, tu Certificado será evaluado antes de permitir la compra.
             <br />
-            Al cargar Certificado se habilitará el botón de Enviar a evaluación.
+            Puedes cargar hasta 10 evidencias. Al cargar Certificado se habilitará el botón de
+            Enviar a evaluación.
           </Typography>
         </Box>
 
@@ -326,7 +353,7 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
               multiple
               type="file"
               onChange={handleEvidenceChange}
-              accept="image/*,.pdf"
+              accept="image/*,application/pdf,.pdf"
             />
           </Button>
 
@@ -343,27 +370,37 @@ export function ProductDetailsSummary({ items, product, onAddToCart, disableActi
   const renderActions = () => (
     <Box sx={{ gap: 2, display: 'flex' }}>
       <Button
-        fullWidth
         disabled={isMaxQuantity || disableActions || !hasQuantity}
         size="large"
         color="inherit"
         variant="outlined"
         startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
         onClick={handleAddCart}
-        sx={{ whiteSpace: 'nowrap' }}
+        sx={{ width: { xs: 1, sm: 200 }, whiteSpace: 'nowrap' }}
       >
         Agregar al carrito
       </Button>
 
-      <Button
-        fullWidth
-        size="large"
-        type="submit"
-        variant="contained"
-        disabled={disableActions || !hasQuantity || !hasRequiredEvidence}
+      <Tooltip
+        title={
+          isRestrictedProduct && !hasRequiredEvidence
+            ? 'Antes, debes cargar evidencias.'
+            : ''
+        }
       >
-        {isRestrictedProduct ? 'Enviar a evaluación y compra' : 'Comprar ahora'}
-      </Button>
+        <Box component="span" sx={{ width: { xs: 1, sm: 200 } }}>
+          <Button
+            fullWidth
+            size="large"
+            type="submit"
+            variant="contained"
+            loading={isSubmitting}
+            disabled={disableActions || !hasQuantity || !hasRequiredEvidence}
+          >
+            {isRestrictedProduct ? 'Enviar a evaluación' : 'Comprar ahora'}
+          </Button>
+        </Box>
+      </Tooltip>
     </Box>
   );
 

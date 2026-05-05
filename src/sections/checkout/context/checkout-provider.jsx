@@ -257,6 +257,44 @@ function CheckoutContainer({ children }) {
     [commitState, state, user]
   );
 
+  const onCreateEvaluationOrder = useCallback(
+    async ({ item }) => {
+      const evaluationState = normalizeCheckoutState({
+        ...state,
+        items: [item],
+        billing: state.billing,
+        shipping: 0,
+        discount: 0,
+      });
+      const purchase = await crearOrdenFirestore({
+        user,
+        checkoutState: evaluationState,
+        paymentData: {
+          payment: 'evaluacion',
+          reference: 'Evaluación de producto restringido',
+        },
+      });
+
+      if (purchase) {
+        commitState(
+          {
+            ...evaluationState,
+            items: [],
+            subtotal: 0,
+            total: 0,
+            totalItems: 0,
+            order: purchase.order,
+            receipt: purchase.invoice,
+          },
+          { persist: false }
+        );
+      }
+
+      return purchase;
+    },
+    [commitState, normalizeCheckoutState, state, user]
+  );
+
   const memoizedValue = useMemo(
     () => ({
       state,
@@ -274,6 +312,7 @@ function CheckoutContainer({ children }) {
       onAddToCart,
       onResetCart,
       onCreateOrder,
+      onCreateEvaluationOrder,
       onApplyDiscount,
       onApplyShipping,
       onDeleteCartItem,
@@ -290,6 +329,7 @@ function CheckoutContainer({ children }) {
       activeStep,
       onResetCart,
       onCreateOrder,
+      onCreateEvaluationOrder,
       onAddToCart,
       onChangeStep,
       onApplyDiscount,

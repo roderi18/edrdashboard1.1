@@ -4,7 +4,7 @@ import { fSub } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
 
-export function initialConversation({ message = '', recipients, me }) {
+export function initialConversation({ message = '', recipients, me, replyMessage = null }) {
   const isGroup = recipients.length > 1;
 
   const messageData = {
@@ -14,6 +14,13 @@ export function initialConversation({ message = '', recipients, me }) {
     contentType: 'text',
     createdAt: fSub({ minutes: 1 }),
     senderId: me.idMiembros ? String(me.idMiembros) : me.id,
+    replyTo: replyMessage
+      ? {
+          id: replyMessage.id,
+          body: replyMessage.body,
+          senderId: replyMessage.senderId,
+        }
+      : null,
   };
 
   const conversationData = {

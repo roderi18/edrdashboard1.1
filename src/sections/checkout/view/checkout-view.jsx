@@ -41,6 +41,7 @@ export function CheckoutView() {
             receipt={checkoutState.receipt}
             orderId={checkoutState.order?.id}
             orderNumber={checkoutState.order?.orderNumber}
+            evaluationInProcess={checkoutState.order?.requiereEvaluacion}
             onResetCart={onResetCart}
           />
         )}

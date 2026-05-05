@@ -1,13 +1,14 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { sendMessage, createConversation } from 'src/actions/chat';
+import { sendMessage, editMessage, createConversation } from 'src/actions/chat';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -20,6 +21,10 @@ export function ChatMessageInput({
   recipients,
   currentContact,
   onAddRecipients,
+  replyMessage,
+  editingMessage,
+  onClearReply,
+  onClearEditing,
   selectedConversationId,
 }) {
   const router = useRouter();
@@ -28,10 +33,17 @@ export function ChatMessageInput({
 
   const [message, setMessage] = useState('');
 
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.body || '');
+    }
+  }, [editingMessage]);
+
   const { messageData, conversationData } = initialConversation({
     message,
     recipients,
     me: currentContact,
+    replyMessage,
   });
 
   const handleAttach = useCallback(() => {
@@ -49,8 +61,20 @@ export function ChatMessageInput({
       if (event.key !== 'Enter' || !message) return;
 
       setMessage('');
+      onClearReply?.();
 
       try {
+        if (editingMessage && selectedConversationId) {
+          await editMessage(
+            selectedConversationId,
+            editingMessage.id,
+            message,
+            currentContact.idMiembros
+          );
+          onClearEditing?.();
+          return;
+        }
+
         if (selectedConversationId) {
           await sendMessage(selectedConversationId, messageData, currentContact.idMiembros);
         } else {
@@ -68,14 +92,77 @@ export function ChatMessageInput({
       currentContact.idMiembros,
       message,
       messageData,
+      onClearReply,
+      onClearEditing,
       onAddRecipients,
       router,
+      editingMessage,
       selectedConversationId,
     ]
   );
 
   return (
     <>
+      {replyMessage && (
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            gap: 1,
+            display: 'flex',
+            alignItems: 'center',
+            borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+            bgcolor: 'background.neutral',
+          }}
+        >
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Respondiendo a
+            </Typography>
+            <Typography noWrap variant="body2">
+              {replyMessage.body}
+            </Typography>
+          </Box>
+
+          <IconButton size="small" onClick={onClearReply}>
+            <Iconify icon="mingcute:close-line" />
+          </IconButton>
+        </Box>
+      )}
+
+      {editingMessage && (
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            gap: 1,
+            display: 'flex',
+            alignItems: 'center',
+            borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+            bgcolor: 'background.neutral',
+          }}
+        >
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Editando mensaje
+            </Typography>
+            <Typography noWrap variant="body2">
+              {editingMessage.body}
+            </Typography>
+          </Box>
+
+          <IconButton
+            size="small"
+            onClick={() => {
+              onClearEditing?.();
+              setMessage('');
+            }}
+          >
+            <Iconify icon="mingcute:close-line" />
+          </IconButton>
+        </Box>
+      )}
+
       <InputBase
         name="chat-message"
         id="chat-message-input"

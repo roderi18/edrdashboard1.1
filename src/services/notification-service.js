@@ -78,9 +78,9 @@ const construirTituloHtml = (notificacion) => {
   const mensaje =
     escapeHtml(
       notificacion.mensajeVisual ||
-        notificacion.mensaje ||
-        notificacion.titulo ||
-        'Tienes una nueva notificación.'
+      notificacion.mensaje ||
+      notificacion.titulo ||
+      'Tienes una nueva notificación.'
     ) || 'Tienes una nueva notificación.';
 
   return `<p><strong>${actorNombre}</strong> ${mensaje}</p>`;
@@ -278,11 +278,12 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
     usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Cliente';
   const actorFotoURL = usuario?.photoURL || null;
   const tieneAdjuntosRestringidos = tieneAdjuntosDeProductoRestringido(orden);
+  const requiereEvaluacion = Boolean(orden?.requiereEvaluacion || tieneAdjuntosRestringidos);
   const mensajePedidoAdmin = tieneAdjuntosRestringidos
-    ? `realizó el pedido ${numeroOrden} con archivos adjuntos por producto restringido.`
+    ? `realizó el pedido ${numeroOrden} con archivos adjuntos por producto restringido. Se requiere evaluación.`
     : `realizó el pedido ${numeroOrden}.`;
   const tituloPedidoAdmin = tieneAdjuntosRestringidos
-    ? `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong> con archivos adjuntos por producto restringido</p>`
+    ? `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong> con archivos adjuntos por producto restringido. Se requiere evaluación</p>`
     : `<p><strong>${escapeHtml(clienteNombre)}</strong> realizó el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`;
   const baseMetadatos = {
     ordenId,
@@ -341,10 +342,16 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
       id: `pedido_creado_${ordenId || Date.now()}_${idUsuario}`,
       tipoNotificacion: 'pedido_creado',
       modulo: 'pedidos',
-      titulo: 'Pedido creado',
-      tituloHtml: `<p><strong>${escapeHtml(numeroOrden)}</strong> fue creado correctamente</p>`,
-      mensaje: `tu pedido ${numeroOrden} fue creado correctamente.`,
-      mensajeVisual: `tu pedido ${numeroOrden} fue creado correctamente.`,
+      titulo: requiereEvaluacion ? 'Evaluación en proceso' : 'Pedido creado',
+      tituloHtml: requiereEvaluacion
+        ? `<p><strong>${escapeHtml(numeroOrden)}</strong> fue enviado a evaluación. La evaluación está en proceso</p>`
+        : `<p><strong>${escapeHtml(numeroOrden)}</strong> fue creado correctamente</p>`,
+      mensaje: requiereEvaluacion
+        ? `tu pedido ${numeroOrden} fue enviado a evaluación. La evaluación está en proceso.`
+        : `tu pedido ${numeroOrden} fue creado correctamente.`,
+      mensajeVisual: requiereEvaluacion
+        ? `tu pedido ${numeroOrden} fue enviado a evaluación. La evaluación está en proceso.`
+        : `tu pedido ${numeroOrden} fue creado correctamente.`,
       rolDestinatario: 'usuario',
       idsDestinatarios: [idUsuario],
       prioridad: 'informativa',
@@ -406,10 +413,10 @@ export async function crearNotificacionEvaluacionPedido({
   const ordenId = orden?.ordenId || orden?.id || '';
   const { numeroOrden } = construirDescripcionPedido(orden);
   const esRechazo = tipo === 'rechazada';
-  const estadoTexto = esRechazo ? 'fue rechazado' : 'fue aceptado para compra';
+  const estadoTexto = esRechazo ? 'fue rechazado' : 'fue aprobado para compra';
   const mensaje = esRechazo
     ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}`
-    : `tu pedido ${numeroOrden} fue aceptado para compra.`;
+    : `tu pedido ${numeroOrden} fue aprobado para compra.`;
   const notificationId = `pedido_${tipo}_${ordenId || Date.now()}_${idUsuario}`;
 
   const notificacion = {

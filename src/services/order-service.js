@@ -425,6 +425,11 @@ export const evaluarOrdenRestringidaFirestore = async ({
       tipo: 'aceptada',
       usuario: user,
     });
+
+    await crearMensajeChatEvaluacionPedido({
+      orden: updatedData,
+      texto: `Tu pedido ${updatedData.numeroOrden} fue aprobado para compra.`,
+    });
   }
 
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...updatedData });

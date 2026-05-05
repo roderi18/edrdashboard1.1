@@ -102,6 +102,7 @@ export const crearDocumentoOrden = ({
   const cantidadTotal = items.reduce((acc, item) => acc + Number(item.cantidad || 0), 0);
   const usuarioId = obtenerIdUsuarioComercio(user) || '';
   const miembroId = obtenerIdMiembroComercio(user);
+  const requiereEvaluacion = items.some((item) => item?.requiereAprobacion);
 
   return sanitizarFirestoreData({
     ...ORDEN_DEFAULT,
@@ -120,6 +121,7 @@ export const crearDocumentoOrden = ({
       nombreDestacamento: user?.destName || null,
     },
     items,
+    requiereEvaluacion,
     subtotal,
     descuento,
     envio,
@@ -130,7 +132,7 @@ export const crearDocumentoOrden = ({
     pago: {
       tipoPago: paymentData?.payment || 'efectivo',
       numeroReferencia: paymentData?.reference || null,
-      estadoPago: 'pagado',
+      estadoPago: requiereEvaluacion ? 'pendiente_evaluacion' : 'pagado',
     },
     direccionEnvio: checkoutState?.billing ?? null,
     direccionFacturacion: checkoutState?.billing ?? null,
@@ -142,8 +144,10 @@ export const crearDocumentoOrden = ({
       fechaCompletado: null,
       lineaDeTiempo: [
         {
-          titulo: 'Orden creada',
-          descripcion: 'Compra registrada en Firestore',
+          titulo: requiereEvaluacion ? 'Evaluación solicitada' : 'Orden creada',
+          descripcion: requiereEvaluacion
+            ? 'Compra restringida registrada para evaluación'
+            : 'Compra registrada en Firestore',
           fecha: createdAt,
           usuarioId,
         },
@@ -161,6 +165,10 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
   orderNumber: doc?.numeroOrden,
   createdAt: timestampToIsoString(doc?.fechaCreacion),
   taxes: Number(doc?.impuestos ?? 0),
+  requiereEvaluacion: Boolean(
+    doc?.requiereEvaluacion ||
+      (doc?.items || []).some((item) => item?.requiereAprobacion || item?.renglon === 'restringido')
+  ),
   items: (doc?.items || []).map((item) => ({
     id: item?.productoId,
     sku: item?.sku,

@@ -9,10 +9,36 @@ import { useMessagesScroll } from './hooks/use-messages-scroll';
 
 // ----------------------------------------------------------------------
 
-export function ChatMessageList({ messages = [], participants, currentContact, loading }) {
-  const { messagesEndRef } = useMessagesScroll(messages);
+const getMessageTime = (message) => {
+  const time = new Date(message?.createdAt ?? 0).getTime();
 
-  const slides = messages
+  return Number.isFinite(time) ? time : 0;
+};
+
+export function ChatMessageList({
+  messages = [],
+  participants,
+  currentContact,
+  loading,
+  onReply,
+  onReact,
+  onEdit,
+  onDelete,
+  onRestore,
+}) {
+  const sortedMessages = [...messages].sort((firstMessage, secondMessage) => {
+    const timeDifference = getMessageTime(firstMessage) - getMessageTime(secondMessage);
+
+    if (timeDifference !== 0) {
+      return timeDifference;
+    }
+
+    return String(firstMessage.id ?? '').localeCompare(String(secondMessage.id ?? ''));
+  });
+
+  const { messagesEndRef } = useMessagesScroll(sortedMessages);
+
+  const slides = sortedMessages
     .filter((message) => message.contentType === 'image')
     .map((message) => ({ src: message.body }));
 
@@ -47,13 +73,18 @@ export function ChatMessageList({ messages = [], participants, currentContact, l
           flex: '1 1 auto',
         }}
       >
-        {messages.map((message) => (
+        {sortedMessages.map((message) => (
           <ChatMessageItem
             key={message.id}
             message={message}
             participants={participants}
             currentContact={currentContact}
             onOpenLightbox={() => lightbox.onOpen(message.body)}
+            onReply={onReply}
+            onReact={onReact}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onRestore={onRestore}
           />
         ))}
       </Scrollbar>
