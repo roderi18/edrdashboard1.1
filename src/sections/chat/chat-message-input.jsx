@@ -161,9 +161,9 @@ export function ChatMessageInput({
     setMessage((currentMessage) => `${currentMessage}${emoji}`);
   }, []);
 
-  const handleSendMessage = useCallback(
-    async (event) => {
-      if (event.key !== 'Enter' || !message) return;
+  const handleSubmitMessage = useCallback(
+    async () => {
+      if (!message) return;
 
       setMessage('');
       onClearReply?.();
@@ -204,6 +204,15 @@ export function ChatMessageInput({
       editingMessage,
       selectedConversationId,
     ]
+  );
+
+  const handleSendMessage = useCallback(
+    async (event) => {
+      if (event.key !== 'Enter') return;
+
+      await handleSubmitMessage();
+    },
+    [handleSubmitMessage]
   );
 
   const sendAttachmentMessages = useCallback(
@@ -407,6 +416,9 @@ export function ChatMessageInput({
             </IconButton>
             <IconButton>
               <Iconify icon="solar:microphone-bold" />
+            </IconButton>
+            <IconButton color="primary" disabled={!message.trim()} onClick={handleSubmitMessage}>
+              <Iconify icon="solar:plain-bold" />
             </IconButton>
           </Box>
         }

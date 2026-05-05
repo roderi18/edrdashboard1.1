@@ -314,14 +314,15 @@ export function ChatMessageItem({
       <Box
         component="span"
         sx={{
-          px: 0.75,
-          py: 0.25,
-          bottom: -10,
+          px: 0.9,
+          py: 0.35,
+          bottom: -14,
           right: me ? 22 : -10,
           zIndex: 1,
           borderRadius: 10,
           position: 'absolute',
-          typography: 'caption',
+          fontSize: 18,
+          lineHeight: 1,
           bgcolor: 'background.paper',
           boxShadow: 1,
         }}
@@ -391,7 +392,7 @@ export function ChatMessageItem({
                 handleSelectEmoji(emoji);
               }}
               sx={{
-                fontSize: 22,
+                fontSize: 24,
                 bgcolor: selectedReactionEmoji === emoji ? 'action.selected' : 'transparent',
                 boxShadow: (theme) =>
                   selectedReactionEmoji === emoji
@@ -410,8 +411,8 @@ export function ChatMessageItem({
             size="small"
             onClick={() => setShowAllReactionEmojis((value) => !value)}
             sx={{
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               border: (theme) => `1px dashed ${theme.vars.palette.divider}`,
             }}
           >
@@ -466,9 +467,9 @@ export function ChatMessageItem({
                   size="small"
                   onClick={() => handleSelectEmoji(emoji)}
                   sx={{
-                    width: 40,
-                    height: 40,
-                    fontSize: 24,
+                    width: 42,
+                    height: 42,
+                    fontSize: 26,
                     bgcolor: selectedReactionEmoji === emoji ? 'action.selected' : 'transparent',
                     boxShadow: (theme) =>
                       selectedReactionEmoji === emoji
