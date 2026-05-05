@@ -97,9 +97,9 @@ export function ChatMessageList({
           flex: '1 1 auto',
         }}
       >
-        {sortedMessages.map((message) => (
+        {sortedMessages.map((message, index) => (
           <ChatMessageItem
-            key={message.id}
+            key={`${message.id || 'mensaje'}-${index}`}
             message={message}
             participants={participants}
             currentContact={currentContact}

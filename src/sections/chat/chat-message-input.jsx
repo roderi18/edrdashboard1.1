@@ -125,6 +125,8 @@ export function ChatMessageInput({
   const fileInputRef = useRef(null);
 
   const [message, setMessage] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [previewImage, setPreviewImage] = useState(null);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState(CHAT_EMOJI_CATEGORIES[0].label);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
@@ -137,6 +139,17 @@ export function ChatMessageInput({
       setMessage(editingMessage.body || '');
     }
   }, [editingMessage]);
+
+  useEffect(
+    () => () => {
+      pendingAttachments.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+    },
+    [pendingAttachments]
+  );
 
   const { messageData, conversationData } = initialConversation({
     message,
@@ -160,60 +173,6 @@ export function ChatMessageInput({
   const handleInsertEmoji = useCallback((emoji) => {
     setMessage((currentMessage) => `${currentMessage}${emoji}`);
   }, []);
-
-  const handleSubmitMessage = useCallback(
-    async () => {
-      if (!message) return;
-
-      setMessage('');
-      onClearReply?.();
-
-      try {
-        if (editingMessage && selectedConversationId) {
-          onClearEditing?.();
-          await editMessage(
-            selectedConversationId,
-            editingMessage.id,
-            message,
-            currentContact.idMiembros
-          );
-          return;
-        }
-
-        if (selectedConversationId) {
-          await sendMessage(selectedConversationId, messageData, currentContact.idMiembros);
-        } else {
-          const res = await createConversation(conversationData, currentContact.idMiembros);
-          router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
-
-          onAddRecipients([]);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    },
-    [
-      conversationData,
-      currentContact.idMiembros,
-      message,
-      messageData,
-      onClearReply,
-      onClearEditing,
-      onAddRecipients,
-      router,
-      editingMessage,
-      selectedConversationId,
-    ]
-  );
-
-  const handleSendMessage = useCallback(
-    async (event) => {
-      if (event.key !== 'Enter') return;
-
-      await handleSubmitMessage();
-    },
-    [handleSubmitMessage]
-  );
 
   const sendAttachmentMessages = useCallback(
     async ({ uploads, contentType }) => {
@@ -251,6 +210,104 @@ export function ChatMessageInput({
     ]
   );
 
+  const handleSubmitMessage = useCallback(
+    async () => {
+      if (!message && !pendingAttachments.length) return;
+
+      const textToSend = message;
+      const attachmentsToSend = pendingAttachments;
+
+      setMessage('');
+      setPendingAttachments([]);
+      onClearReply?.();
+
+      try {
+        if (editingMessage && selectedConversationId) {
+          onClearEditing?.();
+          await editMessage(
+            selectedConversationId,
+            editingMessage.id,
+            textToSend,
+            currentContact.idMiembros
+          );
+          return;
+        }
+
+        if (attachmentsToSend.length) {
+          const groupedAttachments = attachmentsToSend.reduce((groups, item) => {
+            const key = item.contentType;
+            groups[key] = [...(groups[key] || []), item.file];
+            return groups;
+          }, {});
+
+          for (const [contentType, files] of Object.entries(groupedAttachments)) {
+            const uploads = await uploadFilesToStorage({
+              files,
+              storagePathBuilder: (file, index) =>
+                `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/${contentType === 'image' ? 'imagenes' : 'archivos'}/${buildStorageFileName(file, index)}`,
+              metadataBuilder: () => ({
+                modulo: 'chat',
+                tipo: contentType === 'image' ? 'imagen' : 'archivo',
+                remitenteIdMiembros: String(currentContact.idMiembros || ''),
+              }),
+            });
+
+            await sendAttachmentMessages({ uploads, contentType });
+          }
+        }
+
+        if (!textToSend) return;
+
+        if (selectedConversationId) {
+          await sendMessage(
+            selectedConversationId,
+            { ...messageData, body: textToSend },
+            currentContact.idMiembros
+          );
+        } else {
+          const res = await createConversation(
+            {
+              ...conversationData,
+              messages: [{ ...messageData, body: textToSend }],
+            },
+            currentContact.idMiembros
+          );
+          router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
+
+          onAddRecipients([]);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error(error.message || 'No se pudo enviar el mensaje.');
+        setPendingAttachments(attachmentsToSend);
+        setMessage(textToSend);
+      }
+    },
+    [
+      conversationData,
+      currentContact.idMiembros,
+      editingMessage,
+      message,
+      messageData,
+      onAddRecipients,
+      onClearEditing,
+      onClearReply,
+      pendingAttachments,
+      router,
+      selectedConversationId,
+      sendAttachmentMessages,
+    ]
+  );
+
+  const handleSendMessage = useCallback(
+    async (event) => {
+      if (event.key !== 'Enter') return;
+
+      await handleSubmitMessage();
+    },
+    [handleSubmitMessage]
+  );
+
   const handleUploadImages = useCallback(
     async (event) => {
       const files = Array.from(event.target.files || []);
@@ -270,25 +327,16 @@ export function ChatMessageInput({
         return;
       }
 
-      try {
-        const uploads = await uploadFilesToStorage({
-          files: imageFiles,
-          storagePathBuilder: (file, index) =>
-            `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/imagenes/${buildStorageFileName(file, index)}`,
-          metadataBuilder: () => ({
-            modulo: 'chat',
-            tipo: 'imagen',
-            remitenteIdMiembros: String(currentContact.idMiembros || ''),
-          }),
-        });
-
-        await sendAttachmentMessages({ uploads, contentType: 'image' });
-      } catch (error) {
-        console.error(error);
-        toast.error(error.message || 'No se pudieron enviar las imagenes.');
-      }
+      setPendingAttachments(
+        imageFiles.map((file, index) => ({
+          id: `image-${file.name}-${file.size}-${file.lastModified}-${index}`,
+          file,
+          contentType: 'image',
+          previewUrl: URL.createObjectURL(file),
+        }))
+      );
     },
-    [currentContact.idMiembros, selectedConversationId, sendAttachmentMessages]
+    []
   );
 
   const handleUploadFiles = useCallback(
@@ -310,25 +358,15 @@ export function ChatMessageInput({
         return;
       }
 
-      try {
-        const uploads = await uploadFilesToStorage({
-          files,
-          storagePathBuilder: (file, index) =>
-            `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/archivos/${buildStorageFileName(file, index)}`,
-          metadataBuilder: () => ({
-            modulo: 'chat',
-            tipo: 'archivo',
-            remitenteIdMiembros: String(currentContact.idMiembros || ''),
-          }),
-        });
-
-        await sendAttachmentMessages({ uploads, contentType: 'file' });
-      } catch (error) {
-        console.error(error);
-        toast.error(error.message || 'No se pudieron enviar los archivos.');
-      }
+      setPendingAttachments(
+        files.map((file, index) => ({
+          id: `file-${file.name}-${file.size}-${file.lastModified}-${index}`,
+          file,
+          contentType: 'file',
+        }))
+      );
     },
-    [currentContact.idMiembros, selectedConversationId, sendAttachmentMessages]
+    []
   );
 
   return (
@@ -393,6 +431,123 @@ export function ChatMessageInput({
         </Box>
       )}
 
+      {!!pendingAttachments.length && (
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            gap: 1,
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+            bgcolor: 'background.neutral',
+          }}
+        >
+          {pendingAttachments.map((item) => (
+            <Box
+              key={item.id}
+              sx={{
+                gap: 0.75,
+                px: 1,
+                py: 0.75,
+                minWidth: 0,
+                maxWidth: item.contentType === 'image' ? 300 : 260,
+                display: 'flex',
+                borderRadius: 1,
+                alignItems: 'center',
+                bgcolor: 'background.paper',
+              }}
+            >
+              {item.contentType === 'image' ? (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => setPreviewImage(item)}
+                  sx={{
+                    p: 0,
+                    width: 48,
+                    height: 48,
+                    border: 0,
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    borderRadius: 1,
+                    bgcolor: 'background.neutral',
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={item.previewUrl}
+                    alt={item.file.name}
+                    sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
+                  />
+                </Box>
+              ) : (
+                <Iconify icon="solar:file-bold" width={20} />
+              )}
+
+              <Typography noWrap variant="body2" sx={{ minWidth: 0, flexGrow: 1 }}>
+                {item.file.name}
+              </Typography>
+
+              <IconButton
+                size="small"
+                onClick={() =>
+                  setPendingAttachments((currentItems) => {
+                    if (item.previewUrl) {
+                      URL.revokeObjectURL(item.previewUrl);
+                    }
+
+                    return currentItems.filter((currentItem) => currentItem.id !== item.id);
+                  })
+                }
+              >
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      <Popover
+        open={Boolean(previewImage)}
+        anchorEl={imageInputRef.current}
+        onClose={() => setPreviewImage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            sx: {
+              p: 1,
+              maxWidth: 'calc(100vw - 32px)',
+              borderRadius: 1.5,
+            },
+          },
+        }}
+      >
+        {previewImage && (
+          <Box>
+            <Box
+              component="img"
+              src={previewImage.previewUrl}
+              alt={previewImage.file.name}
+              sx={{
+                width: 420,
+                maxWidth: 'calc(100vw - 64px)',
+                maxHeight: 420,
+                display: 'block',
+                borderRadius: 1,
+                objectFit: 'contain',
+              }}
+            />
+            <Typography noWrap variant="caption" sx={{ mt: 1, display: 'block' }}>
+              {previewImage.file.name}
+            </Typography>
+          </Box>
+        )}
+      </Popover>
+
       <InputBase
         name="chat-message"
         id="chat-message-input"
@@ -417,7 +572,11 @@ export function ChatMessageInput({
             <IconButton>
               <Iconify icon="solar:microphone-bold" />
             </IconButton>
-            <IconButton color="primary" disabled={!message.trim()} onClick={handleSubmitMessage}>
+            <IconButton
+              color="primary"
+              disabled={!message.trim() && !pendingAttachments.length}
+              onClick={handleSubmitMessage}
+            >
               <Iconify icon="solar:plain-bold" />
             </IconButton>
           </Box>
