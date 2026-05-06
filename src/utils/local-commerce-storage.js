@@ -60,6 +60,10 @@ const mapOrderItems = (items = []) =>
     coverUrl: item.coverUrl,
     price: Number(item.price) || 0,
     available: Number(item.available) || 0,
+    renglon: item.renglon || 'general',
+    requiereAprobacion: Boolean(item.requiereAprobacion || item.renglon === 'restringido'),
+    tipoProducto: item.tipoProducto || 'simple',
+    archivosAdjuntos: Array.isArray(item.archivosAdjuntos) ? item.archivosAdjuntos : [],
   }));
 
 const mapInvoiceItems = (items = []) =>
@@ -112,8 +116,20 @@ export const updateLocalOrder = (updatedOrder) => {
   return nextOrders.find((order) => order.id === updatedOrder.id) || null;
 };
 
+const itemRequiereEvaluacion = (item = {}) =>
+  Boolean(
+    item?.requiereAprobacion ||
+      item?.aprobacion?.requerida ||
+      String(item?.renglon || '').toLowerCase() === 'restringido' ||
+      String(item?.tipoProducto || '').toLowerCase() === 'restringido'
+  );
+
+const orderRequiresEvaluation = (order = {}) =>
+  Boolean(order?.requiereEvaluacion || (order?.items || []).some(itemRequiereEvaluacion));
+
 const applyOrderStockMovement = (order, direction = 'decrease') => {
   if (!order?.items?.length) return;
+  if (orderRequiresEvaluation(order)) return;
 
   order.items.forEach((item) => {
     const quantity = Number(item.quantity) || 0;
@@ -171,6 +187,7 @@ export const createLocalPurchase = (checkoutState, paymentData = {}, sessionUser
   const invoiceItems = mapInvoiceItems(checkoutState.items);
   const customer = getCustomerFromSession(checkoutState.billing, sessionUser);
   const shippingAddress = getAddressFromBilling(checkoutState.billing);
+  const requiereEvaluacion = orderItems.some(itemRequiereEvaluacion);
 
   const order = {
     id: orderId,
@@ -199,12 +216,13 @@ export const createLocalPurchase = (checkoutState, paymentData = {}, sessionUser
     },
     status: 'pending',
     receiptId: invoiceId,
+    requiereEvaluacion,
   };
 
   const invoice = {
     id: invoiceId,
     taxes,
-    status: 'paid',
+    status: requiereEvaluacion ? 'pending' : 'paid',
     discount,
     shipping,
     subtotal,
@@ -231,7 +249,9 @@ export const createLocalPurchase = (checkoutState, paymentData = {}, sessionUser
 
   writeItems(LOCAL_ORDERS_KEY, [order, ...getLocalOrders()]);
   writeItems(LOCAL_INVOICES_KEY, [invoice, ...getLocalInvoices()]);
-  applyOrderStockMovement(order, 'decrease');
+  if (!requiereEvaluacion) {
+    applyOrderStockMovement(order, 'decrease');
+  }
 
   return { order, invoice };
 };

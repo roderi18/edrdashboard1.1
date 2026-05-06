@@ -51,8 +51,12 @@ export function ChatHeaderDetails({ collapseNav, participants, loading }) {
         },
       }}
     >
-      {participants.map((participant) => (
-        <Avatar key={participant.id} alt={participant.name} src={participant.avatarUrl} />
+      {participants.map((participant, index) => (
+        <Avatar
+          key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
+          alt={participant.name}
+          src={participant.avatarUrl}
+        />
       ))}
     </AvatarGroup>
   );

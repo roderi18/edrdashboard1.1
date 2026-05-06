@@ -79,6 +79,7 @@ export function NotificationsDrawer({
     );
 
     await onMarkAsRead?.(notification.idsNotificaciones || notification.id);
+    setCurrentTab('all');
     onClose();
   };
 

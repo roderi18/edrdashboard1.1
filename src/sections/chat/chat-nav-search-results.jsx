@@ -31,8 +31,8 @@ export function ChatNavSearchResults({ query, results, onClickResult }) {
   const renderResults = () => (
     <nav>
       <Box component="ul" sx={{ '& li': { display: 'flex' } }}>
-        {results.map((result) => (
-          <li key={result.id}>
+        {results.map((result, index) => (
+          <li key={`${result.id ?? result.idMiembros ?? result.codigoMiembro ?? result.name ?? 'contacto'}-${index}`}>
             <ListItemButton
               onClick={() => onClickResult(result)}
               sx={{

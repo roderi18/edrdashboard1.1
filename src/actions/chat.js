@@ -227,6 +227,48 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
 
 // ----------------------------------------------------------------------
 
+export async function addLocalMessage(conversationId, messageData) {
+  const localMessage = { ...messageData, estadoEnvio: messageData.estadoEnvio ?? 'enviando' };
+
+  const addMessage = (messages = []) =>
+    messages.some((message) => message.id === localMessage.id) ? messages : [...messages, localMessage];
+
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => {
+      if (!currentData?.conversation) return currentData;
+
+      return {
+        ...currentData,
+        conversation: {
+          ...currentData.conversation,
+          messages: addMessage(currentData.conversation.messages),
+        },
+      };
+    },
+    { revalidate: false }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => {
+      if (!currentData?.conversations) return currentData;
+
+      return {
+        ...currentData,
+        conversations: currentData.conversations.map((conversation) =>
+          String(conversation.id) === String(conversationId)
+            ? { ...conversation, messages: addMessage(conversation.messages) }
+            : conversation
+        ),
+      };
+    },
+    { revalidate: false }
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export async function createConversation(conversationData, idMiembros) {
   const url = [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }];
 
@@ -427,29 +469,67 @@ export async function reactMessage(conversationId, messageId, idMiembros, reacti
   }
 }
 export async function deleteMessage(conversationId, messageId, idMiembros) {
-  return mutateConversationAction({
+  await mutateConversationMessage({
     conversationId,
-    request: () =>
-      axios.patch(CHAT_ENDPOINT, {
-        action: 'delete',
-        conversationId,
-        messageId,
-        idMiembros,
-      }),
+    messageId,
+    updater: (message) => ({
+      ...message,
+      eliminado: true,
+      body: 'Mensaje eliminado',
+      textoOriginal: message.textoOriginal ?? message.body,
+      bodyOriginal: message.bodyOriginal ?? message.body,
+      contentTypeOriginal: message.contentTypeOriginal ?? message.contentType,
+      attachmentsOriginal: message.attachmentsOriginal ?? message.attachments,
+    }),
   });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'delete',
+          conversationId,
+          messageId,
+          idMiembros,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
 }
 
 export async function restoreMessage(conversationId, messageId, idMiembros) {
-  return mutateConversationAction({
+  await mutateConversationMessage({
     conversationId,
-    request: () =>
-      axios.patch(CHAT_ENDPOINT, {
-        action: 'restore',
-        conversationId,
-        messageId,
-        idMiembros,
-      }),
+    messageId,
+    updater: (message) => ({
+      ...message,
+      eliminado: false,
+      body: message.bodyOriginal ?? message.textoOriginal ?? message.body,
+      contentType: message.contentTypeOriginal ?? message.contentType,
+      attachments: message.attachmentsOriginal ?? message.attachments,
+    }),
   });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'restore',
+          conversationId,
+          messageId,
+          idMiembros,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
 }
 
 export async function editMessage(conversationId, messageId, text, idMiembros) {

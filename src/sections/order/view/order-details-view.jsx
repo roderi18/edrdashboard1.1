@@ -17,6 +17,9 @@ import {
   obtenerOrdenFirestorePorId,
   cambiarEstadoOrdenFirestore,
   evaluarOrdenRestringidaFirestore,
+  eliminarArchivoAdjuntoOrdenFirestore,
+  cargarArchivosFaltantesOrdenFirestore,
+  restaurarArchivoAdjuntoOrdenFirestore,
 } from 'src/services/order-service';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -106,6 +109,66 @@ export function OrderDetailsView({ order, orderId }) {
     [canManageStatus, resolvedOrder?.id, user]
   );
 
+  const handleUploadMissingFiles = useCallback(
+    async (archivos = []) => {
+      if (!resolvedOrder?.id || !archivos.length) return null;
+
+      const updatedOrder = await cargarArchivosFaltantesOrdenFirestore({
+        orderId: resolvedOrder.id,
+        archivos,
+        user,
+      });
+
+      if (updatedOrder) {
+        setResolvedOrder(updatedOrder);
+        setStatus(updatedOrder.status);
+      }
+
+      return updatedOrder;
+    },
+    [resolvedOrder?.id, user]
+  );
+
+  const handleDeleteAttachment = useCallback(
+    async (archivo) => {
+      if (!canManageStatus || !resolvedOrder?.id || !archivo) return null;
+
+      const updatedOrder = await eliminarArchivoAdjuntoOrdenFirestore({
+        orderId: resolvedOrder.id,
+        archivo,
+        user,
+      });
+
+      if (updatedOrder) {
+        setResolvedOrder(updatedOrder);
+        setStatus(updatedOrder.status);
+      }
+
+      return updatedOrder;
+    },
+    [canManageStatus, resolvedOrder?.id, user]
+  );
+
+  const handleRestoreAttachment = useCallback(
+    async (archivo) => {
+      if (!canManageStatus || !resolvedOrder?.id || !archivo) return null;
+
+      const updatedOrder = await restaurarArchivoAdjuntoOrdenFirestore({
+        orderId: resolvedOrder.id,
+        archivo,
+        user,
+      });
+
+      if (updatedOrder) {
+        setResolvedOrder(updatedOrder);
+        setStatus(updatedOrder.status);
+      }
+
+      return updatedOrder;
+    },
+    [canManageStatus, resolvedOrder?.id, user]
+  );
+
   return (
     <DashboardContent>
       <OrderDetailsToolbar
@@ -147,6 +210,9 @@ export function OrderDetailsView({ order, orderId }) {
                   order={resolvedOrder}
                   canManageStatus={canManageStatus}
                   onEvaluateOrder={handleEvaluateOrder}
+                  onUploadMissingFiles={handleUploadMissingFiles}
+                  onDeleteAttachment={handleDeleteAttachment}
+                  onRestoreAttachment={handleRestoreAttachment}
                 />
               </>
             )}

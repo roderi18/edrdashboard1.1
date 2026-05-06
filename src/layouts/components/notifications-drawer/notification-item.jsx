@@ -42,7 +42,11 @@ const getNotificationRoute = (notification = {}) => {
     notification.metadatos?.conversationId ||
     notification.metadatos?.idConversation;
 
-  if (notification.tipoNotificacion === 'mensaje_recibido' && idConversacion) {
+  if (
+    idConversacion &&
+    (notification.tipoNotificacion === 'mensaje_recibido' ||
+      notification.metadatos?.estadoEvaluacion)
+  ) {
     return `/dashboard/chat?id=${idConversacion}`;
   }
 

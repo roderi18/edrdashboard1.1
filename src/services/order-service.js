@@ -29,6 +29,7 @@ import { guardarReciboFirestore, actualizarEstadoReciboFirestore } from './recei
 import {
   crearNotificacionesPedidoCreado,
   crearNotificacionEvaluacionPedido,
+  crearNotificacionArchivosFaltantesPedido,
 } from './notification-service';
 
 const ordersCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes);
@@ -37,6 +38,20 @@ const SUBCOLECCION_MENSAJES_CHAT = 'mensajes';
 const REMITENTE_TIENDA_ID_MIEMBROS = -900001;
 
 const nowIso = () => new Date().toISOString();
+
+const itemRequiereEvaluacion = (item = {}) =>
+  Boolean(
+    item?.requiereAprobacion ||
+    item?.aprobacion?.requerida ||
+    String(item?.renglon || '').toLowerCase() === 'restringido' ||
+    String(item?.tipoProducto || '').toLowerCase() === 'restringido'
+  );
+
+const ordenRequiereEvaluacion = (order = {}) =>
+  Boolean(order?.requiereEvaluacion || (order?.items || []).some(itemRequiereEvaluacion));
+
+const checkoutRequiereEvaluacion = (checkoutState = {}) =>
+  (checkoutState?.items || []).some(itemRequiereEvaluacion);
 
 const toNumberOrNull = (value) => {
   const number = Number(value);
@@ -110,6 +125,10 @@ const crearMensajeChatEvaluacionPedido = async ({ orden = {}, texto = '' }) => {
     remitenteIdMiembros: REMITENTE_TIENDA_ID_MIEMBROS,
     remitente: tienda,
     adjuntos: [],
+    metadatos: {
+      ordenId: orden?.ordenId || orden?.id || null,
+      numeroOrden: orden?.numeroOrden || orden?.orderNumber || null,
+    },
     enviadoEn,
     actualizadoEn: enviadoEn,
     editado: false,
@@ -190,6 +209,7 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   const orderId = `orden-${baseTimestamp}`;
   const receiptId = `recibo-${baseTimestamp}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
+  const requiereEvaluacion = checkoutRequiereEvaluacion(checkoutState);
 
   const receipt = await guardarReciboFirestore({
     user,
@@ -200,14 +220,17 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
 
   for (const item of checkoutState?.items || []) {
     await guardarSnapshotProductoFirestore(item);
-    await ajustarInventarioProducto({
-      producto: item,
-      cantidadDelta: -Number(item.quantity || 0),
-      tipoMovimiento: 'venta',
-      motivo: 'Descuento por compra realizada',
-      orderId,
-      user,
-    });
+
+    if (!requiereEvaluacion) {
+      await ajustarInventarioProducto({
+        producto: item,
+        cantidadDelta: -Number(item.quantity || 0),
+        tipoMovimiento: 'venta',
+        motivo: 'Descuento por compra realizada',
+        orderId,
+        user,
+      });
+    }
   }
 
   const orderDoc = crearDocumentoOrden({
@@ -291,8 +314,9 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
   const nextStatusEs = mapearEstadoOrdenUiAFirestore(nextStatus);
   const isCancelling = currentStatus !== 'cancelada' && nextStatusEs === 'cancelada';
   const isReactivating = currentStatus === 'cancelada' && nextStatusEs !== 'cancelada';
+  const inventarioFueDescontado = !ordenRequiereEvaluacion(currentData);
 
-  if (isCancelling || isReactivating) {
+  if (inventarioFueDescontado && (isCancelling || isReactivating)) {
     for (const item of currentData?.items || []) {
       await ajustarInventarioProducto({
         producto: {
@@ -365,6 +389,7 @@ export const evaluarOrdenRestringidaFirestore = async ({
         : 'Evaluación de producto restringido actualizada.',
     fecha: ahoraTimestamp(),
     usuarioId: obtenerIdUsuarioComercio(user),
+    rol: 'admin',
   };
   const nextData = {
     ...currentData,
@@ -406,31 +431,236 @@ export const evaluarOrdenRestringidaFirestore = async ({
       };
     }
 
+    const chatMessage = await crearMensajeChatEvaluacionPedido({
+      orden: updatedData,
+      texto: `Tu pedido ${updatedData.numeroOrden} fue rechazado. Motivo: ${razon}.\n\nPresiona este número de orden para cargar el archivo faltante.`,
+    });
+
     await crearNotificacionEvaluacionPedido({
       orden: updatedData,
       tipo: 'rechazada',
       razon,
       usuario: user,
-    });
-
-    await crearMensajeChatEvaluacionPedido({
-      orden: updatedData,
-      texto: `Tu pedido ${updatedData.numeroOrden} fue rechazado. Motivo: ${razon}`,
+      metadatosExtra: chatMessage || {},
     });
   }
 
   if (accion === 'aceptar') {
+    const chatMessage = await crearMensajeChatEvaluacionPedido({
+      orden: updatedData,
+      texto: `Tu pedido ${updatedData.numeroOrden} fue aprobado para compra.`,
+    });
+
     await crearNotificacionEvaluacionPedido({
       orden: updatedData,
       tipo: 'aceptada',
       usuario: user,
-    });
-
-    await crearMensajeChatEvaluacionPedido({
-      orden: updatedData,
-      texto: `Tu pedido ${updatedData.numeroOrden} fue aprobado para compra.`,
+      metadatosExtra: chatMessage || {},
     });
   }
 
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...updatedData });
 };
+
+export const cargarArchivosFaltantesOrdenFirestore = async ({
+  orderId,
+  archivos = [],
+  user,
+}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !orderId || !archivos.length) return null;
+
+  const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, String(orderId));
+  const snapshot = await getDoc(orderRef);
+  if (!snapshot.exists()) return null;
+
+  const currentData = snapshot.data();
+  const fechaCarga = ahoraTimestamp();
+  let archivosAsignados = false;
+
+  const items = (currentData?.items || []).map((item) => {
+    if (archivosAsignados || !itemRequiereEvaluacion(item)) {
+      return item;
+    }
+
+    archivosAsignados = true;
+    const currentAttachments = item?.archivosAdjuntos || [];
+    const currentApprovalAttachments = item?.aprobacion?.archivosAdjuntos || currentAttachments;
+    const missingFiles = archivos.map((file) => ({
+      ...file,
+      tipoAdjunto: 'faltante_rechazo',
+      cargadoPor: obtenerIdUsuarioComercio(user),
+      fechaCargaFaltante: fechaCarga,
+    }));
+
+    return {
+      ...item,
+      archivosAdjuntos: [...currentAttachments, ...missingFiles],
+      aprobacion: {
+        ...(item?.aprobacion || {}),
+        estado: 'pendiente',
+        archivosAdjuntos: [...currentApprovalAttachments, ...missingFiles],
+        archivosFaltantes: [...(item?.aprobacion?.archivosFaltantes || []), ...missingFiles],
+        fechaCargaFaltantes: fechaCarga,
+      },
+    };
+  });
+
+  const nextData = {
+    ...currentData,
+    estado: 'pendiente',
+    items,
+    fechaActualizacion: fechaCarga,
+    historial: {
+      ...(currentData?.historial || {}),
+      lineaDeTiempo: [
+        ...(currentData?.historial?.lineaDeTiempo || []),
+        {
+          titulo: 'Archivos faltantes cargados',
+          descripcion: 'El miembro cargó archivos faltantes para reevaluación.',
+          fecha: fechaCarga,
+          usuarioId: obtenerIdUsuarioComercio(user),
+        },
+      ],
+    },
+  };
+
+  await setDoc(orderRef, nextData, { merge: true });
+
+  try {
+    await crearNotificacionArchivosFaltantesPedido({
+      orden: nextData,
+      archivos,
+      usuario: user,
+    });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('notificaciones:actualizar'));
+    }
+  } catch (notificationError) {
+    console.error(
+      '[order service] no se pudo notificar la carga de archivos faltantes',
+      notificationError
+    );
+  }
+
+  return mapearOrdenFirestoreAUi({ id: snapshot.id, ...nextData });
+};
+
+const getAttachmentIdentity = (file = {}) =>
+  [file.id, file.storagePath, file.url, file.downloadURL, file.nombre].filter(Boolean).join('|');
+
+const sameAttachment = (currentFile = {}, targetFile = {}) => {
+  const currentIdentity = getAttachmentIdentity(currentFile);
+  const targetIdentity = getAttachmentIdentity(targetFile);
+
+  if (currentIdentity && targetIdentity && currentIdentity === targetIdentity) {
+    return true;
+  }
+
+  return Boolean(
+    targetFile?.storagePath && currentFile?.storagePath === targetFile.storagePath
+  );
+};
+
+const removeAttachmentFromArray = (files = [], targetFile = {}) =>
+  files.filter((file) => !sameAttachment(file, targetFile));
+
+const appendAttachmentToArray = (files = [], targetFile = {}) => {
+  if (files.some((file) => sameAttachment(file, targetFile))) {
+    return files;
+  }
+
+  return [...files, targetFile];
+};
+
+const actualizarArchivoAdjuntoOrdenFirestore = async ({
+  orderId,
+  archivo = {},
+  user,
+  action = 'remove',
+}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !orderId || !archivo) return null;
+
+  const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, String(orderId));
+  const snapshot = await getDoc(orderRef);
+  if (!snapshot.exists()) return null;
+
+  const currentData = snapshot.data();
+  const targetProductId = String(archivo.productId || archivo.productoId || '');
+  let archivoProcesado = false;
+
+  const updateFiles = (files = [], targetFile = archivo) =>
+    action === 'restore'
+      ? appendAttachmentToArray(files, targetFile)
+      : removeAttachmentFromArray(files, targetFile);
+
+  const items = (currentData?.items || []).map((item) => {
+    const isTargetProduct = !targetProductId || String(item?.productoId || '') === targetProductId;
+    const hasFile =
+      (item?.archivosAdjuntos || []).some((file) => sameAttachment(file, archivo)) ||
+      (item?.aprobacion?.archivosAdjuntos || []).some((file) => sameAttachment(file, archivo)) ||
+      (item?.aprobacion?.archivosFaltantes || []).some((file) => sameAttachment(file, archivo));
+
+    if (archivoProcesado || !isTargetProduct || (action !== 'restore' && !hasFile)) {
+      return item;
+    }
+
+    archivoProcesado = true;
+    const approval = item?.aprobacion || {};
+    const restoredFile = {
+      ...archivo,
+      restauradoPor: action === 'restore' ? obtenerIdUsuarioComercio(user) : archivo.restauradoPor,
+      fechaRestauracion: action === 'restore' ? ahoraTimestamp() : archivo.fechaRestauracion,
+    };
+    const nextFile = action === 'restore' ? restoredFile : archivo;
+    const currentMissingFiles = approval.archivosFaltantes || [];
+
+    return {
+      ...item,
+      archivosAdjuntos: updateFiles(item?.archivosAdjuntos || [], nextFile),
+      aprobacion: {
+        ...approval,
+        archivosAdjuntos: updateFiles(
+          approval.archivosAdjuntos || item?.archivosAdjuntos || [],
+          nextFile
+        ),
+        archivosFaltantes:
+          nextFile.tipoAdjunto === 'faltante_rechazo'
+            ? updateFiles(currentMissingFiles, nextFile)
+            : currentMissingFiles,
+      },
+    };
+  });
+
+  const nextData = {
+    ...currentData,
+    items,
+    fechaActualizacion: ahoraTimestamp(),
+    historial:
+      action === 'remove'
+        ? {
+          ...(currentData?.historial || {}),
+          lineaDeTiempo: [
+            ...(currentData?.historial?.lineaDeTiempo || []),
+            {
+              titulo: 'Archivo adjunto eliminado',
+              descripcion: `Administrador eliminó el archivo ${archivo?.nombre || 'sin nombre'}.`,
+              fecha: ahoraTimestamp(),
+              usuarioId: obtenerIdUsuarioComercio(user),
+              rol: 'admin',
+            },
+          ],
+        }
+        : currentData?.historial,
+  };
+
+  await setDoc(orderRef, nextData, { merge: true });
+
+  return mapearOrdenFirestoreAUi({ id: snapshot.id, ...nextData });
+};
+
+export const eliminarArchivoAdjuntoOrdenFirestore = ({ orderId, archivo, user }) =>
+  actualizarArchivoAdjuntoOrdenFirestore({ orderId, archivo, user, action: 'remove' });
+
+export const restaurarArchivoAdjuntoOrdenFirestore = ({ orderId, archivo, user }) =>
+  actualizarArchivoAdjuntoOrdenFirestore({ orderId, archivo, user, action: 'restore' });

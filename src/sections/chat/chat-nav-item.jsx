@@ -51,8 +51,12 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
   const renderGroup = () => (
     <Badge variant={hasOnlineInGroup ? 'online' : 'invisible'} badgeContent=" ">
       <AvatarGroup variant="compact" sx={{ width: 48, height: 48 }}>
-        {participants.slice(0, 2).map((participant) => (
-          <Avatar key={participant.id} alt={participant.name} src={participant.avatarUrl} />
+        {participants.slice(0, 2).map((participant, index) => (
+          <Avatar
+            key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
+            alt={participant.name}
+            src={participant.avatarUrl}
+          />
         ))}
       </AvatarGroup>
     </Badge>

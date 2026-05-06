@@ -43,9 +43,17 @@ export function ChatMessageList({
 
   const { messagesEndRef } = useMessagesScroll(sortedMessages);
 
-  const slides = sortedMessages
-    .filter((message) => message.contentType === 'image')
-    .map((message) => ({ src: message.body }));
+  const slides = sortedMessages.flatMap((message) => {
+    if (message.contentType !== 'image') return [];
+
+    const imageAttachments = (message.attachments || [])
+      .map((attachment) => attachment.url || attachment.downloadURL || attachment.previewUrl)
+      .filter(Boolean);
+
+    return (imageAttachments.length ? imageAttachments : [message.body])
+      .filter(Boolean)
+      .map((src) => ({ src }));
+  });
 
   const lightbox = useLightbox(slides);
 
@@ -103,7 +111,7 @@ export function ChatMessageList({
             message={message}
             participants={participants}
             currentContact={currentContact}
-            onOpenLightbox={() => lightbox.onOpen(message.body)}
+            onOpenLightbox={lightbox.onOpen}
             onReply={onReply}
             onReact={onReact}
             onEdit={onEdit}

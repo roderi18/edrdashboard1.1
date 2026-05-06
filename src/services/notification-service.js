@@ -6,6 +6,7 @@ import {
   getDocs,
   updateDoc,
   collection,
+  arrayUnion,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -400,6 +401,7 @@ export async function crearNotificacionEvaluacionPedido({
   tipo = 'rechazada',
   razon = '',
   usuario = {},
+  metadatosExtra = {},
 }) {
   asegurarFirebaseNotificaciones();
 
@@ -413,9 +415,9 @@ export async function crearNotificacionEvaluacionPedido({
   const ordenId = orden?.ordenId || orden?.id || '';
   const { numeroOrden } = construirDescripcionPedido(orden);
   const esRechazo = tipo === 'rechazada';
-  const estadoTexto = esRechazo ? 'fue rechazado' : 'fue aprobado para compra';
+  const estadoTexto = esRechazo ? 'fue rechazada.' : 'fue aprobado para compra';
   const mensaje = esRechazo
-    ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}`
+    ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}. Ve a este número de orden para cargar el archivo faltante.`
     : `tu pedido ${numeroOrden} fue aprobado para compra.`;
   const notificationId = `pedido_${tipo}_${ordenId || Date.now()}_${idUsuario}`;
 
@@ -456,6 +458,8 @@ export async function crearNotificacionEvaluacionPedido({
       numeroOrden,
       razon,
       estadoEvaluacion: tipo,
+      miembroId: orden?.miembroId || orden?.customer?.memberId || null,
+      ...metadatosExtra,
     },
     creadoEnServidor: serverTimestamp(),
     actualizadoEnServidor: serverTimestamp(),
@@ -468,6 +472,106 @@ export async function crearNotificacionEvaluacionPedido({
   );
 
   return notificacion;
+}
+
+export async function crearNotificacionArchivosFaltantesPedido({
+  orden = {},
+  archivos = [],
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const fechaActual = new Date().toISOString();
+  const ordenId = orden?.ordenId || orden?.id || '';
+  const { numeroOrden, clienteNombre } = construirDescripcionPedido(orden);
+  const idUsuario = obtenerIdUsuarioNotificaciones(usuario) || String(orden?.usuarioId || '');
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+  const cantidadArchivos = archivos.length;
+  const archivoTexto = cantidadArchivos === 1 ? 'un archivo faltante' : `${cantidadArchivos} archivos faltantes`;
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Miembro';
+  const baseNotification = {
+    modulo: 'pedidos',
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorFotoURL: usuario?.photoURL || null,
+    entidadTipo: 'pedido',
+    entidadId: ordenId,
+    ruta: ordenId ? `/dashboard/order/${ordenId}` : '/dashboard/order',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver pedido',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      ordenId,
+      numeroOrden,
+      cantidadArchivos,
+      clienteNombre,
+      miembroId: orden?.miembroId ?? usuario?.idMiembros ?? null,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+  const notificaciones = [];
+
+  if (idsAdministradores.length) {
+    const mensajeAdmin = `cargó ${archivoTexto} para el pedido ${numeroOrden}.`;
+
+    notificaciones.push({
+      ...baseNotification,
+      id: `pedido_archivos_faltantes_${ordenId || Date.now()}_admin_${Date.now()}`,
+      tipoNotificacion: 'pedido_recibido',
+      titulo: 'Archivos faltantes cargados',
+      tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> cargó ${escapeHtml(archivoTexto)} para el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`,
+      mensaje: mensajeAdmin,
+      mensajeVisual: mensajeAdmin,
+      rolDestinatario: 'admin',
+      idsDestinatarios: idsAdministradores,
+      actorId: String(usuario?.uid || usuario?.id || orden?.usuarioId || 'sistema'),
+      actorTipo: 'usuario',
+      actorNombre,
+    });
+  }
+
+  if (idUsuario) {
+    const mensajeUsuario = `se cargó archivo faltante a la orden ${numeroOrden}. El administrador fue notificado.`;
+
+    notificaciones.push({
+      ...baseNotification,
+      id: `pedido_archivos_faltantes_${ordenId || Date.now()}_usuario_${idUsuario}_${Date.now()}`,
+      tipoNotificacion: 'pedido_creado',
+      titulo: 'Archivo faltante cargado',
+      tituloHtml: `<p>se cargó archivo faltante a la orden <strong>${escapeHtml(numeroOrden)}</strong>. El administrador fue notificado.</p>`,
+      mensaje: mensajeUsuario,
+      mensajeVisual: mensajeUsuario,
+      rolDestinatario: 'usuario',
+      idsDestinatarios: [idUsuario],
+      actorId: 'sistema',
+      actorTipo: 'sistema',
+      actorNombre: 'Tienda',
+    });
+  }
+
+  await Promise.all(
+    notificaciones.map((notificacion) =>
+      setDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
+        notificacion,
+        { merge: true }
+      )
+    )
+  );
+
+  return notificaciones;
 }
 
 const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {
@@ -800,21 +904,28 @@ const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {
   ];
 };
 
-export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}) => ({
-  id,
-  idsNotificaciones: notificacion.idsNotificaciones || [id],
-  avatarUrl: notificacion.imagenURL || notificacion.actorFotoURL || null,
-  type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
-  tipoNotificacion: notificacion.tipoNotificacion || '',
-  category: obtenerCategoriaNotificacion(notificacion.modulo),
-  estado: notificacion.estado || 'no_leida',
-  isUnRead: notificacion.estado !== 'leida',
-  createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,
-  ruta: notificacion.ruta || null,
-  entidadId: notificacion.entidadId || null,
-  metadatos: notificacion.metadatos || {},
-  title: construirTituloHtml(notificacion),
-});
+export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, idUsuario = '') => {
+  const usuarioId = String(idUsuario || '').trim();
+  const leidaPor = Array.isArray(notificacion.leidaPor) ? notificacion.leidaPor.map(String) : [];
+  const leidaPorUsuario = Boolean(usuarioId && leidaPor.includes(usuarioId));
+  const estado = leidaPorUsuario || notificacion.estado === 'leida' ? 'leida' : notificacion.estado || 'no_leida';
+
+  return {
+    id,
+    idsNotificaciones: notificacion.idsNotificaciones || [id],
+    avatarUrl: notificacion.imagenURL || notificacion.actorFotoURL || null,
+    type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
+    tipoNotificacion: notificacion.tipoNotificacion || '',
+    category: obtenerCategoriaNotificacion(notificacion.modulo),
+    estado,
+    isUnRead: estado !== 'leida',
+    createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,
+    ruta: notificacion.ruta || null,
+    entidadId: notificacion.entidadId || null,
+    metadatos: notificacion.metadatos || {},
+    title: construirTituloHtml(notificacion),
+  };
+};
 
 const construirClaveGrupoNotificacion = (notificacion = {}) => {
   if (notificacion.tipoNotificacion !== 'mensaje_recibido') {
@@ -926,22 +1037,24 @@ export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
 export async function listarNotificacionesDrawerPorUsuario(idUsuario) {
   const notificaciones = await listarNotificacionesFirestorePorUsuario(idUsuario);
   return agruparNotificacionesMensaje(notificaciones).map((item) =>
-    transformarNotificacionFirestoreADrawer(item.id, item)
+    transformarNotificacionFirestoreADrawer(item.id, item, idUsuario)
   );
 }
 
 export async function listarNotificacionesDrawerParaUsuario(usuario = {}) {
   const notificaciones = await listarNotificacionesFirestoreParaUsuario(usuario);
+  const idUsuario = usuario?.uid || usuario?.id || '';
 
   return agruparNotificacionesMensaje(notificaciones).map((item) =>
-    transformarNotificacionFirestoreADrawer(item.id, item)
+    transformarNotificacionFirestoreADrawer(item.id, item, idUsuario)
   );
 }
 
-export async function marcarNotificacionComoLeida(notificationId) {
+export async function marcarNotificacionComoLeida(notificationId, idUsuario = '') {
   asegurarFirebaseNotificaciones();
 
   const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId];
+  const usuarioId = String(idUsuario || '').trim();
 
   if (!notificationIds.filter(Boolean).length) {
     return;
@@ -950,7 +1063,7 @@ export async function marcarNotificacionComoLeida(notificationId) {
   await Promise.all(
     notificationIds.filter(Boolean).map((id) =>
       updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id), {
-        estado: 'leida',
+        ...(usuarioId ? { leidaPor: arrayUnion(usuarioId) } : { estado: 'leida' }),
         fechaLectura: new Date().toISOString(),
         actualizadoEnServidor: serverTimestamp(),
       })
@@ -966,11 +1079,12 @@ export async function marcarNotificacionesComoLeidasPorUsuario(idUsuario) {
   }
 
   const notificaciones = await listarNotificacionesFirestorePorUsuario(idUsuario);
+  const usuarioId = String(idUsuario || '').trim();
 
   await Promise.all(
     notificaciones.map((notificacion) =>
       updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id), {
-        estado: 'leida',
+        ...(usuarioId ? { leidaPor: arrayUnion(usuarioId) } : { estado: 'leida' }),
         fechaLectura: new Date().toISOString(),
         actualizadoEnServidor: serverTimestamp(),
       })

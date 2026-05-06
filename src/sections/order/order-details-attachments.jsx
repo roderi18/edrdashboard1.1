@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -15,6 +15,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { fData } from 'src/utils/format-number';
+import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -23,30 +24,70 @@ import { Iconify } from 'src/components/iconify';
 const isRestrictedItem = (item = {}) =>
   item?.requiereAprobacion || item?.renglon === 'restringido' || item?.tipoProducto === 'restringido';
 
+const MAX_MISSING_FILES = 10;
+
+const getAttachmentKey = (file = {}, index = 0) =>
+  [
+    file.id,
+    file.storagePath,
+    file.url,
+    file.downloadURL,
+    file.nombre,
+    file.productId,
+    index,
+  ]
+    .filter(Boolean)
+    .join('-');
+
 export function OrderDetailsAttachments({
   order,
   canManageStatus,
   onEvaluateOrder,
+  onUploadMissingFiles,
+  onDeleteAttachment,
+  onRestoreAttachment,
 }) {
+  const missingFileInputRef = useRef(null);
   const [openReject, setOpenReject] = useState(false);
   const [openPreview, setOpenPreview] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [hasEvaluated, setHasEvaluated] = useState(false);
   const [reason, setReason] = useState('');
   const [loadingAction, setLoadingAction] = useState('');
+  const [loadingMissingFiles, setLoadingMissingFiles] = useState(false);
 
-  const attachments = useMemo(
-    () =>
-      (order?.items || [])
-        .filter(isRestrictedItem)
-        .flatMap((item) =>
-          (item?.archivosAdjuntos || item?.aprobacion?.archivosAdjuntos || []).map((file) => ({
+  const attachments = useMemo(() => {
+    const uniqueFiles = new Map();
+
+    (order?.items || [])
+      .filter(isRestrictedItem)
+      .forEach((item) => {
+        (item?.archivosAdjuntos || item?.aprobacion?.archivosAdjuntos || []).forEach((file) => {
+          const nextFile = {
             ...file,
+            productId: item?.id || item?.productoId,
             productName: item?.name,
-          }))
-        ),
-    [order?.items]
-  );
+          };
+
+          uniqueFiles.set(getAttachmentKey(nextFile), nextFile);
+        });
+      });
+
+    return Array.from(uniqueFiles.values());
+  }, [order?.items]);
   const hasRestrictedItems = (order?.items || []).some(isRestrictedItem);
+  const rejectedItem = (order?.items || []).find(
+    (item) =>
+      isRestrictedItem(item) &&
+      (item?.aprobacion?.estado === 'rechazada' ||
+        item?.aprobacion?.comentario ||
+        item?.aprobacion?.archivosFaltantes?.length)
+  );
+  const rejectionReason = rejectedItem?.aprobacion?.comentario || '';
+  const missingFilesCount = rejectedItem?.aprobacion?.archivosFaltantes?.length || 0;
+  const isRejectedAgain = rejectedItem?.aprobacion?.estado === 'rechazada';
+  const hasUploadedMissingFiles = missingFilesCount > 0 && !isRejectedAgain;
+  const showMissingFiles = !canManageStatus && Boolean(rejectedItem);
   const canSubmitReject = reason.trim().length >= 5;
   const previewButtonLabel =
     attachments.length === 1
@@ -83,6 +124,77 @@ export function OrderDetailsAttachments({
     setOpenReject(false);
   }, [handleEvaluate, reason]);
 
+  const handleSelectMissingFiles = useCallback(
+    async (event) => {
+      const selectedFiles = Array.from(event.target.files || []);
+      event.target.value = '';
+
+      if (!selectedFiles.length || !onUploadMissingFiles) return;
+
+      if (missingFilesCount + selectedFiles.length > MAX_MISSING_FILES) {
+        toast.error(`Solo puedes cargar ${MAX_MISSING_FILES} archivos faltantes como máximo.`);
+        return;
+      }
+
+      const invalidFile = selectedFiles.find(
+        (file) => !String(file.type || '').startsWith('image/') && file.type !== 'application/pdf'
+      );
+
+      if (invalidFile) {
+        toast.error('Solo puedes cargar imágenes o PDF.');
+        return;
+      }
+
+      try {
+        setLoadingMissingFiles(true);
+        const uploadedFiles = await uploadFilesToStorage({
+          files: selectedFiles,
+          storagePathBuilder: (file, index) =>
+            `ordenes/${order?.id || order?.orderNumber}/faltantes/${buildStorageFileName(file, index)}`,
+          metadataBuilder: () => ({
+            orderId: order?.id || '',
+            orderNumber: order?.orderNumber || '',
+            tipoAdjunto: 'faltante_rechazo',
+          }),
+        });
+
+        await onUploadMissingFiles(uploadedFiles);
+        toast.success('Archivo faltante cargado correctamente.');
+      } catch (error) {
+        console.error(error);
+        toast.error(error?.message || 'No se pudo cargar el archivo faltante.');
+      } finally {
+        setLoadingMissingFiles(false);
+      }
+    },
+    [missingFilesCount, onUploadMissingFiles, order?.id, order?.orderNumber]
+  );
+
+  const handleConfirmDeleteAttachment = useCallback(async () => {
+    if (!deleteTarget || !onDeleteAttachment) return;
+
+    try {
+      const removedFile = deleteTarget;
+      await onDeleteAttachment(removedFile);
+      setDeleteTarget(null);
+
+      toast.success('Documento eliminado.', {
+        duration: 6000,
+        style: { whiteSpace: 'nowrap', minWidth: 360 },
+        action: {
+          label: 'Deshacer',
+          style: { minWidth: 96 },
+          onClick: () => {
+            void onRestoreAttachment?.(removedFile);
+          },
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.message || 'No se pudo eliminar el documento.');
+    }
+  }, [deleteTarget, onDeleteAttachment, onRestoreAttachment]);
+
   if (!hasRestrictedItems) {
     return null;
   }
@@ -109,6 +221,39 @@ export function OrderDetailsAttachments({
             >
               {previewButtonLabel}
             </Button>
+          )}
+
+          {showMissingFiles && (
+            <Stack spacing={1.25}>
+              <Typography variant="h6">Archivos faltantes</Typography>
+
+              <input
+                ref={missingFileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                hidden
+                multiple
+                onChange={handleSelectMissingFiles}
+              />
+
+              <Button
+                fullWidth
+                variant="outlined"
+                color="inherit"
+                disabled={hasUploadedMissingFiles}
+                loading={loadingMissingFiles}
+                startIcon={<Iconify icon="solar:upload-bold" />}
+                onClick={() => missingFileInputRef.current?.click()}
+              >
+                Cargar
+              </Button>
+
+              {!!rejectionReason && !hasUploadedMissingFiles && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {rejectionReason}
+                </Typography>
+              )}
+            </Stack>
           )}
 
           {canManageStatus && (
@@ -182,8 +327,8 @@ export function OrderDetailsAttachments({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Escribe la razón del rechazo. Esta razón se enviará como notificación al miembro y
-              también quedará registrada en el chat.
+              Escribe la razón del rechazo. El miembro recibirá una notificación y
+              también un mensaje en su chat.
             </Typography>
 
             <TextField
@@ -218,14 +363,14 @@ export function OrderDetailsAttachments({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {attachments.length ? (
-              attachments.map((file) => {
+              attachments.map((file, index) => {
                 const fileUrl = file.url || file.urlArchivo || file.downloadURL || file.ruta;
                 const isImage = String(file.tipo || '').startsWith('image/');
                 const isPdf = String(file.tipo || '').includes('pdf');
 
                 return (
                   <Box
-                    key={`preview-${file.id || `${file.nombre}-${file.productName}`}`}
+                    key={`preview-${getAttachmentKey(file, index)}`}
                     sx={{
                       p: 2,
                       borderRadius: 1,
@@ -250,16 +395,29 @@ export function OrderDetailsAttachments({
                           </Typography>
                         </Box>
                         {fileUrl && (
-                          <Button
-                            size="small"
-                            color="inherit"
-                            variant="outlined"
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Abrir
-                          </Button>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              color="inherit"
+                              variant="outlined"
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Abrir
+                            </Button>
+
+                            {canManageStatus && (
+                              <Button
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                onClick={() => setDeleteTarget(file)}
+                              >
+                                Eliminar
+                              </Button>
+                            )}
+                          </Stack>
                         )}
                       </Box>
 
@@ -313,6 +471,28 @@ export function OrderDetailsAttachments({
         <DialogActions>
           <Button color="inherit" onClick={() => setOpenPreview(false)}>
             Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Eliminar documento</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            ¿Realmente deseas eliminar este documento de los archivos adjuntos?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setDeleteTarget(null)}>
+            Cancelar
+          </Button>
+          <Button color="error" variant="contained" onClick={handleConfirmDeleteAttachment}>
+            Eliminar
           </Button>
         </DialogActions>
       </Dialog>

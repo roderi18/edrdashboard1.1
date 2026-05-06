@@ -129,7 +129,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     );
 
     try {
-      await marcarNotificacionComoLeida(notificationId);
+      await marcarNotificacionComoLeida(notificationId, user?.uid);
     } catch (error) {
       console.error('[notifications] no se pudo marcar como leída', error);
     }

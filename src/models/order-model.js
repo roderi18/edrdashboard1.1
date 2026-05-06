@@ -194,6 +194,8 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
       title: item?.titulo,
       description: item?.descripcion || null,
       time: timestampToIsoString(item?.fecha),
+      userId: item?.usuarioId || null,
+      role: item?.rol || item?.role || null,
     })),
   },
   subtotal: Number(doc?.subtotal ?? 0),

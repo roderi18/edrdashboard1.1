@@ -29,8 +29,11 @@ export function ChatRoomGroup({ participants }) {
 
   const renderList = () => (
     <>
-      {participants.map((participant) => (
-        <ListItemButton key={participant.id} onClick={() => handleOpen(participant)}>
+      {participants.map((participant, index) => (
+        <ListItemButton
+          key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
+          onClick={() => handleOpen(participant)}
+        >
           <Badge variant={participant.status} badgeContent=" ">
             <Avatar alt={participant.name} src={participant.avatarUrl} />
           </Badge>

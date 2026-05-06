@@ -23,6 +23,7 @@ const SUBCOLECCION_MENSAJES = 'mensajes';
 const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
 const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const COLECCION_FOTOS = 'fotos';
+const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
 
 const nowIso = () => new Date().toISOString();
 
@@ -220,6 +221,7 @@ const messageToFirestore = (message = {}, fallbackSender = {}) => {
     eliminadoEn: message.eliminadoEn ?? null,
     respuestaA: message.respuestaA ?? message.replyTo ?? null,
     reacciones: message.reacciones ?? message.reactions ?? {},
+    metadatos: message.metadatos ?? message.metadata ?? {},
     vistoPorIdMiembros: message.vistoPorIdMiembros ?? {},
   };
 };
@@ -259,11 +261,15 @@ const messageToUi = (message = {}) => ({
   body: message.texto ?? message.body ?? '',
   contentType: message.tipoContenido ?? message.contentType ?? 'text',
   attachments: asArray(message.adjuntos ?? message.attachments),
+  bodyOriginal: message.textoOriginal ?? message.bodyOriginal ?? null,
+  contentTypeOriginal: message.tipoContenidoOriginal ?? message.contentTypeOriginal ?? null,
+  attachmentsOriginal: asArray(message.adjuntosOriginales ?? message.attachmentsOriginal),
   createdAt: message.enviadoEn ?? message.createdAt ?? nowIso(),
   senderId: String(message.remitenteIdMiembros ?? message.senderId ?? ''),
   eliminado: Boolean(message.eliminado),
   replyTo: message.respuestaA ?? message.replyTo ?? null,
   reactions: message.reacciones ?? message.reactions ?? {},
+  metadata: message.metadatos ?? message.metadata ?? {},
 });
 
 const conversationToUi = async (conversation = {}, messages = null, viewerIdMiembros = null) => {
@@ -709,9 +715,21 @@ async function updateMessageAction({
   let nextMessage = messageData;
 
   if (action === 'delete') {
+    if (Number(messageData.remitenteIdMiembros) !== Number(viewerIdMiembros)) {
+      throw new Error('Solo puedes eliminar tus propios mensajes.');
+    }
+
+    const sentAtTime = new Date(messageData.enviadoEn ?? messageData.createdAt).getTime();
+
+    if (!Number.isFinite(sentAtTime) || Date.now() - sentAtTime > MESSAGE_DELETE_WINDOW_MS) {
+      throw new Error('No se pueden eliminar mensajes despues de 1 hora de enviados.');
+    }
+
     nextMessage = {
       ...messageData,
       textoOriginal: messageData.textoOriginal ?? messageData.texto,
+      tipoContenidoOriginal: messageData.tipoContenidoOriginal ?? messageData.tipoContenido,
+      adjuntosOriginales: messageData.adjuntosOriginales ?? messageData.adjuntos,
       texto: 'Mensaje eliminado',
       eliminado: true,
       eliminadoEn: nowIso(),
@@ -723,6 +741,8 @@ async function updateMessageAction({
     nextMessage = {
       ...messageData,
       texto: messageData.textoOriginal ?? messageData.texto,
+      tipoContenido: messageData.tipoContenidoOriginal ?? messageData.tipoContenido,
+      adjuntos: messageData.adjuntosOriginales ?? messageData.adjuntos,
       eliminado: false,
       eliminadoEn: null,
       actualizadoEn: nowIso(),

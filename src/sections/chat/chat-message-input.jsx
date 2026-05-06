@@ -12,7 +12,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
-import { sendMessage, editMessage, createConversation } from 'src/actions/chat';
+import { sendMessage, editMessage, addLocalMessage, createConversation } from 'src/actions/chat';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -143,12 +143,11 @@ export function ChatMessageInput({
   useEffect(
     () => () => {
       pendingAttachments.forEach((item) => {
-        if (item.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
       });
     },
-    [pendingAttachments]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   const { messageData, conversationData } = initialConversation({
@@ -234,25 +233,83 @@ export function ChatMessageInput({
         }
 
         if (attachmentsToSend.length) {
-          const groupedAttachments = attachmentsToSend.reduce((groups, item) => {
-            const key = item.contentType;
-            groups[key] = [...(groups[key] || []), item.file];
-            return groups;
-          }, {});
+          const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
+          const fileAttachments = attachmentsToSend.filter((item) => item.contentType === 'file');
 
-          for (const [contentType, files] of Object.entries(groupedAttachments)) {
+          if (imageAttachments.length && selectedConversationId) {
+            const localImageMessage = {
+              id: uuidv4(),
+              attachments: imageAttachments.map((item) => ({
+                id: item.id,
+                nombre: item.file.name,
+                nombreOriginal: item.file.name,
+                tipo: item.file.type,
+                tamano: item.file.size,
+                previewUrl: item.previewUrl,
+              })),
+              body: imageAttachments[0].previewUrl,
+              contentType: 'image',
+              createdAt: new Date().toISOString(),
+              senderId: String(currentContact.idMiembros || currentContact.id),
+              estadoEnvio: 'enviando',
+            };
+
+            await addLocalMessage(selectedConversationId, localImageMessage);
+
             const uploads = await uploadFilesToStorage({
-              files,
+              files: imageAttachments.map((item) => item.file),
               storagePathBuilder: (file, index) =>
-                `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/${contentType === 'image' ? 'imagenes' : 'archivos'}/${buildStorageFileName(file, index)}`,
+                `chat/${selectedConversationId}/imagenes/${buildStorageFileName(file, index)}`,
               metadataBuilder: () => ({
                 modulo: 'chat',
-                tipo: contentType === 'image' ? 'imagen' : 'archivo',
+                tipo: 'imagen',
                 remitenteIdMiembros: String(currentContact.idMiembros || ''),
               }),
             });
 
-            await sendAttachmentMessages({ uploads, contentType });
+            await sendMessage(
+              selectedConversationId,
+              {
+                ...localImageMessage,
+                attachments: uploads,
+                body: uploads[0]?.url || uploads[0]?.downloadURL || localImageMessage.body,
+              },
+              currentContact.idMiembros
+            );
+
+            imageAttachments.forEach((item) => {
+              if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+            });
+          }
+
+          if (imageAttachments.length && !selectedConversationId) {
+            const uploads = await uploadFilesToStorage({
+              files: imageAttachments.map((item) => item.file),
+              storagePathBuilder: (file, index) =>
+                `chat/${currentContact.idMiembros || 'nuevo'}/imagenes/${buildStorageFileName(file, index)}`,
+              metadataBuilder: () => ({
+                modulo: 'chat',
+                tipo: 'imagen',
+                remitenteIdMiembros: String(currentContact.idMiembros || ''),
+              }),
+            });
+
+            await sendAttachmentMessages({ uploads, contentType: 'image' });
+          }
+
+          if (fileAttachments.length) {
+            const uploads = await uploadFilesToStorage({
+              files: fileAttachments.map((item) => item.file),
+              storagePathBuilder: (file, index) =>
+                `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/archivos/${buildStorageFileName(file, index)}`,
+              metadataBuilder: () => ({
+                modulo: 'chat',
+                tipo: 'archivo',
+                remitenteIdMiembros: String(currentContact.idMiembros || ''),
+              }),
+            });
+
+            await sendAttachmentMessages({ uploads, contentType: 'file' });
           }
         }
 
@@ -286,6 +343,7 @@ export function ChatMessageInput({
     [
       conversationData,
       currentContact.idMiembros,
+      currentContact.id,
       editingMessage,
       message,
       messageData,

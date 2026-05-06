@@ -20,6 +20,8 @@ import { getMessage } from './utils/get-message';
 
 const ORDER_NUMBER_REGEX = /(ORD-\d+)/g;
 const ORDER_NUMBER_EXACT_REGEX = /^ORD-\d+$/;
+const MISSING_FILE_INSTRUCTION = 'Presiona este número de orden para cargar el archivo faltante.';
+const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
 const EMOJI_OPTIONS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F64F}'];
 const REACTION_EMOJI_CATEGORIES = [
   {
@@ -87,7 +89,7 @@ const formatChatTime = (input) => {
   return value.toLowerCase().startsWith('hace ') ? value : `hace ${value}`;
 };
 
-const renderMessageTextWithOrderLinks = (text = '') =>
+const renderMessageTextWithOrderLinks = (text = '', metadata = {}) =>
   String(text)
     .split(ORDER_NUMBER_REGEX)
     .map((part, index) => {
@@ -95,16 +97,43 @@ const renderMessageTextWithOrderLinks = (text = '') =>
         return part;
       }
 
+      const orderHref = metadata?.ordenId
+        ? `/dashboard/order/${encodeURIComponent(metadata.ordenId)}`
+        : `${paths.dashboard.order.root}?orderNumber=${encodeURIComponent(part)}`;
+
       return (
         <UnderlineLink
           key={`${part}-${index}`}
-          href={`${paths.dashboard.order.root}?orderNumber=${encodeURIComponent(part)}`}
+          href={orderHref}
           sx={{ color: 'primary.main', fontWeight: 700 }}
         >
           {part}
         </UnderlineLink>
       );
     });
+
+const renderMessageBodyText = (text = '', metadata = {}) =>
+  String(text)
+    .split(MISSING_FILE_INSTRUCTION)
+    .map((part, index, parts) => (
+      <Box component="span" key={`message-part-${index}`} sx={{ display: 'contents' }}>
+        {renderMessageTextWithOrderLinks(part, metadata)}
+        {index < parts.length - 1 && (
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{
+              display: 'block',
+              mt: 1,
+              color: 'text.secondary',
+              fontStyle: 'italic',
+            }}
+          >
+            {MISSING_FILE_INSTRUCTION}
+          </Typography>
+        )}
+      </Box>
+    ));
 
 export function ChatMessageItem({
   message,
@@ -122,22 +151,30 @@ export function ChatMessageItem({
   const { me, senderDetails, hasImage } = getMessage({
     message,
     participants,
-    currentUserId: currentContact.id,
+    currentUserId: [currentContact.idMiembros, currentContact.id],
   });
 
   const { firstName, avatarUrl } = senderDetails;
 
   const { body, createdAt } = message;
   const attachment = message.attachments?.[0] || null;
+  const imageAttachments = (message.attachments || [])
+    .map((item) => item.url || item.downloadURL || item.previewUrl)
+    .filter(Boolean);
+  const imageUrls = hasImage ? (imageAttachments.length ? imageAttachments : [body].filter(Boolean)) : [];
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [showAllReactionEmojis, setShowAllReactionEmojis] = useState(false);
   const [reactionEmojiCategory, setReactionEmojiCategory] = useState(
     REACTION_EMOJI_CATEGORIES[0].label
   );
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
   const isSent = me && message.estadoEnvio !== 'enviando';
   const reactions = Object.values(localReactions);
   const isDeleted = message.eliminado;
+  const sentAtTime = new Date(createdAt).getTime();
+  const canDeleteMessage =
+    Number.isFinite(sentAtTime) && currentTime - sentAtTime <= MESSAGE_DELETE_WINDOW_MS;
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const reactionKey = String(currentContact.idMiembros || currentContact.id || 'usuario');
   const selectedReactionEmoji = localReactions[reactionKey];
@@ -148,6 +185,14 @@ export function ChatMessageItem({
   useEffect(() => {
     setLocalReactions(message.reactions || {});
   }, [message.reactions]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCurrentTime(Date.now());
+    }, 60000);
+
+    return () => clearTimeout(timeout);
+  }, [currentTime]);
 
   const handleSelectEmoji = (emoji) => {
     setEmojiAnchorEl(null);
@@ -191,22 +236,62 @@ export function ChatMessageItem({
         ...(hasImage && { p: 0, bgcolor: 'transparent' }),
       }}
     >
-      {hasImage ? (
+      {isDeleted ? (
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: 'text.disabled', fontStyle: 'italic' }}
+          >
+            Mensaje eliminado
+          </Typography>
+
+          {me && (
+            <UnderlineLink
+              href="#"
+              onClick={(event) => {
+                event.preventDefault();
+                onRestore?.(message);
+              }}
+              sx={{
+                typography: 'caption',
+                fontWeight: 700,
+                color: 'primary.main',
+              }}
+            >
+              Deshacer
+            </UnderlineLink>
+          )}
+        </Box>
+      ) : hasImage ? (
         <Box
-          component="img"
-          alt="Adjunto"
-          src={body}
-          onClick={() => onOpenLightbox(body)}
           sx={{
-            width: 400,
-            height: 'auto',
-            borderRadius: 1.5,
-            cursor: 'pointer',
-            objectFit: 'cover',
-            aspectRatio: '16/11',
-            '&:hover': { opacity: 0.9 },
+            gap: 0.5,
+            width: imageUrls.length > 1 ? 260 : 220,
+            maxWidth: imageUrls.length > 1 ? 'min(70vw, 260px)' : 'min(64vw, 220px)',
+            display: 'grid',
+            gridTemplateColumns: imageUrls.length > 1 ? 'repeat(2, 1fr)' : '1fr',
           }}
-        />
+        >
+          {imageUrls.map((imageUrl, index) => (
+            <Box
+              key={`${imageUrl}-${index}`}
+              component="img"
+              alt="Adjunto"
+              src={imageUrl}
+              onClick={() => onOpenLightbox(imageUrl)}
+              sx={{
+                width: 1,
+                height: imageUrls.length > 1 ? 112 : 165,
+                display: 'block',
+                borderRadius: 1.5,
+                cursor: 'pointer',
+                objectFit: 'cover',
+                '&:hover': { opacity: 0.9 },
+              }}
+            />
+          ))}
+        </Box>
       ) : message.contentType === 'file' && attachment ? (
         <Box
           component="a"
@@ -271,38 +356,9 @@ export function ChatMessageItem({
             </Box>
           )}
 
-          {isDeleted ? (
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{ color: 'text.disabled', fontStyle: 'italic' }}
-              >
-                Mensaje eliminado
-              </Typography>
-
-              {me && (
-                <UnderlineLink
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onRestore?.(message);
-                  }}
-                  sx={{
-                    typography: 'caption',
-                    fontWeight: 700,
-                    color: 'primary.main',
-                  }}
-                >
-                  Deshacer
-                </UnderlineLink>
-              )}
-            </Box>
-          ) : (
-            <Typography component="span" variant="body2">
-              {renderMessageTextWithOrderLinks(body)}
-            </Typography>
-          )}
+          <Typography component="span" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+            {renderMessageBodyText(body, message.metadata)}
+          </Typography>
         </>
       )}
 
@@ -370,9 +426,11 @@ export function ChatMessageItem({
           </IconButton>
         )}
 
-        <IconButton size="small" disabled={isDeleted} onClick={() => onDelete?.(message)}>
-          <Iconify icon="solar:trash-bin-trash-bold" width={16} />
-        </IconButton>
+        {me && canDeleteMessage && (
+          <IconButton size="small" disabled={isDeleted} onClick={() => onDelete?.(message)}>
+            <Iconify icon="solar:trash-bin-trash-bold" width={16} />
+          </IconButton>
+        )}
       </Box>
 
       <Popover
