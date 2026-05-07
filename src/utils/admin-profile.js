@@ -105,6 +105,10 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
   }
 
   const normalizedLogin = value.toLowerCase().replace(/\s+/g, '');
+  const normalizedLoginOptions = new Set([
+    normalizedLogin,
+    normalizedLogin.split('@')[0],
+  ]);
 
   const findInCollection = async (collectionName) => {
     if (value.includes('@')) {
@@ -122,6 +126,7 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
 
       const candidates = [
         profile.codigoUsuario,
+        profile.codigoMiembro,
         profile.uid,
         profile.correo,
         profile.nombres,
@@ -130,7 +135,7 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
         .filter(Boolean)
         .map((candidate) => String(candidate).trim().toLowerCase().replace(/\s+/g, ''));
 
-      return candidates.includes(normalizedLogin);
+      return candidates.some((candidate) => normalizedLoginOptions.has(candidate));
     });
 
     if (matchedSnapshot) {
@@ -208,7 +213,7 @@ export const buildAdminSessionUser = (authUser, profile = {}) => {
     displayName,
     email,
     photoURL,
-    role: profile.rol ?? authUser.role ?? 'admin',
+    role: profile.rol ?? authUser.role ?? 'administrador',
     status: profile.estatus ?? 'activo',
     nombres: profile.nombres ?? '',
     apellidos: profile.apellidos ?? '',

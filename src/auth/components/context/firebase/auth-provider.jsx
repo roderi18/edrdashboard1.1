@@ -4,6 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
+import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
 import {
@@ -27,6 +28,100 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
       setTimeout(() => resolve(fallback), timeoutMs);
     }),
   ]);
+
+const isAdminRole = (role) =>
+  ['admin', 'administrador'].includes(String(role ?? '').trim().toLowerCase());
+
+const buildAdminSessionFromMemberAccess = (authUser, access = {}) => {
+  const member = access.member ?? {};
+  const profile = access.profile ?? {};
+
+  return buildAdminSessionUser(authUser, {
+    ...member,
+    ...profile,
+    rol: 'administrador',
+    estatus: profile.estado ?? profile.estatus ?? member.status ?? 'activo',
+    nombres: member.firstName ?? profile.nombres ?? '',
+    apellidos: member.lastName ?? profile.apellidos ?? '',
+    correo: profile.correo ?? member.email ?? authUser.email ?? '',
+    codigoUsuario:
+      profile.codigoUsuario ?? profile.codigoMiembro ?? member.memberId ?? member.codigoMiembro ?? '',
+    codigoMiembro: profile.codigoMiembro ?? member.memberId ?? member.codigoMiembro ?? '',
+    idMiembros: Number(profile.idMiembros ?? member.id ?? member.idMiembros ?? 0) || '',
+    photoURL: profile.photoURL ?? member.avatarUrl ?? authUser.photoURL ?? '',
+  });
+};
+
+const getIdentityKeys = (values = []) =>
+  values
+    .filter(Boolean)
+    .flatMap((value) => {
+      const normalizedValue = String(value).trim().toLowerCase();
+      const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
+
+      return [normalizedValue, emailUser].filter(Boolean);
+    });
+
+const getAdminMemberPhotoFromContacts = async (profile = {}, authUser = {}) => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const response = await fetch(`${window.location.origin}/api/chat/?endpoint=contacts`, {
+    cache: 'no-store',
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return '';
+  }
+
+  const data = await response.json().catch(() => ({}));
+  const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+  const profileKeys = getIdentityKeys([
+    profile.idMiembros,
+    profile.memberId,
+    profile.codigoMiembro,
+    profile.codigoUsuario,
+    profile.correo,
+    profile.email,
+    authUser.email,
+    authUser.uid,
+  ]);
+
+  const contact = contacts.find((item) =>
+    getIdentityKeys([
+      item.idMiembros,
+      item.id,
+      item.memberId,
+      item.codigoMiembro,
+      item.codigoUsuario,
+      item.correo,
+      item.email,
+    ]).some((value) => profileKeys.includes(value))
+  );
+
+  return contact?.avatarUrl || '';
+};
+
+const buildAdminSessionWithMemberPhoto = async (authUser, profile = {}) => {
+  const adminProfile = profile.data ?? profile;
+  const idMiembros = adminProfile.idMiembros ?? adminProfile.memberId;
+  const memberPhoto = idMiembros
+    ? await withTimeout(
+        obtenerFotoPrincipal({ tipoEntidad: 'miembro', idEntidad: idMiembros }),
+        null
+      )
+    : null;
+  const contactPhotoURL = memberPhoto?.urlFoto
+    ? ''
+    : await withTimeout(getAdminMemberPhotoFromContacts(adminProfile, authUser), '');
+
+  return buildAdminSessionUser(authUser, {
+    ...adminProfile,
+    photoURL:
+      memberPhoto?.urlFoto || contactPhotoURL || adminProfile.photoURL || adminProfile.avatarUrl || '',
+  });
+};
 
 /**
  * NOTE:
@@ -57,19 +152,28 @@ export function AuthProvider({ children }) {
             .trim()
             .toLowerCase();
           const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
+          const adminProfile =
+            (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
+            (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
+            null;
 
-          const sessionUser = isMemberAuth
-            ? buildMemberSessionUser(
-                authUser,
-                (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {}
-              )
-            : buildAdminSessionUser(
-                authUser,
-                (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
-                  (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
-                  (await withTimeout(loadProfileByUid('users', authUser.uid), null)) ??
-                  {}
-              );
+          let sessionUser;
+
+          if (adminProfile) {
+            sessionUser = await buildAdminSessionWithMemberPhoto(authUser, adminProfile);
+          } else if (isMemberAuth) {
+            const memberAccess = (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {};
+            const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;
+
+            sessionUser = isAdminRole(memberRole)
+              ? buildAdminSessionFromMemberAccess(authUser, memberAccess)
+              : buildMemberSessionUser(authUser, memberAccess);
+          } else {
+            sessionUser = buildAdminSessionUser(
+              authUser,
+              (await withTimeout(loadProfileByUid('users', authUser.uid), null)) ?? {}
+            );
+          }
 
           setState({ user: { ...sessionUser, accessToken }, loading: false });
 

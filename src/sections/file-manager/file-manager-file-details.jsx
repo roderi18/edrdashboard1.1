@@ -39,14 +39,9 @@ export function FileManagerFileDetails({
   const showTags = useBoolean(true);
   const showProperties = useBoolean(true);
 
-  const [inviteEmail, setInviteEmail] = useState('');
   const [tags, setTags] = useState(file?.tags?.slice(0, 3) || []);
 
   const hasShared = file?.shared && !!file?.shared.length;
-
-  const handleChangeInvite = useCallback((event) => {
-    setInviteEmail(event.target.value);
-  }, []);
 
   const handleChangeTags = useCallback((newValue) => {
     setTags(newValue);
@@ -258,13 +253,11 @@ export function FileManagerFileDetails({
 
       <FileManagerShareDialog
         open={shareDialog.value}
+        item={file}
         shared={file?.shared}
-        inviteEmail={inviteEmail}
-        onChangeInvite={handleChangeInvite}
         onCopyLink={onCopyLink}
         onClose={() => {
           shareDialog.onFalse();
-          setInviteEmail('');
         }}
       />
     </>

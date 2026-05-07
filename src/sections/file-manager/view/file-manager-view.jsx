@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -10,10 +10,17 @@ import Typography from '@mui/material/Typography';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { isMemberSessionUser } from 'src/utils/member-access';
+
+import { _folders, FILE_TYPE_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _allFiles, FILE_TYPE_OPTIONS } from 'src/_mock';
+import {
+  listarArchivosGestorFirestore,
+  eliminarArchivoGestorFirestore,
+} from 'src/services/file-manager-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -22,15 +29,39 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { detectFileFormat } from 'src/components/file-thumbnail';
 import { useTable, rowInPage, getComparator } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { FileManagerTable } from '../file-manager-table';
 import { FileManagerFilters } from '../file-manager-filters';
 import { FileManagerGridView } from '../file-manager-grid-view';
+import { FileManagerUploadDialog } from '../file-manager-upload-dialog';
 import { FileManagerFiltersResult } from '../file-manager-filters-result';
-import { FileManagerCreateFolderDialog } from '../file-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
 
+const getFolderFiles = (files, folderId) => files.filter((file) => file.parentId === folderId);
+
+const getFilesSize = (files = []) =>
+  files.reduce((total, file) => total + Number(file?.size || file?.tamano || 0), 0);
+
+const buildFileManagerData = (files = []) => [
+  ..._folders.map((folder) => {
+    const folderFiles = getFolderFiles(files, folder.id);
+
+    return {
+      ...folder,
+      size: getFilesSize(folderFiles),
+      totalFiles: folderFiles.length,
+    };
+  }),
+  ...files,
+];
+
 export function FileManagerView() {
+  const { user } = useAuthContext();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentFolderId = searchParams.get('folder');
   const table = useTable({ defaultRowsPerPage: 10 });
 
   const dateRange = useBoolean();
@@ -38,7 +69,11 @@ export function FileManagerView() {
   const newFilesDialog = useBoolean();
 
   const [displayMode, setDisplayMode] = useState('list');
-  const [tableData, setTableData] = useState(_allFiles);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  const canDeleteFiles = Boolean(user) && !isMemberSessionUser(user);
+
+  const tableData = useMemo(() => buildFileManagerData(uploadedFiles), [uploadedFiles]);
 
   const filters = useSetState({
     name: '',
@@ -50,8 +85,13 @@ export function FileManagerView() {
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
+  const currentFolder = tableData.find((item) => item.id === currentFolderId);
+  const folderItems = tableData.filter((item) =>
+    currentFolderId ? item.parentId === currentFolderId : !item.parentId
+  );
+
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: folderItems,
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
     dateError,
@@ -66,6 +106,24 @@ export function FileManagerView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
+  useEffect(() => {
+    let mounted = true;
+
+    listarArchivosGestorFirestore()
+      .then((files) => {
+        if (mounted) {
+          setUploadedFiles(files);
+        }
+      })
+      .catch((error) => {
+        console.error('No se pudieron cargar los archivos del gestor:', error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleChangeView = useCallback((event, newView) => {
     if (newView !== null) {
       setDisplayMode(newView);
@@ -74,26 +132,82 @@ export function FileManagerView() {
 
   const handleDeleteItem = useCallback(
     (id) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
+      const itemToDelete = tableData.find((row) => row.id === id);
 
-      toast.success('Delete success!');
+      if (!canDeleteFiles) {
+        toast.error('Solo los administradores pueden eliminar archivos.');
+        return;
+      }
 
-      setTableData(deleteRow);
+      if (itemToDelete?.type !== 'folder') {
+        eliminarArchivoGestorFirestore(itemToDelete).catch((error) => {
+          console.error('No se pudo eliminar el archivo de Firestore:', error);
+        });
+
+        setUploadedFiles((currentFiles) => currentFiles.filter((row) => row.id !== id));
+      }
+
+      toast.success('Eliminado correctamente.');
 
       table.onUpdatePageDeleteRow(dataInPage.length);
     },
-    [dataInPage.length, table, tableData]
+    [canDeleteFiles, dataInPage.length, table, tableData]
   );
 
   const handleDeleteItems = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
+    if (!canDeleteFiles) {
+      toast.error('Solo los administradores pueden eliminar archivos.');
+      return;
+    }
 
-    toast.success('Delete success!');
+    const selectedFiles = tableData.filter(
+      (row) => table.selected.includes(row.id) && row.type !== 'folder'
+    );
 
-    setTableData(deleteRows);
+    selectedFiles.forEach((file) => {
+      eliminarArchivoGestorFirestore(file).catch((error) => {
+        console.error('No se pudo eliminar el archivo de Firestore:', error);
+      });
+    });
+
+    setUploadedFiles((currentFiles) =>
+      currentFiles.filter((row) => !table.selected.includes(row.id))
+    );
+
+    toast.success('Eliminado correctamente.');
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  }, [canDeleteFiles, dataFiltered.length, dataInPage.length, table, tableData]);
+
+  const handleUploadStart = useCallback((files) => {
+    setUploadedFiles((currentFiles) => [...currentFiles, ...files]);
+  }, []);
+
+  const handleUploadComplete = useCallback((files, pendingIds = []) => {
+    setUploadedFiles((currentFiles) => [
+      ...currentFiles.filter((file) => !pendingIds.includes(file.id)),
+      ...files,
+    ]);
+  }, []);
+
+  const handleUploadError = useCallback((pendingIds = []) => {
+    setUploadedFiles((currentFiles) =>
+      currentFiles.filter((file) => !pendingIds.includes(file.id))
+    );
+  }, []);
+
+  const handleOpenUpload = useCallback(() => {
+    if (!currentFolderId) {
+      toast.info('Entra a una carpeta antes de subir archivos.');
+      return;
+    }
+
+    newFilesDialog.onTrue();
+  }, [currentFolderId, newFilesDialog]);
+
+  const handleBackToRoot = useCallback(() => {
+    router.push('/dashboard/file-manager/');
+  }, [router]);
 
   const renderFilters = () => (
     <Box
@@ -135,7 +249,14 @@ export function FileManagerView() {
   );
 
   const renderUploadFilesDialog = () => (
-    <FileManagerCreateFolderDialog open={newFilesDialog.value} onClose={newFilesDialog.onFalse} />
+    <FileManagerUploadDialog
+      open={newFilesDialog.value}
+      parentId={currentFolderId}
+      onClose={newFilesDialog.onFalse}
+      onUploadStart={handleUploadStart}
+      onUploadError={handleUploadError}
+      onUploadComplete={handleUploadComplete}
+    />
   );
 
   const renderConfirmDialog = () => (
@@ -145,7 +266,7 @@ export function FileManagerView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> elementos?
         </>
       }
       action={
@@ -157,7 +278,7 @@ export function FileManagerView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -169,6 +290,7 @@ export function FileManagerView() {
         table={table}
         dataFiltered={dataFiltered}
         onDeleteRow={handleDeleteItem}
+        canDelete={canDeleteFiles}
         notFound={notFound}
         onOpenConfirm={confirmDialog.onTrue}
       />
@@ -177,6 +299,7 @@ export function FileManagerView() {
         table={table}
         dataFiltered={dataFiltered}
         onDeleteItem={handleDeleteItem}
+        canDelete={canDeleteFiles}
         onOpenConfirm={confirmDialog.onTrue}
       />
     );
@@ -185,11 +308,27 @@ export function FileManagerView() {
     <>
       <DashboardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h4">File manager</Typography>
+          <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center' }}>
+            {currentFolder && (
+              <Button
+                color="inherit"
+                variant="outlined"
+                startIcon={<Iconify icon="eva:arrow-back-fill" />}
+                onClick={handleBackToRoot}
+              >
+                Volver
+              </Button>
+            )}
+
+            <Typography variant="h4">
+              {currentFolder ? currentFolder.name : 'Gestor de archivos'}
+            </Typography>
+          </Box>
+
           <Button
             variant="contained"
             startIcon={<Iconify icon="eva:cloud-upload-fill" />}
-            onClick={newFilesDialog.onTrue}
+            onClick={handleOpenUpload}
           >
             Subir
           </Button>

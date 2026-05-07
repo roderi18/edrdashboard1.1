@@ -29,8 +29,9 @@ const STATUS_OPTIONS = [
   { value: 'offline', label: 'Desconectado' },
 ];
 
-export function ChatNavAccount() {
+export function ChatNavAccount({ currentContact }) {
   const { user } = useAuthContext();
+  const photoURL = currentContact?.avatarUrl || user?.photoURL || '';
 
   const menuActions = usePopover();
 
@@ -137,7 +138,7 @@ export function ChatNavAccount() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Avatar
-          src={user?.photoURL}
+          src={photoURL}
           alt={user?.displayName}
           onClick={menuActions.onOpen}
           sx={{ cursor: 'pointer', width: 48, height: 48 }}

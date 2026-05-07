@@ -18,6 +18,23 @@ import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 
 // ----------------------------------------------------------------------
 
+const FILE_TYPE_LABELS = {
+  folder: 'Carpeta',
+  txt: 'Texto',
+  zip: 'ZIP',
+  audio: 'Audio',
+  image: 'Imagen',
+  video: 'Video',
+  word: 'Word',
+  excel: 'Excel',
+  powerpoint: 'PowerPoint',
+  pdf: 'PDF',
+  photoshop: 'Photoshop',
+  illustrator: 'Illustrator',
+};
+
+const getFileTypeLabel = (type) => FILE_TYPE_LABELS[type] || type;
+
 export function FileManagerFilters({
   filters,
   options,
@@ -32,8 +49,8 @@ export function FileManagerFilters({
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const displayLabel = currentFilters.type.length
-    ? currentFilters.type.slice(0, 2).join(',')
-    : 'All type';
+    ? currentFilters.type.slice(0, 2).map(getFileTypeLabel).join(', ')
+    : 'Todos los tipos';
 
   const handleFilterName = useCallback(
     (event) => {
@@ -149,7 +166,7 @@ export function FileManagerFilters({
                 ]}
               >
                 <FileThumbnail file={type} sx={{ width: 24, height: 24 }} />
-                {type}
+                {getFileTypeLabel(type)}
               </ButtonBase>
             );
           })}
@@ -165,10 +182,10 @@ export function FileManagerFilters({
           }}
         >
           <Button variant="outlined" color="inherit" onClick={handleResetType}>
-            Clear
+            Limpiar
           </Button>
           <Button variant="contained" onClick={menuActions.onClose}>
-            Apply
+            Aplicar
           </Button>
         </Box>
       </CustomPopover>
@@ -189,7 +206,7 @@ export function FileManagerFilters({
       >
         {!!currentFilters.startDate && !!currentFilters.endDate
           ? fDateRangeShortLabel(currentFilters.startDate, currentFilters.endDate)
-          : 'Select date'}
+          : 'Seleccionar fecha'}
       </Button>
 
       <CustomDateRangePicker

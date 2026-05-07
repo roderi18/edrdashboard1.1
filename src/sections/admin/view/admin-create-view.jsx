@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useSetState } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
@@ -14,13 +15,16 @@ import { paths } from 'src/routes/paths';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { asignarAdministradorDesdeMiembro } from 'src/utils/firebase-admins';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 
 import { getMembers } from 'src/services/member-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -63,6 +67,8 @@ export function AdminCreateView() {
   const table = useTable();
   const [members, setMembers] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
+  const [assignRows, setAssignRows] = useState([]);
+  const [isAssigning, setIsAssigning] = useState(false);
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
 
@@ -85,6 +91,78 @@ export function AdminCreateView() {
 
     loadData();
   }, []);
+
+  const handleOpenAssignDialog = useCallback((rows) => {
+    const nextRows = Array.isArray(rows) ? rows : [rows];
+    setAssignRows(nextRows.filter(Boolean));
+  }, []);
+
+  const handleCloseAssignDialog = useCallback(() => {
+    if (!isAssigning) {
+      setAssignRows([]);
+    }
+  }, [isAssigning]);
+
+  const handleConfirmAssignAdmins = useCallback(async () => {
+    if (!assignRows.length) {
+      return;
+    }
+
+    setIsAssigning(true);
+
+    try {
+      const assignedAdmins = await Promise.all(assignRows.map((row) => asignarAdministradorDesdeMiembro(row)));
+      const assignedIds = new Set(assignRows.map((row) => String(row.id)));
+
+      setMembers((currentMembers) =>
+        currentMembers.map((member) =>
+          assignedIds.has(String(member.id))
+            ? {
+                ...member,
+                adminId:
+                  assignedAdmins.find((admin) => String(admin.idMiembros) === String(member.id))?.id ||
+                  member.adminId,
+                rol: 'administrador',
+                esAdministrador: true,
+              }
+            : member
+        )
+      );
+
+      const assignedNames = assignRows.map((row) => row.name).filter(Boolean);
+
+      toast.success(
+        assignRows.length === 1
+          ? `${assignedNames[0]} fue asignado como administrador.`
+          : `${assignRows.length} administradores asignados correctamente.`,
+        {
+          description:
+            assignRows.length === 1
+              ? 'El rol se guardó como administrador.'
+              : 'El rol de cada miembro se guardó como administrador.',
+        }
+      );
+
+      table.onSelectAllRows(false, []);
+      setAssignRows([]);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo asignar el administrador.');
+    } finally {
+      setIsAssigning(false);
+    }
+  }, [assignRows, table]);
+
+  const handleAssignSelectedAdmins = useCallback(async () => {
+    const selectedRows = members.filter((member) => table.selected.includes(member.id));
+
+    if (!selectedRows.length) {
+      toast.error('Selecciona al menos un miembro.');
+      return;
+    }
+
+    handleOpenAssignDialog(selectedRows);
+  }, [handleOpenAssignDialog, members, table.selected]);
 
   const dataFiltered = applyFilter({ inputData: members, filters: currentFilters });
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
@@ -125,7 +203,7 @@ export function AdminCreateView() {
                 }
                 action={
                   <Tooltip title="Asignar administrador">
-                    <IconButton color="primary">
+                    <IconButton color="primary" onClick={handleAssignSelectedAdmins}>
                       <Iconify icon="solar:user-plus-bold" />
                     </IconButton>
                   </Tooltip>
@@ -156,6 +234,7 @@ export function AdminCreateView() {
                         row={row}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
+                        onAssignAdmin={handleOpenAssignDialog}
                       />
                     ))}
 
@@ -185,6 +264,27 @@ export function AdminCreateView() {
           <AdminCardList admins={dataFiltered} />
         )}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(assignRows.length)}
+        onClose={handleCloseAssignDialog}
+        title="Confirmar asignación"
+        content={
+          assignRows.length === 1
+            ? `¿Realmente quieres asignar a ${assignRows[0]?.name || 'esta persona'} como administrador?`
+            : `¿Realmente quieres asignar a ${assignRows.length} personas como administradores?`
+        }
+        action={
+          <Button
+            variant="contained"
+            color="primary"
+            loading={isAssigning}
+            onClick={handleConfirmAssignAdmins}
+          >
+            Asignar
+          </Button>
+        }
+      />
     </DashboardContent>
   );
 }

@@ -56,9 +56,11 @@ export function ProductTableToolbar({
     <>
       <CustomToolbarQuickFilter
         sx={{
-          flexGrow: 1,
-          minWidth: { xs: 1, md: isMemberUser ? 320 : 220 },
-          maxWidth: { md: isMemberUser ? 'none' : 260 },
+          flexGrow: 0,
+          flexShrink: 0,
+          width: { xs: 1, md: 170 },
+          minWidth: { xs: 1, md: 170 },
+          maxWidth: { md: 170 },
         }}
       />
 

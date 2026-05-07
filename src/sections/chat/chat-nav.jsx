@@ -195,7 +195,7 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
       >
         {!collapseDesktop && (
           <>
-            <ChatNavAccount />
+            <ChatNavAccount currentContact={myContact} />
             <Box sx={{ flexGrow: 1 }} />
           </>
         )}

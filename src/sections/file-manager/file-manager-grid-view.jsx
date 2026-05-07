@@ -17,7 +17,14 @@ import { FileManagerCreateFolderDialog } from './file-manager-create-folder-dial
 
 // ----------------------------------------------------------------------
 
-export function FileManagerGridView({ table, dataFiltered, allData, onDeleteItem, onOpenConfirm }) {
+export function FileManagerGridView({
+  table,
+  allData,
+  canDelete = false,
+  dataFiltered,
+  onDeleteItem,
+  onOpenConfirm,
+}) {
   const { selected, onSelectRow: onSelectItem, onSelectAllRows: onSelectAllItems } = table;
 
   const containerRef = useRef(null);
@@ -108,6 +115,7 @@ export function FileManagerGridView({ table, dataFiltered, allData, onDeleteItem
                 selected={selected.includes(folder.id)}
                 onSelect={() => onSelectItem(folder.id)}
                 onDelete={() => onDeleteItem(folder.id)}
+                canDelete={false}
               />
             ))}
 
@@ -148,6 +156,7 @@ export function FileManagerGridView({ table, dataFiltered, allData, onDeleteItem
                 selected={selected.includes(file.id)}
                 onSelect={() => onSelectItem(file.id)}
                 onDelete={() => onDeleteItem(file.id)}
+                canDelete={canDelete}
               />
             ))}
 
@@ -170,16 +179,18 @@ export function FileManagerGridView({ table, dataFiltered, allData, onDeleteItem
         }
         action={
           <>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-              onClick={onOpenConfirm}
-              sx={{ mr: 1 }}
-            >
-              Delete
-            </Button>
+            {canDelete && (
+              <Button
+                size="small"
+                color="error"
+                variant="contained"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                onClick={onOpenConfirm}
+                sx={{ mr: 1 }}
+              >
+                Eliminar
+              </Button>
+            )}
 
             <Button
               color="primary"
@@ -188,7 +199,7 @@ export function FileManagerGridView({ table, dataFiltered, allData, onDeleteItem
               startIcon={<Iconify icon="solar:share-bold" />}
               onClick={shareDialog.onTrue}
             >
-              Share
+              Compartir
             </Button>
           </>
         }

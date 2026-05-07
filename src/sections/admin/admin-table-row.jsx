@@ -16,7 +16,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function AdminTableRow({ row, selected, onSelectRow }) {
+export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin }) {
   const menuActions = usePopover();
 
   const isAdminActive =
@@ -31,7 +31,15 @@ export function AdminTableRow({ row, selected, onSelectRow }) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <MenuItem onClick={menuActions.onClose}>
+        <MenuItem
+          onClick={() => {
+            menuActions.onClose();
+
+            if (!isAdminActive) {
+              onAssignAdmin?.(row);
+            }
+          }}
+        >
           <Iconify icon={isAdminActive ? 'solar:user-minus-bold' : 'solar:user-plus-bold'} />
           {isAdminActive ? 'Quitar administrador' : 'Asignar administrador'}
         </MenuItem>

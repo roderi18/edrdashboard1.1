@@ -1,39 +1,53 @@
+import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, usePopover, useDoubleClick, useCopyToClipboard } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import { useTheme } from '@mui/material/styles';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
 import ListItemText from '@mui/material/ListItemText';
+import DialogActions from '@mui/material/DialogActions';
 import TableRow, { tableRowClasses } from '@mui/material/TableRow';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
-import { useRouter } from 'next/navigation';
 
 import { fData } from 'src/utils/format-number';
 import { fDate, fTime } from 'src/utils/format-time';
+import { downloadFileFromUrl } from 'src/utils/download-file';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 import { CustomPopover } from 'src/components/custom-popover';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 
+import { getFileManagerShareLink } from './utils/share-link';
 import { FileManagerShareDialog } from './file-manager-share-dialog';
 import { FileManagerFileDetails } from './file-manager-file-details';
 import { FileItemAvatar, FileItemActions } from './file-manager-file-item-slots';
 
 // ----------------------------------------------------------------------
+
+const FILE_TYPE_LABELS = {
+  folder: 'Carpeta',
+  pdf: 'PDF',
+  jpg: 'Imagen',
+  jpeg: 'Imagen',
+  png: 'Imagen',
+  webp: 'Imagen',
+  gif: 'Imagen',
+  image: 'Imagen',
+};
+
+const getFileTypeLabel = (type) => FILE_TYPE_LABELS[type] || type;
 
 export function FileManagerTableRow({
   row,
@@ -41,6 +55,7 @@ export function FileManagerTableRow({
   onSelectRow,
   onDeleteRow,
   onRename,
+  canDelete = false,
 
   showType = true,
   showAvatar = true,
@@ -51,7 +66,6 @@ export function FileManagerTableRow({
 
   const { copy } = useCopyToClipboard();
 
-  const [inviteEmail, setInviteEmail] = useState('');
   const [renameOpen, setRenameOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const extension = row.name.split('.').pop();
@@ -62,10 +76,6 @@ export function FileManagerTableRow({
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const favorite = useBoolean(row.isFavorited);
-
-  const handleChangeInvite = useCallback((event) => {
-    setInviteEmail(event.target.value);
-  }, []);
 
   const handleClick = useDoubleClick({
     click: () => {
@@ -80,10 +90,14 @@ export function FileManagerTableRow({
   });
 
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback((link) => {
     toast.success('Copiado!');
-    copy(row.url);
-  }, [copy, row.url]);
+    copy(link || getFileManagerShareLink(row));
+  }, [copy, row]);
+
+  const handleDownload = useCallback(() => {
+    downloadFileFromUrl(row.url, row.name || 'archivo');
+  }, [row.name, row.url]);
 
   const defaultStyles = {
     borderTop: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
@@ -118,6 +132,18 @@ export function FileManagerTableRow({
           Copiar link
         </MenuItem>
 
+        {row.type !== 'folder' && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              handleDownload();
+            }}
+          >
+            <Iconify icon="eva:cloud-download-fill" />
+            Descargar
+          </MenuItem>
+        )}
+
         <MenuItem
           onClick={() => {
             setNewName(baseName);
@@ -136,21 +162,23 @@ export function FileManagerTableRow({
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
+        {canDelete && row.type !== 'folder' && <Divider sx={{ borderStyle: 'dashed' }} />}
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {canDelete && row.type !== 'folder' && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -170,13 +198,11 @@ export function FileManagerTableRow({
   const renderShareDialog = () => (
     <FileManagerShareDialog
       open={shareDialog.value}
+      item={row}
       shared={row.shared}
-      inviteEmail={inviteEmail}
-      onChangeInvite={handleChangeInvite}
       onCopyLink={handleCopy}
       onClose={() => {
         shareDialog.onFalse();
-        setInviteEmail('');
       }}
     />
   );
@@ -186,10 +212,17 @@ export function FileManagerTableRow({
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este elemento?"
       action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            confirmDialog.onFalse();
+            onDeleteRow();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />
@@ -249,17 +282,25 @@ export function FileManagerTableRow({
 
             {showThumbnail && <FileThumbnail file={row.type} />}
 
-            <Typography
-              noWrap
-              variant="inherit"
-              sx={{
-                maxWidth: 360,
-                cursor: 'pointer',
-                ...(detailsDrawer.value && { fontWeight: 'fontWeightBold' }),
-              }}
-            >
-              {row.name}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                noWrap
+                variant="inherit"
+                sx={{
+                  maxWidth: 360,
+                  cursor: 'pointer',
+                  ...(detailsDrawer.value && { fontWeight: 'fontWeightBold' }),
+                }}
+              >
+                {row.name}
+              </Typography>
+
+              {row.uploading && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Cargando...
+                </Typography>
+              )}
+            </Box>
           </Box>
         </TableCell>
 
@@ -271,7 +312,7 @@ export function FileManagerTableRow({
 
         {showType && (
           <TableCell onClick={handleClick} sx={{ whiteSpace: 'nowrap' }}>
-            {row.type}
+            {getFileTypeLabel(row.type)}
           </TableCell>
         )}
 

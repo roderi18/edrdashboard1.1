@@ -1,4 +1,4 @@
-import { limit, query, where, getDocs, collection } from 'firebase/firestore';
+import { doc, limit, query, where, getDoc, getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
@@ -22,6 +22,26 @@ export const getMemberCodeLabel = (user) =>
   String(user?.codigoMiembro ?? user?.memberId ?? user?.codigo ?? '')
     .trim()
     .toUpperCase();
+
+const getActiveMemberPhotoUrl = async (idMiembros) => {
+  const memberId = Number(idMiembros);
+
+  if (!Number.isFinite(memberId) || !memberId || !FIRESTORE) {
+    return '';
+  }
+
+  const snapshot = await getDoc(doc(FIRESTORE, 'fotos', `miembro_${memberId}_perfil`)).catch(
+    () => null
+  );
+
+  if (!snapshot?.exists()) {
+    return '';
+  }
+
+  const photo = snapshot.data() ?? {};
+
+  return photo.estado === 'activo' ? photo.urlFoto || '' : '';
+};
 
 const getMemberIdentityKeys = (user = {}) =>
   new Set(
@@ -525,10 +545,14 @@ export const loadMemberAccessProfile = async (authUser) => {
     member,
     authUser
   );
+  const photoURL = await getActiveMemberPhotoUrl(profile.idMiembros ?? member.id);
 
   return {
     member,
-    profile,
+    profile: {
+      ...profile,
+      photoURL: photoURL || profile.photoURL,
+    },
     accessToken: authUser?.accessToken ?? null,
   };
 };

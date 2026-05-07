@@ -20,11 +20,11 @@ import { FileManagerTableRow } from './file-manager-table-row';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'size', label: 'Size', width: 120 },
-  { id: 'type', label: 'Type', width: 120 },
-  { id: 'modifiedAt', label: 'Modified', width: 140 },
-  { id: 'shared', label: 'Shared', align: 'right', width: 140 },
+  { id: 'name', label: 'Nombre' },
+  { id: 'size', label: 'Tamaño', width: 120 },
+  { id: 'type', label: 'Tipo', width: 120 },
+  { id: 'modifiedAt', label: 'Modificado', width: 140 },
+  { id: 'shared', label: 'Compartido', align: 'right', width: 140 },
   { id: '', width: 88 },
 ];
 
@@ -37,6 +37,7 @@ export function FileManagerTable({
   onDeleteRow,
   dataFiltered,
   onOpenConfirm,
+  canDelete = false,
   ...other
 }) {
   const {
@@ -77,17 +78,19 @@ export function FileManagerTable({
           }
           action={
             <>
-              <Tooltip title="Share">
+              <Tooltip title="Compartir">
                 <IconButton color="primary">
                   <Iconify icon="solar:share-bold" />
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title="Eliminar">
-                <IconButton color="primary" onClick={onOpenConfirm}>
-                  <Iconify icon="solar:trash-bin-trash-bold" />
-                </IconButton>
-              </Tooltip>
+              {canDelete && (
+                <Tooltip title="Eliminar">
+                  <IconButton color="primary" onClick={onOpenConfirm}>
+                    <Iconify icon="solar:trash-bin-trash-bold" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </>
           }
           sx={{
@@ -137,6 +140,7 @@ export function FileManagerTable({
                     selected={selected.includes(row.id)}
                     onSelectRow={() => onSelectRow(row.id)}
                     onDeleteRow={() => onDeleteRow(row.id)}
+                    canDelete={canDelete}
                   />
                 ))}
 
@@ -163,6 +167,10 @@ export function FileManagerTable({
         onPageChange={onChangePage}
         onChangeDense={onChangeDense}
         onRowsPerPageChange={onChangeRowsPerPage}
+        labelRowsPerPage="Filas por página:"
+        labelDisplayedRows={({ from, to, count }) =>
+          `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+        }
         sx={{ [`& .${tablePaginationClasses.toolbar}`]: { borderTopColor: 'transparent' } }}
       />
     </>

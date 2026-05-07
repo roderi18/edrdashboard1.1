@@ -112,8 +112,43 @@ const renderMessageTextWithOrderLinks = (text = '', metadata = {}) =>
       );
     });
 
-const renderMessageBodyText = (text = '', metadata = {}) =>
-  String(text)
+const renderSharedFileLink = (text = '', metadata = {}) => {
+  const sharedFile = metadata?.sharedFile;
+  const label = String(sharedFile?.name || '').trim();
+  const href = sharedFile?.url;
+
+  if (!label || !href || String(text).trim() !== label) {
+    return null;
+  }
+
+  return (
+    <>
+      <UnderlineLink
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ color: 'primary.main', fontWeight: 700 }}
+      >
+        {label}
+      </UnderlineLink>
+
+      {!!sharedFile.message && (
+        <Box component="span" sx={{ display: 'block', mt: 0.75 }}>
+          {renderMessageTextWithOrderLinks(sharedFile.message, metadata)}
+        </Box>
+      )}
+    </>
+  );
+};
+
+const renderMessageBodyText = (text = '', metadata = {}) => {
+  const sharedFileLink = renderSharedFileLink(text, metadata);
+
+  if (sharedFileLink) {
+    return sharedFileLink;
+  }
+
+  return String(text)
     .split(MISSING_FILE_INSTRUCTION)
     .map((part, index, parts) => (
       <Box component="span" key={`message-part-${index}`} sx={{ display: 'contents' }}>
@@ -134,6 +169,7 @@ const renderMessageBodyText = (text = '', metadata = {}) =>
         )}
       </Box>
     ));
+};
 
 export function ChatMessageItem({
   message,

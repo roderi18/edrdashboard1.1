@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { useBoolean, usePopover, useCopyToClipboard } from 'minimal-shared/hooks';
 
@@ -13,6 +14,7 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { getFileManagerShareLink } from './utils/share-link';
 import { FileManagerShareDialog } from './file-manager-share-dialog';
 import { FileManagerFileDetails } from './file-manager-file-details';
 import { FileManagerCreateFolderDialog } from './file-manager-create-folder-dialog';
@@ -33,9 +35,11 @@ export function FileManagerFolderItem({
   selected,
   onSelect,
   onDelete,
+  canDelete = false,
   disableDetails = false,
   ...other
 }) {
+  const router = useRouter();
   const shareDialog = useBoolean();
   const confirmDialog = useBoolean();
   const detailsDrawer = useBoolean();
@@ -48,21 +52,20 @@ export function FileManagerFolderItem({
 
   const { copy } = useCopyToClipboard();
 
-  const [inviteEmail, setInviteEmail] = useState('');
   const [folderName, setFolderName] = useState(folder.name);
-
-  const handleChangeInvite = useCallback((event) => {
-    setInviteEmail(event.target.value);
-  }, []);
 
   const handleChangeFolderName = useCallback((event) => {
     setFolderName(event.target.value);
   }, []);
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback((link) => {
     toast.success('Copiado!');
-    copy(folder.url);
-  }, [copy, folder.url]);
+    copy(link || getFileManagerShareLink(folder));
+  }, [copy, folder]);
+
+  const handleOpenFolder = useCallback(() => {
+    router.push(`?folder=${folder.id}`);
+  }, [folder.id, router]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -89,7 +92,7 @@ export function FileManagerFolderItem({
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <MenuItem
@@ -99,21 +102,23 @@ export function FileManagerFolderItem({
           }}
         >
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Editar
         </MenuItem>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
+        {canDelete && <Divider sx={{ borderStyle: 'dashed' }} />}
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {canDelete && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -121,13 +126,11 @@ export function FileManagerFolderItem({
   const renderShareDialog = () => (
     <FileManagerShareDialog
       open={shareDialog.value}
+      item={folder}
       shared={folder.shared}
-      inviteEmail={inviteEmail}
-      onChangeInvite={handleChangeInvite}
       onCopyLink={handleCopy}
       onClose={() => {
         shareDialog.onFalse();
-        setInviteEmail('');
       }}
     />
   );
@@ -137,10 +140,17 @@ export function FileManagerFolderItem({
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar esta carpeta?"
       action={
-        <Button variant="contained" color="error" onClick={onDelete}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            confirmDialog.onFalse();
+            onDelete();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />
@@ -150,7 +160,7 @@ export function FileManagerFolderItem({
     <FileManagerCreateFolderDialog
       open={editFolderDialog.value}
       onClose={editFolderDialog.onFalse}
-      title="Edit Folder"
+      title="Editar carpeta"
       onUpdate={() => {
         editFolderDialog.onFalse();
         setFolderName(folderName);
@@ -178,17 +188,22 @@ export function FileManagerFolderItem({
 
   return (
     <>
-      <FileItem variant="outlined" selected={selected} sx={sx} {...other}>
+      <FileItem
+        variant="outlined"
+        selected={selected}
+        onClick={handleOpenFolder}
+        sx={{ cursor: 'pointer', ...sx }}
+        {...other}
+      >
         {/* <FileItemActionOverlay onClick={detailsDrawer.onTrue} /> */}
         {!disableDetails && (
           <FileItemActionOverlay
             onClick={(e) => {
               e.stopPropagation();
-              detailsDrawer.onTrue();
+              handleOpenFolder();
             }}
           />
         )}
-
 
         <FileItemIcon
           id={folder.id}
@@ -202,7 +217,7 @@ export function FileManagerFolderItem({
         <FileItemInfo
           type="folder"
           title={folder.name}
-          values={[fData(folder.size), `${folder.totalFiles} files`]}
+          values={[fData(folder.size), `${folder.totalFiles} archivos`]}
         />
 
         <FileItemAvatar sharedUsers={folder.shared} />

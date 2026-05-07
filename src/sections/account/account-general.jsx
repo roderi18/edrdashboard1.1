@@ -49,7 +49,7 @@ export function AccountGeneral() {
       apellidos: user?.apellidos ?? user?.displayName?.split(' ')?.slice(1).join(' ') ?? '',
       correo: user?.correo ?? user?.email ?? '',
       codigoUsuario: user?.codigoUsuario ?? '',
-      rol: user?.role ?? 'admin',
+      rol: user?.role ?? 'administrador',
       estatus: user?.estatus ?? 'activo',
       photoURL: user?.photoURL ?? '',
     }),

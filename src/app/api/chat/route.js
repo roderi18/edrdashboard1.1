@@ -272,6 +272,16 @@ const messageToUi = (message = {}) => ({
   metadata: message.metadatos ?? message.metadata ?? {},
 });
 
+const contactWithCurrentPhoto = async (member = {}) => {
+  const contact = memberToContact(member);
+  const avatarUrl = await getMemberPhotoUrl(contact.idMiembros, contact.avatarUrl);
+
+  return {
+    ...contact,
+    avatarUrl,
+  };
+};
+
 const conversationToUi = async (conversation = {}, messages = null, viewerIdMiembros = null) => {
   const loadedMessages =
     messages ??
@@ -289,7 +299,7 @@ const conversationToUi = async (conversation = {}, messages = null, viewerIdMiem
       conversation.tipoConversacion === 'GRUPAL' || conversation.type === 'GROUP'
         ? 'GROUP'
         : 'ONE_TO_ONE',
-    participants: asArray(conversation.participantes).map(memberToContact),
+    participants: await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto)),
     messages: loadedMessages,
     unreadCount:
       viewerUnreadCount ??
@@ -398,7 +408,23 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
 
   const photo = snapshot.data() ?? {};
 
-  return photo.estado === 'activo' ? photo.urlFoto || '' : '';
+  if (photo.estado === 'activo' && photo.urlFoto) {
+    return photo.urlFoto;
+  }
+
+  const profileSnapshots = await Promise.all(
+    COLECCIONES_USUARIOS.map((collectionName) =>
+      getDocs(
+        query(collection(FIRESTORE, collectionName), where('idMiembros', '==', memberId))
+      ).catch(() => ({ docs: [] }))
+    )
+  );
+
+  const profileWithPhoto = profileSnapshots
+    .flatMap((profileSnapshot) => profileSnapshot.docs.map((item) => item.data() ?? {}))
+    .find((profile) => profile.photoURL || profile.avatarUrl || profile.urlFoto);
+
+  return profileWithPhoto?.photoURL || profileWithPhoto?.avatarUrl || profileWithPhoto?.urlFoto || '';
 }
 
 async function createMessageNotifications({ conversation = {}, message = {} }) {

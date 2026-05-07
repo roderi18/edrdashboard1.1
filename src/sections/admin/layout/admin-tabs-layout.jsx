@@ -30,8 +30,18 @@ const NAV_ITEMS = [
   },
 ];
 
+const resolveTabValue = (pathname) => {
+  const currentPath = removeLastSlash(pathname);
+  const matchedTab = NAV_ITEMS.find(
+    (item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`)
+  );
+
+  return matchedTab?.href || paths.dashboard.admin.root;
+};
+
 export function AdminTabsLayout({ action = null, children, ...other }) {
   const pathname = usePathname();
+  const tabValue = resolveTabValue(pathname);
   const resolvedAction = action ?? (
     <Button
       component={RouterLink}
@@ -53,7 +63,7 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
       />
 
       <Tabs
-        value={removeLastSlash(pathname)}
+        value={tabValue}
         sx={{
           mb: { xs: 3, md: 5 },
           '& .MuiTabs-flexContainer': {

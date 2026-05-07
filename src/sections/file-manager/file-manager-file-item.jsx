@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useBoolean, usePopover, useCopyToClipboard } from 'minimal-shared/hooks';
 
 import Button from '@mui/material/Button';
@@ -8,12 +8,14 @@ import MenuItem from '@mui/material/MenuItem';
 
 import { fData } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
+import { downloadFileFromUrl } from 'src/utils/download-file';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { getFileManagerShareLink } from './utils/share-link';
 import { FileManagerShareDialog } from './file-manager-share-dialog';
 import { FileManagerFileDetails } from './file-manager-file-details';
 import {
@@ -27,7 +29,16 @@ import {
 
 // ----------------------------------------------------------------------
 
-export function FileManagerFileItem({ file, selected, onSelect, onDelete, disableDetails = false, sx, ...other }) {
+export function FileManagerFileItem({
+  sx,
+  file,
+  selected,
+  onSelect,
+  onDelete,
+  canDelete = false,
+  disableDetails = false,
+  ...other
+}) {
   const shareDialog = useBoolean();
   const confirmDialog = useBoolean();
   const detailsDrawer = useBoolean();
@@ -38,16 +49,14 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
 
   const { copy } = useCopyToClipboard();
 
-  const [inviteEmail, setInviteEmail] = useState('');
-
-  const handleChangeInvite = useCallback((event) => {
-    setInviteEmail(event.target.value);
-  }, []);
-
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback((link) => {
     toast.success('Copiado!');
-    copy(file.url);
-  }, [copy, file.url]);
+    copy(link || getFileManagerShareLink(file));
+  }, [copy, file]);
+
+  const handleDownload = useCallback(() => {
+    downloadFileFromUrl(file.url, file.name || 'archivo');
+  }, [file.name, file.url]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -70,25 +79,37 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
         <MenuItem
           onClick={() => {
             menuActions.onClose();
+            handleDownload();
+          }}
+        >
+          <Iconify icon="eva:cloud-download-fill" />
+          Descargar
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            menuActions.onClose();
             shareDialog.onTrue();
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
+        {canDelete && <Divider sx={{ borderStyle: 'dashed' }} />}
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {canDelete && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -96,13 +117,11 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
   const renderShareDialog = () => (
     <FileManagerShareDialog
       open={shareDialog.value}
+      item={file}
       shared={file.shared}
-      inviteEmail={inviteEmail}
-      onChangeInvite={handleChangeInvite}
       onCopyLink={handleCopy}
       onClose={() => {
         shareDialog.onFalse();
-        setInviteEmail('');
       }}
     />
   );
@@ -112,10 +131,17 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este archivo?"
       action={
-        <Button variant="contained" color="error" onClick={onDelete}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            confirmDialog.onFalse();
+            onDelete();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />
@@ -162,7 +188,7 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
         <FileItemInfo
           type="file"
           title={file.name}
-          values={[fData(file.size), fDateTime(file.modifiedAt)]}
+          values={file.uploading ? [fData(file.size), 'Cargando...'] : [fData(file.size), fDateTime(file.modifiedAt)]}
         />
 
         <FileItemAvatar sharedUsers={file.shared} />
