@@ -26,6 +26,24 @@ yarn build
 npm run build
 ```
 
+## Netlify + Firebase
+
+El inicio de sesion de Firebase necesita estas variables publicas en Netlify:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
+```
+
+Configuralas en **Site configuration > Environment variables** y haz un nuevo deploy.
+Next.js incluye las variables `NEXT_PUBLIC_*` durante el build, asi que un deploy anterior
+seguira mostrando la configuracion vacia aunque ya existan en Netlify.
+
 ## Mock server
 
 By default we provide demo data from : `https://api-dev-minimal-[version].vercel.app`

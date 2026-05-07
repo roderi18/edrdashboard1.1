@@ -1,29 +1,15 @@
-import axios, { endpoints } from 'src/lib/axios';
-
-// ----------------------------------------------------------------------
-
 export async function getPosts() {
-  const res = await axios.get(endpoints.post.list);
-
-  return res.data;
+  return { posts: [] };
 }
 
 // ----------------------------------------------------------------------
 
-export async function getPost(title) {
-  const URL = title ? `${endpoints.post.details}?title=${title}` : '';
-
-  const res = await axios.get(URL);
-
-  return res.data;
+export async function getPost() {
+  return { post: null };
 }
 
 // ----------------------------------------------------------------------
 
-export async function getLatestPosts(title) {
-  const URL = title ? `${endpoints.post.latest}?title=${title}` : '';
-
-  const res = await axios.get(URL);
-
-  return res.data;
+export async function getLatestPosts() {
+  return { latestPosts: [] };
 }

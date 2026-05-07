@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
+import { buildProductReviewStats } from 'src/utils/product-reviews-storage';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -37,17 +38,17 @@ import { ProductDetailsDescription } from '../product-details-description';
 const SUMMARY = [
   {
     title: '100% original',
-    description: 'Chocolate bar candy canes ice cream toffee cookie halvah.',
+    description: 'Producto verificado y registrado en el inventario oficial.',
     icon: 'solar:verified-check-bold',
   },
   {
-    title: '10 days replacement',
-    description: 'Marshmallow biscuit donut dragÃ©e fruitcake wafer.',
+    title: '10 dias para reemplazo',
+    description: 'Puedes solicitar revision o reemplazo segun disponibilidad.',
     icon: 'solar:clock-circle-bold',
   },
   {
-    title: 'Year warranty',
-    description: 'Cotton candy gingerbread cake I love sugar sweet.',
+    title: 'Garantia anual',
+    description: 'Cobertura de seguimiento para productos aprobados.',
     icon: 'solar:shield-check-bold',
   },
 ];
@@ -84,6 +85,22 @@ export function ProductDetailsView({ product, productId }) {
 
   const handleChangePublish = useCallback((newValue) => {
     setPublish(newValue);
+  }, []);
+
+  const handleReviewsChange = useCallback((nextReviews) => {
+    const stats = buildProductReviewStats(nextReviews);
+
+    setResolvedProduct((currentProduct) =>
+      currentProduct
+        ? {
+            ...currentProduct,
+            reviews: nextReviews,
+            ratings: stats.ratings,
+            totalRatings: stats.totalRatings,
+            totalReviews: stats.totalReviews,
+          }
+        : currentProduct
+    );
   }, []);
 
   return (
@@ -155,8 +172,8 @@ export function ProductDetailsView({ product, productId }) {
               ]}
             >
               {[
-                { value: 'description', label: 'Description' },
-                { value: 'reviews', label: `Reviews (${resolvedProduct?.reviews?.length || 0})` },
+                { value: 'description', label: 'Descripcion' },
+                { value: 'reviews', label: `Resenas (${resolvedProduct?.reviews?.length || 0})` },
               ].map((tab) => (
                 <Tab key={tab.value} value={tab.value} label={tab.label} />
               ))}
@@ -168,10 +185,11 @@ export function ProductDetailsView({ product, productId }) {
 
             {tabs.value === 'reviews' && (
               <ProductDetailsReview
+                productId={resolvedProduct?.id}
                 ratings={resolvedProduct?.ratings ?? []}
                 reviews={resolvedProduct?.reviews ?? []}
-                totalRatings={resolvedProduct?.totalRatings ?? 0}
-                totalReviews={resolvedProduct?.totalReviews ?? 0}
+                reviewer={user}
+                onReviewsChange={handleReviewsChange}
               />
             )}
           </Card>

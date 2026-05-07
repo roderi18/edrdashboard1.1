@@ -63,7 +63,7 @@ export function ProductReviewItem({ review }) {
           }}
         >
           <Iconify icon="solar:verified-check-bold" width={16} sx={{ mr: 0.5 }} />
-          Verified purchase
+          Compra verificada
         </Box>
       )}
 
@@ -93,12 +93,12 @@ export function ProductReviewItem({ review }) {
       <Box sx={{ gap: 2, pt: 1.5, display: 'flex' }}>
         <ButtonBase disableRipple sx={{ gap: 0.5, typography: 'caption' }}>
           <Iconify icon="solar:like-outline" width={16} />
-          123
+          {review.helpfulCount ?? 0}
         </ButtonBase>
 
         <ButtonBase disableRipple sx={{ gap: 0.5, typography: 'caption' }}>
           <Iconify icon="solar:dislike-outline" width={16} />
-          34
+          {review.unhelpfulCount ?? 0}
         </ButtonBase>
       </Box>
     </Box>

@@ -146,7 +146,7 @@ export function ProductShopView({ products }) {
 
       <Container sx={{ mb: 10 }}>
         <Typography variant="h4" sx={{ mb: 3, mt: { xs: 1, md: 3 } }}>
-          Shop
+          Tienda
         </Typography>
 
         <Stack spacing={2.5} sx={{ mb: { xs: 3, md: 5 } }}>

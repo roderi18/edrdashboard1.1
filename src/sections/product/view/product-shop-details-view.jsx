@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useTabs } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
+import { buildProductReviewStats } from 'src/utils/product-reviews-storage';
 
 import { resolverProductoCombinadoPorId } from 'src/services/product-service';
 
@@ -37,17 +38,17 @@ import { ProductDetailsDescription } from '../product-details-description';
 const SUMMARY = [
   {
     title: '100% original',
-    description: 'Chocolate bar candy canes ice cream toffee cookie halvah.',
+    description: 'Producto verificado y registrado en el inventario oficial.',
     icon: 'solar:verified-check-bold',
   },
   {
-    title: '10 days replacement',
-    description: 'Marshmallow biscuit donut dragÃ©e fruitcake wafer.',
+    title: '10 dias para reemplazo',
+    description: 'Puedes solicitar revision o reemplazo segun disponibilidad.',
     icon: 'solar:clock-circle-bold',
   },
   {
-    title: 'Year warranty',
-    description: 'Cotton candy gingerbread cake I love sugar sweet.',
+    title: 'Garantia anual',
+    description: 'Cobertura de seguimiento para productos aprobados.',
     icon: 'solar:shield-check-bold',
   },
 ];
@@ -80,6 +81,22 @@ export function ProductShopDetailsView({ product, productId }) {
     loadProduct();
   }, [product, productId]);
 
+  const handleReviewsChange = useCallback((nextReviews) => {
+    const stats = buildProductReviewStats(nextReviews);
+
+    setResolvedProduct((currentProduct) =>
+      currentProduct
+        ? {
+            ...currentProduct,
+            reviews: nextReviews,
+            ratings: stats.ratings,
+            totalRatings: stats.totalRatings,
+            totalReviews: stats.totalReviews,
+          }
+        : currentProduct
+    );
+  }, []);
+
   return (
     <>
       <CartIcon totalItems={checkoutState.totalItems} />
@@ -93,8 +110,8 @@ export function ProductShopDetailsView({ product, productId }) {
           <>
             <CustomBreadcrumbs
               links={[
-                { name: 'Home', href: '/' },
-                { name: 'Shop', href: paths.product.root },
+                { name: 'Inicio', href: '/' },
+                { name: 'Tienda', href: paths.product.root },
                 { name: resolvedProduct?.name },
               ]}
               sx={{ mb: 5, mt: { xs: 1, md: 3 } }}
@@ -151,8 +168,8 @@ export function ProductShopDetailsView({ product, productId }) {
                 ]}
               >
                 {[
-                  { value: 'description', label: 'Description' },
-                  { value: 'reviews', label: `Reviews (${resolvedProduct?.reviews?.length || 0})` },
+                  { value: 'description', label: 'Descripcion' },
+                  { value: 'reviews', label: `Resenas (${resolvedProduct?.reviews?.length || 0})` },
                 ].map((tab) => (
                   <Tab key={tab.value} value={tab.value} label={tab.label} />
                 ))}
@@ -164,10 +181,11 @@ export function ProductShopDetailsView({ product, productId }) {
 
               {tabs.value === 'reviews' && (
                 <ProductDetailsReview
+                  productId={resolvedProduct?.id}
                   ratings={resolvedProduct?.ratings}
                   reviews={resolvedProduct?.reviews}
-                  totalRatings={resolvedProduct?.totalRatings}
-                  totalReviews={resolvedProduct?.totalReviews}
+                  reviewer={user}
+                  onReviewsChange={handleReviewsChange}
                 />
               )}
             </Card>

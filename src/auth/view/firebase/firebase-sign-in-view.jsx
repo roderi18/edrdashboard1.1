@@ -23,7 +23,7 @@ import { RouterLink } from 'src/routes/components';
 import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 
-import { isFirebaseConfigured } from 'src/lib/firebase';
+import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -268,7 +268,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
       {!isAuthReady && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           El inicio de sesión de Firebase no está disponible en este entorno. Revisa las
-          variables públicas de Firebase en Netlify.
+          variables públicas de Firebase en Netlify
+          {missingFirebaseConfigKeys.length ? `: ${missingFirebaseConfigKeys.join(', ')}.` : '.'}
         </Alert>
       )}
 

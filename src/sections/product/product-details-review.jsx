@@ -1,5 +1,6 @@
 import { sumBy } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -10,6 +11,11 @@ import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
 import { fShortenNumber } from 'src/utils/format-number';
+import {
+  mergeProductReviews,
+  addStoredProductReview,
+  buildProductReviewStats,
+} from 'src/utils/product-reviews-storage';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -18,14 +24,46 @@ import { ProductReviewCreateForm } from './product-review-create-form';
 
 // ----------------------------------------------------------------------
 
-export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [], reviews = [] }) {
+export function ProductDetailsReview({
+  productId,
+  reviews = [],
+  reviewer,
+  onReviewsChange,
+}) {
   const review = useBoolean();
+  const [currentReviews, setCurrentReviews] = useState([]);
 
-  const total = sumBy(ratings, (star) => star.starCount);
+  useEffect(() => {
+    const mergedReviews = mergeProductReviews(productId, reviews);
+
+    setCurrentReviews(mergedReviews);
+
+    if (productId && mergedReviews.length !== reviews.length) {
+      onReviewsChange?.(mergedReviews);
+    }
+  }, [onReviewsChange, productId, reviews]);
+
+  const stats = useMemo(() => buildProductReviewStats(currentReviews), [currentReviews]);
+
+  const displayRatings = stats.ratings;
+  const totalReviews = stats.totalReviews;
+  const totalRatings = stats.totalRatings;
+  const total = sumBy(displayRatings, (star) => star.starCount);
+
+  const handleCreateReview = useCallback(
+    async (data) => {
+      const nextReview = addStoredProductReview(productId, data, reviewer);
+      const nextReviews = [nextReview, ...currentReviews];
+
+      setCurrentReviews(nextReviews);
+      onReviewsChange?.(nextReviews);
+    },
+    [currentReviews, onReviewsChange, productId, reviewer]
+  );
 
   const renderSummary = () => (
     <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Typography variant="subtitle2">Average rating</Typography>
+      <Typography variant="subtitle2">Calificacion promedio</Typography>
 
       <Typography variant="h2">
         {totalRatings}
@@ -35,7 +73,7 @@ export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [],
       <Rating readOnly value={totalRatings} precision={0.1} />
 
       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-        ({fShortenNumber(totalReviews)} reviews)
+        ({fShortenNumber(totalReviews)} {totalReviews === 1 ? 'resena' : 'resenas'})
       </Typography>
     </Stack>
   );
@@ -52,26 +90,26 @@ export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [],
         }),
       ]}
     >
-      {ratings
+      {displayRatings
         .slice(0)
         .reverse()
         .map((rating) => (
           <Box key={rating.name} sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="subtitle2" component="span" sx={{ width: 42 }}>
+            <Typography variant="subtitle2" component="span" sx={{ width: 96, flexShrink: 0 }}>
               {rating.name}
             </Typography>
 
             <LinearProgress
               color="inherit"
               variant="determinate"
-              value={(rating.starCount / total) * 100}
+              value={total ? (rating.starCount / total) * 100 : 0}
               sx={{ mx: 2, flexGrow: 1 }}
             />
 
             <Typography
               variant="body2"
               component="span"
-              sx={{ minWidth: 48, color: 'text.secondary' }}
+              sx={{ minWidth: 64, pl: 1, color: 'text.secondary' }}
             >
               {fShortenNumber(rating.reviewCount)}
             </Typography>
@@ -89,7 +127,7 @@ export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [],
         onClick={review.onTrue}
         startIcon={<Iconify icon="solar:pen-bold" />}
       >
-        Write your review
+        Escribir resena
       </Button>
     </Stack>
   );
@@ -100,7 +138,7 @@ export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [],
         sx={{
           display: 'grid',
           py: { xs: 5, md: 0 },
-          gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(3, 1fr)' },
+          gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '0.85fr 1.45fr 0.7fr' },
         }}
       >
         {renderSummary()}
@@ -109,8 +147,12 @@ export function ProductDetailsReview({ totalRatings, totalReviews, ratings = [],
       </Box>
 
       <Divider sx={{ borderStyle: 'dashed' }} />
-      <ProductReviewList reviews={reviews} />
-      <ProductReviewCreateForm open={review.value} onClose={review.onFalse} />
+      <ProductReviewList reviews={currentReviews} />
+      <ProductReviewCreateForm
+        open={review.value}
+        onClose={review.onFalse}
+        onCreateReview={handleCreateReview}
+      />
     </>
   );
 }

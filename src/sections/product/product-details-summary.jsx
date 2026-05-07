@@ -272,7 +272,7 @@ export function ProductDetailsSummary({
   const renderSizeOptions = () => (
     <Box sx={{ display: 'flex' }}>
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
-        Size
+        Talla
       </Typography>
 
       <Field.Select
@@ -300,7 +300,7 @@ export function ProductDetailsSummary({
   const renderQuantity = () => (
     <Box sx={{ display: 'flex' }}>
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
-        Quantity
+        Cantidad
       </Typography>
 
       <Stack spacing={1}>

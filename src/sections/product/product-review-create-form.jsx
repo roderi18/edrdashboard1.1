@@ -10,25 +10,21 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
 export const ProductReviewCreateSchema = z.object({
-  rating: z.number().min(1, 'Rating must be greater than or equal to 1!'),
-  name: z.string().min(1, { error: 'Name is required!' }),
-  review: z.string().min(1, { error: 'Review is required!' }),
-  email: schemaUtils.email(),
+  rating: z.number().min(1, 'Selecciona una calificacion.'),
+  review: z.string().min(1, { error: 'La resena es requerida.' }),
 });
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewCreateForm({ onClose, sx, ...other }) {
+export function ProductReviewCreateForm({ onClose, onCreateReview, sx, ...other }) {
   const defaultValues = {
     rating: 0,
     review: '',
-    name: '',
-    email: '',
   };
 
   const methods = useForm({
@@ -45,10 +41,9 @@ export function ProductReviewCreateForm({ onClose, sx, ...other }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await onCreateReview?.(data);
       reset();
       onClose();
-      console.info('DATA', data);
     } catch (error) {
       console.error(error);
     }
@@ -60,21 +55,19 @@ export function ProductReviewCreateForm({ onClose, sx, ...other }) {
   }, [onClose, reset]);
 
   return (
-    <Dialog onClose={onClose} sx={sx} {...other}>
+    <Dialog fullWidth maxWidth="sm" onClose={onClose} sx={sx} {...other}>
       <Form methods={methods} onSubmit={onSubmit}>
-        <DialogTitle>Add review</DialogTitle>
+        <DialogTitle>Agregar resena</DialogTitle>
 
         <DialogContent>
           <div>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              Your review about this product:
+              Tu calificacion de este producto:
             </Typography>
             <Field.Rating name="rating" />
           </div>
 
-          <Field.Text name="review" label="Review *" multiline rows={3} sx={{ mt: 3 }} />
-          <Field.Text name="name" label="Name *" sx={{ mt: 3 }} />
-          <Field.Text name="email" label="Email *" sx={{ mt: 3 }} />
+          <Field.Text name="review" label="Resena *" multiline rows={3} sx={{ mt: 3 }} />
         </DialogContent>
 
         <DialogActions>
@@ -82,7 +75,7 @@ export function ProductReviewCreateForm({ onClose, sx, ...other }) {
             Cancelar
           </Button>
           <Button type="submit" variant="contained" loading={isSubmitting}>
-            Post
+            Publicar
           </Button>
         </DialogActions>
       </Form>
