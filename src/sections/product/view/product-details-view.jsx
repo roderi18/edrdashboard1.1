@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
-import { buildProductReviewStats } from 'src/utils/product-reviews-storage';
+import { mergeProductReviews, buildProductReviewStats } from 'src/utils/product-reviews-storage';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -74,8 +74,20 @@ export function ProductDetailsView({ product, productId }) {
         productId,
         productoRemoto: product,
       });
+      const mergedReviews = mergeProductReviews(nextProduct?.id, nextProduct?.reviews ?? []);
+      const stats = buildProductReviewStats(mergedReviews);
 
-      setResolvedProduct(nextProduct);
+      setResolvedProduct(
+        nextProduct
+          ? {
+              ...nextProduct,
+              reviews: mergedReviews,
+              ratings: stats.ratings,
+              totalRatings: stats.totalRatings,
+              totalReviews: stats.totalReviews,
+            }
+          : nextProduct
+      );
       setPublish(nextProduct?.publish || '');
       setIsLoading(false);
     };

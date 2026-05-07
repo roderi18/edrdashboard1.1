@@ -15,6 +15,7 @@ import {
   mergeProductReviews,
   addStoredProductReview,
   buildProductReviewStats,
+  updateStoredProductReviewVote,
 } from 'src/utils/product-reviews-storage';
 
 import { Iconify } from 'src/components/iconify';
@@ -54,6 +55,22 @@ export function ProductDetailsReview({
     async (data) => {
       const nextReview = addStoredProductReview(productId, data, reviewer);
       const nextReviews = [nextReview, ...currentReviews];
+
+      setCurrentReviews(nextReviews);
+      onReviewsChange?.(nextReviews);
+    },
+    [currentReviews, onReviewsChange, productId, reviewer]
+  );
+
+  const handleVoteReview = useCallback(
+    (reviewId, vote) => {
+      const nextReviews = updateStoredProductReviewVote(
+        productId,
+        reviewId,
+        reviewer,
+        vote,
+        currentReviews
+      );
 
       setCurrentReviews(nextReviews);
       onReviewsChange?.(nextReviews);
@@ -147,7 +164,7 @@ export function ProductDetailsReview({
       </Box>
 
       <Divider sx={{ borderStyle: 'dashed' }} />
-      <ProductReviewList reviews={currentReviews} />
+      <ProductReviewList reviews={currentReviews} reviewer={reviewer} onVoteReview={handleVoteReview} />
       <ProductReviewCreateForm
         open={review.value}
         onClose={review.onFalse}

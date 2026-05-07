@@ -1,4 +1,5 @@
 const PRODUCT_REVIEWS_KEY = 'dashboard-product-reviews';
+const PRODUCT_REVIEW_VOTER_KEY = 'dashboard-product-review-voter';
 
 const clampRating = (value) => Math.min(5, Math.max(1, Number(value) || 0));
 
@@ -32,6 +33,31 @@ const buildReviewerName = (review = {}, user = {}) =>
   user.email ||
   'Usuario';
 
+const buildVoterId = (user = {}) => {
+  const voterId =
+    user.uid ||
+    user.id ||
+    user.email ||
+    user.displayName ||
+    [user.nombres, user.apellidos].filter(Boolean).join(' ').trim() ||
+    user.name;
+
+  if (voterId) return String(voterId);
+
+  if (typeof window === 'undefined') return 'anonimo';
+
+  const storedVoterId = window.localStorage.getItem(PRODUCT_REVIEW_VOTER_KEY);
+  if (storedVoterId) return storedVoterId;
+
+  const nextVoterId = buildReviewId();
+  window.localStorage.setItem(PRODUCT_REVIEW_VOTER_KEY, nextVoterId);
+
+  return nextVoterId;
+};
+
+const normalizeVotes = (votes) =>
+  votes && typeof votes === 'object' && !Array.isArray(votes) ? votes : {};
+
 export const normalizeProductReview = (review = {}, user = {}) => ({
   id: review.id || buildReviewId(),
   name: buildReviewerName(review, user),
@@ -44,6 +70,7 @@ export const normalizeProductReview = (review = {}, user = {}) => ({
   attachments: Array.isArray(review.attachments) ? review.attachments : [],
   helpfulCount: Number(review.helpfulCount ?? review.likes ?? 0),
   unhelpfulCount: Number(review.unhelpfulCount ?? review.dislikes ?? 0),
+  votes: normalizeVotes(review.votes),
 });
 
 export const getStoredProductReviews = (productId) => {
@@ -73,13 +100,61 @@ export const mergeProductReviews = (productId, reviews = []) => {
   const storedReviews = getStoredProductReviews(productId);
   const reviewById = new Map();
 
-  [...storedReviews, ...normalizedReviews].forEach((review) => {
+  [...normalizedReviews, ...storedReviews].forEach((review) => {
     reviewById.set(String(review.id), review);
   });
 
   return Array.from(reviewById.values()).sort(
     (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
   );
+};
+
+export const updateStoredProductReviewVote = (productId, reviewId, user, vote, baseReviews = []) => {
+  const key = String(productId);
+  const voterId = buildVoterId(user);
+  const reviewsByProduct = readStorage();
+  const reviews = Array.isArray(reviewsByProduct[key]) && reviewsByProduct[key].length
+    ? reviewsByProduct[key]
+    : baseReviews;
+
+  const nextReviews = reviews.map((review) => {
+    if (String(review.id) !== String(reviewId)) return review;
+
+    const normalizedReview = normalizeProductReview(review);
+    const votes = { ...normalizedReview.votes };
+    const previousVote = votes[voterId];
+    const nextVote = previousVote === vote ? null : vote;
+    const helpfulCount = normalizedReview.helpfulCount
+      - (previousVote === 'helpful' ? 1 : 0)
+      + (nextVote === 'helpful' ? 1 : 0);
+    const unhelpfulCount =
+      normalizedReview.unhelpfulCount -
+      (previousVote === 'unhelpful' ? 1 : 0) +
+      (nextVote === 'unhelpful' ? 1 : 0);
+
+    if (nextVote) {
+      votes[voterId] = nextVote;
+    } else {
+      delete votes[voterId];
+    }
+
+    return {
+      ...normalizedReview,
+      votes,
+      helpfulCount: Math.max(0, helpfulCount),
+      unhelpfulCount: Math.max(0, unhelpfulCount),
+    };
+  });
+
+  writeStorage({ ...reviewsByProduct, [key]: nextReviews });
+
+  return nextReviews.map(normalizeProductReview);
+};
+
+export const getProductReviewUserVote = (review = {}, user = {}) => {
+  const voterId = buildVoterId(user);
+
+  return normalizeVotes(review.votes)[voterId] || null;
 };
 
 export const buildProductReviewStats = (reviews = []) => {

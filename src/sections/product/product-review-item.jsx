@@ -5,13 +5,35 @@ import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import ListItemText from '@mui/material/ListItemText';
 
-import { fDate } from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
+import { getProductReviewUserVote } from 'src/utils/product-reviews-storage';
 
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewItem({ review }) {
+export function ProductReviewItem({ review, reviewer, onVoteReview }) {
+  const userVote = getProductReviewUserVote(review, reviewer);
+
+  const renderVoteButton = (vote, icon, count) => {
+    const selected = userVote === vote;
+
+    return (
+      <ButtonBase
+        disableRipple
+        onClick={() => onVoteReview?.(review.id, vote)}
+        sx={{
+          gap: 0.5,
+          typography: 'caption',
+          color: selected ? 'primary.main' : 'text.primary',
+        }}
+      >
+        <Iconify icon={selected ? icon.replace('outline', 'bold') : icon} width={16} />
+        {count}
+      </ButtonBase>
+    );
+  };
+
   const renderInfo = () => (
     <Box
       sx={{
@@ -30,12 +52,21 @@ export function ProductReviewItem({ review }) {
 
       <ListItemText
         primary={review.name}
-        secondary={fDate(review.postedAt)}
+        secondary={
+          <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography component="span" variant="caption" sx={{ display: 'block' }}>
+              {fDate(review.postedAt)}
+            </Typography>
+            <Typography component="span" variant="caption" sx={{ display: 'block' }}>
+              {fTime(review.postedAt)}
+            </Typography>
+          </Box>
+        }
         slotProps={{
           primary: { noWrap: true },
           secondary: {
-            noWrap: true,
-            sx: { mt: 0.5, typography: 'caption' },
+            component: 'span',
+            sx: { display: 'block' },
           },
         }}
       />
@@ -91,15 +122,8 @@ export function ProductReviewItem({ review }) {
       )}
 
       <Box sx={{ gap: 2, pt: 1.5, display: 'flex' }}>
-        <ButtonBase disableRipple sx={{ gap: 0.5, typography: 'caption' }}>
-          <Iconify icon="solar:like-outline" width={16} />
-          {review.helpfulCount ?? 0}
-        </ButtonBase>
-
-        <ButtonBase disableRipple sx={{ gap: 0.5, typography: 'caption' }}>
-          <Iconify icon="solar:dislike-outline" width={16} />
-          {review.unhelpfulCount ?? 0}
-        </ButtonBase>
+        {renderVoteButton('helpful', 'solar:like-outline', review.helpfulCount ?? 0)}
+        {renderVoteButton('unhelpful', 'solar:dislike-outline', review.unhelpfulCount ?? 0)}
       </Box>
     </Box>
   );

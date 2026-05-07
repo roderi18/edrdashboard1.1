@@ -5,7 +5,7 @@ import { ProductReviewItem } from './product-review-item';
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewList({ reviews }) {
+export function ProductReviewList({ reviews, reviewer, onVoteReview }) {
   if (!reviews.length) {
     return (
       <Typography variant="body2" sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
@@ -17,7 +17,12 @@ export function ProductReviewList({ reviews }) {
   return (
     <>
       {reviews.map((review) => (
-        <ProductReviewItem key={review.id} review={review} />
+        <ProductReviewItem
+          key={review.id}
+          review={review}
+          reviewer={reviewer}
+          onVoteReview={onVoteReview}
+        />
       ))}
 
       <Pagination
