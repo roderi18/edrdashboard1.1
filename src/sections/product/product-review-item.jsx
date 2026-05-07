@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Rating from '@mui/material/Rating';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import ListItemText from '@mui/material/ListItemText';
@@ -15,8 +16,16 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewItem({ review, reviewer, highlighted, onVoteReview }) {
+export function ProductReviewItem({
+  review,
+  reviewer,
+  highlighted,
+  onVoteReview,
+  onReplyReview,
+}) {
   const itemRef = useRef(null);
+  const [replyText, setReplyText] = useState('');
+  const [showReplyInput, setShowReplyInput] = useState(false);
   const [showHighlight, setShowHighlight] = useState(false);
   const userVote = getProductReviewUserVote(review, reviewer);
   const reviewerRole = String(reviewer?.role ?? reviewer?.rol ?? '').toLowerCase();
@@ -57,6 +66,16 @@ export function ProductReviewItem({ review, reviewer, highlighted, onVoteReview 
         {count}
       </ButtonBase>
     );
+  };
+
+  const handleSubmitReply = () => {
+    const message = replyText.trim();
+
+    if (!message) return;
+
+    onReplyReview?.(review.id, message);
+    setReplyText('');
+    setShowReplyInput(false);
   };
 
   const renderInfo = () => (
@@ -125,16 +144,23 @@ export function ProductReviewItem({ review, reviewer, highlighted, onVoteReview 
 
       <Typography variant="body2">{review.comment}</Typography>
 
-      {isAdmin && (
-        <Button
-          size="small"
-          variant="soft"
-          color="inherit"
-          startIcon={<Iconify icon="solar:reply-bold" />}
-          sx={{ alignSelf: 'flex-start', mt: 0.5 }}
-        >
-          Responder
-        </Button>
+      {!!review.replies?.length && (
+        <Box sx={{ ml: { xs: 2, md: 4 }, mt: 0.5, display: 'grid', gap: 1 }}>
+          {review.replies.map((reply) => (
+            <Box
+              key={reply.id}
+              sx={(theme) => ({
+                pl: 2,
+                borderLeft: `2px solid ${theme.vars.palette.divider}`,
+              })}
+            >
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {reply.authorName}
+              </Typography>
+              <Typography variant="body2">{reply.message}</Typography>
+            </Box>
+          ))}
+        </Box>
       )}
 
       {!!review.attachments?.length && (
@@ -162,6 +188,42 @@ export function ProductReviewItem({ review, reviewer, highlighted, onVoteReview 
         {renderVoteButton('helpful', 'solar:like-outline', review.helpfulCount ?? 0)}
         {renderVoteButton('unhelpful', 'solar:dislike-outline', review.unhelpfulCount ?? 0)}
       </Box>
+
+      {isAdmin && (
+        <>
+          <Button
+            size="small"
+            variant="soft"
+            color="inherit"
+            startIcon={<Iconify icon="solar:reply-bold" />}
+            onClick={() => setShowReplyInput((current) => !current)}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Responder
+          </Button>
+
+          {showReplyInput && (
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={replyText}
+                placeholder="Escribe una respuesta"
+                onChange={(event) => setReplyText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmitReply();
+                  }
+                }}
+              />
+              <Button variant="contained" onClick={handleSubmitReply}>
+                Enviar
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
     </Box>
   );
 

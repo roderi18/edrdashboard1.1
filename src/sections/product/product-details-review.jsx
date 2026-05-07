@@ -15,6 +15,7 @@ import {
   mergeProductReviews,
   addStoredProductReview,
   buildProductReviewStats,
+  addStoredProductReviewReply,
   updateStoredProductReviewVote,
 } from 'src/utils/product-reviews-storage';
 
@@ -87,6 +88,22 @@ export function ProductDetailsReview({
         reviewId,
         reviewer,
         vote,
+        currentReviews
+      );
+
+      setCurrentReviews(nextReviews);
+      onReviewsChange?.(nextReviews);
+    },
+    [currentReviews, onReviewsChange, productId, reviewer]
+  );
+
+  const handleReplyReview = useCallback(
+    (reviewId, message) => {
+      const nextReviews = addStoredProductReviewReply(
+        productId,
+        reviewId,
+        { message },
+        reviewer,
         currentReviews
       );
 
@@ -187,6 +204,7 @@ export function ProductDetailsReview({
         reviewer={reviewer}
         highlightedReviewId={highlightedReviewId}
         onVoteReview={handleVoteReview}
+        onReplyReview={handleReplyReview}
       />
       <ProductReviewCreateForm
         open={review.value}

@@ -58,6 +58,25 @@ const buildVoterId = (user = {}) => {
 const normalizeVotes = (votes) =>
   votes && typeof votes === 'object' && !Array.isArray(votes) ? votes : {};
 
+const buildReplyAuthorName = (user = {}) =>
+  user.displayName ||
+  user.nombre ||
+  [user.nombres, user.apellidos].filter(Boolean).join(' ').trim() ||
+  user.name ||
+  user.email ||
+  'Administrador';
+
+const normalizeReplies = (replies) =>
+  Array.isArray(replies)
+    ? replies.map((reply) => ({
+        id: reply.id || buildReviewId(),
+        message: reply.message || reply.text || '',
+        authorId: String(reply.authorId || ''),
+        authorName: reply.authorName || 'Administrador',
+        createdAt: reply.createdAt || new Date().toISOString(),
+      }))
+    : [];
+
 export const normalizeProductReview = (review = {}, user = {}) => ({
   id: review.id || buildReviewId(),
   name: buildReviewerName(review, user),
@@ -71,6 +90,7 @@ export const normalizeProductReview = (review = {}, user = {}) => ({
   helpfulCount: Number(review.helpfulCount ?? review.likes ?? 0),
   unhelpfulCount: Number(review.unhelpfulCount ?? review.dislikes ?? 0),
   votes: normalizeVotes(review.votes),
+  replies: normalizeReplies(review.replies),
 });
 
 export const getStoredProductReviews = (productId) => {
@@ -155,6 +175,45 @@ export const getProductReviewUserVote = (review = {}, user = {}) => {
   const voterId = buildVoterId(user);
 
   return normalizeVotes(review.votes)[voterId] || null;
+};
+
+export const addStoredProductReviewReply = (
+  productId,
+  reviewId,
+  reply = {},
+  user = {},
+  baseReviews = []
+) => {
+  const key = String(productId);
+  const reviewsByProduct = readStorage();
+  const reviews =
+    Array.isArray(reviewsByProduct[key]) && reviewsByProduct[key].length
+      ? reviewsByProduct[key]
+      : baseReviews;
+  const nextReply = {
+    id: buildReviewId(),
+    message: String(reply.message || reply.text || '').trim(),
+    authorId: String(user.uid || user.id || user.email || ''),
+    authorName: buildReplyAuthorName(user),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!nextReply.message) return reviews.map(normalizeProductReview);
+
+  const nextReviews = reviews.map((review) => {
+    if (String(review.id) !== String(reviewId)) return review;
+
+    const normalizedReview = normalizeProductReview(review);
+
+    return {
+      ...normalizedReview,
+      replies: [...normalizedReview.replies, nextReply],
+    };
+  });
+
+  writeStorage({ ...reviewsByProduct, [key]: nextReviews });
+
+  return nextReviews.map(normalizeProductReview);
 };
 
 export const buildProductReviewStats = (reviews = []) => {
