@@ -5,7 +5,7 @@ import { ProductReviewItem } from './product-review-item';
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewList({ reviews, reviewer, onVoteReview }) {
+export function ProductReviewList({ reviews, reviewer, highlightedReviewId, onVoteReview }) {
   if (!reviews.length) {
     return (
       <Typography variant="body2" sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
@@ -21,6 +21,7 @@ export function ProductReviewList({ reviews, reviewer, onVoteReview }) {
           key={review.id}
           review={review}
           reviewer={reviewer}
+          highlighted={String(review.id) === String(highlightedReviewId)}
           onVoteReview={onVoteReview}
         />
       ))}

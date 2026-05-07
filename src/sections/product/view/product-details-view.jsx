@@ -12,6 +12,7 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+import { useSearchParams } from 'src/routes/hooks';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
 import { mergeProductReviews, buildProductReviewStats } from 'src/utils/product-reviews-storage';
@@ -56,7 +57,11 @@ const SUMMARY = [
 // ----------------------------------------------------------------------
 
 export function ProductDetailsView({ product, productId }) {
-  const tabs = useTabs('description');
+  const searchParams = useSearchParams();
+  const selectedTab = searchParams.get('tab') === 'reviews' ? 'reviews' : 'description';
+  const selectedReviewId = searchParams.get('reviewId') || '';
+  const tabs = useTabs(selectedTab);
+  const { setValue: setTabValue } = tabs;
   const { state: checkoutState, onAddToCart, onCreateEvaluationOrder } = useCheckoutContext();
   const { user } = useAuthContext();
 
@@ -64,6 +69,10 @@ export function ProductDetailsView({ product, productId }) {
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
   const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
   const isMemberUser = isMemberSessionUser(user);
+
+  useEffect(() => {
+    setTabValue(selectedTab);
+  }, [selectedTab, setTabValue]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -198,9 +207,11 @@ export function ProductDetailsView({ product, productId }) {
             {tabs.value === 'reviews' && (
               <ProductDetailsReview
                 productId={resolvedProduct?.id}
+                productName={resolvedProduct?.name}
                 ratings={resolvedProduct?.ratings ?? []}
                 reviews={resolvedProduct?.reviews ?? []}
                 reviewer={user}
+                highlightedReviewId={selectedReviewId}
                 onReviewsChange={handleReviewsChange}
               />
             )}

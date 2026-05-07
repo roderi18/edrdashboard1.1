@@ -47,6 +47,7 @@ const TIPOS_VISUALES = {
   perfil_actualizado: 'project',
   producto_disponible_nuevamente: 'delivery',
   producto_publicado: 'tags',
+  producto_resena_baja: 'project',
   producto_sin_stock: 'order',
   producto_stock_bajo: 'file',
 };
@@ -394,6 +395,88 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
   );
 
   return notificaciones;
+}
+
+export async function crearNotificacionResenaProductoBaja({
+  productId,
+  productName = '',
+  review = {},
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+
+  if (!idsAdministradores.length || !productId) {
+    return null;
+  }
+
+  const fechaActual = new Date().toISOString();
+  const rating = Number(review.rating || 0);
+  const reviewId = review.id || Date.now();
+  const nombreProducto = productName || `Producto ${productId}`;
+  const actorNombre =
+    usuario?.displayName ||
+    usuario?.nombre ||
+    usuario?.name ||
+    usuario?.email ||
+    review.name ||
+    'Usuario';
+  const mensaje = `se recibio una resena de ${rating}/5 en ${nombreProducto}.`;
+  const notificationId = `producto_resena_baja_${productId}_${reviewId}`;
+  const ruta = `/dashboard/product/${productId}?tab=reviews&reviewId=${encodeURIComponent(String(reviewId))}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'producto_resena_baja',
+    modulo: 'productos',
+    titulo: 'Resena baja recibida',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> dejo una resena de <strong>${escapeHtml(rating)}/5</strong> en <strong>${escapeHtml(nombreProducto)}</strong></p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'admin',
+    idsDestinatarios: idsAdministradores,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || review.email || 'usuario'),
+    actorTipo: 'usuario',
+    actorNombre,
+    actorFotoURL: usuario?.photoURL || review.avatarUrl || null,
+    entidadTipo: 'producto',
+    entidadId: String(productId),
+    ruta,
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver resena',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      productId: String(productId),
+      idProducto: String(productId),
+      nombreProducto,
+      reviewId: String(reviewId),
+      calificacion: rating,
+      comentario: review.comment || '',
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
+  );
+
+  return notificacion;
 }
 
 export async function crearNotificacionEvaluacionPedido({

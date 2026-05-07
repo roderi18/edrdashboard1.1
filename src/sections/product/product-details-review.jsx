@@ -18,6 +18,8 @@ import {
   updateStoredProductReviewVote,
 } from 'src/utils/product-reviews-storage';
 
+import { crearNotificacionResenaProductoBaja } from 'src/services/notification-service';
+
 import { Iconify } from 'src/components/iconify';
 
 import { ProductReviewList } from './product-review-list';
@@ -27,8 +29,10 @@ import { ProductReviewCreateForm } from './product-review-create-form';
 
 export function ProductDetailsReview({
   productId,
+  productName,
   reviews = [],
   reviewer,
+  highlightedReviewId,
   onReviewsChange,
 }) {
   const review = useBoolean();
@@ -58,8 +62,22 @@ export function ProductDetailsReview({
 
       setCurrentReviews(nextReviews);
       onReviewsChange?.(nextReviews);
+
+      if (Number(nextReview.rating) <= 3) {
+        try {
+          await crearNotificacionResenaProductoBaja({
+            productId,
+            productName,
+            review: nextReview,
+            usuario: reviewer,
+          });
+          window.dispatchEvent(new Event('notificaciones:actualizar'));
+        } catch (error) {
+          console.error('[product reviews] no se pudo crear la notificacion de resena baja', error);
+        }
+      }
     },
-    [currentReviews, onReviewsChange, productId, reviewer]
+    [currentReviews, onReviewsChange, productId, productName, reviewer]
   );
 
   const handleVoteReview = useCallback(
@@ -164,7 +182,12 @@ export function ProductDetailsReview({
       </Box>
 
       <Divider sx={{ borderStyle: 'dashed' }} />
-      <ProductReviewList reviews={currentReviews} reviewer={reviewer} onVoteReview={handleVoteReview} />
+      <ProductReviewList
+        reviews={currentReviews}
+        reviewer={reviewer}
+        highlightedReviewId={highlightedReviewId}
+        onVoteReview={handleVoteReview}
+      />
       <ProductReviewCreateForm
         open={review.value}
         onClose={review.onFalse}

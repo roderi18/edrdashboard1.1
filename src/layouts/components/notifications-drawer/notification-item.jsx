@@ -57,6 +57,15 @@ const getNotificationRoute = (notification = {}) => {
     return `/dashboard/order/${notification.metadatos.numeroOrden}`;
   }
 
+  if (notification.tipoNotificacion === 'producto_resena_baja') {
+    const productId = notification.metadatos?.productId || notification.metadatos?.idProducto || notification.entidadId;
+    const reviewId = notification.metadatos?.reviewId;
+
+    if (productId && reviewId) {
+      return `/dashboard/product/${productId}?tab=reviews&reviewId=${encodeURIComponent(String(reviewId))}`;
+    }
+  }
+
   return notification.ruta;
 };
 

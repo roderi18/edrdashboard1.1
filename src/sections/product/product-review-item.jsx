@@ -1,6 +1,9 @@
+import { useRef, useState, useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Rating from '@mui/material/Rating';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import ListItemText from '@mui/material/ListItemText';
@@ -12,8 +15,30 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function ProductReviewItem({ review, reviewer, onVoteReview }) {
+export function ProductReviewItem({ review, reviewer, highlighted, onVoteReview }) {
+  const itemRef = useRef(null);
+  const [showHighlight, setShowHighlight] = useState(false);
   const userVote = getProductReviewUserVote(review, reviewer);
+  const reviewerRole = String(reviewer?.role ?? reviewer?.rol ?? '').toLowerCase();
+  const isAdmin = ['admin', 'administrador', 'administrator'].includes(reviewerRole);
+
+  useEffect(() => {
+    if (!highlighted || !itemRef.current) return undefined;
+
+    setShowHighlight(true);
+
+    const scrollTimer = setTimeout(() => {
+      itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 250);
+    const highlightTimer = setTimeout(() => {
+      setShowHighlight(false);
+    }, 1500);
+
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(highlightTimer);
+    };
+  }, [highlighted]);
 
   const renderVoteButton = (vote, icon, count) => {
     const selected = userVote === vote;
@@ -100,6 +125,18 @@ export function ProductReviewItem({ review, reviewer, onVoteReview }) {
 
       <Typography variant="body2">{review.comment}</Typography>
 
+      {isAdmin && (
+        <Button
+          size="small"
+          variant="soft"
+          color="inherit"
+          startIcon={<Iconify icon="solar:reply-bold" />}
+          sx={{ alignSelf: 'flex-start', mt: 0.5 }}
+        >
+          Responder
+        </Button>
+      )}
+
       {!!review.attachments?.length && (
         <Box
           sx={{
@@ -130,12 +167,24 @@ export function ProductReviewItem({ review, reviewer, onVoteReview }) {
 
   return (
     <Box
+      id={`review-${review.id}`}
+      ref={itemRef}
       sx={{
         mt: 5,
         gap: 2,
         display: 'flex',
+        py: showHighlight ? 2 : 0,
         px: { xs: 2.5, md: 0 },
+        outline: showHighlight ? '2px solid' : '0 solid transparent',
+        borderRadius: 1,
+        outlineColor: showHighlight ? 'warning.main' : 'transparent',
+        bgcolor: showHighlight ? 'warning.lighter' : 'transparent',
         flexDirection: { xs: 'column', md: 'row' },
+        scrollMarginTop: 120,
+        transition: (theme) =>
+          theme.transitions.create(['background-color', 'outline-color', 'padding'], {
+            duration: showHighlight ? theme.transitions.duration.shorter : 600,
+          }),
       }}
     >
       {renderInfo()}
