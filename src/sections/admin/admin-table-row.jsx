@@ -16,7 +16,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin }) {
+export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin, onRemoveAdmin }) {
   const menuActions = usePopover();
 
   const isAdminActive =
@@ -35,7 +35,9 @@ export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin }) {
           onClick={() => {
             menuActions.onClose();
 
-            if (!isAdminActive) {
+            if (isAdminActive) {
+              onRemoveAdmin?.(row);
+            } else {
               onAssignAdmin?.(row);
             }
           }}

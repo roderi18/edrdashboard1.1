@@ -1,20 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useSetState } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
-import { obtenerAdministradores } from 'src/utils/firebase-admins';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { obtenerAdministradores, quitarAdministradorAMiembro } from 'src/utils/firebase-admins';
 
 import { getMembers } from 'src/services/member-service';
 
+import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { useTable, TableNoData, TableHeadCustom } from 'src/components/table';
 
 import { AdminCardList } from '../admin-card-list';
@@ -71,6 +74,8 @@ const mapAdminRow = ({ admin, member, photo }) => {
 export function AdminListView() {
   const table = useTable();
   const [admins, setAdmins] = useState([]);
+  const [removeAdminRow, setRemoveAdminRow] = useState(null);
+  const [isRemovingAdmin, setIsRemovingAdmin] = useState(false);
   const [displayMode, setDisplayMode] = useState('panel');
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
@@ -95,6 +100,36 @@ export function AdminListView() {
 
     loadData();
   }, []);
+
+  const handleCloseRemoveAdmin = useCallback(() => {
+    if (!isRemovingAdmin) {
+      setRemoveAdminRow(null);
+    }
+  }, [isRemovingAdmin]);
+
+  const handleConfirmRemoveAdmin = useCallback(async () => {
+    if (!removeAdminRow) {
+      return;
+    }
+
+    setIsRemovingAdmin(true);
+
+    try {
+      await quitarAdministradorAMiembro(removeAdminRow);
+
+      setAdmins((currentAdmins) =>
+        currentAdmins.filter((admin) => String(admin.adminId || admin.id) !== String(removeAdminRow.adminId || removeAdminRow.id))
+      );
+
+      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es usuario común.`);
+      setRemoveAdminRow(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo quitar el administrador.');
+    } finally {
+      setIsRemovingAdmin(false);
+    }
+  }, [removeAdminRow]);
 
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;
@@ -133,6 +168,7 @@ export function AdminListView() {
                   row={row}
                   selected={table.selected.includes(row.id)}
                   onSelectRow={() => table.onSelectRow(row.id)}
+                  onRemoveAdmin={setRemoveAdminRow}
                 />
               ))}
 
@@ -143,6 +179,25 @@ export function AdminListView() {
       ) : (
         <AdminCardList admins={dataFiltered} />
       )}
+
+      <ConfirmDialog
+        open={Boolean(removeAdminRow)}
+        onClose={handleCloseRemoveAdmin}
+        title="Quitar administrador"
+        content={`¿Realmente quieres quitar administrador a ${
+          removeAdminRow?.name || 'este usuario'
+        }? Al confirmar pasará a usuario común.`}
+        action={
+          <Button
+            color="error"
+            variant="contained"
+            loading={isRemovingAdmin}
+            onClick={handleConfirmRemoveAdmin}
+          >
+            Quitar administrador
+          </Button>
+        }
+      />
     </Card>
   );
 }

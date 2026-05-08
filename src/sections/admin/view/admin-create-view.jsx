@@ -15,8 +15,11 @@ import { paths } from 'src/routes/paths';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
-import { asignarAdministradorDesdeMiembro } from 'src/utils/firebase-admins';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import {
+  quitarAdministradorAMiembro,
+  asignarAdministradorDesdeMiembro,
+} from 'src/utils/firebase-admins';
 
 import { getMembers } from 'src/services/member-service';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -68,7 +71,9 @@ export function AdminCreateView() {
   const [members, setMembers] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
   const [assignRows, setAssignRows] = useState([]);
+  const [removeAdminRow, setRemoveAdminRow] = useState(null);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isRemovingAdmin, setIsRemovingAdmin] = useState(false);
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
 
@@ -164,6 +169,45 @@ export function AdminCreateView() {
     handleOpenAssignDialog(selectedRows);
   }, [handleOpenAssignDialog, members, table.selected]);
 
+  const handleCloseRemoveAdmin = useCallback(() => {
+    if (!isRemovingAdmin) {
+      setRemoveAdminRow(null);
+    }
+  }, [isRemovingAdmin]);
+
+  const handleConfirmRemoveAdmin = useCallback(async () => {
+    if (!removeAdminRow) {
+      return;
+    }
+
+    setIsRemovingAdmin(true);
+
+    try {
+      await quitarAdministradorAMiembro(removeAdminRow);
+
+      setMembers((currentMembers) =>
+        currentMembers.map((member) =>
+          String(member.id) === String(removeAdminRow.id)
+            ? {
+                ...member,
+                adminId: '',
+                rol: 'usuario',
+                esAdministrador: false,
+              }
+            : member
+        )
+      );
+
+      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es usuario común.`);
+      setRemoveAdminRow(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo quitar el administrador.');
+    } finally {
+      setIsRemovingAdmin(false);
+    }
+  }, [removeAdminRow]);
+
   const dataFiltered = applyFilter({ inputData: members, filters: currentFilters });
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
   const notFound = !dataFiltered.length;
@@ -235,6 +279,7 @@ export function AdminCreateView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onAssignAdmin={handleOpenAssignDialog}
+                        onRemoveAdmin={setRemoveAdminRow}
                       />
                     ))}
 
@@ -282,6 +327,25 @@ export function AdminCreateView() {
             onClick={handleConfirmAssignAdmins}
           >
             Asignar
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={Boolean(removeAdminRow)}
+        onClose={handleCloseRemoveAdmin}
+        title="Quitar administrador"
+        content={`¿Realmente quieres quitar administrador a ${
+          removeAdminRow?.name || 'este usuario'
+        }? Al confirmar pasará a usuario común.`}
+        action={
+          <Button
+            color="error"
+            variant="contained"
+            loading={isRemovingAdmin}
+            onClick={handleConfirmRemoveAdmin}
+          >
+            Quitar administrador
           </Button>
         }
       />

@@ -156,7 +156,7 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
   if (userProfile) {
     const role = String(userProfile.data?.rol ?? userProfile.data?.role ?? '').toLowerCase();
 
-    if (!role || role === 'admin' || role === 'administrador') {
+    if (role === 'admin' || role === 'administrador') {
       return userProfile;
     }
   }

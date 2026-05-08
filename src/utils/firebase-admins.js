@@ -6,9 +6,13 @@ import {
   getDoc,
   setDoc,
   getDocs,
+  deleteDoc,
   updateDoc,
   collection,
+  serverTimestamp,
 } from 'firebase/firestore';
+
+import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE } from 'src/lib/firebase';
 
@@ -62,6 +66,142 @@ const getMemberRoleProfile = async (member) => {
   }
 
   return null;
+};
+
+const getQueryDocs = async (collectionName, fieldName, value) => {
+  if (value === undefined || value === null || value === '') {
+    return [];
+  }
+
+  const snapshot = await getDocs(
+    query(collection(FIRESTORE, collectionName), where(fieldName, '==', value))
+  ).catch(() => ({ docs: [] }));
+
+  return snapshot.docs;
+};
+
+const getMatchingProfileDocs = async (collectionName, member = {}) => {
+  const memberId = Number(member?.idMiembros || member?.memberId || member?.id) || null;
+  const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
+  const uid = member?.uid || '';
+  const correo = member?.email || member?.correo || '';
+  const directDocIds = [uid, memberId, codigoMiembro].filter(Boolean).map(String);
+  const docsByPath = new Map();
+
+  await Promise.all(
+    directDocIds.map(async (docId) => {
+      const snapshot = await getDoc(doc(FIRESTORE, collectionName, docId)).catch(() => null);
+
+      if (snapshot?.exists()) {
+        docsByPath.set(snapshot.ref.path, snapshot);
+      }
+    })
+  );
+
+  const queryDocs = (
+    await Promise.all([
+      getQueryDocs(collectionName, 'uid', uid),
+      getQueryDocs(collectionName, 'idMiembros', memberId),
+      getQueryDocs(collectionName, 'codigoMiembro', codigoMiembro),
+      getQueryDocs(collectionName, 'codigoUsuario', codigoMiembro),
+      getQueryDocs(collectionName, 'correo', correo),
+      getQueryDocs(collectionName, 'email', correo),
+    ])
+  ).flat();
+
+  queryDocs.forEach((snapshot) => {
+    docsByPath.set(snapshot.ref.path, snapshot);
+  });
+
+  return Array.from(docsByPath.values());
+};
+
+const getAdminNotificationRecipients = async () => {
+  const [adminDocs, userAdminDocs, roleAdminDocs] = await Promise.all([
+    getDocs(collection(FIRESTORE, 'admins')).catch(() => ({ docs: [] })),
+    getDocs(query(collection(FIRESTORE, 'users'), where('rol', 'in', ['admin', 'administrador']))).catch(
+      () => ({ docs: [] })
+    ),
+    getDocs(
+      query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ['admin', 'administrador']))
+    ).catch(() => ({ docs: [] })),
+  ]);
+  const recipients = new Set();
+
+  [...adminDocs.docs, ...userAdminDocs.docs, ...roleAdminDocs.docs].forEach((snapshot) => {
+    const data = snapshot.data() ?? {};
+    const uid = String(data.uid || data.idUsuario || snapshot.id || '').trim();
+
+    if (uid) {
+      recipients.add(uid);
+    }
+  });
+
+  return Array.from(recipients);
+};
+
+const createAdminRoleNotification = async ({ member = {}, action = 'assigned', adminPayload = {} }) => {
+  const idsDestinatarios = await getAdminNotificationRecipients();
+
+  if (!idsDestinatarios.length) {
+    return null;
+  }
+
+  const memberId = member?.idMiembros || member?.memberId || member?.id || adminPayload.idMiembros || '';
+  const codigoMiembro =
+    member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || adminPayload.codigoMiembro || '';
+  const nombreMiembro =
+    member?.name ||
+    member?.displayName ||
+    adminPayload.displayName ||
+    [member?.firstName || member?.nombres || adminPayload.nombres, member?.lastName || member?.apellidos || adminPayload.apellidos]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    codigoMiembro ||
+    'Usuario';
+  const fechaActual = new Date().toISOString();
+  const isAssigned = action === 'assigned';
+  const notificationId = `admin_rol_${action}_${memberId || codigoMiembro || Date.now()}_${Date.now()}`;
+  const mensaje = isAssigned
+    ? 'fue asignado como administrador.'
+    : 'fue removido como administrador y ahora es usuario común.';
+
+  await setDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId), {
+    id: notificationId,
+    tipoNotificacion: isAssigned ? 'administrador_creado' : 'permisos_cambiados',
+    modulo: 'administradores',
+    titulo: isAssigned ? 'Administrador asignado' : 'Administrador removido',
+    tituloHtml: `<p><strong>${nombreMiembro}</strong> ${mensaje}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'admin',
+    idsDestinatarios,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(memberId || codigoMiembro || 'sistema'),
+    actorTipo: 'admin',
+    actorNombre: nombreMiembro,
+    actorFotoURL: member?.avatarUrl || member?.photoURL || adminPayload.photoURL || null,
+    entidadTipo: 'administrador',
+    entidadId: memberId || codigoMiembro,
+    ruta: '/dashboard/admin',
+    metadatos: {
+      accion: action,
+      idMiembros: memberId || null,
+      codigoMiembro,
+      nombreMiembro,
+    },
+    actualizadoEnServidor: serverTimestamp(),
+  });
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificationId;
 };
 
 export const asignarAdministradorDesdeMiembro = async (member) => {
@@ -149,8 +289,134 @@ export const asignarAdministradorDesdeMiembro = async (member) => {
     );
   }
 
+  await createAdminRoleNotification({
+    member,
+    action: 'assigned',
+    adminPayload,
+  }).catch((error) => {
+    console.error('[admins] no se pudo notificar la asignacion de administrador', error);
+  });
+
   return {
     id: adminDocId,
     ...adminPayload,
+  };
+};
+
+export const quitarAdministradorAMiembro = async (member) => {
+  const memberId = member?.idMiembros || member?.memberId || member?.id;
+  const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
+  const adminDocId =
+    member?.adminId || member?.adminDocId || member?.uid || String(memberId || codigoMiembro);
+  const roleProfile = await getMemberRoleProfile(member);
+  const uid = roleProfile?.data?.uid || member?.uid || '';
+  const now = new Date().toISOString();
+
+  if (!adminDocId && !memberId && !codigoMiembro && !uid) {
+    throw new Error('No se pudo identificar el administrador para quitarle el rol.');
+  }
+
+  const adminDocs = await getMatchingProfileDocs('admins', {
+    ...member,
+    uid,
+    codigoMiembro,
+    idMiembros: memberId,
+  });
+
+  await Promise.all([
+    adminDocId ? deleteDoc(doc(FIRESTORE, 'admins', String(adminDocId))).catch(() => null) : null,
+    ...adminDocs.map((snapshot) => deleteDoc(snapshot.ref).catch(() => null)),
+  ]);
+
+  if (roleProfile?.ref) {
+    await updateDoc(roleProfile.ref, {
+      rol: 'usuario',
+      role: 'usuario',
+      estado: 'activo',
+      actualizadoEn: now,
+    });
+  } else if (memberId || codigoMiembro) {
+    await setDoc(
+      doc(FIRESTORE, 'usuarios_roles', String(memberId || codigoMiembro)),
+      {
+        idMiembros: Number(memberId) || null,
+        codigoMiembro,
+        uid,
+        correo: member?.email || member?.correo || '',
+        nombre: member?.name || member?.displayName || codigoMiembro,
+        rol: 'usuario',
+        role: 'usuario',
+        estado: 'activo',
+        actualizadoEn: now,
+      },
+      { merge: true }
+    );
+  }
+
+  const roleDocs = await getMatchingProfileDocs('usuarios_roles', {
+    ...member,
+    uid,
+    codigoMiembro,
+    idMiembros: memberId,
+  });
+  const userDocs = await getMatchingProfileDocs('users', {
+    ...member,
+    uid,
+    codigoMiembro,
+    idMiembros: memberId,
+  });
+
+  await Promise.all(
+    roleDocs.map((snapshot) =>
+      setDoc(
+        snapshot.ref,
+        {
+          rol: 'usuario',
+          role: 'usuario',
+          estado: 'activo',
+          actualizadoEn: now,
+        },
+        { merge: true }
+      )
+    )
+  );
+
+  await Promise.all([
+    uid
+      ? setDoc(
+          doc(FIRESTORE, 'users', uid),
+          {
+            rol: 'usuario',
+            role: 'usuario',
+            updatedAt: now,
+          },
+          { merge: true }
+        )
+      : null,
+    ...userDocs.map((snapshot) =>
+      setDoc(
+        snapshot.ref,
+        {
+          rol: 'usuario',
+          role: 'usuario',
+          updatedAt: now,
+        },
+        { merge: true }
+      )
+    ),
+  ]);
+
+  await createAdminRoleNotification({
+    member,
+    action: 'removed',
+  }).catch((error) => {
+    console.error('[admins] no se pudo notificar que se quito el administrador', error);
+  });
+
+  return {
+    id: adminDocId,
+    idMiembros: Number(memberId) || null,
+    codigoMiembro,
+    rol: 'usuario',
   };
 };
