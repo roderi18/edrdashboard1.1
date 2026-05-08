@@ -1,50 +1,38 @@
 'use client';
 
 // React
-import { useState, useEffect } from 'react';
-
+import { useEffect } from 'react';
+// Hooks
+import { useBoolean } from 'minimal-shared/hooks';
 // Validaciones / forms
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
-
-// Hooks
-import { useBoolean } from 'minimal-shared/hooks';
-import { useRouter } from 'src/routes/hooks';
 
 // MUI components
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-
 import IconButton from '@mui/material/IconButton';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 
+import { toast } from 'src/components/snackbar';
+// Hook form components 
+import { Form } from 'src/components/hook-form';
 // Table components
 import { useTable, } from 'src/components/table';
-
 // Custom components
 import { Iconify } from 'src/components/iconify';
-import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+
 import { MemberHealthSchema } from 'src/sections/member/health/schema';
-import { HealthDocumentsSection } from 'src/sections/member/health/sections/health-documents-section';
-import { HealthMedicationSection } from 'src/sections/member/health/sections/health-medication-section';
-import { HealthAllergiesSection } from 'src/sections/member/health/sections/health-allergies-section';
 import { HealthBasicSection } from 'src/sections/member/health/sections/health-basic-section';
+import { HealthDocumentsSection } from 'src/sections/member/health/sections/health-documents-section';
+import { HealthAllergiesSection } from 'src/sections/member/health/sections/health-allergies-section';
+import { HealthMedicationSection } from 'src/sections/member/health/sections/health-medication-section';
 import { HealthConditionsSection } from 'src/sections/member/health/sections/health-conditions-section';
-
-// Hook form components 
-import { Form, Field } from 'src/components/hook-form';
-import { useMedicalDocuments } from './health/hooks/use-medical-documents';
-
 // File manager
 import { FileManagerCreateFolderDialog } from 'src/sections/file-manager/file-manager-create-folder-dialog';
 
-// Utils / mocks
-import { _allFiles } from 'src/_mock';
-import { getMembers } from 'src/services/member-service';
-import { MEDICAL_DOCUMENTS } from 'src/_mock/health';
-
-import { countMembersByDestId } from 'src/utils/member-count';
+import { useMedicalDocuments } from './health/hooks/use-medical-documents';
 
 export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const memberId = currentMember?.id;
@@ -53,10 +41,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         ...currentMember,
         healthInsurance: currentMember?.healthInsurance ?? ['unknown'],
     };
-
-    const [insuranceTouched, setInsuranceTouched] = useState(false);
-
-    const router = useRouter();
 
     const defaultValues = {
         avatarUrl: currentMember?.avatarUrl || null,
@@ -106,10 +90,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         hasAllergies: 'no',
         drugAllergy: 'no',
         drugAllergyDetails: '',
-        allergyReaction: '',
-        hasMedication: 'no',
-        useDuringActivities: 'no',
-        selfAdministered: 'yes',
         hasFoodAllergies: 'no',
         hasEnvironmentalAllergies: 'no',
         foodAllergies: [],
@@ -160,25 +140,14 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         formState: { isSubmitting },
     } = methods;
 
-    const values = watch();
     const healthInsurance = watch('healthInsurance');
 
     useEffect(() => {
         if (healthInsurance !== 'yes') {
             setValue('insuranceName', '');
             setValue('policyNumber', '');
-            setInsuranceTouched(false);
         }
     }, [healthInsurance, setValue]);
-
-    const showInsuranceError =
-        insuranceTouched && healthInsurance !== 'yes';
-
-    const destId = currentMember?.destId;
-
-    const members = getMembers();
-
-    const membersCount = countMembersByDestId(members, destId);
 
     const onSubmit = handleSubmit(async (data) => {
         try {
@@ -197,7 +166,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const openMedication = useBoolean(false);
     const openAllergies = useBoolean(false);
     const openConditions = useBoolean(false);
-    const [showScheduleNotes, setShowScheduleNotes] = useState({});
 
     const table = useTable({ defaultRowsPerPage: 10 });
 
@@ -210,6 +178,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         renameDocument,
     } = useMedicalDocuments({
         memberId,
+        codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
         table,
     });
 

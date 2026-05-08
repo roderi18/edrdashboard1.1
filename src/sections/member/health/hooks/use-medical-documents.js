@@ -1,278 +1,287 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
+
+import {
+  subirDocumentosSaludMiembro,
+  listarDocumentosSaludMiembro,
+  eliminarDocumentoSaludMiembro,
+  renombrarDocumentoSaludMiembro,
+} from 'src/services/member-health-documents-service';
+
 import { toast } from 'src/components/snackbar';
-import { MEDICAL_DOCUMENTS } from 'src/_mock/health';
 
-export function useMedicalDocuments({ memberId, table }) {
-    const [medicalDocuments, setMedicalDocuments] = useState(() =>
-        MEDICAL_DOCUMENTS.filter((doc) => doc.memberId === memberId)
-    );
+import { useAuthContext } from 'src/auth/hooks';
 
-    const INVALID_NAME_REGEX = /[\\/:*?"<>|]/;
+export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
+  const { user } = useAuthContext();
+  const [medicalDocuments, setMedicalDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const invalidNameRegex = useMemo(() => /[\\/:*?"<>|]/, []);
+  const maxFileSize = 10 * 1024 * 1024;
+  const allowedExtensions = useMemo(
+    () => ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
+    []
+  );
 
-    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
+  useEffect(() => {
+    let active = true;
 
-    const ALLOWED_EXTENSIONS = [
-        'pdf',
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'doc',
-        'docx',
-        'xls',
-        'xlsx',
-        'csv',
-    ];
+    const loadDocuments = async () => {
+      if (!memberId) return;
 
+      setLoading(true);
 
-    // -----------------------------
-    // INPUT FILE (ref)
-    // -----------------------------
-    const fileInputRef = useRef(null);
+      try {
+        const documents = await listarDocumentosSaludMiembro(memberId);
 
-    // -----------------------------
-    // ABRIR SELECTOR
-    // -----------------------------
-    const openUploadDialog = useCallback(() => {
-        fileInputRef.current?.click();
-    }, []);
-
-    // -----------------------------
-    // MANEJAR ARCHIVOS
-    // -----------------------------
-    const handleUploadFiles = useCallback(
-        (event) => {
-            const files = Array.from(event.target.files || []);
-            if (!files.length) return;
-
-            const validFiles = [];
-            const rejectedFiles = [];
-
-            const existingNames = new Set(
-                medicalDocuments.map((doc) => doc.name.toLowerCase())
-            );
-
-            const batchNames = new Set();
-
-            files.forEach((file) => {
-                const cleanName = file.name.trim();
-                const cleanNameLower = cleanName.toLowerCase();
-                const ext = cleanName.split('.').pop().toLowerCase();
-
-                // nombre vacío
-                if (!cleanName) {
-                    rejectedFiles.push('Nombre vacío no permitido');
-                    return;
-                }
-
-                // caracteres inválidos
-                if (INVALID_NAME_REGEX.test(cleanName)) {
-                    rejectedFiles.push(
-                        `${file.name} (contiene caracteres no permitidos)`
-                    );
-                    return;
-                }
-
-                // extensión no permitida
-                if (!ALLOWED_EXTENSIONS.includes(ext)) {
-                    rejectedFiles.push(
-                        `${file.name} (extensión no permitida)`
-                    );
-                    return;
-                }
-
-                // tamaño excedido
-                if (file.size > MAX_FILE_SIZE) {
-                    rejectedFiles.push(
-                        `${file.name} (supera 2 MB)`
-                    );
-                    return;
-                }
-
-                // duplicado contra documentos existentes
-                if (existingNames.has(cleanNameLower)) {
-                    rejectedFiles.push(
-                        `${file.name} (ya existe un documento con ese nombre)`
-                    );
-                    return;
-                }
-
-                // duplicado dentro de la misma selección
-                if (batchNames.has(cleanNameLower)) {
-                    rejectedFiles.push(
-                        `${file.name} (archivo duplicado en la selección)`
-                    );
-                    return;
-                }
-
-                // marcar como usado en este batch
-                batchNames.add(cleanNameLower);
-
-                validFiles.push({
-                    file,
-                    cleanName,
-                });
-            });
-
-
-            if (rejectedFiles.length) {
-                toast.error(
-                    `No se cargó:\n${rejectedFiles.join('\n')}`
-                );
-            }
-
-            if (!validFiles.length) {
-                event.target.value = '';
-                return;
-            }
-
-            const getFileType = (fileName) => {
-                const ext = fileName.split('.').pop().toLowerCase();
-
-                if (ext === 'pdf') return 'pdf';
-                if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return 'image';
-                if (['doc', 'docx'].includes(ext)) return 'word';
-                if (['xls', 'xlsx', 'csv'].includes(ext)) return 'excel';
-
-                return 'file';
-            };
-
-            const newDocs = validFiles.map(({ file, cleanName }) => ({
-                id: crypto.randomUUID(),
-                memberId,
-
-                name: cleanName,
-                size: file.size,
-                modifiedAt: new Date(),
-
-                type: getFileType(cleanName),
-
-                tags: [],
-                shared: [],
-                url: '',
-            }));
-
-
-            setMedicalDocuments((prev) => [...prev, ...newDocs]);
-
-            event.target.value = '';
-            toast.success(`${validFiles.length} documento(s) cargado(s)`);
-        },
-        [memberId, medicalDocuments]
-    );
-
-    // -----------------------------
-    // COMPONENTE INPUT (AQUÍ ESTÁ LA CLAVE)
-    // -----------------------------
-    const FileInput = (
-        <input
-            ref={fileInputRef}
-            type="file"
-            hidden
-            multiple
-            onChange={handleUploadFiles}
-        />
-    );
-
-    // -----------------------------
-    // ELIMINAR UNO
-    // -----------------------------
-    const deleteOne = useCallback((id) => {
-        setMedicalDocuments((prev) => prev.filter((doc) => doc.id !== id));
-        toast.success('Documento eliminado');
-    }, []);
-
-    // -----------------------------
-    // ELIMINAR SELECCIONADOS
-    // -----------------------------
-    const deleteSelected = useCallback(() => {
-        if (!table.selected.length) return;
-
-        setMedicalDocuments((prev) =>
-            prev.filter((doc) => !table.selected.includes(doc.id))
-        );
-
-        table.onResetPage();
-        table.onSelectAllRows(false, []);
-
-        toast.success(`${table.selected.length} documentos eliminados`);
-    }, [table]);
-
-    const removeAll = useCallback(() => {
-        setMedicalDocuments([]);
-        toast.success('Documentos eliminados');
-    }, []);
-
-    const renameDocument = useCallback(
-        (id, newBaseName) => {
-            const cleanBaseName = newBaseName.trim();
-
-            // nombre vacío
-            if (!cleanBaseName) {
-                toast.error('El nombre no puede estar vacío');
-                return false;
-            }
-
-            // caracteres inválidos
-            if (INVALID_NAME_REGEX.test(cleanBaseName)) {
-                toast.error('El nombre contiene caracteres no permitidos');
-                return false;
-            }
-
-            let renamed = false;
-
-            setMedicalDocuments((prev) => {
-                const currentDoc = prev.find((doc) => doc.id === id);
-                if (!currentDoc) return prev;
-
-                const finalName =
-                    currentDoc.type === 'folder'
-                        ? cleanBaseName
-                        : `${cleanBaseName}.${currentDoc.name.split('.').pop()}`;
-
-                const finalNameLower = finalName.toLowerCase();
-
-                // duplicado (excluyendo el mismo doc)
-                const duplicated = prev.some(
-                    (doc) =>
-                        doc.id !== id &&
-                        doc.name.toLowerCase() === finalNameLower
-                );
-
-                if (duplicated) {
-                    toast.error('Ya existe un documento con ese nombre');
-                    return prev;
-                }
-
-                renamed = true;
-
-                return prev.map((doc) =>
-                    doc.id === id
-                        ? {
-                            ...doc,
-                            name: finalName,
-                            modifiedAt: new Date(),
-                        }
-                        : doc
-                );
-            });
-
-            if (renamed) {
-                toast.success('Nombre actualizado');
-            }
-
-            return renamed;
-        },
-        [INVALID_NAME_REGEX]
-    );
-
-    return {
-        medicalDocuments,
-        openUploadDialog,
-        FileInput,
-        deleteOne,
-        deleteSelected,
-        removeAll,
-        renameDocument,
+        if (active) {
+          setMedicalDocuments(documents);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('No se pudieron cargar los documentos de salud.');
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     };
+
+    loadDocuments();
+
+    return () => {
+      active = false;
+    };
+  }, [memberId]);
+
+  const openUploadDialog = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const validateFiles = useCallback(
+    (files = []) => {
+      const existingNames = new Set(medicalDocuments.map((doc) => doc.name.toLowerCase()));
+      const batchNames = new Set();
+      const validFiles = [];
+      const rejectedFiles = [];
+
+      files.forEach((file) => {
+        const cleanName = file.name.trim();
+        const cleanNameLower = cleanName.toLowerCase();
+        const ext = cleanName.split('.').pop().toLowerCase();
+
+        if (!cleanName) {
+          rejectedFiles.push('Nombre vacío no permitido');
+          return;
+        }
+
+        if (invalidNameRegex.test(cleanName)) {
+          rejectedFiles.push(`${file.name} (contiene caracteres no permitidos)`);
+          return;
+        }
+
+        if (!allowedExtensions.includes(ext)) {
+          rejectedFiles.push(`${file.name} (extensión no permitida)`);
+          return;
+        }
+
+        if (file.size > maxFileSize) {
+          rejectedFiles.push(`${file.name} (supera 10 MB)`);
+          return;
+        }
+
+        if (existingNames.has(cleanNameLower)) {
+          rejectedFiles.push(`${file.name} (ya existe un documento con ese nombre)`);
+          return;
+        }
+
+        if (batchNames.has(cleanNameLower)) {
+          rejectedFiles.push(`${file.name} (archivo duplicado en la selección)`);
+          return;
+        }
+
+        batchNames.add(cleanNameLower);
+        validFiles.push(file);
+      });
+
+      return { validFiles, rejectedFiles };
+    },
+    [allowedExtensions, invalidNameRegex, maxFileSize, medicalDocuments]
+  );
+
+  const handleUploadFiles = useCallback(
+    async (event) => {
+      const files = Array.from(event.target.files || []);
+
+      if (!files.length) return;
+
+      const { validFiles, rejectedFiles } = validateFiles(files);
+
+      if (rejectedFiles.length) {
+        toast.error(`No se cargó:\n${rejectedFiles.join('\n')}`);
+      }
+
+      if (!validFiles.length) {
+        event.target.value = '';
+        return;
+      }
+
+      const optimisticDocuments = validFiles.map((file) => ({
+        id: `temp-${crypto.randomUUID()}`,
+        idMiembros: Number(memberId),
+        codigoMiembro,
+        name: file.name,
+        title: file.name,
+        size: file.size,
+        modifiedAt: new Date().toISOString(),
+        type: file.name.split('.').pop().toLowerCase(),
+        tags: ['salud'],
+        shared: [],
+        url: '',
+        uploading: true,
+      }));
+
+      setMedicalDocuments((prev) => [...optimisticDocuments, ...prev]);
+
+      try {
+        const uploadedDocuments = await subirDocumentosSaludMiembro({
+          files: validFiles,
+          idMiembros: memberId,
+          codigoMiembro,
+          creadoPor: user,
+        });
+        const optimisticIds = new Set(optimisticDocuments.map((documento) => documento.id));
+
+        setMedicalDocuments((prev) => [
+          ...uploadedDocuments,
+          ...prev.filter((documento) => !optimisticIds.has(documento.id)),
+        ]);
+        toast.success(`${uploadedDocuments.length} documento(s) cargado(s)`);
+      } catch (error) {
+        console.error(error);
+        const optimisticIds = new Set(optimisticDocuments.map((documento) => documento.id));
+
+        setMedicalDocuments((prev) => prev.filter((documento) => !optimisticIds.has(documento.id)));
+        toast.error(error.message || 'No se pudieron subir los documentos.');
+      } finally {
+        event.target.value = '';
+      }
+    },
+    [codigoMiembro, memberId, user, validateFiles]
+  );
+
+  const FileInput = (
+    <input ref={fileInputRef} type="file" hidden multiple onChange={handleUploadFiles} />
+  );
+
+  const deleteOne = useCallback(
+    async (id) => {
+      const document = medicalDocuments.find((item) => item.id === id);
+
+      setMedicalDocuments((prev) => prev.filter((item) => item.id !== id));
+
+      try {
+        await eliminarDocumentoSaludMiembro(document);
+        toast.success('Documento eliminado');
+      } catch (error) {
+        console.error(error);
+        setMedicalDocuments((prev) => (document ? [document, ...prev] : prev));
+        toast.error('No se pudo eliminar el documento.');
+      }
+    },
+    [medicalDocuments]
+  );
+
+  const deleteSelected = useCallback(async () => {
+    if (!table.selected.length) return;
+
+    const selectedIds = new Set(table.selected);
+    const selectedDocuments = medicalDocuments.filter((doc) => selectedIds.has(doc.id));
+
+    setMedicalDocuments((prev) => prev.filter((doc) => !selectedIds.has(doc.id)));
+    table.onResetPage();
+    table.onSelectAllRows(false, []);
+
+    try {
+      await Promise.all(selectedDocuments.map(eliminarDocumentoSaludMiembro));
+      toast.success(`${selectedDocuments.length} documentos eliminados`);
+    } catch (error) {
+      console.error(error);
+      setMedicalDocuments((prev) => [...selectedDocuments, ...prev]);
+      toast.error('No se pudieron eliminar todos los documentos.');
+    }
+  }, [medicalDocuments, table]);
+
+  const removeAll = useCallback(() => {
+    setMedicalDocuments([]);
+    toast.success('Documentos eliminados');
+  }, []);
+
+  const renameDocument = useCallback(
+    (id, newBaseName) => {
+      const cleanBaseName = newBaseName.trim();
+      const currentDoc = medicalDocuments.find((doc) => doc.id === id);
+
+      if (!currentDoc) return false;
+
+      if (!cleanBaseName) {
+        toast.error('El nombre no puede estar vacío');
+        return false;
+      }
+
+      if (invalidNameRegex.test(cleanBaseName)) {
+        toast.error('El nombre contiene caracteres no permitidos');
+        return false;
+      }
+
+      const extension = currentDoc.name.split('.').pop();
+      const finalName = `${cleanBaseName}.${extension}`;
+      const finalNameLower = finalName.toLowerCase();
+      const duplicated = medicalDocuments.some(
+        (doc) => doc.id !== id && doc.name.toLowerCase() === finalNameLower
+      );
+
+      if (duplicated) {
+        toast.error('Ya existe un documento con ese nombre');
+        return false;
+      }
+
+      setMedicalDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === id ? { ...doc, name: finalName, title: finalName, modifiedAt: new Date().toISOString() } : doc
+        )
+      );
+
+      renombrarDocumentoSaludMiembro(currentDoc, finalName)
+        .then((updatedDocument) => {
+          if (updatedDocument) {
+            setMedicalDocuments((prev) =>
+              prev.map((doc) => (doc.id === id ? { ...doc, ...updatedDocument } : doc))
+            );
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          setMedicalDocuments((prev) =>
+            prev.map((doc) => (doc.id === id ? currentDoc : doc))
+          );
+          toast.error('No se pudo renombrar el documento.');
+        });
+
+      toast.success('Nombre actualizado');
+      return true;
+    },
+    [invalidNameRegex, medicalDocuments]
+  );
+
+  return {
+    loading,
+    medicalDocuments,
+    openUploadDialog,
+    FileInput,
+    deleteOne,
+    deleteSelected,
+    removeAll,
+    renameDocument,
+  };
 }
