@@ -60,6 +60,7 @@ export function FileManagerTableRow({
   showType = true,
   showAvatar = true,
   showThumbnail = true,
+  showRowOutline = true,
 }) {
   const theme = useTheme();
   const router = useRouter();
@@ -247,11 +248,11 @@ export function FileManagerTableRow({
             },
           },
           [`& .${tableCellClasses.root}`]: {
-            ...defaultStyles,
+            ...(showRowOutline && defaultStyles),
           },
           ...(detailsDrawer.value && {
             [`& .${tableCellClasses.root}`]: {
-              ...defaultStyles,
+              ...(showRowOutline && defaultStyles),
             },
           }),
         }}

@@ -55,6 +55,37 @@ const isSameContact = (a = {}, b = {}) => {
   return getIdentityKeys(b).some((key) => aKeys.has(key));
 };
 
+const getContactIdentityKey = (contact = {}) =>
+  getIdentityKeys(contact)[0] || normalizeKey(contact.name);
+
+const getContactOptionKey = (contact = {}, index = '') => {
+  const baseKey = contact._shareOptionKey || getContactIdentityKey(contact) || 'contacto';
+  const safeIndex = index ?? '';
+
+  return [baseKey, safeIndex].filter((value) => value !== '').join('-');
+};
+
+const uniqueContacts = (items = []) => {
+  const seen = new Set();
+
+  return items.reduce((acc, contact, index) => {
+    const identityKey = getContactIdentityKey(contact) || `contacto-${index}`;
+
+    if (seen.has(identityKey)) {
+      return acc;
+    }
+
+    seen.add(identityKey);
+
+    acc.push({
+      ...contact,
+      _shareOptionKey: identityKey,
+    });
+
+    return acc;
+  }, []);
+};
+
 const findCurrentContact = (contacts = [], user = {}) =>
   contacts.find((contact) => isSameContact(contact, user)) || null;
 
@@ -99,7 +130,7 @@ export function FileManagerShareDialog({
   const shareLabel = useMemo(() => getFileManagerShareLabel(item), [item]);
   const currentContact = useMemo(() => findCurrentContact(contacts, user), [contacts, user]);
   const recipientOptions = useMemo(
-    () => contacts.filter((contact) => !isSameContact(contact, currentContact || user)),
+    () => uniqueContacts(contacts.filter((contact) => !isSameContact(contact, currentContact || user))),
     [contacts, currentContact, user]
   );
 
@@ -225,23 +256,35 @@ export function FileManagerShareDialog({
           value={selectedContacts}
           onChange={(event, newValue) => setSelectedContacts(newValue)}
           getOptionLabel={(option) => option.name || option.codigoMiembro || ''}
-          isOptionEqualToValue={(option, value) =>
-            String(option.idMiembros ?? option.id) === String(value.idMiembros ?? value.id)
-          }
+          isOptionEqualToValue={(option, value) => isSameContact(option, value)}
           noOptionsText="Sin miembros"
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.idMiembros ?? option.id}>
-              <Avatar src={option.avatarUrl} alt={option.name} sx={{ mr: 1.5, width: 32, height: 32 }} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography noWrap variant="body2">
-                  {option.name}
-                </Typography>
-                <Typography noWrap variant="caption" sx={{ color: 'text.secondary' }}>
-                  {option.codigoMiembro || option.email}
-                </Typography>
+          renderOption={(props, option, state) => {
+            const { key, ...optionProps } = props;
+            const optionKey = getContactOptionKey(option, state?.index) || key;
+
+            return (
+              <Box
+                key={optionKey}
+                component="li"
+                {...optionProps}
+              >
+                <Avatar
+                  key={`${optionKey}-avatar`}
+                  src={option.avatarUrl}
+                  alt={option.name}
+                  sx={{ mr: 1.5, width: 32, height: 32 }}
+                />
+                <Box key={`${optionKey}-content`} sx={{ minWidth: 0 }}>
+                  <Typography noWrap variant="body2">
+                    {option.name}
+                  </Typography>
+                  <Typography noWrap variant="caption" sx={{ color: 'text.secondary' }}>
+                    {option.codigoMiembro || option.email}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          )}
+            );
+          }}
           renderInput={(params) => (
             <TextField {...params} label="Buscar miembros" placeholder="Seleccionar miembros" />
           )}

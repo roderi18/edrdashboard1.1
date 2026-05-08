@@ -149,6 +149,7 @@ export function HealthDocumentsSection({
                                         showType={false}
                                         showAvatar={false}
                                         showThumbnail
+                                        showRowOutline={false}
                                     />
                                 ))}
                             </TableBody>
