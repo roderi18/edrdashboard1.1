@@ -9,7 +9,9 @@ export function PostCommentList({ comments = [] }) {
   return (
     <>
       {comments.map((comment) => {
-        const hasReply = !!comment.replyComment.length;
+        const replyComment = Array.isArray(comment.replyComment) ? comment.replyComment : [];
+        const users = Array.isArray(comment.users) ? comment.users : [];
+        const hasReply = !!replyComment.length;
 
         return (
           <Box key={comment.id}>
@@ -20,8 +22,8 @@ export function PostCommentList({ comments = [] }) {
               avatarUrl={comment.avatarUrl}
             />
             {hasReply &&
-              comment.replyComment.map((reply) => {
-                const userReply = comment.users.find((user) => user.id === reply.userId);
+              replyComment.map((reply) => {
+                const userReply = users.find((user) => user.id === reply.userId);
 
                 return (
                   <PostCommentItem

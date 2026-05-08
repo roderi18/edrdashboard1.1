@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import { useMemo } from 'react';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+import { endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 
@@ -13,10 +13,37 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
+const buildLocalUrl = (url, config = {}) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(config.params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, value);
+    }
+  });
+
+  const queryString = searchParams.toString();
+
+  return queryString ? `${url}?${queryString}` : url;
+};
+
+const localFetcher = async (args) => {
+  const [url, config] = Array.isArray(args) ? args : [args, {}];
+  const response = await fetch(buildLocalUrl(url, config), { cache: 'no-store' });
+
+  if (!response.ok) {
+    throw new Error('No se pudo cargar la informacion del blog.');
+  }
+
+  return response.json();
+};
+
+// ----------------------------------------------------------------------
+
 export function useGetPosts() {
   const url = endpoints.post.list;
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+  const { data, isLoading, error, isValidating } = useSWR(url, localFetcher, {
     ...swrOptions,
   });
 
@@ -39,7 +66,7 @@ export function useGetPosts() {
 export function useGetPost(title) {
   const url = title ? [endpoints.post.details, { params: { title } }] : '';
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+  const { data, isLoading, error, isValidating } = useSWR(url, localFetcher, {
     ...swrOptions,
   });
 
@@ -61,7 +88,7 @@ export function useGetPost(title) {
 export function useGetLatestPosts(title) {
   const url = title ? [endpoints.post.latest, { params: { title } }] : '';
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+  const { data, isLoading, error, isValidating } = useSWR(url, localFetcher, {
     ...swrOptions,
   });
 
@@ -84,7 +111,7 @@ export function useGetLatestPosts(title) {
 export function useSearchPosts(query) {
   const url = query ? [endpoints.post.search, { params: { query } }] : '';
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+  const { data, isLoading, error, isValidating } = useSWR(url, localFetcher, {
     ...swrOptions,
     keepPreviousData: true,
   });

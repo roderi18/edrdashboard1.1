@@ -13,13 +13,18 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
   return (
     <LogoZoomRoot sx={sx} {...other}>
       <m.span
-        animate={{ scale: [1, 0.9, 0.9, 1, 1], opacity: [1, 0.48, 0.48, 1, 1] }}
+        animate={{
+          scale: [1, 0.9, 0.9, 1, 1],
+          rotate: [0, 180, 360],
+          opacity: [1, 0.48, 0.48, 1, 1],
+        }}
         transition={{
-          duration: 2,
+          duration: 2.4,
           repeatDelay: 1,
           repeat: Infinity,
           ease: 'easeInOut',
         }}
+        style={{ display: 'inline-flex' }}
       >
         {logo ?? (
           <Logo

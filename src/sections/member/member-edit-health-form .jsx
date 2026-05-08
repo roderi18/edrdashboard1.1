@@ -14,9 +14,11 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 
-import { toast } from 'src/components/snackbar';
+import { guardarSaludMiembro, obtenerSaludMiembro } from 'src/services/member-health-service';
+
 // Hook form components 
 import { Form } from 'src/components/hook-form';
+import { toast } from 'src/components/snackbar';
 // Table components
 import { useTable, } from 'src/components/table';
 // Custom components
@@ -32,14 +34,17 @@ import { HealthConditionsSection } from 'src/sections/member/health/sections/hea
 // File manager
 import { FileManagerCreateFolderDialog } from 'src/sections/file-manager/file-manager-create-folder-dialog';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { useMedicalDocuments } from './health/hooks/use-medical-documents';
 
 export function MemberEditHealthForm({ currentMember, readOnly = false }) {
+    const { user } = useAuthContext();
     const memberId = currentMember?.id;
 
     const normalizedMember = {
         ...currentMember,
-        healthInsurance: currentMember?.healthInsurance ?? ['unknown'],
+        healthInsurance: currentMember?.healthInsurance ?? 'unknown',
     };
 
     const defaultValues = {
@@ -112,6 +117,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         },
 
         medicalConditionsOther: '',
+        specialCare: '',
 
     };
 
@@ -135,6 +141,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         reset,
         setValue,
         setError,
+        getValues,
         clearErrors,
         handleSubmit,
         formState: { isSubmitting },
@@ -149,15 +156,48 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         }
     }, [healthInsurance, setValue]);
 
+    useEffect(() => {
+        let active = true;
+
+        const loadHealthData = async () => {
+            if (!memberId) return;
+
+            try {
+                const healthData = await obtenerSaludMiembro(memberId);
+
+                if (!active) return;
+
+                reset({
+                    ...getValues(),
+                    ...healthData,
+                });
+            } catch (error) {
+                console.error(error);
+                toast.error('No se pudo cargar la información de salud.');
+            }
+        };
+
+        loadHealthData();
+
+        return () => {
+            active = false;
+        };
+    }, [getValues, memberId, reset]);
+
     const onSubmit = handleSubmit(async (data) => {
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            reset();
-            toast.success('Destacamento actualizado');
-            // router.push(paths.dashboard.level.member); //anteriormente .list
-            console.info('DATA', data);
+            await guardarSaludMiembro({
+                idMiembros: memberId,
+                codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+                data,
+                usuario: user,
+            });
+
+            reset(data);
+            toast.success('Información de salud guardada');
         } catch (error) {
             console.error(error);
+            toast.error(error.message || 'No se pudo guardar la información de salud.');
         }
     });
 

@@ -1,3 +1,5 @@
 export async function GET() {
-  return Response.json({ latestPosts: [] });
+  const { _posts } = await import('src/_mock');
+
+  return Response.json({ latestPosts: _posts });
 }
