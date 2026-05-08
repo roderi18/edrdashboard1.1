@@ -1,12 +1,14 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -14,19 +16,35 @@ import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
 
 import { fToNow } from 'src/utils/format-time';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { ChatHeaderSkeleton } from './chat-skeleton';
 
 // ----------------------------------------------------------------------
 
-export function ChatHeaderDetails({ collapseNav, participants, loading }) {
+export function ChatHeaderDetails({
+  collapseNav,
+  conversation,
+  participants,
+  loading,
+  onToggleMute,
+  onReport,
+  onClear,
+}) {
   const lgUp = useMediaQuery((theme) => theme.breakpoints.up('lg'));
 
   const menuActions = usePopover();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [reportComment, setReportComment] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const isGroup = participants.length > 1;
+  const isMuted = Boolean(conversation?.muted);
 
   const singleParticipant = participants[0];
 
@@ -40,6 +58,57 @@ export function ChatHeaderDetails({ collapseNav, participants, loading }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lgUp]);
+
+  const handleToggleMute = useCallback(async () => {
+    menuActions.onClose();
+    await onToggleMute?.();
+  }, [menuActions, onToggleMute]);
+
+  const handleOpenReport = useCallback(() => {
+    menuActions.onClose();
+    setReportOpen(true);
+  }, [menuActions]);
+
+  const handleOpenClear = useCallback(() => {
+    menuActions.onClose();
+    setClearOpen(true);
+  }, [menuActions]);
+
+  const handleSubmitReport = useCallback(async () => {
+    if (!reportComment.trim()) {
+      toast.error('Escribe un comentario para reportar el chat.');
+      return;
+    }
+
+    setReporting(true);
+
+    try {
+      await onReport?.(reportComment.trim());
+      toast.success('Reporte enviado al administrador.');
+      setReportComment('');
+      setReportOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo enviar el reporte.');
+    } finally {
+      setReporting(false);
+    }
+  }, [onReport, reportComment]);
+
+  const handleSubmitClear = useCallback(async () => {
+    setClearing(true);
+
+    try {
+      await onClear?.();
+      toast.success('Chat vaciado.');
+      setClearOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo vaciar el chat.');
+    } finally {
+      setClearing(false);
+    }
+  }, [onClear]);
 
   const renderGroup = () => (
     <AvatarGroup
@@ -89,26 +158,21 @@ export function ChatHeaderDetails({ collapseNav, participants, loading }) {
       onClose={menuActions.onClose}
     >
       <MenuList>
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:bell-off-bold" />
-          Silenciar notificaciones
+        <MenuItem onClick={handleToggleMute}>
+          <Iconify icon={isMuted ? 'solar:bell-bold' : 'solar:bell-off-bold'} />
+          {isMuted ? 'Activar notificaciones' : 'Silenciar notificaciones'}
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:forbidden-circle-bold" />
-          Bloquear
-        </MenuItem>
-
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handleOpenReport}>
           <Iconify icon="solar:danger-triangle-bold" />
           Reportar
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
-        <MenuItem onClick={() => menuActions.onClose()} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={handleOpenClear} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Eliminar
+          Vaciar chat
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -139,6 +203,44 @@ export function ChatHeaderDetails({ collapseNav, participants, loading }) {
       </Box>
 
       {renderMenuActions()}
+
+      <ConfirmDialog
+        open={reportOpen}
+        title="Reportar chat"
+        onClose={() => setReportOpen(false)}
+        content={
+          <Box sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Comentarios"
+              value={reportComment}
+              onChange={(event) => setReportComment(event.target.value)}
+              helperText="Este comentario se enviara al administrador."
+            />
+          </Box>
+        }
+        action={
+          <Button variant="contained" loading={reporting} onClick={handleSubmitReport}>
+            Enviar reporte
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={clearOpen}
+        title="Vaciar chat"
+        onClose={() => setClearOpen(false)}
+        content={`¿Seguro que deseas vaciar el chat con ${
+          singleParticipant?.name || 'esta persona'
+        }? Esta accion eliminara todos los mensajes de la conversacion.`}
+        action={
+          <Button color="error" variant="contained" loading={clearing} onClick={handleSubmitClear}>
+            Vaciar chat
+          </Button>
+        }
+      />
     </>
   );
 }

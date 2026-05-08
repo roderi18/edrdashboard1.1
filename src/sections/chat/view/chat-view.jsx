@@ -15,8 +15,11 @@ import {
   restoreMessage,
   useGetContacts,
   clickConversation,
+  clearConversation,
+  reportConversation,
   useGetConversation,
   useGetConversations,
+  toggleMuteConversation,
 } from 'src/actions/chat';
 
 import { EmptyContent } from 'src/components/empty-content';
@@ -129,6 +132,27 @@ export function ChatView() {
     [currentContact.idMiembros, selectedConversationId]
   );
 
+  const handleToggleMuteConversation = useCallback(async () => {
+    if (!selectedConversationId) return;
+
+    await toggleMuteConversation(selectedConversationId, currentContact.idMiembros);
+  }, [currentContact.idMiembros, selectedConversationId]);
+
+  const handleReportConversation = useCallback(
+    async (comment) => {
+      if (!selectedConversationId) return;
+
+      await reportConversation(selectedConversationId, currentContact.idMiembros, comment);
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleClearConversation = useCallback(async () => {
+    if (!selectedConversationId) return;
+
+    await clearConversation(selectedConversationId, currentContact.idMiembros);
+  }, [currentContact.idMiembros, selectedConversationId]);
+
   const filteredParticipants = conversation
     ? conversation.participants.filter((participant) => !isSameMember(participant, currentContact))
     : [];
@@ -147,8 +171,12 @@ export function ChatView() {
           header: selectedConversationId ? (
             <ChatHeaderDetails
               collapseNav={roomNav}
+              conversation={conversation}
               participants={filteredParticipants}
               loading={conversationLoading}
+              onToggleMute={handleToggleMuteConversation}
+              onReport={handleReportConversation}
+              onClear={handleClearConversation}
             />
           ) : (
             <ChatHeaderCompose contacts={contacts} onAddRecipients={handleAddRecipients} />

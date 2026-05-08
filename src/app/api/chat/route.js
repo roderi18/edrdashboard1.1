@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   orderBy,
+  deleteDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -301,6 +302,9 @@ const conversationToUi = async (conversation = {}, messages = null, viewerIdMiem
         : 'ONE_TO_ONE',
     participants: await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto)),
     messages: loadedMessages,
+    muted:
+      !!viewerIdMiembros &&
+      Boolean(conversation.silenciadoPorIdMiembros?.[String(viewerIdMiembros)]),
     unreadCount:
       viewerUnreadCount ??
       Object.values(conversation.noLeidosPorIdMiembros ?? {}).reduce(
@@ -431,8 +435,10 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
   if (!message.texto) return;
 
   const senderId = Number(message.remitenteIdMiembros);
+  const mutedByIdMiembros = conversation.silenciadoPorIdMiembros ?? {};
   const recipientsIds = asArray(conversation.participantesIds).filter(
-    (idMiembros) => Number(idMiembros) !== senderId
+    (idMiembros) =>
+      Number(idMiembros) !== senderId && !mutedByIdMiembros[String(idMiembros)]
   );
 
   if (!recipientsIds.length) return;
@@ -497,6 +503,36 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
       );
     })
   );
+}
+
+async function getAdminNotificationProfiles() {
+  const snapshots = await Promise.all(
+    COLECCIONES_USUARIOS.map((collectionName) =>
+      getDocs(collection(FIRESTORE, collectionName)).catch(() => ({ docs: [], collectionName }))
+    )
+  );
+
+  return snapshots.flatMap((snapshot, index) => {
+    const collectionName = COLECCIONES_USUARIOS[index];
+
+    return snapshot.docs
+      .map((item) => {
+        const profile = item.data() ?? {};
+        const role = String(profile.rol ?? profile.role ?? '').toLowerCase();
+        const isAdmin =
+          collectionName === 'admins' || role === 'admin' || role === 'administrador';
+
+        if (!isAdmin) {
+          return null;
+        }
+
+        return {
+          uid: String(profile.uid ?? profile.idUsuario ?? item.id ?? '').trim(),
+          idMiembros: toNumberOrNull(profile.idMiembros ?? profile.memberId),
+        };
+      })
+      .filter((profile) => profile?.uid);
+  });
 }
 
 async function getMessages(idConversacion) {
@@ -834,6 +870,140 @@ async function updateMessageAction({
   );
 }
 
+async function updateConversationAction({
+  conversationId,
+  action,
+  viewerIdMiembros = null,
+  comment = '',
+}) {
+  const existingConversation = await getConversationDoc(conversationId);
+
+  if (!existingConversation) {
+    throw new Error('La conversacion no existe.');
+  }
+
+  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
+  const viewerId = toNumberOrNull(viewerIdMiembros);
+
+  if (action === 'toggle-mute') {
+    if (!viewerId) {
+      throw new Error('No se pudo identificar el miembro para silenciar el chat.');
+    }
+
+    const silenciadoPorIdMiembros = { ...(existingConversation.silenciadoPorIdMiembros ?? {}) };
+
+    if (silenciadoPorIdMiembros[String(viewerId)]) {
+      delete silenciadoPorIdMiembros[String(viewerId)];
+    } else {
+      silenciadoPorIdMiembros[String(viewerId)] = true;
+    }
+
+    await setDoc(conversationRef, { silenciadoPorIdMiembros }, { merge: true });
+
+    return conversationToUi(
+      { ...existingConversation, silenciadoPorIdMiembros },
+      (await getMessages(conversationId)).map(messageToUi),
+      viewerId
+    );
+  }
+
+  if (action === 'clear') {
+    const messages = await getMessages(conversationId);
+
+    await Promise.all(
+      messages.map((message) =>
+        deleteDoc(
+          doc(
+            FIRESTORE,
+            COLECCION_CONVERSACIONES,
+            String(conversationId),
+            SUBCOLECCION_MENSAJES,
+            String(message.idMensaje)
+          )
+        )
+      )
+    );
+
+    await setDoc(
+      conversationRef,
+      {
+        actualizadoEn: nowIso(),
+        ultimoMensaje: null,
+        noLeidosPorIdMiembros: {},
+      },
+      { merge: true }
+    );
+
+    return conversationToUi(
+      { ...existingConversation, actualizadoEn: nowIso(), ultimoMensaje: null, noLeidosPorIdMiembros: {} },
+      [],
+      viewerId
+    );
+  }
+
+  if (action === 'report') {
+    const reporter =
+      asArray(existingConversation.participantes).find(
+        (participant) => Number(participant.idMiembros) === Number(viewerId)
+      ) ?? {};
+    const reporterName = buildNombreCompleto(reporter);
+    const cleanComment = String(comment || '').trim();
+
+    if (!cleanComment) {
+      throw new Error('Escribe un comentario para reportar el chat.');
+    }
+
+    const admins = await getAdminNotificationProfiles();
+    const createdAt = nowIso();
+
+    await Promise.all(
+      admins.map((admin) => {
+        const notificationId = `reporte_chat_${conversationId}_${Date.now()}_${admin.uid}`;
+
+        return setDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId), {
+          id: notificationId,
+          tipoNotificacion: 'chat_reportado',
+          modulo: 'mensajes',
+          titulo: 'Chat reportado',
+          tituloHtml: `<p><strong>${escapeHtml(reporterName)}</strong> reporto un chat</p>`,
+          mensaje: cleanComment,
+          mensajeVisual: cleanComment,
+          descripcion: cleanComment,
+          rolDestinatario: 'admin',
+          idsDestinatarios: [admin.uid],
+          prioridad: 'importante',
+          estado: 'no_leida',
+          fechaCreacion: createdAt,
+          fechaEnvio: createdAt,
+          fechaActualizacion: createdAt,
+          actorId: String(viewerId || ''),
+          actorTipo: 'usuario',
+          actorNombre: reporterName,
+          entidadTipo: 'chat',
+          entidadId: String(conversationId),
+          ruta: `/dashboard/chat?id=${conversationId}`,
+          archivada: false,
+          metadatos: {
+            idConversacion: String(conversationId),
+            reportadoPorIdMiembros: viewerId,
+            reportadoPor: reporterName,
+            comentario: cleanComment,
+          },
+          actualizadoEnServidor: serverTimestamp(),
+        });
+      })
+    );
+
+    return conversationToUi(
+      existingConversation,
+      (await getMessages(conversationId)).map(messageToUi),
+      viewerId
+    );
+  }
+
+  throw new Error('Accion de conversacion invalida.');
+}
+
 export async function GET(req) {
   try {
     ensureFirestore();
@@ -934,14 +1104,21 @@ export async function PATCH(req) {
     ensureFirestore();
 
     const body = await req.json();
-    const conversation = await updateMessageAction({
-      conversationId: body.conversationId,
-      messageId: body.messageId,
-      action: body.action,
-      viewerIdMiembros: toNumberOrNull(body.idMiembros),
-      reaction: body.reaction,
-      text: body.text,
-    });
+    const conversation = ['toggle-mute', 'report', 'clear'].includes(body.action)
+      ? await updateConversationAction({
+          conversationId: body.conversationId,
+          action: body.action,
+          viewerIdMiembros: toNumberOrNull(body.idMiembros),
+          comment: body.comment,
+        })
+      : await updateMessageAction({
+          conversationId: body.conversationId,
+          messageId: body.messageId,
+          action: body.action,
+          viewerIdMiembros: toNumberOrNull(body.idMiembros),
+          reaction: body.reaction,
+          text: body.text,
+        });
 
     return Response.json({ conversation });
   } catch (error) {

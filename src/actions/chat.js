@@ -561,3 +561,93 @@ export async function editMessage(conversationId, messageId, text, idMiembros) {
     throw error;
   }
 }
+
+const mutateConversation = async ({ conversationId, updater, revalidate = false }) => {
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => {
+      if (!currentData?.conversation) return currentData;
+
+      return { ...currentData, conversation: updater(currentData.conversation) };
+    },
+    { revalidate }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => {
+      if (!currentData?.conversations) return currentData;
+
+      return {
+        ...currentData,
+        conversations: currentData.conversations.map((conversation) =>
+          String(conversation.id) === String(conversationId) ? updater(conversation) : conversation
+        ),
+      };
+    },
+    { revalidate }
+  );
+};
+
+export async function toggleMuteConversation(conversationId, idMiembros) {
+  await mutateConversation({
+    conversationId,
+    updater: (conversation) => ({ ...conversation, muted: !conversation.muted }),
+  });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'toggle-mute',
+          conversationId,
+          idMiembros,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
+}
+
+export async function reportConversation(conversationId, idMiembros, comment) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'report',
+        conversationId,
+        idMiembros,
+        comment,
+      }),
+  });
+}
+
+export async function clearConversation(conversationId, idMiembros) {
+  await mutateConversation({
+    conversationId,
+    updater: (conversation) => ({
+      ...conversation,
+      messages: [],
+      unreadCount: 0,
+    }),
+  });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'clear',
+          conversationId,
+          idMiembros,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
+}

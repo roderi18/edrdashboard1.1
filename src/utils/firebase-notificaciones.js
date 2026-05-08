@@ -31,6 +31,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'perfil_actualizado',
   'evento_reprogramado',
   'mensaje_recibido',
+  'chat_reportado',
 ];
 
 export const TIPOS_NOTIFICACIONES_USUARIO = [
@@ -310,6 +311,17 @@ const DEFINICIONES_NOTIFICACIONES = {
     entidadTipo: 'mensaje',
     etiquetaAccion: 'Responder',
     tipoAccion: 'responder',
+    requiereFotoPersona: true,
+  },
+  chat_reportado: {
+    modulo: 'mensajes',
+    titulo: 'Chat reportado',
+    mensajePlantilla: '{{actorNombre}} reporto un chat.',
+    rolesDisponibles: ['admin'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'chat',
+    etiquetaAccion: 'Ver chat',
+    tipoAccion: 'ver',
     requiereFotoPersona: true,
   },
 };

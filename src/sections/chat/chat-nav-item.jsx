@@ -16,6 +16,8 @@ import { fToNow } from 'src/utils/format-time';
 
 import { clickConversation } from 'src/actions/chat';
 
+import { Iconify } from 'src/components/iconify';
+
 import { getNavItem } from './utils/get-nav-item';
 
 // ----------------------------------------------------------------------
@@ -136,6 +138,14 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
                     borderRadius: '50%',
                     bgcolor: 'info.main',
                   }}
+                />
+              )}
+
+              {conversation.muted && (
+                <Iconify
+                  icon="solar:bell-off-bold"
+                  width={16}
+                  sx={{ color: 'text.disabled' }}
                 />
               )}
             </Box>
