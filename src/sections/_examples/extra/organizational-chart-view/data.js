@@ -39,10 +39,38 @@ export const SIMPLE_DATA = {
 };
 
 export const LEADER_GROUP_DATA = [
-  createNode(6, 'Líder de Grupo'),
-  createNode(7, 'Líder de Grupo'),
-  createNode(8, 'Líder de Grupo'),
-  createNode(9, 'Líder de Grupo'),
+  {
+    id: _mock.id(14),
+    name: 'Navegantes',
+    role: '5 a 7 años',
+    avatarUrl: _mock.image.avatar(14),
+    isDivision: true,
+    children: [createNode(6, 'Líder de Grupo', undefined, [createNode(10, 'Líder Asistente de Grupo')])],
+  },
+  {
+    id: _mock.id(15),
+    name: 'Pioneros',
+    role: '8 a 10 años',
+    avatarUrl: _mock.image.avatar(15),
+    isDivision: true,
+    children: [createNode(7, 'Líder de Grupo', undefined, [createNode(11, 'Líder Asistente de Grupo')])],
+  },
+  {
+    id: _mock.id(16),
+    name: 'Seguidores',
+    role: '11 a 13 años',
+    avatarUrl: _mock.image.avatar(16),
+    isDivision: true,
+    children: [createNode(8, 'Líder de Grupo', undefined, [createNode(12, 'Líder Asistente de Grupo')])],
+  },
+  {
+    id: _mock.id(17),
+    name: 'Exploradores',
+    role: '14 a 17 años',
+    avatarUrl: _mock.image.avatar(17),
+    isDivision: true,
+    children: [createNode(9, 'Líder de Grupo', undefined, [createNode(13, 'Líder Asistente de Grupo')])],
+  },
 ];
 
 // ----------------------------------------------------------------------

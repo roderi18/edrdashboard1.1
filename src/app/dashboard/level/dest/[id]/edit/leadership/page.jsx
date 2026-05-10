@@ -4,7 +4,9 @@ import { useRef, useState, useEffect } from 'react';
 import { pdf, Text, Document, StyleSheet, Page as PdfPage, Image as PdfImage } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -58,6 +60,38 @@ function LeadershipPdfDocument({ destName, chartImage }) {
         <PdfImage src={chartImage} style={pdfStyles.chartImage} />
       </PdfPage>
     </Document>
+  );
+}
+
+function DivisionNode({ name, avatarUrl, role, sx }) {
+  return (
+    <Card
+      sx={[
+        () => ({
+          px: 1.5,
+          py: 1,
+          gap: 1,
+          minWidth: 200,
+          borderRadius: 1.5,
+          textAlign: 'left',
+          alignItems: 'center',
+          display: 'inline-flex',
+        }),
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      <Avatar alt={name} src={avatarUrl} sx={{ width: 32, height: 32 }} />
+
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle2" noWrap>
+          {name}
+        </Typography>
+
+        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+          {role}
+        </Typography>
+      </Box>
+    </Card>
   );
 }
 
@@ -547,7 +581,9 @@ export default function Page() {
           }}
         >
           <OrganizationalChart
+            lineWidth="1px"
             lineHeight="34px"
+            lineColor="var(--palette-grey-500)"
             data={SIMPLE_DATA}
             nodeItem={(props) => <StandardNode sx={{}} {...props} />}
           />
@@ -561,7 +597,20 @@ export default function Page() {
             }}
           >
             {LEADER_GROUP_DATA.map((node) => (
-              <StandardNode key={node.id} sx={{}} {...node} />
+              <OrganizationalChart
+                key={node.id}
+                lineWidth="1px"
+                lineHeight="34px"
+                lineColor="var(--palette-grey-500)"
+                data={node}
+                nodeItem={(props) =>
+                  props.isDivision ? (
+                    <DivisionNode sx={{}} {...props} />
+                  ) : (
+                    <StandardNode sx={{}} {...props} />
+                  )
+                }
+              />
             ))}
           </Box>
         </Box>
