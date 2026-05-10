@@ -4,7 +4,7 @@ import { _mock } from 'src/_mock';
 
 const rootNode = {
   group: 'root',
-  role: 'CEO, Co-founder',
+  role: 'Pastor',
   name: _mock.fullName(1),
   avatarUrl: _mock.image.avatar(1),
 };
@@ -29,14 +29,12 @@ const createNode = (index, role, groupName, children) => ({
 export const SIMPLE_DATA = {
   ...rootNode,
   children: [
-    createNode(2, 'Lead', undefined, [createNode(3, 'Senior')]),
-    createNode(4, 'Lead', undefined, [
-      createNode(5, 'Senior', undefined, [
-        createNode(6, 'Back end developer', undefined, [createNode(7, 'Back end developer')]),
-        createNode(8, 'Front end'),
+    createNode(2, 'Coordinador de Destacamento', undefined, [
+      createNode(3, 'Coordinador Asistente Destacamento', undefined, [
+        createNode(4, 'Consejo Destacamento'),
+        createNode(5, 'Capellán'),
       ]),
     ]),
-    createNode(9, 'Lead', undefined, [createNode(10, 'Support'), createNode(11, 'Content writer')]),
   ],
 };
 
