@@ -18,6 +18,7 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
@@ -96,10 +97,12 @@ const buildActorFromMember = (member = {}, fallback = {}) => ({
   correo: member.email || member.correo || fallback.correo || '',
 });
 
+const hasMemberDest = (member = {}) => Boolean(member.idDestacamento || member.destId);
+
 const buildScope = (option, level) => ({
   nivel: level,
   id: option?.id || option?.value || '',
-  nombre: option?.label || option?.nombre || '',
+  nombre: option?.nombre || option?.label || '',
 });
 
 const getEventScope = (event = {}) => {
@@ -115,6 +118,27 @@ const getEventScope = (event = {}) => {
 
 const sortByLabel = (a, b) => a.label.localeCompare(b.label, 'es');
 
+const getCurrentYear = () => new Date().getFullYear();
+
+const getEventYear = (event = {}) => {
+  const date = new Date(event.start || event.fechaInicio || '');
+
+  return Number.isNaN(date.getTime()) ? null : date.getFullYear();
+};
+
+const getScopeCount = (events = [], level, value, year = getCurrentYear()) =>
+  events.filter((event) => {
+    const scope = getEventScope(event);
+
+    return scope.level === level && scope.value === String(value) && getEventYear(event) === year;
+  }).length;
+
+const withCountLabel = (option, count) => ({
+  ...option,
+  nombre: option.nombre || option.label,
+  label: `${option.label} (${count})`,
+});
+
 const findMemberForUser = (members = [], user = {}, fallback = {}) => {
   const userEmail = normalizeIdentity(user.email || user.correo);
   const userCode = normalizeIdentity(user.codigoMiembro || user.memberId);
@@ -122,25 +146,39 @@ const findMemberForUser = (members = [], user = {}, fallback = {}) => {
   const userName = user.displayName || user.nombre || user.name || fallback.nombre;
   const userNameParts = normalizeWords(userName);
 
-  return members.find((member) => {
-    const memberEmail = normalizeIdentity(member.email || member.correo);
-    const memberCode = normalizeIdentity(member.memberId || member.codigoMiembro);
-    const memberId = normalizeIdentity(member.id || member.idMiembros);
-    const memberNameText = normalizeIdentity(
-      [member.firstName || member.nombres, member.lastName || member.apellidos]
-        .filter(Boolean)
-        .join(' ') || member.name
-    );
+  const scoredMembers = members
+    .map((member) => {
+      const memberEmail = normalizeIdentity(member.email || member.correo);
+      const memberCode = normalizeIdentity(member.memberId || member.codigoMiembro);
+      const memberId = normalizeIdentity(member.id || member.idMiembros);
+      const memberNameText = normalizeIdentity(
+        [member.firstName || member.nombres, member.lastName || member.apellidos]
+          .filter(Boolean)
+          .join(' ') || member.name
+      );
+      const hasDest = hasMemberDest(member);
+      let score = 0;
 
-    return (
-      (userEmail && memberEmail === userEmail) ||
-      (userCode && memberCode === userCode) ||
-      (userId && memberId === userId) ||
-      (userNameParts.length > 0 &&
-        userNameParts.every((part) => memberNameText.includes(part))) ||
-      (fallback.nombre && memberNameText.includes(normalizeIdentity(fallback.nombre)))
-    );
-  });
+      if (userEmail && memberEmail === userEmail) score = 100;
+      else if (userCode && memberCode === userCode) score = 90;
+      else if (userId && memberId === userId) score = 80;
+      else if (
+        userNameParts.length > 0 &&
+        userNameParts.every((part) => memberNameText.includes(part))
+      ) {
+        score = 40;
+      } else if (fallback.nombre && memberNameText.includes(normalizeIdentity(fallback.nombre))) {
+        score = 30;
+      }
+
+      if (score > 0 && hasDest) score += 5;
+
+      return { member, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scoredMembers[0]?.member || null;
 };
 
 export function CalendarView() {
@@ -226,30 +264,55 @@ export function CalendarView() {
   }, [fallbackActor, user]);
 
   const scopeOptions = useMemo(() => {
+    const currentYear = getCurrentYear();
+
     if (scopeLevel === 'nacional') {
-      return [NATIONAL_SCOPE_OPTION];
+      return [
+        withCountLabel(
+          NATIONAL_SCOPE_OPTION,
+          getScopeCount(events, 'nacional', NATIONAL_SCOPE_OPTION.value, currentYear)
+        ),
+      ];
     }
 
     if (scopeLevel === 'regional') {
       return organizationData.regionals
-        .map((regional) => ({
-          id: String(regional.id || regional.regionId || ''),
-          value: String(regional.id || regional.regionId || ''),
-          label: regional.regionalName || regional.name || 'Regional sin nombre',
-          nivel: 'regional',
-        }))
+        .map((regional) => {
+          const value = String(regional.id || regional.regionId || '');
+          const label = regional.regionalName || regional.name || 'Regional sin nombre';
+
+          return withCountLabel(
+            {
+              id: value,
+              value,
+              label,
+              nombre: label,
+              nivel: 'regional',
+            },
+            getScopeCount(events, 'regional', value, currentYear)
+          );
+        })
         .filter((option) => option.id)
         .sort(sortByLabel);
     }
 
     if (scopeLevel === 'seccional') {
       return organizationData.sectionals
-        .map((sectional) => ({
-          id: String(sectional.id || sectional.idSeccion || ''),
-          value: String(sectional.id || sectional.idSeccion || ''),
-          label: sectional.sectionalName || sectional.name || 'Seccional sin nombre',
-          nivel: 'seccional',
-        }))
+        .map((sectional) => {
+          const value = String(sectional.id || sectional.idSeccion || '');
+          const label = sectional.sectionalName || sectional.name || 'Seccional sin nombre';
+
+          return withCountLabel(
+            {
+              id: value,
+              value,
+              label,
+              nombre: label,
+              nivel: 'seccional',
+            },
+            getScopeCount(events, 'seccional', value, currentYear)
+          );
+        })
         .filter((option) => option.id)
         .sort(sortByLabel);
     }
@@ -260,20 +323,45 @@ export function CalendarView() {
     const currentDest = organizationData.dests.find((dest) => String(dest.id) === currentDestId);
 
     if (!currentDestId) {
-      return [];
+      return [
+        withCountLabel(
+          {
+            id: 'sin-destacamento',
+            value: 'sin-destacamento',
+            label: 'Sin destacamento asignado',
+            nombre: 'Sin destacamento asignado',
+            nivel: 'mi-destacamento',
+          },
+          0
+        ),
+      ];
     }
 
+    const destLabel = currentDest
+      ? `${currentDest.name || 'Destacamento'} ${currentDest.destNumber || ''}`.trim()
+      : 'Mi Destacamento';
+
     return [
-      {
-        id: currentDestId,
-        value: currentDestId,
-        label: currentDest
-          ? `${currentDest.name || 'Destacamento'} ${currentDest.destNumber || ''}`.trim()
-          : 'Mi Destacamento',
-        nivel: 'mi-destacamento',
-      },
+      withCountLabel(
+        {
+          id: currentDestId,
+          value: currentDestId,
+          label: destLabel,
+          nombre: destLabel,
+          nivel: 'mi-destacamento',
+        },
+        getScopeCount(events, 'mi-destacamento', currentDestId, currentYear)
+      ),
     ];
-  }, [currentMember, organizationData.dests, organizationData.regionals, organizationData.sectionals, scopeLevel, user]);
+  }, [
+    currentMember,
+    events,
+    organizationData.dests,
+    organizationData.regionals,
+    organizationData.sectionals,
+    scopeLevel,
+    user,
+  ]);
 
   useEffect(() => {
     if (!scopeOptions.length) {
@@ -300,9 +388,11 @@ export function CalendarView() {
     setScopeLevel(event.target.value);
   }, []);
 
-  const handleChangeScopeValue = useCallback((event) => {
-    setScopeValue(event.target.value);
+  const handleChangeScopeAutocomplete = useCallback((event, option) => {
+    setScopeValue(option?.value || '');
   }, []);
+
+  const scopeValueDisabled = scopeLevel === 'mi-destacamento' || !scopeOptions.length;
 
   const handleCreateEvent = useCallback(
     async (eventData) => {
@@ -385,6 +475,13 @@ export function CalendarView() {
         onCreateEvent={handleCreateEvent}
         onUpdateEvent={handleUpdateEvent}
         onDeleteEvent={handleDeleteEvent}
+        scopeLevel={scopeLevel}
+        scopeValue={scopeValue}
+        scopeOptions={scopeOptions}
+        scopeLevelOptions={CALENDAR_LEVEL_OPTIONS}
+        scopeValueDisabled={scopeValueDisabled}
+        onScopeLevelChange={handleChangeScopeLevel}
+        onScopeValueAutocompleteChange={handleChangeScopeAutocomplete}
       />
     </Dialog>
   );
@@ -448,25 +545,18 @@ export function CalendarView() {
               ))}
             </TextField>
 
-            <TextField
-              select
+            <Autocomplete
               size="small"
-              label="Valor"
-              value={scopeValue}
-              onChange={handleChangeScopeValue}
-              disabled={!scopeOptions.length}
+              options={scopeOptions}
+              value={scopeOptions.find((option) => option.value === scopeValue) || null}
+              onChange={handleChangeScopeAutocomplete}
+              disabled={scopeValueDisabled}
+              noOptionsText="Sin valores disponibles"
+              getOptionLabel={(option) => option?.label || ''}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
               sx={{ minWidth: { xs: 220, sm: 260 } }}
-            >
-              {scopeOptions.length ? (
-                scopeOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem value="">Sin valores disponibles</MenuItem>
-              )}
-            </TextField>
+              renderInput={(params) => <TextField {...params} label="Valor" />}
+            />
           </Box>
 
           <Button

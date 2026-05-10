@@ -8,7 +8,10 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 
 import { fIsAfter } from 'src/utils/format-time';
@@ -49,6 +52,13 @@ export function CalendarForm({
   onCreateEvent = createEvent,
   onUpdateEvent = updateEvent,
   onDeleteEvent = deleteEvent,
+  scopeLevel,
+  scopeValue,
+  scopeOptions = [],
+  scopeLevelOptions = [],
+  scopeValueDisabled = false,
+  onScopeLevelChange,
+  onScopeValueAutocompleteChange,
 }) {
   const confirmDelete = useBoolean();
 
@@ -114,6 +124,36 @@ export function CalendarForm({
       <Form methods={methods} onSubmit={onSubmit}>
         <Scrollbar sx={{ p: 3, bgcolor: 'background.neutral' }}>
           <Stack spacing={3}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Nivel"
+                value={scopeLevel}
+                onChange={onScopeLevelChange}
+              >
+                {scopeLevelOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <Autocomplete
+                fullWidth
+                size="small"
+                options={scopeOptions}
+                value={scopeOptions.find((option) => option.value === scopeValue) || null}
+                onChange={onScopeValueAutocompleteChange}
+                disabled={scopeValueDisabled}
+                noOptionsText="Sin valores disponibles"
+                getOptionLabel={(option) => option?.label || ''}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                renderInput={(params) => <TextField {...params} label="Valor" />}
+              />
+            </Stack>
+
             <Field.Text name="title" label="Título" />
             <Field.Text name="description" label="Descripción" multiline rows={3} />
             <Field.Switch name="allDay" label="Todo el día" />
