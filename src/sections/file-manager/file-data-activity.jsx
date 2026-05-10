@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
@@ -13,9 +13,12 @@ import { Chart, useChart, ChartSelect } from 'src/components/chart';
 export function FileDataActivity({ title, subheader, chart, sx, ...other }) {
   const theme = useTheme();
 
-  const [selectedSeries, setSelectedSeries] = useState('Yearly');
+  const firstSeriesName = chart.series?.[0]?.name || '';
 
-  const currentSeries = chart.series.find((i) => i.name === selectedSeries);
+  const [selectedSeries, setSelectedSeries] = useState(firstSeriesName);
+
+  const currentSeries = chart.series.find((i) => i.name === selectedSeries) || chart.series[0];
+  const currentValueType = currentSeries?.valueType || chart.valueType;
 
   const chartColors = chart.colors ?? [
     theme.palette.primary.main,
@@ -30,9 +33,20 @@ export function FileDataActivity({ title, subheader, chart, sx, ...other }) {
     stroke: { width: 0 },
     legend: { show: true },
     xaxis: { categories: currentSeries?.categories },
-    tooltip: { y: { formatter: (value) => fData(value) } },
+    tooltip: {
+      y: {
+        formatter: (value) =>
+          currentValueType === 'count' ? value.toLocaleString('es-DO') : fData(value),
+      },
+    },
     ...chart.options,
   });
+
+  useEffect(() => {
+    if (!chart.series.some((i) => i.name === selectedSeries)) {
+      setSelectedSeries(firstSeriesName);
+    }
+  }, [chart.series, firstSeriesName, selectedSeries]);
 
   const handleChangeSeries = useCallback((newValue) => {
     setSelectedSeries(newValue);
