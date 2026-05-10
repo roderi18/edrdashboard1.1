@@ -544,6 +544,15 @@ export default function Page() {
               xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
             },
             transformOrigin: 'top center',
+            '& > ul > li > ul > li > ul > li > ul': {
+              flexWrap: 'wrap',
+            },
+            '& > ul > li > ul > li > ul > li > ul > li': {
+              flex: '0 0 25%',
+            },
+            '& > ul > li > ul > li > ul > li > ul > li:nth-of-type(-n+2)': {
+              flexBasis: '50%',
+            },
           }}
         >
           <OrganizationalChart
