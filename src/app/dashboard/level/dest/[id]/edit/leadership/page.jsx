@@ -1,11 +1,9 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
-import { ComponentBox } from 'src/sections/_examples/layout';
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
 import { SIMPLE_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
 import { StandardNode } from 'src/sections/_examples/extra/organizational-chart-view/standard-node';
@@ -13,11 +11,7 @@ import { StandardNode } from 'src/sections/_examples/extra/organizational-chart-
 export default function Page() {
   return (
     <DestEditLayout maxWidth={false}>
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        Standard
-      </Typography>
-
-      <ComponentBox
+      <Box
         sx={{
           mx: 'auto',
           maxWidth: 940,
@@ -38,7 +32,7 @@ export default function Page() {
             nodeItem={(props) => <StandardNode sx={{ minWidth: 220, p: 2.25 }} {...props} />}
           />
         </Box>
-      </ComponentBox>
+      </Box>
     </DestEditLayout>
   );
 }
