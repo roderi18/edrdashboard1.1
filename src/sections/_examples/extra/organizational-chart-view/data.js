@@ -7,6 +7,11 @@ const rootNode = {
   role: 'Pastor',
   name: _mock.fullName(1),
   avatarUrl: _mock.image.avatar(1),
+  asignacionOrganigrama: {
+    cargo: 'pastor',
+    division: null,
+    orden: 1,
+  },
 };
 
 const group = {
@@ -15,13 +20,14 @@ const group = {
   marketing: 'marketing',
 };
 
-const createNode = (index, role, groupName, children) => ({
+const createNode = (index, role, groupName, children, extra = {}) => ({
   id: _mock.id(index),
   name: _mock.fullName(index),
   avatarUrl: _mock.image.avatar(index),
   role,
   group: groupName,
   children,
+  ...extra,
 });
 
 // ----------------------------------------------------------------------
@@ -29,12 +35,48 @@ const createNode = (index, role, groupName, children) => ({
 export const SIMPLE_DATA = {
   ...rootNode,
   children: [
-    createNode(2, 'Coordinador de Destacamento', undefined, [
-      createNode(3, 'Coordinador Asistente Destacamento', undefined, [
-        createNode(4, 'Consejo Destacamento'),
-        createNode(5, 'Capellán'),
-      ]),
-    ]),
+    createNode(
+      2,
+      'Coordinador de Destacamento',
+      undefined,
+      [
+        createNode(
+          3,
+          'Coordinador Asistente Destacamento',
+          undefined,
+          [
+            createNode(4, 'Consejo Destacamento', undefined, undefined, {
+              asignacionOrganigrama: {
+                cargo: 'consejo_destacamento',
+                division: null,
+                orden: 1,
+              },
+            }),
+            createNode(5, 'Capellán', undefined, undefined, {
+              asignacionOrganigrama: {
+                cargo: 'capellan',
+                division: null,
+                orden: 1,
+              },
+            }),
+          ],
+          {
+            asignacionOrganigrama: {
+              cargo: 'coordinador_asistente_destacamento',
+              division: null,
+              orden: 1,
+            },
+          }
+        ),
+      ],
+      {
+        asignacionOrganigrama: {
+          cargo: 'coordinador_destacamento',
+          division: null,
+          orden: 1,
+        },
+      }
+    ),
   ],
 };
 
@@ -45,7 +87,29 @@ export const LEADER_GROUP_DATA = [
     role: '5 a 7 años',
     avatarUrl: '/logo/navegantes.png',
     isDivision: true,
-    children: [createNode(6, 'Líder de Grupo', undefined, [createNode(10, 'Líder Asistente de Grupo')])],
+    children: [
+      createNode(
+        6,
+        'Líder de Grupo',
+        undefined,
+        [
+          createNode(10, 'Líder Asistente de Grupo', undefined, undefined, {
+            asignacionOrganigrama: {
+              cargo: 'lider_asistente_grupo',
+              division: 'navegantes',
+              orden: 1,
+            },
+          }),
+        ],
+        {
+          asignacionOrganigrama: {
+            cargo: 'lider_grupo',
+            division: 'navegantes',
+            orden: 1,
+          },
+        }
+      ),
+    ],
   },
   {
     id: _mock.id(15),
@@ -53,7 +117,29 @@ export const LEADER_GROUP_DATA = [
     role: '8 a 10 años',
     avatarUrl: '/logo/pioneros.png',
     isDivision: true,
-    children: [createNode(7, 'Líder de Grupo', undefined, [createNode(11, 'Líder Asistente de Grupo')])],
+    children: [
+      createNode(
+        7,
+        'Líder de Grupo',
+        undefined,
+        [
+          createNode(11, 'Líder Asistente de Grupo', undefined, undefined, {
+            asignacionOrganigrama: {
+              cargo: 'lider_asistente_grupo',
+              division: 'pioneros',
+              orden: 1,
+            },
+          }),
+        ],
+        {
+          asignacionOrganigrama: {
+            cargo: 'lider_grupo',
+            division: 'pioneros',
+            orden: 1,
+          },
+        }
+      ),
+    ],
   },
   {
     id: _mock.id(16),
@@ -61,7 +147,29 @@ export const LEADER_GROUP_DATA = [
     role: '11 a 13 años',
     avatarUrl: '/logo/seguidores.png',
     isDivision: true,
-    children: [createNode(8, 'Líder de Grupo', undefined, [createNode(12, 'Líder Asistente de Grupo')])],
+    children: [
+      createNode(
+        8,
+        'Líder de Grupo',
+        undefined,
+        [
+          createNode(12, 'Líder Asistente de Grupo', undefined, undefined, {
+            asignacionOrganigrama: {
+              cargo: 'lider_asistente_grupo',
+              division: 'seguidores',
+              orden: 1,
+            },
+          }),
+        ],
+        {
+          asignacionOrganigrama: {
+            cargo: 'lider_grupo',
+            division: 'seguidores',
+            orden: 1,
+          },
+        }
+      ),
+    ],
   },
   {
     id: _mock.id(17),
@@ -69,7 +177,29 @@ export const LEADER_GROUP_DATA = [
     role: '14 a 17 años',
     avatarUrl: '/logo/exploradores.png',
     isDivision: true,
-    children: [createNode(9, 'Líder de Grupo', undefined, [createNode(13, 'Líder Asistente de Grupo')])],
+    children: [
+      createNode(
+        9,
+        'Líder de Grupo',
+        undefined,
+        [
+          createNode(13, 'Líder Asistente de Grupo', undefined, undefined, {
+            asignacionOrganigrama: {
+              cargo: 'lider_asistente_grupo',
+              division: 'exploradores',
+              orden: 1,
+            },
+          }),
+        ],
+        {
+          asignacionOrganigrama: {
+            cargo: 'lider_grupo',
+            division: 'exploradores',
+            orden: 1,
+          },
+        }
+      ),
+    ],
   },
 ];
 

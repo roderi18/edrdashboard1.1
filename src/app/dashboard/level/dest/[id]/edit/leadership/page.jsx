@@ -1,22 +1,44 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { usePopover } from 'minimal-shared/hooks';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { pdf, Text, Document, StyleSheet, Page as PdfPage, Image as PdfImage } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 
 import { useParams } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
+import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+
+import {
+  obtenerAsignacionesOrganigramaPorDestacamento,
+  guardarAsignacionOrganigramaDirectivaDestacamento,
+  desactivarAsignacionOrganigramaDirectivaDestacamento,
+} from 'src/services/organigrama-directiva-destacamentos-service';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
-import { StandardNode } from 'src/sections/_examples/extra/organizational-chart-view/standard-node';
 import { SIMPLE_DATA, LEADER_GROUP_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
 
 const MIN_ZOOM = 0.7;
@@ -25,6 +47,21 @@ const ZOOM_STEP = 0.1;
 const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
+
+const getDefaultZoom = () => {
+  const mobileScreenQuery = window.matchMedia('(max-width: 599px)');
+  const largeScreenQuery = window.matchMedia('(min-width: 1200px)');
+
+  if (mobileScreenQuery.matches) {
+    return 0.9;
+  }
+
+  if (largeScreenQuery.matches) {
+    return 1.2;
+  }
+
+  return 1;
+};
 
 const pdfStyles = StyleSheet.create({
   page: {
@@ -101,6 +138,230 @@ function DivisionNode({ name, avatarUrl, role, sx }) {
         </Typography>
       </Box>
     </Card>
+  );
+}
+
+const getMemberId = (member) => Number(member?.idMiembros ?? member?.id ?? 0) || null;
+
+const getMemberName = (member) =>
+  [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() ||
+  member?.name ||
+  member?.displayName ||
+  member?.codigoMiembro ||
+  member?.memberId ||
+  '';
+
+const getMemberAvatar = (member) =>
+  member?.avatarUrl ||
+  member?.photoURL ||
+  member?.urlFoto ||
+  member?.fotoURL ||
+  member?.fotoUrl ||
+  member?.foto ||
+  '';
+
+const getMemberPhoto = (memberPhotos, member) => {
+  const photoKeys = [
+    getMemberId(member),
+    member?.id,
+    member?.idMiembros,
+    member?.memberId,
+    member?.codigoMiembro,
+  ]
+    .filter(Boolean)
+    .map(String);
+
+  return photoKeys.map((photoKey) => memberPhotos[photoKey]).find((photo) => photo?.urlFoto);
+};
+
+const mergeMemberPhotos = async (members, memberPhotos) =>
+  Promise.all(
+    members.map(async (member) => {
+      const memberId = getMemberId(member);
+      const memberPhoto =
+        getMemberPhoto(memberPhotos, member) ||
+        (memberId
+          ? await obtenerFotoPrincipal({ tipoEntidad: 'miembro', idEntidad: memberId }).catch(
+              () => null
+            )
+          : null);
+
+      return {
+        ...member,
+        avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || member.photoURL || '',
+      };
+    })
+  );
+
+const getMemberOptionKey = (member) =>
+  member?.__organigramaOptionKey ||
+  [
+    getMemberId(member),
+    member?.codigoMiembro,
+    member?.memberId,
+    member?.email,
+    getMemberName(member),
+  ]
+    .filter(Boolean)
+    .join('-');
+
+const getAssignmentKey = (asignacion) =>
+  [
+    asignacion?.cargo || '',
+    asignacion?.division || 'general',
+    asignacion?.orden || 1,
+  ].join('|');
+
+function LeadershipNode({
+  name,
+  avatarUrl,
+  role,
+  sx,
+  miembroAsignado,
+  asignacionOrganigrama,
+  onCambiarMiembro,
+  onRemoverMiembro,
+  onInformacionRol,
+}) {
+  const menuActions = usePopover();
+  const displayName = miembroAsignado ? getMemberName(miembroAsignado) : name;
+  const displayAvatar = miembroAsignado ? getMemberAvatar(miembroAsignado) : avatarUrl;
+  const miembroAsignadoId = getMemberId(miembroAsignado);
+  const memberProfileHref = miembroAsignadoId
+    ? `/dashboard/level/member/${miembroAsignadoId}/edit`
+    : '';
+
+  const handleCambiarMiembro = () => {
+    menuActions.onClose();
+    onCambiarMiembro?.({ name, role, avatarUrl, asignacionOrganigrama });
+  };
+
+  const handleRemoverMiembro = () => {
+    menuActions.onClose();
+    onRemoverMiembro?.({ name, role, avatarUrl, asignacionOrganigrama });
+  };
+
+  const handleInformacionRol = () => {
+    menuActions.onClose();
+    onInformacionRol?.({ name, role, asignacionOrganigrama });
+  };
+
+  const getMenuItemActionProps = (handler) => ({
+    onPointerDown: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handler();
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+
+      if (event.detail === 0) {
+        handler();
+      }
+    },
+  });
+
+  const renderMenuActions = () => (
+    <CustomPopover
+      open={menuActions.open}
+      anchorEl={menuActions.anchorEl}
+      onClose={menuActions.onClose}
+      slotProps={{ arrow: { placement: 'left-center' } }}
+    >
+      <MenuList onPointerDown={(event) => event.stopPropagation()}>
+        <MenuItem {...getMenuItemActionProps(handleCambiarMiembro)}>
+          <Iconify icon="solar:user-plus-bold" />
+          Cambiar miembro
+        </MenuItem>
+
+        <MenuItem {...getMenuItemActionProps(handleRemoverMiembro)} sx={{ color: 'error.main' }}>
+          <Iconify icon="solar:user-cross-bold" />
+          Remover miembro
+        </MenuItem>
+
+        <MenuItem {...getMenuItemActionProps(handleInformacionRol)}>
+          <Iconify icon="solar:info-circle-bold" />
+          Información de rol
+        </MenuItem>
+      </MenuList>
+    </CustomPopover>
+  );
+
+  return (
+    <>
+      <Card
+        sx={[
+          () => ({
+            p: 2,
+            minWidth: 200,
+            borderRadius: 1.5,
+            textAlign: 'left',
+            position: 'relative',
+            display: 'inline-flex',
+            flexDirection: 'column',
+          }),
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
+      >
+        <IconButton
+          color={menuActions.open ? 'inherit' : 'default'}
+          onClick={menuActions.onOpen}
+          sx={{ position: 'absolute', top: 8, right: 8 }}
+        >
+          <Iconify icon="eva:more-horizontal-fill" />
+        </IconButton>
+
+        <Box
+          component={memberProfileHref ? RouterLink : 'div'}
+          href={memberProfileHref || undefined}
+          onClick={memberProfileHref ? (event) => event.stopPropagation() : undefined}
+          onPointerDown={memberProfileHref ? (event) => event.stopPropagation() : undefined}
+          sx={{
+            mr: 2,
+            mb: 2,
+            width: 48,
+            height: 48,
+            display: 'block',
+            borderRadius: '50%',
+          }}
+        >
+          <Avatar
+            alt={displayName}
+            src={displayAvatar}
+            sx={{
+              width: 1,
+              height: 1,
+            }}
+          />
+        </Box>
+
+        <Typography variant="subtitle2" noWrap sx={{ mb: 0.5, pr: 3 }}>
+          {memberProfileHref ? (
+            <Link
+              component={RouterLink}
+              href={memberProfileHref}
+              underline="hover"
+              color="inherit"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+          ) : (
+            displayName
+          )}
+        </Typography>
+
+        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+          {role}
+        </Typography>
+      </Card>
+
+      {renderMenuActions()}
+    </>
   );
 }
 
@@ -239,17 +500,88 @@ export default function Page() {
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
   const [destName, setDestName] = useState('Destacamento');
+  const [members, setMembers] = useState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [roleInfoNode, setRoleInfoNode] = useState(null);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
+  const [isSavingMember, setIsSavingMember] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const zoomPercentage = Math.round(zoom * 100);
+  const membersById = useMemo(
+    () =>
+      members.reduce((acc, member) => {
+        const memberId = getMemberId(member);
+
+        if (memberId) {
+          acc[String(memberId)] = member;
+        }
+
+        return acc;
+      }, {}),
+    [members]
+  );
+
+  useEffect(() => {
+    setZoom(getDefaultZoom());
+  }, []);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        const res = await fetch('/api/members');
+        const data = await res.json();
+        const loadedMembers = Array.isArray(data?.data) ? data.data : [];
+        const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
+
+        const membersWithPhotos = await mergeMemberPhotos(loadedMembers, memberPhotos);
+
+        setMembers(
+          membersWithPhotos.map((member, index) => ({
+            ...member,
+            __organigramaOptionKey: `${getMemberOptionKey(member) || 'miembro'}-${index}`,
+          }))
+        );
+      } catch (error) {
+        console.error('Error cargando miembros:', error);
+      }
+    };
+
+    loadMembers();
+  }, []);
+
+  useEffect(() => {
+    const loadAssignments = async () => {
+      try {
+        const data = await obtenerAsignacionesOrganigramaPorDestacamento(destId);
+
+        setAssignments(
+          data.reduce((acc, assignment) => {
+            acc[getAssignmentKey(assignment)] = assignment;
+            return acc;
+          }, {})
+        );
+      } catch (error) {
+        console.error('Error cargando asignaciones del organigrama:', error);
+      }
+    };
+
+    if (destId) {
+      loadAssignments();
+    }
+  }, [destId]);
 
   useEffect(() => {
     const handleClickAwayPopover = (event) => {
-      const popoverPaper = document.querySelector('.MuiPopover-paper');
+      const popoverPapers = Array.from(document.querySelectorAll('.MuiPopover-paper'));
 
-      if (!popoverPaper || popoverPaper.contains(event.target)) {
+      if (
+        !popoverPapers.length ||
+        popoverPapers.some((popoverPaper) => popoverPaper.contains(event.target))
+      ) {
         return;
       }
 
@@ -349,7 +681,89 @@ export default function Page() {
 
   const handleResetView = () => {
     setPan({ x: 0, y: 0 });
-    setZoom(1);
+    setZoom(getDefaultZoom());
+  };
+
+  const getAssignedMember = (node) => {
+    const assignment = assignments[getAssignmentKey(node?.asignacionOrganigrama)];
+
+    return assignment?.idMiembros ? membersById[String(assignment.idMiembros)] : null;
+  };
+
+  const handleOpenChangeMember = (node) => {
+    setSelectedNode(node);
+    setSelectedMember(getAssignedMember(node));
+  };
+
+  const handleCloseChangeMember = () => {
+    if (isSavingMember) {
+      return;
+    }
+
+    setSelectedNode(null);
+    setSelectedMember(null);
+  };
+
+  const handleSaveMemberAssignment = async () => {
+    const memberId = getMemberId(selectedMember);
+    const assignmentInfo = selectedNode?.asignacionOrganigrama;
+
+    if (!assignmentInfo || !memberId) {
+      toast.warning('Selecciona un miembro para asignarlo al rol.');
+      return;
+    }
+
+    setIsSavingMember(true);
+
+    try {
+      const savedAssignment = await guardarAsignacionOrganigramaDirectivaDestacamento({
+        idDestacamento: destId,
+        idMiembros: memberId,
+        ...assignmentInfo,
+      });
+
+      setAssignments((current) => ({
+        ...current,
+        [getAssignmentKey(savedAssignment)]: savedAssignment,
+      }));
+      setSelectedNode(null);
+      setSelectedMember(null);
+      toast.success('Miembro asignado correctamente.');
+    } catch (error) {
+      console.error('Error guardando asignacion del organigrama:', error);
+      toast.error(error?.message || 'No se pudo asignar el miembro.');
+    } finally {
+      setIsSavingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (node) => {
+    const assignmentInfo = node?.asignacionOrganigrama;
+    const assignmentKey = getAssignmentKey(assignmentInfo);
+    const assignment = assignments[assignmentKey];
+
+    if (!assignment?.id) {
+      toast.info('Este rol no tiene un miembro asignado.');
+      return;
+    }
+
+    try {
+      await desactivarAsignacionOrganigramaDirectivaDestacamento(assignment.id);
+
+      setAssignments((current) => {
+        const nextAssignments = { ...current };
+        delete nextAssignments[assignmentKey];
+        return nextAssignments;
+      });
+      toast.success('Miembro removido del rol.');
+    } catch (error) {
+      console.error('Error removiendo miembro del organigrama:', error);
+      toast.error(error?.message || 'No se pudo remover el miembro.');
+    }
+  };
+
+  const handleRoleInfo = (node) => {
+    setRoleInfoNode(node);
   };
 
   const handleDownloadPdf = async () => {
@@ -589,12 +1003,34 @@ export default function Page() {
             transformOrigin: 'top center',
           }}
         >
+          <Typography
+            variant="h3"
+            sx={{
+              mb: 3,
+              textAlign: 'center',
+              fontWeight: 700,
+            }}
+          >
+            {destName && destName !== 'Destacamento'
+              ? `Destacamento ${destName}`
+              : 'Destacamento'}
+          </Typography>
+
           <OrganizationalChart
             lineWidth="1px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
             data={SIMPLE_DATA}
-            nodeItem={(props) => <StandardNode sx={{}} {...props} />}
+            nodeItem={(props) => (
+              <LeadershipNode
+                sx={{}}
+                {...props}
+                miembroAsignado={getAssignedMember(props)}
+                onCambiarMiembro={handleOpenChangeMember}
+                onRemoverMiembro={handleRemoveMember}
+                onInformacionRol={handleRoleInfo}
+              />
+            )}
           />
 
           <Box
@@ -616,7 +1052,14 @@ export default function Page() {
                   props.isDivision ? (
                     <DivisionNode sx={{}} {...props} />
                   ) : (
-                    <StandardNode sx={{}} {...props} />
+                    <LeadershipNode
+                      sx={{}}
+                      {...props}
+                      miembroAsignado={getAssignedMember(props)}
+                      onCambiarMiembro={handleOpenChangeMember}
+                      onRemoverMiembro={handleRemoveMember}
+                      onInformacionRol={handleRoleInfo}
+                    />
                   )
                 }
               />
@@ -624,6 +1067,102 @@ export default function Page() {
           </Box>
         </Box>
       </Box>
+
+      <Dialog
+        open={!!selectedNode}
+        onClose={handleCloseChangeMember}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Cambiar miembro</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {selectedNode?.role || 'Rol del organigrama'}
+            </Typography>
+
+            <Autocomplete
+              options={members}
+              value={selectedMember}
+              loading={!members.length}
+              onChange={(event, value) => setSelectedMember(value)}
+              getOptionLabel={(option) => getMemberName(option)}
+              getOptionKey={(option) => getMemberOptionKey(option)}
+              isOptionEqualToValue={(option, value) =>
+                getMemberOptionKey(option) === getMemberOptionKey(value)
+              }
+              renderOption={(optionProps, option) => {
+                const { key, ...liProps } = optionProps;
+
+                return (
+                  <Box key={key} component="li" {...liProps}>
+                    <Avatar
+                      alt={getMemberName(option)}
+                      src={getMemberAvatar(option)}
+                      sx={{ width: 36, height: 36, mr: 1.5 }}
+                    />
+
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle2" noWrap>
+                        {getMemberName(option)}
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        component="div"
+                        noWrap
+                        sx={{ color: 'text.secondary' }}
+                      >
+                        {option.codigoMiembro || option.memberId || `ID ${getMemberId(option)}`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              }}
+              renderInput={(autocompleteParams) => (
+                <TextField {...autocompleteParams} label="Miembro" placeholder="Buscar miembro" />
+              )}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button disabled={isSavingMember} onClick={handleCloseChangeMember}>
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            disabled={!selectedMember || isSavingMember}
+            onClick={handleSaveMemberAssignment}
+          >
+            Asignar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!roleInfoNode} onClose={() => setRoleInfoNode(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Información de rol</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="subtitle1">{roleInfoNode?.role || 'Rol del organigrama'}</Typography>
+
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent
+              libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum
+              imperdiet. Duis sagittis ipsum.
+            </Typography>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="contained" onClick={() => setRoleInfoNode(null)}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DestEditLayout>
   );
 }
