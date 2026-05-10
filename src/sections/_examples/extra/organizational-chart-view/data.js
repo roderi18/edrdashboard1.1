@@ -33,14 +33,17 @@ export const SIMPLE_DATA = {
       createNode(3, 'Coordinador Asistente Destacamento', undefined, [
         createNode(4, 'Consejo Destacamento'),
         createNode(5, 'Capellán'),
-        createNode(6, 'Líder de Grupo'),
-        createNode(7, 'Líder de Grupo'),
-        createNode(8, 'Líder de Grupo'),
-        createNode(9, 'Líder de Grupo'),
       ]),
     ]),
   ],
 };
+
+export const LEADER_GROUP_DATA = [
+  createNode(6, 'Líder de Grupo'),
+  createNode(7, 'Líder de Grupo'),
+  createNode(8, 'Líder de Grupo'),
+  createNode(9, 'Líder de Grupo'),
+];
 
 // ----------------------------------------------------------------------
 

@@ -15,8 +15,8 @@ import { Iconify } from 'src/components/iconify';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
-import { SIMPLE_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
 import { StandardNode } from 'src/sections/_examples/extra/organizational-chart-view/standard-node';
+import { SIMPLE_DATA, LEADER_GROUP_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
 
 const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
@@ -544,15 +544,6 @@ export default function Page() {
               xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
             },
             transformOrigin: 'top center',
-            '& > ul > li > ul > li > ul > li > ul': {
-              flexWrap: 'wrap',
-            },
-            '& > ul > li > ul > li > ul > li > ul > li': {
-              flex: '0 0 25%',
-            },
-            '& > ul > li > ul > li > ul > li > ul > li:nth-of-type(-n+2)': {
-              flexBasis: '50%',
-            },
           }}
         >
           <OrganizationalChart
@@ -560,6 +551,19 @@ export default function Page() {
             data={SIMPLE_DATA}
             nodeItem={(props) => <StandardNode sx={{}} {...props} />}
           />
+
+          <Box
+            sx={{
+              mt: '34px',
+              display: 'flex',
+              gap: 1,
+              justifyContent: 'center',
+            }}
+          >
+            {LEADER_GROUP_DATA.map((node) => (
+              <StandardNode key={node.id} sx={{}} {...node} />
+            ))}
+          </Box>
         </Box>
       </Box>
     </DestEditLayout>
