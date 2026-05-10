@@ -3,35 +3,32 @@ import { useRef, useEffect, useCallback } from 'react';
 // ----------------------------------------------------------------------
 
 export function useMessagesScroll(messages) {
-  const messagesEndRef = useRef(null);
+  const messagesScrollRef = useRef(null);
   const hasScrolledInitiallyRef = useRef(false);
-  const shouldStickToBottomRef = useRef(true);
+  const shouldStickToTopRef = useRef(true);
   const previousMessageCountRef = useRef(0);
-  const previousLastMessageIdRef = useRef('');
+  const previousFirstMessageIdRef = useRef('');
 
   const messageCount = messages?.length || 0;
-  const lastMessageId = messages?.[messageCount - 1]?.id || '';
+  const firstMessageId = messages?.[0]?.id || '';
 
-  const scrollToBottom = useCallback(() => {
-    if (!messagesEndRef.current) {
+  const scrollToTop = useCallback(() => {
+    if (!messagesScrollRef.current) {
       return;
     }
 
-    messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    messagesScrollRef.current.scrollTop = 0;
   }, []);
 
   useEffect(() => {
-    const scrollElement = messagesEndRef.current;
+    const scrollElement = messagesScrollRef.current;
 
     if (!scrollElement) {
       return undefined;
     }
 
     const handleScroll = () => {
-      const distanceFromBottom =
-        scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
-
-      shouldStickToBottomRef.current = distanceFromBottom < 80;
+      shouldStickToTopRef.current = scrollElement.scrollTop < 80;
     };
 
     handleScroll();
@@ -47,18 +44,18 @@ export function useMessagesScroll(messages) {
     const hasNewMessage =
       messageCount > previousMessageCountRef.current ||
       (messageCount === previousMessageCountRef.current &&
-        lastMessageId &&
-        previousLastMessageIdRef.current &&
-        lastMessageId !== previousLastMessageIdRef.current);
+        firstMessageId &&
+        previousFirstMessageIdRef.current &&
+        firstMessageId !== previousFirstMessageIdRef.current);
 
-    if (isFirstLoad || (hasNewMessage && shouldStickToBottomRef.current)) {
-      scrollToBottom();
+    if (isFirstLoad || (hasNewMessage && shouldStickToTopRef.current)) {
+      scrollToTop();
       hasScrolledInitiallyRef.current = true;
     }
 
     previousMessageCountRef.current = messageCount;
-    previousLastMessageIdRef.current = lastMessageId;
-  }, [lastMessageId, messageCount, scrollToBottom]);
+    previousFirstMessageIdRef.current = firstMessageId;
+  }, [firstMessageId, messageCount, scrollToTop]);
 
-  return { messagesEndRef };
+  return { messagesScrollRef };
 }

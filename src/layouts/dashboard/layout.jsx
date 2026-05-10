@@ -15,6 +15,7 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
+import { useGetLabels } from 'src/actions/mail';
 import { _contacts, _notifications } from 'src/_mock';
 import { useGetContacts, useGetConversations } from 'src/actions/chat';
 import {
@@ -51,19 +52,30 @@ import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../cor
 
 // ----------------------------------------------------------------------
 
-const agregarIndicadorChats = (sections = [], unreadCount = 0) =>
+const agregarIndicadoresMensajes = (sections = [], { chatUnreadCount = 0, mailUnreadCount = 0 } = {}) =>
   sections.map((section) => ({
     ...section,
     items: section.items.map((item) => {
+      if (item.title === 'Mail') {
+        return {
+          ...item,
+          info: mailUnreadCount ? (
+            <Label color="error" variant="filled">
+              {mailUnreadCount > 99 ? '99+' : mailUnreadCount}
+            </Label>
+          ) : null,
+        };
+      }
+
       if (item.title !== 'Chats') {
         return item;
       }
 
       return {
         ...item,
-        info: unreadCount ? (
+        info: chatUnreadCount ? (
           <Label color="error" variant="filled">
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
           </Label>
         ) : null,
       };
@@ -77,6 +89,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const { user } = useAuthContext();
   const { contacts } = useGetContacts();
+  const { labels: mailLabels } = useGetLabels();
   const currentContact = useChatCurrentContact(contacts);
   const { conversations } = useGetConversations(currentContact.idMiembros);
   const activeChatId = pathname?.startsWith(paths.dashboard.chat) ? searchParams.get('id') : null;
@@ -89,6 +102,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         : 0),
     0
   );
+  const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
 
   const settings = useSettingsContext();
@@ -174,14 +188,17 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const navData = useMemo(() => {
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
-    const navDataConChats = agregarIndicadorChats(baseNavData, chatsSinLeer);
+    const navDataConIndicadores = agregarIndicadoresMensajes(baseNavData, {
+      chatUnreadCount: chatsSinLeer,
+      mailUnreadCount: mailsSinLeer,
+    });
 
     if (!isMemberSessionUser(user)) {
-      return navDataConChats;
+      return navDataConIndicadores;
     }
 
-    return filterDashboardNavDataForMember(navDataConChats, user);
-  }, [chatsSinLeer, slotProps?.nav?.data, user]);
+    return filterDashboardNavDataForMember(navDataConIndicadores, user);
+  }, [chatsSinLeer, mailsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

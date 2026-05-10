@@ -10,7 +10,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetMail, useGetMails, useGetLabels } from 'src/actions/mail';
+import { updateMail, useGetMail, useGetMails, useGetLabels } from 'src/actions/mail';
 
 import { MailNav } from '../mail-nav';
 import { MailLayout } from '../layout';
@@ -73,6 +73,14 @@ export function MailView() {
         openMail.onFalse();
       }
 
+      const clickedMail = mails.byId[mailId];
+
+      if (clickedMail?.isUnread) {
+        updateMail(mailId, { isUnread: false }).catch((error) => {
+          console.error(error);
+        });
+      }
+
       const redirectPath =
         selectedLabelId !== LABEL_INDEX
           ? `${paths.dashboard.mail}?id=${mailId}&label=${selectedLabelId}`
@@ -84,7 +92,7 @@ export function MailView() {
         });
       }
     },
-    [mdUp, openMail, router, selectedLabelId, selectedMailId]
+    [mdUp, mails.byId, openMail, router, selectedLabelId, selectedMailId]
   );
 
   useEffect(() => {
@@ -100,7 +108,7 @@ export function MailView() {
         sx={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column' }}
       >
         <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-          Mail
+          Correo
         </Typography>
 
         <MailLayout

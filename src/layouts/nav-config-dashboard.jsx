@@ -209,11 +209,6 @@ export const navData = [
         title: 'Mail',
         path: paths.dashboard.mail,
         icon: ICONS.mail,
-        info: (
-          <Label color="error" variant="inverted">
-            +32
-          </Label>
-        ),
       },
       { title: 'Chats', path: paths.dashboard.chat, icon: ICONS.chat },
       { title: 'Calendario actividades', path: paths.dashboard.calendar, icon: ICONS.calendar },

@@ -17,6 +17,13 @@ import { MailItemSkeleton } from './mail-skeleton';
 
 // ----------------------------------------------------------------------
 
+const LABEL_NAMES = {
+  inbox: 'Entrada',
+  sent: 'Enviados',
+  starred: 'Destacados',
+  all: 'Todos',
+};
+
 export function MailList({
   isEmpty,
   loading,
@@ -38,8 +45,8 @@ export function MailList({
   const renderEmpty = () => (
     <Stack sx={{ px: 2, flex: '1 1 auto' }}>
       <EmptyContent
-        title={`Nothing in ${selectedLabelId}`}
-        description="This folder is empty"
+        title={`No hay correos en ${LABEL_NAMES[selectedLabelId] || selectedLabelId}`}
+        description="Esta carpeta está vacía"
         imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-folder-empty.svg`}
       />
     </Stack>
@@ -93,7 +100,7 @@ export function MailList({
           />
         ) : (
           <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>
-            {selectedLabelId}
+            {LABEL_NAMES[selectedLabelId] || selectedLabelId}
           </Typography>
         )}
       </Stack>

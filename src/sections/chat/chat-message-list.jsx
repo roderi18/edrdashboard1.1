@@ -32,16 +32,16 @@ export function ChatMessageList({
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
 
   const sortedMessages = [...messages].sort((firstMessage, secondMessage) => {
-    const timeDifference = getMessageTime(firstMessage) - getMessageTime(secondMessage);
+    const timeDifference = getMessageTime(secondMessage) - getMessageTime(firstMessage);
 
     if (timeDifference !== 0) {
       return timeDifference;
     }
 
-    return String(firstMessage.id ?? '').localeCompare(String(secondMessage.id ?? ''));
+    return String(secondMessage.id ?? '').localeCompare(String(firstMessage.id ?? ''));
   });
 
-  const { messagesEndRef } = useMessagesScroll(sortedMessages);
+  const { messagesScrollRef } = useMessagesScroll(sortedMessages);
 
   const slides = sortedMessages.flatMap((message) => {
     if (message.contentType !== 'image') return [];
@@ -97,7 +97,7 @@ export function ChatMessageList({
   return (
     <>
       <Scrollbar
-        ref={messagesEndRef}
+        ref={messagesScrollRef}
         sx={{
           px: 3,
           pt: 5,

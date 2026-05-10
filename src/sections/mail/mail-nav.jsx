@@ -33,7 +33,7 @@ export function MailNav({
   const renderEmpty = () => (
     <Stack sx={{ flex: '1 1 auto', px: { xs: 2.5, md: 1.5 } }}>
       <EmptyContent
-        title="No labels"
+        title="Sin etiquetas"
         imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-folder-empty.svg`}
       />
     </Stack>
@@ -69,7 +69,7 @@ export function MailNav({
           startIcon={<Iconify icon="solar:pen-bold" />}
           onClick={onToggleCompose}
         >
-          Compose
+          Redactar
         </Button>
       </Box>
 

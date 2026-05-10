@@ -6,6 +6,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 
 import { fToNow } from 'src/utils/format-time';
 
+import { Iconify } from 'src/components/iconify';
+
 // ----------------------------------------------------------------------
 
 export function MailItem({ mail, selected, sx, ...other }) {
@@ -62,17 +64,38 @@ export function MailItem({ mail, selected, sx, ...other }) {
             {fToNow(mail.createdAt)}
           </Typography>
 
-          {!!mail.isUnread && (
-            <Box
-              component="span"
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: 'info.main',
-              }}
-            />
-          )}
+          <Box
+            component="span"
+            sx={{
+              gap: 0.75,
+              height: 18,
+              minWidth: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+            }}
+          >
+            {!!mail.isStarred && (
+              <Iconify
+                icon="eva:star-fill"
+                width={16}
+                sx={{ flex: '0 0 auto', color: 'warning.main' }}
+              />
+            )}
+
+            {!!mail.isUnread && (
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  flex: '0 0 auto',
+                  borderRadius: '50%',
+                  bgcolor: 'info.main',
+                }}
+              />
+            )}
+          </Box>
         </Box>
       </ListItemButton>
     </Box>
