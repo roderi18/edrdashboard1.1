@@ -2,7 +2,15 @@
 
 import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect } from 'react';
-import { pdf, Text, Document, StyleSheet, Page as PdfPage, Image as PdfImage } from '@react-pdf/renderer';
+import {
+  pdf,
+  Text,
+  Document,
+  StyleSheet,
+  View as PdfView,
+  Page as PdfPage,
+  Image as PdfImage,
+} from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -65,35 +73,257 @@ const getDefaultZoom = () => {
 
 const pdfStyles = StyleSheet.create({
   page: {
-    padding: 28,
+    padding: 18,
     fontFamily: 'Helvetica',
     color: '#1C252E',
     backgroundColor: '#FFFFFF',
   },
   title: {
-    fontSize: 18,
-    marginBottom: 4,
+    fontSize: 22,
+    marginBottom: 14,
     fontWeight: 700,
+    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 10,
-    marginBottom: 18,
+  chart: {
+    position: 'relative',
+    width: 806,
+    height: 520,
+    marginHorizontal: 'auto',
+  },
+  line: {
+    position: 'absolute',
+    backgroundColor: '#637381',
+  },
+  personCard: {
+    position: 'absolute',
+    width: 128,
+    height: 64,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE3EA',
+    backgroundColor: '#F9FAFB',
+  },
+  divisionCard: {
+    position: 'absolute',
+    width: 128,
+    height: 36,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE3EA',
+    backgroundColor: '#F9FAFB',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginBottom: 7,
+    objectFit: 'cover',
+  },
+  avatarFallback: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginBottom: 7,
+    backgroundColor: '#DFE3E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: {
+    fontSize: 9,
+    fontWeight: 700,
     color: '#637381',
   },
-  chartImage: {
-    width: '100%',
+  logo: {
+    width: 24,
+    height: 24,
     objectFit: 'contain',
+    marginRight: 8,
+  },
+  name: {
+    fontSize: 8,
+    fontWeight: 700,
+    marginBottom: 4,
+  },
+  role: {
+    fontSize: 6.5,
+    color: '#637381',
+  },
+  divisionName: {
+    fontSize: 8,
+    fontWeight: 700,
+    marginBottom: 3,
+  },
+  divisionRole: {
+    fontSize: 6.5,
+    color: '#637381',
+  },
+  textColumn: {
+    flex: 1,
   },
 });
 
-function LeadershipPdfDocument({ destName, chartImage }) {
+const PDF_POSITIONS = {
+  center: 403,
+  personWidth: 128,
+  personHeight: 64,
+  divisionWidth: 128,
+  divisionHeight: 36,
+  pastorY: 0,
+  coordinatorY: 78,
+  assistantY: 156,
+  sideY: 250,
+  branchY: 238,
+  divisionsY: 322,
+  leadersY: 380,
+  assistantsY: 458,
+  sideCenters: [286, 520],
+  divisionCenters: [160, 322, 484, 646],
+};
+
+const getCenteredLeft = (center, width) => center - width / 2;
+
+const PdfLine = ({ x, y, width = 1, height = 1 }) => (
+  <PdfView style={[pdfStyles.line, { left: x, top: y, width, height }]} />
+);
+
+const PdfAvatar = ({ src, name }) =>
+  src ? (
+    <PdfImage src={src} style={pdfStyles.avatar} />
+  ) : (
+    <PdfView style={pdfStyles.avatarFallback}>
+      <Text style={pdfStyles.avatarFallbackText}>{String(name || '?').charAt(0)}</Text>
+    </PdfView>
+  );
+
+const PdfPersonNode = ({ node, x, y }) => (
+  <PdfView style={[pdfStyles.personCard, { left: x, top: y }]}>
+    <PdfAvatar src={node.avatarUrl} name={node.name} />
+    <Text style={pdfStyles.name}>{node.name}</Text>
+    <Text style={pdfStyles.role}>{node.role}</Text>
+  </PdfView>
+);
+
+const PdfDivisionNode = ({ node, x, y }) => (
+  <PdfView style={[pdfStyles.divisionCard, { left: x, top: y }]}>
+    {node.avatarUrl ? <PdfImage src={node.avatarUrl} style={pdfStyles.logo} /> : null}
+    <PdfView style={pdfStyles.textColumn}>
+      <Text style={pdfStyles.divisionName}>{node.name}</Text>
+      <Text style={pdfStyles.divisionRole}>{node.role}</Text>
+    </PdfView>
+  </PdfView>
+);
+
+function LeadershipPdfDocument({ destName, chartData }) {
+  const personLeft = (center) => getCenteredLeft(center, PDF_POSITIONS.personWidth);
+  const divisionLeft = (center) => getCenteredLeft(center, PDF_POSITIONS.divisionWidth);
+  const pastorBottom = PDF_POSITIONS.pastorY + PDF_POSITIONS.personHeight;
+  const coordinatorBottom = PDF_POSITIONS.coordinatorY + PDF_POSITIONS.personHeight;
+  const assistantBottom = PDF_POSITIONS.assistantY + PDF_POSITIONS.personHeight;
+  const divisionBottom = PDF_POSITIONS.divisionsY + PDF_POSITIONS.divisionHeight;
+  const leaderBottom = PDF_POSITIONS.leadersY + PDF_POSITIONS.personHeight;
+
   return (
     <Document>
       <PdfPage size="A4" orientation="landscape" style={pdfStyles.page}>
-        <Text style={pdfStyles.title}>Organigrama de directiva</Text>
-        <Text style={pdfStyles.subtitle}>Destacamento: {destName}</Text>
+        <Text style={pdfStyles.title}>
+          {destName && destName !== 'Destacamento' ? `Destacamento ${destName}` : 'Destacamento'}
+        </Text>
 
-        <PdfImage src={chartImage} style={pdfStyles.chartImage} />
+        <PdfView style={pdfStyles.chart}>
+          <PdfLine
+            x={PDF_POSITIONS.center}
+            y={pastorBottom}
+            height={PDF_POSITIONS.coordinatorY - pastorBottom}
+          />
+          <PdfLine
+            x={PDF_POSITIONS.center}
+            y={coordinatorBottom}
+            height={PDF_POSITIONS.assistantY - coordinatorBottom}
+          />
+          <PdfLine
+            x={PDF_POSITIONS.center}
+            y={assistantBottom}
+            height={PDF_POSITIONS.branchY - assistantBottom}
+          />
+          <PdfLine
+            x={PDF_POSITIONS.sideCenters[0]}
+            y={PDF_POSITIONS.branchY}
+            width={PDF_POSITIONS.sideCenters[1] - PDF_POSITIONS.sideCenters[0]}
+          />
+          {PDF_POSITIONS.sideCenters.map((center) => (
+            <PdfLine
+              key={`side-line-${center}`}
+              x={center}
+              y={PDF_POSITIONS.branchY}
+              height={PDF_POSITIONS.sideY - PDF_POSITIONS.branchY}
+            />
+          ))}
+          {PDF_POSITIONS.divisionCenters.map((center) => (
+            <PdfView key={`division-lines-${center}`}>
+              <PdfLine
+                x={center}
+                y={divisionBottom}
+                height={PDF_POSITIONS.leadersY - divisionBottom}
+              />
+              <PdfLine
+                x={center}
+                y={leaderBottom}
+                height={PDF_POSITIONS.assistantsY - leaderBottom}
+              />
+            </PdfView>
+          ))}
+
+          <PdfPersonNode
+            node={chartData.pastor}
+            x={personLeft(PDF_POSITIONS.center)}
+            y={PDF_POSITIONS.pastorY}
+          />
+          <PdfPersonNode
+            node={chartData.coordinator}
+            x={personLeft(PDF_POSITIONS.center)}
+            y={PDF_POSITIONS.coordinatorY}
+          />
+          <PdfPersonNode
+            node={chartData.assistantCoordinator}
+            x={personLeft(PDF_POSITIONS.center)}
+            y={PDF_POSITIONS.assistantY}
+          />
+          <PdfPersonNode
+            node={chartData.council}
+            x={personLeft(PDF_POSITIONS.sideCenters[0])}
+            y={PDF_POSITIONS.sideY}
+          />
+          <PdfPersonNode
+            node={chartData.chaplain}
+            x={personLeft(PDF_POSITIONS.sideCenters[1])}
+            y={PDF_POSITIONS.sideY}
+          />
+
+          {chartData.divisions.map((division, index) => (
+            <PdfView key={division.name}>
+              <PdfDivisionNode
+                node={division}
+                x={divisionLeft(PDF_POSITIONS.divisionCenters[index])}
+                y={PDF_POSITIONS.divisionsY}
+              />
+              <PdfPersonNode
+                node={division.leader}
+                x={personLeft(PDF_POSITIONS.divisionCenters[index])}
+                y={PDF_POSITIONS.leadersY}
+              />
+              <PdfPersonNode
+                node={division.assistant}
+                x={personLeft(PDF_POSITIONS.divisionCenters[index])}
+                y={PDF_POSITIONS.assistantsY}
+              />
+            </PdfView>
+          ))}
+        </PdfView>
       </PdfPage>
     </Document>
   );
@@ -383,114 +613,76 @@ const blobToDataUrl = (blob) =>
     reader.readAsDataURL(blob);
   });
 
-const getDocumentStyleText = () =>
-  Array.from(document.styleSheets)
-    .map((styleSheet) => {
-      try {
-        return Array.from(styleSheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join('\n');
-      } catch {
-        return '';
-      }
-    })
-    .join('\n');
-
-const inlineComputedStyles = (source, target) => {
-  const computedStyle = window.getComputedStyle(source);
-
-  Array.from(computedStyle).forEach((property) => {
-    target.style.setProperty(
-      property,
-      computedStyle.getPropertyValue(property),
-      computedStyle.getPropertyPriority(property)
-    );
-  });
-
-  Array.from(source.children).forEach((sourceChild, index) => {
-    const targetChild = target.children[index];
-
-    if (targetChild) {
-      inlineComputedStyles(sourceChild, targetChild);
-    }
-  });
-};
-
-const inlineImages = async (element) => {
-  const images = Array.from(element.querySelectorAll('img'));
-
-  await Promise.all(
-    images.map(async (image) => {
-      const src = image.currentSrc || image.src;
-
-      if (!src || src.startsWith('data:')) {
-        return;
-      }
-
-      try {
-        const response = await fetch(src);
-
-        if (!response.ok) {
-          return;
-        }
-
-        const blob = await response.blob();
-        image.src = await blobToDataUrl(blob);
-      } catch {
-        // Keep the original source if the browser cannot inline it.
-      }
-    })
-  );
-};
-
-const elementToPngDataUrl = async (element) => {
-  const rect = element.getBoundingClientRect();
-  const clone = element.cloneNode(true);
-  const hiddenElements = clone.querySelectorAll('[data-pdf-hidden="true"]');
-
-  inlineComputedStyles(element, clone);
-  hiddenElements.forEach((hiddenElement) => hiddenElement.remove());
-
-  clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-  clone.style.width = `${rect.width}px`;
-  clone.style.height = `${rect.height}px`;
-
-  const styleElement = document.createElement('style');
-
-  styleElement.textContent = getDocumentStyleText();
-  clone.prepend(styleElement);
-
-  await inlineImages(clone);
-
-  const serialized = new XMLSerializer().serializeToString(clone);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
-      <foreignObject width="100%" height="100%">${serialized}</foreignObject>
-    </svg>
-  `;
-  const image = new Image();
-  const canvas = document.createElement('canvas');
-  const scale = Math.min(window.devicePixelRatio || 1, 2);
-
-  canvas.width = Math.ceil(rect.width * scale);
-  canvas.height = Math.ceil(rect.height * scale);
-
-  await new Promise((resolve, reject) => {
-    image.onload = resolve;
-    image.onerror = reject;
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  });
-
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    throw new Error('No se pudo preparar el lienzo del organigrama.');
+const getAbsoluteAssetUrl = (src) => {
+  if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
+    return src || '';
   }
 
-  context.scale(scale, scale);
-  context.drawImage(image, 0, 0);
+  const normalizedSrc = src.startsWith('/') ? src : `/${src}`;
 
-  return canvas.toDataURL('image/png');
+  return `${window.location.origin}${normalizedSrc}`;
+};
+
+const getPdfImageSrc = async (src) => {
+  const assetUrl = getAbsoluteAssetUrl(src);
+
+  if (!assetUrl || assetUrl.startsWith('data:')) {
+    return assetUrl;
+  }
+
+  try {
+    const response = await fetch(assetUrl);
+
+    if (!response.ok) {
+      return assetUrl;
+    }
+
+    return blobToDataUrl(await response.blob());
+  } catch {
+    return assetUrl;
+  }
+};
+
+const getPdfPersonNode = async (node, getAssignedMember) => {
+  const assignedMember = getAssignedMember(node);
+  const displayName = assignedMember ? getMemberName(assignedMember) : node?.name;
+  const displayAvatar = assignedMember ? getMemberAvatar(assignedMember) : node?.avatarUrl;
+
+  return {
+    name: displayName || '',
+    role: node?.role || '',
+    avatarUrl: await getPdfImageSrc(displayAvatar),
+  };
+};
+
+const getLeadershipPdfChartData = async (getAssignedMember) => {
+  const coordinator = SIMPLE_DATA.children?.[0] || {};
+  const assistantCoordinator = coordinator.children?.[0] || {};
+  const council = assistantCoordinator.children?.[0] || {};
+  const chaplain = assistantCoordinator.children?.[1] || {};
+  const divisions = await Promise.all(
+    LEADER_GROUP_DATA.map(async (division) => {
+      const leader = division.children?.[0] || {};
+      const assistant = leader.children?.[0] || {};
+
+      return {
+        name: division.name,
+        role: division.role,
+        avatarUrl: await getPdfImageSrc(division.avatarUrl),
+        leader: await getPdfPersonNode(leader, getAssignedMember),
+        assistant: await getPdfPersonNode(assistant, getAssignedMember),
+      };
+    })
+  );
+
+  return {
+    pastor: await getPdfPersonNode(SIMPLE_DATA, getAssignedMember),
+    coordinator: await getPdfPersonNode(coordinator, getAssignedMember),
+    assistantCoordinator: await getPdfPersonNode(assistantCoordinator, getAssignedMember),
+    council: await getPdfPersonNode(council, getAssignedMember),
+    chaplain: await getPdfPersonNode(chaplain, getAssignedMember),
+    divisions,
+  };
 };
 
 export default function Page() {
@@ -767,10 +959,6 @@ export default function Page() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!chartCaptureRef.current) {
-      return;
-    }
-
     setIsDownloading(true);
 
     try {
@@ -782,9 +970,9 @@ export default function Page() {
         })
       );
 
-      const chartImage = await elementToPngDataUrl(chartCaptureRef.current);
+      const chartData = await getLeadershipPdfChartData(getAssignedMember);
       const blob = await pdf(
-        <LeadershipPdfDocument destName={destName} chartImage={chartImage} />
+        <LeadershipPdfDocument destName={destName} chartData={chartData} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
