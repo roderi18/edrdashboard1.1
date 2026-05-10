@@ -6,7 +6,6 @@ import { pdf, Text, Document, StyleSheet, Page as PdfPage, Image as PdfImage } f
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -80,7 +79,17 @@ function DivisionNode({ name, avatarUrl, role, sx }) {
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
-      <Avatar alt={name} src={avatarUrl} sx={{ width: 32, height: 32 }} />
+      <Box
+        component="img"
+        alt={name}
+        src={avatarUrl}
+        sx={{
+          width: 36,
+          height: 36,
+          flexShrink: 0,
+          objectFit: 'contain',
+        }}
+      />
 
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="subtitle2" noWrap>
