@@ -1,365 +1,284 @@
 'use client';
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
-import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
-import Tabs from '@mui/material/Tabs';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
-import CardHeader from '@mui/material/CardHeader';
-import IconButton from '@mui/material/IconButton';
-import CardContent from '@mui/material/CardContent';
-import LinearProgress from '@mui/material/LinearProgress';
 
-import { fData } from 'src/utils/format-number';
+import { paths } from 'src/routes/paths';
 
+import { CONFIG } from 'src/global-config';
+import { _files, _folders } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
+import { UploadBox } from 'src/components/upload';
+import { Scrollbar } from 'src/components/scrollbar';
 
-import { FileDataActivity } from 'src/sections/file-manager/file-data-activity';
-import { FileStorageOverview } from 'src/sections/file-manager/file-storage-overview';
-
-// ----------------------------------------------------------------------
-
-const SYSTEM_TABS = [
-  { value: 'files', label: 'Archivos', icon: 'solar:folder-bold' },
-  { value: 'api', label: 'API', icon: 'solar:server-bold' },
-  { value: 'database', label: 'Base de datos', icon: 'solar:database-bold' },
-];
-
-const formatNumber = (value) => Number(value || 0).toLocaleString('es-DO');
-
-const hasChartData = (chart) =>
-  chart?.series?.some((series) =>
-    series.data?.some((item) => item.data?.some((value) => Number(value) > 0))
-  );
-
-const renderMetricIcon = (icon, color = 'primary.main') => (
-  <Box
-    sx={{
-      width: 36,
-      height: 36,
-      display: 'grid',
-      borderRadius: 1,
-      placeItems: 'center',
-      bgcolor: 'background.neutral',
-      color,
-    }}
-  >
-    <Iconify icon={icon || 'solar:database-bold'} width={22} />
-  </Box>
-);
-
-function MetricWidget({ widget, countLabel }) {
-  return (
-    <Card sx={{ p: 3, height: 1 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        {renderMetricIcon(widget.icon)}
-        <IconButton size="small">
-          <Iconify icon="eva:more-vertical-fill" />
-        </IconButton>
-      </Stack>
-
-      <Typography variant="h6" sx={{ mt: 3 }}>
-        {widget.title}
-      </Typography>
-
-      <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-        {formatNumber(widget.count)} {countLabel}
-      </Typography>
-
-      <LinearProgress
-        value={widget.total ? Math.min(100, (widget.value / widget.total) * 100) : 0}
-        variant="determinate"
-        color="inherit"
-        sx={{ my: 2, height: 6 }}
-      />
-
-      <Typography variant="subtitle2" align="right">
-        {fData(widget.value)}
-      </Typography>
-    </Card>
-  );
-}
-
-function MetricModuleCard({ module }) {
-  return (
-    <Card sx={{ p: 2.5, height: 1 }}>
-      <Stack direction="row" alignItems="center" spacing={2}>
-        {renderMetricIcon(module.icon, 'success.main')}
-
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="subtitle1" noWrap>
-            {module.name}
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {module.type} - {module.count}
-          </Typography>
-        </Box>
-
-        <Typography variant="subtitle2">{fData(module.size)}</Typography>
-      </Stack>
-    </Card>
-  );
-}
-
-function MetricsSkeleton() {
-  return (
-    <>
-      {[0, 1, 2].map((item) => (
-        <Grid key={item} size={{ xs: 12, md: 4 }}>
-          <Skeleton variant="rounded" height={178} />
-        </Grid>
-      ))}
-      <Grid size={{ xs: 12, lg: 8 }}>
-        <Skeleton variant="rounded" height={430} />
-      </Grid>
-      <Grid size={{ xs: 12, lg: 4 }}>
-        <Skeleton variant="rounded" height={430} />
-      </Grid>
-    </>
-  );
-}
+import { FileWidget } from '../../../file-manager/file-widget';
+import { FileUpgrade } from '../../../file-manager/file-upgrade';
+import { FileRecentItem } from '../../../file-manager/file-recent-item';
+import { FileDataActivity } from '../../../file-manager/file-data-activity';
+import { FileManagerPanel } from '../../../file-manager/file-manager-panel';
+import { FileStorageOverview } from '../../../file-manager/file-storage-overview';
+import { FileManagerFolderItem } from '../../../file-manager/file-manager-folder-item';
+import { FileManagerCreateFolderDialog } from '../../../file-manager/file-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
+
+const GB = 1000000000 * 24;
 
 export function OverviewFileView() {
-  const [tab, setTab] = useState('files');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState(null);
+  const [folderName, setFolderName] = useState('');
 
-  const loadMetrics = useCallback(async () => {
-    setError('');
-    setLoading(true);
+  const [files, setFiles] = useState([]);
 
-    try {
-      const response = await fetch('/api/system-metrics/', { cache: 'no-store' });
+  const newFilesDialog = useBoolean();
+  const newFolderDialog = useBoolean();
 
-      if (!response.ok) {
-        throw new Error('No se pudieron cargar las metricas reales.');
-      }
-
-      setMetrics(await response.json());
-    } catch (loadError) {
-      setError(loadError.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleChangeFolderName = useCallback((event) => {
+    setFolderName(event.target.value);
   }, []);
 
-  useEffect(() => {
-    loadMetrics();
-  }, [loadMetrics]);
+  const handleCreateFolder = useCallback(() => {
+    newFolderDialog.onFalse();
+    setFolderName('');
+    console.info('CREATE NEW FOLDER');
+  }, [newFolderDialog]);
 
-  const currentView = metrics?.views?.[tab];
-
-  const categories = useMemo(
-    () =>
-      (currentView?.categories || []).map((category) => ({
-        ...category,
-        icon: renderMetricIcon(category.icon),
-      })),
-    [currentView]
+  const handleDrop = useCallback(
+    (acceptedFiles) => {
+      setFiles([...files, ...acceptedFiles]);
+    },
+    [files]
   );
 
-  const sources = useMemo(
-    () =>
-      (currentView?.categories || []).flatMap((category) =>
-        (category.sources || []).map((source) => ({
-          ...source,
-          category: category.name,
-        }))
-      ),
-    [currentView]
+  const renderStorageOverview = () => (
+    <FileStorageOverview
+      total={GB}
+      chart={{ series: 76 }}
+      data={[
+        {
+          name: 'Images',
+          usedStorage: GB / 2,
+          filesCount: 223,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`} />,
+        },
+        {
+          name: 'Media',
+          usedStorage: GB / 5,
+          filesCount: 223,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-video.svg`} />,
+        },
+        {
+          name: 'Documents',
+          usedStorage: GB / 5,
+          filesCount: 223,
+          icon: (
+            <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-document.svg`} />
+          ),
+        },
+        {
+          name: 'Other',
+          usedStorage: GB / 10,
+          filesCount: 223,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-file.svg`} />,
+        },
+      ]}
+    />
   );
 
-  const handleChangeTab = useCallback((event, newValue) => {
-    setTab(newValue);
-  }, []);
+  const renderUploadFilesDialog = () => (
+    <FileManagerCreateFolderDialog open={newFilesDialog.value} onClose={newFilesDialog.onFalse} />
+  );
 
-  const handleExport = useCallback(() => {
-    if (!currentView) return;
-
-    const report = {
-      tab,
-      updatedAt: metrics?.updatedAt,
-      view: currentView,
-    };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.href = url;
-    link.download = `metricas-${tab}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [currentView, metrics?.updatedAt, tab]);
+  const renderCreateFolderDialog = () => (
+    <FileManagerCreateFolderDialog
+      open={newFolderDialog.value}
+      onClose={newFolderDialog.onFalse}
+      title="Add folder"
+      folderName={folderName}
+      onChangeFolderName={handleChangeFolderName}
+      onCreate={handleCreateFolder}
+    />
+  );
 
   return (
-    <DashboardContent
-      maxWidth="xl"
-      sx={{
-        '--layout-dashboard-content-pt': '16px',
-        '--layout-dashboard-content-pb': '24px',
-      }}
-    >
-      <Stack spacing={3}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          alignItems={{ xs: 'stretch', md: 'center' }}
-          justifyContent="space-between"
-          spacing={2}
-        >
-          <Tabs value={tab} onChange={handleChangeTab}>
-            {SYSTEM_TABS.map((item) => (
-              <Tab
-                key={item.value}
-                value={item.value}
-                label={item.label}
-                icon={<Iconify icon={item.icon} width={20} />}
-                iconPosition="start"
-              />
-            ))}
-          </Tabs>
-
-          <Stack direction="row" spacing={1}>
-            <Button
-              color="inherit"
-              onClick={loadMetrics}
-              disabled={loading}
-              startIcon={<Iconify icon="solar:refresh-bold" />}
-            >
-              Actualizar
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleExport}
-              disabled={!currentView}
-              startIcon={<Iconify icon="solar:download-minimalistic-bold" />}
-            >
-              Exportar
-            </Button>
-          </Stack>
-        </Stack>
-
-        {metrics?.updatedAt && (
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Actualizado: {new Date(metrics.updatedAt).toLocaleString('es-DO')}
-          </Typography>
-        )}
-
+    <>
+      <DashboardContent maxWidth="xl">
         <Grid container spacing={3}>
-          {loading && <MetricsSkeleton />}
+          <Grid sx={{ display: { xs: 'block', sm: 'none' } }} size={12}>
+            {renderStorageOverview()}
+          </Grid>
 
-          {!loading && error && (
-            <Grid size={{ xs: 12 }}>
-              <Card sx={{ p: 3 }}>
-                <Typography variant="subtitle1">No se pudieron cargar las metricas reales.</Typography>
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  {error}
-                </Typography>
-              </Card>
-            </Grid>
-          )}
-
-          {!loading &&
-            !error &&
-            currentView?.widgets?.map((widget) => (
-              <Grid key={widget.title} size={{ xs: 12, md: 4 }}>
-                <MetricWidget widget={widget} countLabel={currentView.countLabel} />
-              </Grid>
-            ))}
-
-          {!loading && !error && currentView && (
-            <>
-              <Grid size={{ xs: 12, lg: 8 }}>
-                {hasChartData(currentView.chart) ? (
-                  <FileDataActivity
-                    title={currentView.title}
-                    subheader="Conteos y espacio medidos desde la base de datos/API"
-                    chart={currentView.chart}
-                    sx={{ height: 1 }}
-                  />
-                ) : (
-                  <Card sx={{ p: 3, minHeight: 430 }}>
-                    <Typography variant="h6">{currentView.title}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      No hay fechas registradas para graficar esta seccion.
-                    </Typography>
-                  </Card>
-                )}
-              </Grid>
-
-              <Grid size={{ xs: 12, lg: 4 }}>
-                <FileStorageOverview
-                  data={categories}
-                  used={currentView.used}
-                  total={currentView.total}
-                  countLabel={currentView.countLabel}
-                  chart={{ series: currentView.chartPercent }}
-                  sx={{ height: 1 }}
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <FileWidget
+              title="Dropbox"
+              value={GB / 10}
+              total={GB}
+              icon={
+                <Box
+                  component="img"
+                  alt="Dropbox"
+                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-dropbox.svg`}
+                  sx={{ width: 48, height: 48 }}
                 />
-              </Grid>
+              }
+            />
+          </Grid>
 
-              <Grid size={{ xs: 12, lg: 8 }}>
-                <Card>
-                  <CardHeader title="Elementos medidos" />
-                  <CardContent>
-                    <Grid container spacing={2}>
-                      {(tab === 'database' ? metrics.moduleCards : currentView.categories).map((item) => (
-                        <Grid key={item.name} size={{ xs: 12, md: 6 }}>
-                          <MetricModuleCard
-                            module={{
-                              name: item.name,
-                              type: tab === 'database' ? item.type : 'Medicion real',
-                              count:
-                                tab === 'database'
-                                  ? item.count
-                                  : `${formatNumber(item.filesCount)} ${currentView.countLabel}`,
-                              size: item.size ?? item.usedStorage,
-                              icon: item.icon,
-                            }}
-                          />
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <FileWidget
+              title="Drive"
+              value={GB / 5}
+              total={GB}
+              icon={
+                <Box
+                  component="img"
+                  alt="Google Drive"
+                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-drive.svg`}
+                  sx={{ width: 48, height: 48 }}
+                />
+              }
+            />
+          </Grid>
 
-              <Grid size={{ xs: 12, lg: 4 }}>
-                <Card sx={{ height: 1 }}>
-                  <CardHeader title="Origenes" subheader="Colecciones y servicios consultados" />
-                  <Divider />
-                  <Stack spacing={2} sx={{ p: 3 }}>
-                    {sources.map((source) => (
-                      <Stack key={`${source.category}-${source.name}`} spacing={0.5}>
-                        <Typography variant="subtitle2">{source.category}</Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', wordBreak: 'break-all' }}>
-                          {source.name}
-                        </Typography>
-                        {source.error && (
-                          <Typography variant="caption" sx={{ color: 'error.main' }}>
-                            {source.error}
-                          </Typography>
-                        )}
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Card>
-              </Grid>
-            </>
-          )}
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <FileWidget
+              title="OneDrive"
+              value={GB / 2}
+              total={GB}
+              icon={
+                <Box
+                  component="img"
+                  alt="OneDrive"
+                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-onedrive.svg`}
+                  sx={{ width: 48, height: 48 }}
+                />
+              }
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6, lg: 8 }}>
+            <FileDataActivity
+              title="Data activity"
+              chart={{
+                series: [
+                  {
+                    name: 'Weekly',
+                    categories: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+                    data: [
+                      { name: 'Images', data: [20, 34, 48, 65, 37] },
+                      { name: 'Media', data: [10, 34, 13, 26, 27] },
+                      { name: 'Documents', data: [10, 14, 13, 16, 17] },
+                      { name: 'Other', data: [5, 12, 6, 7, 8] },
+                    ],
+                  },
+                  {
+                    name: 'Monthly',
+                    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+                    data: [
+                      { name: 'Images', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
+                      { name: 'Media', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
+                      { name: 'Documents', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
+                      { name: 'Other', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
+                    ],
+                  },
+                  {
+                    name: 'Yearly',
+                    categories: ['2018', '2019', '2020', '2021', '2022', '2023'],
+                    data: [
+                      { name: 'Images', data: [24, 34, 32, 56, 77, 48] },
+                      { name: 'Media', data: [24, 34, 32, 56, 77, 48] },
+                      { name: 'Documents', data: [24, 34, 32, 56, 77, 48] },
+                      { name: 'Other', data: [24, 34, 32, 56, 77, 48] },
+                    ],
+                  },
+                ],
+              }}
+            />
+
+            <Box sx={{ mt: 5 }}>
+              <FileManagerPanel
+                title="Folders"
+                link={paths.dashboard.fileManager}
+                onOpen={newFolderDialog.onTrue}
+              />
+
+              <Scrollbar sx={{ mb: 3, minHeight: 186 }}>
+                <Box sx={{ gap: 3, display: 'flex' }}>
+                  {_folders.map((folder) => (
+                    <FileManagerFolderItem
+                      key={folder.id}
+                      folder={folder}
+                      onDelete={() => console.info('DELETE', folder.id)}
+                      sx={{
+                        ...(_folders.length > 3 && {
+                          width: 240,
+                          flexShrink: 0,
+                        }),
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Scrollbar>
+
+              <FileManagerPanel
+                title="Recent files"
+                link={paths.dashboard.fileManager}
+                onOpen={newFilesDialog.onTrue}
+              />
+
+              <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
+                {_files.slice(0, 5).map((file) => (
+                  <FileRecentItem
+                    key={file.id}
+                    file={file}
+                    onDelete={() => console.info('DELETE', file.id)}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+            <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+              <UploadBox
+                onDrop={handleDrop}
+                placeholder={
+                  <Box
+                    sx={{
+                      gap: 0.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: 'text.disabled',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <Iconify icon="eva:cloud-upload-fill" width={40} />
+                    <Typography variant="body2">Upload file</Typography>
+                  </Box>
+                }
+                sx={{
+                  py: 2.5,
+                  width: 'auto',
+                  height: 'auto',
+                  borderRadius: 1.5,
+                }}
+              />
+
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{renderStorageOverview()}</Box>
+
+              <FileUpgrade />
+            </Box>
+          </Grid>
         </Grid>
-      </Stack>
-    </DashboardContent>
+      </DashboardContent>
+
+      {renderUploadFilesDialog()}
+      {renderCreateFolderDialog()}
+    </>
   );
 }
