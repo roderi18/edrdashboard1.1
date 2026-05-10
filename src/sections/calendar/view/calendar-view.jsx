@@ -13,15 +13,20 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { CALENDAR_COLOR_OPTIONS } from 'src/_mock/_calendar';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
 import { createEvent, updateEvent, deleteEvent, useGetEvents } from 'src/actions/calendar';
 
 import { Iconify } from 'src/components/iconify';
@@ -37,6 +42,21 @@ import { CalendarFilters } from '../calendar-filters';
 import { CalendarFiltersResult } from '../calendar-filters-result';
 
 // ----------------------------------------------------------------------
+
+const CALENDAR_LEVEL_OPTIONS = [
+  { value: 'nacional', label: 'Nacional' },
+  { value: 'regional', label: 'Regional' },
+  { value: 'seccional', label: 'Seccional' },
+  { value: 'mi-destacamento', label: 'Mi Destacamento' },
+];
+
+const NATIONAL_SCOPE_OPTION = {
+  id: 'nacional',
+  value: 'nacional',
+  label: 'Nacional',
+  nivel: 'nacional',
+  nombre: 'Nacional',
+};
 
 const normalizeIdentity = (value = '') =>
   String(value)
@@ -76,6 +96,25 @@ const buildActorFromMember = (member = {}, fallback = {}) => ({
   correo: member.email || member.correo || fallback.correo || '',
 });
 
+const buildScope = (option, level) => ({
+  nivel: level,
+  id: option?.id || option?.value || '',
+  nombre: option?.label || option?.nombre || '',
+});
+
+const getEventScope = (event = {}) => {
+  const scope = event.alcance || event.extendedProps?.alcance;
+  const level = scope?.nivel || scope?.level || 'nacional';
+  const value = scope?.id || scope?.value || scope?.valor || (level === 'nacional' ? 'nacional' : '');
+
+  return {
+    level,
+    value: String(value),
+  };
+};
+
+const sortByLabel = (a, b) => a.label.localeCompare(b.label, 'es');
+
 const findMemberForUser = (members = [], user = {}, fallback = {}) => {
   const userEmail = normalizeIdentity(user.email || user.correo);
   const userCode = normalizeIdentity(user.codigoMiembro || user.memberId);
@@ -111,6 +150,14 @@ export function CalendarView() {
   const openFilters = useBoolean();
 
   const { events, eventsLoading } = useGetEvents();
+  const [scopeLevel, setScopeLevel] = useState('nacional');
+  const [scopeValue, setScopeValue] = useState('nacional');
+  const [currentMember, setCurrentMember] = useState(null);
+  const [organizationData, setOrganizationData] = useState({
+    regionals: [],
+    sectionals: [],
+    dests: [],
+  });
 
   const filters = useSetState({ colors: [], startDate: null, endDate: null });
   const { state: currentFilters } = filters;
@@ -147,17 +194,29 @@ export function CalendarView() {
     let mounted = true;
 
     setActorMiembro(fallbackActor);
+    setCurrentMember(null);
 
-    getMembers()
-      .then((members) => {
+    Promise.all([getMembers(), getRegionals(), getSectionals(), getDestsApi()])
+      .then(([members, regionals, sectionals, dests]) => {
         if (!mounted) return;
 
         const member = findMemberForUser(members, user, fallbackActor);
         setActorMiembro(member ? buildActorFromMember(member, fallbackActor) : fallbackActor);
+        setCurrentMember(member || null);
+        setOrganizationData({
+          regionals,
+          sectionals,
+          dests,
+        });
       })
       .catch(() => {
         if (mounted) {
           setActorMiembro(fallbackActor);
+          setOrganizationData({
+            regionals: [],
+            sectionals: [],
+            dests: [],
+          });
         }
       });
 
@@ -166,18 +225,110 @@ export function CalendarView() {
     };
   }, [fallbackActor, user]);
 
+  const scopeOptions = useMemo(() => {
+    if (scopeLevel === 'nacional') {
+      return [NATIONAL_SCOPE_OPTION];
+    }
+
+    if (scopeLevel === 'regional') {
+      return organizationData.regionals
+        .map((regional) => ({
+          id: String(regional.id || regional.regionId || ''),
+          value: String(regional.id || regional.regionId || ''),
+          label: regional.regionalName || regional.name || 'Regional sin nombre',
+          nivel: 'regional',
+        }))
+        .filter((option) => option.id)
+        .sort(sortByLabel);
+    }
+
+    if (scopeLevel === 'seccional') {
+      return organizationData.sectionals
+        .map((sectional) => ({
+          id: String(sectional.id || sectional.idSeccion || ''),
+          value: String(sectional.id || sectional.idSeccion || ''),
+          label: sectional.sectionalName || sectional.name || 'Seccional sin nombre',
+          nivel: 'seccional',
+        }))
+        .filter((option) => option.id)
+        .sort(sortByLabel);
+    }
+
+    const currentDestId = String(
+      currentMember?.idDestacamento || currentMember?.destId || user?.idDestacamento || ''
+    );
+    const currentDest = organizationData.dests.find((dest) => String(dest.id) === currentDestId);
+
+    if (!currentDestId) {
+      return [];
+    }
+
+    return [
+      {
+        id: currentDestId,
+        value: currentDestId,
+        label: currentDest
+          ? `${currentDest.name || 'Destacamento'} ${currentDest.destNumber || ''}`.trim()
+          : 'Mi Destacamento',
+        nivel: 'mi-destacamento',
+      },
+    ];
+  }, [currentMember, organizationData.dests, organizationData.regionals, organizationData.sectionals, scopeLevel, user]);
+
+  useEffect(() => {
+    if (!scopeOptions.length) {
+      setScopeValue('');
+      return;
+    }
+
+    if (!scopeOptions.some((option) => option.value === scopeValue)) {
+      setScopeValue(scopeOptions[0].value);
+    }
+  }, [scopeOptions, scopeValue]);
+
+  const selectedScopeOption = useMemo(
+    () => scopeOptions.find((option) => option.value === scopeValue) || scopeOptions[0] || null,
+    [scopeOptions, scopeValue]
+  );
+
+  const selectedScope = useMemo(
+    () => buildScope(selectedScopeOption, scopeLevel),
+    [scopeLevel, selectedScopeOption]
+  );
+
+  const handleChangeScopeLevel = useCallback((event) => {
+    setScopeLevel(event.target.value);
+  }, []);
+
+  const handleChangeScopeValue = useCallback((event) => {
+    setScopeValue(event.target.value);
+  }, []);
+
   const handleCreateEvent = useCallback(
     async (eventData) => {
-      await createEvent({ ...eventData, creadoPor: actorMiembro, actualizadoPor: actorMiembro });
+      await createEvent({
+        ...eventData,
+        alcance: selectedScope,
+        creadoPor: actorMiembro,
+        actualizadoPor: actorMiembro,
+      });
     },
-    [actorMiembro]
+    [actorMiembro, selectedScope]
   );
 
   const handleUpdateEvent = useCallback(
     async (eventData) => {
-      await updateEvent({ ...eventData, actualizadoPor: actorMiembro });
+      const existingEvent = events.find((event) => event.id === eventData.id);
+      const alcance = eventData.alcance || existingEvent?.extendedProps?.alcance || selectedScope;
+
+      await updateEvent({
+        ...existingEvent,
+        ...eventData,
+        alcance,
+        actualizadoPor: actorMiembro,
+      });
     },
-    [actorMiembro]
+    [actorMiembro, events, selectedScope]
   );
 
   const handleDeleteEvent = useCallback(async (eventId) => {
@@ -193,6 +344,7 @@ export function CalendarView() {
     inputData: events,
     filters: currentFilters,
     dateError,
+    selectedScope,
   });
 
   const flexStyles = {
@@ -263,13 +415,60 @@ export function CalendarView() {
       <DashboardContent maxWidth="xl" sx={{ ...flexStyles }}>
         <Box
           sx={{
+            gap: 2,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
             mb: { xs: 3, md: 5 },
           }}
         >
-          <Typography variant="h4">Calendario</Typography>
+          <Box
+            sx={{
+              gap: 2,
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Typography variant="h4">Calendario</Typography>
+
+            <TextField
+              select
+              size="small"
+              label="Nivel"
+              value={scopeLevel}
+              onChange={handleChangeScopeLevel}
+              sx={{ minWidth: 170 }}
+            >
+              {CALENDAR_LEVEL_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Valor"
+              value={scopeValue}
+              onChange={handleChangeScopeValue}
+              disabled={!scopeOptions.length}
+              sx={{ minWidth: { xs: 220, sm: 260 } }}
+            >
+              {scopeOptions.length ? (
+                scopeOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value="">Sin valores disponibles</MenuItem>
+              )}
+            </TextField>
+          </Box>
+
           <Button
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
@@ -368,12 +567,20 @@ export function CalendarView() {
 
 // ----------------------------------------------------------------------
 
-function applyFilter({ inputData, filters, dateError }) {
+function applyFilter({ inputData, filters, dateError, selectedScope }) {
   const { colors, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
   inputData = stabilizedThis.map((el) => el[0]);
+
+  if (selectedScope?.nivel && selectedScope?.id) {
+    inputData = inputData.filter((event) => {
+      const eventScope = getEventScope(event);
+
+      return eventScope.level === selectedScope.nivel && eventScope.value === selectedScope.id;
+    });
+  }
 
   if (colors.length) {
     inputData = inputData.filter((event) => colors.includes(event.color));

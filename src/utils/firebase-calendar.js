@@ -166,6 +166,18 @@ const normalizeActor = (actor = null) => {
   };
 };
 
+const normalizeScope = (scope = null) => {
+  const level = scope?.nivel || scope?.level || 'nacional';
+  const id = scope?.id || scope?.value || scope?.valor || (level === 'nacional' ? 'nacional' : '');
+  const nombre = scope?.nombre || scope?.label || (level === 'nacional' ? 'Nacional' : '');
+
+  return {
+    nivel: level,
+    id: String(id),
+    nombre,
+  };
+};
+
 export const toCalendarEvent = (documentSnapshot) => {
   const data =
     typeof documentSnapshot.data === 'function' ? documentSnapshot.data() : documentSnapshot;
@@ -188,6 +200,7 @@ export const toCalendarEvent = (documentSnapshot) => {
       visibleParaTodos: data.visibleParaTodos !== false,
       destacado: Boolean(data.destacado),
       zonaHoraria: data.zonaHoraria || ZONA_HORARIA_CALENDARIO,
+      alcance: normalizeScope(data.alcance),
     },
   };
 };
@@ -219,6 +232,7 @@ export const toFirestoreCalendarDoc = (eventData, options = {}) => {
       },
     visibleParaTodos: eventData.visibleParaTodos ?? eventData.extendedProps?.visibleParaTodos ?? true,
     destacado: Boolean(eventData.destacado ?? eventData.extendedProps?.destacado),
+    alcance: normalizeScope(eventData.alcance || eventData.extendedProps?.alcance),
     actualizadoEn: serverTimestamp(),
   };
 
