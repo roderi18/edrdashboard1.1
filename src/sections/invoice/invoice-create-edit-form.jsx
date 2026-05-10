@@ -12,9 +12,9 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { today, fIsAfter } from 'src/utils/format-time';
-import { updateLocalInvoice } from 'src/utils/local-commerce-storage';
 
 import { _addressBooks, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
+import { actualizarReciboFirestore } from 'src/services/receipt-service';
 
 import { Form, schemaUtils } from 'src/components/hook-form';
 
@@ -46,7 +46,7 @@ const normalizeInvoice = (invoice) => {
       ...defaultItem,
       ...item,
       title: item.title || item.name || 'Producto',
-      description: item.description || 'Compra local DEV',
+      description: item.description || 'Compra Firestore',
       service: getValidService(item.service),
       quantity: Number(item.quantity) || 1,
       price: Number(item.price) || 0,
@@ -128,18 +128,17 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
     formState: { isSubmitting },
   } = methods;
 
-  const updateLocalDraft = (data) => {
-    if (!currentInvoice?.id?.startsWith('local-invoice-')) return;
-
-    updateLocalInvoice({ ...currentInvoice, ...data, id: currentInvoice.id });
-  };
+  const updateReceipt = (data) =>
+    currentInvoice?.id
+      ? actualizarReciboFirestore(currentInvoice.id, { ...currentInvoice, ...data })
+      : null;
 
   const handleSaveAsDraft = handleSubmit(async (data) => {
     loadingSave.onTrue();
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      updateLocalDraft({ ...data, status: 'draft' });
+      await updateReceipt({ ...data, status: 'draft' });
       reset();
       loadingSave.onFalse();
       router.push(paths.dashboard.invoice.root);
@@ -155,7 +154,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      updateLocalDraft(data);
+      await updateReceipt(data);
       reset();
       loadingSend.onFalse();
       router.push(paths.dashboard.invoice.root);

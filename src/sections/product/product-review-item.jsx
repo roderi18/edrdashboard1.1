@@ -10,7 +10,8 @@ import ButtonBase from '@mui/material/ButtonBase';
 import ListItemText from '@mui/material/ListItemText';
 
 import { fDate, fTime } from 'src/utils/format-time';
-import { getProductReviewUserVote } from 'src/utils/product-reviews-storage';
+
+import { getProductReviewUserVote } from 'src/services/product-review-service';
 
 import { Iconify } from 'src/components/iconify';
 

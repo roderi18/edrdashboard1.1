@@ -14,7 +14,6 @@ import {
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
-import { _contacts } from 'src/_mock/_others';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -99,19 +98,6 @@ const memberToContact = (member = {}) => {
   };
 };
 
-const mockContactToMember = (contact = {}, index = 0) =>
-  normalizeMember({
-    idMiembros: contact.idMiembros ?? -(index + 1),
-    codigoMiembro: contact.codigoMiembro ?? `MOCK-${index + 1}`,
-    nombres: String(contact.name ?? '').split(' ')[0] ?? 'Contacto',
-    apellidos: String(contact.name ?? '').split(' ').slice(1).join(' '),
-    telefono: contact.phoneNumber ?? '',
-    direccion: contact.address ?? '',
-    correo: contact.email ?? '',
-    estatusMiembro: contact.role ?? 'mock',
-    avatarUrl: contact.avatarUrl ?? '',
-  });
-
 const getAllContacts = (members = []) => {
   const contacts = new Map();
 
@@ -128,18 +114,6 @@ const getAllContacts = (members = []) => {
 
     if (contact.id) {
       contacts.set(contact.id, contacts.has(contact.id) ? mergeContact(contacts.get(contact.id), contact) : contact);
-    }
-  });
-
-  _contacts.map(mockContactToMember).forEach((member) => {
-    const contact = {
-      ...memberToContact(member),
-      status: _contacts[Math.abs(member.idMiembros) - 1]?.status ?? 'offline',
-      lastActivity: _contacts[Math.abs(member.idMiembros) - 1]?.lastActivity ?? nowIso(),
-    };
-
-    if (contact.id && !contacts.has(contact.id)) {
-      contacts.set(contact.id, contact);
     }
   });
 

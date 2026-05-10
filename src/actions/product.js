@@ -1,8 +1,6 @@
 import useSWR from 'swr';
 import { useMemo, useState, useEffect } from 'react';
 
-import { mergeProductWithLocalInventory, mergeProductsWithLocalInventory } from 'src/utils/local-product-storage';
-
 import { fetcher, endpoints } from 'src/lib/axios';
 import { listarProductosFirestore, resolverProductoCombinadoPorId } from 'src/services/product-service';
 
@@ -33,7 +31,7 @@ export function useGetProducts() {
 
         if (!active) return;
 
-        setResolvedProducts(mergeProductsWithLocalInventory(firestoreProducts));
+        setResolvedProducts(firestoreProducts);
       } catch (loadError) {
         if (!active) return;
 
@@ -93,7 +91,7 @@ export function useGetProduct(productId) {
 
       if (!active) return;
 
-      setResolvedProduct(mergeProductWithLocalInventory(combinedProduct));
+      setResolvedProduct(combinedProduct);
     };
 
     loadProduct();

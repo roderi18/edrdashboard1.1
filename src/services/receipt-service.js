@@ -75,3 +75,50 @@ export const actualizarEstadoReciboFirestore = async (receiptId, estado) => {
 
   return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
 };
+
+export const actualizarReciboFirestore = async (receiptId, data = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
+
+  const receiptRef = doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId));
+  const snapshot = await getDoc(receiptRef);
+  if (!snapshot.exists()) return null;
+
+  const currentDoc = snapshot.data();
+  const nextDoc = {
+    ...currentDoc,
+    numeroRecibo: data.invoiceNumber || currentDoc.numeroRecibo,
+    estado: mapearEstadoReciboUiAFirestore(data.status),
+    impuestos: Number(data.taxes ?? 0),
+    descuento: Number(data.discount ?? 0),
+    envio: Number(data.shipping ?? 0),
+    subtotal: Number(data.subtotal ?? 0),
+    montoTotal: Number(data.totalAmount ?? 0),
+    emitidoPor: {
+      nombre: data.invoiceFrom?.name || currentDoc.emitidoPor?.nombre || '',
+      direccionCompleta:
+        data.invoiceFrom?.fullAddress || currentDoc.emitidoPor?.direccionCompleta || '',
+      telefono: data.invoiceFrom?.phoneNumber || currentDoc.emitidoPor?.telefono || '',
+    },
+    emitidoPara: {
+      nombre: data.invoiceTo?.name || currentDoc.emitidoPara?.nombre || '',
+      direccionCompleta:
+        data.invoiceTo?.fullAddress || currentDoc.emitidoPara?.direccionCompleta || '',
+      telefono: data.invoiceTo?.phoneNumber || currentDoc.emitidoPara?.telefono || '',
+      correo: data.invoiceTo?.company || data.invoiceTo?.email || currentDoc.emitidoPara?.correo || '',
+      codigoMiembro:
+        data.invoiceTo?.codigoMiembro || currentDoc.emitidoPara?.codigoMiembro || null,
+    },
+    items: (data.items || []).map((item) => ({
+      productoId: String(item.id || item.productoId || ''),
+      nombre: item.title || item.name || 'Producto',
+      descripcion: item.description || '',
+      precio: Number(item.price ?? 0),
+      cantidad: Number(item.quantity ?? 0),
+      total: Number(item.total ?? 0),
+    })),
+  };
+
+  await setDoc(receiptRef, nextDoc, { merge: true });
+
+  return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
+};

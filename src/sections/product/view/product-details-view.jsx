@@ -15,11 +15,14 @@ import { paths } from 'src/routes/paths';
 import { useSearchParams } from 'src/routes/hooks';
 
 import { isMemberSessionUser } from 'src/utils/member-access';
-import { mergeProductReviews, buildProductReviewStats } from 'src/utils/product-reviews-storage';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { resolverProductoCombinadoPorId } from 'src/services/product-service';
+import {
+  buildProductReviewStats,
+  listarResenasProductoFirestore,
+} from 'src/services/product-review-service';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -83,7 +86,10 @@ export function ProductDetailsView({ product, productId }) {
         productId,
         productoRemoto: product,
       });
-      const mergedReviews = mergeProductReviews(nextProduct?.id, nextProduct?.reviews ?? []);
+      const mergedReviews = await listarResenasProductoFirestore(
+        nextProduct?.id,
+        nextProduct?.reviews ?? []
+      );
       const stats = buildProductReviewStats(mergedReviews);
 
       setResolvedProduct(

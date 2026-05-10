@@ -6,6 +6,7 @@ export const COLECCIONES_COMERCIO = {
   recibos: 'recibos',
   direcciones: 'direcciones',
   productos: 'productos',
+  resenasProductos: 'resenas_productos',
   movimientosInventario: 'movimientos_inventario',
 };
 

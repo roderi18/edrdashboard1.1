@@ -11,15 +11,15 @@ import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
 import { fShortenNumber } from 'src/utils/format-number';
-import {
-  mergeProductReviews,
-  addStoredProductReview,
-  buildProductReviewStats,
-  addStoredProductReviewReply,
-  updateStoredProductReviewVote,
-} from 'src/utils/product-reviews-storage';
 
 import { crearNotificacionResenaProductoBaja } from 'src/services/notification-service';
+import {
+  buildProductReviewStats,
+  crearResenaProductoFirestore,
+  listarResenasProductoFirestore,
+  responderResenaProductoFirestore,
+  actualizarVotoResenaProductoFirestore,
+} from 'src/services/product-review-service';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -40,13 +40,25 @@ export function ProductDetailsReview({
   const [currentReviews, setCurrentReviews] = useState([]);
 
   useEffect(() => {
-    const mergedReviews = mergeProductReviews(productId, reviews);
+    let active = true;
 
-    setCurrentReviews(mergedReviews);
+    const loadReviews = async () => {
+      const mergedReviews = await listarResenasProductoFirestore(productId, reviews);
 
-    if (productId && mergedReviews.length !== reviews.length) {
-      onReviewsChange?.(mergedReviews);
-    }
+      if (!active) return;
+
+      setCurrentReviews(mergedReviews);
+
+      if (productId && mergedReviews.length !== reviews.length) {
+        onReviewsChange?.(mergedReviews);
+      }
+    };
+
+    loadReviews();
+
+    return () => {
+      active = false;
+    };
   }, [onReviewsChange, productId, reviews]);
 
   const stats = useMemo(() => buildProductReviewStats(currentReviews), [currentReviews]);
@@ -58,7 +70,7 @@ export function ProductDetailsReview({
 
   const handleCreateReview = useCallback(
     async (data) => {
-      const nextReview = addStoredProductReview(productId, data, reviewer);
+      const nextReview = await crearResenaProductoFirestore(productId, data, reviewer);
       const nextReviews = [nextReview, ...currentReviews];
 
       setCurrentReviews(nextReviews);
@@ -82,8 +94,8 @@ export function ProductDetailsReview({
   );
 
   const handleVoteReview = useCallback(
-    (reviewId, vote) => {
-      const nextReviews = updateStoredProductReviewVote(
+    async (reviewId, vote) => {
+      const nextReviews = await actualizarVotoResenaProductoFirestore(
         productId,
         reviewId,
         reviewer,
@@ -98,8 +110,8 @@ export function ProductDetailsReview({
   );
 
   const handleReplyReview = useCallback(
-    (reviewId, message) => {
-      const nextReviews = addStoredProductReviewReply(
+    async (reviewId, message) => {
+      const nextReviews = await responderResenaProductoFirestore(
         productId,
         reviewId,
         { message },

@@ -100,7 +100,7 @@ export const resolverProductoCombinadoPorId = async ({ productId, productoRemoto
 export const guardarProductoFirestore = async (data, { publish = true } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
-  const productId = data?.id || `local-product-${Date.now()}`;
+  const productId = data?.id || `producto-${Date.now()}`;
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
   const previous = await getDoc(productRef);
   const previousProduct = previous.exists()
