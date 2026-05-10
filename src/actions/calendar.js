@@ -1,38 +1,56 @@
 import { useMemo } from 'react';
 import useSWR, { mutate } from 'swr';
 
-import axios, { fetcher, endpoints } from 'src/lib/axios';
-
 // ----------------------------------------------------------------------
 
-const enableServer = false;
-
-const CALENDAR_ENDPOINT = endpoints.calendar;
+const CALENDAR_ENDPOINT = '/api/calendar/';
 
 const swrOptions = {
-  revalidateIfStale: enableServer,
-  revalidateOnFocus: enableServer,
-  revalidateOnReconnect: enableServer,
+  revalidateIfStale: true,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: true,
+};
+
+const requestJson = async (url, options) => {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || 'No se pudo completar la accion del calendario.');
+  }
+
+  return response.json();
+};
+
+const fetchCalendarEvents = async () => {
+  const data = await requestJson(CALENDAR_ENDPOINT, { cache: 'no-store' });
+
+  return data.events || [];
 };
 
 // ----------------------------------------------------------------------
 
 export function useGetEvents() {
-  const { data, isLoading, error, isValidating } = useSWR(CALENDAR_ENDPOINT, fetcher, {
-    ...swrOptions,
-  });
+  const { data, isLoading, error, isValidating } = useSWR(
+    CALENDAR_ENDPOINT,
+    fetchCalendarEvents,
+    {
+      fallbackData: [],
+      ...swrOptions,
+    }
+  );
 
   const memoizedValue = useMemo(() => {
-    const events = data?.events.map((event) => ({ ...event, textColor: event.color }));
+    const events = data || [];
 
     return {
-      events: events || [],
+      events,
       eventsLoading: isLoading,
       eventsError: error,
       eventsValidating: isValidating,
-      eventsEmpty: !isLoading && !isValidating && !data?.events.length,
+      eventsEmpty: !isLoading && !isValidating && !events.length,
     };
-  }, [data?.events, error, isLoading, isValidating]);
+  }, [data, error, isLoading, isValidating]);
 
   return memoizedValue;
 }
@@ -40,82 +58,37 @@ export function useGetEvents() {
 // ----------------------------------------------------------------------
 
 export async function createEvent(eventData) {
-  /**
-   * Work on server
-   */
-  if (enableServer) {
-    const data = { eventData };
-    await axios.post(CALENDAR_ENDPOINT, data);
-  }
+  const data = await requestJson(CALENDAR_ENDPOINT, {
+    method: 'POST',
+    body: JSON.stringify({ eventData }),
+    headers: { 'Content-Type': 'application/json' },
+  });
 
-  /**
-   * Work in local
-   */
-  mutate(
-    CALENDAR_ENDPOINT,
-    (currentData) => {
-      const currentEvents = currentData?.events;
+  await mutate(CALENDAR_ENDPOINT);
 
-      const events = [...currentEvents, eventData];
-
-      return { ...currentData, events };
-    },
-    false
-  );
+  return data.id;
 }
 
 // ----------------------------------------------------------------------
 
 export async function updateEvent(eventData) {
-  /**
-   * Work on server
-   */
-  if (enableServer) {
-    const data = { eventData };
-    await axios.put(CALENDAR_ENDPOINT, data);
-  }
+  await requestJson(CALENDAR_ENDPOINT, {
+    method: 'PUT',
+    body: JSON.stringify({ eventData }),
+    headers: { 'Content-Type': 'application/json' },
+  });
 
-  /**
-   * Work in local
-   */
-  mutate(
-    CALENDAR_ENDPOINT,
-    (currentData) => {
-      const currentEvents = currentData?.events;
-
-      const events = currentEvents.map((event) =>
-        event.id === eventData.id ? { ...event, ...eventData } : event
-      );
-
-      return { ...currentData, events };
-    },
-    false
-  );
+  await mutate(CALENDAR_ENDPOINT);
 }
 
 // ----------------------------------------------------------------------
 
 export async function deleteEvent(eventId) {
-  /**
-   * Work on server
-   */
-  if (enableServer) {
-    const data = { eventId };
-    await axios.patch(CALENDAR_ENDPOINT, data);
-  }
+  await requestJson(CALENDAR_ENDPOINT, {
+    method: 'PATCH',
+    body: JSON.stringify({ eventId }),
+    headers: { 'Content-Type': 'application/json' },
+  });
 
-  /**
-   * Work in local
-   */
-  mutate(
-    CALENDAR_ENDPOINT,
-    (currentData) => {
-      const currentEvents = currentData?.events;
-
-      const events = currentEvents.filter((event) => event.id !== eventId);
-
-      return { ...currentData, events };
-    },
-    false
-  );
+  await mutate(CALENDAR_ENDPOINT);
 }

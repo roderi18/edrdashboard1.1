@@ -34,7 +34,7 @@ export function CalendarToolbar({
     <ToggleButtonGroup
       exclusive
       size="small"
-      aria-label="calendar view"
+      aria-label="vista del calendario"
       value={view}
       onChange={(event, newAlignment) => {
         if (newAlignment !== null) {
@@ -45,7 +45,7 @@ export function CalendarToolbar({
     >
       {viewOptions.map((option) => (
         <Tooltip key={option.value} title={option.label}>
-          <ToggleButton value={option.value} aria-label={`${option.label} view`}>
+          <ToggleButton value={option.value} aria-label={`Vista ${option.label}`}>
             <Iconify icon={option.icon} />
           </ToggleButton>
         </Tooltip>
@@ -59,6 +59,7 @@ export function CalendarToolbar({
         size="small"
         color="inherit"
         onClick={mobileActions.onOpen}
+        aria-label="Cambiar vista"
         sx={{ minWidth: 'auto', display: { sm: 'none' } }}
       >
         <Iconify icon={selectedView.icon} sx={{ mr: 0.5 }} />
@@ -101,13 +102,13 @@ export function CalendarToolbar({
         justifyContent: 'center',
       }}
     >
-      <IconButton onClick={() => onDateNavigation?.('prev')}>
+      <IconButton aria-label="Anterior" onClick={() => onDateNavigation?.('prev')}>
         <Iconify icon="eva:arrow-ios-back-fill" />
       </IconButton>
 
       <Box sx={{ typography: { xs: 'subtitle2', sm: 'h6' } }}>{title}</Box>
 
-      <IconButton onClick={() => onDateNavigation?.('next')}>
+      <IconButton aria-label="Siguiente" onClick={() => onDateNavigation?.('next')}>
         <Iconify icon="eva:arrow-ios-forward-fill" />
       </IconButton>
     </Box>
@@ -121,10 +122,10 @@ export function CalendarToolbar({
         variant="contained"
         onClick={() => onDateNavigation?.('today')}
       >
-        Today
+        Hoy
       </Button>
 
-      <IconButton onClick={onOpenFilters}>
+      <IconButton aria-label="Abrir filtros" onClick={onOpenFilters}>
         <Badge color="error" variant="dot" invisible={!canReset}>
           <Iconify icon="ic:round-filter-list" />
         </Badge>

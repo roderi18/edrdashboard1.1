@@ -27,8 +27,13 @@ export function CalendarFiltersResult({ filters, totalResults, sx }) {
   }, [updateFilters]);
 
   return (
-    <FiltersResult totalResults={totalResults} onReset={() => resetFilters()} sx={sx}>
-      <FiltersBlock label="Colors:" isShow={!!currentFilters.colors.length}>
+    <FiltersResult
+      totalResults={totalResults}
+      onReset={() => resetFilters()}
+      resetLabel="Limpiar"
+      sx={sx}
+    >
+      <FiltersBlock label="Colores:" isShow={!!currentFilters.colors.length}>
         {currentFilters.colors.map((item) => (
           <Chip
             {...chipProps}
@@ -53,7 +58,7 @@ export function CalendarFiltersResult({ filters, totalResults, sx }) {
       </FiltersBlock>
 
       <FiltersBlock
-        label="Date:"
+        label="Fecha:"
         isShow={Boolean(currentFilters.startDate && currentFilters.endDate)}
       >
         <Chip

@@ -23,7 +23,7 @@ export function useCalendar({
   const getCalendarApi = useCallback(() => {
     const calendarApi = calendarRef.current?.getApi();
     if (!calendarApi) {
-      console.warn('Calendar API is not available');
+      console.warn('La API del calendario no está disponible');
       return null;
     }
     return calendarApi;
@@ -90,7 +90,7 @@ export function useCalendar({
           calendarApi.next();
           break;
         default:
-          console.warn(`Unknown action: ${action}`);
+          console.warn(`Acción desconocida: ${action}`);
           return;
       }
 

@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { useCallback } from 'react';
-import { uuidv4 } from 'minimal-shared/utils';
+import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -20,18 +20,19 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { Form, Field } from 'src/components/hook-form';
 import { ColorPicker } from 'src/components/color-utils';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 // ----------------------------------------------------------------------
 
 export const EventSchema = z.object({
   title: z
     .string()
-    .min(1, { error: 'Title is required!' })
-    .max(100, { error: 'Title must be less than 100 characters' }),
+    .min(1, { error: 'El título es obligatorio.' })
+    .max(100, { error: 'El título debe tener menos de 100 caracteres.' }),
   description: z
     .string()
-    .min(1, { error: 'Description is required!' })
-    .min(50, { error: 'Description must be at least 50 characters' }),
+    .min(1, { error: 'La descripción es obligatoria.' })
+    .min(10, { error: 'La descripción debe tener al menos 10 caracteres.' }),
   // Not required
   color: z.string(),
   allDay: z.boolean(),
@@ -41,7 +42,16 @@ export const EventSchema = z.object({
 
 // ----------------------------------------------------------------------
 
-export function CalendarForm({ currentEvent, colorOptions, onClose }) {
+export function CalendarForm({
+  currentEvent,
+  colorOptions,
+  onClose,
+  onCreateEvent = createEvent,
+  onUpdateEvent = updateEvent,
+  onDeleteEvent = deleteEvent,
+}) {
+  const confirmDelete = useBoolean();
+
   const methods = useForm({
     mode: 'all',
     resolver: zodResolver(EventSchema),
@@ -62,7 +72,7 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }) {
 
   const onSubmit = handleSubmit(async (data) => {
     const eventData = {
-      id: currentEvent?.id ? currentEvent?.id : uuidv4(),
+      id: currentEvent?.id || undefined,
       color: data?.color,
       title: data?.title,
       allDay: data?.allDay,
@@ -74,11 +84,11 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }) {
     try {
       if (!dateError) {
         if (currentEvent?.id) {
-          await updateEvent(eventData);
-          toast.success('Actualización exitosa!');
+          await onUpdateEvent(eventData);
+          toast.success('Evento actualizado correctamente.');
         } else {
-          await createEvent(eventData);
-          toast.success('Create success!');
+          await onCreateEvent(eventData);
+          toast.success('Evento creado correctamente.');
         }
         onClose();
         reset();
@@ -90,65 +100,92 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }) {
 
   const onDelete = useCallback(async () => {
     try {
-      await deleteEvent(`${currentEvent?.id}`);
-      toast.success('Delete success!');
+      await onDeleteEvent(`${currentEvent?.id}`);
+      toast.success('Evento eliminado correctamente.');
+      confirmDelete.onFalse();
       onClose();
     } catch (error) {
       console.error(error);
     }
-  }, [currentEvent?.id, onClose]);
+  }, [confirmDelete, currentEvent?.id, onClose, onDeleteEvent]);
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
-      <Scrollbar sx={{ p: 3, bgcolor: 'background.neutral' }}>
-        <Stack spacing={3}>
-          <Field.Text name="title" label="Title" />
-          <Field.Text name="description" label="Description" multiline rows={3} />
-          <Field.Switch name="allDay" label="All day" />
-          <Field.DateTimePicker name="start" label="Start date" />
-          <Field.DateTimePicker
-            name="end"
-            label="End date"
-            slotProps={{
-              textField: {
-                error: dateError,
-                helperText: dateError ? 'End date must be later than start date' : null,
-              },
-            }}
-          />
+    <>
+      <Form methods={methods} onSubmit={onSubmit}>
+        <Scrollbar sx={{ p: 3, bgcolor: 'background.neutral' }}>
+          <Stack spacing={3}>
+            <Field.Text name="title" label="Título" />
+            <Field.Text name="description" label="Descripción" multiline rows={3} />
+            <Field.Switch name="allDay" label="Todo el día" />
+            <Field.DateTimePicker
+              ampm
+              name="start"
+              label="Fecha de inicio"
+              format="DD/MM/YYYY hh:mm A"
+            />
+            <Field.DateTimePicker
+              ampm
+              name="end"
+              label="Fecha de fin"
+              format="DD/MM/YYYY hh:mm A"
+              slotProps={{
+                textField: {
+                  error: dateError,
+                  helperText: dateError ? 'La fecha de fin debe ser posterior a la de inicio' : null,
+                },
+              }}
+            />
 
-          <Controller
-            name="color"
-            control={control}
-            render={({ field }) => (
-              <ColorPicker
-                value={field.value}
-                onChange={(color) => field.onChange(color)}
-                options={colorOptions}
-              />
-            )}
-          />
-        </Stack>
-      </Scrollbar>
+            <Controller
+              name="color"
+              control={control}
+              render={({ field }) => (
+                <ColorPicker
+                  value={field.value}
+                  onChange={(color) => field.onChange(color)}
+                  options={colorOptions}
+                />
+              )}
+            />
+          </Stack>
+        </Scrollbar>
 
-      <DialogActions sx={{ flexShrink: 0 }}>
-        {!!currentEvent?.id && (
-          <Tooltip title="Delete event">
-            <IconButton color="error" onClick={onDelete} edge="start">
-              <Iconify icon="solar:trash-bin-trash-bold" />
-            </IconButton>
-          </Tooltip>
-        )}
+        <DialogActions sx={{ flexShrink: 0 }}>
+          {!!currentEvent?.id && (
+            <Tooltip title="Eliminar evento">
+              <IconButton
+                aria-label="Eliminar evento"
+                color="error"
+                onClick={confirmDelete.onTrue}
+                edge="start"
+              >
+                <Iconify icon="solar:trash-bin-trash-bold" />
+              </IconButton>
+            </Tooltip>
+          )}
 
-        <Box component="span" sx={{ flexGrow: 1 }} />
+          <Box component="span" sx={{ flexGrow: 1 }} />
 
-        <Button variant="outlined" color="inherit" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button type="submit" variant="contained" loading={isSubmitting} disabled={dateError}>
-          {currentEvent?.id ? 'Guardar cambios' : 'Crear'}
-        </Button>
-      </DialogActions>
-    </Form>
+          <Button variant="outlined" color="inherit" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="contained" loading={isSubmitting} disabled={dateError}>
+            {currentEvent?.id ? 'Guardar cambios' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Form>
+
+      <ConfirmDialog
+        open={confirmDelete.value}
+        onClose={confirmDelete.onFalse}
+        title="Eliminar actividad"
+        content="¿Seguro que deseas eliminar esta actividad?"
+        action={
+          <Button type="button" variant="contained" color="error" onClick={onDelete}>
+            Eliminar
+          </Button>
+        }
+      />
+    </>
   );
 }

@@ -65,10 +65,10 @@ export function CalendarFilters({
         }}
       >
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          Filters
+          Filtros
         </Typography>
 
-        <Tooltip title="Reset">
+        <Tooltip title="Restablecer">
           <IconButton onClick={() => resetFilters()}>
             <Badge color="error" variant="dot" invisible={!canReset}>
               <Iconify icon="solar:restart-bold" />
@@ -76,7 +76,7 @@ export function CalendarFilters({
           </IconButton>
         </Tooltip>
 
-        <IconButton onClick={onClose}>
+        <IconButton aria-label="Cerrar filtros" onClick={onClose}>
           <Iconify icon="mingcute:close-line" />
         </IconButton>
       </Box>
@@ -95,7 +95,7 @@ export function CalendarFilters({
       }}
     >
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Colors
+        Colores
       </Typography>
       <ColorPicker
         options={colorOptions}
@@ -115,24 +115,24 @@ export function CalendarFilters({
       }}
     >
       <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
-        Range
+        Rango
       </Typography>
 
       <DatePicker
-        label="Start date"
+        label="Fecha de inicio"
         value={currentFilters.startDate}
         onChange={handleFilterStartDate}
         sx={{ mb: 2.5 }}
       />
 
       <DatePicker
-        label="End date"
+        label="Fecha de fin"
         value={currentFilters.endDate}
         onChange={handleFilterEndDate}
         slotProps={{
           textField: {
             error: dateError,
-            helperText: dateError ? 'End date must be later than start date' : null,
+            helperText: dateError ? 'La fecha de fin debe ser posterior a la de inicio' : null,
           },
         }}
       />
@@ -142,7 +142,7 @@ export function CalendarFilters({
   const renderEvents = () => (
     <>
       <Typography variant="subtitle2" sx={{ px: 2.5, mb: 1 }}>
-        Events ({events.length})
+        Eventos ({events.length})
       </Typography>
 
       <Box component="ul">

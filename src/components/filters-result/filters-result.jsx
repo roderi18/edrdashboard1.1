@@ -9,7 +9,7 @@ import { Iconify } from '../iconify';
 
 export const chipProps = { size: 'small', variant: 'soft' };
 
-export function FiltersResult({ sx, onReset, children, totalResults, ...other }) {
+export function FiltersResult({ sx, onReset, children, totalResults, resetLabel = 'Clear', ...other }) {
   return (
     <ResultRoot sx={sx} {...other}>
       <ResultLabel>
@@ -25,7 +25,7 @@ export function FiltersResult({ sx, onReset, children, totalResults, ...other })
           onClick={onReset}
           startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
         >
-          Clear
+          {resetLabel}
         </Button>
       </ResultContent>
     </ResultRoot>
