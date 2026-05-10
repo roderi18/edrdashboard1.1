@@ -1,12 +1,10 @@
 import { useRef, useState, useCallback } from 'react';
 
-import Stack from '@mui/material/Stack';
-import LinearProgress from '@mui/material/LinearProgress';
-
 import { Scrollbar } from 'src/components/scrollbar';
 import { Lightbox, useLightbox } from 'src/components/lightbox';
 
 import { ChatMessageItem } from './chat-message-item';
+import { ChatMessageListSkeleton } from './chat-skeleton';
 import { useMessagesScroll } from './hooks/use-messages-scroll';
 
 // ----------------------------------------------------------------------
@@ -77,21 +75,7 @@ export function ChatMessageList({
   }, []);
 
   if (loading) {
-    return (
-      <Stack sx={{ flex: '1 1 auto', position: 'relative' }}>
-        <LinearProgress
-          color="inherit"
-          sx={{
-            top: 0,
-            left: 0,
-            width: 1,
-            height: 2,
-            borderRadius: 0,
-            position: 'absolute',
-          }}
-        />
-      </Stack>
-    );
+    return <ChatMessageListSkeleton />;
   }
 
   return (

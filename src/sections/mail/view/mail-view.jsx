@@ -3,7 +3,6 @@
 import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useCallback, startTransition } from 'react';
 
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
@@ -101,21 +100,28 @@ export function MailView() {
     }
   }, [firstMailId, handleClickMail, selectedMailId]);
 
+  useEffect(() => {
+    if (!selectedMailId || !mail?.isUnread) {
+      return;
+    }
+
+    updateMail(selectedMailId, { isUnread: false }).catch((error) => {
+      console.error(error);
+    });
+  }, [mail?.isUnread, selectedMailId]);
+
   return (
     <>
       <DashboardContent
         maxWidth={false}
-        sx={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column' }}
+        sx={{ pt: { xs: 1, md: 2 }, flex: '1 1 auto', display: 'flex', flexDirection: 'column' }}
       >
-        <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-          Correo
-        </Typography>
-
         <MailLayout
           sx={{
             p: 1,
             borderRadius: 2,
             flex: '1 1 auto',
+            minHeight: 0,
             bgcolor: 'background.neutral',
           }}
           slots={{

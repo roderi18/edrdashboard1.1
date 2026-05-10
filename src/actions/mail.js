@@ -27,6 +27,62 @@ const localFetcher = async (args) => {
 
 const mailListKey = (key) => Array.isArray(key) && key[0] === endpoints.mail.list;
 
+const applyMailUpdates = (mail, mailId, updates) => {
+  if (String(mail?.id) !== String(mailId)) {
+    return mail;
+  }
+
+  const nextMail = { ...mail, ...updates };
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'isStarred')) {
+    const labelIds = new Set(nextMail.labelIds || []);
+
+    if (updates.isStarred) {
+      labelIds.add('starred');
+    } else {
+      labelIds.delete('starred');
+    }
+
+    nextMail.labelIds = Array.from(labelIds);
+  }
+
+  return nextMail;
+};
+
+const updateCachedMail = (mailId, updates) => {
+  mutate(
+    (key) => mailListKey(key),
+    (currentData) => {
+      if (!currentData?.mails) return currentData;
+
+      return {
+        ...currentData,
+        mails: currentData.mails.map((mail) => applyMailUpdates(mail, mailId, updates)),
+      };
+    },
+    { revalidate: false }
+  );
+
+  mutate(
+    (key) =>
+      Array.isArray(key) &&
+      key[0] === endpoints.mail.details &&
+      String(key[1]?.params?.mailId) === String(mailId),
+    (currentData) => {
+      if (!currentData?.mail) return currentData;
+
+      return {
+        ...currentData,
+        mail: {
+          ...applyMailUpdates(currentData.mail, mailId, updates),
+          thread: currentData.mail.thread?.map((mail) => applyMailUpdates(mail, mailId, updates)),
+        },
+      };
+    },
+    { revalidate: false }
+  );
+};
+
 const revalidateMail = (mailId) => {
   mutate(endpoints.mail.labels);
   mutate((key) => mailListKey(key));
@@ -127,14 +183,21 @@ export function useGetMail(mailId) {
 
 export async function updateMail(mailId, updates) {
   const params = new URLSearchParams({ mailId });
-  const data = await requestJson(`${endpoints.mail.details}?${params.toString()}`, {
-    method: 'PATCH',
-    body: JSON.stringify(updates),
-  });
+  updateCachedMail(mailId, updates);
 
-  revalidateMail(mailId);
+  try {
+    const data = await requestJson(`${endpoints.mail.details}?${params.toString()}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
 
-  return data.mail;
+    revalidateMail(mailId);
+
+    return data.mail;
+  } catch (error) {
+    revalidateMail(mailId);
+    throw error;
+  }
 }
 
 // ----------------------------------------------------------------------

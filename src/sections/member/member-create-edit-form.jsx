@@ -63,7 +63,6 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { ContextInfo } from 'src/components/info/context-info';
 import { UnderlineLink } from 'src/components/link/underline-link';
-import DebugPayloadButton from 'src/components/debug/DebugPayloadButton';
 // form sections
 import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
 import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
@@ -709,11 +708,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
             : null,
         };
-        console.log('PAYLOAD FINAL Ã°Å¸â€˜â€°', JSON.stringify(payload, null, 2));
         console.log('[member form] submitting member update', {
           currentMemberId: currentMember?.id,
           endpoint: currentMember ? '/api/members/put' : '/api/members/post',
-          payload,
         });
 
         const res = await fetch(currentMember ? '/api/members/put' : '/api/members/post', {
@@ -1303,51 +1300,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               >
                 Faltan campos obligatorios por completar
               </Typography>
-            )}
-            {!readOnly && (
-            <DebugPayloadButton
-              getValues={methods.getValues}
-              buildPayload={(data) => {
-                const formData = data;
-
-                const province = provinciasData.find(
-                  (p) => String(p.id) === String(formData.provinceId)
-                )?.nombre;
-
-                const municipio = municipiosData.find(
-                  (m, index) => String(index + 1) === String(formData.municipioId)
-                )?.nombre;
-
-                const sector = barriosData.find(
-                  (s) => String(s.id) === String(formData.sectorId)
-                )?.nombre;
-
-                const direccion = [province, municipio, sector, formData.street]
-                  .filter(Boolean)
-                  .join(', ');
-
-                return {
-                  idMiembros: currentMember?.id || 0,
-                  codigoMiembro: currentMember?.memberId || 'DEBUG',
-                  nombres: formData.firstName,
-                  apellidos: formData.lastName,
-                  genero: formData.gender === 'Masculino' ? 'M' : 'F',
-                  fechaNacimiento: formData.birthdate
-                    ? dayjs(formData.birthdate).format('YYYY-MM-DD')
-                    : null,
-                  idDestacamento: selectedDestId ? Number(selectedDestId) : null,
-                  telefono: formData.phoneNumber || '',
-                  direccion,
-                  correo: formData.email || null,
-                  idCargoLocal: null,
-                  idCargoInstitucional: formData.nationalLeadershipRole
-                    ? Number(formData.nationalLeadershipRole)
-                    : null,
-                  idDivision: Number(formData.idDivision) || 0,
-                  instructorCertificadoCi: formData.InstructorCertificadoCI === 1,
-                };
-              }}
-            />
             )}
           </Card>
         </Grid>

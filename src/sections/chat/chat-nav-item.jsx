@@ -32,22 +32,20 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
 
   const singleParticipant = participants[0];
 
-  const handleClickConversation = useCallback(async () => {
-    try {
-      if (!mdUp) {
-        onCloseMobile();
-      }
-
-      await clickConversation(conversation.id, currentContact.idMiembros);
-
-      const redirectPath = `${paths.dashboard.chat}?id=${conversation.id}`;
-
-      startTransition(() => {
-        router.push(redirectPath);
-      });
-    } catch (error) {
-      console.error(error);
+  const handleClickConversation = useCallback(() => {
+    if (!mdUp) {
+      onCloseMobile();
     }
+
+    const redirectPath = `${paths.dashboard.chat}?id=${conversation.id}`;
+
+    startTransition(() => {
+      router.push(redirectPath);
+    });
+
+    clickConversation(conversation.id, currentContact.idMiembros).catch((error) => {
+      console.error(error);
+    });
   }, [conversation.id, currentContact.idMiembros, mdUp, onCloseMobile, router]);
 
   const renderGroup = () => (

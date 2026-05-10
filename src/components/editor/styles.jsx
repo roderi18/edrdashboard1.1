@@ -10,7 +10,7 @@ const MARGIN = '0.75em';
 
 export const EditorRoot = styled('div')(({ theme }) => ({
   ...theme.mixins.scrollbarStyles(theme),
-  minHeight: 240,
+  minHeight: 180,
   display: 'flex',
   flexDirection: 'column',
   borderRadius: theme.shape.borderRadius,

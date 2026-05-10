@@ -61,6 +61,57 @@ export function ChatHeaderSkeleton({ sx, ...other }) {
 
 // ----------------------------------------------------------------------
 
+export function ChatMessageListSkeleton({ sx, itemCount = 5, ...other }) {
+  return (
+    <Box
+      sx={[
+        {
+          px: 3,
+          pt: 5,
+          pb: 3,
+          gap: 3,
+          flex: '1 1 auto',
+          display: 'flex',
+          flexDirection: 'column',
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      {...other}
+    >
+      {Array.from({ length: itemCount }, (_, index) => {
+        const isMine = index % 2 === 1;
+
+        return (
+          <Box
+            key={index}
+            sx={{
+              gap: 2,
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: isMine ? 'flex-end' : 'flex-start',
+            }}
+          >
+            {!isMine && <Skeleton variant="circular" sx={{ width: 32, height: 32 }} />}
+
+            <Box sx={{ width: isMine ? 220 : 260, maxWidth: '72%' }}>
+              <Skeleton sx={{ mb: 1, ml: isMine ? 'auto' : 0, width: 88, height: 10 }} />
+              <Skeleton
+                variant="rounded"
+                sx={{
+                  height: index === 2 ? 72 : 42,
+                  borderRadius: 1,
+                }}
+              />
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export function ChatRoomSkeleton({ sx, ...other }) {
   return (
     <Box
