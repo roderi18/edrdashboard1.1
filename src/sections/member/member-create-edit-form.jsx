@@ -27,10 +27,11 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 // utils
-import { fData } from 'src/utils/format-number';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { buildDefaultMemberPermissions } from 'src/utils/member-access';
+import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
@@ -81,6 +82,13 @@ import {
 // ----------------------------------------------------------------------
 
 const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
+const MEMBER_PHOTO_OPTIMIZE_OPTIONS = {
+  maxWidth: 900,
+  maxHeight: 900,
+  quality: 0.82,
+  mimeType: 'image/webp',
+  maxSizeBytes: 320000,
+};
 
 const createSecondaryAuth = () => {
   try {
@@ -289,6 +297,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   const [members, setMembers] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoUploadErrorMessage, setPhotoUploadErrorMessage] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -579,6 +588,39 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     })
     .filter(Boolean);
 
+  const optimizeMemberPhoto = async (file) => {
+    if (!file || !(file instanceof File)) {
+      return { file, info: null };
+    }
+
+    if (file.__optimizedForUpload) {
+      return { file, info: file.__optimizationInfo || null };
+    }
+
+    if (!String(file.type || '').startsWith('image/')) {
+      throw new Error('Solo se permiten archivos de imagen para la foto del miembro.');
+    }
+
+    const originalSize = file.__originalSize || file.size || 0;
+    const optimizedFile = await optimizeImageFile(file, MEMBER_PHOTO_OPTIMIZE_OPTIONS);
+
+    if (optimizedFile instanceof File) {
+      Object.defineProperty(optimizedFile, '__originalSize', {
+        value: originalSize,
+        configurable: true,
+      });
+    }
+
+    const info = {
+      originalSize,
+      optimizedSize: optimizedFile?.size || file.size || 0,
+    };
+
+    setPhotoUploadErrorMessage('');
+
+    return { file: optimizedFile || file, info };
+  };
+
   const uploadMemberPhoto = async ({ file, idMiembros, showSuccess = true }) => {
     if (!file || !(file instanceof File)) {
       return null;
@@ -588,8 +630,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
       throw new Error('No se pudo identificar el miembro para subir la foto.');
     }
 
+    const { file: optimizedFile, info } = await optimizeMemberPhoto(file);
+
     const photo = await subirFotoEntidad({
-      file,
+      file: optimizedFile,
       tipoEntidad: 'miembro',
       idEntidad: idMiembros,
       tipoFoto: 'perfil',
@@ -597,27 +641,37 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     });
 
     if (showSuccess) {
-      toast.success('Foto subida correctamente.');
+      toast.success(getImageOptimizationMessage(info));
     }
 
-    return photo.urlFoto;
+    return {
+      urlFoto: photo.urlFoto,
+      optimizationInfo: info,
+    };
   };
 
   const handleUploadMemberPhoto = async (acceptedFiles) => {
     const file = acceptedFiles?.[0];
     const idMiembros = currentMember?.id;
 
-    if (!currentMember || !idMiembros) {
+    if (!file) {
       return null;
     }
 
     try {
       setUploadingPhoto(true);
 
-      return await uploadMemberPhoto({
+      if (!currentMember || !idMiembros) {
+        const { file: optimizedFile } = await optimizeMemberPhoto(file);
+        return optimizedFile;
+      }
+
+      const result = await uploadMemberPhoto({
         file,
         idMiembros,
       });
+
+      return result?.urlFoto || null;
     } catch (error) {
       console.error('[member form] photo upload failed', error);
       toast.error(error.message || 'No se pudo subir la foto.');
@@ -626,6 +680,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     } finally {
       setUploadingPhoto(false);
     }
+  };
+
+  const handlePhotoDropRejected = () => {
+    const message = 'Solo se permiten imágenes en formato jpeg, jpg, png o gif.';
+    setPhotoUploadErrorMessage(message);
+    toast.error(message);
   };
 
   const onSubmit = handleSubmit(
@@ -830,15 +890,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               responseData?.data?.idMiembros ||
               responseData?.Data?.idMiembros;
 
-            const uploadedPhotoUrl = await uploadMemberPhoto({
+            const uploadedPhoto = await uploadMemberPhoto({
               file: selectedPhoto,
               idMiembros: createdMemberId,
               showSuccess: false,
             });
+            const uploadedPhotoUrl = uploadedPhoto?.urlFoto;
 
             if (uploadedPhotoUrl) {
               methods.setValue('avatarUrl', uploadedPhotoUrl, { shouldValidate: true });
-              toast.success('Miembro creado y foto subida correctamente.');
+              toast.success(getImageOptimizationMessage(uploadedPhoto?.optimizationInfo));
             }
           } catch (photoError) {
             console.error('[member form] deferred photo upload failed', photoError);
@@ -901,10 +962,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
-                maxSize={1050000}
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
                 onDrop={handleUploadMemberPhoto}
+                optimizationToast={false}
+                onDropRejected={handlePhotoDropRejected}
+                hideFilesRejected
                 helperText={
                   <>
                     <Typography
@@ -918,8 +981,24 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                       }}
                     >
                       Permitido *.jpeg, *.jpg, *.png, *.gif
-                      <br /> tamaño máximo de {fData(1050000)}
+                      <br /> la imagen se optimiza al cargar.
                     </Typography>
+
+                    {!!photoUploadErrorMessage && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 1,
+                          mx: 'auto',
+                          display: 'block',
+                          textAlign: 'center',
+                          color: 'error.main',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {photoUploadErrorMessage}
+                      </Typography>
+                    )}
 
                     <ContextInfo
                       items={[

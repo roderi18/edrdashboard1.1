@@ -6,10 +6,11 @@ export const IMAGE_UPLOAD_PRESETS = {
     mimeType: 'image/webp',
   },
   avatar: {
-    maxWidth: 1200,
-    maxHeight: 1200,
-    quality: 0.92,
+    maxWidth: 900,
+    maxHeight: 900,
+    quality: 0.82,
     mimeType: 'image/webp',
+    maxSizeBytes: 320000,
   },
   producto: {
     maxWidth: 1800,

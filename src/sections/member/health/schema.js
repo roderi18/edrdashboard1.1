@@ -1,9 +1,7 @@
 import * as z from 'zod';
 
-import { schemaUtils } from 'src/components/hook-form';
-
 export const MemberHealthSchema = z.object({
-  avatarUrl: schemaUtils.file().optional().nullable(),
+  avatarUrl: z.any().optional().nullable(),
   destName: z.string().optional(),
   church: z.string().optional(),
   memberAddress: z.string().optional(),
@@ -13,7 +11,7 @@ export const MemberHealthSchema = z.object({
   status: z.string().optional(),
   isVerified: z.boolean().optional(),
 
-  documents: schemaUtils.file().optional(),
+  documents: z.any().optional().nullable(),
 
   healthInsurance: z.string().min(1, { error: 'Seleccione una opcion' }),
   insuranceName: z.string().optional(),

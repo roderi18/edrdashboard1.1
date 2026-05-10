@@ -125,7 +125,7 @@ export function PostCreateEditForm({ currentPost }) {
 
           <Stack spacing={1.5}>
             <Typography variant="subtitle2">Cover</Typography>
-            <Field.Upload name="coverUrl" maxSize={1050000} onDelete={handleRemoveFile} />
+            <Field.Upload name="coverUrl" onDelete={handleRemoveFile} />
           </Stack>
         </Stack>
       </Collapse>

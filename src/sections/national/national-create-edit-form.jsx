@@ -15,8 +15,6 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fData } from 'src/utils/format-number';
-
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
@@ -113,7 +111,6 @@ export function NationalCreateEditForm({ currentNational }) {
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
-                maxSize={1050000}
                 helperText={
                   <Typography
                     variant="caption"
@@ -126,7 +123,7 @@ export function NationalCreateEditForm({ currentNational }) {
                     }}
                   >
                     Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> tamaño máximo de {fData(1050000)}
+                    <br /> la imagen se optimiza al cargar.
                   </Typography>
                 }
               />

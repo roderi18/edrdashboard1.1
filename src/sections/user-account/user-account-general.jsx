@@ -20,6 +20,7 @@ import { paths } from 'src/routes/paths';
 
 import { getMemberCodeLabel } from 'src/utils/member-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
@@ -390,7 +391,7 @@ export function UserAccountGeneral() {
       setMember((prev) => ({ ...prev, avatarUrl }));
       setValue('avatarUrl', avatarUrl, { shouldValidate: true });
       await checkUserSession?.();
-      toast.success('Foto de perfil actualizada.');
+      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
 
       return avatarUrl;
     } catch (error) {
@@ -508,10 +509,10 @@ export function UserAccountGeneral() {
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
-                maxSize={1050000}
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
                 onDrop={handleUploadAvatar}
+                optimizationToast={false}
               />
             </Box>
 

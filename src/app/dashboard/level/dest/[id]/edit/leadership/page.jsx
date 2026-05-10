@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { pdf, Text, View, Document, StyleSheet, Page as PdfPage } from '@react-pdf/renderer';
+import { pdf, Text, Document, StyleSheet, Page as PdfPage, Image as PdfImage } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -28,7 +28,6 @@ const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 const pdfStyles = StyleSheet.create({
   page: {
     padding: 28,
-    fontSize: 9,
     fontFamily: 'Helvetica',
     color: '#1C252E',
     backgroundColor: '#FFFFFF',
@@ -43,78 +42,20 @@ const pdfStyles = StyleSheet.create({
     marginBottom: 18,
     color: '#637381',
   },
-  chart: {
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#DFE3E8',
-    borderRadius: 8,
-    backgroundColor: '#F4F6F8',
-  },
-  nodeWrap: {
-    alignItems: 'center',
-  },
-  node: {
-    width: 118,
-    minHeight: 58,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#DFE3E8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  nodeName: {
-    fontSize: 9,
-    marginBottom: 4,
-    fontWeight: 700,
-  },
-  nodeRole: {
-    fontSize: 7,
-    color: '#637381',
-  },
-  children: {
-    marginTop: 18,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  child: {
-    marginHorizontal: 5,
-    alignItems: 'center',
+  chartImage: {
+    width: '100%',
+    objectFit: 'contain',
   },
 });
 
-function PdfNode({ node }) {
-  const children = node.children || [];
-
-  return (
-    <View style={pdfStyles.nodeWrap}>
-      <View style={pdfStyles.node}>
-        <Text style={pdfStyles.nodeName}>{node.name}</Text>
-        <Text style={pdfStyles.nodeRole}>{node.role}</Text>
-      </View>
-
-      {!!children.length && (
-        <View style={pdfStyles.children}>
-          {children.map((child) => (
-            <View key={child.id || child.name} style={pdfStyles.child}>
-              <PdfNode node={child} />
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-function LeadershipPdfDocument({ destName, data }) {
+function LeadershipPdfDocument({ destName, chartImage }) {
   return (
     <Document>
       <PdfPage size="A4" orientation="landscape" style={pdfStyles.page}>
         <Text style={pdfStyles.title}>Organigrama de directiva</Text>
         <Text style={pdfStyles.subtitle}>Destacamento: {destName}</Text>
 
-        <View style={pdfStyles.chart}>
-          <PdfNode node={data} />
-        </View>
+        <PdfImage src={chartImage} style={pdfStyles.chartImage} />
       </PdfPage>
     </Document>
   );
@@ -129,9 +70,129 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
 
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+const getDocumentStyleText = () =>
+  Array.from(document.styleSheets)
+    .map((styleSheet) => {
+      try {
+        return Array.from(styleSheet.cssRules)
+          .map((rule) => rule.cssText)
+          .join('\n');
+      } catch {
+        return '';
+      }
+    })
+    .join('\n');
+
+const inlineComputedStyles = (source, target) => {
+  const computedStyle = window.getComputedStyle(source);
+
+  Array.from(computedStyle).forEach((property) => {
+    target.style.setProperty(
+      property,
+      computedStyle.getPropertyValue(property),
+      computedStyle.getPropertyPriority(property)
+    );
+  });
+
+  Array.from(source.children).forEach((sourceChild, index) => {
+    const targetChild = target.children[index];
+
+    if (targetChild) {
+      inlineComputedStyles(sourceChild, targetChild);
+    }
+  });
+};
+
+const inlineImages = async (element) => {
+  const images = Array.from(element.querySelectorAll('img'));
+
+  await Promise.all(
+    images.map(async (image) => {
+      const src = image.currentSrc || image.src;
+
+      if (!src || src.startsWith('data:')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(src);
+
+        if (!response.ok) {
+          return;
+        }
+
+        const blob = await response.blob();
+        image.src = await blobToDataUrl(blob);
+      } catch {
+        // Keep the original source if the browser cannot inline it.
+      }
+    })
+  );
+};
+
+const elementToPngDataUrl = async (element) => {
+  const rect = element.getBoundingClientRect();
+  const clone = element.cloneNode(true);
+  const hiddenElements = clone.querySelectorAll('[data-pdf-hidden="true"]');
+
+  inlineComputedStyles(element, clone);
+  hiddenElements.forEach((hiddenElement) => hiddenElement.remove());
+
+  clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  clone.style.width = `${rect.width}px`;
+  clone.style.height = `${rect.height}px`;
+
+  const styleElement = document.createElement('style');
+
+  styleElement.textContent = getDocumentStyleText();
+  clone.prepend(styleElement);
+
+  await inlineImages(clone);
+
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
+      <foreignObject width="100%" height="100%">${serialized}</foreignObject>
+    </svg>
+  `;
+  const image = new Image();
+  const canvas = document.createElement('canvas');
+  const scale = Math.min(window.devicePixelRatio || 1, 2);
+
+  canvas.width = Math.ceil(rect.width * scale);
+  canvas.height = Math.ceil(rect.height * scale);
+
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('No se pudo preparar el lienzo del organigrama.');
+  }
+
+  context.scale(scale, scale);
+  context.drawImage(image, 0, 0);
+
+  return canvas.toDataURL('image/png');
+};
+
 export default function Page() {
   const params = useParams();
   const destId = params?.id;
+  const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
   const [destName, setDestName] = useState('Destacamento');
@@ -249,11 +310,24 @@ export default function Page() {
   };
 
   const handleDownloadPdf = async () => {
+    if (!chartCaptureRef.current) {
+      return;
+    }
+
     setIsDownloading(true);
 
     try {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          code: 'Escape',
+          bubbles: true,
+        })
+      );
+
+      const chartImage = await elementToPngDataUrl(chartCaptureRef.current);
       const blob = await pdf(
-        <LeadershipPdfDocument destName={destName} data={SIMPLE_DATA} />
+        <LeadershipPdfDocument destName={destName} chartImage={chartImage} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -268,8 +342,9 @@ export default function Page() {
   };
 
   return (
-    <DestEditLayout maxWidth={false}>
+    <DestEditLayout>
       <Box
+        ref={chartCaptureRef}
         aria-label="Mover organigrama"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -305,26 +380,8 @@ export default function Page() {
           },
         }}
       >
-        <Typography
-          variant="subtitle2"
-          sx={{
-            position: 'absolute',
-            top: 18,
-            left: 24,
-            zIndex: 1,
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            bgcolor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: 1,
-          }}
-        >
-          {destName}
-        </Typography>
-
         <Stack
+          data-pdf-hidden="true"
           spacing={0.75}
           onPointerDown={(event) => event.stopPropagation()}
           sx={{

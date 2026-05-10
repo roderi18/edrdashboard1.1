@@ -19,7 +19,6 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { AUTH } from 'src/lib/firebase';
 import { ContextInfo } from 'src/components/info/context-info';
-import { fData } from 'src/utils/format-number';
 import LoadingButton from '@mui/lab/LoadingButton';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import StatusLabel from 'src/components/common/status-label';
@@ -28,6 +27,7 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import { countMembersByDestId } from 'src/utils/member-count';
+import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 import { DestSchema } from 'src/models/dest-schema';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
@@ -266,7 +266,7 @@ export function DestCreateEditForm({ currentDest }) {
         subidoPor: AUTH.currentUser?.uid || '',
       });
 
-      toast.success('Foto subida correctamente.');
+      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
 
       return photo.urlFoto;
     } catch (error) {
@@ -356,10 +356,10 @@ export function DestCreateEditForm({ currentDest }) {
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
-                maxSize={1050000}
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
                 onDrop={handleUploadDestPhoto}
+                optimizationToast={false}
                 helperText={
                   <Typography
                     variant="caption"
@@ -372,7 +372,7 @@ export function DestCreateEditForm({ currentDest }) {
                     }}
                   >
                     Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> tamaño máximo de {fData(1050000)}
+                    <br /> la imagen se optimiza al cargar.
                   </Typography>
                 }
               />

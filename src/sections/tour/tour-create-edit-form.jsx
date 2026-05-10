@@ -162,13 +162,12 @@ export function TourCreateEditForm({ currentTour }) {
 
           <Stack spacing={1.5}>
             <Typography variant="subtitle2">Images</Typography>
-            <Field.Upload
-              multiple
-              name="images"
-              maxSize={1050000}
-              onRemove={handleRemoveFile}
-              onRemoveAll={handleRemoveAllFiles}
-              onUpload={() => console.info('ON UPLOAD')}
+              <Field.Upload
+                multiple
+                name="images"
+                onRemove={handleRemoveFile}
+                onRemoveAll={handleRemoveAllFiles}
+                onUpload={() => console.info('ON UPLOAD')}
             />
           </Stack>
         </Stack>

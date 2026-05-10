@@ -14,12 +14,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { fData } from 'src/utils/format-number';
 import { AUTH } from 'src/lib/firebase';
 
 import { RegionalSchema } from 'src/models/regional-schema';
 import { getRegionals } from 'src/services/regional-service';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -91,7 +91,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
         subidoPor: AUTH.currentUser?.uid || '',
       });
 
-      toast.success('Foto subida correctamente.');
+      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
 
       return photo.urlFoto;
     } catch (error) {
@@ -183,10 +183,10 @@ export function RegionalCreateEditForm({ currentRegional }) {
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
-                maxSize={1050000}
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
                 onDrop={handleUploadRegionalPhoto}
+                optimizationToast={false}
                 helperText={
                   <Typography
                     variant="caption"
@@ -199,7 +199,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
                     }}
                   >
                     Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> tamaño máximo de {fData(1050000)}
+                    <br /> la imagen se optimiza al cargar.
                   </Typography>
                 }
               />

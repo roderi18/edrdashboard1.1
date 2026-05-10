@@ -184,22 +184,28 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         };
     }, [getValues, memberId, reset]);
 
-    const onSubmit = handleSubmit(async (data) => {
-        try {
-            await guardarSaludMiembro({
-                idMiembros: memberId,
-                codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
-                data,
-                usuario: user,
-            });
+    const onSubmit = handleSubmit(
+        async (data) => {
+            try {
+                await guardarSaludMiembro({
+                    idMiembros: memberId,
+                    codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+                    data,
+                    usuario: user,
+                });
 
-            reset(data);
-            toast.success('Información de salud guardada');
-        } catch (error) {
-            console.error(error);
-            toast.error(error.message || 'No se pudo guardar la información de salud.');
+                reset(data);
+                toast.success('Información de salud guardada');
+            } catch (error) {
+                console.error(error);
+                toast.error(error.message || 'No se pudo guardar la información de salud.');
+            }
+        },
+        (errors) => {
+            console.error('Errores del formulario de salud:', errors);
+            toast.error('Revisa los campos de salud antes de guardar.');
         }
-    });
+    );
 
     const openBasic = useBoolean(false);
     const openDocument = useBoolean(false);

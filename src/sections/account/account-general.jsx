@@ -134,7 +134,6 @@ export function AccountGeneral() {
           >
             <Field.UploadAvatar
               name="photoURL"
-              maxSize={1050000}
               helperText={
                 <Typography
                   variant="caption"
@@ -147,7 +146,7 @@ export function AccountGeneral() {
                   }}
                 >
                   Permitido *.jpeg, *.jpg, *.png, *.gif
-                  <br /> tamaño máximo de 1 Mb
+                  <br /> la imagen se optimiza al cargar.
                 </Typography>
               }
             />
