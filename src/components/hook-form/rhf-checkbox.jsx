@@ -25,7 +25,7 @@ export function RHFCheckbox({ sx, name, label, slotProps, helperText, ...other }
             control={
               <Checkbox
                 {...field}
-                checked={field.value}
+                checked={Boolean(field.value)}
                 {...slotProps?.checkbox}
                 slotProps={{
                   ...slotProps?.checkbox?.slotProps,

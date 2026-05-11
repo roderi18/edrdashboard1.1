@@ -38,6 +38,18 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { useMedicalDocuments } from './health/hooks/use-medical-documents';
 
+const DEFAULT_MEDICAL_CONDITIONS = {
+    asthma: false,
+    diabetes: false,
+    epilepsy: false,
+    hypertension: false,
+    heart_problems: false,
+    respiratory_problems: false,
+    eating_disorders: false,
+    surgery: false,
+    other: false,
+};
+
 export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const { user } = useAuthContext();
     const memberId = currentMember?.id;
@@ -105,18 +117,10 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         // condiciones médicas
         hasMedicalConditions: 'no',
 
-        medicalConditions: {
-            asthma: false,
-            diabetes: false,
-            epilepsy: false,
-            hypertension: false,
-            heart_problems: false,
-            respiratory_problems: false,
-            eating_disorders: false,
-            other: false,
-        },
+        medicalConditions: { ...DEFAULT_MEDICAL_CONDITIONS },
 
         medicalConditionsOther: '',
+        surgeryDetails: '',
         specialCare: '',
 
     };
@@ -170,6 +174,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                 reset({
                     ...getValues(),
                     ...healthData,
+                    medicalConditions: {
+                        ...DEFAULT_MEDICAL_CONDITIONS,
+                        ...getValues('medicalConditions'),
+                        ...healthData.medicalConditions,
+                    },
                 });
             } catch (error) {
                 console.error(error);

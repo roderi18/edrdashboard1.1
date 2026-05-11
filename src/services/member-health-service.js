@@ -133,9 +133,11 @@ const mapCondicionesToForm = (data = {}) => ({
     heart_problems: Boolean(data.problemasCorazon),
     respiratory_problems: Boolean(data.problemasRespiratorios),
     eating_disorders: Boolean(data.trastornosAlimenticios),
+    surgery: Boolean(data.fueOperado || data.haSidoOperado),
     other: Boolean(data.otraCondicion),
   },
   medicalConditionsOther: data.detalleOtraCondicion || '',
+  surgeryDetails: data.detalleOperacion || data.detalleOperacionQuirurgica || '',
   specialCare: data.cuidadosEspeciales || '',
 });
 
@@ -320,6 +322,8 @@ export const guardarCondicionesMedicasMiembro = async ({
     problemasCorazon: Boolean(condiciones.heart_problems),
     problemasRespiratorios: Boolean(condiciones.respiratory_problems),
     trastornosAlimenticios: Boolean(condiciones.eating_disorders),
+    fueOperado: Boolean(condiciones.surgery),
+    detalleOperacion: condiciones.surgery ? data.surgeryDetails || '' : '',
     otraCondicion: Boolean(condiciones.other),
     detalleOtraCondicion: data.medicalConditionsOther || '',
     cuidadosEspeciales: data.specialCare || '',

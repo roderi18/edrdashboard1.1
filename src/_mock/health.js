@@ -135,5 +135,6 @@ export const MEDICAL_CONDITIONS_OPTIONS = [
     { id: 'heart_problems', label: 'Problemas cardíacos' },
     { id: 'respiratory_problems', label: 'Problemas respiratorios' },
     { id: 'eating_disorders', label: 'Trastornos alimenticios' },
+    { id: 'surgery', label: '¿Has sido operado en algún momento?' },
     { id: 'other', label: 'Otros' },
 ];

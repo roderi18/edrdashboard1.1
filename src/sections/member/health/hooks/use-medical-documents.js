@@ -16,6 +16,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
   const [medicalDocuments, setMedicalDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
+  const uploadCategoryRef = useRef('sin_clasificar');
   const invalidNameRegex = useMemo(() => /[\\/:*?"<>|]/, []);
   const maxFileSize = 10 * 1024 * 1024;
   const allowedExtensions = useMemo(
@@ -54,7 +55,8 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     };
   }, [memberId]);
 
-  const openUploadDialog = useCallback(() => {
+  const openUploadDialog = useCallback((documentCategory = 'sin_clasificar') => {
+    uploadCategoryRef.current = documentCategory;
     fileInputRef.current?.click();
   }, []);
 
@@ -130,6 +132,8 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         id: `temp-${crypto.randomUUID()}`,
         idMiembros: Number(memberId),
         codigoMiembro,
+        documentCategory: uploadCategoryRef.current,
+        tipoDocumentoSalud: uploadCategoryRef.current,
         name: file.name,
         title: file.name,
         size: file.size,
@@ -148,6 +152,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
           files: validFiles,
           idMiembros: memberId,
           codigoMiembro,
+          documentCategory: uploadCategoryRef.current,
           creadoPor: user,
         });
         const optimisticIds = new Set(optimisticDocuments.map((documento) => documento.id));

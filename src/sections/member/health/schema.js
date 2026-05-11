@@ -63,10 +63,12 @@ export const MemberHealthSchema = z.object({
       heart_problems: z.boolean().optional(),
       respiratory_problems: z.boolean().optional(),
       eating_disorders: z.boolean().optional(),
+      surgery: z.boolean().optional(),
       other: z.boolean().optional(),
     })
     .optional(),
 
   medicalConditionsOther: z.string().optional(),
+  surgeryDetails: z.string().max(100, { error: 'Máximo 100 caracteres' }).optional(),
   specialCare: z.string().optional(),
 });

@@ -5,14 +5,14 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Collapse from '@mui/material/Collapse';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
-import Collapse from '@mui/material/Collapse';
+
+import { MEDICAL_CONDITIONS_OPTIONS } from 'src/_mock/health';
 
 import { Field } from 'src/components/hook-form';
 import RestrictedText from 'src/components/restricted/RestrictedText';
-
-import { MEDICAL_CONDITIONS_OPTIONS } from 'src/_mock/health';
 
 export function HealthConditionsSection({
     open,
@@ -80,6 +80,20 @@ export function HealthConditionsSection({
                                     value={watch('medicalConditionsOther') || ''}
                                     onChange={(val) =>
                                         setValue('medicalConditionsOther', val)
+                                    }
+                                    allow="all"
+                                    maxLength={100}
+                                    multiline
+                                    rows={2}
+                                />
+                            )}
+
+                            {watch('medicalConditions.surgery') && (
+                                <RestrictedText
+                                    label="Detalle de la operación"
+                                    value={watch('surgeryDetails') || ''}
+                                    onChange={(val) =>
+                                        setValue('surgeryDetails', val)
                                     }
                                     allow="all"
                                     maxLength={100}

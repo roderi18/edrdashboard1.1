@@ -35,6 +35,18 @@ const getHealthFileType = (fileName = '') => {
   return extension || 'file';
 };
 
+const resolveDocumentCategory = (data = {}) => {
+  if (data.tipoDocumentoSalud) return data.tipoDocumentoSalud;
+  if (data.categoriaDocumento) return data.categoriaDocumento;
+
+  const fileName = String(data.nombreArchivo || data.nombre || '').toLowerCase();
+
+  if (fileName.includes('seguro')) return 'seguro_medico';
+  if (fileName.includes('cedula') || fileName.includes('cédula')) return 'cedula_identidad';
+
+  return 'sin_clasificar';
+};
+
 const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
   id: data.idDocumento || data.id,
   idDocumento: data.idDocumento || data.id,
@@ -47,6 +59,8 @@ const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
   storagePath: data.rutaStorage || data.storagePath || '',
   size: Number(data.tamanoBytes || data.tamano || 0),
   contentType: data.tipoArchivo || data.tipoMime || '',
+  documentCategory: resolveDocumentCategory(data),
+  tipoDocumentoSalud: resolveDocumentCategory(data),
   shared: Array.isArray(data.compartidoCon) ? data.compartidoCon : [],
   tags: ['salud'],
   createdAt: data.creadoEn || data.fechaCreacion || new Date().toISOString(),
@@ -74,6 +88,7 @@ export const subirDocumentosSaludMiembro = async ({
   files = [],
   idMiembros,
   codigoMiembro = '',
+  documentCategory = 'sin_clasificar',
   creadoPor = {},
 } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -92,6 +107,7 @@ export const subirDocumentosSaludMiembro = async ({
       modulo: 'documentos_salud_miembros',
       idMiembros: String(idMiembros),
       codigoMiembro: String(codigoMiembro || ''),
+      tipoDocumentoSalud: String(documentCategory),
       indice: String(index),
     }),
   });
@@ -113,6 +129,7 @@ export const subirDocumentosSaludMiembro = async ({
       urlArchivo: upload.downloadURL || upload.url,
       rutaStorage: upload.storagePath,
       categoria: 'salud',
+      tipoDocumentoSalud: documentCategory,
       estado: 'activo',
       creadoEn: now,
       actualizadoEn: now,

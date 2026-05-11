@@ -40,13 +40,13 @@ export function MemberEditLayout({ children, ...other }) {
     //     href: `/dashboard/level/dest/${member?.destId}/edit`,
     // },
     {
-      label: 'Salud',
+      label: 'Dispensa Médica',
       icon: <Iconify width={24} icon="solar:heart-pulse-bold" />,
       href: paths.dashboard.level.member.editHealth(memberId),
     },
     {
-      label: 'Premios',
-      icon: <Iconify width={24} icon="solar:cup-bold" />,
+      label: 'Sistema de Ascenso',
+      icon: <Iconify width={24} icon="solar:medal-ribbon-star-bold" />,
       href: paths.dashboard.level.member.editAwards(memberId),
     },
     {

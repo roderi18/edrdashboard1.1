@@ -54,6 +54,7 @@ export function FileManagerTableRow({
   selected,
   onSelectRow,
   onDeleteRow,
+  onUpload,
   onRename,
   canDelete = false,
 
@@ -123,6 +124,20 @@ export function FileManagerTableRow({
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
+        {onUpload && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onUpload();
+            }}
+          >
+            <Iconify icon="eva:cloud-upload-fill" />
+            Subir
+          </MenuItem>
+        )}
+
+        {onUpload && <Divider sx={{ borderStyle: 'dashed' }} />}
+
         <MenuItem
           onClick={() => {
             menuActions.onClose();
