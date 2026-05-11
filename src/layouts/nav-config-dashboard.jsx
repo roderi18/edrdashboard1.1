@@ -96,7 +96,7 @@ export const navData = [
       },
       /* rp */
       {
-        title: 'Niveles',
+        title: 'Niveles Organizacionales',
         path: paths.dashboard.level.root,
         icon: ICONS.user,
         deepMatch: true,
