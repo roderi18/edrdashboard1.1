@@ -16,7 +16,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
   const [medicalDocuments, setMedicalDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
-  const uploadCategoryRef = useRef('sin_clasificar');
+  const uploadCategoryRef = useRef('otros_documentos');
   const invalidNameRegex = useMemo(() => /[\\/:*?"<>|]/, []);
   const maxFileSize = 10 * 1024 * 1024;
   const allowedExtensions = useMemo(
@@ -55,7 +55,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     };
   }, [memberId]);
 
-  const openUploadDialog = useCallback((documentCategory = 'sin_clasificar') => {
+  const openUploadDialog = useCallback((documentCategory = 'otros_documentos') => {
     uploadCategoryRef.current = documentCategory;
     fileInputRef.current?.click();
   }, []);
@@ -111,9 +111,9 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     [allowedExtensions, invalidNameRegex, maxFileSize, medicalDocuments]
   );
 
-  const handleUploadFiles = useCallback(
-    async (event) => {
-      const files = Array.from(event.target.files || []);
+  const uploadFilesForCategory = useCallback(
+    async (inputFiles, documentCategory = 'otros_documentos', onFinish) => {
+      const files = Array.from(inputFiles || []);
 
       if (!files.length) return;
 
@@ -124,7 +124,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
       }
 
       if (!validFiles.length) {
-        event.target.value = '';
+        onFinish?.();
         return;
       }
 
@@ -132,8 +132,8 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         id: `temp-${crypto.randomUUID()}`,
         idMiembros: Number(memberId),
         codigoMiembro,
-        documentCategory: uploadCategoryRef.current,
-        tipoDocumentoSalud: uploadCategoryRef.current,
+        documentCategory,
+        tipoDocumentoSalud: documentCategory,
         name: file.name,
         title: file.name,
         size: file.size,
@@ -152,7 +152,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
           files: validFiles,
           idMiembros: memberId,
           codigoMiembro,
-          documentCategory: uploadCategoryRef.current,
+          documentCategory,
           creadoPor: user,
         });
         const optimisticIds = new Set(optimisticDocuments.map((documento) => documento.id));
@@ -169,10 +169,19 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         setMedicalDocuments((prev) => prev.filter((documento) => !optimisticIds.has(documento.id)));
         toast.error(error.message || 'No se pudieron subir los documentos.');
       } finally {
-        event.target.value = '';
+        onFinish?.();
       }
     },
     [codigoMiembro, memberId, user, validateFiles]
+  );
+
+  const handleUploadFiles = useCallback(
+    async (event) => {
+      await uploadFilesForCategory(event.target.files, uploadCategoryRef.current, () => {
+        event.target.value = '';
+      });
+    },
+    [uploadFilesForCategory]
   );
 
   const FileInput = (
@@ -283,6 +292,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     loading,
     medicalDocuments,
     openUploadDialog,
+    uploadDroppedFiles: uploadFilesForCategory,
     FileInput,
     deleteOne,
     deleteSelected,

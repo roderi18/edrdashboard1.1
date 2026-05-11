@@ -33,6 +33,7 @@ export const ORDEN_DEFAULT = {
     tipoPago: '',
     numeroReferencia: null,
     estadoPago: 'pendiente',
+    comprobantePago: null,
   },
   direccionEnvio: null,
   direccionFacturacion: null,
@@ -133,6 +134,7 @@ export const crearDocumentoOrden = ({
       tipoPago: paymentData?.payment || 'efectivo',
       numeroReferencia: paymentData?.reference || null,
       estadoPago: requiereEvaluacion ? 'pendiente_evaluacion' : 'pagado',
+      comprobantePago: paymentData?.comprobantePago || null,
     },
     direccionEnvio: checkoutState?.billing ?? null,
     direccionFacturacion: checkoutState?.billing ?? null,
@@ -229,6 +231,7 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
   payment: {
     cardType: doc?.pago?.tipoPago || '',
     cardNumber: doc?.pago?.numeroReferencia || '',
+    comprobantePago: doc?.pago?.comprobantePago || null,
   },
   status:
     doc?.estado === 'cancelada'

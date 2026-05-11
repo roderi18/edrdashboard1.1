@@ -1,6 +1,18 @@
 import * as z from 'zod';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
+const getMinimumBirthdate = () => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 5);
+    return date;
+};
+
+const getMaximumBirthdate = () => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 100);
+    return date;
+};
+
 // export const MemberValidationSchema = z.object({
 
 //     firstName: z
@@ -120,7 +132,19 @@ export const MemberValidationSchema = z.object({
 
     phoneNumber: z.string().optional(),
 
-    birthdate: z.any().optional().nullable(),
+    birthdate: z
+        .any()
+        .optional()
+        .nullable()
+        .refine((value) => {
+            if (!value) return true;
+
+            const birthdate = new Date(value);
+
+            if (Number.isNaN(birthdate.getTime())) return false;
+
+            return birthdate <= getMinimumBirthdate() && birthdate >= getMaximumBirthdate();
+        }, 'La edad del miembro debe estar entre 5 y 100 años.'),
 
     provinceId: z.any().optional().nullable(),
     municipioId: z.any().optional().nullable(),

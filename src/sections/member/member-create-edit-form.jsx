@@ -381,6 +381,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   } = methods;
 
   const birthdate = watch('birthdate');
+  const minBirthdate = dayjs().subtract(100, 'year');
+  const maxBirthdate = dayjs().subtract(5, 'year');
   const [division, setDivision] = useState('');
   const [divisionId, setDivisionId] = useState(null);
   const idDivision = watch('idDivision');
@@ -1146,6 +1148,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                   division={division}
                   isCreateView={isCreateView}
                   control={control}
+                  minBirthdate={minBirthdate}
+                  maxBirthdate={maxBirthdate}
                 />
               )}
 

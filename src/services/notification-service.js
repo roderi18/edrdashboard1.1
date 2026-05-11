@@ -47,7 +47,7 @@ const TIPOS_VISUALES = {
   perfil_actualizado: 'project',
   producto_disponible_nuevamente: 'delivery',
   producto_publicado: 'tags',
-  producto_resena_baja: 'project',
+  producto_resena_baja: 'chat',
   producto_sin_stock: 'order',
   producto_stock_bajo: 'file',
 };
@@ -397,88 +397,6 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
   return notificaciones;
 }
 
-export async function crearNotificacionResenaProductoBaja({
-  productId,
-  productName = '',
-  review = {},
-  usuario = {},
-}) {
-  asegurarFirebaseNotificaciones();
-
-  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
-
-  if (!idsAdministradores.length || !productId) {
-    return null;
-  }
-
-  const fechaActual = new Date().toISOString();
-  const rating = Number(review.rating || 0);
-  const reviewId = review.id || Date.now();
-  const nombreProducto = productName || `Producto ${productId}`;
-  const actorNombre =
-    usuario?.displayName ||
-    usuario?.nombre ||
-    usuario?.name ||
-    usuario?.email ||
-    review.name ||
-    'Usuario';
-  const mensaje = `se recibio una resena de ${rating}/5 en ${nombreProducto}.`;
-  const notificationId = `producto_resena_baja_${productId}_${reviewId}`;
-  const ruta = `/dashboard/product/${productId}?tab=reviews&reviewId=${encodeURIComponent(String(reviewId))}`;
-
-  const notificacion = {
-    id: notificationId,
-    tipoNotificacion: 'producto_resena_baja',
-    modulo: 'productos',
-    titulo: 'Resena baja recibida',
-    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> dejo una resena de <strong>${escapeHtml(rating)}/5</strong> en <strong>${escapeHtml(nombreProducto)}</strong></p>`,
-    mensaje,
-    mensajeVisual: mensaje,
-    rolDestinatario: 'admin',
-    idsDestinatarios: idsAdministradores,
-    prioridad: 'importante',
-    estado: 'no_leida',
-    fechaCreacion: fechaActual,
-    fechaEnvio: fechaActual,
-    actorId: String(usuario?.uid || usuario?.id || review.email || 'usuario'),
-    actorTipo: 'usuario',
-    actorNombre,
-    actorFotoURL: usuario?.photoURL || review.avatarUrl || null,
-    entidadTipo: 'producto',
-    entidadId: String(productId),
-    ruta,
-    imagenTipo: 'icono',
-    imagenURL: null,
-    miniaturaURL: null,
-    tipoAccion: 'ver',
-    etiquetaAccion: 'Ver resena',
-    tipoAccionSecundaria: null,
-    etiquetaAccionSecundaria: null,
-    leidaPor: [],
-    fechaProgramada: null,
-    fechaExpiracion: null,
-    fechaLectura: null,
-    metadatos: {
-      productId: String(productId),
-      idProducto: String(productId),
-      nombreProducto,
-      reviewId: String(reviewId),
-      calificacion: rating,
-      comentario: review.comment || '',
-    },
-    creadoEnServidor: serverTimestamp(),
-    actualizadoEnServidor: serverTimestamp(),
-  };
-
-  await setDoc(
-    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
-    notificacion,
-    { merge: true }
-  );
-
-  return notificacion;
-}
-
 export async function crearNotificacionEvaluacionPedido({
   orden = {},
   tipo = 'rechazada',
@@ -500,7 +418,7 @@ export async function crearNotificacionEvaluacionPedido({
   const esRechazo = tipo === 'rechazada';
   const estadoTexto = esRechazo ? 'fue rechazada.' : 'fue aprobado para compra';
   const mensaje = esRechazo
-    ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}. Ve a este número de orden para cargar el archivo faltante.`
+    ? `tu pedido ${numeroOrden} fue rechazado. Motivo: ${razon}. Presiona este número de orden para cargar el archivo faltante.`
     : `tu pedido ${numeroOrden} fue aprobado para compra.`;
   const notificationId = `pedido_${tipo}_${ordenId || Date.now()}_${idUsuario}`;
 
@@ -564,21 +482,38 @@ export async function crearNotificacionArchivosFaltantesPedido({
 }) {
   asegurarFirebaseNotificaciones();
 
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+
+  if (!idsAdministradores.length) {
+    return null;
+  }
+
   const fechaActual = new Date().toISOString();
   const ordenId = orden?.ordenId || orden?.id || '';
   const { numeroOrden, clienteNombre } = construirDescripcionPedido(orden);
-  const idUsuario = obtenerIdUsuarioNotificaciones(usuario) || String(orden?.usuarioId || '');
-  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
   const cantidadArchivos = archivos.length;
   const archivoTexto = cantidadArchivos === 1 ? 'un archivo faltante' : `${cantidadArchivos} archivos faltantes`;
   const actorNombre =
     usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Miembro';
-  const baseNotification = {
+  const notificationId = `pedido_archivos_faltantes_${ordenId || Date.now()}_${Date.now()}`;
+  const mensaje = `cargó ${archivoTexto} para el pedido ${numeroOrden}.`;
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'pedido_recibido',
     modulo: 'pedidos',
+    titulo: 'Archivos faltantes cargados',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> cargó ${escapeHtml(archivoTexto)} para el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'admin',
+    idsDestinatarios: idsAdministradores,
     prioridad: 'importante',
     estado: 'no_leida',
     fechaCreacion: fechaActual,
     fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || orden?.usuarioId || 'sistema'),
+    actorTipo: 'usuario',
+    actorNombre,
     actorFotoURL: usuario?.photoURL || null,
     entidadTipo: 'pedido',
     entidadId: ordenId,
@@ -604,57 +539,98 @@ export async function crearNotificacionArchivosFaltantesPedido({
     creadoEnServidor: serverTimestamp(),
     actualizadoEnServidor: serverTimestamp(),
   };
-  const notificaciones = [];
 
-  if (idsAdministradores.length) {
-    const mensajeAdmin = `cargó ${archivoTexto} para el pedido ${numeroOrden}.`;
-
-    notificaciones.push({
-      ...baseNotification,
-      id: `pedido_archivos_faltantes_${ordenId || Date.now()}_admin_${Date.now()}`,
-      tipoNotificacion: 'pedido_recibido',
-      titulo: 'Archivos faltantes cargados',
-      tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> cargó ${escapeHtml(archivoTexto)} para el pedido <strong>${escapeHtml(numeroOrden)}</strong></p>`,
-      mensaje: mensajeAdmin,
-      mensajeVisual: mensajeAdmin,
-      rolDestinatario: 'admin',
-      idsDestinatarios: idsAdministradores,
-      actorId: String(usuario?.uid || usuario?.id || orden?.usuarioId || 'sistema'),
-      actorTipo: 'usuario',
-      actorNombre,
-    });
-  }
-
-  if (idUsuario) {
-    const mensajeUsuario = `se cargó archivo faltante a la orden ${numeroOrden}. El administrador fue notificado.`;
-
-    notificaciones.push({
-      ...baseNotification,
-      id: `pedido_archivos_faltantes_${ordenId || Date.now()}_usuario_${idUsuario}_${Date.now()}`,
-      tipoNotificacion: 'pedido_creado',
-      titulo: 'Archivo faltante cargado',
-      tituloHtml: `<p>se cargó archivo faltante a la orden <strong>${escapeHtml(numeroOrden)}</strong>. El administrador fue notificado.</p>`,
-      mensaje: mensajeUsuario,
-      mensajeVisual: mensajeUsuario,
-      rolDestinatario: 'usuario',
-      idsDestinatarios: [idUsuario],
-      actorId: 'sistema',
-      actorTipo: 'sistema',
-      actorNombre: 'Tienda',
-    });
-  }
-
-  await Promise.all(
-    notificaciones.map((notificacion) =>
-      setDoc(
-        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
-        notificacion,
-        { merge: true }
-      )
-    )
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
   );
 
-  return notificaciones;
+  return notificacion;
+}
+
+export async function crearNotificacionResenaProductoBaja({
+  productId = '',
+  productName = '',
+  review = {},
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+
+  if (!idsAdministradores.length) {
+    return null;
+  }
+
+  const fechaActual = new Date().toISOString();
+  const reviewerName =
+    review?.name ||
+    review?.nombre ||
+    usuario?.displayName ||
+    usuario?.nombre ||
+    usuario?.email ||
+    'Usuario';
+  const rating = Number(review?.rating ?? review?.calificacion ?? 0);
+  const comment = review?.comment || review?.comentario || '';
+  const productLabel = productName || `Producto ${productId || ''}`.trim() || 'Producto';
+  const reviewId = review?.id || review?.resenaId || Date.now();
+  const safeProductId = String(productId || 'producto').replace(/[/.]/g, '_');
+  const safeReviewId = String(reviewId).replace(/[/.]/g, '_');
+  const notificationId = `producto_resena_baja_${safeProductId}_${safeReviewId}`;
+  const mensaje = `dejo una resena de ${rating || '-'} estrellas en ${productLabel}.`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'producto_resena_baja',
+    modulo: 'productos',
+    titulo: 'Resena baja recibida',
+    tituloHtml: `<p><strong>${escapeHtml(reviewerName)}</strong> dejo una resena de <strong>${escapeHtml(rating || '-')} estrellas</strong> en <strong>${escapeHtml(productLabel)}</strong></p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'admin',
+    idsDestinatarios: idsAdministradores,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || review?.email || 'usuario'),
+    actorTipo: 'usuario',
+    actorNombre: reviewerName,
+    actorFotoURL: review?.avatarUrl || usuario?.photoURL || usuario?.avatarUrl || null,
+    entidadTipo: 'producto',
+    entidadId: productId || safeProductId,
+    ruta: productId ? `/dashboard/product/${productId}` : '/dashboard/product',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver producto',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      productId,
+      productName,
+      reviewId,
+      rating,
+      reviewerName,
+      comment,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
+  );
+
+  return notificacion;
 }
 
 const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {

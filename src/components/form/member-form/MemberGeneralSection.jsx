@@ -1,8 +1,9 @@
+import { Controller } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
-import { Controller } from 'react-hook-form';
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 
@@ -11,6 +12,8 @@ export default function MemberGeneralSection({
     division,
     isCreateView,
     control,
+    minBirthdate,
+    maxBirthdate,
 }) {
     return (
 
@@ -60,6 +63,8 @@ export default function MemberGeneralSection({
                     }`}
                 format="DD/MM/YYYY"
                 views={['year', 'month', 'day']}
+                minDate={minBirthdate}
+                maxDate={maxBirthdate}
             />
 
             <Field.Text

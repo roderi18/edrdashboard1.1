@@ -132,6 +132,7 @@ export function ProductTableToolbar({
 
 function FilterSelect({ label, value, options, onChange, onApply, width = 200 }) {
   const id = `filter-${label.toLowerCase()}-select`;
+  const safeOptions = Array.isArray(options) ? options : [];
 
   return (
     <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: width } }}>
@@ -143,7 +144,7 @@ function FilterSelect({ label, value, options, onChange, onApply, width = 200 })
         onChange={onChange}
         onClose={onApply}
         renderValue={(selected) => {
-          const output = options
+          const output = safeOptions
             .filter((opt) => selected.includes(opt.value))
             .map((opt) => opt.label);
 
@@ -151,7 +152,7 @@ function FilterSelect({ label, value, options, onChange, onApply, width = 200 })
         }}
         inputProps={{ id }}
       >
-        {options.map((option) => (
+        {safeOptions.map((option) => (
           <MenuItem key={option.value} value={option.value}>
             <Checkbox
               disableRipple

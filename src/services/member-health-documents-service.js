@@ -41,10 +41,11 @@ const resolveDocumentCategory = (data = {}) => {
 
   const fileName = String(data.nombreArchivo || data.nombre || '').toLowerCase();
 
+  if (fileName.includes('acta') || fileName.includes('nacimiento')) return 'acta_nacimiento';
   if (fileName.includes('seguro')) return 'seguro_medico';
   if (fileName.includes('cedula') || fileName.includes('cédula')) return 'cedula_identidad';
 
-  return 'sin_clasificar';
+  return 'otros_documentos';
 };
 
 const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
@@ -57,7 +58,7 @@ const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
   type: getHealthFileType(data.nombreArchivo || data.nombre),
   url: data.urlArchivo || data.url || '',
   storagePath: data.rutaStorage || data.storagePath || '',
-  size: Number(data.tamanoBytes || data.tamano || 0),
+  size: Number(data.tamanoBytes ?? data.tamano ?? data.size ?? 0),
   contentType: data.tipoArchivo || data.tipoMime || '',
   documentCategory: resolveDocumentCategory(data),
   tipoDocumentoSalud: resolveDocumentCategory(data),
@@ -88,7 +89,7 @@ export const subirDocumentosSaludMiembro = async ({
   files = [],
   idMiembros,
   codigoMiembro = '',
-  documentCategory = 'sin_clasificar',
+  documentCategory = 'otros_documentos',
   creadoPor = {},
 } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -172,6 +173,7 @@ export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre) => 
     ...documento,
     idDocumento: documento.id,
     nombreArchivo: nuevoNombre,
+    tamanoBytes: documento.size,
     actualizadoEn: now,
   });
 };

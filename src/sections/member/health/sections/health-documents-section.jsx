@@ -1,15 +1,13 @@
 'use client';
 
-import { Fragment } from 'react';
-import { usePopover } from 'minimal-shared/hooks';
+import { Fragment, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
@@ -20,7 +18,6 @@ import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 
 import { Iconify } from 'src/components/iconify';
-import { CustomPopover } from 'src/components/custom-popover';
 import {
     TableHeadCustom,
     TableSelectedAction,
@@ -31,12 +28,20 @@ import { FileManagerTableRow } from
 
 const HEALTH_DOCUMENT_SECTIONS = [
     {
+        id: 'acta_nacimiento',
+        title: 'Acta de nacimiento',
+    },
+    {
         id: 'seguro_medico',
         title: 'Seguro Médico',
     },
     {
         id: 'cedula_identidad',
         title: 'Cédula de Identidad',
+    },
+    {
+        id: 'otros_documentos',
+        title: 'Otros documentos',
     },
 ];
 
@@ -48,59 +53,90 @@ const TABLE_HEAD = [
 ];
 
 function HealthDocumentSectionRow({ section, onUpload }) {
-    const menuActions = usePopover();
+    return (
+        <TableRow
+            sx={{
+                '& td': {
+                    borderBottom: 0,
+                },
+            }}
+        >
+            <TableCell padding="checkbox" />
+
+            <TableCell>
+                <Typography variant="subtitle2">
+                    {section.title}
+                </Typography>
+            </TableCell>
+
+            <TableCell />
+            <TableCell />
+
+            <TableCell align="right" sx={{ pr: 3, pl: 1 }}>
+                <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Iconify icon="eva:cloud-upload-fill" />}
+                    onClick={() => onUpload(section.id)}
+                >
+                    Subir
+                </Button>
+            </TableCell>
+        </TableRow>
+    );
+}
+
+function EmptyDocumentDropZone({ section, onUpload, onDropUpload }) {
+    const [dragging, setDragging] = useState(false);
+
+    const handleDrop = (event) => {
+        event.preventDefault();
+        setDragging(false);
+        onDropUpload(section.id, event.dataTransfer.files);
+    };
+
+    const handleKeyDown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onUpload(section.id);
+        }
+    };
 
     return (
-        <>
-            <TableRow
-                sx={{
-                    '& td': {
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        bgcolor: 'background.neutral',
-                    },
-                }}
-            >
-                <TableCell padding="checkbox" />
-
-                <TableCell>
-                    <Typography variant="subtitle2">
-                        {section.title}
-                    </Typography>
-                </TableCell>
-
-                <TableCell />
-                <TableCell />
-
-                <TableCell align="right" sx={{ px: 1 }}>
-                    <IconButton
-                        color={menuActions.open ? 'inherit' : 'default'}
-                        onClick={menuActions.onOpen}
-                    >
-                        <Iconify icon="eva:more-vertical-fill" />
-                    </IconButton>
-                </TableCell>
-            </TableRow>
-
-            <CustomPopover
-                open={menuActions.open}
-                anchorEl={menuActions.anchorEl}
-                onClose={menuActions.onClose}
-                slotProps={{ arrow: { placement: 'right-top' } }}
-            >
-                <MenuList>
-                    <MenuItem
-                        onClick={() => {
-                            menuActions.onClose();
-                            onUpload(section.id);
-                        }}
-                    >
-                        <Iconify icon="eva:cloud-upload-fill" />
-                        Subir
-                    </MenuItem>
-                </MenuList>
-            </CustomPopover>
-        </>
+        <TableRow>
+            <TableCell colSpan={5} sx={{ py: 0.5 }}>
+                <Box
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onUpload(section.id)}
+                    onKeyDown={handleKeyDown}
+                    onDrop={handleDrop}
+                    onDragOver={(event) => {
+                        event.preventDefault();
+                        setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    sx={{
+                        gap: 1,
+                        px: 2,
+                        height: 40,
+                        display: 'flex',
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        alignItems: 'center',
+                        typography: 'caption',
+                        color: 'text.secondary',
+                        justifyContent: 'center',
+                        border: '1px dashed',
+                        borderColor: dragging ? 'primary.main' : 'divider',
+                        bgcolor: dragging ? 'action.hover' : 'transparent',
+                    }}
+                >
+                    <Iconify icon="eva:cloud-upload-fill" width={18} />
+                    Arrastra o haz clic para subir
+                </Box>
+            </TableCell>
+        </TableRow>
     );
 }
 
@@ -113,6 +149,7 @@ export function HealthDocumentsSection({
     onDeleteOne,
     onDeleteSelected,
     onUpload,
+    onDropUpload,
     onRename,
 }) {
     const displayedDocuments = medicalDocuments.filter((file) =>
@@ -225,6 +262,14 @@ export function HealthDocumentsSection({
                                                     showRowOutline={false}
                                                 />
                                             ))}
+
+                                            {!sectionDocuments.length && (
+                                                <EmptyDocumentDropZone
+                                                    section={section}
+                                                    onUpload={onUpload}
+                                                    onDropUpload={onDropUpload}
+                                                />
+                                            )}
                                         </Fragment>
                                     );
                                 })}

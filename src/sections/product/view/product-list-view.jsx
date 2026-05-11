@@ -37,14 +37,19 @@ import { ProductTableToolbar } from '../product-table-toolbar';
 import {
   RenderCellStock,
   RenderCellPrice,
-  RenderCellPublish,
   RenderCellRenglon,
   RenderCellProduct,
+  RenderCellCategory,
 } from '../product-table-row';
 
 // ----------------------------------------------------------------------
 
-const RENGLON_OPTIONS = [
+const PUBLISH_OPTIONS = [
+  { value: 'published', label: 'Publicados' },
+  { value: 'draft', label: 'Borrador' },
+];
+
+const PRODUCT_RENGLON_OPTIONS = [
   { value: 'general', label: 'General' },
   { value: 'restringido', label: 'Restringido' },
 ];
@@ -76,8 +81,9 @@ export function ProductListView() {
   });
 
   const filters = useSetState({
-    renglon: [],
+    publish: [],
     stock: [],
+    renglon: [],
   });
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
@@ -89,7 +95,10 @@ export function ProductListView() {
     );
   }, [isMemberUser, products]);
 
-  const canReset = filters.state.renglon.length > 0 || filters.state.stock.length > 0;
+  const canReset =
+    filters.state.publish.length > 0 ||
+    filters.state.stock.length > 0 ||
+    filters.state.renglon.length > 0;
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -185,16 +194,7 @@ export function ProductListView() {
 
   return (
     <>
-      <DashboardContent
-        sx={{
-          mx: 'auto',
-          width: 1,
-          maxWidth: 1120,
-          flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
           heading="Lista de productos"
           links={[
@@ -250,7 +250,11 @@ export function ProductListView() {
                   filteredResults={dataFiltered.length}
                   selectedRowCount={selectedRows.ids.size}
                   onOpenConfirmDeleteRows={confirmDialog.onTrue}
-                  options={{ stocks: PRODUCT_STOCK_OPTIONS, renglones: RENGLON_OPTIONS }}
+                  options={{
+                    stocks: PRODUCT_STOCK_OPTIONS,
+                    publishs: PUBLISH_OPTIONS,
+                    renglones: PRODUCT_RENGLON_OPTIONS,
+                  }}
                   isMemberUser={isMemberUser}
                   /********/
                   settings={toolbarOptions.settings}
@@ -292,7 +296,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         field: 'name',
         headerName: 'Producto',
         flex: 1,
-        minWidth: 260,
+        minWidth: 360,
         hideable: false,
         renderCell: (params) => (
           <RenderCellProduct
@@ -304,7 +308,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'inventoryType',
         headerName: 'Existencias',
-        width: 125,
+        width: 160,
         type: 'singleSelect',
         filterable: false,
         valueOptions: PRODUCT_STOCK_OPTIONS,
@@ -313,7 +317,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioRegistrado',
         headerName: 'Precio Dests. Registrados',
-        width: 120,
+        width: 145,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
@@ -321,44 +325,42 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
       {
         field: 'precioNoRegistrado',
         headerName: 'Precio Dests. NO Registrados',
-        width: 130,
+        width: 155,
         editable: true,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
-      {
-        field: 'renglon',
-        headerName: 'Renglón',
-        width: 105,
-        type: 'singleSelect',
-        filterable: false,
-        valueOptions: [
-          { value: 'general', label: 'General' },
-          { value: 'restringido', label: 'Restringido' },
-        ],
-        renderCell: (params) => <RenderCellRenglon params={params} />,
-      },
-      ...(!isMemberUser
+      ...(isMemberUser
         ? [
           {
-            field: 'publish',
-            headerName: 'Publicado',
-            width: 105,
-            type: 'singleSelect',
+            field: 'category',
+            headerName: 'Categoria',
+            width: 140,
             filterable: false,
-            valueOptions: [
-              { value: 'published', label: 'Publicado' },
-              { value: 'draft', label: 'Borrador' },
-            ],
-            renderCell: (params) => <RenderCellPublish params={params} />,
+            renderCell: (params) => <RenderCellCategory params={params} />,
           },
         ]
+        : []),
+      ...(!isMemberUser
+        ? [{
+          field: 'renglon',
+          headerName: 'Renglón',
+          width: 120,
+          type: 'singleSelect',
+          filterable: false,
+          valueOptions: [
+            { value: 'general', label: 'General' },
+            { value: 'restringido', label: 'Restringido' },
+          ],
+          renderCell: (params) => <RenderCellRenglon params={params} />,
+        }]
+
         : []),
       {
         type: 'actions',
         field: 'actions',
         headerName: ' ',
-        width: isMemberUser ? 72 : 56,
+        width: isMemberUser ? 96 : 64,
         align: 'right',
         headerAlign: 'right',
         sortable: false,
@@ -426,10 +428,14 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, filters }) {
-  const { stock, renglon } = filters;
+  const { stock, publish, renglon } = filters;
 
   if (stock.length) {
     inputData = inputData.filter((product) => stock.includes(product.inventoryType));
+  }
+
+  if (publish.length) {
+    inputData = inputData.filter((product) => publish.includes(product.publish));
   }
 
   if (renglon.length) {

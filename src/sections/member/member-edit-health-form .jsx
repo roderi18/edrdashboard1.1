@@ -229,6 +229,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         deleteOne,
         deleteSelected,
         openUploadDialog,
+        uploadDroppedFiles,
         FileInput,
         renameDocument,
     } = useMedicalDocuments({
@@ -300,6 +301,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     onDeleteOne={deleteOne}
                     onDeleteSelected={handleConfirmDeleteSelected}
                     onUpload={openUploadDialog}
+                    onDropUpload={uploadDroppedFiles}
                 />
 
                 <HealthMedicationSection

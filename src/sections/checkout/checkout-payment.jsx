@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
+import { useState, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Grid from '@mui/material/Grid';
@@ -56,6 +57,7 @@ export const PaymentSchema = z.object({
 // ----------------------------------------------------------------------
 
 export function CheckoutPayment() {
+  const [paymentProofFile, setPaymentProofFile] = useState(null);
   const {
     loading,
     onChangeStep,
@@ -79,9 +81,16 @@ export function CheckoutPayment() {
     formState: { isSubmitting, errors },
   } = methods;
 
+  const handleDropPaymentProof = useCallback((acceptedFiles) => {
+    setPaymentProofFile(acceptedFiles?.[0] || null);
+  }, []);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await onCreateOrder(data);
+      await onCreateOrder({
+        ...data,
+        comprobanteTransferencia: paymentProofFile,
+      });
       onChangeStep('next');
       console.info('DATA', data);
     } catch (error) {
@@ -104,6 +113,9 @@ export function CheckoutPayment() {
             name="payment"
             hideError
             options={{ cards: CARD_OPTIONS, payments: PAYMENT_OPTIONS }}
+            paymentProofFile={paymentProofFile}
+            onDropPaymentProof={handleDropPaymentProof}
+            onRemovePaymentProof={() => setPaymentProofFile(null)}
             sx={{ my: 3 }}
           />
 

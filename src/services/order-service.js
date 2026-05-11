@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 import {
   ahoraTimestamp,
   COLECCIONES_COMERCIO,
@@ -52,6 +53,30 @@ const ordenRequiereEvaluacion = (order = {}) =>
 
 const checkoutRequiereEvaluacion = (checkoutState = {}) =>
   (checkoutState?.items || []).some(itemRequiereEvaluacion);
+
+const subirComprobantePagoOrden = async ({ orderId, user = {}, file }) => {
+  if (!file) {
+    return null;
+  }
+
+  const [uploadedFile] = await uploadFilesToStorage({
+    files: [file],
+    storagePathBuilder: (finalFile, index) =>
+      `ordenes/${orderId}/comprobantes-pago/${buildStorageFileName(finalFile, index)}`,
+    metadataBuilder: () => ({
+      orderId,
+      userId: obtenerIdUsuarioComercio(user) || '',
+      tipoArchivo: 'comprobante_pago',
+    }),
+  });
+
+  return uploadedFile
+    ? {
+        ...uploadedFile,
+        origen: 'comprobante_pago',
+      }
+    : null;
+};
 
 const toNumberOrNull = (value) => {
   const number = Number(value);
@@ -210,6 +235,12 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   const receiptId = `recibo-${baseTimestamp}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
   const requiereEvaluacion = checkoutRequiereEvaluacion(checkoutState);
+  const { comprobanteTransferencia, ...paymentDataSinArchivo } = paymentData || {};
+  const comprobantePago = await subirComprobantePagoOrden({
+    orderId,
+    user,
+    file: comprobanteTransferencia,
+  });
 
   const receipt = await guardarReciboFirestore({
     user,
@@ -238,7 +269,10 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
     orderId,
     receiptId,
     checkoutState,
-    paymentData,
+    paymentData: {
+      ...paymentDataSinArchivo,
+      comprobantePago,
+    },
   });
 
   await setDoc(orderRef, orderDoc);

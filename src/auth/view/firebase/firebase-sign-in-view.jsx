@@ -8,11 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -83,7 +80,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
     [isAdminMode]
   );
 
-  const [prefix, setPrefix] = useState(DEFAULT_PREFIX);
   const [errorMessage, setErrorMessage] = useState(null);
 
   const methods = useForm({
@@ -109,8 +105,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
     if (isAdminMode) {
       setValue('loginValue', rememberedValue);
     } else {
-      setPrefix(DEFAULT_PREFIX);
-      setValue('userNumber', rememberedValue.replace(/^do-sd-/i, ''));
+      setValue('userNumber', rememberedValue.replace(/^do-sd-/i, '').replace(/\D/g, ''));
     }
 
     setValue('rememberEmail', true);
@@ -118,7 +113,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const loginValue = isAdminMode ? data.loginValue.trim() : `${prefix}${data.userNumber}`.trim();
+      const userNumber = String(data.userNumber || '').replace(/\D/g, '');
+      const loginValue = isAdminMode ? data.loginValue.trim() : `${DEFAULT_PREFIX}${userNumber}`;
       const authEmail = isAdminMode
         ? await resolveAdminSignInEmail(loginValue)
         : resolveSignInEmail(loginValue);
@@ -179,26 +175,13 @@ export function FirebaseSignInView({ mode = 'member' }) {
           slotProps={{ inputLabel: { shrink: true } }}
         />
       ) : (
-        <Stack direction="row" spacing={1}>
-          <TextField
-            select
-            label="Prefijo"
-            value={prefix}
-            onChange={(event) => setPrefix(event.target.value)}
-            sx={{ width: 140 }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          >
-            <MenuItem value="DO-SD-">DO-SD-</MenuItem>
-          </TextField>
-
-          <Field.Text
-            autoFocus
-            name="userNumber"
-            label="Código de usuario"
-            placeholder="111111017"
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-        </Stack>
+        <Field.Text
+          autoFocus
+          name="userNumber"
+          label="Código de usuario"
+          placeholder="111111017"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
       )}
 
       <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>

@@ -7,18 +7,30 @@ import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import FormHelperText from '@mui/material/FormHelperText';
 
 import { Iconify } from 'src/components/iconify';
+import { UploadBox } from 'src/components/upload';
 
 import { PaymentCardCreateForm } from '../payment/payment-card-create-form';
 
 // ----------------------------------------------------------------------
 
-export function CheckoutPaymentMethods({ name, options, hideError = false, sx, ...other }) {
+export function CheckoutPaymentMethods({
+  name,
+  options,
+  hideError = false,
+  paymentProofFile,
+  onDropPaymentProof,
+  onRemovePaymentProof,
+  sx,
+  ...other
+}) {
   const { control } = useFormContext();
 
   const openForm = useBoolean();
@@ -40,6 +52,12 @@ export function CheckoutPaymentMethods({ name, options, hideError = false, sx, .
                 flexDirection: 'column',
               }}
             >
+              <PaymentProofUploadItem
+                file={paymentProofFile}
+                onDrop={onDropPaymentProof}
+                onRemove={onRemovePaymentProof}
+              />
+
               {options.payments.map((option) => {
                 const isSelected = value === option.value;
 
@@ -81,6 +99,76 @@ export function CheckoutPaymentMethods({ name, options, hideError = false, sx, .
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function PaymentProofUploadItem({ file, onDrop, onRemove }) {
+  return (
+    <UploadBox
+      multiple={false}
+      accept={{
+        'image/*': [],
+        'application/pdf': ['.pdf'],
+      }}
+      onDrop={onDrop}
+      placeholder={
+        <Box
+          sx={{
+            p: 2.5,
+            gap: 1.5,
+            width: 1,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              gap: 0.5,
+              minWidth: 0,
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <Typography variant="subtitle1">
+              Anexar comprobante de transferencia o depósito
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {file ? file.name : 'Arrastra aquí o haz clic para anexar imagen o PDF.'}
+            </Typography>
+          </Box>
+
+          {!!file && (
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove?.();
+              }}
+            >
+              <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+            </IconButton>
+          )}
+
+          {!file && <Iconify icon="solar:cloud-upload-bold" width={28} />}
+        </Box>
+      }
+      sx={[
+        (theme) => ({
+          width: 1,
+          height: 'auto',
+          minHeight: 92,
+          color: 'text.primary',
+          alignItems: 'stretch',
+          justifyContent: 'stretch',
+          borderRadius: 1.5,
+          bgcolor: 'transparent',
+          border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.24)}`,
+        }),
+      ]}
+    />
   );
 }
 

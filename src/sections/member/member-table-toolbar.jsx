@@ -3,16 +3,27 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Radio from '@mui/material/Radio';
 import Select from '@mui/material/Select';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import RadioGroup from '@mui/material/RadioGroup';
+import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
+import Autocomplete from '@mui/material/Autocomplete';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
@@ -67,6 +78,207 @@ const getMemberCodeNumber = (member) => {
 
   return match ? Number(match[1]) : 0;
 };
+
+const DEFAULT_DOWNLOAD_FILTERS = {
+  destName: [],
+  memberPosition: [],
+  memberDivision: [],
+  sectionalId: [],
+  regionalId: [],
+  ageScope: 'adult',
+  ageCustom: '',
+  format: 'pdf',
+};
+
+const ALL_DOWNLOAD_OPTION = { value: 'all', label: 'Todos' };
+
+const normalizeDownloadOptions = (items = []) =>
+  items
+    .map((item) => ({
+      value: String(item.value),
+      label: item.label || String(item.value),
+    }))
+    .filter((item) => item.value !== ALL_DOWNLOAD_OPTION.value)
+    .filter(
+      (item, index, array) =>
+        array.findIndex((option) => option.value === item.value && option.label === item.label) ===
+        index
+    );
+
+const getDownloadAutocompleteValue = (selectedValues, items) => {
+  const normalizedItems = normalizeDownloadOptions(items);
+
+  if (!selectedValues?.length) {
+    return [ALL_DOWNLOAD_OPTION];
+  }
+
+  return selectedValues.map((value) => {
+    const stringValue = String(value);
+    return normalizedItems.find((item) => item.value === stringValue) || {
+      value: stringValue,
+      label: stringValue,
+    };
+  });
+};
+
+const getSectionalIdsByRegion = (inputMembers, regionalIds) => {
+  if (!regionalIds.length) {
+    return null;
+  }
+
+  return new Set(
+    inputMembers
+      .filter((member) => regionalIds.includes(String(member.regionalId)))
+      .map((member) => String(member.sectionalId || ''))
+      .filter(Boolean)
+  );
+};
+
+const getSectionalOptionsByRegion = (items, inputMembers, regionalIds) => {
+  const allowedSectionalIds = getSectionalIdsByRegion(inputMembers, regionalIds);
+
+  if (!allowedSectionalIds) {
+    return items;
+  }
+
+  return (items || []).filter((item) => allowedSectionalIds.has(String(item.value)));
+};
+
+const getMemberAge = (member) => {
+  const birthdate = member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento;
+
+  if (!birthdate) return null;
+
+  const parsed = new Date(birthdate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDiff = today.getMonth() - parsed.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+};
+
+const matchCustomAgeRule = (age, rule) => {
+  const expression = rule.trim().replace(/^o\s+/i, '');
+
+  if (!expression) {
+    return false;
+  }
+
+  const comparisonMatch = expression.match(/^(>=|<=|>|<)\s*(\d+)$/);
+
+  if (comparisonMatch) {
+    const [, operator, value] = comparisonMatch;
+    const targetAge = Number(value);
+
+    if (operator === '>') return age > targetAge;
+    if (operator === '>=') return age >= targetAge;
+    if (operator === '<') return age < targetAge;
+    if (operator === '<=') return age <= targetAge;
+  }
+
+  const exactAge = Number(expression);
+
+  return Number.isInteger(exactAge) && age === exactAge;
+};
+
+const matchesCustomAgeFilter = (age, customFilter) => {
+  const rules = String(customFilter || '')
+    .split(',')
+    .map((rule) => rule.trim())
+    .filter(Boolean);
+
+  if (!rules.length) {
+    return true;
+  }
+
+  return rules.some((rule) => matchCustomAgeRule(age, rule));
+};
+
+const escapeCsvValue = (value) => {
+  const text = String(value ?? '');
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+};
+
+const downloadMembersCsv = (membersToDownload) => {
+  const headers = ['Código', 'Nombre', 'Teléfono', 'Correo', 'Destacamento', 'Sección', 'Región'];
+  const rows = membersToDownload.map((member) => [
+    member.memberId || member.codigoMiembro || '',
+    member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+    member.phoneNumber || '',
+    member.email || '',
+    member.destName || member.destamento || member.idDestacamento || '',
+    member.sectionalName || '',
+    member.regionalName || '',
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escapeCsvValue).join(','))
+    .join('\r\n');
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'lista-miembros.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const applyDownloadFilters = (inputMembers, filters) =>
+  inputMembers.filter((member) => {
+    if (filters.destName.length && !filters.destName.includes(String(member.destId))) {
+      return false;
+    }
+
+    if (
+      filters.memberPosition.length &&
+      !member.memberPosition?.some((role) => filters.memberPosition.includes(role))
+    ) {
+      return false;
+    }
+
+    if (
+      filters.memberDivision.length &&
+      !filters.memberDivision.includes(String(member.memberDivision || ''))
+    ) {
+      return false;
+    }
+
+    if (filters.sectionalId.length && !filters.sectionalId.includes(String(member.sectionalId))) {
+      return false;
+    }
+
+    if (filters.regionalId.length && !filters.regionalId.includes(String(member.regionalId))) {
+      return false;
+    }
+
+    if (filters.ageScope === 'adult') {
+      const age = getMemberAge(member);
+      return age !== null && age >= 18;
+    }
+
+    if (filters.ageScope === 'minor') {
+      const age = getMemberAge(member);
+      return age !== null && age < 18;
+    }
+
+    if (filters.ageScope === 'custom') {
+      const age = getMemberAge(member);
+      return age !== null && matchesCustomAgeFilter(age, filters.ageCustom);
+    }
+
+    return true;
+  });
 
 function MembersPdfDocument({ members }) {
   return (
@@ -127,6 +339,8 @@ export function MemberTableToolbar({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [dests, setDests] = useState([]);
   const [uploadResult, setUploadResult] = useState(null);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [downloadFilters, setDownloadFilters] = useState(DEFAULT_DOWNLOAD_FILTERS);
 
   useEffect(() => {
     const load = async () => {
@@ -188,8 +402,8 @@ export function MemberTableToolbar({
     [onResetPage, updateFilters]
   );
 
-  const handleDownloadMembersPdf = async () => {
-    const blob = await pdf(<MembersPdfDocument members={members} />).toBlob();
+  const downloadMembersPdf = async (membersToDownload) => {
+    const blob = await pdf(<MembersPdfDocument members={membersToDownload} />).toBlob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
@@ -197,36 +411,86 @@ export function MemberTableToolbar({
     link.download = 'lista-miembros.pdf';
     link.click();
     URL.revokeObjectURL(url);
-    menuActions.onClose();
   };
 
-  const handlePrint = async () => {
-    const blob = await pdf(<MembersPdfDocument members={members} />).toBlob();
-    const url = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.src = url;
-
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    };
-
-    document.body.appendChild(iframe);
-
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      URL.revokeObjectURL(url);
-    }, 60000);
-
+  const handleOpenDownloadDialog = () => {
     menuActions.onClose();
+    setDownloadFilters(DEFAULT_DOWNLOAD_FILTERS);
+    setDownloadDialogOpen(true);
   };
+
+  const handleDownloadAutocompleteChange = useCallback((key, selectedOptions, details) => {
+    const isSelectingAll = details?.option?.value === ALL_DOWNLOAD_OPTION.value;
+    const nextValues = isSelectingAll
+      ? []
+      : (selectedOptions || [])
+        .filter((option) => option.value !== ALL_DOWNLOAD_OPTION.value)
+        .map((option) => String(option.value));
+
+    setDownloadFilters((prev) => {
+      const nextFilters = {
+        ...prev,
+        [key]: nextValues,
+      };
+
+      if (key === 'regionalId' && nextValues.length) {
+        const allowedSectionalIds = getSectionalIdsByRegion(members, nextValues);
+        nextFilters.sectionalId = prev.sectionalId.filter((sectionalId) =>
+          allowedSectionalIds?.has(String(sectionalId))
+        );
+      }
+
+      return nextFilters;
+    });
+  }, [members]);
+
+  const handleDownloadMembers = async () => {
+    const membersToDownload = applyDownloadFilters(members, downloadFilters);
+
+    if (downloadFilters.format === 'csv') {
+      downloadMembersCsv(membersToDownload);
+    } else {
+      await downloadMembersPdf(membersToDownload);
+    }
+
+    setDownloadDialogOpen(false);
+  };
+
+  const renderDownloadAutocomplete = (key, label, items) => {
+    const autocompleteOptions = [ALL_DOWNLOAD_OPTION, ...normalizeDownloadOptions(items)];
+
+    return (
+      <Autocomplete
+        multiple
+        disableCloseOnSelect
+        options={autocompleteOptions}
+        value={getDownloadAutocompleteValue(downloadFilters[key], items)}
+        getOptionKey={(option) => `${key}-${option.value}`}
+        isOptionEqualToValue={(option, value) => option.value === value.value}
+        getOptionLabel={(option) => option.label}
+        onChange={(event, selectedOptions, reason, details) =>
+          handleDownloadAutocompleteChange(key, selectedOptions, details)
+        }
+        renderOption={(props, option, { selected }) => {
+          const { key: optionKey, ...optionProps } = props;
+
+          return (
+            <li key={`${optionKey}-${option.value}`} {...optionProps}>
+              <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
+              {option.label}
+            </li>
+          );
+        }}
+        renderInput={(params) => <TextField {...params} label={label} />}
+      />
+    );
+  };
+
+  const downloadSectionalOptions = getSectionalOptionsByRegion(
+    options.sectionalId,
+    members,
+    downloadFilters.regionalId
+  );
 
   const getNextMemberCode = (() => {
     let nextNumber = Math.max(
@@ -354,13 +618,7 @@ export function MemberTableToolbar({
           </MenuItem>,
         ]}
 
-        {/* Acciones normales */}
-        <MenuItem onClick={handlePrint}>
-          <Iconify icon="solar:printer-minimalistic-bold" />
-          Imprimir
-        </MenuItem>
-
-        <MenuItem onClick={handleDownloadMembersPdf}>
+        <MenuItem onClick={handleOpenDownloadDialog}>
           <Iconify icon="solar:import-bold" />
           Descargar
         </MenuItem>
@@ -491,20 +749,20 @@ export function MemberTableToolbar({
                     .map((id) => {
                       const found = Array.isArray(sectionals)
                         ? sectionals.find(
-                            (s) =>
-                              s.id?.toString() === id?.toString() ||
-                              s.idSeccion?.toString() === id?.toString()
-                          )
+                          (s) =>
+                            s.id?.toString() === id?.toString() ||
+                            s.idSeccion?.toString() === id?.toString()
+                        )
                         : null;
                       console.log('DEBUG SECTION FILTER 👉', {
                         selectedId: id,
                         sectionals,
                         found: Array.isArray(sectionals)
                           ? sectionals.find(
-                              (s) =>
-                                s.id?.toString() === id?.toString() ||
-                                s.idSeccion?.toString() === id?.toString()
-                            )
+                            (s) =>
+                              s.id?.toString() === id?.toString() ||
+                              s.idSeccion?.toString() === id?.toString()
+                          )
                           : 'sectionals NO ES ARRAY',
                       });
                       return found?.sectionalName || found?.nombre || found?.name || id;
@@ -636,6 +894,90 @@ export function MemberTableToolbar({
       </Box>
 
       {renderMenuActions()}
+      <Dialog
+        open={downloadDialogOpen}
+        onClose={() => setDownloadDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Descargar miembros</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {renderDownloadAutocomplete('regionalId', 'Región', options.regionalId)}
+            {renderDownloadAutocomplete('sectionalId', 'Sección', downloadSectionalOptions)}
+            {renderDownloadAutocomplete('destName', 'Destacamento', options.destName)}
+            {renderDownloadAutocomplete('memberDivision', 'División', options.memberDivision)}
+            {renderDownloadAutocomplete('memberPosition', 'Posición', options.memberPosition)}
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Edad
+              </Typography>
+              <RadioGroup
+                row
+                value={downloadFilters.ageScope}
+                onChange={(event) =>
+                  setDownloadFilters((prev) => ({ ...prev, ageScope: event.target.value }))
+                }
+              >
+                <FormControlLabel value="all" control={<Radio />} label="Todos" />
+                <FormControlLabel value="minor" control={<Radio />} label="Menores de edad" />
+                <FormControlLabel value="adult" control={<Radio />} label="Mayores de edad" />
+                <FormControlLabel value="custom" control={<Radio />} label="Otros (avanzados)" />
+              </RadioGroup>
+
+              {downloadFilters.ageScope === 'custom' && (
+                <TextField
+                  fullWidth
+                  value={downloadFilters.ageCustom}
+                  onChange={(event) =>
+                    setDownloadFilters((prev) => ({ ...prev, ageCustom: event.target.value }))
+                  }
+                  helperText={
+                    <>
+                      Escribe edades separadas por coma. Puedes usar &gt; o &lt;, por ejemplo: 15,
+                      16, &gt;30, &lt;12.
+                      <br />
+                      &gt; (mayor que la edad), &lt; (menor que la edad)
+                    </>
+                  }
+                  placeholder="15, 16, 17, 20, o >30, <12"
+                  size="small"
+                  sx={{ mt: 1.5 }}
+                />
+              )}
+            </Box>
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Formato
+              </Typography>
+              <RadioGroup
+                row
+                value={downloadFilters.format}
+                onChange={(event) =>
+                  setDownloadFilters((prev) => ({ ...prev, format: event.target.value }))
+                }
+              >
+                <FormControlLabel value="pdf" control={<Radio />} label="PDF" />
+                <FormControlLabel value="csv" control={<Radio />} label="CSV" />
+              </RadioGroup>
+            </Box>
+
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {applyDownloadFilters(members, downloadFilters).length} miembros coinciden con estos filtros.
+            </Typography>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setDownloadDialogOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleDownloadMembers}>
+            Descargar
+          </Button>
+        </DialogActions>
+      </Dialog>
       <input
         ref={uploadInputRef}
         hidden

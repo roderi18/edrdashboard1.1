@@ -32,10 +32,11 @@ import {
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
+import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
+import { getMembers, deleteMember } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -143,6 +144,7 @@ export function MemberListView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [churches, setChurches] = useState([]);
+  const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
 
   useEffect(() => {
@@ -163,6 +165,20 @@ export function MemberListView() {
     };
 
     loadChurches();
+  }, []);
+
+  useEffect(() => {
+    const loadRegionals = async () => {
+      try {
+        const data = await getRegionals();
+        setRegionals(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading regionals for member list:', error);
+        setRegionals([]);
+      }
+    };
+
+    loadRegionals();
   }, []);
 
   useEffect(() => {
@@ -236,6 +252,7 @@ export function MemberListView() {
               String(s.id) === String(church?.idSeccion) ||
               String(s.idSeccion) === String(church?.idSeccion)
           );
+          const regional = regionals.find((r) => String(r.id) === String(sectional?.regionalId));
 
           return {
             ...member,
@@ -249,6 +266,8 @@ export function MemberListView() {
             churchName: church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
             sectionalId: sectional?.id,
             sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
+            regionalId: sectional?.regionalId || '',
+            regionalName: regional?.regionalName || regional?.name || '',
             memberPosition: [],
           };
         });
@@ -261,7 +280,7 @@ export function MemberListView() {
     }
 
     loadData();
-  }, [dests, churches, sectionals]);
+  }, [dests, churches, sectionals, regionals]);
 
   const filters = useSetState({
     name: '',
@@ -294,6 +313,14 @@ export function MemberListView() {
     labelResolver: (id) => {
       const found = sectionals.find((s) => String(s.id) === String(id));
       return found?.sectionalName || found?.nombre || id;
+    },
+  });
+  const distinctRegionals = getAvailableOptionsFromData({
+    inputData: visibleMembers,
+    property: 'regionalId',
+    labelResolver: (id) => {
+      const found = regionals.find((r) => String(r.id) === String(id));
+      return found?.regionalName || found?.name || id;
     },
   });
   const searchParams = useSearchParams();
@@ -341,26 +368,40 @@ export function MemberListView() {
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id) => {
+    async (id) => {
+      try {
+        await deleteMember(id);
+
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+        toast.success('Miembro eliminado correctamente.');
 
       setTableData(deleteRow);
 
       table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        console.error('Error eliminando miembro:', error);
+        toast.error(error?.message || 'No se pudo eliminar el miembro.');
+      }
     },
     [dataInPage.length, table, tableData]
   );
 
-  const handleDeleteRows = useCallback(() => {
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      await Promise.all(table.selected.map((id) => deleteMember(id)));
+
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+      toast.success('Miembros eliminados correctamente.');
 
     setTableData(deleteRows);
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error('Error eliminando miembros:', error);
+      toast.error(error?.message || 'No se pudieron eliminar los miembros.');
+    }
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
   const handleFilterMemberDivisionTab = useCallback(
@@ -380,7 +421,7 @@ export function MemberListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> miembros?
         </>
       }
       action={
@@ -392,7 +433,7 @@ export function MemberListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -489,6 +530,7 @@ export function MemberListView() {
               memberPosition: distinctPositions,
               memberDivision: MEMBER_DIVISION_OPTIONS,
               sectionalId: distinctSectionals,
+              regionalId: distinctRegionals,
             }}
           />
 
