@@ -5,19 +5,19 @@ import { useRef, useEffect, useCallback } from 'react';
 export function useMessagesScroll(messages) {
   const messagesScrollRef = useRef(null);
   const hasScrolledInitiallyRef = useRef(false);
-  const shouldStickToTopRef = useRef(true);
+  const shouldStickToBottomRef = useRef(true);
   const previousMessageCountRef = useRef(0);
-  const previousFirstMessageIdRef = useRef('');
+  const previousLastMessageIdRef = useRef('');
 
   const messageCount = messages?.length || 0;
-  const firstMessageId = messages?.[0]?.id || '';
+  const lastMessageId = messages?.[messageCount - 1]?.id || '';
 
-  const scrollToTop = useCallback(() => {
+  const scrollToBottom = useCallback(() => {
     if (!messagesScrollRef.current) {
       return;
     }
 
-    messagesScrollRef.current.scrollTop = 0;
+    messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -28,7 +28,10 @@ export function useMessagesScroll(messages) {
     }
 
     const handleScroll = () => {
-      shouldStickToTopRef.current = scrollElement.scrollTop < 80;
+      const distanceFromBottom =
+        scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
+
+      shouldStickToBottomRef.current = distanceFromBottom < 80;
     };
 
     handleScroll();
@@ -44,18 +47,18 @@ export function useMessagesScroll(messages) {
     const hasNewMessage =
       messageCount > previousMessageCountRef.current ||
       (messageCount === previousMessageCountRef.current &&
-        firstMessageId &&
-        previousFirstMessageIdRef.current &&
-        firstMessageId !== previousFirstMessageIdRef.current);
+        lastMessageId &&
+        previousLastMessageIdRef.current &&
+        lastMessageId !== previousLastMessageIdRef.current);
 
-    if (isFirstLoad || (hasNewMessage && shouldStickToTopRef.current)) {
-      scrollToTop();
+    if (isFirstLoad || (hasNewMessage && shouldStickToBottomRef.current)) {
+      scrollToBottom();
       hasScrolledInitiallyRef.current = true;
     }
 
     previousMessageCountRef.current = messageCount;
-    previousFirstMessageIdRef.current = firstMessageId;
-  }, [firstMessageId, messageCount, scrollToTop]);
+    previousLastMessageIdRef.current = lastMessageId;
+  }, [lastMessageId, messageCount, scrollToBottom]);
 
   return { messagesScrollRef };
 }

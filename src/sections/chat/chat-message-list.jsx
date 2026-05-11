@@ -30,13 +30,13 @@ export function ChatMessageList({
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
 
   const sortedMessages = [...messages].sort((firstMessage, secondMessage) => {
-    const timeDifference = getMessageTime(secondMessage) - getMessageTime(firstMessage);
+    const timeDifference = getMessageTime(firstMessage) - getMessageTime(secondMessage);
 
     if (timeDifference !== 0) {
       return timeDifference;
     }
 
-    return String(secondMessage.id ?? '').localeCompare(String(firstMessage.id ?? ''));
+    return String(firstMessage.id ?? '').localeCompare(String(secondMessage.id ?? ''));
   });
 
   const { messagesScrollRef } = useMessagesScroll(sortedMessages);
