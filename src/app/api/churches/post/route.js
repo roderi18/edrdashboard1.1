@@ -12,7 +12,6 @@ export async function POST(req) {
             idSeccion: Number(body.idSeccion) || 1,
         };
 
-        console.log('BODY IGLESIA LOCAL 👉', JSON.stringify(payload, null, 2));
 
         const res = await fetch('https://systexploradores.somee.com/api/Iglesias/SetIglesia', {
             method: 'POST',

@@ -10,7 +10,6 @@ export const metadata = { title: `Dest edit | Dashboard - ${CONFIG.appName}` };
 
 export default async function Page({ params }) {
   const { id } = await params;
-  console.log('DEST ID PARAM:', id);
   return (
     <DestEditLayout>
       <DestEditView id={id} />

@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 export function FaqsForm({ sx, ...other }) {
   return (
     <Box sx={sx} {...other}>
-      <Typography variant="h4">{`Haven't found the right help?`}</Typography>
+      <Typography variant="h4">¿No encontraste la ayuda que buscabas?</Typography>
       <Box
         sx={{
           my: 5,
@@ -17,14 +17,14 @@ export function FaqsForm({ sx, ...other }) {
           flexDirection: 'column',
         }}
       >
-        <TextField fullWidth label="Name" />
-        <TextField fullWidth label="Email" />
-        <TextField fullWidth label="Subject" />
-        <TextField fullWidth label="Enter your message here." multiline rows={4} />
+        <TextField fullWidth label="Nombre" />
+        <TextField fullWidth label="Correo electrónico" />
+        <TextField fullWidth label="Asunto" />
+        <TextField fullWidth label="Escribe tu mensaje aquí." multiline rows={4} />
       </Box>
 
       <Button size="large" variant="contained">
-        Submit
+        Enviar
       </Button>
     </Box>
   );

@@ -7,10 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 
 import { paths } from 'src/routes/paths';
 
@@ -69,7 +66,6 @@ const findMemberByUsername = async (username) => {
 
 export function FirebaseResetPasswordView({ mode = 'member' }) {
   const isAdminMode = mode === 'admin';
-  const [prefix, setPrefix] = useState(DEFAULT_PREFIX);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
@@ -83,7 +79,13 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
     formState: { isSubmitting },
   } = methods;
 
-  const getLoginValue = (data) => (isAdminMode ? data.loginValue?.trim() : `${prefix}${data.userNumber}`.trim());
+  const getLoginValue = (data) => {
+    if (isAdminMode) return data.loginValue?.trim();
+
+    const userNumber = String(data.userNumber || '').replace(/\D/g, '');
+
+    return `${DEFAULT_PREFIX}${userNumber}`;
+  };
 
   const handleSendEmailLink = handleSubmit(async (data) => {
     try {
@@ -164,26 +166,13 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
           slotProps={{ inputLabel: { shrink: true } }}
         />
       ) : (
-        <Stack direction="row" spacing={1}>
-          <TextField
-            select
-            label="Prefijo"
-            value={prefix}
-            onChange={(event) => setPrefix(event.target.value)}
-            sx={{ width: 140 }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          >
-            <MenuItem value="DO-SD-">DO-SD-</MenuItem>
-          </TextField>
-
-          <Field.Text
-            autoFocus
-            name="userNumber"
-            label="Código de usuario"
-            placeholder="111111017"
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-        </Stack>
+        <Field.Text
+          autoFocus
+          name="userNumber"
+          label="Código de usuario"
+          placeholder="111111017"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
       )}
 
       <Button

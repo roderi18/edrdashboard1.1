@@ -30,7 +30,6 @@ import {
 // ----------------------------------------------------------------------
 
 export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete, onOpen, ...other }) {
-  console.log('FOLDER ID:', folder.id);
 
   const shareDialog = useBoolean();
   const confirmDialog = useBoolean();

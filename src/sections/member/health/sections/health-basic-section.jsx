@@ -175,7 +175,7 @@ export function HealthBasicSection({
 
                         <Field.Text
                             name="medicalSecondaryPhone"
-                            label="Teléfono alterno"
+                            label="Teléfono de emergencia"
                             placeholder="(829) 555-1234"
                             inputProps={{ inputMode: 'numeric' }}
                             onChange={(e) => {

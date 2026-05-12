@@ -53,7 +53,6 @@ export const buildChurchPayload = (data) => ({
 export const createChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
 
-    console.log('CHURCH PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
     const res = await fetch('/api/churches/post', {
         method: 'POST',
@@ -67,8 +66,6 @@ export const createChurchApi = async (data) => {
 
     const text = await res.text();
 
-    console.log('CHURCH STATUS 👉', res.status);
-    console.log('CHURCH RESPONSE RAW 👉', text);
 
     let parsed = null;
 

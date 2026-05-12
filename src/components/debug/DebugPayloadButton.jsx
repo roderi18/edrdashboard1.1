@@ -10,7 +10,6 @@ export default function DebugPayloadButton({
 
         const payload = buildPayload(data);
 
-        console.log('🧪 DEBUG PAYLOAD 👉', payload);
     };
 
     return (

@@ -243,7 +243,7 @@ export const navData = [
         caption: 'Only admin can see this item.',
       },
       {
-        title: 'Ejemplo children niveles',
+        title: 'Ejemplo children npm run dev',
         path: '#/dashboard/menu-level',
         icon: ICONS.menuItem,
         children: [

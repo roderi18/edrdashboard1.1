@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,19 +18,19 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-import { NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS } from 'src/_mock';
+import { normalizeText } from 'src/utils/normalize-text';
+import { getStorageCollection } from 'src/utils/storage-service';
 import { resolveRegionalFromMember } from 'src/utils/resolve-regional-from-member';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
-import { _mock } from 'src/_mock';
-import { getStorageCollection } from 'src/utils/storage-service';
+
+import { DashboardContent } from 'src/layouts/dashboard';
 import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
+import { NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -46,9 +46,9 @@ import {
 } from 'src/components/table';
 
 import { NationalTableRow } from '../national-table-row';
+import { NationalCardList } from '../national-card-list';
 import { NationalTableToolbar } from '../national-table-toolbar';
 import { NationalTableFiltersResult } from '../national-table-filters-result';
-import { NationalCardList } from '../national-card-list';
 
 // ----------------------------------------------------------------------
 
@@ -229,7 +229,7 @@ export function NationalListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> registros?
         </>
       }
       action={
@@ -241,7 +241,7 @@ export function NationalListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -278,9 +278,9 @@ export function NationalListView() {
             value={currentFilters.status}
             onChange={handleFilterStatus}
             sx={[
-              (theme) => ({
+              (themeItem) => ({
                 px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
           >

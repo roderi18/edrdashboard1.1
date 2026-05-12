@@ -51,9 +51,6 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
     memberDivisionCoverMap[member.memberDivision?.trim()] || '/assets/images/divisions/default.jpg';
 
   const dest = dests.find((d) => Number(d.idDestacamento) === Number(member.destId));
-  console.log('MEMBER 👉', member);
-  console.log('DESTS 👉', dests);
-  console.log('MATCH DEST 👉', dest);
   const sectionalName = member?.sectionalName || '-';
 
   let leaderships = leadershipAssignments

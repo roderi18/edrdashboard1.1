@@ -1,3 +1,4 @@
+import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -12,19 +13,19 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
-import { parsePhoneNumber } from 'libphonenumber-js';
+
 import { RouterLink } from 'src/routes/components';
 
-import { Label } from 'src/components/label';
+import { getStorageCollection } from 'src/utils/storage-service';
+
+import { _allLeadershipRoles  } from 'src/_mock/_leadership';
+import { DESTS, MEMBERS, REGIONALS, SECTIONALS } from 'src/_mock/assets';
+
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { NationalQuickEditForm } from './national-quick-edit-form';
-import { MEMBERS, REGIONALS, SECTIONALS, DESTS } from 'src/_mock/assets';
-import { getStorageCollection } from 'src/utils/storage-service';
-import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
 // ----------------------------------------------------------------------
 
 export function NationalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
@@ -40,10 +41,8 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       l.memberId === row.memberId &&
       ['national', 'regional', 'sectional'].includes(l.level) &&
       l.status === 'active'
-  ); console.log('ASSIGNMENT ENCONTRADO:', assignment);
-
+  ); 
   const roleValue = assignment?.role || row.nationalXMemberPosition;
-  console.log('ROLE VALUE:', roleValue);
 
   const roleConfig = _allLeadershipRoles.find(
     (r) => r.value === roleValue
@@ -66,7 +65,6 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
   };
 
   const structureLabel = NATIONAL_STRUCTURES[roleConfig?.structure] || '-';
-  console.log('STRUCTURE:', roleConfig?.structure);
 
 
   const resolveRegionalNameFromMember = (m) => {
@@ -138,10 +136,17 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este registro?"
       action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            onDeleteRow();
+            confirmDialog.onFalse();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />

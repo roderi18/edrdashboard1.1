@@ -162,7 +162,6 @@ export function FileManagerFileItem({ file, selected, onSelect, isGridView = fal
       <FileItem variant="outlined" selected={selected} sx={sx} {...other}>
         <FileItemActionOverlay
           onClick={(e) => {
-            console.log('🟥 OVERLAY CLICK (grid)', e.target);
             detailsDrawer.onTrue();
           }}
         />

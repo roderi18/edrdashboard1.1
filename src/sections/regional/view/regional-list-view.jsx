@@ -2,11 +2,10 @@
 
 
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { getRegionals } from 'src/services/regional-service';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -18,20 +17,23 @@ import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
-import { getSectionals } from 'src/services/sectional-service';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { DashboardContent } from 'src/layouts/dashboard';
+import { normalizeText } from 'src/utils/normalize-text';
+
+import { MEMBERS, REGIONALS } from 'src/_mock/assets';
 import { _roles, USER_STATUS_OPTIONS } from 'src/_mock';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { getSectionals } from 'src/services/sectional-service';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+import { getRegionals, deleteRegional } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { normalizeText } from 'src/utils/normalize-text';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -47,9 +49,9 @@ import {
 } from 'src/components/table';
 
 import { RegionalTableRow } from '../regional-table-row';
+import { RegionalCardList } from '../regional-card-list';
 import { RegionalTableToolbar } from '../regional-table-toolbar';
 import { RegionalTableFiltersResult } from '../regional-table-filters-result';
-import { RegionalCardList } from '../regional-card-list';
 
 // ----------------------------------------------------------------------
 
@@ -210,26 +212,40 @@ export function RegionalListView() {
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id) => {
+    async (id) => {
+      try {
+        await deleteRegional(id);
+
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+        toast.success('Regional eliminada correctamente.');
 
       setTableData(deleteRow);
 
       table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        console.error('Error eliminando regional:', error);
+        toast.error(error?.message || 'No se pudo eliminar la regional.');
+      }
     },
     [dataInPage.length, table, tableData]
   );
 
-  const handleDeleteRows = useCallback(() => {
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      await Promise.all(table.selected.map((id) => deleteRegional(id)));
+
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+      toast.success('Regionales eliminadas correctamente.');
 
     setTableData(deleteRows);
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error('Error eliminando regionales:', error);
+      toast.error(error?.message || 'No se pudieron eliminar las regionales.');
+    }
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
   const handleFilterStatus = useCallback(
@@ -247,7 +263,7 @@ export function RegionalListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> regionales?
         </>
       }
       action={
@@ -259,7 +275,7 @@ export function RegionalListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -293,9 +309,9 @@ export function RegionalListView() {
             value={currentFilters.status}
             onChange={handleFilterStatus}
             sx={[
-              (theme) => ({
+              (themeItem) => ({
                 px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
           >

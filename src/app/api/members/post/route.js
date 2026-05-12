@@ -35,16 +35,10 @@ export async function POST(req) {
         let divisionId = getDivisionIdByBirthdate(body.fechaNacimiento, divisions);
 
         if (!divisionId) {
-            console.log('⚠️ DIVISION NO ENCONTRADA, usando fallback');
 
             const fallback = divisions[0];
             divisionId = fallback ? Number(fallback.id) : null;
         }
-        console.log('DIVISION DEBUG 👉', {
-            fecha: body.fechaNacimiento,
-            divisionId,
-            divisions
-        });
         const res = await fetch(
             'https://systexploradores.somee.com/api/Miembros/SetMiembros',
             {
@@ -90,8 +84,6 @@ export async function POST(req) {
         );
 
         const text = await res.text();
-        console.log('STATUS SOMEE 👉', res.status);
-        console.log('RAW SOMEE 👉', text);
 
         return new Response(text, {
             status: res.status,

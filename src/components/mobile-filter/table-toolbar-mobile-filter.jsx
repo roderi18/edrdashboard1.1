@@ -58,7 +58,7 @@ export function TableToolbarMobileFilter({
                         },
                     })}
                 >
-                    <Iconify icon="eva:funnel-outline" />
+                    <Iconify icon="ic:round-filter-list" />
                 </IconButton>
             </Box>
 

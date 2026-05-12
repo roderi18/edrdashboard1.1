@@ -119,13 +119,6 @@ export function SistemaAscensoDeepRow({
             },
         };
 
-        console.log('[updateTimesCompleted] SAVE', {
-            memberId,
-            dataKey,
-            sectionId,
-            parentId,
-            rowId,
-        });
 
 
 

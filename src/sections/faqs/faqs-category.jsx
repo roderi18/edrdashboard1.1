@@ -15,24 +15,24 @@ import { Iconify } from 'src/components/iconify';
 
 const CATEGORIES = [
   {
-    label: 'Managing your account',
+    label: 'Gestión de cuenta',
     icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-account.svg`,
     href: '#',
   },
-  { label: 'Payment', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-payment.svg`, href: '#' },
-  { label: 'Delivery', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-delivery.svg`, href: '#' },
+  { label: 'Pagos', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-payment.svg`, href: '#' },
+  { label: 'Entregas', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-delivery.svg`, href: '#' },
   {
-    label: 'Problem with the product',
+    label: 'Problemas con productos',
     icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-package.svg`,
     href: '#',
   },
   {
-    label: 'Return & refund',
+    label: 'Devoluciones y reembolsos',
     icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-refund.svg`,
     href: '#',
   },
   {
-    label: 'Guarantees and assurances',
+    label: 'Garantías y seguridad',
     icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-assurances.svg`,
     href: '#',
   },
@@ -59,7 +59,7 @@ export function FaqsCategory() {
         ]}
       >
         <Button startIcon={<Iconify icon="solar:list-bold" />} onClick={navOpen.onTrue}>
-          Categories
+          Categorías
         </Button>
       </Box>
 

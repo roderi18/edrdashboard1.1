@@ -18,12 +18,6 @@ export default function Page() {
     // ⛔ seguridad
     if (!currentMember) return null;
 
-    console.log(
-        '🎯 posiciones en este DEST',
-        MEMBERS
-            .filter(m => m.destId === currentMember.destId)
-            .map(m => ({ name: m.fullName, role: m.memberPosition }))
-    );
 
     const dest = DESTS.find((d) => d.id === currentMember.destId);
     const church = CHURCHES.find((c) => c.id === dest?.churchId);

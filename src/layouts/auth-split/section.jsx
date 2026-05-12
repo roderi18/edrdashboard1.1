@@ -15,6 +15,7 @@ export function AuthSplitSection({
   sx,
   method,
   methods,
+  imgSx,
   layoutQuery = 'md',
   title = 'Manage the job',
   imgUrl = `${CONFIG.assetsDir}/assets/illustrations/illustration-dashboard.webp`,
@@ -50,24 +51,33 @@ export function AuthSplitSection({
       ]}
       {...other}
     >
-      <div>
-        <Typography variant="h3" sx={{ textAlign: 'center' }}>
-          {title}
-        </Typography>
+      {(title || subtitle) && (
+        <div>
+          {!!title && (
+            <Typography variant="h3" sx={{ textAlign: 'center' }}>
+              {title}
+            </Typography>
+          )}
 
-        {subtitle && (
-          <Typography sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>
-            {subtitle}
-          </Typography>
-        )}
-      </div>
+          {!!subtitle && (
+            <Typography sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </div>
+      )}
 
-      <Box
-        component="img"
-        alt="Dashboard illustration"
-        src={imgUrl}
-        sx={{ width: 1, aspectRatio: '4/3', objectFit: 'cover' }}
-      />
+      {!!imgUrl && (
+        <Box
+          component="img"
+          alt="Auth banner"
+          src={imgUrl}
+          sx={[
+            { width: 1, aspectRatio: '4/3', objectFit: 'cover' },
+            ...(Array.isArray(imgSx) ? imgSx : [imgSx]),
+          ]}
+        />
+      )}
 
       {!!methods?.length && method && (
         <Box component="ul" sx={{ gap: 2, display: 'flex' }}>

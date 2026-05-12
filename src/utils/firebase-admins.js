@@ -165,7 +165,7 @@ const createAdminRoleNotification = async ({ member = {}, action = 'assigned', a
   const notificationId = `admin_rol_${action}_${memberId || codigoMiembro || Date.now()}_${Date.now()}`;
   const mensaje = isAssigned
     ? 'fue asignado como administrador.'
-    : 'fue removido como administrador y ahora es usuario común.';
+    : 'fue removido como administrador y ahora es un usuario común.';
 
   await setDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId), {
     id: notificationId,
@@ -384,14 +384,14 @@ export const quitarAdministradorAMiembro = async (member) => {
   await Promise.all([
     uid
       ? setDoc(
-          doc(FIRESTORE, 'users', uid),
-          {
-            rol: 'usuario',
-            role: 'usuario',
-            updatedAt: now,
-          },
-          { merge: true }
-        )
+        doc(FIRESTORE, 'users', uid),
+        {
+          rol: 'usuario',
+          role: 'usuario',
+          updatedAt: now,
+        },
+        { merge: true }
+      )
       : null,
     ...userDocs.map((snapshot) =>
       setDoc(

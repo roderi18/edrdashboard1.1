@@ -25,8 +25,8 @@ import { normalizeText } from 'src/utils/normalize-text';
 import { REGIONALS } from 'src/_mock/assets';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getRegionals } from 'src/services/regional-service';
-import { getSectionals } from 'src/services/sectional-service';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
+import { getSectionals, deleteSectional } from 'src/services/sectional-service';
 import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
@@ -197,26 +197,40 @@ export function SectionalListView() {
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id) => {
+    async (id) => {
+      try {
+        await deleteSectional(id);
+
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+        toast.success('Seccion eliminada correctamente.');
 
       setTableData(deleteRow);
 
       table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        console.error('Error eliminando seccion:', error);
+        toast.error(error?.message || 'No se pudo eliminar la seccion.');
+      }
     },
     [dataInPage.length, table, tableData]
   );
 
-  const handleDeleteRows = useCallback(() => {
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      await Promise.all(table.selected.map((id) => deleteSectional(id)));
+
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+      toast.success('Secciones eliminadas correctamente.');
 
     setTableData(deleteRows);
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error('Error eliminando secciones:', error);
+      toast.error(error?.message || 'No se pudieron eliminar las secciones.');
+    }
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
   const handleFilterRegionalFullName = useCallback(
@@ -291,7 +305,7 @@ export function SectionalListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> secciones?
         </>
       }
       action={
@@ -303,7 +317,7 @@ export function SectionalListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />

@@ -19,7 +19,7 @@ export function FaqsView() {
         <FaqsCategory />
 
         <Typography variant="h3" sx={{ my: { xs: 5, md: 10 } }}>
-          Frequently asked questions
+          Preguntas frecuentes
         </Typography>
 
         <Box

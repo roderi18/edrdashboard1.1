@@ -11,12 +11,64 @@ export const _carouselsMembers = Array.from({ length: 6 }, (_, index) => ({
 
 // ----------------------------------------------------------------------
 
-export const _faqs = Array.from({ length: 8 }, (_, index) => ({
-  id: _mock.id(index),
-  value: `panel${index + 1}`,
-  title: `Questions ${index + 1}`,
-  content: _mock.description(index),
-}));
+export const _faqs = [
+  {
+    id: _mock.id(0),
+    value: 'panel1',
+    title: '¿Cómo puedo actualizar la información de mi cuenta?',
+    content:
+      'Puedes actualizar tus datos desde la sección de cuenta o perfil. Si algún campo está bloqueado, solicita asistencia al administrador correspondiente.',
+  },
+  {
+    id: _mock.id(1),
+    value: 'panel2',
+    title: '¿Qué hago si olvidé mi contraseña?',
+    content:
+      'En la pantalla de inicio de sesión selecciona la opción para recuperar la contraseña y sigue las instrucciones enviadas a tu correo electrónico.',
+  },
+  {
+    id: _mock.id(2),
+    value: 'panel3',
+    title: '¿Cómo puedo consultar el estado de una solicitud?',
+    content:
+      'Ingresa al módulo relacionado con tu solicitud y revisa su estado actual. Si necesitas más detalles, contacta al equipo responsable.',
+  },
+  {
+    id: _mock.id(3),
+    value: 'panel4',
+    title: '¿Qué métodos de pago están disponibles?',
+    content:
+      'Los métodos disponibles pueden incluir PayPal, tarjeta, efectivo y comprobante de transferencia o depósito, según la configuración activa.',
+  },
+  {
+    id: _mock.id(4),
+    value: 'panel5',
+    title: '¿Cómo puedo anexar o reemplazar documentos?',
+    content:
+      'Desde la sección de documentos puedes subir archivos en el apartado correspondiente. Si ya existe un archivo, puedes reemplazarlo o eliminarlo según tus permisos.',
+  },
+  {
+    id: _mock.id(5),
+    value: 'panel6',
+    title: '¿Por qué no veo algunas opciones del sistema?',
+    content:
+      'Las opciones visibles dependen del rol y los permisos asignados a tu usuario. Si crees que falta un acceso, consulta con un administrador.',
+  },
+  {
+    id: _mock.id(6),
+    value: 'panel7',
+    title: '¿Puedo descargar reportes o listados?',
+    content:
+      'Sí. En las listas disponibles puedes usar la opción de descarga y aplicar filtros antes de generar el archivo en el formato permitido.',
+  },
+  {
+    id: _mock.id(7),
+    value: 'panel8',
+    title: '¿A quién debo contactar si necesito ayuda?',
+    content:
+      'Si no encuentras respuesta en esta página, envía tu consulta desde el formulario de ayuda o comunícate con el equipo administrativo.',
+  },
+];
 
 // ----------------------------------------------------------------------
 

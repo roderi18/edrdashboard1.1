@@ -44,7 +44,7 @@ export function AuthCenteredLayout({ sx, cssVars, children, slotProps, layoutQue
             color="inherit"
             sx={{ typography: 'subtitle2' }}
           >
-            Need help?
+            Necesitas ayuda?
           </Link>
 
           {/** @slot Settings button */}

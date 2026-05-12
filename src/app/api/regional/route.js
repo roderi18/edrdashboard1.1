@@ -71,7 +71,6 @@ export async function POST(req) {
                 body: JSON.stringify(body),
             }
         );
-        console.log('STATUS ðŸ‘‰', res.status);
 
         const text = await res.text();
 
@@ -108,9 +107,7 @@ export async function POST(req) {
             });
 
             data = normalizeApiResponse({ ...data, data: newData });
-            console.log('REGIONALES CON SECCIONES ðŸ‘‰', newData);
             newData.forEach((r) => {
-                console.log(`REGION: ${r.nombre} â†’ SECCIONES: ${r.regionalXSectionalCount}`);
             });
         } catch (e) {
             return Response.json(
@@ -125,3 +122,43 @@ export async function POST(req) {
     }
 }
 
+export async function DELETE(req) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return Response.json({ error: 'id es requerido' }, { status: 400 });
+        }
+
+        const res = await fetch(
+            `https://systexploradores.somee.com/api/Regiones/DeleteRegiones?id=${encodeURIComponent(id)}`,
+            {
+                method: 'DELETE',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            }
+        );
+        const text = await res.text();
+        let data = null;
+
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch {
+            data = { raw: text };
+        }
+
+        if (!res.ok) {
+            return Response.json(
+                { error: 'Error eliminando regional', status: res.status, data },
+                { status: res.status }
+            );
+        }
+
+        return Response.json(normalizeApiResponse(data ?? { success: true }));
+    } catch (error) {
+        return Response.json(
+            { error: error?.message || 'Error eliminando regional' },
+            { status: 500 }
+        );
+    }
+}

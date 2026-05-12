@@ -72,7 +72,6 @@ export const saveSectional = async (payload) => {
 
     const data = await res.json();
 
-    console.log('RESPUESTA 👉', data);
 
     return data;
 };
@@ -101,11 +100,20 @@ export const updateSectional = async (sectional) => {
 };
 
 export const deleteSectional = async (id) => {
+    const res = await fetch(`/api/sectional?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+    });
+    const text = await res.text();
+
+    if (!res.ok) {
+        throw new Error(text || `Error eliminando seccional (${res.status})`);
+    }
+
+    if (!text) return {};
+
     try {
-        await fetch(`/api/sectional?id=${id}`, {
-            method: 'DELETE',
-        });
-    } catch (error) {
-        console.error('Error eliminando seccional:', error);
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
     }
 };

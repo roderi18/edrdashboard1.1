@@ -41,7 +41,6 @@ export function useAwardsFolderNavigation({ table, awardFolders }) {
         const selectedId = table.selected[0];
         const selectedItem = awardFolders.find((item) => item.id === selectedId);
 
-        console.log('[Awards][hook] selected:', selectedItem);
 
         if (selectedItem?.type === 'folder') {
             router.push(`?folder=${selectedItem.id}`);

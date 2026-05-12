@@ -4,7 +4,6 @@ export async function POST(req) {
     try {
         const body = await req.json();
 
-        console.log('📥 BODY RECIBIDO FRONT 👉', JSON.stringify(body, null, 2));
 
         // 👇 NO enviar campos vacíos
         const payload = {
@@ -39,7 +38,6 @@ export async function POST(req) {
 
         if (body?.concilio?.trim()) payload.concilio = body.concilio.trim();
 
-        console.log('📤 PAYLOAD ENVIADO A SOMEE 👉', JSON.stringify(payload, null, 2));
 
         const res = await fetch(
             'https://systexploradores.somee.com/api/Destacamentos/SetDestacamento',

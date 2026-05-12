@@ -96,7 +96,7 @@ export function SnackbarView() {
                 closeButton: false,
                 action: {
                   label: 'Undo',
-                  onClick: () => console.log('Undo'),
+                  onClick: () => {},
                 },
               })
             }

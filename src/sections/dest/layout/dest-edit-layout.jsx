@@ -18,7 +18,6 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 export function DestEditLayout({ children, ...other }) {
-    console.log('DashboardContent props', other);
 
     const pathname = usePathname();
     const params = useParams();

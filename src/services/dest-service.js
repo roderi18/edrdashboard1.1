@@ -1,8 +1,9 @@
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
     saveItem,
     getStorageCollection,
 } from 'src/utils/storage-service';
-import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+
 const DESTS_STORAGE_KEY = 'dests';
 // ------------------------------------------------------------
 // DESTS
@@ -162,7 +163,6 @@ export const buildDestPayload = (data) => ({
 
 export const createDestApi = async (data) => {
     const payload = buildDestPayload(data);
-    console.log('DEST PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
     const res = await fetch('/api/dest/post', {
         method: 'POST',
@@ -174,8 +174,6 @@ export const createDestApi = async (data) => {
 
     const text = await res.text();
 
-    console.log('DEST STATUS 👉', res.status);
-    console.log('DEST RESPONSE RAW 👉', text);
 
     if (!res.ok) {
         throw new Error(text || `Error creando destacamento (${res.status})`);
@@ -192,7 +190,6 @@ export const createDestApi = async (data) => {
 
 export const updateDestApi = async (data) => {
     const payload = buildDestPayload(data);
-    console.log('DEST UPDATE PAYLOAD FINAL 👉', JSON.stringify(payload, null, 2));
 
     const res = await fetch('/api/dest/put', {
         method: 'PUT',
@@ -204,11 +201,28 @@ export const updateDestApi = async (data) => {
 
     const text = await res.text();
 
-    console.log('DEST UPDATE STATUS 👉', res.status);
-    console.log('DEST UPDATE RESPONSE RAW 👉', text);
 
     if (!res.ok) {
         throw new Error(text || `Error actualizando destacamento (${res.status})`);
+    }
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
+    }
+};
+
+export const deleteDestApi = async (id) => {
+    const res = await fetch(`/api/dest?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+    });
+    const text = await res.text();
+
+    if (!res.ok) {
+        throw new Error(text || `Error eliminando destacamento (${res.status})`);
     }
 
     if (!text) return {};

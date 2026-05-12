@@ -695,6 +695,7 @@ export default function Page() {
   const [members, setMembers] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [roleInfoNode, setRoleInfoNode] = useState(null);
+  const [removeMemberNode, setRemoveMemberNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
@@ -929,13 +930,31 @@ export default function Page() {
     }
   };
 
-  const handleRemoveMember = async (node) => {
+  const handleOpenRemoveMember = (node) => {
     const assignmentInfo = node?.asignacionOrganigrama;
     const assignmentKey = getAssignmentKey(assignmentInfo);
     const assignment = assignments[assignmentKey];
 
     if (!assignment?.id) {
       toast.info('Este rol no tiene un miembro asignado.');
+      return;
+    }
+
+    setRemoveMemberNode(node);
+  };
+
+  const handleCloseRemoveMember = () => {
+    setRemoveMemberNode(null);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    const assignmentInfo = removeMemberNode?.asignacionOrganigrama;
+    const assignmentKey = getAssignmentKey(assignmentInfo);
+    const assignment = assignments[assignmentKey];
+
+    if (!assignment?.id) {
+      toast.info('Este rol no tiene un miembro asignado.');
+      setRemoveMemberNode(null);
       return;
     }
 
@@ -948,6 +967,7 @@ export default function Page() {
         return nextAssignments;
       });
       toast.success('Miembro removido del rol.');
+      setRemoveMemberNode(null);
     } catch (error) {
       console.error('Error removiendo miembro del organigrama:', error);
       toast.error(error?.message || 'No se pudo remover el miembro.');
@@ -1215,7 +1235,7 @@ export default function Page() {
                 {...props}
                 miembroAsignado={getAssignedMember(props)}
                 onCambiarMiembro={handleOpenChangeMember}
-                onRemoverMiembro={handleRemoveMember}
+                onRemoverMiembro={handleOpenRemoveMember}
                 onInformacionRol={handleRoleInfo}
               />
             )}
@@ -1245,7 +1265,7 @@ export default function Page() {
                       {...props}
                       miembroAsignado={getAssignedMember(props)}
                       onCambiarMiembro={handleOpenChangeMember}
-                      onRemoverMiembro={handleRemoveMember}
+                      onRemoverMiembro={handleOpenRemoveMember}
                       onInformacionRol={handleRoleInfo}
                     />
                   )
@@ -1348,6 +1368,28 @@ export default function Page() {
         <DialogActions>
           <Button variant="contained" onClick={() => setRoleInfoNode(null)}>
             Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!removeMemberNode} onClose={handleCloseRemoveMember} fullWidth maxWidth="xs">
+        <DialogTitle>Remover miembro</DialogTitle>
+
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            ¿Realmente quieres remover a{' '}
+            <Box component="strong" sx={{ color: 'text.primary' }}>
+              {getMemberName(getAssignedMember(removeMemberNode)) || 'este miembro'}
+            </Box>{' '}
+            del rol {removeMemberNode?.role || 'seleccionado'}?
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleCloseRemoveMember}>Cancelar</Button>
+
+          <Button variant="contained" color="error" onClick={handleConfirmRemoveMember}>
+            Remover
           </Button>
         </DialogActions>
       </Dialog>

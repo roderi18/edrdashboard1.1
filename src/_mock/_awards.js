@@ -45,9 +45,6 @@ export const _awards = [
     // =============================
     // SISTEMA DE ASCENSO
     // =============================
-    // =============================
-    // SISTEMA DE ASCENSO (ROWS)
-    // =============================
 
     {
         id: createId('Navegantes'),

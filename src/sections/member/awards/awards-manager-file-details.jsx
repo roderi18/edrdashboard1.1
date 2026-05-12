@@ -199,11 +199,9 @@ export function FileManagerFileDetails({
         checked={favorited}
         onClick={(e) => {
           e.stopPropagation();
-          console.log('⭐ CLICK estrella', file.id, 'antes:', favorited);
         }}
         onChange={(e) => {
           e.stopPropagation();
-          console.log('🔁 TOGGLE estrella', file.id, 'después:', !favorited);
           onFavorite(file.id);
         }}
         slotProps={{

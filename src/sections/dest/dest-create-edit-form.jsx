@@ -219,7 +219,6 @@ export function DestCreateEditForm({ currentDest }) {
   } = methods;
 
   const values = watch();
-  console.log('📦 form values 👉', values);
   const destName = watch('name');
   const destNumber = watch('destNumber');
 
@@ -281,7 +280,6 @@ export function DestCreateEditForm({ currentDest }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      console.log('FORM DATA 👉', data);
 
       const destPayloadData = {
         ...data,
@@ -296,7 +294,6 @@ export function DestCreateEditForm({ currentDest }) {
         concilio: data.concilio ?? '',
         fechaInicio: data.fechaInicio || new Date().toISOString(),
       };
-      console.log('DEST DATA BEFORE PAYLOAD 👉', destPayloadData);
 
       if (currentDest) {
         await updateDestApi(destPayloadData);
@@ -635,7 +632,6 @@ export function DestCreateEditForm({ currentDest }) {
                       loading={isSubmitting}
                       onClick={handleSubmit(async (data) => {
                         try {
-                          console.log('CREANDO IGLESIA 👉', data);
 
                           const churchRes = await createChurchApi({
                             churchName: data.churchName,
@@ -666,7 +662,6 @@ export function DestCreateEditForm({ currentDest }) {
                             shouldValidate: true,
                             shouldDirty: true,
                           });
-                          console.log('IGLESIA CREADA 👉', churchId);
 
                           // 🔥 pasar al step 2
                           setStep(2);

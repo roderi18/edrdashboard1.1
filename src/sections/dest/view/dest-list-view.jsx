@@ -26,9 +26,9 @@ import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getChurches } from 'src/services/church-service';
-import { getDestsApi } from 'src/services/dest-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
+import { getDestsApi, deleteDestApi } from 'src/services/dest-service';
 import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
@@ -97,12 +97,10 @@ export function DestListView() {
   };
 
   const buildDestList = (apiDests) => {
-    console.log('DESTS API:', apiDests);
     const allDests = apiDests;
 
     return allDests.map((dest) => {
       if (dest.name === 'Leones De Sion') {
-        console.log('DEST PROCESADO:', dest);
       }
       const allMembers = members;
       const leadershipAssignments = getLeadershipAssignments();
@@ -153,11 +151,6 @@ export function DestListView() {
           Number(c.id) === Number(dest.idIglesia || dest.churchId)
       );
 
-      console.log('MATCH CHURCH 👉', {
-        destIdIglesia: dest.idIglesia,
-        churches,
-        encontrada: church,
-      });
 
       const sectional = sectionals.find(
         (s) =>
@@ -167,12 +160,6 @@ export function DestListView() {
           Number(s.id) === Number(church?.sectionId)
       );
 
-      console.log('SECTIONAL MATCH 👉', {
-        church,
-        churchIdSeccion: church?.idSeccion,
-        churchSectionId: church?.sectionId,
-        sectionalEncontrada: sectional,
-      });
 
       const regional = regionals.find(
         (r) =>
@@ -235,7 +222,6 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-      console.log('DATA DEST RAW 👉', data?.data);
 
       const scopedDests = isMemberSessionUser(user)
         ? filterDestsByMemberScope(data || [], user)
@@ -243,7 +229,6 @@ export function DestListView() {
 
       const built = buildDestList(scopedDests);
 
-      console.log('DATA DEST BUILT 👉', built);
 
       setTableData(built);
     };
@@ -289,7 +274,6 @@ export function DestListView() {
     label: s.nombre || s.sectionalName || s.name || 'Sin nombre',
   }));
 
-  console.log('OPTIONS SECTIONAL FINAL 👉', sectionals);
 
   useEffect(() => {
     if (appliedFromUrl.current) return;
@@ -368,26 +352,40 @@ export function DestListView() {
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id) => {
+    async (id) => {
+      try {
+        await deleteDestApi(id);
+
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+        toast.success('Destacamento eliminado correctamente.');
 
       setTableData(deleteRow);
 
       table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        console.error('Error eliminando destacamento:', error);
+        toast.error(error?.message || 'No se pudo eliminar el destacamento.');
+      }
     },
     [dataInPage.length, table, tableData]
   );
 
-  const handleDeleteRows = useCallback(() => {
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      await Promise.all(table.selected.map((id) => deleteDestApi(id)));
+
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+      toast.success('Destacamentos eliminados correctamente.');
 
     setTableData(deleteRows);
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error('Error eliminando destacamentos:', error);
+      toast.error(error?.message || 'No se pudieron eliminar los destacamentos.');
+    }
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
 
   const handleFilterRegionalFullName = useCallback(
@@ -405,7 +403,7 @@ export function DestListView() {
       title="Eliminar"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> destacamentos?
         </>
       }
       action={
@@ -417,7 +415,7 @@ export function DestListView() {
             confirmDialog.onFalse();
           }}
         >
-          Delete
+          Eliminar
         </Button>
       }
     />

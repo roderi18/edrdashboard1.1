@@ -438,7 +438,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   }, []);
 
   const values = watch();
-  // console.log("FORM ERRORS:", errors);
   const firstName = watch('firstName');
   const lastName = watch('lastName');
   const memberFullName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
@@ -770,10 +769,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
             : null,
         };
-        console.log('[member form] submitting member update', {
-          currentMemberId: currentMember?.id,
-          endpoint: currentMember ? '/api/members/put' : '/api/members/post',
-        });
 
         const res = await fetch(currentMember ? '/api/members/put' : '/api/members/post', {
           method: currentMember ? 'PUT' : 'POST',
@@ -784,11 +779,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
         });
 
         const text = await res.text();
-        console.log('[member form] save response', {
-          status: res.status,
-          ok: res.ok,
-          text,
-        });
         let responseData;
         try {
           responseData = text ? JSON.parse(text) : {};
@@ -820,7 +810,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             responseData?.message || responseData?.Message || 'Error guardando en API'
           );
         }
-        console.log('RESPONSE API Ã°Å¸â€˜â€°', responseData || text);
 
         toast.success(
           currentMember ? 'Actualizacion exitosa!' : `Miembro ${codigoMiembro} creado!`
@@ -845,10 +834,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               memberId: savedMember?.id || null,
             });
 
-            console.log('[member form] firebase auth user created', {
-              username: authCredentials.username,
-              emailFake: authCredentials.emailFake,
-            });
           } catch (authError) {
             if (authError?.code === 'auth/email-already-in-use') {
               console.warn('[member form] firebase auth user already exists', authError);
@@ -926,7 +911,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           router.push(paths.dashboard.level.member.root);
         }
       } catch (error) {
-        console.log('[member form] save failed', error);
         toast.error(error.message || 'Error guardando en API');
       }
     },

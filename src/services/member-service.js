@@ -131,11 +131,28 @@ export async function updateMemberApi(payload) {
     return response;
 }
 
-export function deleteMember(memberId) {
+export async function deleteMember(memberId) {
+    const res = await fetch(`/api/members?id=${encodeURIComponent(memberId)}`, {
+        method: 'DELETE',
+    });
+    const text = await res.text();
+
+    if (!res.ok) {
+        throw new Error(text || `Error eliminando miembro (${res.status})`);
+    }
+
     const members = getStorageCollection(MEMBERS_KEY).filter(
         (m) => String(m.id) !== String(memberId)
     );
     setStorageCollection(MEMBERS_KEY, members);
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
+    }
 }
 
 // ------------------------------------------------------------

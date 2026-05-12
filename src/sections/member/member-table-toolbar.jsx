@@ -754,17 +754,6 @@ export function MemberTableToolbar({
                             s.idSeccion?.toString() === id?.toString()
                         )
                         : null;
-                      console.log('DEBUG SECTION FILTER 👉', {
-                        selectedId: id,
-                        sectionals,
-                        found: Array.isArray(sectionals)
-                          ? sectionals.find(
-                            (s) =>
-                              s.id?.toString() === id?.toString() ||
-                              s.idSeccion?.toString() === id?.toString()
-                          )
-                          : 'sectionals NO ES ARRAY',
-                      });
                       return found?.sectionalName || found?.nombre || found?.name || id;
                     })
                     .join(', ')

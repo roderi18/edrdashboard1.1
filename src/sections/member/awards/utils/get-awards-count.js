@@ -62,7 +62,6 @@ export function getCompletedAwards(memberId, folderId) {
         if (!node || typeof node !== 'object') return null;
 
         if (node[folderId]) {
-            console.log('[DBG findNode FOUND]', { folderId, path, node: node[folderId] });
             return node[folderId];
         }
 

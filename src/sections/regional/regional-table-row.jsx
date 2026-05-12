@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -12,17 +14,17 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
-import { parsePhoneNumber } from 'libphonenumber-js';
+
 import { RouterLink } from 'src/routes/components';
-import { useState, useEffect } from 'react';
 
 import { getMembers } from 'src/services/member-service';
+import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
+
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { RegionalQuickEditForm } from './regional-quick-edit-form';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
 // ----------------------------------------------------------------------
 
@@ -95,10 +97,17 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar esta regional?"
       action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            onDeleteRow();
+            confirmDialog.onFalse();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />

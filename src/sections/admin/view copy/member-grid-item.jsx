@@ -162,7 +162,6 @@ export function MemberGridItem({ file, selected, onSelect, isGridView = false, o
       <FileItem variant="outlined" selected={selected} sx={sx} {...other}>
         <FileItemActionOverlay
           onClick={(e) => {
-            console.log('🟥 OVERLAY CLICK (grid)', e.target);
             detailsDrawer.onTrue();
           }}
         />

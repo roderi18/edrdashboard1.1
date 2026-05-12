@@ -93,7 +93,6 @@ export function AwardsManagerTable({
 
 
       if (!sectionId || !parentId) {
-        console.log('❌ sectionId o parentId faltante');
         return;
       }
       // 🔴 ESTADO (ESTO ES LO CLAVE)

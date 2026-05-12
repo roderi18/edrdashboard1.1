@@ -57,7 +57,6 @@ export const FileItemActionOverlay = styled('span')({
 
 // ----------------------------------------------------------------------
 export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx }) {
-  // console.log('🟦 AwardsItemIcon props:', { id, fileType });
 
   const isFolder = fileType === 'folder';
   const custom = isFolder ? getFolderIcon({ id }) : null;
@@ -65,7 +64,6 @@ export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx })
   const renderIcon = () => {
     // PDF / archivos
     if (fileType && fileType !== 'folder') {
-      // console.log('🟥 FILE ICON CHECK', {
       //   id,
       //   fileType,
       // });
@@ -215,12 +213,10 @@ export function FileItemActions({ sx, id, checked, onChange, openMenu, onOpenMen
         checkedIcon={<Iconify icon="eva:star-fill" />}
         checked={checked}
         onChange={(e) => {
-          console.log('⭐ STAR onChange', e);
           e.stopPropagation();
           onChange?.(e);
         }}
         onClick={(e) => {
-          console.log('⭐ STAR onClick', e);
           e.stopPropagation();
         }}
         slotProps={{

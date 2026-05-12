@@ -49,17 +49,9 @@ export function createAwardsActions({
 
     const setStatus = (nextStatus) => {
         const now = new Date().toISOString();
-        console.log('[AwardsActionsCore:setStatus] input', {
-            system,
-            memberId,
-            context,
-            nextStatus,
-        });
         const status = readStatus();
         const data = readData();
 
-        console.log('[AwardsActionsCore:setStatus] current status', status);
-        console.log('[AwardsActionsCore:setStatus] current data', data);
         if (system === 'academia') {
             const { parentId, rowId } = context;
 

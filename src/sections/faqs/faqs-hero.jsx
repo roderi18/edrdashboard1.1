@@ -46,7 +46,7 @@ export function FaqsHero({ sx, ...other }) {
           <AnimateText
             component="h1"
             variant="h1"
-            textContent={['Where', 'can we help you?']}
+            textContent={['¿En qué', 'podemos ayudarte?']}
             variants={varFade('inRight', { distance: 24 })}
             sx={{
               color: 'common.white',
@@ -59,7 +59,7 @@ export function FaqsHero({ sx, ...other }) {
           <m.div variants={varFade('inUp', { distance: 24 })}>
             <TextField
               fullWidth
-              placeholder="Search support..."
+              placeholder="Buscar ayuda..."
               slotProps={{
                 input: {
                   startAdornment: (

@@ -51,7 +51,7 @@ const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
   {
     group: 'ERRD',
     classify: [
-      { label: 'Insignias y emblemas', value: 'Insignias-Emblemas' },
+      { label: 'Insignias y emblemas', value: 'insignias-emblemas' },
       { label: 'Cintas', value: 'cintas' },
       { label: 'Barras y numeros', value: 'barras-numeros' },
       { label: 'Parches', value: 'parches' },
@@ -414,17 +414,17 @@ export function ProductCreateEditForm({ currentProduct }) {
       </Box>
 
       {[10, 50].map((amount) => (
-        <Button
-          key={amount}
-          type="button"
-          size="small"
-          variant="outlined"
-          onClick={() => handleAdjustPrice(fieldName, amount)}
-          sx={{ minWidth: 42, px: 0.75 }}
-        >
-          +{amount}
-        </Button>
-      ))}
+          <Button
+            key={amount}
+            type="button"
+            size="small"
+            variant="outlined"
+            onClick={() => handleAdjustPrice(fieldName, amount)}
+            sx={{ minWidth: 42, px: 0.75 }}
+          >
+            +{amount}
+          </Button>
+        ))}
     </InputAdornment>
   );
 

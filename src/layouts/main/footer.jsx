@@ -21,19 +21,19 @@ const LINKS = [
   {
     headline: 'Minimal',
     children: [
-      { name: 'About us', href: paths.about },
-      { name: 'Contact us', href: paths.contact },
-      { name: 'FAQs', href: paths.faqs },
+      { name: 'Sobre nosotros', href: paths.about },
+      { name: 'Contacto', href: paths.contact },
+      { name: 'Preguntas frecuentes', href: paths.faqs },
     ],
   },
   {
     headline: 'Legal',
     children: [
-      { name: 'Terms and condition', href: '#' },
-      { name: 'Privacy policy', href: '#' },
+      { name: 'Términos y condiciones', href: '#' },
+      { name: 'Política de privacidad', href: '#' },
     ],
   },
-  { headline: 'Contact', children: [{ name: 'soporte@soporte.com', href: '#' }] },
+  { headline: 'Contacto', children: [{ name: 'soporte@soporte.com', href: '#' }] },
 ];
 
 // ----------------------------------------------------------------------
@@ -77,8 +77,8 @@ export function Footer({ sx, layoutQuery = 'md', ...other }) {
                 [theme.breakpoints.up(layoutQuery)]: { mx: 'unset' },
               })}
             >
-              The starting point for your next project with Minimal UI Kit, built on the newest
-              version of Material-UI ©, ready to be customized to your style.
+              Punto de partida para tu proximo proyecto con Minimal UI Kit, construido sobre la
+              version mas reciente de Material-UI y listo para adaptarse a tu estilo.
             </Typography>
 
             <Box
@@ -144,7 +144,7 @@ export function Footer({ sx, layoutQuery = 'md', ...other }) {
         </Grid>
 
         <Typography variant="body2" sx={{ mt: 10 }}>
-          © All rights reserved.
+          © Todos los derechos reservados.
         </Typography>
       </Container>
     </FooterRoot>
@@ -168,8 +168,8 @@ export function HomeFooter({ sx, ...other }) {
       <Container>
         <Logo />
         <Box sx={{ mt: 1, typography: 'caption' }}>
-          © All rights reserved.
-          <br /> made by
+          © Todos los derechos reservados.
+          <br /> hecho por
           <Link href="https://minimals.cc/"> minimals.cc </Link>
         </Box>
       </Container>

@@ -11,12 +11,9 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
-
-import { paths } from 'src/routes/paths';
 
 import { getMemberCodeLabel } from 'src/utils/member-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
@@ -641,9 +638,6 @@ export function UserAccountGeneral() {
             </Box>
 
             <Stack spacing={3} sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button href={paths.dashboard.level.member.root} variant="outlined">
-                Volver a miembros
-              </Button>
               <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
                 Guardar cambios
               </LoadingButton>

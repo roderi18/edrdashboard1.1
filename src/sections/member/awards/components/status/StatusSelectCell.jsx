@@ -44,12 +44,6 @@ export function StatusSelectCell({
                 onChange={(e) => {
                     const next = e.target.value;
 
-                    console.log('[StatusSelectCell] change', {
-                        current: value,
-                        next,
-                        hasCertificate,
-                        hasOnChange: typeof onChange === 'function',
-                    });
 
                     // Solo si está saliendo de COMPLETADO con certificado
                     if (hasCertificate && value === 'completado' && next !== 'completado') {

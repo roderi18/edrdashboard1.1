@@ -138,10 +138,17 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este destacamento?"
       action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            onDeleteRow();
+            confirmDialog.onFalse();
+          }}
+        >
+          Eliminar
         </Button>
       }
     />

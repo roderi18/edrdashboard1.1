@@ -32,7 +32,6 @@ export const getRegionals = async () => {
 
         if (!res.ok) {
             const text = await res.text();
-            console.log('ERROR API 👉', text);
             throw new Error('Error al obtener regionales');
         }
 
@@ -85,7 +84,20 @@ export const updateRegional = async (payload) => {
 };
 
 export const deleteRegional = async (id) => {
-    await fetch(`/api/regional?id=${id}`, {
+    const res = await fetch(`/api/regional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });
+    const text = await res.text();
+
+    if (!res.ok) {
+        throw new Error(text || `Error eliminando regional (${res.status})`);
+    }
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
+    }
 };

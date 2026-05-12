@@ -121,7 +121,7 @@ export function AdminListView() {
         currentAdmins.filter((admin) => String(admin.adminId || admin.id) !== String(removeAdminRow.adminId || removeAdminRow.id))
       );
 
-      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es usuario común.`);
+      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es un usuario común.`);
       setRemoveAdminRow(null);
     } catch (error) {
       console.error(error);
@@ -184,9 +184,8 @@ export function AdminListView() {
         open={Boolean(removeAdminRow)}
         onClose={handleCloseRemoveAdmin}
         title="Quitar administrador"
-        content={`¿Realmente quieres quitar administrador a ${
-          removeAdminRow?.name || 'este usuario'
-        }? Al confirmar pasará a usuario común.`}
+        content={`¿Realmente quieres quitar administrador a ${removeAdminRow?.name || 'este usuario'
+          }? Al confirmar pasará a usuario común.`}
         action={
           <Button
             color="error"

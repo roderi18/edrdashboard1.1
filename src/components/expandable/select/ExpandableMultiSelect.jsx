@@ -28,7 +28,7 @@ export function ExpandableMultiSelect({
     getOptionLabel,
     width = 200,
     compact = false,
-    icon = 'eva:funnel-outline',
+    icon = 'ic:round-filter-list',
 }) {
     const [expanded, setExpanded] = useState(false);
     const inputRef = useRef(null);

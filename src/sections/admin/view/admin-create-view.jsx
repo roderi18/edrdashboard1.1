@@ -123,13 +123,13 @@ export function AdminCreateView() {
         currentMembers.map((member) =>
           assignedIds.has(String(member.id))
             ? {
-                ...member,
-                adminId:
-                  assignedAdmins.find((admin) => String(admin.idMiembros) === String(member.id))?.id ||
-                  member.adminId,
-                rol: 'administrador',
-                esAdministrador: true,
-              }
+              ...member,
+              adminId:
+                assignedAdmins.find((admin) => String(admin.idMiembros) === String(member.id))?.id ||
+                member.adminId,
+              rol: 'administrador',
+              esAdministrador: true,
+            }
             : member
         )
       );
@@ -189,16 +189,16 @@ export function AdminCreateView() {
         currentMembers.map((member) =>
           String(member.id) === String(removeAdminRow.id)
             ? {
-                ...member,
-                adminId: '',
-                rol: 'usuario',
-                esAdministrador: false,
-              }
+              ...member,
+              adminId: '',
+              rol: 'usuario',
+              esAdministrador: false,
+            }
             : member
         )
       );
 
-      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es usuario común.`);
+      toast.success(`${removeAdminRow.name || 'El usuario'} ahora es un usuario común.`);
       setRemoveAdminRow(null);
     } catch (error) {
       console.error(error);
@@ -335,9 +335,8 @@ export function AdminCreateView() {
         open={Boolean(removeAdminRow)}
         onClose={handleCloseRemoveAdmin}
         title="Quitar administrador"
-        content={`¿Realmente quieres quitar administrador a ${
-          removeAdminRow?.name || 'este usuario'
-        }? Al confirmar pasará a usuario común.`}
+        content={`¿Realmente quieres quitar administrador a ${removeAdminRow?.name || 'este usuario'
+          }? Al confirmar pasará a usuario común.`}
         action={
           <Button
             color="error"
