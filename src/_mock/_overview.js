@@ -134,6 +134,8 @@ export const _ecommerceSalesOverview = ['Ganancia total', 'Ingresos totales', 'G
   })
 );
 
+export const _ecommerceSalesPrincipal = _ecommerceSalesOverview;
+
 export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
   const category = ['Gorra', 'Zapatos de marca', 'Auriculares', 'Teléfono móvil', 'Pendientes'][index];
   const productNames = [
@@ -321,6 +323,8 @@ export const _bookingsOverview = Array.from({ length: 3 }, (_, index) => ({
   quantity: _mock.number.nativeL(index),
   value: _mock.number.percent(index + 5),
 }));
+
+export const _bookingsPrincipal = _bookingsOverview;
 
 export const _bookingReview = Array.from({ length: 5 }, (_, index) => ({
   id: _mock.id(index),
