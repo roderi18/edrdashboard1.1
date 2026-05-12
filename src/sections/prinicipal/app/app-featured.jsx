@@ -15,7 +15,7 @@ import {
 
 // ----------------------------------------------------------------------
 
-export function AppFeatured({ list, sx, ...other }) {
+export function AppFeatured({ list, sx, imageSx, ...other }) {
   const carousel = useCarousel({ loop: true }, [Autoplay({ playOnInit: true, delay: 8000 })]);
 
   return (
@@ -45,7 +45,7 @@ export function AppFeatured({ list, sx, ...other }) {
 
       <Carousel carousel={carousel}>
         {list.map((item) => (
-          <CarouselItem key={item.id} item={item} />
+          <CarouselItem key={item.id} item={item} imageSx={imageSx} />
         ))}
       </Carousel>
     </Card>
@@ -54,7 +54,7 @@ export function AppFeatured({ list, sx, ...other }) {
 
 // ----------------------------------------------------------------------
 
-function CarouselItem({ item, sx, ...other }) {
+function CarouselItem({ item, sx, imageSx, ...other }) {
   return (
     <Box
       sx={[
@@ -102,7 +102,7 @@ function CarouselItem({ item, sx, ...other }) {
             }),
           },
         }}
-        sx={{ width: 1, height: { xs: 288, xl: 320 } }}
+        sx={[{ width: 1, height: { xs: 288, xl: 320 } }, ...(Array.isArray(imageSx) ? imageSx : [imageSx])]}
       />
     </Box>
   );
