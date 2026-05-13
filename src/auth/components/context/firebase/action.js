@@ -3,7 +3,9 @@
 import { doc, setDoc, collection } from 'firebase/firestore';
 import {
   updateProfile,
+  unlink as _unlink,
   signOut as _signOut,
+  linkWithPopup as _linkWithPopup,
   signInWithPopup as _signInWithPopup,
   GoogleAuthProvider as _GoogleAuthProvider,
   GithubAuthProvider as _GithubAuthProvider,
@@ -70,7 +72,38 @@ export const signInWithPassword = async ({ email, password }) => {
 
 export const signInWithGoogle = async () => {
   const provider = new _GoogleAuthProvider();
-  await _signInWithPopup(ensureFirebaseAuth(), provider);
+  provider.addScope('email');
+  provider.addScope('profile');
+
+  const userCredential = await _signInWithPopup(ensureFirebaseAuth(), provider);
+
+  return userCredential.user;
+};
+
+export const linkCurrentUserWithGoogle = async () => {
+  const user = ensureFirebaseAuth().currentUser;
+
+  if (!user) {
+    throw new Error('Debes iniciar sesión antes de vincular Google.');
+  }
+
+  const provider = new _GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
+
+  const userCredential = await _linkWithPopup(user, provider);
+
+  return userCredential.user;
+};
+
+export const unlinkCurrentUserProvider = async (providerId) => {
+  const user = ensureFirebaseAuth().currentUser;
+
+  if (!user) {
+    throw new Error('Debes iniciar sesión antes de desvincular una cuenta.');
+  }
+
+  return _unlink(user, providerId);
 };
 
 export const signInWithGithub = async () => {

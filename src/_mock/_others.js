@@ -132,7 +132,8 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => ({
     'Communication',
     'Communication',
   ][index],
-  isUnRead: _mock.boolean(index),
+  isUnRead: false,
+  estado: 'leida',
   createdAt: _mock.time(index),
   title:
     (index === 0 && `<p><strong>Deja Brady</strong> te envió una solicitud de amistad</p>`) ||

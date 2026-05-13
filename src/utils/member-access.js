@@ -474,21 +474,39 @@ export const loadMemberAccessProfile = async (authUser) => {
   const email = String(authUser?.email ?? '')
     .trim()
     .toLowerCase();
+  const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
+  const profileByUid = await loadProfileByUid('usuarios_roles', authUser?.uid);
 
-  if (!email || !email.endsWith(`@${MEMBER_AUTH_DOMAIN}`)) {
+  if (!isMemberAuth && !profileByUid) {
     return null;
   }
 
   const loginValue = email.split('@')[0];
-  const normalizedLogin = normalizeMemberUsername(loginValue);
+  const normalizedLogin = normalizeMemberUsername(
+    isMemberAuth
+      ? loginValue
+      : profileByUid?.codigoMiembro || profileByUid?.idMiembros || profileByUid?.correo || email
+  );
   const members = await getMembers();
 
-  const member = members.find((item) =>
-    [item.memberId, item.idMiembros, item.email]
+  const member = members.find((item) => {
+    const itemCandidates = [
+      item.id,
+      item.memberId,
+      item.idMiembros,
+      item.codigoMiembro,
+      item.email,
+    ]
       .filter(Boolean)
-      .map((candidate) => normalizeMemberUsername(candidate))
-      .includes(normalizedLogin)
-  );
+      .map((candidate) => normalizeMemberUsername(candidate));
+
+    return (
+      itemCandidates.includes(normalizedLogin) ||
+      (profileByUid?.idMiembros && Number(item.id) === Number(profileByUid.idMiembros)) ||
+      (profileByUid?.codigoMiembro &&
+        itemCandidates.includes(normalizeMemberUsername(profileByUid.codigoMiembro)))
+    );
+  });
 
   if (!member) {
     return {
@@ -498,7 +516,7 @@ export const loadMemberAccessProfile = async (authUser) => {
     };
   }
 
-  const directProfile = await loadProfileByUid('usuarios_roles', String(member.id));
+  const directProfile = profileByUid ?? (await loadProfileByUid('usuarios_roles', String(member.id)));
 
   const profileByMemberId = directProfile
     ? null

@@ -27,8 +27,16 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error?.response?.data?.message || error?.message || 'Something went wrong!';
-    console.error('Axios error:', message);
+    const responseData = error?.response?.data;
+    const isHtmlResponse =
+      typeof responseData === 'string' && responseData.trim().toLowerCase().startsWith('<!doctype');
+    const message =
+      responseData?.message ||
+      (isHtmlResponse
+        ? `La ruta ${error?.config?.url || ''} respondió HTML en lugar de JSON.`
+        : error?.message) ||
+      'Something went wrong!';
+
     return Promise.reject(new Error(message));
   }
 );
@@ -38,16 +46,11 @@ export default axiosInstance;
 // ----------------------------------------------------------------------
 
 export const fetcher = async (args) => {
-  try {
-    const [url, config] = Array.isArray(args) ? args : [args, {}];
+  const [url, config] = Array.isArray(args) ? args : [args, {}];
 
-    const res = await axiosInstance.get(url, config);
+  const res = await axiosInstance.get(url, config);
 
-    return res.data;
-  } catch (error) {
-    console.error('Fetcher failed:', error);
-    throw error;
-  }
+  return res.data;
 };
 
 // ----------------------------------------------------------------------

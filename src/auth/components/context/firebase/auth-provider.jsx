@@ -1,8 +1,8 @@
 'use client';
 
-import { onAuthStateChanged } from 'firebase/auth';
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
+import { onAuthStateChanged, signOut as _signOut } from 'firebase/auth';
 
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
@@ -31,6 +31,12 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
 
 const isAdminRole = (role) =>
   ['admin', 'administrador'].includes(String(role ?? '').trim().toLowerCase());
+
+const SOCIAL_PROVIDER_IDS = new Set(['google.com', 'apple.com', 'facebook.com']);
+
+const isSocialAuthUser = (authUser) =>
+  Array.isArray(authUser?.providerData) &&
+  authUser.providerData.some((provider) => SOCIAL_PROVIDER_IDS.has(provider?.providerId));
 
 const buildAdminSessionFromMemberAccess = (authUser, access = {}) => {
   const member = access.member ?? {};
@@ -152,22 +158,26 @@ export function AuthProvider({ children }) {
             .trim()
             .toLowerCase();
           const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
+          const memberAccess = (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {};
           const adminProfile =
             (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
             (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
             null;
+          const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;
 
           let sessionUser;
 
           if (adminProfile) {
             sessionUser = await buildAdminSessionWithMemberPhoto(authUser, adminProfile);
-          } else if (isMemberAuth) {
-            const memberAccess = (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {};
-            const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;
-
+          } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
             sessionUser = isAdminRole(memberRole)
               ? buildAdminSessionFromMemberAccess(authUser, memberAccess)
               : buildMemberSessionUser(authUser, memberAccess);
+          } else if (isSocialAuthUser(authUser)) {
+            await _signOut(AUTH).catch(() => {});
+            setState({ user: null, loading: false });
+            delete axios.defaults.headers.common.Authorization;
+            return;
           } else {
             sessionUser = buildAdminSessionUser(
               authUser,

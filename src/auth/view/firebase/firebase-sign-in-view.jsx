@@ -10,8 +10,10 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -28,7 +30,7 @@ import { Form, Field } from 'src/components/hook-form';
 import { useAuthContext } from '../../hooks';
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
-import { signInWithPassword } from '../../components/context/firebase';
+import { signInWithGoogle, signInWithPassword } from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -45,6 +47,12 @@ const SIGN_IN_STORAGE_KEYS = {
   member: 'firebase-sign-in-member',
   admin: 'firebase-sign-in-admin',
 };
+
+const SOCIAL_SIGN_IN_OPTIONS = [
+  { id: 'google', label: 'Google', icon: 'socials:google' },
+  { id: 'apple', label: 'Apple', icon: 'mingcute:apple-fill' },
+  { id: 'facebook', label: 'Facebook', icon: 'socials:facebook' },
+];
 
 export const MemberSignInSchema = z.object({
   userNumber: z.string().min(1, { error: 'El código de usuario es requerido.' }),
@@ -81,6 +89,11 @@ export function FirebaseSignInView({ mode = 'member' }) {
   );
 
   const [errorMessage, setErrorMessage] = useState(null);
+  const [selectedSocialProvider, setSelectedSocialProvider] = useState(null);
+  const [socialProviderLoading, setSocialProviderLoading] = useState(null);
+  const selectedSocialOption = SOCIAL_SIGN_IN_OPTIONS.find(
+    (option) => option.id === selectedSocialProvider
+  );
 
   const methods = useForm({
     resolver: zodResolver(schema),
@@ -146,9 +159,36 @@ export function FirebaseSignInView({ mode = 'member' }) {
     }
   });
 
+  const handleSocialSignIn = async (option) => {
+    if (option.id !== 'google') {
+      setSelectedSocialProvider(option.id);
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setSocialProviderLoading(option.id);
+
+      await signInWithGoogle();
+      await checkUserSession?.();
+
+      router.replace(paths.dashboard.root);
+    } catch (error) {
+      if (!expectedAuthErrorCodes.includes(error?.code)) {
+        console.error(error);
+      }
+
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setSocialProviderLoading(null);
+    }
+  };
+
   const renderModeSwitch = () => {
     const href = isAdminMode ? paths.auth.firebase.signIn : paths.auth.firebase.adminSignIn;
-    const label = isAdminMode ? 'Volver al inicio de sesión de miembros' : 'Iniciar sesión como administrador';
+    const label = isAdminMode
+      ? 'Volver al inicio de sesión de miembros'
+      : 'Iniciar sesión como administrador';
 
     return (
       <Link
@@ -164,76 +204,164 @@ export function FirebaseSignInView({ mode = 'member' }) {
     );
   };
 
-  const renderForm = () => (
-    <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      {isAdminMode ? (
-        <Field.Text
-          autoFocus
-          name="loginValue"
-          label="Usuario o correo electrónico"
-          placeholder="admin001 o correo@correo.com"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      ) : (
-        <Field.Text
-          autoFocus
-          name="userNumber"
-          label="Código de usuario"
-          placeholder="111111017"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      )}
-
-      <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
-        <Link
-          component={RouterLink}
-          href={isAdminMode ? paths.auth.firebase.adminResetPassword : paths.auth.firebase.resetPassword}
-          variant="body2"
-          color="inherit"
-          sx={{ alignSelf: 'flex-end' }}
-        >
-          ¿Olvidaste tu contraseña?
-        </Link>
-
-        <Field.Text
-          name="password"
-          label="Contraseña"
-          placeholder="6+ caracteres"
-          type={showPassword.value ? 'text' : 'password'}
-          slotProps={{
-            inputLabel: { shrink: true },
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={showPassword.onToggle} edge="end">
-                    <Iconify
-                      icon={showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
-                    />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
+  const renderSocialSignInMock = () => (
+    <Box sx={{ gap: 3, display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          width: 76,
+          height: 76,
+          borderRadius: '50%',
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: 'background.neutral',
+          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        }}
+      >
+        <Iconify width={34} icon={selectedSocialOption.icon} />
       </Box>
 
-      <Field.Checkbox name="rememberEmail" label="Recordar usuario" />
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="h5">Iniciar sesión con {selectedSocialOption.label}</Typography>
+        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+          Esta es una vista de prueba para revisar el flujo visual. Todavía no conecta con Firebase.
+        </Typography>
+      </Box>
+
+      <Button fullWidth type="button" color="inherit" size="large" variant="contained">
+        Continuar con {selectedSocialOption.label}
+      </Button>
 
       <Button
         fullWidth
-        color="inherit"
+        type="button"
         size="large"
-        type="submit"
-        variant="contained"
-        loading={isSubmitting}
-        loadingIndicator="Iniciando sesión..."
+        variant="outlined"
+        onClick={() => setSelectedSocialProvider(null)}
       >
-        {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesión'}
+        Volver al inicio de sesión
       </Button>
-
-      {renderModeSwitch()}
     </Box>
   );
+
+  const renderForm = () => {
+    if (selectedSocialOption) {
+      return renderSocialSignInMock();
+    }
+
+    const isSigningIn = isSubmitting || Boolean(socialProviderLoading);
+
+    return (
+      <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+        {isAdminMode ? (
+          <Field.Text
+            autoFocus
+            name="loginValue"
+            label="Usuario o correo electrónico"
+            placeholder="admin001 o correo@correo.com"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        ) : (
+          <Field.Text
+            autoFocus
+            name="userNumber"
+            label="Código de usuario"
+            placeholder="111111017"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        )}
+
+        <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
+          <Link
+            component={RouterLink}
+            href={
+              isAdminMode
+                ? paths.auth.firebase.adminResetPassword
+                : paths.auth.firebase.resetPassword
+            }
+            variant="body2"
+            color="inherit"
+            sx={{ alignSelf: 'flex-end' }}
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+
+          <Field.Text
+            name="password"
+            label="Contraseña"
+            placeholder="6+ caracteres"
+            type={showPassword.value ? 'text' : 'password'}
+            slotProps={{
+              inputLabel: { shrink: true },
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={showPassword.onToggle} edge="end">
+                      <Iconify
+                        icon={showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
+                      />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </Box>
+
+        <Field.Checkbox name="rememberEmail" label="Recordar usuario" />
+
+        <Button
+          fullWidth
+          color="inherit"
+          size="large"
+          type="submit"
+          variant="contained"
+          disabled={isSigningIn}
+          loading={isSubmitting}
+          loadingIndicator="Iniciando sesión..."
+        >
+          {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesión'}
+        </Button>
+
+        {isSigningIn ? (
+          <Box
+            aria-live="polite"
+            sx={{
+              gap: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+            }}
+          >
+            <CircularProgress size={20} color="inherit" />
+            <Typography variant="body2">Iniciando sesión...</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ gap: 1.5, display: 'flex', justifyContent: 'center' }}>
+            {SOCIAL_SIGN_IN_OPTIONS.map((option) => (
+              <IconButton
+                key={option.id}
+                color="inherit"
+                disabled={socialProviderLoading === option.id}
+                onClick={() => handleSocialSignIn(option)}
+                aria-label={`Iniciar sesión con ${option.label}`}
+                title={`Iniciar sesión con ${option.label}`}
+              >
+                <Iconify width={22} icon={option.icon} />
+              </IconButton>
+            ))}
+          </Box>
+        )}
+
+        <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+          Para iniciar sesión con estas aplicaciones, primero vincula tu cuenta desde Perfil &gt;
+          Seguridad.
+        </Typography>
+
+        {renderModeSwitch()}
+      </Box>
+    );
+  };
 
   return (
     <>
@@ -250,8 +378,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       {!isAuthReady && (
         <Alert severity="warning" sx={{ mb: 3 }}>
-          El inicio de sesión de Firebase no está disponible en este entorno. Revisa las
-          variables públicas de Firebase en Netlify
+          El inicio de sesión de Firebase no está disponible en este entorno. Revisa las variables
+          públicas de Firebase en Netlify
           {missingFirebaseConfigKeys.length ? `: ${missingFirebaseConfigKeys.join(', ')}.` : '.'}
         </Alert>
       )}

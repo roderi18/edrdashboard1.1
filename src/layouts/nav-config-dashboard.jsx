@@ -167,6 +167,7 @@ export const navData = [
         icon: ICONS.order,
         info: <CheckoutCartNavInfo />,
       },
+      { title: 'Certificados', path: paths.dashboard.certificates, icon: ICONS.course },
       {
         title: 'Administradores',
         path: paths.dashboard.admin.root,
