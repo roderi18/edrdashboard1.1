@@ -20,7 +20,7 @@
     "re:build-npm": "npm run clean && npm install && npm run build"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "packageManager": "yarn@1.22.22",
   "dependencies": {
