@@ -28,15 +28,26 @@ const NAV_ITEMS = [
     icon: <Iconify width={24} icon="solar:document-text-bold" />,
     href: paths.dashboard.admin.logs,
   },
+  {
+    label: 'Fotos de portadas',
+    icon: <Iconify width={24} icon="solar:gallery-wide-bold" />,
+    href: paths.dashboard.admin.coverPhotos,
+  },
+  {
+    label: 'Permisos a usuarios',
+    icon: <Iconify width={24} icon="solar:shield-user-bold" />,
+    href: paths.dashboard.admin.userPermissions,
+  },
 ];
 
 const resolveTabValue = (pathname) => {
   const currentPath = removeLastSlash(pathname);
-  const matchedTab = NAV_ITEMS.find(
-    (item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`)
-  );
+  const exactTab = NAV_ITEMS.find((item) => currentPath === item.href);
+  const nestedTab = [...NAV_ITEMS]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find((item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`));
 
-  return matchedTab?.href || paths.dashboard.admin.root;
+  return exactTab?.href || nestedTab?.href || paths.dashboard.admin.root;
 };
 
 export function AdminTabsLayout({ action = null, children, ...other }) {

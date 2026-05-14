@@ -1,3 +1,5 @@
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -5,27 +7,31 @@ import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
-import { useEffect, useState } from 'react';
 
-import { _socials } from 'src/_mock';
+import {
+  getCoverPhotoConfig,
+  sectionalCoverGroup,
+  getCoverPhotoImageSx,
+  DEFAULT_COVER_PHOTO_SRC,
+  fetchCoverPhotoOverrides,
+} from 'src/utils/cover-photos';
+
 import { AvatarShape } from 'src/assets/illustrations';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
 
 import { Image } from 'src/components/image';
-import { resolveById } from 'src/utils/resolve-display-name';
-import { useRouter } from 'next/navigation';
-import { REGIONALS } from 'src/_mock/assets';
-import { getSectionals } from 'src/services/sectional-service';
-import { getRegionals } from 'src/services/regional-service';
-import { getChurches } from 'src/services/church-service';
-import { getMembers } from 'src/services/member-service';
 // ----------------------------------------------------------------------
 
 export function DestCard({ dest, sx, ...other }) {
-
   const router = useRouter();
   const [sectionals, setSectionals] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [, setCoverVersion] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -41,37 +47,63 @@ export function DestCard({ dest, sx, ...other }) {
     load();
   }, []);
 
+  useEffect(() => {
+    const refreshCover = () => setCoverVersion((currentVersion) => currentVersion + 1);
+
+    fetchCoverPhotoOverrides().then(refreshCover);
+
+    window.addEventListener('storage', refreshCover);
+    window.addEventListener('coverPhotosUpdated', refreshCover);
+
+    return () => {
+      window.removeEventListener('storage', refreshCover);
+      window.removeEventListener('coverPhotosUpdated', refreshCover);
+    };
+  }, []);
+
+  const destChurchId = dest?.idIglesia || dest?.churchId;
   const church = churches.find(
-    (c) => Number(c.id) === Number(dest?.idIglesia)
+    (c) => Number(c.idIglesia) === Number(destChurchId) || Number(c.id) === Number(destChurchId)
   );
 
-  const churchName =
-    church?.name ||
-    dest?.churchName ||
-    'Iglesia desconocida';
+  const churchName = church?.name || dest?.churchName || 'Iglesia desconocida';
 
   const sectional = sectionals.find(
-    (s) => String(s.id) === String(church?.idSeccion)
+    (s) =>
+      Number(s.idSeccion) === Number(church?.idSeccion) ||
+      Number(s.id) === Number(church?.idSeccion) ||
+      Number(s.idSeccion) === Number(church?.sectionId) ||
+      Number(s.id) === Number(church?.sectionId) ||
+      Number(s.idSeccion) === Number(dest?.sectionalId) ||
+      Number(s.id) === Number(dest?.sectionalId) ||
+      String(s.sectionalName || '')
+        .trim()
+        .toLowerCase() ===
+        String(dest?.sectionalName || '')
+          .trim()
+          .toLowerCase()
   );
 
   const regional = regionals.find(
-    (r) => Number(r.id) === Number(sectional?.regionalId)
+    (r) =>
+      Number(r.id) === Number(sectional?.regionalId) ||
+      Number(r.idRegion) === Number(sectional?.regionalId)
   );
 
-  // Imagen según sección
-  const sectionalCoverMap = {
-    'sec-este-01': '/assets/images/divisions/dest/tiburones-del-este.jpg',
-    'sec-este-02': '/assets/images/divisions/dest/tiburones-del-este.jpg',
-    'sec-norte-01': '/assets/images/divisions/dest/aguilas-del-norte.jpg',
-    'sec-sur-01': '/assets/images/divisions/dest/titanes-del-sur.jpg',
-    'sec-central-05': '/assets/images/divisions/dest/guardianes-central.jpg',
-  };
-
-  const coverSrc =
-    sectionalCoverMap[sectional?.id?.trim()] ||
-    '/assets/images/divisions/default.jpg';
-
-  const [members, setMembers] = useState([]);
+  const coverConfig = getCoverPhotoConfig({
+    group: sectionalCoverGroup,
+    ids: [
+      sectional?.id,
+      sectional?.idSeccion,
+      sectional?.sectionalName,
+      sectional?.nombre,
+      sectional?.name,
+      dest?.sectionalId,
+      dest?.idSeccion,
+      dest?.sectionalName,
+    ],
+    defaultSrc: dest?.coverUrl || DEFAULT_COVER_PHOTO_SRC,
+  });
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -128,10 +160,13 @@ export function DestCard({ dest, sx, ...other }) {
         />
 
         <Image
-          src={coverSrc}
-          alt={dest.coverUrl}
+          src={coverConfig.src}
+          alt={sectional?.sectionalName || dest.coverUrl}
           ratio="16/6"
           slotProps={{
+            img: {
+              sx: getCoverPhotoImageSx(coverConfig),
+            },
             overlay: {
               sx: (theme) => ({
                 bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.43),
@@ -155,7 +190,8 @@ export function DestCard({ dest, sx, ...other }) {
           >
             {`Destacamento ${dest.nombre} ${dest.numero || ''}`}
           </Box>
-        } secondary={dest.role}
+        }
+        secondary={dest.role}
       />
 
       {/* inferior */}
@@ -169,9 +205,7 @@ export function DestCard({ dest, sx, ...other }) {
           gap: 0,
         }}
       >
-        <Box sx={{ typography: 'body2', fontWeight: 300, mt: 0.2 }}>
-          {`Iglesia ${churchName}`}
-        </Box>
+        <Box sx={{ typography: 'body2', fontWeight: 300, mt: 0.2 }}>{`Iglesia ${churchName}`}</Box>
 
         {/* Coordinador */}
         <Box sx={{ typography: 'caption', mt: 0.5 }}>
@@ -193,7 +227,6 @@ export function DestCard({ dest, sx, ...other }) {
                 >
                   {`${coordinator.firstName} ${coordinator.lastName}`}
                 </Box>
-
               </>
             ) : (
               'Coord. Dest. Desconocido'
@@ -241,7 +274,9 @@ export function DestCard({ dest, sx, ...other }) {
               },
             }}
           >
-            {sectional?.sectionalName ? `Sección ${sectional.sectionalName}` : 'Sección desconocida'}
+            {sectional?.sectionalName
+              ? `Sección ${sectional.sectionalName}`
+              : 'Sección desconocida'}
           </Box>
 
           <Box
@@ -261,9 +296,7 @@ export function DestCard({ dest, sx, ...other }) {
             onClick={() =>
               sectional &&
               router.push(
-                `/dashboard/level/regional?region=${encodeURIComponent(
-                  regional?.name || ''
-                )}`
+                `/dashboard/level/regional?region=${encodeURIComponent(regional?.name || '')}`
               )
             }
             sx={{

@@ -58,7 +58,10 @@ const getNotificationRoute = (notification = {}) => {
   }
 
   if (notification.tipoNotificacion === 'producto_resena_baja') {
-    const productId = notification.metadatos?.productId || notification.metadatos?.idProducto || notification.entidadId;
+    const productId =
+      notification.metadatos?.productId ||
+      notification.metadatos?.idProducto ||
+      notification.entidadId;
     const reviewId = notification.metadatos?.reviewId;
 
     if (productId && reviewId) {
@@ -202,7 +205,7 @@ export function NotificationItem({ notification, onClickNotification }) {
         bgcolor: 'background.neutral',
       })}
     >
-      <FileThumbnail file="http://localhost:8080/httpsdesign-suriname-2015.mp3" />
+      <FileThumbnail file="design-suriname-2015.mp3" />
 
       <ListItemText
         primary="design-suriname-2015.mp3 design-suriname-2015.mp3"

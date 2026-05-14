@@ -1,4 +1,6 @@
+import { useRouter } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
+import { parsePhoneNumber } from 'libphonenumber-js';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -7,19 +9,16 @@ import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
 
 import { fShortenNumber } from 'src/utils/format-number';
+import { DEFAULT_COVER_PHOTO_SRC } from 'src/utils/cover-photos';
 
-import { _socials } from 'src/_mock';
+import { MEMBERS } from 'src/_mock/assets';
 import { AvatarShape } from 'src/assets/illustrations';
+import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
 import { Image } from 'src/components/image';
-import { useRouter } from 'next/navigation';
-import { MEMBERS } from 'src/_mock/assets';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
-import { parsePhoneNumber } from 'libphonenumber-js';
 // ----------------------------------------------------------------------
 
 export function RegionalCard({ regional, sx, ...other }) {
-
   const router = useRouter();
 
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
@@ -30,9 +29,7 @@ export function RegionalCard({ regional, sx, ...other }) {
       l.status === 'active'
   );
 
-  const director = MEMBERS.find(
-    (m) => m.id === directorAssignment?.memberId
-  );
+  const director = MEMBERS.find((m) => m.id === directorAssignment?.memberId);
 
   return (
     <Card sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
@@ -64,8 +61,8 @@ export function RegionalCard({ regional, sx, ...other }) {
         />
 
         <Image
-          src={regional.coverUrl}
-          alt={regional.coverUrl}
+          src={regional.coverUrl || DEFAULT_COVER_PHOTO_SRC}
+          alt={regional.regionalName || 'Portada regional'}
           ratio="16/6"
           slotProps={{
             overlay: {
@@ -105,9 +102,7 @@ export function RegionalCard({ regional, sx, ...other }) {
           {director ? (
             <Box
               component="span"
-              onClick={() =>
-                router.push(`/dashboard/level/member/${director.id}/edit`)
-              }
+              onClick={() => router.push(`/dashboard/level/member/${director.id}/edit`)}
               sx={{
                 typography: 'caption',
                 color: 'primary.main',
@@ -139,12 +134,12 @@ export function RegionalCard({ regional, sx, ...other }) {
             try {
               return director?.phoneNumber
                 ? parsePhoneNumber(
-                  director.phoneNumber.startsWith('+')
-                    ? director.phoneNumber
-                    : `+1${director.phoneNumber}`
-                )?.formatNational()
+                    director.phoneNumber.startsWith('+')
+                      ? director.phoneNumber
+                      : `+1${director.phoneNumber}`
+                  )?.formatNational()
                 : '';
-            } catch (e) {
+            } catch {
               return director?.phoneNumber || '';
             }
           })()}
@@ -158,9 +153,7 @@ export function RegionalCard({ regional, sx, ...other }) {
           alignItems: 'center',
           justifyContent: 'center',
         }}
-      >
-
-      </Box>
+      />
 
       <Divider sx={{ borderStyle: 'dashed' }} />
 

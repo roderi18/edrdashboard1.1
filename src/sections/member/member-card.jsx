@@ -11,6 +11,11 @@ import ListItemText from '@mui/material/ListItemText';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { getStorageCollection } from 'src/utils/storage-service';
+import {
+  getCoverPhotoImageSx,
+  fetchCoverPhotoOverrides,
+  getMemberDivisionCoverConfig,
+} from 'src/utils/cover-photos';
 
 import { AvatarShape } from 'src/assets/illustrations';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
@@ -19,19 +24,12 @@ import { Image } from 'src/components/image';
 // ----------------------------------------------------------------------
 
 export function MemberCard({ member, sx, canManage = true, ...other }) {
-  const memberDivisionCoverMap = {
-    Exploradores: '/assets/images/divisions/member/exploradores3.jpg',
-    Seguidores: '/assets/images/divisions/member/seguidores.jpg',
-    Pioneros: '/assets/images/divisions/member/pioneros.jpg',
-    Navegantes: '/assets/images/divisions/member/navegantes2.jpg',
-    Liderazgo: '/assets/images/divisions/member/liderazgo.jpg',
-  };
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const [dests, setDests] = useState([]);
+  const [, setCoverVersion] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -47,8 +45,21 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
     load();
   }, []);
 
-  const coverSrc =
-    memberDivisionCoverMap[member.memberDivision?.trim()] || '/assets/images/divisions/default.jpg';
+  useEffect(() => {
+    const refreshCover = () => setCoverVersion((currentVersion) => currentVersion + 1);
+
+    fetchCoverPhotoOverrides().then(refreshCover);
+
+    window.addEventListener('storage', refreshCover);
+    window.addEventListener('coverPhotosUpdated', refreshCover);
+
+    return () => {
+      window.removeEventListener('storage', refreshCover);
+      window.removeEventListener('coverPhotosUpdated', refreshCover);
+    };
+  }, []);
+
+  const coverConfig = getMemberDivisionCoverConfig(member.memberDivision);
 
   const dest = dests.find((d) => Number(d.idDestacamento) === Number(member.destId));
   const sectionalName = member?.sectionalName || '-';
@@ -115,10 +126,13 @@ export function MemberCard({ member, sx, canManage = true, ...other }) {
         />
 
         <Image
-          src={coverSrc}
+          src={coverConfig.src}
           alt={member.memberDivision}
           ratio="16/6"
           slotProps={{
+            img: {
+              sx: getCoverPhotoImageSx(coverConfig),
+            },
             overlay: {
               sx: (overlayTheme) => ({
                 // sombra img trasera
