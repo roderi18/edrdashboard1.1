@@ -25,7 +25,6 @@ import { getAvailableOptionsFromData } from 'src/utils/get-available-options-fro
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
-import { NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -65,7 +64,6 @@ const TABLE_HEAD = [
 // ----------------------------------------------------------------------
 
 export function NationalListView() {
-
   const [hydrated, setHydrated] = useState(false);
 
   const table = useTable();
@@ -79,23 +77,26 @@ export function NationalListView() {
   const allMembers = getStorageCollection('members') || [];
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
-  const nationalAssignments = leadershipAssignments.filter((l) =>
-    ['national', 'regional', 'sectional'].includes(l.level) &&
-    l.status === 'active'
+  const nationalAssignments = leadershipAssignments.filter(
+    (l) => ['national', 'regional', 'sectional'].includes(l.level) && l.status === 'active'
   );
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [displayMode, setDisplayMode] = useState('panel');
 
-  const filters = useSetState({ name: '', nationalXMemberPosition: [], status: 'all', nationalEstructure: [] });
+  const filters = useSetState({
+    name: '',
+    nationalXMemberPosition: [],
+    status: 'all',
+    nationalEstructure: [],
+  });
 
   useEffect(() => {
     if (isMobile) {
       setDisplayMode('grid');
     }
   }, [isMobile]);
-
 
   const NATIONAL_STRUCTURES = {
     ministerios_infantiles: 'Ministerios Infantiles',
@@ -108,13 +109,10 @@ export function NationalListView() {
   };
 
   const tableData = nationalAssignments.map((assignment, index) => {
-
     const member = allMembers.find((m) => m.id === assignment.memberId);
 
     const roleConfig =
-      _leadershipRolesByLevel[assignment.level]?.find(
-        (r) => r.value === assignment.role
-      ) ||
+      _leadershipRolesByLevel[assignment.level]?.find((r) => r.value === assignment.role) ||
       Object.values(_leadershipRolesByLevel)
         .flat()
         .find((r) => r.value === assignment.role);
@@ -137,31 +135,25 @@ export function NationalListView() {
       nationalXMemberPosition: roleConfig?.value,
       nationalXMemberPositionLabel: roleConfig?.label,
       nationalEstructure: roleConfig?.structure || '-',
-      nationalEstructureLabel:
-        NATIONAL_STRUCTURES[roleConfig?.structure] || '-',
+      nationalEstructureLabel: NATIONAL_STRUCTURES[roleConfig?.structure] || '-',
 
       nationalXAssignedRegional: regionalName,
     };
   });
 
-
-  const { state: currentFilters, setState: updateFilters } = filters;
+  const { state: currentFilters } = filters;
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalXMemberPosition',
     labelResolver: (value) =>
-      tableData.find(
-        (row) => row.nationalXMemberPosition === value
-      )?.nationalXMemberPositionLabel,
+      tableData.find((row) => row.nationalXMemberPosition === value)?.nationalXMemberPositionLabel,
   });
 
   const distinctEstructures = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalEstructure',
     labelResolver: (value) =>
-      tableData.find(
-        (row) => row.nationalEstructure === value
-      )?.nationalEstructureLabel,
+      tableData.find((row) => row.nationalEstructure === value)?.nationalEstructureLabel,
   });
 
   const dataFiltered = applyFilter({
@@ -173,21 +165,17 @@ export function NationalListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.nationalXMemberPosition.length > 0 || currentFilters.nationalEstructure.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.name ||
+    currentFilters.nationalXMemberPosition.length > 0 ||
+    currentFilters.nationalEstructure.length > 0;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
     (id) => {
+      const updatedAssignments = leadershipAssignments.filter((a) => a.id !== id);
 
-      const updatedAssignments = leadershipAssignments.filter(
-        (a) => a.id !== id
-      );
-
-      localStorage.setItem(
-        'leadershipAssignments',
-        JSON.stringify(updatedAssignments)
-      );
+      localStorage.setItem('leadershipAssignments', JSON.stringify(updatedAssignments));
 
       toast.success('Eliminado correctamente');
 
@@ -197,30 +185,14 @@ export function NationalListView() {
   );
 
   const handleDeleteRows = useCallback(() => {
+    const updatedAssignments = leadershipAssignments.filter((a) => !table.selected.includes(a.id));
 
-    const updatedAssignments = leadershipAssignments.filter(
-      (a) => !table.selected.includes(a.id)
-    );
-
-    localStorage.setItem(
-      'leadershipAssignments',
-      JSON.stringify(updatedAssignments)
-    );
+    localStorage.setItem('leadershipAssignments', JSON.stringify(updatedAssignments));
 
     toast.success('Eliminados correctamente');
 
     window.location.reload();
-
   }, [leadershipAssignments, table.selected]);
-
-  const handleFilterStatus = useCallback(
-    (event, newValue) => {
-      table.onResetPage();
-      updateFilters({ status: newValue });
-    },
-    [updateFilters, table]
-  );
-
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -276,7 +248,6 @@ export function NationalListView() {
         <Card>
           <Tabs
             value={currentFilters.status}
-            onChange={handleFilterStatus}
             sx={[
               (themeItem) => ({
                 px: { md: 2.5 },
@@ -284,41 +255,12 @@ export function NationalListView() {
               }),
             ]}
           >
-            {NATIONAL_X_ASSIGNED_REGIONAL_OPTIONS.map((tab) => (
-              <Tab
-                key={tab.value}
-                iconPosition="end"
-                value={tab.value}
-                label={tab.label}
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
-                    }
-                    // color={
-                    //   (tab.value === 'active' && 'success') ||
-                    //   (tab.value === 'pending' && 'warning') ||
-                    //   (tab.value === 'banned' && 'error') ||
-                    //   'default'
-                    // }
-                    color={
-                      (tab.value === 'Región Central' && 'success') ||
-                      (tab.value === 'Región Norte' && 'warning') ||
-                      (tab.value === 'Región Sur' && 'error') ||
-                      (tab.value === 'Región Este' && 'error') ||
-                      'default'
-                    }
-                  >
-                    {/* {['active', 'pending', 'banned', 'rejected'].includes(tab.value) */}
-                    {['Región Central', 'Región Norte', 'Región Sur', 'Región Este'].includes(tab.value)
-                      // ? tableData.filter((national) => national.status === tab.value).length
-                      ? tableData.filter((national) => national.nationalXAssignedRegional === tab.value).length
-                      : tableData.length}
-                  </Label>
-                }
-              />
-            ))}
+            <Tab
+              value="all"
+              label="Todos"
+              iconPosition="end"
+              icon={<Label variant="filled">{tableData.length}</Label>}
+            />
           </Tabs>
 
           <NationalTableToolbar
@@ -326,7 +268,10 @@ export function NationalListView() {
             onResetPage={table.onResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
-            options={{ nationalXMemberPosition: distinctPositions, nationalEstructure: distinctEstructures, }}
+            options={{
+              nationalXMemberPosition: distinctPositions,
+              nationalEstructure: distinctEstructures,
+            }}
           />
 
           {canReset && (
@@ -409,7 +354,6 @@ export function NationalListView() {
             ) : (
               <NationalCardList nationals={dataFiltered} />
             )}
-
           </Box>
 
           {displayMode === 'panel' && (
@@ -434,7 +378,7 @@ export function NationalListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, nationalXMemberPosition, nationalEstructure } = filters;
+  const { name, nationalXMemberPosition, nationalEstructure } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -447,20 +391,21 @@ function applyFilter({ inputData, comparator, filters }) {
   inputData = stabilizedThis.map((el) => el[0]);
 
   if (name) {
-    inputData = inputData.filter((national) => normalizeText(national.nationalXname).includes(normalizeText(name))
+    inputData = inputData.filter((national) =>
+      normalizeText(national.nationalXname).includes(normalizeText(name))
     );
   }
 
-  if (status !== 'all') {
-    inputData = inputData.filter((national) => national.nationalXAssignedRegional === status);
-  }
-
   if (nationalEstructure.length) {
-    inputData = inputData.filter((national) => nationalEstructure.includes(national.nationalEstructure));
+    inputData = inputData.filter((national) =>
+      nationalEstructure.includes(national.nationalEstructure)
+    );
   }
 
   if (nationalXMemberPosition.length) {
-    inputData = inputData.filter((national) => nationalXMemberPosition.includes(national.nationalXMemberPosition));
+    inputData = inputData.filter((national) =>
+      nationalXMemberPosition.includes(national.nationalXMemberPosition)
+    );
   }
 
   return inputData;

@@ -52,7 +52,10 @@ import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../cor
 
 // ----------------------------------------------------------------------
 
-const agregarIndicadoresMensajes = (sections = [], { chatUnreadCount = 0, mailUnreadCount = 0 } = {}) =>
+const agregarIndicadoresMensajes = (
+  sections = [],
+  { chatUnreadCount = 0, mailUnreadCount = 0 } = {}
+) =>
   sections.map((section) => ({
     ...section,
     items: section.items.map((item) => {
@@ -81,6 +84,19 @@ const agregarIndicadoresMensajes = (sections = [], { chatUnreadCount = 0, mailUn
       };
     }),
   }));
+
+const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
+
+const obtenerNotificacionesReportesLocales = () => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    return JSON.parse(window.localStorage.getItem(LOCAL_REPORT_NOTIFICATIONS_KEY) || '[]');
+  } catch (error) {
+    console.error('[notifications] no se pudieron leer los reportes locales', error);
+    return [];
+  }
+};
 
 export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }) {
   const theme = useTheme();
@@ -160,17 +176,23 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         return;
       }
 
+      const notificacionesReportesLocales = obtenerNotificacionesReportesLocales();
+
       try {
         const notificacionesFirestore = await listarNotificacionesDrawerParaUsuario(user);
 
         if (!isMounted) return;
 
-        setNotificacionesDrawer([...notificacionesFirestore, ..._notifications]);
+        setNotificacionesDrawer([
+          ...notificacionesReportesLocales,
+          ...notificacionesFirestore,
+          ..._notifications,
+        ]);
       } catch (error) {
         console.error('[notifications test] no se pudo cargar la prueba', error);
 
         if (isMounted) {
-          setNotificacionesDrawer(_notifications);
+          setNotificacionesDrawer([...notificacionesReportesLocales, ..._notifications]);
         }
       }
     };
@@ -275,10 +297,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
           {/** @slot Searchbar */}
-          <Searchbar data={navData} />
+          <Searchbar data={navData} disabled />
 
           {/** @slot Language popover */}
-          <LanguagePopover data={allLangs} />
+          <LanguagePopover data={allLangs} disabled />
 
           {/** @slot Notifications popover */}
           <NotificationsDrawer

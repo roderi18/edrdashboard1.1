@@ -56,12 +56,7 @@ const getMemberIdentityKeys = (user = {}) =>
       user?.email,
     ]
       .filter((value) => value !== null && value !== undefined && value !== '')
-      .map((value) =>
-        String(value)
-          .trim()
-          .toLowerCase()
-          .replace(/\s+/g, '')
-      )
+      .map((value) => String(value).trim().toLowerCase().replace(/\s+/g, ''))
   );
 
 export const buildDefaultMemberPermissions = () => ({
@@ -305,12 +300,7 @@ export const filterOrdersByMemberSession = (orders = [], user) => {
         source?.email,
       ]
         .filter((value) => value !== null && value !== undefined && value !== '')
-        .map((value) =>
-          String(value)
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, '')
-        );
+        .map((value) => String(value).trim().toLowerCase().replace(/\s+/g, ''));
 
       return sourceKeys.some((key) => memberKeys.has(key));
     });
@@ -324,6 +314,8 @@ const navPermissionByItem = (item, user) => {
 
   if (
     path === paths.dashboard.root ||
+    path === paths.dashboard.principal ||
+    title === 'principal' ||
     title === 'aplicacion' ||
     title === 'aplicación' ||
     title === 'dashboard'
@@ -361,9 +353,15 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('recibo') || title.includes('invoice'))
     return Boolean(permissions.recibos?.ver);
   if (title.includes('orden')) return Boolean(permissions.ordenes?.ver);
-  if (title.includes('blog') || path.includes('/dashboard/post')) return Boolean(permissions.blog?.ver);
-  if (title.includes('course') || path === paths.dashboard.general.course) return Boolean(permissions.course?.ver);
-  if (title.includes('archivo') || title.includes('document') || path === paths.dashboard.fileManager) {
+  if (title.includes('blog') || path.includes('/dashboard/post'))
+    return Boolean(permissions.blog?.ver);
+  if (title.includes('course') || path === paths.dashboard.general.course)
+    return Boolean(permissions.course?.ver);
+  if (
+    title.includes('archivo') ||
+    title.includes('document') ||
+    path === paths.dashboard.fileManager
+  ) {
     return Boolean(permissions.archivos?.ver);
   }
   if (title.includes('chat')) return Boolean(permissions.chats?.ver);
@@ -404,34 +402,34 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
               if (isMemberSessionUser(user) && isShopItem) {
                 return itemAllowed
                   ? {
-                    ...item,
-                    children: [
-                      {
-                        title: 'Lista de productos',
-                        path: paths.dashboard.product.root,
-                        deepMatch: true,
-                        memberShopChild: true,
-                      },
-                      {
-                        title: 'Mis ordenes',
-                        path: paths.dashboard.order.root,
-                        deepMatch: true,
-                        memberShopChild: true,
-                      },
-                      {
-                        title: 'Mis recibos',
-                        path: paths.dashboard.invoice.root,
-                        deepMatch: true,
-                        memberShopChild: true,
-                      },
-                    ],
-                    activePaths: [
-                      paths.dashboard.product.root,
-                      paths.dashboard.order.root,
-                      paths.dashboard.invoice.root,
-                    ],
-                    deepMatch: true,
-                  }
+                      ...item,
+                      children: [
+                        {
+                          title: 'Lista de productos',
+                          path: paths.dashboard.product.root,
+                          deepMatch: true,
+                          memberShopChild: true,
+                        },
+                        {
+                          title: 'Mis ordenes',
+                          path: paths.dashboard.order.root,
+                          deepMatch: true,
+                          memberShopChild: true,
+                        },
+                        {
+                          title: 'Mis recibos',
+                          path: paths.dashboard.invoice.root,
+                          deepMatch: true,
+                          memberShopChild: true,
+                        },
+                      ],
+                      activePaths: [
+                        paths.dashboard.product.root,
+                        paths.dashboard.order.root,
+                        paths.dashboard.invoice.root,
+                      ],
+                      deepMatch: true,
+                    }
                   : null;
               }
 
@@ -490,13 +488,7 @@ export const loadMemberAccessProfile = async (authUser) => {
   const members = await getMembers();
 
   const member = members.find((item) => {
-    const itemCandidates = [
-      item.id,
-      item.memberId,
-      item.idMiembros,
-      item.codigoMiembro,
-      item.email,
-    ]
+    const itemCandidates = [item.id, item.memberId, item.idMiembros, item.codigoMiembro, item.email]
       .filter(Boolean)
       .map((candidate) => normalizeMemberUsername(candidate));
 
@@ -516,50 +508,51 @@ export const loadMemberAccessProfile = async (authUser) => {
     };
   }
 
-  const directProfile = profileByUid ?? (await loadProfileByUid('usuarios_roles', String(member.id)));
+  const directProfile =
+    profileByUid ?? (await loadProfileByUid('usuarios_roles', String(member.id)));
 
   const profileByMemberId = directProfile
     ? null
     : await (async () => {
-      const memberId = Number(member.id);
+        const memberId = Number(member.id);
 
-      if (!Number.isFinite(memberId)) {
-        return null;
-      }
+        if (!Number.isFinite(memberId)) {
+          return null;
+        }
 
-      const profileQuery = query(
-        collection(FIRESTORE, 'usuarios_roles'),
-        where('idMiembros', '==', memberId),
-        limit(1)
-      );
-      const querySnap = await getDocs(profileQuery);
+        const profileQuery = query(
+          collection(FIRESTORE, 'usuarios_roles'),
+          where('idMiembros', '==', memberId),
+          limit(1)
+        );
+        const querySnap = await getDocs(profileQuery);
 
-      if (querySnap.empty) {
-        return null;
-      }
+        if (querySnap.empty) {
+          return null;
+        }
 
-      return querySnap.docs[0].data() ?? null;
-    })();
+        return querySnap.docs[0].data() ?? null;
+      })();
 
   const profile = normalizeMemberProfile(
     directProfile ??
-    profileByMemberId ?? {
-      idMiembros: Number(member.id),
-      uid: authUser?.uid ?? '',
-      correo: member.email ?? email,
-      nombre: member.name ?? '',
-      rol: 'miembro',
-      estado: 'activo',
-      alcance: {
-        modo: 'destacamento',
-        destacamentos: member.idDestacamento ? [Number(member.idDestacamento)] : [],
-        regiones: [],
-        secciones: [],
+      profileByMemberId ?? {
+        idMiembros: Number(member.id),
+        uid: authUser?.uid ?? '',
+        correo: member.email ?? email,
+        nombre: member.name ?? '',
+        rol: 'miembro',
+        estado: 'activo',
+        alcance: {
+          modo: 'destacamento',
+          destacamentos: member.idDestacamento ? [Number(member.idDestacamento)] : [],
+          regiones: [],
+          secciones: [],
+        },
+        permisos: {
+          ...buildDefaultMemberPermissions(),
+        },
       },
-      permisos: {
-        ...buildDefaultMemberPermissions(),
-      },
-    },
     member,
     authUser
   );
@@ -604,4 +597,3 @@ export const buildMemberSessionUser = (authUser, access = {}) => {
     alcance: mergeMemberScope(profile?.alcance, member),
   };
 };
-

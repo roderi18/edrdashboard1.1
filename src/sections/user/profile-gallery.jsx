@@ -19,7 +19,7 @@ export function ProfileGallery({ gallery }) {
   return (
     <>
       <Typography variant="h4" sx={{ my: 5 }}>
-        Gallery
+        Galeria
       </Typography>
 
       <Box
@@ -59,7 +59,7 @@ export function ProfileGallery({ gallery }) {
             />
 
             <Image
-              alt="Gallery"
+              alt="Galeria"
               ratio="1/1"
               src={image.imageUrl}
               onClick={() => lightbox.onOpen(image.imageUrl)}

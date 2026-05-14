@@ -16,7 +16,7 @@ import { varTap, varHover, transitionTap } from 'src/components/animate';
 
 // ----------------------------------------------------------------------
 
-export function LanguagePopover({ data = [], sx, ...other }) {
+export function LanguagePopover({ data = [], disabled = false, sx, ...other }) {
   const { open, anchorEl, onClose, onOpen } = usePopover();
 
   const { onChangeLang, currentLang } = useTranslate();
@@ -30,7 +30,7 @@ export function LanguagePopover({ data = [], sx, ...other }) {
   );
 
   const renderMenuList = () => (
-    <CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
+    <CustomPopover open={!disabled && open} anchorEl={anchorEl} onClose={onClose}>
       <MenuList sx={{ width: 160, minHeight: 72 }}>
         {data?.map((option) => (
           <MenuItem
@@ -54,12 +54,14 @@ export function LanguagePopover({ data = [], sx, ...other }) {
         whileHover={varHover(1.04)}
         transition={transitionTap()}
         aria-label="Languages button"
-        onClick={onOpen}
+        disabled={disabled}
+        onClick={disabled ? undefined : onOpen}
         sx={[
           (theme) => ({
             p: 0,
             width: 40,
             height: 40,
+            opacity: disabled ? 0.48 : 1,
             ...(open && { bgcolor: theme.vars.palette.action.selected }),
           }),
           ...(Array.isArray(sx) ? sx : [sx]),

@@ -34,6 +34,8 @@ export * from './_product';
 
 export * from './_overview';
 
+export * from './_kanban';
+
 export * from './_calendar';
 
 export { _awards } from './_awards';

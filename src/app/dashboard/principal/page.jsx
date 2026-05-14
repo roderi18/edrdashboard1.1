@@ -1,11 +1,11 @@
 import { CONFIG } from 'src/global-config';
 
-import { PrincipalAppView } from 'src/sections/prinicipal/app/view';
+import { UserProfileView } from 'src/sections/user/view';
 
 // ----------------------------------------------------------------------
 
 export const metadata = { title: `Principal | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
-  return <PrincipalAppView />;
+  return <UserProfileView hideBreadcrumb useSessionProfile />;
 }

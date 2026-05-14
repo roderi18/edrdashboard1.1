@@ -4,10 +4,12 @@ import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
-import TextField from '@mui/material/TextField';
+import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
-import Autocomplete from '@mui/material/Autocomplete';
+import FormControl from '@mui/material/FormControl';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -17,13 +19,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 const getOptionValue = (option) => option?.value ?? option;
 
 const getOptionLabel = (option) => String(option?.label ?? getOptionValue(option) ?? '');
-
-const getAutocompleteValue = (selectedValues = [], options = []) =>
-  selectedValues.map((value) => {
-    const found = options.find((option) => String(getOptionValue(option)) === String(value));
-
-    return found || { value, label: String(value) };
-  });
 
 export function TableToolbarMobileFilter({ filtersConfig = [], hasActiveFilters = false }) {
   const popover = usePopover();
@@ -75,56 +70,71 @@ export function TableToolbarMobileFilter({ filtersConfig = [], hasActiveFilters 
         <Box
           sx={{
             p: 2,
-            width: 268,
+            width: 260,
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
           }}
         >
           {filtersConfig.map((filter) => (
-            <Autocomplete
-              key={filter.key}
-              multiple
-              disableCloseOnSelect
-              options={filter.options || []}
-              value={getAutocompleteValue(filter.value, filter.options || [])}
-              isOptionEqualToValue={(option, value) =>
-                String(getOptionValue(option)) === String(getOptionValue(value))
-              }
-              getOptionLabel={getOptionLabel}
-              onChange={(event, selectedOptions) => {
-                filter.onChange?.({
-                  ...event,
-                  target: {
-                    value: selectedOptions.map(getOptionValue),
-                  },
-                });
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
+            <FormControl key={filter.key} fullWidth>
+              <InputLabel id={`${filter.key}-label`}>{filter.label}</InputLabel>
+              <Select
+                labelId={`${filter.key}-label`}
+                label={filter.label}
+                multiple
+                value={filter.value}
+                onChange={(event) => {
+                  const newValue =
+                    typeof event.target.value === 'string'
+                      ? event.target.value.split(',')
+                      : event.target.value;
 
-                return (
-                  <li key={`${filter.key}-${getOptionValue(option)}-${key}`} {...optionProps}>
-                    <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
-                    {getOptionLabel(option)}
-                  </li>
-                );
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={filter.label}
-                  placeholder={filter.value?.length ? '' : filter.label}
-                />
-              )}
-              slotProps={{
-                paper: {
-                  sx: {
-                    maxHeight: '40vh',
+                  filter.onChange?.({
+                    ...event,
+                    target: {
+                      value: Array.isArray(newValue)
+                        ? newValue.filter((value) => value !== '' && value != null)
+                        : [],
+                    },
+                  });
+                }}
+                renderValue={(selected) =>
+                  selected
+                    .map((value) => {
+                      const found = (filter.options || []).find(
+                        (option) => String(getOptionValue(option)) === String(value)
+                      );
+
+                      return found ? getOptionLabel(found) : value;
+                    })
+                    .join(', ')
+                }
+                MenuProps={{
+                  disableAutoFocusItem: true,
+                  disableScrollLock: true,
+                  slotProps: {
+                    paper: {
+                      sx: {
+                        maxHeight: '40vh',
+                        overflow: 'auto',
+                      },
+                    },
                   },
-                },
-              }}
-            />
+                }}
+              >
+                {(filter.options || []).map((option, index) => {
+                  const value = getOptionValue(option);
+
+                  return (
+                    <MenuItem key={`${filter.key}-${value}-${index}`} value={value}>
+                      <Checkbox size="small" checked={filter.value.includes(value)} />
+                      {getOptionLabel(option)}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
           ))}
         </Box>
       </CustomPopover>

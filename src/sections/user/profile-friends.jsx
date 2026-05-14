@@ -19,6 +19,8 @@ import { SearchNotFound } from 'src/components/search-not-found';
 
 // ----------------------------------------------------------------------
 
+const getProfileHref = (person) => `/dashboard/user/${person?.id || 'profile'}`;
+
 export function ProfileFriends({ friends, searchFriends, onSearchFriends }) {
   const dataFiltered = applyFilter({ inputData: friends, query: searchFriends });
 
@@ -35,12 +37,12 @@ export function ProfileFriends({ friends, searchFriends, onSearchFriends }) {
           flexDirection: { xs: 'column', sm: 'row' },
         }}
       >
-        <Typography variant="h4">Friends</Typography>
+        <Typography variant="h4">Amigos</Typography>
 
         <TextField
           value={searchFriends}
           onChange={onSearchFriends}
-          placeholder="Search friends..."
+          placeholder="Buscar amigos..."
           slotProps={{
             input: {
               startAdornment: (
@@ -102,12 +104,12 @@ function FriendCard({ item }) {
       <MenuList>
         <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
 
         <MenuItem onClick={handleEdit}>
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Editar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -124,9 +126,11 @@ function FriendCard({ item }) {
           flexDirection: 'column',
         }}
       >
-        <Avatar alt={item.name} src={item.avatarUrl} sx={{ width: 64, height: 64, mb: 3 }} />
+        <Link href={getProfileHref(item)} color="inherit" underline="none">
+          <Avatar alt={item.name} src={item.avatarUrl} sx={{ width: 64, height: 64, mb: 3 }} />
+        </Link>
 
-        <Link variant="subtitle1" color="text.primary">
+        <Link href={getProfileHref(item)} variant="subtitle1" color="text.primary">
           {item.name}
         </Link>
 

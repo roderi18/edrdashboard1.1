@@ -23,73 +23,88 @@ import { initialConversation } from './utils/initial-conversation';
 
 const MAX_IMAGE_FILES = 10;
 const MAX_DOCUMENT_TOTAL_SIZE = 1024 * 1024;
-const ALLOWED_DOCUMENT_TYPES = new Set(['application/pdf', 'application/zip', 'application/x-zip-compressed']);
-const CHAT_EMOJI_CATEGORIES = [
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  'application/pdf',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+export const CHAT_EMOJI_CATEGORIES = [
   {
     label: 'Caras',
-    emojis: '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🫣 🤗 🤔 🫡 🤭 🫢 🫠 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕'.split(
-      ' '
-    ),
+    emojis:
+      '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🫣 🤗 🤔 🫡 🤭 🫢 🫠 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕'.split(
+        ' '
+      ),
   },
   {
     label: 'Gestos',
-    emojis: '👍 👎 👊 ✊ 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💪 🦾 🖐️ ✋ 🤚 👋 🤙 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 👌 👈 👉 👆 👇 ☝️ ✋ 🫵'.split(
-      ' '
-    ),
+    emojis:
+      '👍 👎 👊 ✊ 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💪 🦾 🖐️ ✋ 🤚 👋 🤙 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 👌 👈 👉 👆 👇 ☝️ ✋ 🫵'.split(
+        ' '
+      ),
   },
   {
     label: 'Personas',
-    emojis: '👶 🧒 👦 👧 🧑 👨 👩 🧔 👱 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 👷 💂 🕵️ 👩‍⚕️ 👨‍⚕️ 👩‍🏫 👨‍🏫 👩‍🍳 👨‍🍳 👩‍💻 👨‍💻 👩‍🎤 👨‍🎤 👩‍🚀 👨‍🚀 🧙 🧚 🧛 🧜 🧝 🧞 🧟'.split(
-      ' '
-    ),
+    emojis:
+      '👶 🧒 👦 👧 🧑 👨 👩 🧔 👱 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 👷 💂 🕵️ 👩‍⚕️ 👨‍⚕️ 👩‍🏫 👨‍🏫 👩‍🍳 👨‍🍳 👩‍💻 👨‍💻 👩‍🎤 👨‍🎤 👩‍🚀 👨‍🚀 🧙 🧚 🧛 🧜 🧝 🧞 🧟'.split(
+        ' '
+      ),
   },
   {
     label: 'Corazones',
-    emojis: '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 💋 💯 💢 💥 💫 💦 💨 🕳️'.split(
-      ' '
-    ),
+    emojis:
+      '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 💋 💯 💢 💥 💫 💦 💨 🕳️'.split(
+        ' '
+      ),
   },
   {
     label: 'Animales',
-    emojis: '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🦟 🦗 🕷️ 🦂 🐢 🐍 🦎 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈'.split(
-      ' '
-    ),
+    emojis:
+      '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🦟 🦗 🕷️ 🦂 🐢 🐍 🦎 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈'.split(
+        ' '
+      ),
   },
   {
     label: 'Comida',
-    emojis: '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂'.split(
-      ' '
-    ),
+    emojis:
+      '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂'.split(
+        ' '
+      ),
   },
   {
     label: 'Actividad',
-    emojis: '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🎮 🕹️ 🎲 ♟️ 🎯 🎳'.split(
-      ' '
-    ),
+    emojis:
+      '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🎮 🕹️ 🎲 ♟️ 🎯 🎳'.split(
+        ' '
+      ),
   },
   {
     label: 'Viajes',
-    emojis: '🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ 🛟 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️'.split(
-      ' '
-    ),
+    emojis:
+      '🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ 🛟 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️'.split(
+        ' '
+      ),
   },
   {
     label: 'Objetos',
-    emojis: '⌚ 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🕹️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 ⏱️ ⏲️ ⏰ 🕰️ ⌛ ⏳ 📡 🔋 🪫 🔌 💡 🔦 🕯️ 🪔 🧯 🛢️ 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🪛 🔧 🔨 ⚒️ 🛠️ ⛏️ 🪚 🔩 ⚙️ 🧱'.split(
-      ' '
-    ),
+    emojis:
+      '⌚ 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🕹️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 ⏱️ ⏲️ ⏰ 🕰️ ⌛ ⏳ 📡 🔋 🪫 🔌 💡 🔦 🕯️ 🪔 🧯 🛢️ 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🪛 🔧 🔨 ⚒️ 🛠️ ⛏️ 🪚 🔩 ⚙️ 🧱'.split(
+        ' '
+      ),
   },
   {
     label: 'Símbolos',
-    emojis: '✅ ☑️ ✔️ ❌ ❎ ➕ ➖ ➗ ✖️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ❕ ❔ ❗ ❓ ‼️ ⁉️ 💬 💭 🗯️ ♠️ ♥️ ♦️ ♣️ 🃏 🀄 🎴 🔇 🔈 🔉 🔊 📢 📣 🔔 🔕 🎵 🎶 💹 🛐 ⚛️ 🕉️ ✡️ ☸️ ☯️ ✝️ ☦️ ☪️ ☮️ 🕎 🔯 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓'.split(
-      ' '
-    ),
+    emojis:
+      '✅ ☑️ ✔️ ❌ ❎ ➕ ➖ ➗ ✖️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ❕ ❔ ❗ ❓ ‼️ ⁉️ 💬 💭 🗯️ ♠️ ♥️ ♦️ ♣️ 🃏 🀄 🎴 🔇 🔈 🔉 🔊 📢 📣 🔔 🔕 🎵 🎶 💹 🛐 ⚛️ 🕉️ ✡️ ☸️ ☯️ ✝️ ☦️ ☪️ ☮️ 🕎 🔯 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓'.split(
+        ' '
+      ),
   },
   {
     label: 'Banderas',
-    emojis: '🇩🇴 🇺🇸 🇵🇷 🇪🇸 🇲🇽 🇨🇴 🇻🇪 🇨🇺 🇭🇹 🇵🇦 🇨🇷 🇭🇳 🇳🇮 🇸🇻 🇬🇹 🇧🇷 🇦🇷 🇨🇱 🇵🇪 🇪🇨 🇺🇾 🇵🇾 🇧🇴 🇨🇦 🇬🇧 🇫🇷 🇩🇪 🇮🇹 🇵🇹 🇯🇵 🇨🇳 🇰🇷 🇮🇳 🇦🇺'.split(
-      ' '
-    ),
+    emojis:
+      '🇩🇴 🇺🇸 🇵🇷 🇪🇸 🇲🇽 🇨🇴 🇻🇪 🇨🇺 🇭🇹 🇵🇦 🇨🇷 🇭🇳 🇳🇮 🇸🇻 🇬🇹 🇧🇷 🇦🇷 🇨🇱 🇵🇪 🇪🇨 🇺🇾 🇵🇾 🇧🇴 🇨🇦 🇬🇧 🇫🇷 🇩🇪 🇮🇹 🇵🇹 🇯🇵 🇨🇳 🇰🇷 🇮🇳 🇦🇺'.split(
+        ' '
+      ),
   },
 ];
 
@@ -118,6 +133,8 @@ export function ChatMessageInput({
   onClearReply,
   onClearEditing,
   selectedConversationId,
+  sharedMessage,
+  onConsumeSharedMessage,
 }) {
   const router = useRouter();
 
@@ -139,6 +156,15 @@ export function ChatMessageInput({
       setMessage(editingMessage.body || '');
     }
   }, [editingMessage]);
+
+  useEffect(() => {
+    if (!sharedMessage) return;
+
+    setMessage((currentMessage) =>
+      currentMessage.trim() ? `${currentMessage}\n${sharedMessage}` : sharedMessage
+    );
+    onConsumeSharedMessage?.();
+  }, [onConsumeSharedMessage, sharedMessage]);
 
   useEffect(
     () => () => {
@@ -209,153 +235,150 @@ export function ChatMessageInput({
     ]
   );
 
-  const handleSubmitMessage = useCallback(
-    async () => {
-      if (!message && !pendingAttachments.length) return;
+  const handleSubmitMessage = useCallback(async () => {
+    if (!message && !pendingAttachments.length) return;
 
-      const textToSend = message;
-      const attachmentsToSend = pendingAttachments;
+    const textToSend = message;
+    const attachmentsToSend = pendingAttachments;
 
-      setMessage('');
-      setPendingAttachments([]);
-      onClearReply?.();
+    setMessage('');
+    setPendingAttachments([]);
+    onClearReply?.();
 
-      try {
-        if (editingMessage && selectedConversationId) {
-          onClearEditing?.();
-          await editMessage(
-            selectedConversationId,
-            editingMessage.id,
-            textToSend,
-            currentContact.idMiembros
-          );
-          return;
-        }
+    try {
+      if (editingMessage && selectedConversationId) {
+        onClearEditing?.();
+        await editMessage(
+          selectedConversationId,
+          editingMessage.id,
+          textToSend,
+          currentContact.idMiembros
+        );
+        return;
+      }
 
-        if (attachmentsToSend.length) {
-          const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
-          const fileAttachments = attachmentsToSend.filter((item) => item.contentType === 'file');
+      if (attachmentsToSend.length) {
+        const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
+        const fileAttachments = attachmentsToSend.filter((item) => item.contentType === 'file');
 
-          if (imageAttachments.length && selectedConversationId) {
-            const localImageMessage = {
-              id: uuidv4(),
-              attachments: imageAttachments.map((item) => ({
-                id: item.id,
-                nombre: item.file.name,
-                nombreOriginal: item.file.name,
-                tipo: item.file.type,
-                tamano: item.file.size,
-                previewUrl: item.previewUrl,
-              })),
-              body: imageAttachments[0].previewUrl,
-              contentType: 'image',
-              createdAt: new Date().toISOString(),
-              senderId: String(currentContact.idMiembros || currentContact.id),
-              estadoEnvio: 'enviando',
-            };
+        if (imageAttachments.length && selectedConversationId) {
+          const localImageMessage = {
+            id: uuidv4(),
+            attachments: imageAttachments.map((item) => ({
+              id: item.id,
+              nombre: item.file.name,
+              nombreOriginal: item.file.name,
+              tipo: item.file.type,
+              tamano: item.file.size,
+              previewUrl: item.previewUrl,
+            })),
+            body: imageAttachments[0].previewUrl,
+            contentType: 'image',
+            createdAt: new Date().toISOString(),
+            senderId: String(currentContact.idMiembros || currentContact.id),
+            estadoEnvio: 'enviando',
+          };
 
-            await addLocalMessage(selectedConversationId, localImageMessage);
+          await addLocalMessage(selectedConversationId, localImageMessage);
 
-            const uploads = await uploadFilesToStorage({
-              files: imageAttachments.map((item) => item.file),
-              storagePathBuilder: (file, index) =>
-                `chat/${selectedConversationId}/imagenes/${buildStorageFileName(file, index)}`,
-              metadataBuilder: () => ({
-                modulo: 'chat',
-                tipo: 'imagen',
-                remitenteIdMiembros: String(currentContact.idMiembros || ''),
-              }),
-            });
+          const uploads = await uploadFilesToStorage({
+            files: imageAttachments.map((item) => item.file),
+            storagePathBuilder: (file, index) =>
+              `chat/${selectedConversationId}/imagenes/${buildStorageFileName(file, index)}`,
+            metadataBuilder: () => ({
+              modulo: 'chat',
+              tipo: 'imagen',
+              remitenteIdMiembros: String(currentContact.idMiembros || ''),
+            }),
+          });
 
-            await sendMessage(
-              selectedConversationId,
-              {
-                ...localImageMessage,
-                attachments: uploads,
-                body: uploads[0]?.url || uploads[0]?.downloadURL || localImageMessage.body,
-              },
-              currentContact.idMiembros
-            );
-
-            imageAttachments.forEach((item) => {
-              if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-            });
-          }
-
-          if (imageAttachments.length && !selectedConversationId) {
-            const uploads = await uploadFilesToStorage({
-              files: imageAttachments.map((item) => item.file),
-              storagePathBuilder: (file, index) =>
-                `chat/${currentContact.idMiembros || 'nuevo'}/imagenes/${buildStorageFileName(file, index)}`,
-              metadataBuilder: () => ({
-                modulo: 'chat',
-                tipo: 'imagen',
-                remitenteIdMiembros: String(currentContact.idMiembros || ''),
-              }),
-            });
-
-            await sendAttachmentMessages({ uploads, contentType: 'image' });
-          }
-
-          if (fileAttachments.length) {
-            const uploads = await uploadFilesToStorage({
-              files: fileAttachments.map((item) => item.file),
-              storagePathBuilder: (file, index) =>
-                `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/archivos/${buildStorageFileName(file, index)}`,
-              metadataBuilder: () => ({
-                modulo: 'chat',
-                tipo: 'archivo',
-                remitenteIdMiembros: String(currentContact.idMiembros || ''),
-              }),
-            });
-
-            await sendAttachmentMessages({ uploads, contentType: 'file' });
-          }
-        }
-
-        if (!textToSend) return;
-
-        if (selectedConversationId) {
           await sendMessage(
             selectedConversationId,
-            { ...messageData, body: textToSend },
-            currentContact.idMiembros
-          );
-        } else {
-          const res = await createConversation(
             {
-              ...conversationData,
-              messages: [{ ...messageData, body: textToSend }],
+              ...localImageMessage,
+              attachments: uploads,
+              body: uploads[0]?.url || uploads[0]?.downloadURL || localImageMessage.body,
             },
             currentContact.idMiembros
           );
-          router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
 
-          onAddRecipients([]);
+          imageAttachments.forEach((item) => {
+            if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+          });
         }
-      } catch (error) {
-        console.error(error);
-        toast.error(error.message || 'No se pudo enviar el mensaje.');
-        setPendingAttachments(attachmentsToSend);
-        setMessage(textToSend);
+
+        if (imageAttachments.length && !selectedConversationId) {
+          const uploads = await uploadFilesToStorage({
+            files: imageAttachments.map((item) => item.file),
+            storagePathBuilder: (file, index) =>
+              `chat/${currentContact.idMiembros || 'nuevo'}/imagenes/${buildStorageFileName(file, index)}`,
+            metadataBuilder: () => ({
+              modulo: 'chat',
+              tipo: 'imagen',
+              remitenteIdMiembros: String(currentContact.idMiembros || ''),
+            }),
+          });
+
+          await sendAttachmentMessages({ uploads, contentType: 'image' });
+        }
+
+        if (fileAttachments.length) {
+          const uploads = await uploadFilesToStorage({
+            files: fileAttachments.map((item) => item.file),
+            storagePathBuilder: (file, index) =>
+              `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/archivos/${buildStorageFileName(file, index)}`,
+            metadataBuilder: () => ({
+              modulo: 'chat',
+              tipo: 'archivo',
+              remitenteIdMiembros: String(currentContact.idMiembros || ''),
+            }),
+          });
+
+          await sendAttachmentMessages({ uploads, contentType: 'file' });
+        }
       }
-    },
-    [
-      conversationData,
-      currentContact.idMiembros,
-      currentContact.id,
-      editingMessage,
-      message,
-      messageData,
-      onAddRecipients,
-      onClearEditing,
-      onClearReply,
-      pendingAttachments,
-      router,
-      selectedConversationId,
-      sendAttachmentMessages,
-    ]
-  );
+
+      if (!textToSend) return;
+
+      if (selectedConversationId) {
+        await sendMessage(
+          selectedConversationId,
+          { ...messageData, body: textToSend },
+          currentContact.idMiembros
+        );
+      } else {
+        const res = await createConversation(
+          {
+            ...conversationData,
+            messages: [{ ...messageData, body: textToSend }],
+          },
+          currentContact.idMiembros
+        );
+        router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
+
+        onAddRecipients([]);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo enviar el mensaje.');
+      setPendingAttachments(attachmentsToSend);
+      setMessage(textToSend);
+    }
+  }, [
+    conversationData,
+    currentContact.idMiembros,
+    currentContact.id,
+    editingMessage,
+    message,
+    messageData,
+    onAddRecipients,
+    onClearEditing,
+    onClearReply,
+    pendingAttachments,
+    router,
+    selectedConversationId,
+    sendAttachmentMessages,
+  ]);
 
   const handleSendMessage = useCallback(
     async (event) => {
@@ -366,66 +389,60 @@ export function ChatMessageInput({
     [handleSubmitMessage]
   );
 
-  const handleUploadImages = useCallback(
-    async (event) => {
-      const files = Array.from(event.target.files || []);
-      event.target.value = '';
+  const handleUploadImages = useCallback(async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
 
-      if (!files.length) return;
+    if (!files.length) return;
 
-      const imageFiles = files.filter((file) => String(file.type || '').startsWith('image/'));
+    const imageFiles = files.filter((file) => String(file.type || '').startsWith('image/'));
 
-      if (imageFiles.length !== files.length) {
-        toast.error('Solo puedes enviar imagenes desde este boton.');
-        return;
-      }
+    if (imageFiles.length !== files.length) {
+      toast.error('Solo puedes enviar imagenes desde este boton.');
+      return;
+    }
 
-      if (imageFiles.length > MAX_IMAGE_FILES) {
-        toast.error('Puedes enviar un maximo de 10 imagenes a la vez.');
-        return;
-      }
+    if (imageFiles.length > MAX_IMAGE_FILES) {
+      toast.error('Puedes enviar un maximo de 10 imagenes a la vez.');
+      return;
+    }
 
-      setPendingAttachments(
-        imageFiles.map((file, index) => ({
-          id: `image-${file.name}-${file.size}-${file.lastModified}-${index}`,
-          file,
-          contentType: 'image',
-          previewUrl: URL.createObjectURL(file),
-        }))
-      );
-    },
-    []
-  );
+    setPendingAttachments(
+      imageFiles.map((file, index) => ({
+        id: `image-${file.name}-${file.size}-${file.lastModified}-${index}`,
+        file,
+        contentType: 'image',
+        previewUrl: URL.createObjectURL(file),
+      }))
+    );
+  }, []);
 
-  const handleUploadFiles = useCallback(
-    async (event) => {
-      const files = Array.from(event.target.files || []);
-      event.target.value = '';
+  const handleUploadFiles = useCallback(async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
 
-      if (!files.length) return;
+    if (!files.length) return;
 
-      if (!files.every(isZipOrPdf)) {
-        toast.error('Solo puedes enviar archivos PDF o ZIP.');
-        return;
-      }
+    if (!files.every(isZipOrPdf)) {
+      toast.error('Solo puedes enviar archivos PDF o ZIP.');
+      return;
+    }
 
-      const totalSize = files.reduce((total, file) => total + Number(file.size || 0), 0);
+    const totalSize = files.reduce((total, file) => total + Number(file.size || 0), 0);
 
-      if (totalSize > MAX_DOCUMENT_TOTAL_SIZE) {
-        toast.error('Los archivos PDF/ZIP no pueden superar 1 MB en conjunto.');
-        return;
-      }
+    if (totalSize > MAX_DOCUMENT_TOTAL_SIZE) {
+      toast.error('Los archivos PDF/ZIP no pueden superar 1 MB en conjunto.');
+      return;
+    }
 
-      setPendingAttachments(
-        files.map((file, index) => ({
-          id: `file-${file.name}-${file.size}-${file.lastModified}-${index}`,
-          file,
-          contentType: 'file',
-        }))
-      );
-    },
-    []
-  );
+    setPendingAttachments(
+      files.map((file, index) => ({
+        id: `file-${file.name}-${file.size}-${file.lastModified}-${index}`,
+        file,
+        contentType: 'file',
+      }))
+    );
+  }, []);
 
   return (
     <>
@@ -655,7 +672,9 @@ export function ChatMessageInput({
         onClose={() => setEmojiAnchorEl(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { width: 360, maxWidth: 'calc(100vw - 32px)', borderRadius: 1.5 } } }}
+        slotProps={{
+          paper: { sx: { width: 360, maxWidth: 'calc(100vw - 32px)', borderRadius: 1.5 } },
+        }}
       >
         <Box sx={{ p: 1 }}>
           <Box sx={{ gap: 0.5, mb: 1, display: 'flex', overflowX: 'auto' }}>

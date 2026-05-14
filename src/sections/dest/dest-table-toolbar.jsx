@@ -2,12 +2,14 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Select from '@mui/material/Select';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
+import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
-import Autocomplete from '@mui/material/Autocomplete';
+import FormControl from '@mui/material/FormControl';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -26,13 +28,6 @@ const getFilterOptionValue = (option) => option?.value ?? option;
 
 const getFilterOptionLabel = (option) =>
   String(option?.label ?? getFilterOptionValue(option) ?? '');
-
-const getFilterAutocompleteValue = (selectedValues = [], items = []) =>
-  selectedValues.map((value) => {
-    const found = items.find((item) => String(getFilterOptionValue(item)) === String(value));
-
-    return found || { value, label: String(value) };
-  });
 
 export function DestTableToolbar({
   filters,
@@ -69,42 +64,42 @@ export function DestTableToolbar({
     [onResetPage, updateFilters]
   );
 
-  const renderFilterAutocomplete = (key, label, items, value, onChange) => (
-    <Autocomplete
-      multiple
-      disableCloseOnSelect
-      options={items || []}
-      value={getFilterAutocompleteValue(value, items || [])}
-      isOptionEqualToValue={(option, selectedOption) =>
-        String(getFilterOptionValue(option)) === String(getFilterOptionValue(selectedOption))
-      }
-      getOptionLabel={getFilterOptionLabel}
-      onChange={(event, selectedOptions) =>
-        onChange({
-          ...event,
-          target: {
-            value: selectedOptions.map(getFilterOptionValue),
-          },
-        })
-      }
-      renderOption={(props, option, { selected }) => {
-        const { key: optionKey, ...optionProps } = props;
+  const renderFilterSelect = (key, label, items, value, onChange) => (
+    <FormControl sx={{ flexGrow: 1, width: { md: 200 } }}>
+      <InputLabel htmlFor={`filter-${key}-select`}>{label}</InputLabel>
+      <Select
+        multiple
+        label={label}
+        value={value}
+        onChange={onChange}
+        renderValue={(selected) =>
+          selected
+            .map((selectedValue) => {
+              const found = (items || []).find(
+                (item) => String(getFilterOptionValue(item)) === String(selectedValue)
+              );
 
-        return (
-          <li key={`${key}-${getFilterOptionValue(option)}-${optionKey}`} {...optionProps}>
-            <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
-            {getFilterOptionLabel(option)}
-          </li>
-        );
-      }}
-      renderInput={(params) => <TextField {...params} label={label} />}
-      sx={{ flexGrow: 1, width: { md: 200 } }}
-      slotProps={{
-        paper: {
-          sx: { maxHeight: 250 },
-        },
-      }}
-    />
+              return found ? getFilterOptionLabel(found) : selectedValue;
+            })
+            .join(', ')
+        }
+        inputProps={{ id: `filter-${key}-select` }}
+        MenuProps={{
+          slotProps: { paper: { sx: { maxHeight: 250 } } },
+        }}
+      >
+        {(items || []).map((option, index) => {
+          const optionValue = getFilterOptionValue(option);
+
+          return (
+            <MenuItem key={`${key}-${optionValue}-${index}`} value={optionValue}>
+              <Checkbox size="small" checked={value.includes(optionValue)} />
+              {getFilterOptionLabel(option)}
+            </MenuItem>
+          );
+        })}
+      </Select>
+    </FormControl>
   );
 
   const pdfColumns = [
@@ -280,7 +275,7 @@ export function DestTableToolbar({
               width: { xs: '100%', md: 'auto' },
             }}
           >
-            {renderFilterAutocomplete(
+            {renderFilterSelect(
               'sectionalName',
               'Sección',
               options.sectionalName,

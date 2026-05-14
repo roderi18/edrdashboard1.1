@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { _kanban } from 'src/_mock';
 import { useGetBoard } from 'src/actions/kanban';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -44,7 +45,9 @@ const inputGlobalStyles = () => (
 
 export function KanbanView() {
   const { board, boardLoading, boardEmpty } = useGetBoard();
-  const { boardRef } = useBoardDnd(board);
+  const boardData = board.columns.length ? board : _kanban;
+  const isBoardEmpty = !boardData.columns.length;
+  const { boardRef } = useBoardDnd(boardData);
 
   const [columnFixed, setColumnFixed] = useState(false);
 
@@ -59,8 +62,8 @@ export function KanbanView() {
   const renderList = () => (
     <FlexibleColumnContainer columnFixed={columnFixed}>
       <AnimatePresence>
-        {board.columns.map((column) => (
-          <KanbanColumn key={column.id} column={column} tasks={board.tasks[column.id]} />
+        {boardData.columns.map((column) => (
+          <KanbanColumn key={column.id} column={column} tasks={boardData.tasks[column.id]} />
         ))}
       </AnimatePresence>
       <KanbanColumnAdd />
@@ -114,7 +117,11 @@ export function KanbanView() {
         {renderHead()}
 
         <ScrollContainer ref={boardRef}>
-          {boardLoading ? renderLoading() : <>{boardEmpty ? renderEmpty() : renderList()}</>}
+          {boardLoading ? (
+            renderLoading()
+          ) : (
+            <>{boardEmpty && isBoardEmpty ? renderEmpty() : renderList()}</>
+          )}
         </ScrollContainer>
       </DashboardContent>
     </>

@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import { Toolbar } from '@mui/x-data-grid';
@@ -8,8 +9,10 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 import { Iconify } from 'src/components/iconify';
+import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -38,9 +41,16 @@ export function ProductTableToolbar({
   onChangeSettings,
 }) {
   const { state: currentFilters, setState: updateFilters } = filters;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [stock, setStock] = useState(currentFilters.stock || []);
   const [renglon, setRenglon] = useState(currentFilters.renglon || []);
+
+  useEffect(() => {
+    setStock(currentFilters.stock || []);
+    setRenglon(currentFilters.renglon || []);
+  }, [currentFilters.stock, currentFilters.renglon]);
 
   const handleSelect = useCallback(
     (setter) => (event) => {
@@ -52,37 +62,79 @@ export function ProductTableToolbar({
     []
   );
 
-  const renderLeftPanel = () => (
-    <>
-      <CustomToolbarQuickFilter
-        sx={{
-          flexGrow: 0,
-          flexShrink: 0,
-          width: { xs: 1, md: 170 },
-          minWidth: { xs: 1, md: 170 },
-          maxWidth: { md: 170 },
-        }}
-      />
+  const handleMobileSelect = useCallback(
+    (key, setter) => (event) => {
+      const value = event.target.value;
+      const parsedValue = typeof value === 'string' ? value.split(',') : value;
+      const nextValue = Array.isArray(parsedValue) ? parsedValue : [];
 
-      <FilterSelect
-        label="Existencias"
-        value={stock}
-        options={options.stocks}
-        onChange={handleSelect(setStock)}
-        onApply={() => updateFilters({ stock })}
-        width={isMemberUser ? 200 : 170}
-      />
-
-      <FilterSelect
-        label="Renglón"
-        value={renglon}
-        options={options.renglones}
-        onChange={handleSelect(setRenglon)}
-        onApply={() => updateFilters({ renglon })}
-        width={150}
-      />
-    </>
+      setter(nextValue);
+      updateFilters({ [key]: nextValue });
+    },
+    [updateFilters]
   );
+
+  const renderLeftPanel = () =>
+    isMobile ? (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: 1 }}>
+        <CustomToolbarQuickFilter
+          sx={{
+            flex: 1,
+            minWidth: 0,
+          }}
+        />
+
+        <TableToolbarMobileFilter
+          hasActiveFilters={currentFilters.stock.length || currentFilters.renglon.length}
+          filtersConfig={[
+            {
+              key: 'stock',
+              label: 'Existencias',
+              value: stock,
+              onChange: handleMobileSelect('stock', setStock),
+              options: options.stocks,
+            },
+            {
+              key: 'renglon',
+              label: 'Renglón',
+              value: renglon,
+              onChange: handleMobileSelect('renglon', setRenglon),
+              options: options.renglones,
+            },
+          ]}
+        />
+      </Box>
+    ) : (
+      <>
+        <CustomToolbarQuickFilter
+          sx={{
+            flexGrow: 0,
+            flexShrink: 0,
+            width: { xs: 1, md: 170 },
+            minWidth: { xs: 1, md: 170 },
+            maxWidth: { md: 170 },
+          }}
+        />
+
+        <FilterSelect
+          label="Existencias"
+          value={stock}
+          options={options.stocks}
+          onChange={handleSelect(setStock)}
+          onApply={() => updateFilters({ stock })}
+          width={isMemberUser ? 200 : 170}
+        />
+
+        <FilterSelect
+          label="Renglón"
+          value={renglon}
+          options={options.renglones}
+          onChange={handleSelect(setRenglon)}
+          onApply={() => updateFilters({ renglon })}
+          width={150}
+        />
+      </>
+    );
 
   const renderRightPanel = () => (
     <>

@@ -180,6 +180,7 @@ export const guardarLoteCertificados = async ({
         issuedAt: batch?.formValues?.issuedAt || '',
         pdfUrl,
         pdfPath,
+        pdfSize: Number((finalBlob || blob)?.size || 0),
         createdBy: creator,
         createdAt: now,
       };
@@ -194,6 +195,7 @@ export const guardarLoteCertificados = async ({
     ...batch,
     id: batchId,
     totalCertificates: certificates.length,
+    totalSize: certificates.reduce((total, certificate) => total + Number(certificate.pdfSize || 0), 0),
     certificates,
     createdBy: creator,
     createdAt: batch?.createdAt || now,

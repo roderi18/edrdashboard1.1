@@ -1,6 +1,7 @@
 import useSWR, { mutate } from 'swr';
 import { useMemo, startTransition } from 'react';
 
+import { _kanban } from 'src/_mock';
 import axios, { fetcher, endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
@@ -23,8 +24,11 @@ export function useGetBoard() {
   });
 
   const memoizedValue = useMemo(() => {
-    const tasks = data?.board.tasks ?? {};
-    const columns = data?.board.columns ?? [];
+    const serverBoard = data?.board;
+    const hasServerColumns = !!serverBoard?.columns?.length;
+    const board = hasServerColumns ? serverBoard : _kanban;
+    const tasks = board.tasks ?? {};
+    const columns = board.columns ?? [];
 
     return {
       board: { tasks, columns },
@@ -33,7 +37,7 @@ export function useGetBoard() {
       boardValidating: isValidating,
       boardEmpty: !isLoading && !isValidating && !columns.length,
     };
-  }, [data?.board.columns, data?.board.tasks, error, isLoading, isValidating]);
+  }, [data?.board, error, isLoading, isValidating]);
 
   return memoizedValue;
 }

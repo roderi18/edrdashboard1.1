@@ -28,7 +28,7 @@ import { applyFilter, flattenNavSections } from './utils';
 
 const breakpoint = 'sm';
 
-export function Searchbar({ data: navItems = [], sx, ...other }) {
+export function Searchbar({ data: navItems = [], disabled = false, sx, ...other }) {
   const theme = useTheme();
   const smUp = useMediaQuery(theme.breakpoints.up(breakpoint));
 
@@ -42,22 +42,26 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
 
   const handleKeyDown = useCallback(
     (event) => {
+      if (disabled) return;
+
       if (event.metaKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         onToggle();
         setSearchQuery('');
       }
     },
-    [onToggle]
+    [disabled, onToggle]
   );
 
   useEffect(() => {
+    if (disabled) return undefined;
+
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleKeyDown]);
+  }, [disabled, handleKeyDown]);
 
   const handleSearch = useCallback((event) => {
     setSearchQuery(event.target.value);
@@ -78,22 +82,27 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
 
   const renderButton = () => (
     <Box
-      onClick={onOpen}
+      onClick={disabled ? undefined : onOpen}
+      aria-disabled={disabled}
       sx={[
         {
           display: 'flex',
           alignItems: 'center',
+          opacity: disabled ? 0.48 : 1,
+          pointerEvents: disabled ? 'none' : 'auto',
           [theme.breakpoints.up(breakpoint)]: {
             pr: 1,
             borderRadius: 1.5,
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
             bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
             transition: theme.transitions.create('background-color', {
               easing: theme.transitions.easing.easeInOut,
               duration: theme.transitions.duration.shortest,
             }),
             '&:hover': {
-              bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+              bgcolor: disabled
+                ? varAlpha(theme.vars.palette.grey['500Channel'], 0.08)
+                : varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
             },
           },
         },

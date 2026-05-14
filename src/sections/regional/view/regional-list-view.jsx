@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -23,8 +21,8 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 
+import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
-import { _roles, USER_STATUS_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getSectionals } from 'src/services/sectional-service';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
@@ -55,8 +53,6 @@ import { RegionalTableFiltersResult } from '../regional-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'Todos' }, ...USER_STATUS_OPTIONS];
-
 const TABLE_HEAD = [
   { id: 'regionalName', label: 'Región' },
   { id: 'memberFullName', label: 'Director', width: 270 },
@@ -86,7 +82,6 @@ export function RegionalListView() {
     return MEMBERS.find((m) => m.id === assignment?.memberId) || null;
   };
 
-
   const [tableData, setTableData] = useState([]);
 
   useEffect(() => {
@@ -112,25 +107,20 @@ export function RegionalListView() {
         );
 
         const iglesiasDeRegion = churches.filter((c) =>
-          seccionesDeRegion.some(
-            (s) => Number(s.idSeccion) === Number(c.idSeccion)
-          )
+          seccionesDeRegion.some((s) => Number(s.idSeccion) === Number(c.idSeccion))
         );
 
         const destCount = dests.filter((d) =>
-          iglesiasDeRegion.some(
-            (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
-          )
+          iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
         ).length;
-        const miembrosDeRegion = members.filter((m) =>
-          m.idDestacamento !== null &&
-          dests.some(
-            (d) =>
-              Number(d.idDestacamento) === Number(m.idDestacamento) &&
-              iglesiasDeRegion.some(
-                (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
-              )
-          )
+        const miembrosDeRegion = members.filter(
+          (m) =>
+            m.idDestacamento !== null &&
+            dests.some(
+              (d) =>
+                Number(d.idDestacamento) === Number(m.idDestacamento) &&
+                iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
+            )
         ).length;
         return {
           ...regional,
@@ -147,7 +137,12 @@ export function RegionalListView() {
   const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const filters = useSetState({ name: '', role: [], status: 'all', regionalXSectionalXDestCount: [], });
+  const filters = useSetState({
+    name: '',
+    role: [],
+    status: 'all',
+    regionalXSectionalXDestCount: [],
+  });
   const { state: currentFilters, setState: updateFilters } = filters;
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get('sectional');
@@ -161,7 +156,7 @@ export function RegionalListView() {
 
     // Si viene region por ID (ej: reg-norte)
     if (regionParam) {
-      const regional = REGIONALS.find(r => r.id === regionParam);
+      const regional = REGIONALS.find((r) => r.id === regionParam);
 
       if (regional) {
         updateFilters({ name: regional.name });
@@ -206,8 +201,7 @@ export function RegionalListView() {
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
-  const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+  const canReset = !!currentFilters.name || currentFilters.role.length > 0;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -216,13 +210,13 @@ export function RegionalListView() {
       try {
         await deleteRegional(id);
 
-      const deleteRow = tableData.filter((row) => row.id !== id);
+        const deleteRow = tableData.filter((row) => row.id !== id);
 
         toast.success('Regional eliminada correctamente.');
 
-      setTableData(deleteRow);
+        setTableData(deleteRow);
 
-      table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(dataInPage.length);
       } catch (error) {
         console.error('Error eliminando regional:', error);
         toast.error(error?.message || 'No se pudo eliminar la regional.');
@@ -235,26 +229,18 @@ export function RegionalListView() {
     try {
       await Promise.all(table.selected.map((id) => deleteRegional(id)));
 
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
+      const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
       toast.success('Regionales eliminadas correctamente.');
 
-    setTableData(deleteRows);
+      setTableData(deleteRows);
 
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
     } catch (error) {
       console.error('Error eliminando regionales:', error);
       toast.error(error?.message || 'No se pudieron eliminar las regionales.');
     }
   }, [dataFiltered.length, dataInPage.length, table, tableData]);
-
-  const handleFilterStatus = useCallback(
-    (event, newValue) => {
-      table.onResetPage();
-      updateFilters({ status: newValue });
-    },
-    [updateFilters, table]
-  );
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -307,7 +293,6 @@ export function RegionalListView() {
         <Card>
           <Tabs
             value={currentFilters.status}
-            onChange={handleFilterStatus}
             sx={[
               (themeItem) => ({
                 px: { md: 2.5 },
@@ -315,32 +300,12 @@ export function RegionalListView() {
               }),
             ]}
           >
-            {STATUS_OPTIONS.map((tab) => (
-              <Tab
-                key={tab.value}
-                iconPosition="end"
-                value={tab.value}
-                label={tab.label}
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
-                    }
-                    color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
-                      'default'
-                    }
-                  >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((regional) => regional.status === tab.value).length
-                      : tableData.length}
-                  </Label>
-                }
-              />
-            ))}
+            <Tab
+              value="all"
+              label="Todos"
+              iconPosition="end"
+              icon={<Label variant="filled">{tableData.length}</Label>}
+            />
           </Tabs>
 
           <RegionalTableToolbar
@@ -452,7 +417,7 @@ export function RegionalListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, role } = filters;
+  const { name, role } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -464,7 +429,6 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
-
   //Se cambia el anterior para permitir la búsqueda tanto por regionalName como por memberFullName
   if (name) {
     const keyword = normalizeText(name);
@@ -473,10 +437,6 @@ function applyFilter({ inputData, comparator, filters }) {
         normalizeText(dest.regionalName).includes(keyword) ||
         normalizeText(dest.memberFullName).includes(keyword)
     );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((regional) => regional.status === status);
   }
 
   if (role.length) {

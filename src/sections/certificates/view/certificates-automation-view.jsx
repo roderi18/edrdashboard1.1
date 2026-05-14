@@ -3,7 +3,6 @@
 import 'dayjs/locale/es';
 
 import dayjs from 'dayjs';
-import QRCode from 'qrcode';
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { pdf, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
@@ -18,7 +17,6 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import Skeleton from '@mui/material/Skeleton';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -86,15 +84,6 @@ const CERTIFICATE_TEMPLATE_FIELDS = [
     fontWeight: 500,
   },
   {
-    id: 'qrCode',
-    label: 'QR',
-    preview: 'QR',
-    kind: 'qr',
-    size: 72,
-    width: 72,
-    fontSize: 12,
-  },
-  {
     id: 'place',
     label: 'Lugar',
     preview: 'República Dominicana',
@@ -128,7 +117,6 @@ const TEMPLATE_FONT_OPTIONS = [
 ];
 
 const TEMPLATE_FONT_SIZE_OPTIONS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32];
-const TEMPLATE_QR_SIZE_OPTIONS = [32, 40, 48, 56, 64, 72, 80, 96, 112, 128, 144];
 
 const normalizeTemplateFont = (fontFamily) =>
   fontFamily === 'Helvetica-Oblique' || fontFamily === 'Times-BoldItalic'
@@ -172,9 +160,8 @@ const getTemplatePdfTypography = (field) => {
 dayjs.locale('es');
 
 const DEFAULT_TEMPLATE_POSITIONS = {
-  memberName: { x: 50, y: 77, align: 'center' },
-  date: { x: 50, y: 87, align: 'center' },
-  qrCode: { x: 8, y: 10, align: 'center' },
+  memberName: { x: 50, y: 80, align: 'center' },
+  date: { x: 50, y: 89, align: 'center' },
   place: { x: 50, y: 79, align: 'center' },
   signature1: { x: 83, y: 86, align: 'center' },
   signature2: { x: 50, y: 88, align: 'center' },
@@ -190,50 +177,26 @@ const buildTemplateField = (field) => ({
 const getDefaultTemplateFields = () =>
   CERTIFICATE_TEMPLATE_FIELDS.map(buildTemplateField);
 
-const getTemplateFields = (template) => {
-  const source = (Array.isArray(template?.fields) && template.fields.length
+const getTemplateFields = (template) =>
+  (Array.isArray(template?.fields) && template.fields.length
     ? template.fields
     : getDefaultTemplateFields()
-  ).map(buildTemplateField);
-  const withRequiredFields = [
-    ...source,
-    ...getDefaultTemplateFields().filter(
-      (defaultField) =>
-        ['memberName', 'date', 'qrCode'].includes(defaultField.id) &&
-        !source.some((field) => field.id === defaultField.id)
-    ),
-  ];
-
-  return withRequiredFields.filter(
+  ).filter(
     (field) =>
       field.id !== 'courseName' &&
       field.id !== 'place' &&
       field.id !== 'signature1' &&
       field.id !== 'signature2'
   );
-};
 
 const getTemplateFieldPreview = (field) => field.text || field.preview || field.label;
 
 const getScaledTemplatePreviewFontSize = (field) =>
   Math.max(6, Math.round((Number(field.fontSize) || 14) * 0.5));
 
-const isQrTemplateField = (field) => field?.kind === 'qr' || field?.id === 'qrCode';
-
-const getTemplateFieldSize = (field) => Number(field?.size || field?.width || 72);
-
-const SAMPLE_QR_CODE_SRC = `data:image/svg+xml,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 116">
-  <rect width="116" height="116" fill="#fff"/>
-  <path fill="#000" d="M8 8h28v28H8zM14 14v16h16V14zM80 8h28v28H80zM86 14v16h16V14zM8 80h28v28H8zM14 86v16h16V86z"/>
-  <path fill="#000" d="M44 8h8v8h-8zM60 8h8v8h-8zM72 8h4v12h-4zM44 20h20v8H52v8h-8zM68 24h8v8h-8zM40 40h8v8h-8zM52 36h8v8h-8zM64 40h12v8H64zM84 40h8v8h-8zM100 40h8v12h-8zM8 44h12v8H8zM28 44h8v12h-8zM44 52h12v8H44zM60 52h8v8h-8zM76 52h8v8h-8zM88 56h20v8H96v8h-8zM16 60h8v8h-8zM32 64h12v8H32zM48 68h8v12h-8zM60 64h20v8H68v8h-8zM84 76h8v8h-8zM100 76h8v8h-8zM44 88h8v8h-8zM56 84h8v8h-8zM68 88h8v8h-8zM80 92h28v8H88v8h-8zM44 104h16v4H44zM68 104h8v4h-8z"/>
-  <path fill="#000" d="M40 12h4v4h-4zM56 16h4v4h-4zM68 16h4v4h-4zM40 28h4v8h-4zM56 32h12v4H56zM76 36h4v8h-4zM20 40h8v4h-8zM36 56h4v8h-4zM56 60h4v4h-4zM72 60h4v4h-4zM92 44h4v8h-4zM8 68h8v4H8zM24 72h8v4h-8zM40 76h4v8h-4zM56 76h4v8h-4zM72 80h8v4h-8zM96 88h4v4h-4zM40 96h4v8h-4zM60 96h8v4h-8z"/>
-</svg>
-`)}`;
-
 const DEFAULT_COURSE = {
   id: 'seguridad',
-  name: 'Seguridsad',
+  name: 'Seguridad',
   certificateTitle: 'Certificado de Seguridad',
   label: 'Plantilla',
   accent: '#1570EF',
@@ -358,13 +321,11 @@ const getFieldValue = ({ field, member, course, formValues }) => {
   return values[field.id] || '';
 };
 
-function ImportedTemplateCertificatePage({ course, member, formValues, template, certificateQr }) {
-  const imageSource = template?.pdfDataUrl || template?.dataUrl || template?.previewImageUrl;
-
+function ImportedTemplateCertificatePage({ course, member, formValues, template }) {
   return (
     <Page size="A4" orientation="landscape" wrap={false}>
       <View style={certificateStyles.importedCanvas}>
-        {!!imageSource && <Image src={imageSource} style={certificateStyles.importedBackground} />}
+        <Image src={template.dataUrl} style={certificateStyles.importedBackground} />
 
         {getTemplateFields(template).map((field) => {
           const position =
@@ -373,26 +334,6 @@ function ImportedTemplateCertificatePage({ course, member, formValues, template,
               y: 50,
             };
           const value = getFieldValue({ field, member, course, formValues });
-
-          if (isQrTemplateField(field)) {
-            if (!certificateQr) return null;
-
-            const size = getTemplateFieldSize(field);
-
-            return (
-              <Image
-                key={field.id}
-                src={certificateQr}
-                style={{
-                  position: 'absolute',
-                  top: (Number(position.y) / 100) * PDF_PAGE.height - size / 2,
-                  left: (Number(position.x) / 100) * PDF_PAGE.width - size / 2,
-                  width: size,
-                  height: size,
-                }}
-              />
-            );
-          }
 
           if (!value) return null;
 
@@ -419,15 +360,13 @@ function ImportedTemplateCertificatePage({ course, member, formValues, template,
   );
 }
 
-function CertificatePdfDocument({ course, members, formValues, template, certificateQrs = {} }) {
+function CertificatePdfDocument({ course, members, formValues, template }) {
   return (
     <Document>
       {members.map((member) => {
         const memberName = getMemberFullName(member) || member.memberId || 'Miembro';
 
         if (template?.dataUrl) {
-          const qrKey = String(member.id || member.memberId || member.codigoMiembro || '');
-
           return (
             <ImportedTemplateCertificatePage
               key={member.id}
@@ -435,7 +374,6 @@ function CertificatePdfDocument({ course, members, formValues, template, certifi
               member={member}
               template={template}
               formValues={formValues}
-              certificateQr={certificateQrs[qrKey] || certificateQrs[String(member.memberId || '')]}
             />
           );
         }
@@ -539,60 +477,6 @@ const downloadPdfBlob = (blob, fileName) => {
   URL.revokeObjectURL(objectUrl);
 };
 
-const isRemoteImageUrl = (value = '') => /^https?:\/\//i.test(String(value));
-
-const blobToDataUrl = (blob) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-
-const buildQrCodeDataUrl = (value) =>
-  QRCode.toDataURL(value || 'Certificado pendiente', {
-    margin: 1,
-    width: 512,
-    errorCorrectionLevel: 'M',
-    color: {
-      dark: '#000000',
-      light: '#FFFFFF',
-    },
-  });
-
-const resolveTemplateForPdf = async (template) => {
-  const imageSource = template?.pdfDataUrl || template?.dataUrl || template?.previewImageUrl;
-
-  if (!template || !imageSource) {
-    return template;
-  }
-
-  if (!isRemoteImageUrl(imageSource)) {
-    return {
-      ...template,
-      dataUrl: imageSource,
-    };
-  }
-
-  try {
-    const response = await fetch(imageSource);
-
-    if (!response.ok) {
-      throw new Error('No se pudo cargar la imagen del certificado.');
-    }
-
-    return {
-      ...template,
-      dataUrl: await blobToDataUrl(await response.blob()),
-    };
-  } catch {
-    throw new Error(
-      'Esta plantilla no tiene una imagen embebible para PDF. Abre la plantilla, reemplaza el archivo y guarda nuevamente.'
-    );
-  }
-};
-
 const loadImportedTemplates = () => {
   try {
     const raw = window.localStorage.getItem(CERTIFICATE_TEMPLATES_STORAGE_KEY);
@@ -613,7 +497,8 @@ const saveImportedTemplates = (templates) => {
   window.localStorage.setItem(CERTIFICATE_TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
 };
 
-const getTemplatesFromLocalStorage = () => loadImportedTemplates();
+const getSecurityTemplatesFromLocalStorage = () =>
+  loadImportedTemplates().filter((template) => normalizeText(template.name).includes('seguridad'));
 
 const convertPdfFileToImageDataUrl = async (file) => {
   const pdfjs = await import('pdfjs-dist/build/pdf.mjs');
@@ -660,7 +545,6 @@ export function CertificatesAutomationView() {
   const [members, setMembers] = useState([]);
   const [currentTab, setCurrentTab] = useState('create');
   const [loadingMembers, setLoadingMembers] = useState(true);
-  const [loadingCertificateData, setLoadingCertificateData] = useState(true);
   const [search, setSearch] = useState('');
   const [courseId, setCourseId] = useState(DEFAULT_COURSE.id);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
@@ -726,30 +610,14 @@ export function CertificatesAutomationView() {
   useEffect(() => {
     const loadCertificateData = async () => {
       try {
-        setLoadingCertificateData(true);
         const [remoteTemplates, remoteBatches] = await Promise.all([
           listarPlantillasCertificados(),
           listarLotesCertificados(),
         ]);
-        const localTemplates = getTemplatesFromLocalStorage();
-        const enrichedRemoteTemplates = remoteTemplates.map((remoteTemplate) => {
-          const localTemplate = localTemplates.find(
-            (item) =>
-              item.id === remoteTemplate.id ||
-              normalizeText(item.name) === normalizeText(remoteTemplate.name)
-          );
-
-          return {
-            ...remoteTemplate,
-            pdfDataUrl:
-              remoteTemplate.pdfDataUrl ||
-              localTemplate?.pdfDataUrl ||
-              (!isRemoteImageUrl(localTemplate?.dataUrl) ? localTemplate?.dataUrl : ''),
-          };
-        });
-        const missingTemplates = localTemplates.filter(
+        const localSecurityTemplates = getSecurityTemplatesFromLocalStorage();
+        const missingSecurityTemplates = localSecurityTemplates.filter(
           (localTemplate) =>
-            !enrichedRemoteTemplates.some(
+            !remoteTemplates.some(
               (remoteTemplate) =>
                 remoteTemplate.id === localTemplate.id ||
                 normalizeText(remoteTemplate.name) === normalizeText(localTemplate.name)
@@ -757,25 +625,25 @@ export function CertificatesAutomationView() {
         );
 
         const migratedTemplates = await Promise.all(
-          missingTemplates.map((template) =>
+          missingSecurityTemplates.map((template) =>
             guardarPlantillaCertificado({ template, user }).catch(() => null)
           )
         );
-        const templates = [...migratedTemplates.filter(Boolean), ...enrichedRemoteTemplates];
+        const templates = [
+          ...migratedTemplates.filter(Boolean),
+          ...remoteTemplates,
+        ].filter((template) => normalizeText(template.name).includes('seguridad'));
 
         setImportedTemplates(templates);
-        saveImportedTemplates(templates);
         setSelectedTemplateId(templates[0]?.id || '');
         setCreatedBatches(remoteBatches.length ? remoteBatches : loadCertificateBatches());
       } catch (error) {
-        const localTemplates = getTemplatesFromLocalStorage();
+        const localTemplates = getSecurityTemplatesFromLocalStorage();
 
         setImportedTemplates(localTemplates);
         setSelectedTemplateId(localTemplates[0]?.id || '');
         setCreatedBatches(loadCertificateBatches());
         toast.error(error?.message || 'No se pudieron cargar los certificados desde Firebase.');
-      } finally {
-        setLoadingCertificateData(false);
       }
     };
 
@@ -906,10 +774,9 @@ export function CertificatesAutomationView() {
           sourceType: 'pdf',
           pageCount,
           dataUrl,
-          pdfDataUrl: dataUrl,
         }));
 
-        toast.success('PDF convertido a plantilla usando la primera pÃ¡gina.');
+        toast.success('PDF convertido a plantilla.');
       } catch (error) {
         toast.error(error?.message || 'No se pudo convertir el PDF.');
       } finally {
@@ -929,7 +796,6 @@ export function CertificatesAutomationView() {
         sourceType: 'image',
         pageCount: 0,
         dataUrl: String(reader.result || ''),
-        pdfDataUrl: String(reader.result || ''),
       }));
     };
 
@@ -1064,14 +930,8 @@ export function CertificatesAutomationView() {
     const startWidth = Number(field?.width || 220);
 
     const handlePointerMove = (moveEvent) => {
-      const nextWidth = Math.max(
-        isQrTemplateField(field) ? 32 : 80,
-        Math.round(startWidth + moveEvent.clientX - startX)
-      );
-      handleUpdateTemplateField(
-        fieldId,
-        isQrTemplateField(field) ? { width: nextWidth, size: nextWidth } : { width: nextWidth }
-      );
+      const nextWidth = Math.max(80, Math.round(startWidth + moveEvent.clientX - startX));
+      handleUpdateTemplateField(fieldId, { width: nextWidth });
     };
 
     const handlePointerUp = () => {
@@ -1091,11 +951,6 @@ export function CertificatesAutomationView() {
 
     if (!templateDraft.dataUrl) {
       toast.error('Importa una imagen del certificado.');
-      return;
-    }
-
-    if (isRemoteImageUrl(templateDraft.dataUrl) && !templateDraft.pdfDataUrl) {
-      toast.error('Reemplaza el archivo de la plantilla antes de guardar para que el PDF no salga en blanco.');
       return;
     }
 
@@ -1177,7 +1032,14 @@ export function CertificatesAutomationView() {
 
       if (!batch) return;
 
-      const pdfTemplate = await resolveTemplateForPdf(selectedTemplate);
+      const blob = await pdf(
+        <CertificatePdfDocument
+          course={selectedCourse}
+          members={selectedMembers}
+          template={selectedTemplate}
+          formValues={formValues}
+        />
+      ).toBlob();
       const certificateFiles = await Promise.all(
         selectedMembers.map(async (member) => ({
           member: {
@@ -1189,53 +1051,13 @@ export function CertificatesAutomationView() {
             <CertificatePdfDocument
               course={selectedCourse}
               members={[member]}
-              template={pdfTemplate}
+              template={selectedTemplate}
               formValues={formValues}
             />
           ).toBlob(),
         }))
       );
-      const savedBatch = await guardarLoteCertificados({
-        batch,
-        certificateFiles,
-        user,
-        buildFinalBlob: async ({ member, pdfUrl }) => {
-          const qrDataUrl = await buildQrCodeDataUrl(pdfUrl);
-          const qrKey = String(member.id || member.memberId || member.codigoMiembro || '');
-
-          return pdf(
-            <CertificatePdfDocument
-              course={selectedCourse}
-              members={[member]}
-              template={pdfTemplate}
-              formValues={formValues}
-              certificateQrs={{ [qrKey]: qrDataUrl, [String(member.memberId || '')]: qrDataUrl }}
-            />
-          ).toBlob();
-        },
-      });
-      const certificateQrs = {};
-
-      await Promise.all(
-        savedBatch.certificates.map(async (certificate) => {
-          const qrDataUrl = await buildQrCodeDataUrl(certificate.pdfUrl);
-
-          [certificate.memberDocId, certificate.memberId, certificate.id]
-            .filter(Boolean)
-            .forEach((key) => {
-              certificateQrs[String(key)] = qrDataUrl;
-            });
-        })
-      );
-      const blob = await pdf(
-        <CertificatePdfDocument
-          course={selectedCourse}
-          members={selectedMembers}
-          template={pdfTemplate}
-          formValues={formValues}
-          certificateQrs={certificateQrs}
-        />
-      ).toBlob();
+      const savedBatch = await guardarLoteCertificados({ batch, certificateFiles, user });
 
       setCreatedBatches((current) => {
         const next = [savedBatch, ...current.filter((item) => item.id !== savedBatch.id)].slice(
@@ -1261,19 +1083,12 @@ export function CertificatesAutomationView() {
 
     try {
       setDownloadingCertificateId(certificateId);
-      const pdfTemplate = await resolveTemplateForPdf(template);
-      const qrValue = member.pdfUrl || member.url || '';
-      const qrDataUrl = qrValue ? await buildQrCodeDataUrl(qrValue) : '';
       const blob = await pdf(
         <CertificatePdfDocument
           course={course}
           members={[member]}
-          template={pdfTemplate}
+          template={template}
           formValues={values}
-          certificateQrs={{
-            [String(member.id || '')]: qrDataUrl,
-            [String(member.memberId || '')]: qrDataUrl,
-          }}
         />
       ).toBlob();
 
@@ -1285,26 +1100,7 @@ export function CertificatesAutomationView() {
     }
   };
 
-  const renderTableSkeletonRows = (rows = 5, columns = 5) =>
-    Array.from({ length: rows }, (_, rowIndex) => (
-      <TableRow key={`skeleton-${rowIndex}`}>
-        {Array.from({ length: columns }, (__, columnIndex) => (
-          <TableCell key={`skeleton-${rowIndex}-${columnIndex}`}>
-            <Skeleton
-              variant={columnIndex === 0 ? 'circular' : 'text'}
-              width={columnIndex === 0 ? 22 : columnIndex === columns - 1 ? 86 : '80%'}
-              height={columnIndex === 0 ? 22 : 28}
-            />
-          </TableCell>
-        ))}
-      </TableRow>
-    ));
-
   const renderDownloadButton = () => {
-    if (loadingCertificateData) {
-      return <Skeleton variant="rounded" width="100%" height={48} />;
-    }
-
     if (!selectedMembers.length) {
       return (
         <Button
@@ -1356,11 +1152,7 @@ export function CertificatesAutomationView() {
           <Chip
             color="primary"
             variant="soft"
-            label={
-              loadingCertificateData
-                ? 'Cargando...'
-                : `${createdBatches.length} lote${createdBatches.length === 1 ? '' : 's'}`
-            }
+            label={`${createdBatches.length} lote${createdBatches.length === 1 ? '' : 's'}`}
           />
         </Stack>
       </Stack>
@@ -1381,9 +1173,7 @@ export function CertificatesAutomationView() {
             </TableHead>
 
             <TableBody>
-              {loadingCertificateData && renderTableSkeletonRows(5, 7)}
-
-              {!loadingCertificateData && createdBatches.map((batch) => (
+              {createdBatches.map((batch) => (
                 <TableRow key={batch.id} hover>
                   <TableCell>
                     <Typography variant="subtitle2">{batch.id}</Typography>
@@ -1422,7 +1212,7 @@ export function CertificatesAutomationView() {
                 </TableRow>
               ))}
 
-              {!loadingCertificateData && !createdBatches.length && (
+              {!createdBatches.length && (
                 <TableRow>
                   <TableCell colSpan={7}>
                     <Box sx={{ py: 8, textAlign: 'center' }}>
@@ -1590,7 +1380,6 @@ export function CertificatesAutomationView() {
                 fullWidth
                 size="small"
                 disabled={!selectedTemplateField}
-                helperText={isQrTemplateField(selectedTemplateField) ? 'El QR no usa tipo de letra.' : ''}
                 value={normalizeTemplateFont(selectedTemplateField?.fontFamily)}
                 onChange={(event) =>
                   handleUpdateTemplateField(selectedTemplateFieldId, {
@@ -1619,9 +1408,6 @@ export function CertificatesAutomationView() {
                 const position =
                   templateDraft.positions?.[field.id] ||
                   DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
-                const sizeOptions = isQrTemplateField(field)
-                  ? TEMPLATE_QR_SIZE_OPTIONS
-                  : TEMPLATE_FONT_SIZE_OPTIONS;
 
                 return (
                   <Stack
@@ -1652,17 +1438,12 @@ export function CertificatesAutomationView() {
                       <TextField
                         select
                         size="small"
-                        value={isQrTemplateField(field) ? getTemplateFieldSize(field) : field.fontSize ?? ''}
+                        value={field.fontSize ?? ''}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) =>
-                          isQrTemplateField(field)
-                            ? handleUpdateTemplateField(field.id, {
-                              size: Number(event.target.value) || 72,
-                              width: Number(event.target.value) || 72,
-                            })
-                            : handleUpdateTemplateField(field.id, {
-                              fontSize: Number(event.target.value) || 14,
-                            })
+                          handleUpdateTemplateField(field.id, {
+                            fontSize: Number(event.target.value) || 14,
+                          })
                         }
                         sx={{
                           width: 66,
@@ -1679,7 +1460,7 @@ export function CertificatesAutomationView() {
                           },
                         }}
                       >
-                        {sizeOptions.map((size) => (
+                        {TEMPLATE_FONT_SIZE_OPTIONS.map((size) => (
                           <MenuItem key={size} value={size}>
                             {size}
                           </MenuItem>
@@ -1835,7 +1616,7 @@ export function CertificatesAutomationView() {
                     position: 'absolute',
                     bgcolor: 'primary.main',
                     pointerEvents: 'none',
-                        transform: 'translateY(-50%)',
+                    transform: 'translateY(-50%)',
                     boxShadow: '0 0 0 1px rgba(255,255,255,0.72)',
                   }}
                 />
@@ -1857,9 +1638,9 @@ export function CertificatesAutomationView() {
                         handleMoveTemplateField(field.id, event);
                       }}
                       sx={{
-                        px: isQrTemplateField(field) ? 0.5 : 1,
-                        py: isQrTemplateField(field) ? 0.5 : 0.5,
-                        width: isQrTemplateField(field) ? getTemplateFieldSize(field) : field.width || 220,
+                        px: 1,
+                        py: 0.5,
+                        width: field.width || 220,
                         borderRadius: 0.75,
                         position: 'absolute',
                         left: `${position.x}%`,
@@ -1904,51 +1685,30 @@ export function CertificatesAutomationView() {
                         }}
                         onPointerDown={(event) => handleResizeTemplateField(field.id, event)}
                         sx={{
-                          top: isQrTemplateField(field) ? 'auto' : 'calc(50% + 8px)',
-                          right: isQrTemplateField(field) ? -7 : -7,
-                          bottom: isQrTemplateField(field) ? -7 : 'auto',
-                          width: isQrTemplateField(field) ? 16 : 12,
-                          height: isQrTemplateField(field) ? 16 : 28,
+                          top: 'calc(50% + 8px)',
+                          right: -7,
+                          width: 12,
+                          height: 28,
                           zIndex: 2,
                           borderRadius: 1,
-                          cursor: isQrTemplateField(field) ? 'nwse-resize' : 'ew-resize',
+                          cursor: 'ew-resize',
                           position: 'absolute',
                           bgcolor: 'background.paper',
                           border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                          transform: isQrTemplateField(field) ? 'none' : 'translateY(-50%)',
+                          transform: 'translateY(-50%)',
                           '&::before': {
                             content: '""',
-                            width: isQrTemplateField(field) ? 7 : 2,
-                            height: isQrTemplateField(field) ? 7 : 14,
-                            right: isQrTemplateField(field) ? 3 : 'auto',
-                            bottom: isQrTemplateField(field) ? 3 : 'auto',
-                            top: isQrTemplateField(field) ? 'auto' : 6,
-                            left: isQrTemplateField(field) ? 'auto' : 4,
+                            width: 2,
+                            height: 14,
+                            top: 6,
+                            left: 4,
                             borderRadius: 1,
                             position: 'absolute',
-                            bgcolor: isQrTemplateField(field) ? 'transparent' : 'text.disabled',
-                            borderRight: isQrTemplateField(field)
-                              ? (theme) => `solid 2px ${theme.vars.palette.text.disabled}`
-                              : 'none',
-                            borderBottom: isQrTemplateField(field)
-                              ? (theme) => `solid 2px ${theme.vars.palette.text.disabled}`
-                              : 'none',
+                            bgcolor: 'text.disabled',
                           },
                         }}
                       />
-                      {isQrTemplateField(field) ? (
-                        <Box
-                          component="img"
-                          src={SAMPLE_QR_CODE_SRC}
-                          alt="QR de ejemplo"
-                          sx={{
-                            width: 1,
-                            aspectRatio: '1 / 1',
-                            display: 'block',
-                            bgcolor: 'common.white',
-                          }}
-                        />
-                      ) : field.kind === 'custom' ? (
+                      {field.kind === 'custom' ? (
                         <Box
                           component="span"
                           contentEditable
@@ -2086,53 +1846,43 @@ export function CertificatesAutomationView() {
                   </Typography>
                 </Box>
 
-                {loadingCertificateData ? (
-                  <Stack spacing={2.5}>
-                    <Skeleton variant="rounded" width="100%" height={62} />
-                    <Skeleton variant="rounded" width="100%" height={62} />
-                    <Skeleton variant="rounded" width="100%" height={62} />
-                  </Stack>
-                ) : (
-                  <>
-                    <TextField
-                      select
-                      fullWidth
-                      label="Curso"
-                      value={courseSelectValue}
-                      onChange={(event) => handleCourseSelect(event.target.value)}
+                <TextField
+                  select
+                  fullWidth
+                  label="Curso"
+                  value={courseSelectValue}
+                  onChange={(event) => handleCourseSelect(event.target.value)}
+                >
+                  {!importedTemplates.length && (
+                    <MenuItem value={`${DEFAULT_COURSE_PREFIX}${DEFAULT_COURSE.id}`} disabled>
+                      Importa la plantilla Seguridad
+                    </MenuItem>
+                  )}
+                  {importedTemplates.map((template) => (
+                    <MenuItem
+                      key={template.id}
+                      value={`${IMPORTED_TEMPLATE_COURSE_PREFIX}${template.id}`}
                     >
-                      {!importedTemplates.length && (
-                        <MenuItem value={`${DEFAULT_COURSE_PREFIX}${DEFAULT_COURSE.id}`} disabled>
-                          Importa una plantilla
-                        </MenuItem>
-                      )}
-                      {importedTemplates.map((template) => (
-                        <MenuItem
-                          key={template.id}
-                          value={`${IMPORTED_TEMPLATE_COURSE_PREFIX}${template.id}`}
-                        >
-                          {template.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      {template.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="Fecha de emisión"
-                      value={formValues.issuedAt}
-                      onChange={handleFormValue('issuedAt')}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                    />
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Fecha de emisión"
+                  value={formValues.issuedAt}
+                  onChange={handleFormValue('issuedAt')}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
 
-                    <TextField
-                      fullWidth
-                      label="Instructor / firma"
-                      value={formValues.instructor}
-                      onChange={handleFormValue('instructor')}
-                    />
-                  </>
-                )}
+                <TextField
+                  fullWidth
+                  label="Instructor / firma"
+                  value={formValues.instructor}
+                  onChange={handleFormValue('instructor')}
+                />
 
               </Stack>
             </Card>
@@ -2141,12 +1891,7 @@ export function CertificatesAutomationView() {
               <Stack spacing={2}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Typography variant="subtitle1">Vista previa</Typography>
-                  {loadingCertificateData ? (
-                    <Stack direction="row" spacing={0.75}>
-                      <Skeleton variant="rounded" width={32} height={32} />
-                      <Skeleton variant="rounded" width={32} height={32} />
-                    </Stack>
-                  ) : selectedTemplate ? (
+                  {selectedTemplate ? (
                     <Stack direction="row" spacing={0.75} alignItems="center">
                       <Tooltip title="Modificar plantilla">
                         <IconButton
@@ -2188,13 +1933,7 @@ export function CertificatesAutomationView() {
                   )}
                 </Stack>
 
-                {loadingCertificateData ? (
-                  <Skeleton
-                    variant="rounded"
-                    width="100%"
-                    sx={{ aspectRatio: '1.414 / 1', borderRadius: 1 }}
-                  />
-                ) : selectedTemplate ? (
+                {selectedTemplate ? (
                   <Box
                     sx={{
                       position: 'relative',
@@ -2215,20 +1954,14 @@ export function CertificatesAutomationView() {
                       const position =
                         selectedTemplate.positions?.[field.id] ||
                         DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
-                      const previewQrSize = Math.max(
-                        18,
-                        Math.round(getTemplateFieldSize(field) * 0.5)
-                      );
 
                       return (
                         <Box
                           key={field.id}
                           sx={{
-                            px: isQrTemplateField(field) ? 0.25 : 0.75,
+                            px: 0.75,
                             py: 0.25,
-                            width: isQrTemplateField(field)
-                              ? previewQrSize
-                              : Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
+                            width: Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
                             borderRadius: 0.75,
                             position: 'absolute',
                             left: `${position.x}%`,
@@ -2241,21 +1974,7 @@ export function CertificatesAutomationView() {
                             transform: 'translate(-50%, -50%)',
                           }}
                         >
-                          {isQrTemplateField(field) ? (
-                            <Box
-                              component="img"
-                              src={SAMPLE_QR_CODE_SRC}
-                              alt="QR de ejemplo"
-                              sx={{
-                                width: 1,
-                                aspectRatio: '1 / 1',
-                                display: 'block',
-                                bgcolor: 'common.white',
-                              }}
-                            />
-                          ) : (
-                            getTemplateFieldPreview(field)
-                          )}
+                          {getTemplateFieldPreview(field)}
                         </Box>
                       );
                     })}
@@ -2322,37 +2041,29 @@ export function CertificatesAutomationView() {
                   </Typography>
                 </Box>
 
-                {loadingMembers ? (
-                  <Skeleton variant="rounded" width={132} height={32} />
-                ) : (
-                  <Chip
-                    color="primary"
-                    variant="soft"
-                    label={`${selectedMembers.length} seleccionado${selectedMembers.length === 1 ? '' : 's'
-                      }`}
-                  />
-                )}
+                <Chip
+                  color="primary"
+                  variant="soft"
+                  label={`${selectedMembers.length} seleccionado${selectedMembers.length === 1 ? '' : 's'
+                    }`}
+                />
               </Stack>
 
-              {loadingMembers ? (
-                <Skeleton variant="rounded" width="100%" height={56} />
-              ) : (
-                <TextField
-                  fullWidth
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por nombre o código"
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Iconify icon="solar:magnifer-linear" />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                />
-              )}
+              <TextField
+                fullWidth
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por nombre o código"
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="solar:magnifer-linear" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
             </Stack>
 
             <TableContainer sx={{ maxHeight: 560 }}>
@@ -2377,7 +2088,21 @@ export function CertificatesAutomationView() {
 
                   <TableBody>
                     {loadingMembers ? (
-                      renderTableSkeletonRows(8, 5)
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <Stack
+                            spacing={1}
+                            alignItems="center"
+                            justifyContent="center"
+                            sx={{ py: 8 }}
+                          >
+                            <CircularProgress size={28} />
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              Cargando miembros...
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       filteredMembers.map((member) => {
                         const memberId = String(member.id);

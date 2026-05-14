@@ -5,16 +5,19 @@ import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Radio from '@mui/material/Radio';
+import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
+import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import RadioGroup from '@mui/material/RadioGroup';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -106,13 +109,6 @@ const getFilterOptionValue = (option) => option?.value ?? option;
 
 const getFilterOptionLabel = (option) =>
   String(option?.label ?? getFilterOptionValue(option) ?? '');
-
-const getFilterAutocompleteValue = (selectedValues = [], items = []) =>
-  selectedValues.map((value) => {
-    const found = items.find((item) => String(getFilterOptionValue(item)) === String(value));
-
-    return found || { value, label: String(value) };
-  });
 
 const getDownloadAutocompleteValue = (selectedValues, items) => {
   const normalizedItems = normalizeDownloadOptions(items);
@@ -483,42 +479,42 @@ export function MemberTableToolbar({
     );
   };
 
-  const renderFilterAutocomplete = (key, label, items, value, onChange) => (
-    <Autocomplete
-      multiple
-      disableCloseOnSelect
-      options={items || []}
-      value={getFilterAutocompleteValue(value, items || [])}
-      isOptionEqualToValue={(option, selectedOption) =>
-        String(getFilterOptionValue(option)) === String(getFilterOptionValue(selectedOption))
-      }
-      getOptionLabel={getFilterOptionLabel}
-      onChange={(event, selectedOptions) =>
-        onChange({
-          ...event,
-          target: {
-            value: selectedOptions.map(getFilterOptionValue),
-          },
-        })
-      }
-      renderOption={(props, option, { selected }) => {
-        const { key: optionKey, ...optionProps } = props;
+  const renderFilterSelect = (key, label, items, value, onChange) => (
+    <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
+      <InputLabel htmlFor={`filter-${key}-select`}>{label}</InputLabel>
+      <Select
+        multiple
+        label={label}
+        value={value}
+        onChange={onChange}
+        renderValue={(selected) =>
+          selected
+            .map((selectedValue) => {
+              const found = (items || []).find(
+                (item) => String(getFilterOptionValue(item)) === String(selectedValue)
+              );
 
-        return (
-          <li key={`${key}-${getFilterOptionValue(option)}-${optionKey}`} {...optionProps}>
-            <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
-            {getFilterOptionLabel(option)}
-          </li>
-        );
-      }}
-      renderInput={(params) => <TextField {...params} label={label} />}
-      sx={{ flexShrink: 0, width: { md: 180 } }}
-      slotProps={{
-        paper: {
-          sx: { maxHeight: 250 },
-        },
-      }}
-    />
+              return found ? getFilterOptionLabel(found) : selectedValue;
+            })
+            .join(', ')
+        }
+        inputProps={{ id: `filter-${key}-select` }}
+        MenuProps={{
+          slotProps: { paper: { sx: { maxHeight: 250 } } },
+        }}
+      >
+        {(items || []).map((option, index) => {
+          const optionValue = getFilterOptionValue(option);
+
+          return (
+            <MenuItem key={`${key}-${optionValue}-${index}`} value={optionValue}>
+              <Checkbox size="small" checked={value.includes(optionValue)} />
+              {getFilterOptionLabel(option)}
+            </MenuItem>
+          );
+        })}
+      </Select>
+    </FormControl>
   );
 
   const downloadSectionalOptions = getSectionalOptionsByRegion(
@@ -709,7 +705,7 @@ export function MemberTableToolbar({
         {/* boton de filtro para desktop */}
         {!isMobile && (
           <>
-            {renderFilterAutocomplete(
+            {renderFilterSelect(
               'destName',
               'Destacamento',
               options.destName,
@@ -717,7 +713,7 @@ export function MemberTableToolbar({
               handleFilterdestName
             )}
 
-            {renderFilterAutocomplete(
+            {renderFilterSelect(
               'memberPosition',
               'Posición',
               options.memberPosition,
@@ -725,7 +721,7 @@ export function MemberTableToolbar({
               handleFilterMemberPosition
             )}
 
-            {renderFilterAutocomplete(
+            {renderFilterSelect(
               'sectionalId',
               'Sección',
               options.sectionalId,

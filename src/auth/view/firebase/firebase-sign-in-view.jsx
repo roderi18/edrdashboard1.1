@@ -22,6 +22,7 @@ import { RouterLink } from 'src/routes/components';
 import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 
+import { CONFIG } from 'src/global-config';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
 
 import { Iconify } from 'src/components/iconify';
@@ -149,7 +150,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
       await signInWithPassword({ email: authEmail, password: data.password });
       await checkUserSession?.();
 
-      router.replace(paths.dashboard.root);
+      router.replace(CONFIG.auth.redirectPath);
     } catch (error) {
       if (!expectedAuthErrorCodes.includes(error?.code)) {
         console.error(error);
@@ -172,7 +173,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
       await signInWithGoogle();
       await checkUserSession?.();
 
-      router.replace(paths.dashboard.root);
+      router.replace(CONFIG.auth.redirectPath);
     } catch (error) {
       if (!expectedAuthErrorCodes.includes(error?.code)) {
         console.error(error);

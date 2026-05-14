@@ -29,6 +29,7 @@ const MODULOS_CATEGORIAS = {
   pedidos: 'Pedidos',
   permisos: 'Permisos',
   productos: 'Productos',
+  publicaciones: 'Publicaciones',
 };
 
 const TIPOS_VISUALES = {
@@ -47,6 +48,7 @@ const TIPOS_VISUALES = {
   perfil_actualizado: 'project',
   producto_disponible_nuevamente: 'delivery',
   producto_publicado: 'tags',
+  publicacion_reportada: 'mail',
   producto_resena_baja: 'chat',
   producto_sin_stock: 'order',
   producto_stock_bajo: 'file',
@@ -80,9 +82,9 @@ const construirTituloHtml = (notificacion) => {
   const mensaje =
     escapeHtml(
       notificacion.mensajeVisual ||
-      notificacion.mensaje ||
-      notificacion.titulo ||
-      'Tienes una nueva notificación.'
+        notificacion.mensaje ||
+        notificacion.titulo ||
+        'Tienes una nueva notificación.'
     ) || 'Tienes una nueva notificación.';
 
   return `<p><strong>${actorNombre}</strong> ${mensaje}</p>`;
@@ -90,7 +92,7 @@ const construirTituloHtml = (notificacion) => {
 
 const aIsoConDesfase = ({ minutes = 0, hours = 0, days = 0 }) => {
   const now = new Date();
-  const offsetMs = (((days * 24) + hours) * 60 + minutes) * 60 * 1000;
+  const offsetMs = ((days * 24 + hours) * 60 + minutes) * 60 * 1000;
   return new Date(now.getTime() - offsetMs).toISOString();
 };
 
@@ -154,8 +156,7 @@ const obtenerIdsAdministradoresNotificaciones = async (usuarioActual = {}) => {
       snapshot.docs.forEach((item) => {
         const data = item.data() ?? {};
         const rol = String(data.rol ?? data.role ?? '').toLowerCase();
-        const esAdmin =
-          collectionName === 'admins' || rol === 'admin' || rol === 'administrador';
+        const esAdmin = collectionName === 'admins' || rol === 'admin' || rol === 'administrador';
 
         if (!esAdmin) return;
 
@@ -492,7 +493,8 @@ export async function crearNotificacionArchivosFaltantesPedido({
   const ordenId = orden?.ordenId || orden?.id || '';
   const { numeroOrden, clienteNombre } = construirDescripcionPedido(orden);
   const cantidadArchivos = archivos.length;
-  const archivoTexto = cantidadArchivos === 1 ? 'un archivo faltante' : `${cantidadArchivos} archivos faltantes`;
+  const archivoTexto =
+    cantidadArchivos === 1 ? 'un archivo faltante' : `${cantidadArchivos} archivos faltantes`;
   const actorNombre =
     usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Miembro';
   const notificationId = `pedido_archivos_faltantes_${ordenId || Date.now()}_${Date.now()}`;
@@ -629,6 +631,83 @@ export async function crearNotificacionResenaProductoBaja({
     notificacion,
     { merge: true }
   );
+
+  return notificacion;
+}
+
+export async function crearNotificacionReportePublicacion({
+  publicacion = {},
+  razon = '',
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const idsAdministradores = await obtenerIdsAdministradoresNotificaciones(usuario);
+
+  if (!idsAdministradores.length) {
+    return null;
+  }
+
+  const fechaActual = new Date().toISOString();
+  const idPublicacion =
+    publicacion?.idPublicacion || publicacion?.id || publicacion?.postId || Date.now();
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Usuario';
+  const actorId = String(usuario?.uid || usuario?.id || usuario?.idMiembros || 'usuario');
+  const notificationId = `publicacion_reportada_${idPublicacion}_${Date.now()}`;
+  const mensaje = `reporto una publicacion. Motivo: ${razon}.`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'publicacion_reportada',
+    modulo: 'publicaciones',
+    titulo: 'Publicacion reportada',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> reporto una publicacion</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'admin',
+    idsDestinatarios: idsAdministradores,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId,
+    actorTipo: 'usuario',
+    actorNombre,
+    actorFotoURL: usuario?.photoURL || null,
+    entidadTipo: 'publicacion',
+    entidadId: String(idPublicacion),
+    ruta: publicacion?.url || '/dashboard/principal',
+    imagenTipo: 'persona',
+    imagenURL: usuario?.photoURL || null,
+    miniaturaURL: usuario?.photoURL || null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver publicacion',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      idPublicacion,
+      razon,
+      mensajePublicacion: publicacion?.mensaje || publicacion?.message || '',
+      urlPublicacion: publicacion?.url || '',
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacion,
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
 
   return notificacion;
 }
@@ -967,7 +1046,10 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
   const usuarioId = String(idUsuario || '').trim();
   const leidaPor = Array.isArray(notificacion.leidaPor) ? notificacion.leidaPor.map(String) : [];
   const leidaPorUsuario = Boolean(usuarioId && leidaPor.includes(usuarioId));
-  const estado = leidaPorUsuario || notificacion.estado === 'leida' ? 'leida' : notificacion.estado || 'no_leida';
+  const estado =
+    leidaPorUsuario || notificacion.estado === 'leida'
+      ? 'leida'
+      : notificacion.estado || 'no_leida';
 
   return {
     id,
@@ -1024,7 +1106,8 @@ const agruparNotificacionesMensaje = (notificaciones = []) => {
 
     const cantidadMensajes = Number(current.cantidadMensajes || 1) + 1;
     const newest =
-      String(notificacion.fechaCreacion || '').localeCompare(String(current.fechaCreacion || '')) > 0
+      String(notificacion.fechaCreacion || '').localeCompare(String(current.fechaCreacion || '')) >
+      0
         ? notificacion
         : current;
     const hasUnread = current.estado !== 'leida' || notificacion.estado !== 'leida';

@@ -36,14 +36,12 @@ import { SignOutButton } from './sign-out-button';
 // ----------------------------------------------------------------------
 
 const getIdentityKeys = (values = []) =>
-  values
-    .filter(Boolean)
-    .flatMap((value) => {
-      const normalizedValue = String(value).trim().toLowerCase();
-      const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
+  values.filter(Boolean).flatMap((value) => {
+    const normalizedValue = String(value).trim().toLowerCase();
+    const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
 
-      return [normalizedValue, emailUser].filter(Boolean);
-    });
+    return [normalizedValue, emailUser].filter(Boolean);
+  });
 
 export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
@@ -141,15 +139,18 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       {data.map((option) => {
         const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Panel';
         const rootHref = pathname.includes('/dashboard') ? '/' : paths.dashboard.root;
+        const disabled = Boolean(option.disabled);
+        const href = option.label === 'Home' ? rootHref : option.href;
 
         return (
-          <MenuItem key={option.label}>
+          <MenuItem key={option.label} disabled={disabled}>
             <Link
-              component={RouterLink}
-              href={option.label === 'Home' ? rootHref : option.href}
+              component={disabled ? 'span' : RouterLink}
+              href={disabled ? undefined : href}
               color="inherit"
               underline="none"
-              onClick={onClose}
+              aria-disabled={disabled}
+              onClick={disabled ? undefined : onClose}
               sx={{
                 p: 1,
                 width: 1,
@@ -157,8 +158,9 @@ export function AccountDrawer({ data = [], sx, ...other }) {
                 typography: 'body2',
                 alignItems: 'center',
                 color: 'text.secondary',
+                cursor: disabled ? 'not-allowed' : 'pointer',
                 '& svg': { width: 24, height: 24 },
-                '&:hover': { color: 'text.primary' },
+                '&:hover': { color: disabled ? 'text.secondary' : 'text.primary' },
               }}
             >
               {option.icon}

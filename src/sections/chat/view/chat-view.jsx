@@ -49,10 +49,13 @@ export function ChatView() {
 
   const searchParams = useSearchParams();
   const selectedConversationId = searchParams.get('id') || '';
+  const sharedMessageParam = searchParams.get('share') || '';
 
   const { conversations, conversationsLoading } = useGetConversations(currentContact.idMiembros);
-  const { conversation, conversationError, conversationLoading } =
-    useGetConversation(selectedConversationId, currentContact.idMiembros);
+  const { conversation, conversationError, conversationLoading } = useGetConversation(
+    selectedConversationId,
+    currentContact.idMiembros
+  );
 
   const roomNav = useCollapseNav();
   const conversationsNav = useCollapseNav();
@@ -60,14 +63,21 @@ export function ChatView() {
   const [recipients, setRecipients] = useState([]);
   const [replyMessage, setReplyMessage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [sharedMessage, setSharedMessage] = useState('');
 
   useEffect(() => {
-    if (!selectedConversationId) {
+    if (!selectedConversationId && !sharedMessageParam) {
       startTransition(() => {
         router.push(paths.dashboard.chat);
       });
     }
-  }, [conversationError, router, selectedConversationId]);
+  }, [conversationError, router, selectedConversationId, sharedMessageParam]);
+
+  useEffect(() => {
+    if (sharedMessageParam) {
+      setSharedMessage(sharedMessageParam);
+    }
+  }, [sharedMessageParam]);
 
   useEffect(() => {
     if (!selectedConversationId || !currentContact.idMiembros || !conversation?.unreadCount) {
@@ -100,16 +110,15 @@ export function ChatView() {
     setEditingMessage(null);
   }, []);
 
+  const handleConsumeSharedMessage = useCallback(() => {
+    setSharedMessage('');
+  }, []);
+
   const handleReactMessage = useCallback(
     async (message, reaction) => {
       if (!selectedConversationId) return;
 
-      await reactMessage(
-        selectedConversationId,
-        message.id,
-        currentContact.idMiembros,
-        reaction
-      );
+      await reactMessage(selectedConversationId, message.id, currentContact.idMiembros, reaction);
     },
     [currentContact.idMiembros, selectedConversationId]
   );
@@ -228,6 +237,8 @@ export function ChatView() {
                 onClearReply={handleClearReply}
                 onClearEditing={handleClearEditing}
                 selectedConversationId={selectedConversationId}
+                sharedMessage={sharedMessage}
+                onConsumeSharedMessage={handleConsumeSharedMessage}
                 disabled={!recipients.length && !selectedConversationId}
               />
             </>

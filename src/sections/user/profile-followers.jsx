@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
@@ -10,6 +11,8 @@ import ListItemText from '@mui/material/ListItemText';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
+
+const getProfileHref = (person) => `/dashboard/user/${person?.id || 'profile'}`;
 
 export function ProfileFollowers({ followers }) {
   const _mockFollowed = followers.slice(4, 8).map((i) => i.id);
@@ -30,7 +33,7 @@ export function ProfileFollowers({ followers }) {
   return (
     <>
       <Typography variant="h4" sx={{ my: 5 }}>
-        Followers
+        Seguidores
       </Typography>
 
       <Box
@@ -68,14 +71,20 @@ function CardItem({ follower, selected, onSelected, sx, ...other }) {
       ]}
       {...other}
     >
-      <Avatar
-        alt={follower?.name}
-        src={follower?.avatarUrl}
-        sx={{ width: 48, height: 48, mr: 2 }}
-      />
+      <Link href={getProfileHref(follower)} color="inherit" underline="none">
+        <Avatar
+          alt={follower?.name}
+          src={follower?.avatarUrl}
+          sx={{ width: 48, height: 48, mr: 2 }}
+        />
+      </Link>
 
       <ListItemText
-        primary={follower?.name}
+        primary={
+          <Link href={getProfileHref(follower)} color="inherit">
+            {follower?.name}
+          </Link>
+        }
         secondary={
           <>
             <Iconify icon="mingcute:location-fill" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
@@ -106,7 +115,7 @@ function CardItem({ follower, selected, onSelected, sx, ...other }) {
         onClick={onSelected}
         sx={{ flexShrink: 0, ml: 1.5 }}
       >
-        {selected ? 'Followed' : 'Follow'}
+        {selected ? 'Siguiendo' : 'Seguir'}
       </Button>
     </Card>
   );

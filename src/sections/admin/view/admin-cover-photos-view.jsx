@@ -43,6 +43,7 @@ import { EmptyContent } from 'src/components/empty-content';
 const ALL_VALUES = 'all';
 
 const ALL_VALUE_OPTION = { id: ALL_VALUES, name: 'Todos' };
+const DISABLED_COVER_PHOTO_GROUPS = ['dests'];
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -359,7 +360,11 @@ export function AdminCoverPhotosView() {
             onChange={(event) => setActiveGroup(event.target.value)}
           >
             {COVER_PHOTO_GROUPS.map((group) => (
-              <MenuItem key={group.value} value={group.value}>
+              <MenuItem
+                key={group.value}
+                value={group.value}
+                disabled={DISABLED_COVER_PHOTO_GROUPS.includes(group.value)}
+              >
                 {group.label}
               </MenuItem>
             ))}

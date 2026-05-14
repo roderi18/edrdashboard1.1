@@ -94,6 +94,7 @@ export const paths = {
   dashboard: {
     root: ROOTS.DASHBOARD,
     principal: `${ROOTS.DASHBOARD}/principal`,
+    principal2: `${ROOTS.DASHBOARD}/principal2`,
     mail: `${ROOTS.DASHBOARD}/mail`,
     chat: `${ROOTS.DASHBOARD}/chat`,
     blank: `${ROOTS.DASHBOARD}/blank`,
@@ -118,6 +119,7 @@ export const paths = {
       cards: `${ROOTS.DASHBOARD}/user/cards`,
       profile: `${ROOTS.DASHBOARD}/user/profile`,
       account: `${ROOTS.DASHBOARD}/user/account`,
+      accountSettings: `${ROOTS.DASHBOARD}/user/account/settings`,
       edit: (id) => `${ROOTS.DASHBOARD}/user/${id}/edit`,
       demo: { edit: `${ROOTS.DASHBOARD}/user/${MOCK_ID}/edit` },
     },

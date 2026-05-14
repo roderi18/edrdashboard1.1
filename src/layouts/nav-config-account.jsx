@@ -16,12 +16,23 @@ export const _account = [
     href: '#',
     icon: <Iconify icon="solar:notes-bold-duotone" />,
     info: '3',
+    disabled: true,
   },
   {
     label: 'Suscripciones',
     href: '#',
     icon: <Iconify icon="custom:invoice-duotone" />,
+    disabled: true,
   },
-  { label: 'Seguridad', href: '#', icon: <Iconify icon="solar:shield-keyhole-bold-duotone" /> },
-  { label: 'Configuración', href: '#', icon: <Iconify icon="solar:settings-bold-duotone" /> },
+  {
+    label: 'Seguridad',
+    href: `${paths.dashboard.user.account}/change-password`,
+    icon: <Iconify icon="solar:shield-keyhole-bold-duotone" />,
+  },
+  {
+    label: 'Configuración',
+    href: paths.dashboard.user.accountSettings,
+    icon: <Iconify icon="solar:settings-bold-duotone" />,
+    disabled: true,
+  },
 ];
