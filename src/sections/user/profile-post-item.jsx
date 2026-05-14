@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from 'react';
 import { uuidv4, varAlpha } from 'minimal-shared/utils';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -128,11 +128,21 @@ const renderTextWithHashtags = (text = '') =>
       );
     });
 
-export function ProfilePostItem({ post, user: currentUser }) {
+export function ProfilePostItem({
+  post,
+  user: currentUser,
+  onAddComment,
+  onToggleLike,
+  onHidePost,
+  onUndoHidePost,
+  onSharePost,
+  onReportPost,
+}) {
   const router = useRouter();
 
   const { user: mockedUser } = useMockedUser();
   const user = currentUser || mockedUser;
+  const author = post.author || user;
 
   const fileRef = useRef(null);
   const commentRef = useRef(null);
@@ -141,6 +151,7 @@ export function ProfilePostItem({ post, user: currentUser }) {
   const [comments, setComments] = useState(post.comments || []);
   const [liked, setLiked] = useState(Boolean(post.isLikedByMe));
   const [commentImage, setCommentImage] = useState(null);
+  const [commentSending, setCommentSending] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState('Caras');
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -155,9 +166,26 @@ export function ProfilePostItem({ post, user: currentUser }) {
   const postMenuOpen = Boolean(menuAnchorEl);
   const shareMenuOpen = Boolean(shareAnchorEl);
   const mediaItems = post.mediaItems?.length ? post.mediaItems : post.media ? [post.media] : [];
-  const displayedLikes = liked
-    ? [{ name: user?.displayName, avatarUrl: user?.photoURL }, ...(post.personLikes || [])]
-    : post.personLikes || [];
+  const currentUserLike = {
+    idMiembros: user?.idMiembros,
+    name: user?.displayName,
+    avatarUrl: user?.photoURL,
+  };
+  const postLikes = post.personLikes || [];
+  const currentUserAlreadyListed = postLikes.some(
+    (person) =>
+      (person.idMiembros && user?.idMiembros && Number(person.idMiembros) === Number(user.idMiembros)) ||
+      (person.name && user?.displayName && person.name === user.displayName)
+  );
+  const displayedLikes =
+    liked && !currentUserAlreadyListed ? [currentUserLike, ...postLikes] : postLikes;
+  const authorName = author?.displayName || author?.name || 'Usuario';
+  const authorPhotoURL = author?.photoURL || author?.avatarUrl || '';
+
+  useEffect(() => {
+    setComments(post.comments || []);
+    setLiked(Boolean(post.isLikedByMe));
+  }, [post.comments, post.isLikedByMe]);
 
   const handleChangeMessage = useCallback((event) => {
     setMessage(event.target.value);
@@ -207,28 +235,39 @@ export function ProfilePostItem({ post, user: currentUser }) {
     setCommentImage(null);
   }, [commentImage]);
 
-  const handleSubmitComment = useCallback(() => {
+  const handleSubmitComment = useCallback(async () => {
     const nextMessage = message.trim();
 
+    if (commentSending) return;
     if (!nextMessage && !commentImage) return;
 
-    setComments((currentComments) => [
-      ...currentComments,
-      {
-        id: uuidv4(),
-        author: {
-          id: user?.id || user?.uid || 'usuario-actual',
-          avatarUrl: user?.photoURL,
-          name: user?.displayName || 'Usuario',
-        },
-        createdAt: new Date().toISOString(),
-        message: nextMessage,
-        imageUrl: commentImage?.previewUrl || '',
-      },
-    ]);
-    setMessage('');
-    setCommentImage(null);
-  }, [commentImage, message, user]);
+    setCommentSending(true);
+
+    try {
+      const nextComment = onAddComment
+        ? await onAddComment(post, { mensaje: nextMessage, imagen: commentImage })
+        : {
+            id: uuidv4(),
+            author: {
+              id: user?.id || user?.uid || 'usuario-actual',
+              avatarUrl: user?.photoURL,
+              name: user?.displayName || 'Usuario',
+            },
+            createdAt: new Date().toISOString(),
+            message: nextMessage,
+            imageUrl: commentImage?.previewUrl || '',
+          };
+
+      setComments((currentComments) => [...currentComments, nextComment]);
+      setMessage('');
+      setCommentImage(null);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo enviar el comentario.');
+    } finally {
+      setCommentSending(false);
+    }
+  }, [commentImage, commentSending, message, onAddComment, post, user]);
 
   const getPostShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return `${paths.dashboard.principal}#post-${post.id}`;
@@ -238,14 +277,26 @@ export function ProfilePostItem({ post, user: currentUser }) {
 
   const getShareText = useCallback(() => post.message || 'Publicacion compartida', [post.message]);
 
-  const handleHidePost = useCallback(() => {
+  const handleHidePost = useCallback(async () => {
     setMenuAnchorEl(null);
-    setHidden(true);
-  }, []);
+    try {
+      await onHidePost?.(post);
+      setHidden(true);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo ocultar el anuncio.');
+    }
+  }, [onHidePost, post]);
 
-  const handleUndoHidePost = useCallback(() => {
-    setHidden(false);
-  }, []);
+  const handleUndoHidePost = useCallback(async () => {
+    try {
+      await onUndoHidePost?.(post);
+      setHidden(false);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo deshacer la accion.');
+    }
+  }, [onUndoHidePost, post]);
 
   const handleOpenReportDialog = useCallback(() => {
     setMenuAnchorEl(null);
@@ -271,6 +322,8 @@ export function ProfilePostItem({ post, user: currentUser }) {
     const shareUrl = getPostShareUrl();
 
     try {
+      await onReportPost?.(post, { razon: nextReason, url: shareUrl });
+
       const notification = await crearNotificacionReportePublicacion({
         publicacion: {
           idPublicacion: post.id,
@@ -294,7 +347,7 @@ export function ProfilePostItem({ post, user: currentUser }) {
       setReportSending(false);
       toast.success('Reporte enviado al administrador.');
     }
-  }, [getPostShareUrl, post, reportReason, user]);
+  }, [getPostShareUrl, onReportPost, post, reportReason, user]);
 
   const handleCopyLink = useCallback(async () => {
     const shareUrl = getPostShareUrl();
@@ -302,26 +355,35 @@ export function ProfilePostItem({ post, user: currentUser }) {
     setShareAnchorEl(null);
 
     try {
+      await onSharePost?.(post, { tipoDestino: 'enlace', urlCompartida: shareUrl }).catch(
+        (error) => console.error(error)
+      );
       await navigator.clipboard?.writeText(shareUrl);
       toast.success('Enlace copiado.');
     } catch (error) {
       console.error(error);
       toast.error('No se pudo copiar el enlace.');
     }
-  }, [getPostShareUrl]);
+  }, [getPostShareUrl, onSharePost, post]);
 
   const handleShareToChat = useCallback(() => {
     const shareUrl = getPostShareUrl();
     const shareText = `${getShareText()}\n${shareUrl}`;
 
     setShareAnchorEl(null);
+    onSharePost?.(post, { tipoDestino: 'chat', urlCompartida: shareUrl }).catch((error) =>
+      console.error(error)
+    );
     router.push(`${paths.dashboard.chat}?share=${encodeURIComponent(shareText)}`);
-  }, [getPostShareUrl, getShareText, router]);
+  }, [getPostShareUrl, getShareText, onSharePost, post, router]);
 
   const handleNativeShare = useCallback(async () => {
     const shareUrl = getPostShareUrl();
 
     setShareAnchorEl(null);
+    onSharePost?.(post, { tipoDestino: 'otra_app', urlCompartida: shareUrl }).catch((error) =>
+      console.error(error)
+    );
 
     if (navigator.share) {
       try {
@@ -341,22 +403,22 @@ export function ProfilePostItem({ post, user: currentUser }) {
     window.location.href = `mailto:?subject=${encodeURIComponent('Publicacion compartida')}&body=${encodeURIComponent(
       `${getShareText()}\n${shareUrl}`
     )}`;
-  }, [getPostShareUrl, getShareText, user?.displayName]);
+  }, [getPostShareUrl, getShareText, onSharePost, post, user?.displayName]);
 
   const renderHead = () => (
     <>
       <CardHeader
         disableTypography
         avatar={
-          <Link href={getProfileHref(user)} color="inherit" underline="none">
-            <Avatar src={user?.photoURL} alt={user?.displayName}>
-              {user?.displayName?.charAt(0).toUpperCase()}
+          <Link href={getProfileHref(author)} color="inherit" underline="none">
+            <Avatar src={authorPhotoURL} alt={authorName}>
+              {authorName.charAt(0).toUpperCase()}
             </Avatar>
           </Link>
         }
         title={
-          <Link href={getProfileHref(user)} color="inherit" variant="subtitle1">
-            {user?.displayName}
+          <Link href={getProfileHref(author)} color="inherit" variant="subtitle1">
+            {authorName}
           </Link>
         }
         subheader={
@@ -501,7 +563,7 @@ export function ProfilePostItem({ post, user: currentUser }) {
               <IconButton
                 size="small"
                 color="primary"
-                disabled={!message.trim() && !commentImage}
+                disabled={commentSending || (!message.trim() && !commentImage)}
                 onClick={handleSubmitComment}
               >
                 <Iconify icon="solar:plain-bold" />
@@ -594,7 +656,20 @@ export function ProfilePostItem({ post, user: currentUser }) {
               color="error"
               icon={<Iconify icon="solar:heart-bold" />}
               checkedIcon={<Iconify icon="solar:heart-bold" />}
-              onChange={(event) => setLiked(event.target.checked)}
+              onChange={async (event) => {
+                const nextLiked = event.target.checked;
+                const previousLiked = liked;
+
+                setLiked(nextLiked);
+
+                try {
+                  await onToggleLike?.(post, nextLiked);
+                } catch (error) {
+                  console.error(error);
+                  setLiked(previousLiked);
+                  toast.error('No se pudo actualizar el like.');
+                }
+              }}
               slotProps={{
                 input: {
                   id: `favorite-${post.id}-checkbox`,

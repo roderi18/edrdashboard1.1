@@ -183,7 +183,15 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
         role: destacamentoLabel,
       }
     : _userAbout;
-  const user = { ...mockedUser, displayName, photoURL };
+  const user = useSessionProfile
+    ? {
+        ...mockedUser,
+        ...sessionUser,
+        displayName,
+        name: displayName,
+        photoURL,
+      }
+    : { ...mockedUser, displayName, photoURL };
 
   const handleSearchFriends = useCallback((event) => {
     setSearchFriends(event.target.value);

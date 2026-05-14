@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from 'react';
-import { uuidv4, varAlpha } from 'minimal-shared/utils';
+import { varAlpha } from 'minimal-shared/utils';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Fab from '@mui/material/Fab';
 import Box from '@mui/material/Box';
@@ -16,6 +16,17 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { fNumber } from 'src/utils/format-number';
 
 import { _appFeatured } from 'src/_mock';
+import {
+  getPrincipalMemberId,
+  crearPublicacionPrincipal,
+  crearComentarioPublicacion,
+  alternarReaccionPublicacion,
+  registrarReportePublicacion,
+  ocultarPublicacionPrincipal,
+  obtenerPublicacionesPrincipal,
+  registrarCompartidoPublicacion,
+  deshacerOcultarPublicacionPrincipal,
+} from 'src/services/principal-service';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -29,12 +40,50 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 export function ProfileHome({ info, posts, user, sx, ...other }) {
   const fileRef = useRef(null);
   const [feedPosts, setFeedPosts] = useState(posts);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [publishingPost, setPublishingPost] = useState(false);
   const [postMessage, setPostMessage] = useState('');
   const [postImages, setPostImages] = useState([]);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState('Caras');
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const usuarioIdMiembros = getPrincipalMemberId(user);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPosts = async () => {
+      setLoadingPosts(true);
+
+      try {
+        const nextPosts = await obtenerPublicacionesPrincipal({
+          usuarioIdMiembros,
+          mocks: posts,
+        });
+
+        if (active) {
+          setFeedPosts(nextPosts);
+        }
+      } catch (error) {
+        console.error(error);
+
+        if (active) {
+          setFeedPosts(posts);
+        }
+      } finally {
+        if (active) {
+          setLoadingPosts(false);
+        }
+      }
+    };
+
+    loadPosts();
+
+    return () => {
+      active = false;
+    };
+  }, [posts, usuarioIdMiembros]);
 
   const handleAttach = () => {
     if (fileRef.current) {
@@ -81,32 +130,132 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
     );
   }, []);
 
-  const handlePublishPost = useCallback(() => {
+  const handlePublishPost = useCallback(async () => {
     const nextMessage = postMessage.trim();
-    const mediaItems = postImages.map((image) => image.previewUrl);
 
-    if (!nextMessage && !mediaItems.length) return;
+    if (!nextMessage && !postImages.length) return;
 
-    setFeedPosts((currentPosts) => [
-      {
-        id: uuidv4(),
-        createdAt: new Date().toISOString(),
-        media: mediaItems[0] || '',
-        mediaItems,
-        message: nextMessage,
-        personLikes: [],
-        comments: [],
-        isLikedByMe: false,
-      },
-      ...currentPosts,
-    ]);
-    setPostMessage('');
-    setPostImages([]);
-  }, [postImages, postMessage]);
+    setPublishingPost(true);
 
-  const handleHidePost = useCallback((postId) => {
-    setFeedPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId));
-  }, []);
+    try {
+      const nextPost = await crearPublicacionPrincipal({
+        mensaje: nextMessage,
+        imagenes: postImages,
+        usuario: user,
+      });
+
+      setFeedPosts((currentPosts) => [nextPost, ...currentPosts]);
+      setPostMessage('');
+      postImages.forEach((image) => {
+        if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
+      });
+      setPostImages([]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setPublishingPost(false);
+    }
+  }, [postImages, postMessage, user]);
+
+  const handleAddComment = useCallback(
+    async (post, { mensaje, imagen }) => {
+      const nextComment = await crearComentarioPublicacion({
+        idPublicacion: post.id,
+        mensaje,
+        imagen,
+        usuario: user,
+      });
+
+      setFeedPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id
+            ? {
+                ...currentPost,
+                comments: [...(currentPost.comments || []), nextComment],
+                cantidadComentarios: Number(currentPost.cantidadComentarios || 0) + 1,
+              }
+            : currentPost
+        )
+      );
+
+      return nextComment;
+    },
+    [user]
+  );
+
+  const handleToggleLike = useCallback(
+    async (post, active) => {
+      const like = await alternarReaccionPublicacion({
+        idPublicacion: post.id,
+        usuario: user,
+        activo: active,
+      });
+
+      setFeedPosts((currentPosts) =>
+        currentPosts.map((currentPost) => {
+          if (currentPost.id !== post.id) return currentPost;
+
+          const personLikes = currentPost.personLikes || [];
+          const nextLikes = active
+            ? [
+                like,
+                ...personLikes.filter(
+                  (person) => Number(person.idMiembros) !== Number(like.idMiembros)
+                ),
+              ]
+            : personLikes.filter((person) => Number(person.idMiembros) !== Number(like.idMiembros));
+
+          return {
+            ...currentPost,
+            isLikedByMe: active,
+            personLikes: nextLikes,
+            cantidadLikes: nextLikes.length,
+          };
+        })
+      );
+
+      return like;
+    },
+    [user]
+  );
+
+  const handleHidePost = useCallback(
+    async (post) => {
+      await ocultarPublicacionPrincipal({ idPublicacion: post.id, usuario: user });
+    },
+    [user]
+  );
+
+  const handleUndoHidePost = useCallback(
+    async (post) => {
+      await deshacerOcultarPublicacionPrincipal({ idPublicacion: post.id, usuario: user });
+    },
+    [user]
+  );
+
+  const handleSharePost = useCallback(
+    async (post, { tipoDestino, idDestino = '', urlCompartida = '' }) => {
+      await registrarCompartidoPublicacion({
+        idPublicacion: post.id,
+        usuario: user,
+        tipoDestino,
+        idDestino,
+        urlCompartida,
+      });
+    },
+    [user]
+  );
+
+  const handleReportPost = useCallback(
+    async (post, { razon }) => {
+      await registrarReportePublicacion({
+        idPublicacion: post.id,
+        usuario: user,
+        razon,
+      });
+    },
+    [user]
+  );
 
   const renderFollows = () => (
     <Card sx={{ py: 3, textAlign: 'center', typography: 'h4' }}>
@@ -212,10 +361,10 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
 
         <Button
           variant="contained"
-          disabled={!postMessage.trim() && !postImages.length}
+          disabled={publishingPost || (!postMessage.trim() && !postImages.length)}
           onClick={handlePublishPost}
         >
-          Publicar
+          {publishingPost ? 'Publicando...' : 'Publicar'}
         </Button>
       </Box>
 
@@ -244,8 +393,24 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
       <Grid size={{ xs: 12, md: 8 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
         {renderPostInput()}
 
+        {loadingPosts && (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Cargando publicaciones...
+          </Typography>
+        )}
+
         {feedPosts.map((post) => (
-          <ProfilePostItem key={post.id} post={post} user={user} onHidePost={handleHidePost} />
+          <ProfilePostItem
+            key={post.id}
+            post={post}
+            user={user}
+            onAddComment={handleAddComment}
+            onToggleLike={handleToggleLike}
+            onHidePost={handleHidePost}
+            onUndoHidePost={handleUndoHidePost}
+            onSharePost={handleSharePost}
+            onReportPost={handleReportPost}
+          />
         ))}
       </Grid>
 
