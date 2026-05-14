@@ -12,10 +12,49 @@
 
 // ----------------------------------------------------------------------
 
-const getFirebaseEnv = (...keys) => keys.map((key) => process.env[key]).find(Boolean)?.trim() ?? '';
+const getFirebaseEnv = (...keys) =>
+  keys
+    .map((key) => process.env[key])
+    .find(Boolean)
+    ?.trim() ?? '';
 
 const nextConfig = {
   trailingSlash: true,
+
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/manifest+json; charset=utf-8',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
+    ];
+  },
 
   env: {
     NEXT_PUBLIC_FIREBASE_API_KEY: getFirebaseEnv(
@@ -82,4 +121,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

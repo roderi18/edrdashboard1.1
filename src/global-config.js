@@ -11,7 +11,7 @@ const getEnv = (...values) => {
 };
 
 export const CONFIG = {
-  appName: 'Minimal UI',
+  appName: 'Exploradores del Rey',
   appVersion: packageJson.version,
   serverUrl: process.env.NEXT_PUBLIC_SERVER_URL ?? '',
   assetsDir: process.env.NEXT_PUBLIC_ASSETS_DIR ?? '',

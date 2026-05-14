@@ -10,6 +10,7 @@ import { I18nProvider } from 'src/locales/i18n-provider';
 import { themeConfig, ThemeProvider, primary as primaryColor } from 'src/theme';
 
 import { Snackbar } from 'src/components/snackbar';
+import { ServiceWorkerRegister } from 'src/components/pwa';
 import { ProgressBar } from 'src/components/progress-bar';
 import { MotionLazy } from 'src/components/animate/motion-lazy';
 import { detectSettings } from 'src/components/settings/server';
@@ -39,12 +40,27 @@ export const viewport = {
 };
 
 export const metadata = {
+  manifest: '/manifest.webmanifest',
+  title: {
+    default: CONFIG.appName,
+    template: `%s | ${CONFIG.appName}`,
+  },
+  description: 'Sistema de gestion para Exploradores del Rey.',
   icons: [
     {
       rel: 'icon',
       url: `${CONFIG.assetsDir}/exploradores-del-rey-icono.ico`,
     },
+    {
+      rel: 'apple-touch-icon',
+      url: `${CONFIG.assetsDir}/icon-192x192.png`,
+    },
   ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: CONFIG.appName,
+  },
 };
 
 // ----------------------------------------------------------------------
@@ -75,6 +91,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={appConfig.lang} dir={appConfig.dir} suppressHydrationWarning>
       <body>
+        <ServiceWorkerRegister />
         <InitColorSchemeScript
           modeStorageKey={themeConfig.modeStorageKey}
           attribute={themeConfig.cssVariables.colorSchemeSelector}
