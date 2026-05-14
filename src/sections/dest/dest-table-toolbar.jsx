@@ -2,14 +2,12 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
-import Select from '@mui/material/Select';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
-import FormControl from '@mui/material/FormControl';
+import Autocomplete from '@mui/material/Autocomplete';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -20,10 +18,30 @@ import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
+import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 // ----------------------------------------------------------------------
 
-export function DestTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode, rows = [] }) {
+const getFilterOptionValue = (option) => option?.value ?? option;
+
+const getFilterOptionLabel = (option) =>
+  String(option?.label ?? getFilterOptionValue(option) ?? '');
+
+const getFilterAutocompleteValue = (selectedValues = [], items = []) =>
+  selectedValues.map((value) => {
+    const found = items.find((item) => String(getFilterOptionValue(item)) === String(value));
+
+    return found || { value, label: String(value) };
+  });
+
+export function DestTableToolbar({
+  filters,
+  options,
+  onResetPage,
+  displayMode,
+  setDisplayMode,
+  rows = [],
+}) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
   const theme = useTheme();
@@ -51,8 +69,43 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
     [onResetPage, updateFilters]
   );
 
-  const getSectionalNameById = (id) =>
-    options.sectionalName?.find((opt) => opt.value === id)?.label || id;
+  const renderFilterAutocomplete = (key, label, items, value, onChange) => (
+    <Autocomplete
+      multiple
+      disableCloseOnSelect
+      options={items || []}
+      value={getFilterAutocompleteValue(value, items || [])}
+      isOptionEqualToValue={(option, selectedOption) =>
+        String(getFilterOptionValue(option)) === String(getFilterOptionValue(selectedOption))
+      }
+      getOptionLabel={getFilterOptionLabel}
+      onChange={(event, selectedOptions) =>
+        onChange({
+          ...event,
+          target: {
+            value: selectedOptions.map(getFilterOptionValue),
+          },
+        })
+      }
+      renderOption={(props, option, { selected }) => {
+        const { key: optionKey, ...optionProps } = props;
+
+        return (
+          <li key={`${key}-${getFilterOptionValue(option)}-${optionKey}`} {...optionProps}>
+            <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
+            {getFilterOptionLabel(option)}
+          </li>
+        );
+      }}
+      renderInput={(params) => <TextField {...params} label={label} />}
+      sx={{ flexGrow: 1, width: { md: 200 } }}
+      slotProps={{
+        paper: {
+          sx: { maxHeight: 250 },
+        },
+      }}
+    />
+  );
 
   const pdfColumns = [
     { label: 'ID', value: (row) => row.id || row.idDestacamento },
@@ -131,7 +184,6 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-
         {/* 🔥 SOLO EN MOBILE → opciones de vista */}
         {isMobile && [
           <MenuItem
@@ -158,7 +210,7 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
           >
             <Iconify icon="mingcute:dot-grid-fill" />
             Grid
-          </MenuItem>
+          </MenuItem>,
         ]}
 
         <MenuItem onClick={handlePrint}>
@@ -175,7 +227,6 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
           <Iconify icon="solar:export-bold" />
           Subir
         </MenuItem>
-
       </MenuList>
     </CustomPopover>
   );
@@ -185,87 +236,107 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
       <Box
         sx={{
           p: 2.5,
-          gap: 2,
+          gap: { xs: 0, md: 2 },
           display: 'flex',
           pr: { xs: 2.5, md: 1 },
           flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'stretch', md: 'center' }
-
+          alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-
-
-        <Box
-          sx={{
-            gap: 2,
-            width: 1,
-            flexGrow: 1,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <TextField
-            fullWidth
-            value={currentFilters.name}
-            onChange={handleFilterName}
-            placeholder="Buscar Destacamento o Coordinador..."
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              },
+        {!isMobile && (
+          <Box
+            sx={{
+              gap: 2,
+              width: 1,
+              flexGrow: 1,
+              display: 'flex',
+              alignItems: 'center',
             }}
-          />
-
-        </Box>
-
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            width: { xs: '100%', md: 'auto' }
-          }}
-        >
-          <FormControl sx={{ flexGrow: 1, width: { md: 200 } }}>
-            <InputLabel htmlFor="filter-sectionalName-select">Sección</InputLabel>
-            <Select
-              multiple
-              label="Sección"
-              value={currentFilters.sectionalName}
-              onChange={handleFilterSectionalFullName}
-              renderValue={(selected) =>
-                selected.map((id) => getSectionalNameById(id)).join(', ')
-              }
-              inputProps={{ id: 'filter-sectionalName-select' }}
-              MenuProps={{
-                slotProps: { paper: { sx: { maxHeight: 250 } } },
+          >
+            <TextField
+              fullWidth
+              value={currentFilters.name}
+              onChange={handleFilterName}
+              placeholder="Buscar Destacamento o Coordinador..."
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
+                },
               }}
-            >
-              {(options.sectionalName || []).map((option, index) => (
-                <MenuItem key={`${option.value}-${index}`} value={option.value}>
-                  <Checkbox
-                    disableRipple
-                    size="small"
-                    checked={currentFilters.sectionalName.includes(option.value)}
-                  />
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            />
+          </Box>
+        )}
 
-          {isMobile && (
+        {!isMobile && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          >
+            {renderFilterAutocomplete(
+              'sectionalName',
+              'Sección',
+              options.sectionalName,
+              currentFilters.sectionalName,
+              handleFilterSectionalFullName
+            )}
+          </Box>
+        )}
+
+        {isMobile && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              width: '100%',
+            }}
+          >
+            <TextField
+              value={currentFilters.name}
+              onChange={handleFilterName}
+              placeholder="Buscar Destacamento o Coordinador..."
+              sx={{
+                flex: 1,
+                minWidth: 0,
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <TableToolbarMobileFilter
+              hasActiveFilters={currentFilters.sectionalName.length}
+              filtersConfig={[
+                {
+                  key: 'sectionalName',
+                  label: 'Sección',
+                  value: currentFilters.sectionalName,
+                  onChange: handleFilterSectionalFullName,
+                  options: options.sectionalName,
+                },
+              ]}
+            />
+
             <IconButton onClick={menuActions.onOpen}>
               <Iconify icon="eva:more-vertical-fill" />
             </IconButton>
-          )}
-        </Box>
+          </Box>
+        )}
 
-        {/* View Mode + ⋮ More solo desktop */}
         {!isMobile && (
           <Box
             sx={{
@@ -286,7 +357,6 @@ export function DestTableToolbar({ filters, options, onResetPage, displayMode, s
             </IconButton>
           </Box>
         )}
-
       </Box>
 
       {renderMenuActions()}

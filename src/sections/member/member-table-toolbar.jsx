@@ -1,23 +1,20 @@
 import { usePopover } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Radio from '@mui/material/Radio';
-import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import RadioGroup from '@mui/material/RadioGroup';
 import DialogTitle from '@mui/material/DialogTitle';
-import FormControl from '@mui/material/FormControl';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -105,6 +102,18 @@ const normalizeDownloadOptions = (items = []) =>
         index
     );
 
+const getFilterOptionValue = (option) => option?.value ?? option;
+
+const getFilterOptionLabel = (option) =>
+  String(option?.label ?? getFilterOptionValue(option) ?? '');
+
+const getFilterAutocompleteValue = (selectedValues = [], items = []) =>
+  selectedValues.map((value) => {
+    const found = items.find((item) => String(getFilterOptionValue(item)) === String(value));
+
+    return found || { value, label: String(value) };
+  });
+
 const getDownloadAutocompleteValue = (selectedValues, items) => {
   const normalizedItems = normalizeDownloadOptions(items);
 
@@ -114,10 +123,12 @@ const getDownloadAutocompleteValue = (selectedValues, items) => {
 
   return selectedValues.map((value) => {
     const stringValue = String(value);
-    return normalizedItems.find((item) => item.value === stringValue) || {
-      value: stringValue,
-      label: stringValue,
-    };
+    return (
+      normalizedItems.find((item) => item.value === stringValue) || {
+        value: stringValue,
+        label: stringValue,
+      }
+    );
   });
 };
 
@@ -145,7 +156,8 @@ const getSectionalOptionsByRegion = (items, inputMembers, regionalIds) => {
 };
 
 const getMemberAge = (member) => {
-  const birthdate = member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento;
+  const birthdate =
+    member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento;
 
   if (!birthdate) return null;
 
@@ -221,9 +233,7 @@ const downloadMembersCsv = (membersToDownload) => {
     member.sectionalName || '',
     member.regionalName || '',
   ]);
-  const csv = [headers, ...rows]
-    .map((row) => row.map(escapeCsvValue).join(','))
-    .join('\r\n');
+  const csv = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(',')).join('\r\n');
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -329,7 +339,6 @@ export function MemberTableToolbar({
   displayMode,
   setDisplayMode,
   options,
-  sectionals,
   members = [],
   canManageMembers = true,
 }) {
@@ -337,24 +346,9 @@ export function MemberTableToolbar({
   const uploadInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [dests, setDests] = useState([]);
   const [uploadResult, setUploadResult] = useState(null);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadFilters, setDownloadFilters] = useState(DEFAULT_DOWNLOAD_FILTERS);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch('/api/dest');
-        const data = await res.json();
-        setDests(data?.Data || []);
-      } catch (error) {
-        console.error('Error loading dests for member toolbar:', error);
-        setDests([]);
-      }
-    };
-    load();
-  }, []);
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -419,30 +413,33 @@ export function MemberTableToolbar({
     setDownloadDialogOpen(true);
   };
 
-  const handleDownloadAutocompleteChange = useCallback((key, selectedOptions, details) => {
-    const isSelectingAll = details?.option?.value === ALL_DOWNLOAD_OPTION.value;
-    const nextValues = isSelectingAll
-      ? []
-      : (selectedOptions || [])
-        .filter((option) => option.value !== ALL_DOWNLOAD_OPTION.value)
-        .map((option) => String(option.value));
+  const handleDownloadAutocompleteChange = useCallback(
+    (key, selectedOptions, details) => {
+      const isSelectingAll = details?.option?.value === ALL_DOWNLOAD_OPTION.value;
+      const nextValues = isSelectingAll
+        ? []
+        : (selectedOptions || [])
+            .filter((option) => option.value !== ALL_DOWNLOAD_OPTION.value)
+            .map((option) => String(option.value));
 
-    setDownloadFilters((prev) => {
-      const nextFilters = {
-        ...prev,
-        [key]: nextValues,
-      };
+      setDownloadFilters((prev) => {
+        const nextFilters = {
+          ...prev,
+          [key]: nextValues,
+        };
 
-      if (key === 'regionalId' && nextValues.length) {
-        const allowedSectionalIds = getSectionalIdsByRegion(members, nextValues);
-        nextFilters.sectionalId = prev.sectionalId.filter((sectionalId) =>
-          allowedSectionalIds?.has(String(sectionalId))
-        );
-      }
+        if (key === 'regionalId' && nextValues.length) {
+          const allowedSectionalIds = getSectionalIdsByRegion(members, nextValues);
+          nextFilters.sectionalId = prev.sectionalId.filter((sectionalId) =>
+            allowedSectionalIds?.has(String(sectionalId))
+          );
+        }
 
-      return nextFilters;
-    });
-  }, [members]);
+        return nextFilters;
+      });
+    },
+    [members]
+  );
 
   const handleDownloadMembers = async () => {
     const membersToDownload = applyDownloadFilters(members, downloadFilters);
@@ -485,6 +482,44 @@ export function MemberTableToolbar({
       />
     );
   };
+
+  const renderFilterAutocomplete = (key, label, items, value, onChange) => (
+    <Autocomplete
+      multiple
+      disableCloseOnSelect
+      options={items || []}
+      value={getFilterAutocompleteValue(value, items || [])}
+      isOptionEqualToValue={(option, selectedOption) =>
+        String(getFilterOptionValue(option)) === String(getFilterOptionValue(selectedOption))
+      }
+      getOptionLabel={getFilterOptionLabel}
+      onChange={(event, selectedOptions) =>
+        onChange({
+          ...event,
+          target: {
+            value: selectedOptions.map(getFilterOptionValue),
+          },
+        })
+      }
+      renderOption={(props, option, { selected }) => {
+        const { key: optionKey, ...optionProps } = props;
+
+        return (
+          <li key={`${key}-${getFilterOptionValue(option)}-${optionKey}`} {...optionProps}>
+            <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
+            {getFilterOptionLabel(option)}
+          </li>
+        );
+      }}
+      renderInput={(params) => <TextField {...params} label={label} />}
+      sx={{ flexShrink: 0, width: { md: 180 } }}
+      slotProps={{
+        paper: {
+          sx: { maxHeight: 250 },
+        },
+      }}
+    />
+  );
 
   const downloadSectionalOptions = getSectionalOptionsByRegion(
     options.sectionalId,
@@ -674,106 +709,29 @@ export function MemberTableToolbar({
         {/* boton de filtro para desktop */}
         {!isMobile && (
           <>
-            {/* Destacamento */}
-            <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-destName-select">Destacamento</InputLabel>
+            {renderFilterAutocomplete(
+              'destName',
+              'Destacamento',
+              options.destName,
+              currentFilters.destName,
+              handleFilterdestName
+            )}
 
-              <Select
-                multiple
-                label="Destacamento"
-                value={currentFilters.destName}
-                onChange={handleFilterdestName}
-                renderValue={(selected) =>
-                  selected.map((id) => dests.find((d) => d.id === id)?.name).join(', ')
-                }
-                inputProps={{ id: 'filter-destName-select' }}
-                MenuProps={{
-                  slotProps: { paper: { sx: { maxHeight: 250 } } },
-                }}
-              >
-                {(options.destName || []).map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Checkbox checked={currentFilters.destName.includes(option.value)} />
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {renderFilterAutocomplete(
+              'memberPosition',
+              'Posición',
+              options.memberPosition,
+              currentFilters.memberPosition,
+              handleFilterMemberPosition
+            )}
 
-            {/* Posición */}
-            <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-memberPosition-select">Posición</InputLabel>
-
-              <Select
-                multiple
-                label="Posición"
-                value={currentFilters.memberPosition}
-                onChange={handleFilterMemberPosition}
-                renderValue={(selected) =>
-                  selected
-                    .map(
-                      (value) =>
-                        options.memberPosition?.find((opt) => opt.value === value)?.label || value
-                    )
-                    .join(', ')
-                }
-                inputProps={{ id: 'filter-memberPosition-select' }}
-                MenuProps={{
-                  slotProps: { paper: { sx: { maxHeight: 250 } } },
-                }}
-              >
-                {(options.memberPosition || []).map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Checkbox
-                      disableRipple
-                      size="small"
-                      checked={currentFilters.memberPosition.includes(option.value)}
-                    />
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* Sección */}
-            <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
-              <InputLabel htmlFor="filter-sectionalId-select">Sección</InputLabel>
-
-              <Select
-                multiple
-                label="Sección"
-                value={currentFilters.sectionalId}
-                onChange={handleFilterSectionalId}
-                renderValue={(selected) =>
-                  selected
-                    .map((id) => {
-                      const found = Array.isArray(sectionals)
-                        ? sectionals.find(
-                          (s) =>
-                            s.id?.toString() === id?.toString() ||
-                            s.idSeccion?.toString() === id?.toString()
-                        )
-                        : null;
-                      return found?.sectionalName || found?.nombre || found?.name || id;
-                    })
-                    .join(', ')
-                }
-                inputProps={{ id: 'filter-sectionalId-select' }}
-                MenuProps={{
-                  slotProps: { paper: { sx: { maxHeight: 250 } } },
-                }}
-              >
-                {(options.sectionalId || []).map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Checkbox
-                      size="small"
-                      checked={currentFilters.sectionalId.includes(option.value)}
-                    />
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {renderFilterAutocomplete(
+              'sectionalId',
+              'Sección',
+              options.sectionalId,
+              currentFilters.sectionalId,
+              handleFilterSectionalId
+            )}
           </>
         )}
 
@@ -820,8 +778,6 @@ export function MemberTableToolbar({
                   value: currentFilters.destName,
                   onChange: handleFilterdestName,
                   options: options.destName,
-                  renderValue: (selected) =>
-                    selected.map((id) => dests.find((d) => d.id === id)?.name).join(', '),
                 },
                 {
                   key: 'memberPosition',
@@ -829,14 +785,6 @@ export function MemberTableToolbar({
                   value: currentFilters.memberPosition,
                   onChange: handleFilterMemberPosition,
                   options: options.memberPosition,
-                  renderValue: (selected) => selected.join(', '),
-                  // renderValue: (selected) =>
-                  //   selected
-                  //     .map( ------en caso que no funcione el de arriba
-                  //       (value) =>
-                  //         options.memberPosition?.find((opt) => opt.value === value)?.label || value
-                  //     )
-                  //     .join(', '),
                 },
                 {
                   key: 'sectionalId',
@@ -844,8 +792,6 @@ export function MemberTableToolbar({
                   value: currentFilters.sectionalId,
                   onChange: handleFilterSectionalId,
                   options: options.sectionalId,
-                  renderValue: (selected) =>
-                    selected.map((id) => sectionals.find((s) => s.id === id)?.name).join(', '),
                 },
               ]}
             />
@@ -955,7 +901,8 @@ export function MemberTableToolbar({
             </Box>
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {applyDownloadFilters(members, downloadFilters).length} miembros coinciden con estos filtros.
+              {applyDownloadFilters(members, downloadFilters).length} miembros coinciden con estos
+              filtros.
             </Typography>
           </Stack>
         </DialogContent>
