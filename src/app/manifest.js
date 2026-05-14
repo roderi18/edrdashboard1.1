@@ -1,14 +1,13 @@
-import { CONFIG } from 'src/global-config';
-
 // ----------------------------------------------------------------------
 
+const APP_INSTALL_NAME = 'ExploradoresDelRey';
 const THEME_COLOR = '#00A76F';
 
 export default function manifest() {
   return {
     id: '/',
-    name: CONFIG.appName,
-    short_name: 'Exploradores',
+    name: APP_INSTALL_NAME,
+    short_name: APP_INSTALL_NAME,
     description: 'Sistema de gestion para Exploradores del Rey.',
     start_url: '/',
     scope: '/',
