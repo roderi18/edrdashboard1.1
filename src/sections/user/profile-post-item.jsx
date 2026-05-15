@@ -57,6 +57,8 @@ const getProfileHref = (person = {}) => {
 const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const COMMENTS_PAGE_SIZE = 6;
+const MEDIA_PREVIEW_LIMIT = 4;
+const REMINDER_MENU_OPEN_DELAY_MS = 500;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
 const COMMENT_FILTERS = [
@@ -208,6 +210,11 @@ export function ProfilePostItem({
   const commentsScrollRef = useRef(null);
   const commentsLoaderRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
+  const reminderOpenTimeoutRef = useRef(null);
+  const reminderCloseTimeoutRef = useRef(null);
+  const reminderItemRef = useRef(null);
+  const reminderMenuPaperRef = useRef(null);
+  const reminderPointerRef = useRef({ x: 0, y: 0 });
 
   const [message, setMessage] = useState('');
   const [comments, setComments] = useState(post.comments || []);
@@ -224,7 +231,7 @@ export function ProfilePostItem({
   const [commentFilterAnchorEl, setCommentFilterAnchorEl] = useState(null);
   const [commentFilter, setCommentFilter] = useState('relevantes');
   const [reminderAnchorEl, setReminderAnchorEl] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -249,6 +256,10 @@ export function ProfilePostItem({
     () => (post.mediaItems?.length ? post.mediaItems : post.media ? [post.media] : []),
     [post.media, post.mediaItems]
   );
+  const visibleMediaItems = useMemo(() => mediaItems.slice(0, MEDIA_PREVIEW_LIMIT), [mediaItems]);
+  const hiddenMediaCount = Math.max(mediaItems.length - MEDIA_PREVIEW_LIMIT, 0);
+  const selectedMedia = mediaItems[selectedMediaIndex] || mediaItems[0] || '';
+  const hasMultipleMedia = mediaItems.length > 1;
   const commentsCount = getCommentsCount(comments);
   const currentCommentFilter =
     COMMENT_FILTERS.find((filter) => filter.value === commentFilter) || COMMENT_FILTERS[0];
@@ -428,9 +439,9 @@ export function ProfilePostItem({
       return;
     }
 
-    setPreviewImage(mediaItems[0] || '');
+    setSelectedMediaIndex(0);
     setDetailDialogOpen(true);
-  }, [detailDialogOpen, mediaItems]);
+  }, [detailDialogOpen]);
 
   const handleUploadCommentImage = useCallback(
     (event) => {
@@ -713,16 +724,51 @@ export function ProfilePostItem({
     )}`;
   }, [getPostShareUrl, getShareText, onSharePost, post, user?.displayName]);
 
-  const handleOpenPreview = useCallback((imageUrl) => {
-    setPreviewImage(imageUrl);
-    setDetailDialogOpen(true);
-  }, []);
+  const handleSelectMedia = useCallback(
+    (index) => {
+      const nextMedia = mediaItems[index];
+
+      if (!nextMedia || index === selectedMediaIndex || typeof window === 'undefined') {
+        setSelectedMediaIndex(index);
+        return;
+      }
+
+      const image = new window.Image();
+
+      image.onload = () => setSelectedMediaIndex(index);
+      image.onerror = () => setSelectedMediaIndex(index);
+      image.src = nextMedia;
+    },
+    [mediaItems, selectedMediaIndex]
+  );
+
+  const handleOpenPreview = useCallback(
+    (index) => {
+      handleSelectMedia(index);
+      setDetailDialogOpen(true);
+    },
+    [handleSelectMedia]
+  );
 
   const handleClosePreview = useCallback(() => {
-    setPreviewImage(null);
+    setSelectedMediaIndex(0);
     setDetailDialogOpen(false);
     setCommentFilterAnchorEl(null);
   }, []);
+
+  const handlePreviousMedia = useCallback(() => {
+    const nextIndex = mediaItems.length
+      ? (selectedMediaIndex - 1 + mediaItems.length) % mediaItems.length
+      : 0;
+
+    handleSelectMedia(nextIndex);
+  }, [handleSelectMedia, mediaItems.length, selectedMediaIndex]);
+
+  const handleNextMedia = useCallback(() => {
+    const nextIndex = mediaItems.length ? (selectedMediaIndex + 1) % mediaItems.length : 0;
+
+    handleSelectMedia(nextIndex);
+  }, [handleSelectMedia, mediaItems.length, selectedMediaIndex]);
 
   const handleOpenDeleteDialog = useCallback(() => {
     setMenuAnchorEl(null);
@@ -791,6 +837,133 @@ export function ProfilePostItem({
     setReminderDialogOpen(true);
   }, []);
 
+  const clearReminderCloseTimeout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.clearTimeout(reminderCloseTimeoutRef.current);
+    }
+  }, []);
+
+  const clearReminderOpenTimeout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.clearTimeout(reminderOpenTimeoutRef.current);
+    }
+  }, []);
+
+  const trackReminderPointer = useCallback((event) => {
+    reminderPointerRef.current = { x: event.clientX, y: event.clientY };
+  }, []);
+
+  const isPointInsideRect = useCallback((point, rect, tolerance = 4) => (
+    point.x >= rect.left - tolerance &&
+    point.x <= rect.right + tolerance &&
+    point.y >= rect.top - tolerance &&
+    point.y <= rect.bottom + tolerance
+  ), []);
+
+  const isPointInsideReminderArea = useCallback(
+    (point) => {
+      const reminderRect = reminderItemRef.current?.getBoundingClientRect();
+      const submenuRect = reminderMenuPaperRef.current?.getBoundingClientRect();
+
+      if (reminderRect && isPointInsideRect(point, reminderRect)) return true;
+      if (submenuRect && isPointInsideRect(point, submenuRect)) return true;
+
+      if (!reminderRect || !submenuRect) return false;
+
+      const bridgeRect = {
+        left: Math.min(reminderRect.right, submenuRect.left),
+        right: Math.max(reminderRect.right, submenuRect.left),
+        top: Math.min(reminderRect.top, submenuRect.top) - 8,
+        bottom: Math.max(reminderRect.bottom, Math.min(submenuRect.bottom, reminderRect.bottom)) + 8,
+      };
+
+      return isPointInsideRect(point, bridgeRect, 0);
+    },
+    [isPointInsideRect]
+  );
+
+  const isPointerInsideReminderArea = useCallback(
+    () => isPointInsideReminderArea(reminderPointerRef.current),
+    [isPointInsideReminderArea]
+  );
+
+  const handleCloseReminderMenuSoon = useCallback(() => {
+    if (typeof window === 'undefined') {
+      setReminderAnchorEl(null);
+      return;
+    }
+
+    clearReminderOpenTimeout();
+    clearReminderCloseTimeout();
+    reminderCloseTimeoutRef.current = window.setTimeout(() => {
+      if (!isPointerInsideReminderArea()) {
+        setReminderAnchorEl(null);
+      }
+    }, 160);
+  }, [clearReminderCloseTimeout, clearReminderOpenTimeout, isPointerInsideReminderArea]);
+
+  const handleOpenReminderMenu = useCallback(
+    (event) => {
+      const anchorElement = event.currentTarget;
+
+      trackReminderPointer(event);
+      clearReminderOpenTimeout();
+      clearReminderCloseTimeout();
+
+      if (reminderMenuOpen) {
+        setReminderAnchorEl(anchorElement);
+        return;
+      }
+
+      reminderOpenTimeoutRef.current = window.setTimeout(() => {
+        if (reminderItemRef.current === anchorElement && isPointerInsideReminderArea()) {
+          setReminderAnchorEl(anchorElement);
+        }
+      }, REMINDER_MENU_OPEN_DELAY_MS);
+    },
+    [
+      clearReminderCloseTimeout,
+      clearReminderOpenTimeout,
+      isPointerInsideReminderArea,
+      reminderMenuOpen,
+      trackReminderPointer,
+    ]
+  );
+
+  const handleCloseReminderMenu = useCallback(() => {
+    clearReminderOpenTimeout();
+    clearReminderCloseTimeout();
+    setReminderAnchorEl(null);
+  }, [clearReminderCloseTimeout, clearReminderOpenTimeout]);
+
+  useEffect(() => {
+    if (!reminderMenuOpen || typeof window === 'undefined') return undefined;
+
+    const handleWindowMouseMove = (event) => {
+      const point = { x: event.clientX, y: event.clientY };
+
+      reminderPointerRef.current = point;
+
+      if (!isPointInsideReminderArea(point)) {
+        setReminderAnchorEl(null);
+      }
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove, true);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove, true);
+    };
+  }, [isPointInsideReminderArea, reminderMenuOpen]);
+
+  useEffect(
+    () => () => {
+      clearReminderOpenTimeout();
+      clearReminderCloseTimeout();
+    },
+    [clearReminderCloseTimeout, clearReminderOpenTimeout]
+  );
+
   const renderHead = () => (
     <>
       <CardHeader
@@ -825,44 +998,55 @@ export function ProfilePostItem({
         anchorEl={menuAnchorEl}
         onClose={() => {
           setMenuAnchorEl(null);
-          setReminderAnchorEl(null);
+          handleCloseReminderMenu();
         }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{
-          paper: {
-            onMouseLeave: () => {
-              setMenuAnchorEl(null);
-              setReminderAnchorEl(null);
-            },
-          },
-        }}
       >
-        <MenuList sx={{ minWidth: 210 }}>
+        <MenuList
+          onMouseEnter={clearReminderCloseTimeout}
+          onMouseMove={trackReminderPointer}
+          onMouseLeave={handleCloseReminderMenuSoon}
+          sx={{ minWidth: 210 }}
+        >
           {isPostAuthor && (
-            <MenuItem onClick={handleOpenDeleteDialog} sx={{ color: 'error.main' }}>
+            <MenuItem
+              onMouseEnter={handleCloseReminderMenu}
+              onClick={handleOpenDeleteDialog}
+              sx={{ color: 'error.main' }}
+            >
               <Iconify icon="solar:trash-bin-trash-bold" />
               Borrar publicacion
             </MenuItem>
           )}
 
-          <MenuItem onMouseEnter={(event) => setReminderAnchorEl(event.currentTarget)}>
+          <MenuItem
+            ref={reminderItemRef}
+            selected={reminderMenuOpen}
+            onMouseEnter={handleOpenReminderMenu}
+            onMouseMove={trackReminderPointer}
+            sx={{
+              ...(reminderMenuOpen && {
+                bgcolor: 'action.hover',
+              }),
+            }}
+          >
             <Iconify icon="solar:bell-bing-bold" />
             Recordar esta publicacion
             <Iconify icon="eva:arrow-ios-forward-fill" width={16} sx={{ ml: 'auto' }} />
           </MenuItem>
 
-          <MenuItem onClick={handleHidePost}>
+          <MenuItem
+            onMouseEnter={handleCloseReminderMenu}
+            onClick={handleHidePost}
+          >
             <Iconify icon="solar:eye-closed-bold" />
             Ocultar anuncio
           </MenuItem>
 
           <MenuItem
+            onMouseEnter={handleCloseReminderMenu}
             onClick={handleOpenReportDialog}
-            sx={{
-              color: 'common.white',
-              '& svg': { color: 'common.white' },
-            }}
           >
             <Iconify icon="solar:flag-bold" />
             Reportar anuncio
@@ -878,9 +1062,11 @@ export function ProfilePostItem({
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{
           paper: {
+            ref: reminderMenuPaperRef,
+            onMouseEnter: clearReminderCloseTimeout,
+            onMouseMove: trackReminderPointer,
             onMouseLeave: () => {
-              setReminderAnchorEl(null);
-              setMenuAnchorEl(null);
+              handleCloseReminderMenuSoon();
             },
           },
         }}
@@ -1230,21 +1416,36 @@ export function ProfilePostItem({
       return (
         <Box sx={{ p: 1 }}>
           <Box
-            component="img"
-            alt={post.message || post.media}
-            src={mediaItems[0]}
-            onClick={() => handleOpenPreview(mediaItems[0])}
+            component="button"
+            type="button"
+            onClick={() => handleOpenPreview(0)}
+            aria-label="Abrir imagen de la publicacion"
             sx={{
+              p: 0,
+              m: 0,
+              border: 0,
               width: 1,
-              height: 'auto',
-              maxHeight: { xs: 560, md: 760 },
+              aspectRatio: { xs: '4 / 3', sm: '16 / 9' },
               display: 'block',
-              objectFit: 'contain',
+              overflow: 'hidden',
               borderRadius: 1.5,
-              cursor: 'zoom-in',
+              cursor: 'pointer',
               bgcolor: 'background.neutral',
             }}
-          />
+          >
+            <Box
+              component="img"
+              alt={post.message || post.media}
+              src={mediaItems[0]}
+              sx={{
+                width: 1,
+                height: 1,
+                display: 'block',
+                objectFit: 'cover',
+                objectPosition: 'center',
+              }}
+            />
+          </Box>
         </Box>
       );
     }
@@ -1256,29 +1457,71 @@ export function ProfilePostItem({
             gap: 1,
             p: 1,
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              sm: 'repeat(2, minmax(0, 1fr))',
+            },
           },
         ]}
       >
-        {mediaItems.map((media, index) => (
-          <Box
-            component="img"
-            key={`${media}-${index}`}
-            alt={`${post.message || 'Publicacion'} ${index + 1}`}
-            src={media}
-            onClick={() => handleOpenPreview(media)}
-            sx={{
-              width: 1,
-              height: 'auto',
-              maxHeight: { xs: 360, md: 520 },
-              display: 'block',
-              objectFit: 'contain',
-              borderRadius: 1.5,
-              cursor: 'zoom-in',
-              bgcolor: 'background.neutral',
-            }}
-          />
-        ))}
+        {visibleMediaItems.map((media, index) => {
+          const showMoreOverlay = index === MEDIA_PREVIEW_LIMIT - 1 && hiddenMediaCount > 0;
+
+          return (
+            <Box
+              component="button"
+              type="button"
+              key={`${media}-${index}`}
+              onClick={() => handleOpenPreview(index)}
+              aria-label={`Abrir imagen ${index + 1} de ${mediaItems.length}`}
+              sx={{
+                p: 0,
+                m: 0,
+                border: 0,
+                width: 1,
+                aspectRatio: '1 / 1',
+                display: 'block',
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: 1.5,
+                cursor: 'pointer',
+                bgcolor: 'background.neutral',
+              }}
+            >
+              <Box
+                component="img"
+                alt={`${post.message || 'Publicacion'} ${index + 1}`}
+                src={media}
+                sx={{
+                  width: 1,
+                  height: 1,
+                  display: 'block',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                }}
+              />
+
+              {showMoreOverlay && (
+                <Box
+                  sx={{
+                    inset: 0,
+                    gap: 0.5,
+                    display: 'flex',
+                    position: 'absolute',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'common.white',
+                    bgcolor: 'rgba(0, 0, 0, 0.48)',
+                    typography: { xs: 'h5', sm: 'h4' },
+                    fontWeight: 700,
+                  }}
+                >
+                  +{hiddenMediaCount}
+                </Box>
+              )}
+            </Box>
+          );
+        })}
       </Box>
     );
   };
@@ -1646,26 +1889,82 @@ export function ProfilePostItem({
           </Typography>
         )}
 
-        {previewImage && (
+        {selectedMedia && (
           <Box
             sx={{
-              px: { xs: 0, sm: 3 },
+              position: 'relative',
               bgcolor: 'background.neutral',
             }}
           >
             <Box
               component="img"
-              src={previewImage}
+              src={selectedMedia}
               alt={post.message || 'Publicación'}
               sx={{
                 width: 1,
-                height: 'auto',
+                height: { xs: 360, sm: 460, md: 560 },
                 maxHeight: { xs: 420, md: 560 },
                 display: 'block',
                 objectFit: 'contain',
+                objectPosition: 'center',
                 bgcolor: 'background.neutral',
               }}
             />
+
+            {hasMultipleMedia && (
+              <>
+                <IconButton
+                  color="inherit"
+                  onClick={handlePreviousMedia}
+                  aria-label="Imagen anterior"
+                  sx={{
+                    top: '50%',
+                    left: 12,
+                    position: 'absolute',
+                    color: 'common.white',
+                    transform: 'translateY(-50%)',
+                    bgcolor: 'rgba(0, 0, 0, 0.45)',
+                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.62)' },
+                  }}
+                >
+                  <Iconify icon="eva:arrow-ios-back-fill" />
+                </IconButton>
+
+                <IconButton
+                  color="inherit"
+                  onClick={handleNextMedia}
+                  aria-label="Imagen siguiente"
+                  sx={{
+                    top: '50%',
+                    right: 12,
+                    position: 'absolute',
+                    color: 'common.white',
+                    transform: 'translateY(-50%)',
+                    bgcolor: 'rgba(0, 0, 0, 0.45)',
+                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.62)' },
+                  }}
+                >
+                  <Iconify icon="eva:arrow-ios-forward-fill" />
+                </IconButton>
+
+                <Box
+                  sx={{
+                    right: 16,
+                    bottom: 16,
+                    px: 1.25,
+                    py: 0.5,
+                    position: 'absolute',
+                    borderRadius: 999,
+                    color: 'common.white',
+                    bgcolor: 'rgba(0, 0, 0, 0.54)',
+                    typography: 'caption',
+                    fontWeight: 700,
+                  }}
+                >
+                  {selectedMediaIndex + 1} / {mediaItems.length}
+                </Box>
+              </>
+            )}
           </Box>
         )}
 

@@ -41,6 +41,7 @@ import {
   deshacerOcultarPublicacionPrincipal,
 } from 'src/services/principal-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { AppFeatured } from 'src/sections/prinicipal/app/app-featured';
@@ -50,6 +51,7 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 
 // ----------------------------------------------------------------------
 
+const MAX_POST_IMAGES = 10;
 const BIRTHDAY_PRESET_MESSAGES = [
   'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
   'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
@@ -177,16 +179,28 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
     if (!files.length) return;
 
     const imageFiles = files.filter((file) => String(file.type || '').startsWith('image/'));
+    const remainingSlots = MAX_POST_IMAGES - postImages.length;
+
+    if (remainingSlots <= 0) {
+      toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
+      return;
+    }
+
+    const acceptedFiles = imageFiles.slice(0, remainingSlots);
+
+    if (acceptedFiles.length < imageFiles.length) {
+      toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
+    }
 
     setPostImages((currentImages) => [
       ...currentImages,
-      ...imageFiles.map((file, index) => ({
+      ...acceptedFiles.map((file, index) => ({
         id: `post-image-${file.name}-${file.size}-${file.lastModified}-${index}`,
         file,
         previewUrl: URL.createObjectURL(file),
       })),
     ]);
-  }, []);
+  }, [postImages.length]);
 
   const handleRemoveImage = useCallback((imageId) => {
     setPostImages((currentImages) =>
@@ -728,6 +742,9 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
           <Fab size="small" color="inherit" variant="softExtended" onClick={handleAttach}>
             <Iconify icon="solar:gallery-wide-bold" width={24} sx={{ color: 'success.main' }} />
             Fotos
+            <Box component="span" sx={{ ml: 0.75, color: 'text.secondary', typography: 'caption' }}>
+              {postImages.length}/{MAX_POST_IMAGES}
+            </Box>
           </Fab>
         </Box>
 
