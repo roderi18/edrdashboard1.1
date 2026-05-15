@@ -8,15 +8,12 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
-import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import Popover from '@mui/material/Popover';
 import InputBase from '@mui/material/InputBase';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -25,6 +22,11 @@ import { useRouter } from 'src/routes/hooks';
 import { fNumber } from 'src/utils/format-number';
 
 import { _appFeatured } from 'src/_mock';
+import {
+  obtenerResumenSocialPrincipal,
+  aceptarSolicitudAmistadPrincipal,
+  eliminarSolicitudAmistadPrincipal,
+} from 'src/services/principal-social-service';
 import {
   getPrincipalMemberId,
   crearPublicacionPrincipal,
@@ -48,47 +50,15 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 
 // ----------------------------------------------------------------------
 
-const MOCK_FRIEND_REQUESTS = [
-  {
-    id: 'solicitud-amistad-mock-1',
-    name: 'Mario Alejandro Peña Felix',
-    avatarUrl: '/assets/images/avatar/avatar-25.webp',
-  },
-];
-
-const MOCK_BIRTHDAY_FRIENDS = [
-  {
-    id: 'cumpleanos-mock-1',
-    name: 'Karen Alves',
-    age: 46,
-    avatarUrl: '/assets/images/avatar/avatar-24.webp',
-  },
-  {
-    id: 'cumpleanos-mock-2',
-    name: 'Mario Alejandro Peña Felix',
-    age: 32,
-    avatarUrl: '/assets/images/avatar/avatar-25.webp',
-  },
-  {
-    id: 'cumpleanos-mock-3',
-    name: 'Oliver Feliz',
-    age: 29,
-    avatarUrl: '/assets/images/avatar/avatar-12.webp',
-  },
-  {
-    id: 'cumpleanos-mock-4',
-    name: 'Laura Medina',
-    age: 27,
-    avatarUrl: '/assets/images/avatar/avatar-8.webp',
-  },
-];
-
 const BIRTHDAY_PRESET_MESSAGES = [
-  '¡Disfruta tu cumpleaños! ☕ 🎉',
-  '¡Feliz cumpleaños! Disfruta tu día 🙌 💐',
-  '¡Muy feliz cumpleaños! 🌟 🎂',
-  '¡Feliz cumple! 🎂 🎉 💐',
+  'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
+  'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
+  'Feliz cumpleaños, que el Señor guíe cada paso de tu vida. ✨',
+  'Bendiciones en tu día, que sigas creciendo con alegría. 🎁',
 ];
+
+const getBirthdayDefaultMessage = (friend) =>
+  `¡Feliz cumpleaños, ${friend.nombre}! Dios te bendiga en este nuevo año de vida. 🎉`;
 
 export function ProfileHome({ info, posts, user, sx, ...other }) {
   const router = useRouter();
@@ -100,12 +70,36 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
   const [postImages, setPostImages] = useState([]);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState('Caras');
-  const [friendRequests, setFriendRequests] = useState(MOCK_FRIEND_REQUESTS);
-  const [birthdayDialogOpen, setBirthdayDialogOpen] = useState(false);
-  const [birthdayMessage, setBirthdayMessage] = useState('¡Feliz cumpleaños! 🎉');
+  const [socialData, setSocialData] = useState({
+    solicitudesAmistad: [],
+    cumpleanerosHoy: [],
+    proximosCumpleanos: [],
+  });
+  const [birthdayAnchorEl, setBirthdayAnchorEl] = useState(null);
+  const [showUpcomingBirthdays, setShowUpcomingBirthdays] = useState(false);
+  const [birthdayMessages, setBirthdayMessages] = useState({});
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
+  const birthdayPopoverOpen = Boolean(birthdayAnchorEl);
   const usuarioIdMiembros = getPrincipalMemberId(user);
+  const friendRequests = socialData.solicitudesAmistad;
+  const birthdayFriends = socialData.cumpleanerosHoy;
+  const upcomingBirthdays = socialData.proximosCumpleanos;
+
+  const loadSocialData = useCallback(async () => {
+    try {
+      const nextSocialData = await obtenerResumenSocialPrincipal(user);
+
+      setSocialData(nextSocialData);
+    } catch (error) {
+      console.error(error);
+      setSocialData({
+        solicitudesAmistad: [],
+        cumpleanerosHoy: [],
+        proximosCumpleanos: [],
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +135,21 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
       active = false;
     };
   }, [posts, usuarioIdMiembros]);
+
+  useEffect(() => {
+    loadSocialData();
+  }, [loadSocialData]);
+
+  useEffect(() => {
+    setBirthdayMessages((currentMessages) => ({
+      ...Object.fromEntries(
+        birthdayFriends.map((friend) => [
+          friend.id,
+          currentMessages[friend.id] || getBirthdayDefaultMessage(friend),
+        ])
+      ),
+    }));
+  }, [birthdayFriends]);
 
   const handleAttach = () => {
     if (fileRef.current) {
@@ -360,110 +369,192 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
     [user]
   );
 
-  const handleResolveFriendRequest = useCallback((requestId) => {
-    setFriendRequests((currentRequests) =>
-      currentRequests.filter((request) => request.id !== requestId)
-    );
-  }, []);
+  const handleResolveFriendRequest = useCallback(
+    async (request, action) => {
+      try {
+        if (action === 'aceptar') {
+          await aceptarSolicitudAmistadPrincipal({ solicitud: request, usuario: user });
+        } else {
+          await eliminarSolicitudAmistadPrincipal({ solicitud: request });
+        }
 
-  const handleSendBirthdayMessage = useCallback(
-    (friend, message = birthdayMessage) => {
-      const cleanMessage = String(message || '').trim();
-      const nextMessage = cleanMessage || `¡Feliz cumpleaños, ${friend.name}! 🎉`;
-
-      router.push(
-        `${paths.dashboard.chat}?share=${encodeURIComponent(`${friend.name}: ${nextMessage}`)}`
-      );
+        await loadSocialData();
+      } catch (error) {
+        console.error(error);
+      }
     },
-    [birthdayMessage, router]
+    [loadSocialData, user]
   );
 
-  const renderBirthdayDialog = () => (
-    <Dialog
-      fullWidth
-      maxWidth="sm"
-      open={birthdayDialogOpen}
-      onClose={() => setBirthdayDialogOpen(false)}
+  const handleSendBirthdayMessage = useCallback(
+    (friend, message = birthdayMessages[friend.id]) => {
+      const cleanMessage = String(message || '').trim();
+      const nextMessage = cleanMessage || getBirthdayDefaultMessage(friend);
+
+      router.push(
+        `${paths.dashboard.chat}?share=${encodeURIComponent(`${friend.nombre}: ${nextMessage}`)}`
+      );
+    },
+    [birthdayMessages, router]
+  );
+
+  const handleChangeBirthdayMessage = useCallback((friendId, message) => {
+    setBirthdayMessages((currentMessages) => ({
+      ...currentMessages,
+      [friendId]: message,
+    }));
+  }, []);
+
+  const renderBirthdayPopover = () => (
+    <Popover
+      open={birthdayPopoverOpen}
+      onClose={() => setBirthdayAnchorEl(null)}
+      anchorReference="none"
+      slotProps={{
+        paper: {
+          sx: {
+            top: '50% !important',
+            left: '50% !important',
+            p: 2,
+            position: 'fixed',
+            width: { xs: 'calc(100vw - 32px)', sm: 680 },
+            maxWidth: 1,
+            maxHeight: '82vh',
+            overflow: 'auto',
+            transform: 'translate(-50%, -50%) !important',
+          },
+        },
+      }}
     >
-      <DialogTitle>Cumpleaños de hoy</DialogTitle>
+      <Stack divider={<Divider flexItem />} spacing={2}>
+        {birthdayFriends.map((friend) => {
+          const currentMessage = birthdayMessages[friend.id] || getBirthdayDefaultMessage(friend);
 
-      <DialogContent>
-        <Stack spacing={2}>
-          <TextField
+          return (
+            <Stack key={friend.id} spacing={1.25}>
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                <Avatar src={friend.urlFoto} alt={friend.nombre} sx={{ width: 56, height: 56 }} />
+
+                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography noWrap variant="subtitle2" sx={{ flexGrow: 1 }}>
+                      {friend.nombre}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {friend.edadCumplira} años
+                    </Typography>
+                  </Stack>
+
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={currentMessage}
+                    placeholder={`Felicitar a ${friend.nombre}`}
+                    onChange={(event) => handleChangeBirthdayMessage(friend.id, event.target.value)}
+                    sx={{ mt: 0.75 }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton size="small">
+                            <Iconify icon="eva:smiling-face-fill" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+
+                  <Box sx={{ gap: 0.75, mt: 1, display: 'flex', flexWrap: 'wrap' }}>
+                    {BIRTHDAY_PRESET_MESSAGES.map((message) => (
+                      <Button
+                        key={message}
+                        size="small"
+                        color="inherit"
+                        variant="outlined"
+                        onClick={() => handleChangeBirthdayMessage(friend.id, message)}
+                        sx={{ borderRadius: 10, px: 1.25, fontWeight: 400 }}
+                      >
+                        {message}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+
+                <IconButton
+                  color="primary"
+                  onClick={() => handleSendBirthdayMessage(friend, currentMessage)}
+                  aria-label={`Enviar felicitación a ${friend.nombre}`}
+                  sx={{ mt: 3.75 }}
+                >
+                  <Iconify icon="solar:plain-bold" width={28} />
+                </IconButton>
+              </Stack>
+            </Stack>
+          );
+        })}
+
+        <Stack spacing={1.5}>
+          <Button
             fullWidth
-            multiline
-            minRows={2}
-            value={birthdayMessage}
-            label="Mensaje"
-            onChange={(event) => setBirthdayMessage(event.target.value)}
-          />
+            color="inherit"
+            variant="text"
+            onClick={() => setShowUpcomingBirthdays((current) => !current)}
+          >
+            {showUpcomingBirthdays ? 'Ocultar próximos cumpleaños' : 'Ver los próximos cumpleaños'}
+          </Button>
 
-          <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap' }}>
-            {BIRTHDAY_PRESET_MESSAGES.map((message) => (
-              <Button
-                key={message}
-                size="small"
-                color="inherit"
-                variant="outlined"
-                onClick={() => setBirthdayMessage(message)}
-              >
-                {message}
-              </Button>
-            ))}
-          </Box>
-
-          <Stack spacing={1.5}>
-            {MOCK_BIRTHDAY_FRIENDS.map((friend) => (
-              <Card key={friend.id} variant="outlined" sx={{ p: 1.5 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar src={friend.avatarUrl} alt={friend.name} />
+          {showUpcomingBirthdays && (
+            <Stack spacing={1}>
+              {upcomingBirthdays.map((friend) => (
+                <Stack
+                  key={friend.id}
+                  direction="row"
+                  spacing={1.5}
+                  alignItems="center"
+                  sx={{ p: 1, borderRadius: 1, bgcolor: 'background.neutral' }}
+                >
+                  <Avatar src={friend.urlFoto} alt={friend.nombre} />
 
                   <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                     <Typography noWrap variant="subtitle2">
-                      {friend.name}
+                      {friend.nombre}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {friend.age} años
+                      {friend.fechaCumpleanosTexto}
                     </Typography>
                   </Box>
 
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleSendBirthdayMessage(friend)}
-                    aria-label={`Enviar felicitación a ${friend.name}`}
-                  >
-                    <Iconify icon="solar:plain-bold" />
-                  </IconButton>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                    Cumple {friend.edadCumplira} años
+                  </Typography>
                 </Stack>
-              </Card>
-            ))}
-          </Stack>
+              ))}
+              {!upcomingBirthdays.length && (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  No hay próximos cumpleaños de amigos aceptados.
+                </Typography>
+              )}
+            </Stack>
+          )}
         </Stack>
-      </DialogContent>
-
-      <DialogActions>
-        <Button color="inherit" onClick={() => setBirthdayDialogOpen(false)}>
-          Cerrar
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Stack>
+    </Popover>
   );
 
   const renderBirthdayFriends = () => {
-    if (!MOCK_BIRTHDAY_FRIENDS.length) return null;
+    if (!birthdayFriends.length) return null;
 
-    const [firstBirthdayFriend] = MOCK_BIRTHDAY_FRIENDS;
-    const extraCount = MOCK_BIRTHDAY_FRIENDS.length - 1;
+    const [firstBirthdayFriend] = birthdayFriends;
+    const extraCount = birthdayFriends.length - 1;
     const title =
-      MOCK_BIRTHDAY_FRIENDS.length === 1
-        ? `Hoy cumple años ${firstBirthdayFriend.name}`
-        : `Hoy cumple años ${firstBirthdayFriend.name} y ${extraCount} personas más`;
+      birthdayFriends.length === 1
+        ? `Hoy cumple años ${firstBirthdayFriend.nombre}`
+        : `Hoy cumple años ${firstBirthdayFriend.nombre} y ${extraCount} personas más`;
 
     return (
       <Card sx={{ p: 2 }}>
         <Stack spacing={2}>
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Avatar src={firstBirthdayFriend.avatarUrl} alt={firstBirthdayFriend.name} />
+            <Avatar src={firstBirthdayFriend.urlFoto} alt={firstBirthdayFriend.nombre} />
 
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
               <Typography variant="subtitle2">{title}</Typography>
@@ -471,7 +562,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
                 size="small"
                 color="inherit"
                 sx={{ px: 0, minWidth: 0, color: 'text.secondary' }}
-                onClick={() => setBirthdayDialogOpen(true)}
+                onClick={(event) => setBirthdayAnchorEl(event.currentTarget)}
               >
                 Ver más
               </Button>
@@ -482,12 +573,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
             fullWidth
             size="small"
             variant="contained"
-            onClick={() =>
-              handleSendBirthdayMessage(
-                firstBirthdayFriend,
-                `¡Feliz cumpleaños, ${firstBirthdayFriend.name}! 🎉`
-              )
-            }
+            onClick={(event) => setBirthdayAnchorEl(event.currentTarget)}
           >
             Enviar felicitaciones
           </Button>
@@ -503,13 +589,13 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
           <Card key={request.id} sx={{ p: 2 }}>
             <Stack spacing={2}>
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <Avatar src={request.avatarUrl} alt={request.name}>
-                  {request.name.charAt(0)}
+                <Avatar src={request.urlFoto} alt={request.nombre}>
+                  {request.nombre.charAt(0)}
                 </Avatar>
 
                 <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                   <Typography noWrap variant="subtitle2">
-                    {request.name}
+                    {request.nombre}
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     Solicitud de amistad
@@ -522,7 +608,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
                   fullWidth
                   size="small"
                   variant="contained"
-                  onClick={() => handleResolveFriendRequest(request.id)}
+                  onClick={() => handleResolveFriendRequest(request, 'aceptar')}
                 >
                   Aceptar
                 </Button>
@@ -531,7 +617,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
                   size="small"
                   color="inherit"
                   variant="outlined"
-                  onClick={() => handleResolveFriendRequest(request.id)}
+                  onClick={() => handleResolveFriendRequest(request, 'eliminar')}
                 >
                   Eliminar
                 </Button>
@@ -712,7 +798,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
           {renderAdsSlider()}
         </Stack>
       </Grid>
-      {renderBirthdayDialog()}
+      {renderBirthdayPopover()}
     </Grid>
   );
 }
