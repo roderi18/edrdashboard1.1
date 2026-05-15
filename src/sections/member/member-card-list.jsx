@@ -17,7 +17,7 @@ export function MemberCardList({ members, canManage = true, dests = [] }) {
   }, []);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, pt: { xs: 2, md: 2.5 } }}>
+    <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
       <Box
         sx={{
           gap: 3,
