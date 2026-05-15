@@ -7,7 +7,7 @@ import { MemberCard } from './member-card';
 
 // ----------------------------------------------------------------------
 
-export function MemberCardList({ members, canManage = true }) {
+export function MemberCardList({ members, canManage = true, dests = [] }) {
   const [page, setPage] = useState(1);
 
   const rowsPerPage = 12;
@@ -17,7 +17,7 @@ export function MemberCardList({ members, canManage = true }) {
   }, []);
 
   return (
-    <>
+    <Box sx={{ p: { xs: 2, md: 3 }, pt: { xs: 2, md: 2.5 } }}>
       <Box
         sx={{
           gap: 3,
@@ -28,7 +28,7 @@ export function MemberCardList({ members, canManage = true }) {
         {members
           .slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage)
           .map((member) => (
-            <MemberCard key={member.id} member={member} canManage={canManage} />
+            <MemberCard key={member.id} member={member} canManage={canManage} dests={dests} />
           ))}
       </Box>
 
@@ -47,6 +47,6 @@ export function MemberCardList({ members, canManage = true }) {
           onChange={handleChangePage}
         />
       </Box>
-    </>
+    </Box>
   );
 }

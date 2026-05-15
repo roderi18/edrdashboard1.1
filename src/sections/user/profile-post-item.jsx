@@ -58,7 +58,7 @@ const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const COMMENTS_PAGE_SIZE = 6;
 const MEDIA_PREVIEW_LIMIT = 4;
-const REMINDER_MENU_OPEN_DELAY_MS = 500;
+const REMINDER_MENU_OPEN_DELAY_MS = 300;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
 const COMMENT_FILTERS = [
@@ -887,19 +887,22 @@ export function ProfilePostItem({
     [isPointInsideReminderArea]
   );
 
-  const handleCloseReminderMenuSoon = useCallback(() => {
+  const handleCloseReminderMenuSoon = useCallback((event) => {
     if (typeof window === 'undefined') {
       setReminderAnchorEl(null);
       return;
     }
 
+    if (event?.clientX !== undefined && event?.clientY !== undefined) {
+      reminderPointerRef.current = { x: event.clientX, y: event.clientY };
+    }
+
     clearReminderOpenTimeout();
     clearReminderCloseTimeout();
-    reminderCloseTimeoutRef.current = window.setTimeout(() => {
-      if (!isPointerInsideReminderArea()) {
-        setReminderAnchorEl(null);
-      }
-    }, 160);
+
+    if (!isPointerInsideReminderArea()) {
+      setReminderAnchorEl(null);
+    }
   }, [clearReminderCloseTimeout, clearReminderOpenTimeout, isPointerInsideReminderArea]);
 
   const handleOpenReminderMenu = useCallback(
@@ -928,6 +931,16 @@ export function ProfilePostItem({
       reminderMenuOpen,
       trackReminderPointer,
     ]
+  );
+
+  const handleOpenReminderMenuNow = useCallback(
+    (event) => {
+      trackReminderPointer(event);
+      clearReminderOpenTimeout();
+      clearReminderCloseTimeout();
+      setReminderAnchorEl(event.currentTarget);
+    },
+    [clearReminderCloseTimeout, clearReminderOpenTimeout, trackReminderPointer]
   );
 
   const handleCloseReminderMenu = useCallback(() => {
@@ -1025,6 +1038,7 @@ export function ProfilePostItem({
             selected={reminderMenuOpen}
             onMouseEnter={handleOpenReminderMenu}
             onMouseMove={trackReminderPointer}
+            onClick={handleOpenReminderMenuNow}
             sx={{
               ...(reminderMenuOpen && {
                 bgcolor: 'action.hover',

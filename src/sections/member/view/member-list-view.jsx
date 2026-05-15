@@ -548,29 +548,29 @@ export function MemberListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
-            {memberCanManage && (
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
-            )}
+          {displayMode === 'panel' && (
+            <Box sx={{ position: 'relative' }}>
+              {memberCanManage && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
-            {displayMode === 'panel' ? (
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                   <TableHeadCustom
@@ -615,10 +615,8 @@ export function MemberListView() {
                   </TableBody>
                 </Table>
               </Scrollbar>
-            ) : (
-              <MemberCardList members={dataFiltered} canManage={memberCanManage} />
-            )}
-          </Box>
+            </Box>
+          )}
 
           {displayMode === 'panel' && (
             <TablePaginationCustom
@@ -632,6 +630,10 @@ export function MemberListView() {
             />
           )}
         </Card>
+
+        {displayMode !== 'panel' && (
+          <MemberCardList members={dataFiltered} canManage={memberCanManage} dests={dests} />
+        )}
       </DashboardContent>
 
       {renderConfirmDialog()}

@@ -1,321 +1,174 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { varAlpha } from 'minimal-shared/utils';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
-import { useTheme, useMediaQuery } from '@mui/material';
 
-import { getStorageCollection } from 'src/utils/storage-service';
-import {
-  getCoverPhotoImageSx,
-  fetchCoverPhotoOverrides,
-  getMemberDivisionCoverConfig,
-} from 'src/utils/cover-photos';
+import { Iconify } from 'src/components/iconify';
 
-import { AvatarShape } from 'src/assets/illustrations';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
-
-import { Image } from 'src/components/image';
 // ----------------------------------------------------------------------
 
-export function MemberCard({ member, sx, canManage = true, ...other }) {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const router = useRouter();
-  const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+const getMemberEditId = (member) => member?.idMiembros ?? member?.id ?? member?.memberId;
+
+const getMemberDestId = (member) =>
+  member?.destId ?? member?.idDestacamento ?? member?.destacamentoId ?? member?.idDest;
+
+const getMemberPhone = (member) =>
+  member?.phoneNumber ?? member?.telefono ?? member?.phone ?? member?.celular ?? '';
+
+const getMemberAvatar = (member) => member?.avatarUrl ?? member?.photoURL ?? member?.urlFoto ?? '';
+
+const formatPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return '-';
+
+  try {
+    return parsePhoneNumber(phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber}`)
+      ?.formatNational();
+  } catch {
+    return phoneNumber;
+  }
+};
+
+const getDestValue = (dest, keys) => keys.map((key) => dest?.[key]).find(Boolean);
+
+const buildDestLabel = (member, dests) => {
+  const memberDestId = getMemberDestId(member);
+  const hasMemberDestId = memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
+  const dest = hasMemberDestId
+    ? dests.find((item) =>
+        [item?.id, item?.idDestacamento, item?.destId].some(
+          (value) => String(value) === String(memberDestId)
+        )
+      )
+    : null;
+
+  const name =
+    getDestValue(dest, ['nombre', 'name', 'destName']) ||
+    member?.destName ||
+    member?.destacamentoName ||
+    '';
+  const number = getDestValue(dest, ['numero', 'destNumber', 'number']);
+  const label = [name, number].filter(Boolean).join(' ').trim();
+
+  if (label) {
+    return label.toLowerCase().startsWith('dest') ? label : `Dest. ${label}`;
+  }
+
+  return memberDestId ? `Dest. ${memberDestId}` : 'Dest. Desconocido';
+};
+
+// ----------------------------------------------------------------------
+
+export function MemberCard({ member, sx, canManage = true, dests: destsProp = [], ...other }) {
   const [dests, setDests] = useState([]);
-  const [, setCoverVersion] = useState(0);
 
   useEffect(() => {
+    if (destsProp.length) {
+      setDests(destsProp);
+      return undefined;
+    }
+
     const load = async () => {
       try {
         const res = await fetch('/api/dest');
         const data = await res.json();
-        setDests(data?.Data || []);
+        setDests(data?.Data || data || []);
       } catch (error) {
         console.error('Error loading dests for member card:', error);
         setDests([]);
       }
     };
     load();
-  }, []);
+    return undefined;
+  }, [destsProp]);
 
-  useEffect(() => {
-    const refreshCover = () => setCoverVersion((currentVersion) => currentVersion + 1);
-
-    fetchCoverPhotoOverrides().then(refreshCover);
-
-    window.addEventListener('storage', refreshCover);
-    window.addEventListener('coverPhotosUpdated', refreshCover);
-
-    return () => {
-      window.removeEventListener('storage', refreshCover);
-      window.removeEventListener('coverPhotosUpdated', refreshCover);
-    };
-  }, []);
-
-  const coverConfig = getMemberDivisionCoverConfig(member.memberDivision);
-
-  const dest = dests.find((d) => Number(d.idDestacamento) === Number(member.destId));
-  const sectionalName = member?.sectionalName || '-';
-
-  let leaderships = leadershipAssignments
-    .filter(
-      (l) =>
-        (l.memberId === member.id || l.member_id === member.id) &&
-        (l.status === 'active' || !l.status)
-    )
-    .map((l) => ({
-      ...l,
-      label: _allLeadershipRoles.find((r) => r.value === l.role)?.label,
-    }))
-    .filter((l) => l.label);
-
-  // si no tiene liderazgo pero sí posición en destacamento
-  if (!leaderships.length && member.memberPosition) {
-    leaderships = [
-      {
-        label: member.memberPosition,
-        level: 'dest',
-      },
-    ];
-  }
-
-  const memberEditId = member?.idMiembros ?? member?.id ?? member?.memberId;
-
-  const handleEdit = () => {
-    if (!memberEditId) return;
-    router.push(`/dashboard/level/member/${memberEditId}/edit`);
-  };
+  const memberEditId = getMemberEditId(member);
+  const editHref = memberEditId ? `/dashboard/level/member/${memberEditId}/edit` : '#';
+  const phoneNumber = getMemberPhone(member);
+  const phoneLabel = formatPhoneNumber(phoneNumber);
+  const destLabel = buildDestLabel(member, dests);
 
   return (
-    <Card sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
-      <Box sx={{ position: 'relative' }}>
-        {/* curva */}
-        <AvatarShape
-          sx={{
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            mx: 'auto',
-            bottom: -26,
-            position: 'absolute',
-          }}
-        />
-
+    <Card
+      sx={[
+        (theme) => ({
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 88,
+          p: theme.spacing(3, 2, 3, 3),
+        }),
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      {...other}
+    >
+      <Link href={canManage && memberEditId ? editHref : '#'} color="inherit" underline="none">
         <Avatar
-          onClick={handleEdit}
-          alt={member.name}
-          src={member.avatarUrl}
-          sx={{
-            left: 0,
-            right: 0,
-            width: 64,
-            height: 64,
-            zIndex: 11,
-            mx: 'auto',
-            bottom: -32,
-            position: 'absolute',
-            cursor: 'pointer',
-          }}
+          alt={member?.name}
+          src={getMemberAvatar(member)}
+          sx={{ width: 48, height: 48, mr: 2 }}
         />
+      </Link>
 
-        <Image
-          src={coverConfig.src}
-          alt={member.memberDivision}
-          ratio="16/6"
-          slotProps={{
-            img: {
-              sx: getCoverPhotoImageSx(coverConfig),
-            },
-            overlay: {
-              sx: (overlayTheme) => ({
-                // sombra img trasera
-                bgcolor: varAlpha(overlayTheme.vars.palette.common.blackChannel, 0.46),
-              }),
-            },
-          }}
-        />
-      </Box>
-
-      {/* nombre img */}
       <ListItemText
-        sx={{ mt: 6, mb: 0.5 }}
         primary={
-          <Box
-            onClick={handleEdit}
-            sx={{
-              typography: 'subtitle1',
-              cursor: 'pointer',
-              '&:hover': { textDecoration: 'underline' },
-            }}
+          <Link
+            href={canManage && memberEditId ? editHref : '#'}
+            color="inherit"
+            underline="hover"
           >
-            {member.name}
+            {member?.name}
+          </Link>
+        }
+        secondary={
+          <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
+            <Box
+              component="span"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 0,
+                typography: 'caption',
+                color: 'text.disabled',
+              }}
+            >
+              <Iconify icon="solar:phone-bold" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
+              <Box
+                component="span"
+                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {phoneLabel}
+              </Box>
+            </Box>
+
+            <Box
+              component="span"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 0,
+                typography: 'caption',
+                color: 'text.disabled',
+              }}
+            >
+              <Iconify icon="mingcute:location-fill" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
+              <Box
+                component="span"
+                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {destLabel}
+              </Box>
+            </Box>
           </Box>
         }
+        slotProps={{
+          primary: { noWrap: true },
+          secondary: { component: 'span', sx: { mt: 0.5, display: 'block' } },
+        }}
       />
 
-      {/* inferior */}
-      <Box
-        sx={{
-          mb: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: 0.5,
-        }}
-      >
-        <Box sx={{ typography: 'body2', fontWeight: 300, mt: 0.2 }}>
-          {[0, 1].map((index) => {
-            const leadership = leaderships[index];
-
-            if (!leadership) {
-              if (isMobile) return null;
-
-              return (
-                <Box key={index} sx={{ color: 'text.secondary' }}>
-                  -
-                </Box>
-              );
-            }
-
-            let link = '#';
-
-            if (leadership.level === 'dest') {
-              link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name || '')}`;
-            }
-
-            if (leadership.level === 'sectional') {
-              link = `/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`;
-            }
-
-            if (leadership.level === 'regional') {
-              link = `/dashboard/level/regional?region=${member.regionalId}`;
-            }
-
-            if (leadership.level === 'national') {
-              link = `/dashboard/level/national`;
-            }
-
-            return (
-              <Box
-                key={index}
-                onClick={() => router.push(link)}
-                sx={{
-                  cursor: 'pointer',
-                  color: index === 1 ? 'text.secondary' : 'text.primary',
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                {leadership.label}
-              </Box>
-            );
-          })}
-        </Box>
-
-        <Box
-          component="a"
-          href={`tel:${member.phoneNumber}`}
-          sx={{
-            typography: 'caption',
-            color: 'primary.main',
-            textDecoration: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          {(() => {
-            try {
-              return member.phoneNumber
-                ? parsePhoneNumber(
-                    member.phoneNumber.startsWith('+')
-                      ? member.phoneNumber
-                      : `+1${member.phoneNumber}`
-                  )?.formatNational()
-                : '';
-            } catch {
-              return member.phoneNumber;
-            }
-          })()}
-        </Box>
-      </Box>
-
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Box
-        sx={{
-          py: 0.5,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 1.5,
-        }}
-      >
-        <Box
-          sx={{
-            py: 1.5,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 1.5,
-          }}
-        >
-          {/* Destacamento */}
-          <Box
-            onClick={() =>
-              router.push(`/dashboard/level/dest?dest=${encodeURIComponent(member.destId)}`)
-            }
-            sx={{
-              typography: 'caption',
-              color: 'text.secondary',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              '&:hover': {
-                textDecoration: 'underline',
-              },
-            }}
-          >
-            {`Dest. ${`${dest?.nombre || 'Desconocido'} ${dest?.numero || ''}`.trim()}`}
-          </Box>
-
-          <Box
-            component="span"
-            sx={{
-              typography: 'body2',
-              fontSize: '1rem',
-              color: 'text.disabled',
-              lineHeight: 1,
-            }}
-          >
-            •
-          </Box>
-
-          {/* Sección */}
-          <Box
-            onClick={() =>
-              router.push(
-                `/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`
-              )
-            }
-            sx={{
-              typography: 'caption',
-              color: 'text.secondary',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              '&:hover': {
-                textDecoration: 'underline',
-              },
-            }}
-          >
-            Sección {sectionalName}
-          </Box>
-        </Box>
-      </Box>
     </Card>
   );
 }
