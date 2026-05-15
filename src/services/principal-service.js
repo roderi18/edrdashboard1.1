@@ -556,9 +556,29 @@ const crearNotificacionRespuestaComentarioPublicacion = async ({
   return notificacion;
 };
 
-export async function obtenerPublicacionesPrincipal({ usuarioIdMiembros, mocks = [] } = {}) {
+const filtrarMocksPorAutor = (mocks = [], autorIdMiembros = null) => {
+  const autorId = toNumberOrNull(autorIdMiembros);
+
+  if (!autorId) return mocks;
+
+  return mocks.filter((post) => {
+    const postAutorId = toNumberOrNull(
+      post?.author?.idMiembros || post?.author?.autorIdMiembros || post?.author?.id || post?.autorIdMiembros
+    );
+
+    return postAutorId === autorId;
+  });
+};
+
+export async function obtenerPublicacionesPrincipal({
+  usuarioIdMiembros,
+  autorIdMiembros = null,
+  mocks = [],
+} = {}) {
+  const autorId = toNumberOrNull(autorIdMiembros);
+
   if (!isFirebaseConfigured || !FIRESTORE) {
-    return mocks;
+    return filtrarMocksPorAutor(mocks, autorId);
   }
 
   const snapshot = await getDocs(
@@ -568,10 +588,11 @@ export async function obtenerPublicacionesPrincipal({ usuarioIdMiembros, mocks =
   const publicaciones = snapshot.docs
     .map((item) => ({ id: item.id, ...item.data() }))
     .filter((item) => (item.estado || ESTADO_ACTIVO) === ESTADO_ACTIVO)
+    .filter((item) => !autorId || Number(item.autorIdMiembros) === autorId)
     .sort((a, b) => String(toIso(b.fechaCreacion)).localeCompare(String(toIso(a.fechaCreacion))));
 
   if (!publicaciones.length) {
-    return mocks;
+    return autorId ? [] : mocks;
   }
 
   const hiddenSnapshot = usuarioIdMiembros

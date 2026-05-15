@@ -60,7 +60,7 @@ const BIRTHDAY_PRESET_MESSAGES = [
 const getBirthdayDefaultMessage = (friend) =>
   `¡Feliz cumpleaños, ${friend.nombre}! Dios te bendiga en este nuevo año de vida. 🎉`;
 
-export function ProfileHome({ info, posts, user, sx, ...other }) {
+export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ...other }) {
   const router = useRouter();
   const fileRef = useRef(null);
   const [feedPosts, setFeedPosts] = useState(posts);
@@ -82,6 +82,10 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const birthdayPopoverOpen = Boolean(birthdayAnchorEl);
   const usuarioIdMiembros = getPrincipalMemberId(user);
+  const autorIdMiembros = Number(perfilIdMiembros || 0) || null;
+  const canPublish =
+    !autorIdMiembros ||
+    (usuarioIdMiembros && Number(usuarioIdMiembros) === Number(autorIdMiembros));
   const friendRequests = socialData.solicitudesAmistad;
   const birthdayFriends = socialData.cumpleanerosHoy;
   const upcomingBirthdays = socialData.proximosCumpleanos;
@@ -110,6 +114,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
       try {
         const nextPosts = await obtenerPublicacionesPrincipal({
           usuarioIdMiembros,
+          autorIdMiembros,
           mocks: posts,
         });
 
@@ -134,7 +139,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
     return () => {
       active = false;
     };
-  }, [posts, usuarioIdMiembros]);
+  }, [autorIdMiembros, posts, usuarioIdMiembros]);
 
   useEffect(() => {
     loadSocialData();
@@ -758,7 +763,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
   return (
     <Grid container spacing={3} sx={sx} {...other}>
       <Grid size={{ xs: 12, md: 8 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-        {renderPostInput()}
+        {canPublish && renderPostInput()}
 
         {loadingPosts && (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>

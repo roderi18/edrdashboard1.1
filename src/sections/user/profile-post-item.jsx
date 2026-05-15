@@ -47,7 +47,13 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 
 // ----------------------------------------------------------------------
 
-const getProfileHref = (person) => `/dashboard/user/${person?.id || 'profile'}`;
+const getProfileHref = (person = {}) => {
+  const idMiembros = person.idMiembros || person.autorIdMiembros || person.id;
+
+  return idMiembros
+    ? `${paths.dashboard.user.root}?idMiembros=${encodeURIComponent(idMiembros)}`
+    : paths.dashboard.user.root;
+};
 const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const COMMENTS_PAGE_SIZE = 6;
