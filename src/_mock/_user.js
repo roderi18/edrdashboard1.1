@@ -50,38 +50,64 @@ export const _userGallery = Array.from({ length: 12 }, (_, index) => ({
   imageUrl: _mock.image.cover(index),
 }));
 
-export const _userFeeds = Array.from({ length: 3 }, (_, index) => ({
+const PRINCIPAL_POST_MESSAGES = [
+  'Hola equipo, hoy cerramos una semana buenísima. Gracias por estar pendientes y compartir sus avances.',
+  'Fotos del encuentro de líderes. Fue una tarde de mucha energía, ideas claras y buen ánimo.',
+  'Recordatorio amistoso: revisen sus materiales antes de la próxima reunión. #Preparados',
+  'Me encantó ver a todos participando en las dinámicas. Cada pequeño paso suma.',
+  'Estamos organizando nuevas actividades para el mes. Pronto compartimos los detalles.',
+  'Gracias a quienes ayudaron con la logística de hoy. Se notó el cariño en cada detalle.',
+  'Una imagen del campamento para no olvidar que las mejores historias se construyen juntos.',
+  'Seguimos aprendiendo, sirviendo y creciendo como grupo. #Exploradores',
+  'La salida de hoy quedó preciosa. Les comparto una foto para el recuerdo.',
+  'Equipo, revisen sus chats durante la semana. Hay varias coordinaciones pendientes.',
+  'Hoy tuvimos nuevos retos y mucho aprendizaje. Orgulloso del trabajo de todos.',
+  'Una pequeña pausa para agradecer por los amigos que hacen el camino más ligero.',
+  'Preparando lo próximo con mucha ilusión. Gracias por la disposición de siempre.',
+];
+
+const PRINCIPAL_COMMENT_MESSAGES = [
+  'Excelente, seguimos atentos.',
+  'Me gustó mucho esta parte.',
+  'Gracias por compartirlo.',
+  'Cuenta conmigo para apoyar.',
+  'Qué buena foto.',
+  'Listo, lo reviso hoy.',
+  'Muy buen trabajo de todos.',
+  'Esto quedó genial.',
+  'Me alegra ver el avance.',
+  'Vamos con todo.',
+];
+
+const createPrincipalComment = ({ postIndex, commentIndex, reply = false }) => ({
+  id: _mock.id(100 + postIndex * 10 + commentIndex + (reply ? 5 : 0)),
+  author: {
+    id: _mock.id(150 + postIndex * 10 + commentIndex),
+    avatarUrl: _mock.image.avatar(postIndex + commentIndex + 3),
+    name: _mock.fullName(postIndex + commentIndex + 3),
+  },
+  createdAt: _mock.time(commentIndex + 2),
+  message: reply
+    ? 'Totalmente de acuerdo, gracias por responder.'
+    : PRINCIPAL_COMMENT_MESSAGES[(postIndex + commentIndex) % PRINCIPAL_COMMENT_MESSAGES.length],
+});
+
+export const _userFeeds = Array.from({ length: 13 }, (_, index) => ({
   id: _mock.id(index),
   createdAt: _mock.time(index),
   media: _mock.image.travel(index + 1),
-  message: _mock.sentence(index),
-  personLikes: Array.from({ length: 20 }, (__, personIndex) => ({
-    name: _mock.fullName(personIndex),
-    avatarUrl: _mock.image.avatar(personIndex + 2),
+  message: PRINCIPAL_POST_MESSAGES[index],
+  personLikes: Array.from({ length: 4 + (index % 5) }, (__, personIndex) => ({
+    name: _mock.fullName(personIndex + index),
+    avatarUrl: _mock.image.avatar(personIndex + index + 2),
   })),
-  comments: (index === 2 && []) || [
-    {
-      id: _mock.id(7),
-      author: {
-        id: _mock.id(8),
-        avatarUrl: _mock.image.avatar(index + 5),
-        name: _mock.fullName(index + 5),
-      },
-      createdAt: _mock.time(2),
-      message: 'Praesent venenatis metus at',
-    },
-    {
-      id: _mock.id(9),
-      author: {
-        id: _mock.id(10),
-        avatarUrl: _mock.image.avatar(index + 6),
-        name: _mock.fullName(index + 6),
-      },
-      createdAt: _mock.time(3),
-      message:
-        'Etiam rhoncus. Nullam vel sem. Pellentesque libero tortor, tincidunt et, tincidunt eget, semper nec, quam. Sed lectus.',
-    },
-  ],
+  comments: Array.from({ length: 2 + (index % 3) }, (__, commentIndex) => ({
+    ...createPrincipalComment({ postIndex: index, commentIndex }),
+    replies:
+      commentIndex === 0 && index % 2 === 0
+        ? [createPrincipalComment({ postIndex: index, commentIndex, reply: true })]
+        : [],
+  })),
 }));
 
 export const _userCards = Array.from({ length: 21 }, (_, index) => ({

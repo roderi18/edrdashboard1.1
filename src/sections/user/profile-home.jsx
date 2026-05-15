@@ -7,11 +7,20 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import InputBase from '@mui/material/InputBase';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
+
+import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 
 import { fNumber } from 'src/utils/format-number';
 
@@ -39,7 +48,50 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 
 // ----------------------------------------------------------------------
 
+const MOCK_FRIEND_REQUESTS = [
+  {
+    id: 'solicitud-amistad-mock-1',
+    name: 'Mario Alejandro Peña Felix',
+    avatarUrl: '/assets/images/avatar/avatar-25.webp',
+  },
+];
+
+const MOCK_BIRTHDAY_FRIENDS = [
+  {
+    id: 'cumpleanos-mock-1',
+    name: 'Karen Alves',
+    age: 46,
+    avatarUrl: '/assets/images/avatar/avatar-24.webp',
+  },
+  {
+    id: 'cumpleanos-mock-2',
+    name: 'Mario Alejandro Peña Felix',
+    age: 32,
+    avatarUrl: '/assets/images/avatar/avatar-25.webp',
+  },
+  {
+    id: 'cumpleanos-mock-3',
+    name: 'Oliver Feliz',
+    age: 29,
+    avatarUrl: '/assets/images/avatar/avatar-12.webp',
+  },
+  {
+    id: 'cumpleanos-mock-4',
+    name: 'Laura Medina',
+    age: 27,
+    avatarUrl: '/assets/images/avatar/avatar-8.webp',
+  },
+];
+
+const BIRTHDAY_PRESET_MESSAGES = [
+  '¡Disfruta tu cumpleaños! ☕ 🎉',
+  '¡Feliz cumpleaños! Disfruta tu día 🙌 💐',
+  '¡Muy feliz cumpleaños! 🌟 🎂',
+  '¡Feliz cumple! 🎂 🎉 💐',
+];
+
 export function ProfileHome({ info, posts, user, sx, ...other }) {
+  const router = useRouter();
   const fileRef = useRef(null);
   const [feedPosts, setFeedPosts] = useState(posts);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -48,6 +100,9 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
   const [postImages, setPostImages] = useState([]);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState('Caras');
+  const [friendRequests, setFriendRequests] = useState(MOCK_FRIEND_REQUESTS);
+  const [birthdayDialogOpen, setBirthdayDialogOpen] = useState(false);
+  const [birthdayMessage, setBirthdayMessage] = useState('¡Feliz cumpleaños! 🎉');
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const usuarioIdMiembros = getPrincipalMemberId(user);
@@ -305,6 +360,188 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
     [user]
   );
 
+  const handleResolveFriendRequest = useCallback((requestId) => {
+    setFriendRequests((currentRequests) =>
+      currentRequests.filter((request) => request.id !== requestId)
+    );
+  }, []);
+
+  const handleSendBirthdayMessage = useCallback(
+    (friend, message = birthdayMessage) => {
+      const cleanMessage = String(message || '').trim();
+      const nextMessage = cleanMessage || `¡Feliz cumpleaños, ${friend.name}! 🎉`;
+
+      router.push(
+        `${paths.dashboard.chat}?share=${encodeURIComponent(`${friend.name}: ${nextMessage}`)}`
+      );
+    },
+    [birthdayMessage, router]
+  );
+
+  const renderBirthdayDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="sm"
+      open={birthdayDialogOpen}
+      onClose={() => setBirthdayDialogOpen(false)}
+    >
+      <DialogTitle>Cumpleaños de hoy</DialogTitle>
+
+      <DialogContent>
+        <Stack spacing={2}>
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            value={birthdayMessage}
+            label="Mensaje"
+            onChange={(event) => setBirthdayMessage(event.target.value)}
+          />
+
+          <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap' }}>
+            {BIRTHDAY_PRESET_MESSAGES.map((message) => (
+              <Button
+                key={message}
+                size="small"
+                color="inherit"
+                variant="outlined"
+                onClick={() => setBirthdayMessage(message)}
+              >
+                {message}
+              </Button>
+            ))}
+          </Box>
+
+          <Stack spacing={1.5}>
+            {MOCK_BIRTHDAY_FRIENDS.map((friend) => (
+              <Card key={friend.id} variant="outlined" sx={{ p: 1.5 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar src={friend.avatarUrl} alt={friend.name} />
+
+                  <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                    <Typography noWrap variant="subtitle2">
+                      {friend.name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {friend.age} años
+                    </Typography>
+                  </Box>
+
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleSendBirthdayMessage(friend)}
+                    aria-label={`Enviar felicitación a ${friend.name}`}
+                  >
+                    <Iconify icon="solar:plain-bold" />
+                  </IconButton>
+                </Stack>
+              </Card>
+            ))}
+          </Stack>
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button color="inherit" onClick={() => setBirthdayDialogOpen(false)}>
+          Cerrar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const renderBirthdayFriends = () => {
+    if (!MOCK_BIRTHDAY_FRIENDS.length) return null;
+
+    const [firstBirthdayFriend] = MOCK_BIRTHDAY_FRIENDS;
+    const extraCount = MOCK_BIRTHDAY_FRIENDS.length - 1;
+    const title =
+      MOCK_BIRTHDAY_FRIENDS.length === 1
+        ? `Hoy cumple años ${firstBirthdayFriend.name}`
+        : `Hoy cumple años ${firstBirthdayFriend.name} y ${extraCount} personas más`;
+
+    return (
+      <Card sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Avatar src={firstBirthdayFriend.avatarUrl} alt={firstBirthdayFriend.name} />
+
+            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+              <Typography variant="subtitle2">{title}</Typography>
+              <Button
+                size="small"
+                color="inherit"
+                sx={{ px: 0, minWidth: 0, color: 'text.secondary' }}
+                onClick={() => setBirthdayDialogOpen(true)}
+              >
+                Ver más
+              </Button>
+            </Box>
+          </Stack>
+
+          <Button
+            fullWidth
+            size="small"
+            variant="contained"
+            onClick={() =>
+              handleSendBirthdayMessage(
+                firstBirthdayFriend,
+                `¡Feliz cumpleaños, ${firstBirthdayFriend.name}! 🎉`
+              )
+            }
+          >
+            Enviar felicitaciones
+          </Button>
+        </Stack>
+      </Card>
+    );
+  };
+
+  const renderFriendRequests = () =>
+    !!friendRequests.length && (
+      <Stack spacing={1.5}>
+        {friendRequests.map((request) => (
+          <Card key={request.id} sx={{ p: 2 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar src={request.avatarUrl} alt={request.name}>
+                  {request.name.charAt(0)}
+                </Avatar>
+
+                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                  <Typography noWrap variant="subtitle2">
+                    {request.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Solicitud de amistad
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack direction="row" spacing={1}>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="contained"
+                  onClick={() => handleResolveFriendRequest(request.id)}
+                >
+                  Aceptar
+                </Button>
+                <Button
+                  fullWidth
+                  size="small"
+                  color="inherit"
+                  variant="outlined"
+                  onClick={() => handleResolveFriendRequest(request.id)}
+                >
+                  Eliminar
+                </Button>
+              </Stack>
+            </Stack>
+          </Card>
+        ))}
+      </Stack>
+    );
+
   const renderFollows = () => (
     <Card sx={{ py: 3, textAlign: 'center', typography: 'h4' }}>
       <Stack
@@ -460,10 +697,22 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
         ))}
       </Grid>
 
-      <Grid size={{ xs: 12, md: 4 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-        {renderFollows()}
-        {renderAdsSlider()}
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Stack
+          spacing={3}
+          sx={{
+            top: 96,
+            position: { md: 'sticky' },
+            alignSelf: 'flex-start',
+          }}
+        >
+          {renderFriendRequests()}
+          {renderBirthdayFriends()}
+          {renderFollows()}
+          {renderAdsSlider()}
+        </Stack>
       </Grid>
+      {renderBirthdayDialog()}
     </Grid>
   );
 }

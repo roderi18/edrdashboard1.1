@@ -50,6 +50,7 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 const getProfileHref = (person) => `/dashboard/user/${person?.id || 'profile'}`;
 const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const COMMENTS_PAGE_SIZE = 6;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
 const COMMENT_FILTERS = [
@@ -198,6 +199,8 @@ export function ProfilePostItem({
 
   const fileRef = useRef(null);
   const commentRef = useRef(null);
+  const commentsScrollRef = useRef(null);
+  const commentsLoaderRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
 
   const [message, setMessage] = useState('');
@@ -229,6 +232,7 @@ export function ProfilePostItem({
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportSending, setReportSending] = useState(false);
   const [highlightedCommentId, setHighlightedCommentId] = useState('');
+  const [visibleRootCommentsCount, setVisibleRootCommentsCount] = useState(COMMENTS_PAGE_SIZE);
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const postMenuOpen = Boolean(menuAnchorEl);
@@ -257,6 +261,11 @@ export function ProfilePostItem({
 
     return comments;
   }, [commentFilter, comments]);
+  const visibleComments = useMemo(
+    () => filteredComments.slice(0, visibleRootCommentsCount),
+    [filteredComments, visibleRootCommentsCount]
+  );
+  const hasMoreComments = visibleRootCommentsCount < filteredComments.length;
   const currentUserLike = {
     idMiembros: user?.idMiembros,
     name: user?.displayName,
@@ -287,6 +296,12 @@ export function ProfilePostItem({
     setLiked(Boolean(post.isLikedByMe));
   }, [post.comments, post.isLikedByMe]);
 
+  useEffect(() => {
+    if (!detailDialogOpen) return;
+
+    setVisibleRootCommentsCount(COMMENTS_PAGE_SIZE);
+  }, [commentFilter, detailDialogOpen, post.id]);
+
   const commentExistsInPost = useCallback(
     (commentId) =>
       comments.some(
@@ -295,6 +310,58 @@ export function ProfilePostItem({
       ),
     [comments]
   );
+
+  const getRootCommentIndex = useCallback(
+    (commentId) =>
+      filteredComments.findIndex(
+        (comment) =>
+          comment.id === commentId || (comment.replies || []).some((reply) => reply.id === commentId)
+      ),
+    [filteredComments]
+  );
+
+  useEffect(() => {
+    if (!detailDialogOpen || typeof window === 'undefined') return;
+
+    const targetId = decodeURIComponent(window.location.hash.replace('#', ''));
+    const commentId = targetId.startsWith('comment-') ? targetId.replace('comment-', '') : '';
+
+    if (!commentId) return;
+
+    const targetIndex = getRootCommentIndex(commentId);
+
+    if (targetIndex >= 0) {
+      setVisibleRootCommentsCount((current) =>
+        Math.max(current, targetIndex + 1, COMMENTS_PAGE_SIZE)
+      );
+    }
+  }, [detailDialogOpen, getRootCommentIndex]);
+
+  useEffect(() => {
+    if (!detailDialogOpen || !hasMoreComments || typeof IntersectionObserver === 'undefined') {
+      return undefined;
+    }
+
+    const root = commentsScrollRef.current;
+    const loader = commentsLoaderRef.current;
+
+    if (!root || !loader) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+
+        setVisibleRootCommentsCount((current) =>
+          Math.min(current + COMMENTS_PAGE_SIZE, filteredComments.length)
+        );
+      },
+      { root, rootMargin: '160px 0px', threshold: 0 }
+    );
+
+    observer.observe(loader);
+
+    return () => observer.disconnect();
+  }, [detailDialogOpen, filteredComments.length, hasMoreComments, visibleRootCommentsCount]);
 
   const focusHashTarget = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -400,6 +467,9 @@ export function ProfilePostItem({
     });
 
     setComments((currentComments) => [...currentComments, optimisticComment]);
+    setVisibleRootCommentsCount((current) =>
+      Math.min(current + 1, Math.max(comments.length + 1, COMMENTS_PAGE_SIZE))
+    );
     setMessage('');
     setCommentImage(null);
     setCommentSending(true);
@@ -429,7 +499,7 @@ export function ProfilePostItem({
     } finally {
       setCommentSending(false);
     }
-  }, [commentImage, commentSending, message, onAddComment, post, user]);
+  }, [commentImage, commentSending, comments.length, message, onAddComment, post, user]);
 
   const handleSubmitReply = useCallback(
     async (comment) => {
@@ -989,7 +1059,7 @@ export function ProfilePostItem({
 
   const renderCommentList = () => (
     <Stack spacing={1.5} sx={{ px: 3, pb: 2 }}>
-      {filteredComments.map((comment) => (
+      {visibleComments.map((comment) => (
         <Stack key={comment.id} spacing={1}>
           <Box sx={{ gap: 2, display: 'flex' }}>
             <Avatar alt={comment.author.name} src={comment.author.avatarUrl} />
@@ -1029,6 +1099,22 @@ export function ProfilePostItem({
           {renderReplyInput(comment)}
         </Stack>
       ))}
+
+      {hasMoreComments && (
+        <Box ref={commentsLoaderRef} sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() =>
+              setVisibleRootCommentsCount((current) =>
+                Math.min(current + COMMENTS_PAGE_SIZE, filteredComments.length)
+              )
+            }
+          >
+            Cargar más comentarios
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 
@@ -1229,19 +1315,10 @@ export function ProfilePostItem({
           sx={{ mr: 1 }}
         />
 
-        <Button
-          size="small"
-          color="inherit"
-          startIcon={<Iconify icon="solar:chat-round-dots-bold" />}
-          onClick={handleClickComment}
-          sx={{ mr: 1, color: 'text.secondary' }}
-        >
-          {fShortenNumber(commentsCount)}
-        </Button>
-
         {!!displayedLikes.length && (
           <AvatarGroup
             sx={{
+              mr: 1,
               [`& .${avatarGroupClasses.avatar}`]: {
                 width: 32,
                 height: 32,
@@ -1253,6 +1330,16 @@ export function ProfilePostItem({
             ))}
           </AvatarGroup>
         )}
+
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<Iconify icon="solar:chat-round-dots-bold" />}
+          onClick={handleClickComment}
+          sx={{ mr: 1, color: 'text.secondary' }}
+        >
+          {fShortenNumber(commentsCount)}
+        </Button>
 
         <Box sx={{ flexGrow: 1 }} />
 
@@ -1485,7 +1572,9 @@ export function ProfilePostItem({
         paper: {
           sx: {
             overflow: 'hidden',
+            width: '95%',
             maxHeight: { xs: '92vh', md: '88vh' },
+            bgcolor: 'background.paper',
           },
         },
       }}
@@ -1514,7 +1603,7 @@ export function ProfilePostItem({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, overflow: 'auto' }}>
+      <DialogContent ref={commentsScrollRef} sx={{ p: 0, overflow: 'auto' }}>
         <CardHeader
           disableTypography
           avatar={
