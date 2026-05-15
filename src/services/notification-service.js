@@ -48,7 +48,9 @@ const TIPOS_VISUALES = {
   perfil_actualizado: 'project',
   producto_disponible_nuevamente: 'delivery',
   producto_publicado: 'tags',
+  publicacion_comentada: 'chat',
   publicacion_reportada: 'mail',
+  recordatorio_publicacion: 'mail',
   producto_resena_baja: 'chat',
   producto_sin_stock: 'order',
   producto_stock_bajo: 'file',
@@ -1135,10 +1137,98 @@ const agruparNotificacionesMensaje = (notificaciones = []) => {
   );
 };
 
+const publicarRecordatoriosPublicacionVencidos = async (idUsuario) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) {
+    return;
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCIONES_NOTIFICACIONES.tareas),
+      where('idsDestinatarios', 'array-contains', String(idUsuario))
+    )
+  ).catch(() => ({ docs: [] }));
+  const ahora = Date.now();
+  const tareas = snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter(
+      (tarea) =>
+        tarea.tipoTarea === 'recordatorio_publicacion' &&
+        tarea.estado === 'pendiente' &&
+        tarea.fechaProgramada &&
+        new Date(tarea.fechaProgramada).getTime() <= ahora
+    );
+
+  await Promise.all(
+    tareas.map(async (tarea) => {
+      const fechaActual = new Date().toISOString();
+      const notificationId = `recordatorio_publicacion_${tarea.idTarea || tarea.id}`;
+      const mensaje = 'Tienes una publicacion guardada para recordar.';
+
+      await setDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+        {
+          id: notificationId,
+          tipoNotificacion: 'recordatorio_publicacion',
+          modulo: 'publicaciones',
+          titulo: 'Recordatorio de publicacion',
+          tituloHtml: '<p><strong>Recordatorio</strong> de publicacion</p>',
+          mensaje,
+          mensajeVisual: mensaje,
+          rolDestinatario: tarea.rolDestinatario || 'usuario',
+          idsDestinatarios: tarea.idsDestinatarios || [String(idUsuario)],
+          prioridad: 'informativa',
+          estado: 'no_leida',
+          fechaCreacion: fechaActual,
+          fechaEnvio: fechaActual,
+          actorId: String(tarea.usuarioIdMiembros || idUsuario),
+          actorTipo: 'sistema',
+          actorNombre: 'Recordatorio',
+          actorFotoURL: tarea.fotoUsuarioURL || null,
+          entidadTipo: 'publicacion',
+          entidadId: String(tarea.idPublicacion || ''),
+          ruta: tarea.ruta || `/dashboard/principal/#post-${tarea.idPublicacion}`,
+          imagenTipo: 'icono',
+          imagenURL: null,
+          miniaturaURL: null,
+          tipoAccion: 'ver',
+          etiquetaAccion: 'Ver publicacion',
+          tipoAccionSecundaria: null,
+          etiquetaAccionSecundaria: null,
+          leidaPor: [],
+          fechaProgramada: tarea.fechaProgramada,
+          fechaExpiracion: null,
+          fechaLectura: null,
+          metadatos: {
+            ...(tarea.metadatos || {}),
+            idTarea: tarea.idTarea || tarea.id,
+            canales: tarea.canales || {},
+          },
+          creadoEnServidor: serverTimestamp(),
+          actualizadoEnServidor: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      await updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.tareas, tarea.idTarea || tarea.id), {
+        estado: 'enviada',
+        fechaEnvio: fechaActual,
+        actualizadoEnServidor: serverTimestamp(),
+      }).catch(() => null);
+    })
+  );
+
+  if (tareas.length && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+};
+
 export async function listarNotificacionesFirestorePorUsuario(idUsuario) {
   if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) {
     return [];
   }
+
+  await publicarRecordatoriosPublicacionVencidos(idUsuario);
 
   const snapshot = await getDocs(
     query(

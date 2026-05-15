@@ -1,5 +1,6 @@
+import dayjs from 'dayjs';
 import { uuidv4, varAlpha } from 'minimal-shared/utils';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -9,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
 import Popover from '@mui/material/Popover';
 import Checkbox from '@mui/material/Checkbox';
 import MenuList from '@mui/material/MenuList';
@@ -23,6 +25,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
 
 import { paths } from 'src/routes/paths';
@@ -34,7 +37,6 @@ import { fDate, fTime, fTimestamp } from 'src/utils/format-time';
 import { CONFIG } from 'src/global-config';
 import { crearNotificacionReportePublicacion } from 'src/services/notification-service';
 
-import { Image } from 'src/components/image';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { SvgColor } from 'src/components/svg-color';
@@ -50,6 +52,54 @@ const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
+const COMMENT_FILTERS = [
+  {
+    value: 'relevantes',
+    label: 'Más relevantes',
+    description: 'Se muestran los comentarios con más respuestas e interacciones en primer lugar.',
+  },
+  {
+    value: 'recientes',
+    label: 'Más recientes',
+    description: 'Se muestran todos los comentarios. Los comentarios más recientes aparecerán en primer lugar.',
+  },
+  {
+    value: 'todos',
+    label: 'Todos los comentarios',
+    description: 'Se muestran todos los comentarios, incluido el posible spam.',
+  },
+];
+
+const createPendingComment = ({ message, image, user, idComentarioPadre = '', replyToName = '' }) => ({
+  id: uuidv4(),
+  idComentarioPadre,
+  replyToName,
+  uidAutor: user?.uid || '',
+  autorIdMiembros: user?.idMiembros || null,
+  codigoMiembroAutor: user?.codigoMiembro || '',
+  correoAutor: user?.correo || user?.email || '',
+  pending: true,
+  author: {
+    id: user?.idMiembros || user?.id || user?.uid || 'usuario-actual',
+    uid: user?.uid || '',
+    idMiembros: user?.idMiembros,
+    codigoMiembro: user?.codigoMiembro,
+    correo: user?.correo || user?.email || '',
+    avatarUrl: user?.photoURL,
+    name: user?.displayName || user?.nombre || 'Usuario',
+  },
+  createdAt: new Date().toISOString(),
+  message,
+  imageUrl: image?.previewUrl || '',
+});
+
+const getCommentTime = (comment = {}) => fTimestamp(comment.createdAt) || 0;
+
+const getCommentRelevanceScore = (comment = {}) =>
+  Number(comment.replies?.length || 0) + (comment.imageUrl ? 1 : 0);
+
+const getCommentsCount = (items = []) =>
+  items.reduce((total, comment) => total + 1 + Number(comment.replies?.length || 0), 0);
 
 const formatPostCreatedAt = (input) => {
   const timestamp = fTimestamp(input);
@@ -137,6 +187,8 @@ export function ProfilePostItem({
   onUndoHidePost,
   onSharePost,
   onReportPost,
+  onDeletePost,
+  onRememberPost,
 }) {
   const router = useRouter();
 
@@ -146,9 +198,13 @@ export function ProfilePostItem({
 
   const fileRef = useRef(null);
   const commentRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
 
   const [message, setMessage] = useState('');
   const [comments, setComments] = useState(post.comments || []);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [replySending, setReplySending] = useState(false);
   const [liked, setLiked] = useState(Boolean(post.isLikedByMe));
   const [commentImage, setCommentImage] = useState(null);
   const [commentSending, setCommentSending] = useState(false);
@@ -156,16 +212,51 @@ export function ProfilePostItem({
   const [emojiCategory, setEmojiCategory] = useState('Caras');
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
+  const [commentFilterAnchorEl, setCommentFilterAnchorEl] = useState(null);
+  const [commentFilter, setCommentFilter] = useState('relevantes');
+  const [reminderAnchorEl, setReminderAnchorEl] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [reminderDate, setReminderDate] = useState(dayjs().add(1, 'day'));
+  const [reminderChannels, setReminderChannels] = useState({ chat: false, correo: false });
+  const [reminderSending, setReminderSending] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportSending, setReportSending] = useState(false);
+  const [highlightedCommentId, setHighlightedCommentId] = useState('');
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const postMenuOpen = Boolean(menuAnchorEl);
   const shareMenuOpen = Boolean(shareAnchorEl);
-  const mediaItems = post.mediaItems?.length ? post.mediaItems : post.media ? [post.media] : [];
+  const commentFilterMenuOpen = Boolean(commentFilterAnchorEl);
+  const reminderMenuOpen = Boolean(reminderAnchorEl);
+  const mediaItems = useMemo(
+    () => (post.mediaItems?.length ? post.mediaItems : post.media ? [post.media] : []),
+    [post.media, post.mediaItems]
+  );
+  const commentsCount = getCommentsCount(comments);
+  const currentCommentFilter =
+    COMMENT_FILTERS.find((filter) => filter.value === commentFilter) || COMMENT_FILTERS[0];
+  const filteredComments = useMemo(() => {
+    if (commentFilter === 'recientes') {
+      return [...comments].sort((a, b) => getCommentTime(b) - getCommentTime(a));
+    }
+
+    if (commentFilter === 'relevantes') {
+      return [...comments].sort((a, b) => {
+        const scoreDiff = getCommentRelevanceScore(b) - getCommentRelevanceScore(a);
+
+        return scoreDiff || getCommentTime(b) - getCommentTime(a);
+      });
+    }
+
+    return comments;
+  }, [commentFilter, comments]);
   const currentUserLike = {
     idMiembros: user?.idMiembros,
     name: user?.displayName,
@@ -181,11 +272,68 @@ export function ProfilePostItem({
     liked && !currentUserAlreadyListed ? [currentUserLike, ...postLikes] : postLikes;
   const authorName = author?.displayName || author?.name || 'Usuario';
   const authorPhotoURL = author?.photoURL || author?.avatarUrl || '';
+  const authorIdMiembros = Number(author?.idMiembros || author?.id || 0);
+  const userIdMiembros = Number(user?.idMiembros || user?.id || 0);
+  const isPostAuthor =
+    Boolean(authorIdMiembros && userIdMiembros && authorIdMiembros === userIdMiembros) ||
+    Boolean(
+      author?.codigoMiembro &&
+        user?.codigoMiembro &&
+        String(author.codigoMiembro) === String(user.codigoMiembro)
+    );
 
   useEffect(() => {
     setComments(post.comments || []);
     setLiked(Boolean(post.isLikedByMe));
   }, [post.comments, post.isLikedByMe]);
+
+  const commentExistsInPost = useCallback(
+    (commentId) =>
+      comments.some(
+        (comment) =>
+          comment.id === commentId || (comment.replies || []).some((reply) => reply.id === commentId)
+      ),
+    [comments]
+  );
+
+  const focusHashTarget = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    const targetId = decodeURIComponent(window.location.hash.replace('#', ''));
+    const commentId = targetId.startsWith('comment-') ? targetId.replace('comment-', '') : '';
+    const shouldHandleTarget =
+      targetId === `post-${post.id}` || (commentId && commentExistsInPost(commentId));
+
+    if (!targetId || !shouldHandleTarget) return;
+
+    const targetElement = document.getElementById(targetId);
+
+    if (!targetElement) return;
+
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if (commentId) {
+      window.clearTimeout(highlightTimeoutRef.current);
+      setHighlightedCommentId(commentId);
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedCommentId('');
+      }, 2000);
+    }
+  }, [commentExistsInPost, post.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const frameId = window.requestAnimationFrame(focusHashTarget);
+
+    window.addEventListener('hashchange', focusHashTarget);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(highlightTimeoutRef.current);
+      window.removeEventListener('hashchange', focusHashTarget);
+    };
+  }, [focusHashTarget]);
 
   const handleChangeMessage = useCallback((event) => {
     setMessage(event.target.value);
@@ -202,10 +350,14 @@ export function ProfilePostItem({
   }, []);
 
   const handleClickComment = useCallback(() => {
-    if (commentRef.current) {
-      commentRef.current.focus();
+    if (detailDialogOpen) {
+      commentRef.current?.focus();
+      return;
     }
-  }, []);
+
+    setPreviewImage(mediaItems[0] || '');
+    setDetailDialogOpen(true);
+  }, [detailDialogOpen, mediaItems]);
 
   const handleUploadCommentImage = useCallback(
     (event) => {
@@ -241,33 +393,113 @@ export function ProfilePostItem({
     if (commentSending) return;
     if (!nextMessage && !commentImage) return;
 
+    const optimisticComment = createPendingComment({
+      message: nextMessage,
+      image: commentImage,
+      user,
+    });
+
+    setComments((currentComments) => [...currentComments, optimisticComment]);
+    setMessage('');
+    setCommentImage(null);
     setCommentSending(true);
 
     try {
       const nextComment = onAddComment
-        ? await onAddComment(post, { mensaje: nextMessage, imagen: commentImage })
-        : {
-            id: uuidv4(),
-            author: {
-              id: user?.id || user?.uid || 'usuario-actual',
-              avatarUrl: user?.photoURL,
-              name: user?.displayName || 'Usuario',
-            },
-            createdAt: new Date().toISOString(),
-            message: nextMessage,
-            imageUrl: commentImage?.previewUrl || '',
-          };
+        ? await onAddComment(post, {
+            mensaje: nextMessage,
+            imagen: commentImage,
+            optimisticId: optimisticComment.id,
+          })
+        : optimisticComment;
 
-      setComments((currentComments) => [...currentComments, nextComment]);
-      setMessage('');
-      setCommentImage(null);
+      setComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === optimisticComment.id ? { ...nextComment, pending: false } : comment
+        )
+      );
     } catch (error) {
       console.error(error);
+      setComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === optimisticComment.id ? { ...comment, failed: true, pending: false } : comment
+        )
+      );
       toast.error('No se pudo enviar el comentario.');
     } finally {
       setCommentSending(false);
     }
   }, [commentImage, commentSending, message, onAddComment, post, user]);
+
+  const handleSubmitReply = useCallback(
+    async (comment) => {
+      const nextMessage = replyMessage.trim();
+
+      if (replySending || !nextMessage) return;
+
+      const optimisticReply = createPendingComment({
+        message: nextMessage,
+        user,
+        idComentarioPadre: comment.id,
+        replyToName: comment.author?.name || '',
+      });
+
+      setComments((currentComments) =>
+        currentComments.map((currentComment) =>
+          currentComment.id === comment.id
+            ? { ...currentComment, replies: [...(currentComment.replies || []), optimisticReply] }
+            : currentComment
+        )
+      );
+      setReplyMessage('');
+      setReplyingTo(null);
+      setReplySending(true);
+
+      try {
+        const nextReply = onAddComment
+          ? await onAddComment(post, {
+              mensaje: nextMessage,
+              idComentarioPadre: comment.id,
+              comentarioPadre: comment,
+              optimisticId: optimisticReply.id,
+            })
+          : optimisticReply;
+
+        setComments((currentComments) =>
+          currentComments.map((currentComment) =>
+            currentComment.id === comment.id
+              ? {
+                  ...currentComment,
+                  replies: (currentComment.replies || []).map((reply) =>
+                    reply.id === optimisticReply.id ? { ...nextReply, pending: false } : reply
+                  ),
+                }
+              : currentComment
+          )
+        );
+      } catch (error) {
+        console.error(error);
+        setComments((currentComments) =>
+          currentComments.map((currentComment) =>
+            currentComment.id === comment.id
+              ? {
+                  ...currentComment,
+                  replies: (currentComment.replies || []).map((reply) =>
+                    reply.id === optimisticReply.id
+                      ? { ...reply, failed: true, pending: false }
+                      : reply
+                  ),
+                }
+              : currentComment
+          )
+        );
+        toast.error('No se pudo enviar la respuesta.');
+      } finally {
+        setReplySending(false);
+      }
+    },
+    [onAddComment, post, replyMessage, replySending, user]
+  );
 
   const getPostShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return `${paths.dashboard.principal}#post-${post.id}`;
@@ -405,6 +637,84 @@ export function ProfilePostItem({
     )}`;
   }, [getPostShareUrl, getShareText, onSharePost, post, user?.displayName]);
 
+  const handleOpenPreview = useCallback((imageUrl) => {
+    setPreviewImage(imageUrl);
+    setDetailDialogOpen(true);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewImage(null);
+    setDetailDialogOpen(false);
+    setCommentFilterAnchorEl(null);
+  }, []);
+
+  const handleOpenDeleteDialog = useCallback(() => {
+    setMenuAnchorEl(null);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    if (deletingPost) return;
+
+    setDeleteDialogOpen(false);
+  }, [deletingPost]);
+
+  const handleConfirmDeletePost = useCallback(async () => {
+    setDeletingPost(true);
+
+    try {
+      await onDeletePost?.(post);
+      setDeleteDialogOpen(false);
+      toast.success('Publicacion borrada.');
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.message || 'No se pudo borrar la publicacion.');
+    } finally {
+      setDeletingPost(false);
+    }
+  }, [onDeletePost, post]);
+
+  const handleRememberPost = useCallback(
+    async ({ date, canales = reminderChannels }) => {
+      if (!date) return;
+
+      setReminderSending(true);
+
+      try {
+        await onRememberPost?.(post, {
+          fechaProgramada: date,
+          canales,
+        });
+        setMenuAnchorEl(null);
+        setReminderAnchorEl(null);
+        setReminderDialogOpen(false);
+        toast.success('Recordatorio programado.');
+      } catch (error) {
+        console.error(error);
+        toast.error(error?.message || 'No se pudo programar el recordatorio.');
+      } finally {
+        setReminderSending(false);
+      }
+    },
+    [onRememberPost, post, reminderChannels]
+  );
+
+  const handleRememberInDays = useCallback(
+    (days) => {
+      handleRememberPost({
+        date: dayjs().add(days, 'day'),
+        canales: { chat: false, correo: false },
+      });
+    },
+    [handleRememberPost]
+  );
+
+  const handleOpenReminderDialog = useCallback(() => {
+    setReminderAnchorEl(null);
+    setMenuAnchorEl(null);
+    setReminderDialogOpen(true);
+  }, []);
+
   const renderHead = () => (
     <>
       <CardHeader
@@ -437,70 +747,287 @@ export function ProfilePostItem({
       <Popover
         open={postMenuOpen}
         anchorEl={menuAnchorEl}
-        onClose={() => setMenuAnchorEl(null)}
+        onClose={() => {
+          setMenuAnchorEl(null);
+          setReminderAnchorEl(null);
+        }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          paper: {
+            onMouseLeave: () => {
+              setMenuAnchorEl(null);
+              setReminderAnchorEl(null);
+            },
+          },
+        }}
       >
         <MenuList sx={{ minWidth: 210 }}>
+          {isPostAuthor && (
+            <MenuItem onClick={handleOpenDeleteDialog} sx={{ color: 'error.main' }}>
+              <Iconify icon="solar:trash-bin-trash-bold" />
+              Borrar publicacion
+            </MenuItem>
+          )}
+
+          <MenuItem onMouseEnter={(event) => setReminderAnchorEl(event.currentTarget)}>
+            <Iconify icon="solar:bell-bing-bold" />
+            Recordar esta publicacion
+            <Iconify icon="eva:arrow-ios-forward-fill" width={16} sx={{ ml: 'auto' }} />
+          </MenuItem>
+
           <MenuItem onClick={handleHidePost}>
             <Iconify icon="solar:eye-closed-bold" />
             Ocultar anuncio
           </MenuItem>
 
-          <MenuItem onClick={handleOpenReportDialog} sx={{ color: 'error.main' }}>
+          <MenuItem
+            onClick={handleOpenReportDialog}
+            sx={{
+              color: 'common.white',
+              '& svg': { color: 'common.white' },
+            }}
+          >
             <Iconify icon="solar:flag-bold" />
             Reportar anuncio
+          </MenuItem>
+        </MenuList>
+      </Popover>
+
+      <Popover
+        open={reminderMenuOpen}
+        anchorEl={reminderAnchorEl}
+        onClose={() => setReminderAnchorEl(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            onMouseLeave: () => {
+              setReminderAnchorEl(null);
+              setMenuAnchorEl(null);
+            },
+          },
+        }}
+      >
+        <MenuList sx={{ minWidth: 250 }}>
+          <MenuItem onClick={() => handleRememberInDays(1)}>Recordar en 1 dia</MenuItem>
+          <MenuItem onClick={() => handleRememberInDays(3)}>Recordar en 3 dias</MenuItem>
+          <MenuItem onClick={() => handleRememberInDays(7)}>Recordar en 7 dias</MenuItem>
+          <MenuItem onClick={() => handleRememberInDays(15)}>Recordar en 15 dias</MenuItem>
+          <MenuItem onClick={() => handleRememberInDays(30)}>Recordar en 30 dias</MenuItem>
+          <MenuItem onClick={handleOpenReminderDialog}>
+            <Iconify icon="solar:calendar-add-bold" />
+            Programar una notificacion
           </MenuItem>
         </MenuList>
       </Popover>
     </>
   );
 
-  const renderCommentList = () => (
-    <Stack spacing={1.5} sx={{ px: 3, pb: 2 }}>
-      {comments.map((comment) => (
-        <Box key={comment.id} sx={{ gap: 2, display: 'flex' }}>
-          <Avatar alt={comment.author.name} src={comment.author.avatarUrl} />
+  const renderCommentContent = (comment) => (
+    <Paper
+      id={`comment-${comment.id}`}
+      sx={(theme) => ({
+        p: 1.5,
+        flexGrow: 1,
+        scrollMarginTop: 96,
+        bgcolor:
+          highlightedCommentId === comment.id
+            ? varAlpha(theme.vars.palette.warning.mainChannel, 0.18)
+            : 'background.neutral',
+        boxShadow:
+          highlightedCommentId === comment.id
+            ? `0 0 0 2px ${varAlpha(theme.vars.palette.warning.mainChannel, 0.36)}`
+            : 'none',
+        transition: theme.transitions.create(['background-color', 'box-shadow'], {
+          duration: theme.transitions.duration.shorter,
+        }),
+      })}
+    >
+      <Box
+        sx={{
+          mb: 0.5,
+          display: 'flex',
+          alignItems: { sm: 'center' },
+          justifyContent: 'space-between',
+          flexDirection: { xs: 'column', sm: 'row' },
+        }}
+      >
+        <Link href={getProfileHref(comment.author)} color="inherit" variant="subtitle2">
+          {comment.author.name}
+        </Link>
 
-          <Paper sx={{ p: 1.5, flexGrow: 1, bgcolor: 'background.neutral' }}>
-            <Box
+        <Box sx={{ typography: 'caption', color: 'text.disabled' }}>
+          {formatPostCreatedAt(comment.createdAt)}
+        </Box>
+      </Box>
+
+      {comment.replyToName && (
+        <Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.disabled' }}>
+          Respuesta a {comment.replyToName}
+        </Typography>
+      )}
+
+      {comment.failed && (
+        <Typography
+          variant="caption"
+          sx={{ mb: 0.5, display: 'block', color: 'error.main' }}
+        >
+          No se pudo enviar
+        </Typography>
+      )}
+
+      <Box sx={{ typography: 'body2', color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
+        {renderTextWithHashtags(comment.message)}
+      </Box>
+
+      {comment.imageUrl && (
+        <Box
+          component="img"
+          src={comment.imageUrl}
+          alt={comment.message || 'Comentario'}
+          sx={{
+            mt: 1,
+            width: 160,
+            maxWidth: 1,
+            borderRadius: 1,
+            display: 'block',
+          }}
+        />
+      )}
+    </Paper>
+  );
+
+  const renderReplyInput = (comment) =>
+    replyingTo?.id === comment.id && (
+      <Box sx={{ gap: 1.25, pl: 7, display: 'flex', alignItems: 'center' }}>
+        <Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 32, height: 32 }}>
+          {user?.displayName?.charAt(0).toUpperCase()}
+        </Avatar>
+
+        <InputBase
+          fullWidth
+          autoFocus
+          value={replyMessage}
+          placeholder={`Responder a ${comment.author.name}...`}
+          onChange={(event) => setReplyMessage(event.target.value)}
+          onKeyUp={(event) => {
+            if (event.key === 'Enter') {
+              handleSubmitReply(comment);
+            }
+          }}
+          endAdornment={
+            <InputAdornment position="end" sx={{ mr: 1 }}>
+              <IconButton
+                size="small"
+                color="primary"
+                disabled={replySending || !replyMessage.trim()}
+                onClick={() => handleSubmitReply(comment)}
+              >
+                <Iconify icon="solar:plain-bold" />
+              </IconButton>
+            </InputAdornment>
+          }
+          sx={[
+            (theme) => ({
+              pl: 1.5,
+              minHeight: 38,
+              borderRadius: 1,
+              border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
+            }),
+          ]}
+        />
+      </Box>
+    );
+
+  const renderCommentFilter = () => (
+    <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+      <Button
+        color="inherit"
+        size="small"
+        onClick={(event) => setCommentFilterAnchorEl(event.currentTarget)}
+        endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
+        sx={{ px: 0, fontWeight: 700 }}
+      >
+        {currentCommentFilter.label}
+      </Button>
+
+      <Popover
+        open={commentFilterMenuOpen}
+        anchorEl={commentFilterAnchorEl}
+        onClose={() => setCommentFilterAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      >
+        <MenuList sx={{ width: 360, maxWidth: 'calc(100vw - 32px)', p: 1 }}>
+          {COMMENT_FILTERS.map((filter) => (
+            <MenuItem
+              key={filter.value}
+              selected={commentFilter === filter.value}
+              onClick={() => {
+                setCommentFilter(filter.value);
+                setCommentFilterAnchorEl(null);
+              }}
               sx={{
-                mb: 0.5,
-                display: 'flex',
-                alignItems: { sm: 'center' },
-                justifyContent: 'space-between',
-                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 0.5,
+                py: 1.25,
+                px: 1.5,
+                display: 'block',
+                whiteSpace: 'normal',
               }}
             >
-              <Link href={getProfileHref(comment.author)} color="inherit" variant="subtitle2">
-                {comment.author.name}
-              </Link>
+              <Typography variant="subtitle2">{filter.label}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {filter.description}
+              </Typography>
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Popover>
+    </Box>
+  );
 
-              <Box sx={{ typography: 'caption', color: 'text.disabled' }}>
-                {formatPostCreatedAt(comment.createdAt)}
-              </Box>
-            </Box>
+  const renderCommentList = () => (
+    <Stack spacing={1.5} sx={{ px: 3, pb: 2 }}>
+      {filteredComments.map((comment) => (
+        <Stack key={comment.id} spacing={1}>
+          <Box sx={{ gap: 2, display: 'flex' }}>
+            <Avatar alt={comment.author.name} src={comment.author.avatarUrl} />
 
-            <Box sx={{ typography: 'body2', color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
-              {renderTextWithHashtags(comment.message)}
-            </Box>
+            <Box sx={{ flexGrow: 1 }}>
+              {renderCommentContent(comment)}
 
-            {comment.imageUrl && (
-              <Box
-                component="img"
-                src={comment.imageUrl}
-                alt={comment.message || 'Comentario'}
-                sx={{
-                  mt: 1,
-                  width: 160,
-                  maxWidth: 1,
-                  borderRadius: 1,
-                  display: 'block',
+              <Button
+                size="small"
+                color="inherit"
+                sx={{ mt: 0.25, ml: 0.5, color: 'text.secondary' }}
+                onClick={() => {
+                  setReplyingTo(comment);
+                  setReplyMessage('');
                 }}
-              />
-            )}
-          </Paper>
-        </Box>
+              >
+                Responder
+              </Button>
+            </Box>
+          </Box>
+
+          {!!comment.replies?.length && (
+            <Stack spacing={1} sx={{ pl: 7 }}>
+              {comment.replies.map((reply) => (
+                <Box key={reply.id} sx={{ gap: 1.5, display: 'flex' }}>
+                  <Avatar
+                    alt={reply.author.name}
+                    src={reply.author.avatarUrl}
+                    sx={{ width: 32, height: 32 }}
+                  />
+                  {renderCommentContent(reply)}
+                </Box>
+              ))}
+            </Stack>
+          )}
+
+          {renderReplyInput(comment)}
+        </Stack>
       ))}
     </Stack>
   );
@@ -610,11 +1137,21 @@ export function ProfilePostItem({
     if (mediaItems.length === 1) {
       return (
         <Box sx={{ p: 1 }}>
-          <Image
+          <Box
+            component="img"
             alt={post.message || post.media}
             src={mediaItems[0]}
-            ratio="16/9"
-            sx={{ borderRadius: 1.5 }}
+            onClick={() => handleOpenPreview(mediaItems[0])}
+            sx={{
+              width: 1,
+              height: 'auto',
+              maxHeight: { xs: 560, md: 760 },
+              display: 'block',
+              objectFit: 'contain',
+              borderRadius: 1.5,
+              cursor: 'zoom-in',
+              bgcolor: 'background.neutral',
+            }}
           />
         </Box>
       );
@@ -632,19 +1169,29 @@ export function ProfilePostItem({
         ]}
       >
         {mediaItems.map((media, index) => (
-          <Image
+          <Box
+            component="img"
             key={`${media}-${index}`}
             alt={`${post.message || 'Publicacion'} ${index + 1}`}
             src={media}
-            ratio="1/1"
-            sx={{ borderRadius: 1.5 }}
+            onClick={() => handleOpenPreview(media)}
+            sx={{
+              width: 1,
+              height: 'auto',
+              maxHeight: { xs: 360, md: 520 },
+              display: 'block',
+              objectFit: 'contain',
+              borderRadius: 1.5,
+              cursor: 'zoom-in',
+              bgcolor: 'background.neutral',
+            }}
           />
         ))}
       </Box>
     );
   };
 
-  const renderActions = () => (
+  const renderActions = ({ withSharePopover = true } = {}) => (
     <>
       <Box
         sx={[(theme) => ({ display: 'flex', alignItems: 'center', p: theme.spacing(2, 3, 3, 3) })]}
@@ -682,6 +1229,16 @@ export function ProfilePostItem({
           sx={{ mr: 1 }}
         />
 
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<Iconify icon="solar:chat-round-dots-bold" />}
+          onClick={handleClickComment}
+          sx={{ mr: 1, color: 'text.secondary' }}
+        >
+          {fShortenNumber(commentsCount)}
+        </Button>
+
         {!!displayedLikes.length && (
           <AvatarGroup
             sx={{
@@ -699,52 +1256,50 @@ export function ProfilePostItem({
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <IconButton onClick={handleClickComment}>
-          <Iconify icon="solar:chat-round-dots-bold" />
-        </IconButton>
-
         <IconButton onClick={(event) => setShareAnchorEl(event.currentTarget)}>
           <Iconify icon="solar:share-bold" />
         </IconButton>
       </Box>
 
-      <Popover
-        open={shareMenuOpen}
-        anchorEl={shareAnchorEl}
-        onClose={() => setShareAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuList
-          sx={{
-            py: 0.75,
-            minWidth: 240,
-            '& .MuiMenuItem-root': {
-              gap: 1.5,
-              py: 1.25,
-              px: 2,
-            },
-            '& svg': {
-              color: 'text.secondary',
-            },
-          }}
+      {withSharePopover && (
+        <Popover
+          open={shareMenuOpen}
+          anchorEl={shareAnchorEl}
+          onClose={() => setShareAnchorEl(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
-          <MenuItem onClick={handleCopyLink}>
-            <Iconify icon="solar:copy-bold" />
-            Copiar enlace
-          </MenuItem>
+          <MenuList
+            sx={{
+              py: 0.75,
+              minWidth: 240,
+              '& .MuiMenuItem-root': {
+                gap: 1.5,
+                py: 1.25,
+                px: 2,
+              },
+              '& svg': {
+                color: 'text.secondary',
+              },
+            }}
+          >
+            <MenuItem onClick={handleCopyLink}>
+              <Iconify icon="solar:copy-bold" />
+              Copiar enlace
+            </MenuItem>
 
-          <MenuItem onClick={handleShareToChat}>
-            <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />
-            Compartir en chats
-          </MenuItem>
+            <MenuItem onClick={handleShareToChat}>
+              <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />
+              Compartir en chats
+            </MenuItem>
 
-          <MenuItem onClick={handleNativeShare}>
-            <Iconify icon="solar:export-bold" />
-            Enviar con otra app
-          </MenuItem>
-        </MenuList>
-      </Popover>
+            <MenuItem onClick={handleNativeShare}>
+              <Iconify icon="solar:export-bold" />
+              Enviar con otra app
+            </MenuItem>
+          </MenuList>
+        </Popover>
+      )}
     </>
   );
 
@@ -811,6 +1366,240 @@ export function ProfilePostItem({
     </Dialog>
   );
 
+  const renderDeleteDialog = () => (
+    <Dialog fullWidth maxWidth="xs" open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+      <DialogTitle>Borrar publicacion</DialogTitle>
+
+      <DialogContent sx={{ pt: 1 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Esta accion ocultara la publicacion para todos. Deseas continuar?
+        </Typography>
+      </DialogContent>
+
+      <DialogActions>
+        <Button color="inherit" disabled={deletingPost} onClick={handleCloseDeleteDialog}>
+          Cancelar
+        </Button>
+        <Button
+          color="error"
+          variant="contained"
+          disabled={deletingPost}
+          onClick={handleConfirmDeletePost}
+        >
+          Borrar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const renderReminderDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="xs"
+      open={reminderDialogOpen}
+      onClose={() => !reminderSending && setReminderDialogOpen(false)}
+    >
+      <DialogTitle>Programar notificacion</DialogTitle>
+
+      <DialogContent sx={{ pt: 1 }}>
+        <Stack spacing={2}>
+          <DateTimePicker
+            label="Fecha y hora"
+            value={reminderDate}
+            minDateTime={dayjs()}
+            onChange={(newValue) => setReminderDate(newValue)}
+            slotProps={{ textField: { fullWidth: true } }}
+          />
+
+          <Stack>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked
+                  disabled
+                  slotProps={{ input: { 'aria-label': 'Campanita' } }}
+                />
+              }
+              label="Campanita"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={reminderChannels.chat}
+                  onChange={(event) =>
+                    setReminderChannels((current) => ({
+                      ...current,
+                      chat: event.target.checked,
+                    }))
+                  }
+                  slotProps={{ input: { 'aria-label': 'Chat' } }}
+                />
+              }
+              label="Chat"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={reminderChannels.correo}
+                  onChange={(event) =>
+                    setReminderChannels((current) => ({
+                      ...current,
+                      correo: event.target.checked,
+                    }))
+                  }
+                  slotProps={{ input: { 'aria-label': 'Correo' } }}
+                />
+              }
+              label="Correo"
+            />
+          </Stack>
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button
+          color="inherit"
+          disabled={reminderSending}
+          onClick={() => setReminderDialogOpen(false)}
+        >
+          Cancelar
+        </Button>
+        <Button
+          variant="contained"
+          disabled={reminderSending || !reminderDate}
+          onClick={() => handleRememberPost({ date: reminderDate, canales: reminderChannels })}
+        >
+          Programar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const renderDetailDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="md"
+      open={detailDialogOpen}
+      onClose={handleClosePreview}
+      slotProps={{
+        paper: {
+          sx: {
+            overflow: 'hidden',
+            maxHeight: { xs: '92vh', md: '88vh' },
+          },
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          px: 7,
+          py: 2,
+          textAlign: 'center',
+          borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        }}
+      >
+        Publicación de {authorName}
+
+        <IconButton
+          onClick={handleClosePreview}
+          sx={{
+            top: 10,
+            right: 12,
+            position: 'absolute',
+            bgcolor: 'background.neutral',
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        >
+          <Iconify icon="mingcute:close-line" />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 0, overflow: 'auto' }}>
+        <CardHeader
+          disableTypography
+          avatar={
+            <Link href={getProfileHref(author)} color="inherit" underline="none">
+              <Avatar src={authorPhotoURL} alt={authorName}>
+                {authorName.charAt(0).toUpperCase()}
+              </Avatar>
+            </Link>
+          }
+          title={
+            <Link href={getProfileHref(author)} color="inherit" variant="subtitle1">
+              {authorName}
+            </Link>
+          }
+          subheader={
+            <Box sx={{ color: 'text.disabled', typography: 'caption', mt: 0.5 }}>
+              {formatPostCreatedAt(post.createdAt)}
+              {reported && ' · Reportada'}
+            </Box>
+          }
+          action={
+            <IconButton onClick={(event) => setMenuAnchorEl(event.currentTarget)}>
+              <Iconify icon="eva:more-vertical-fill" />
+            </IconButton>
+          }
+        />
+
+        {post.message && (
+          <Typography
+            variant="body2"
+            sx={[(theme) => ({ px: 3, pb: 2, whiteSpace: 'pre-wrap' })]}
+          >
+            {renderTextWithHashtags(post.message)}
+          </Typography>
+        )}
+
+        {previewImage && (
+          <Box
+            sx={{
+              px: { xs: 0, sm: 3 },
+              bgcolor: 'background.neutral',
+            }}
+          >
+            <Box
+              component="img"
+              src={previewImage}
+              alt={post.message || 'Publicación'}
+              sx={{
+                width: 1,
+                height: 'auto',
+                maxHeight: { xs: 420, md: 560 },
+                display: 'block',
+                objectFit: 'contain',
+                bgcolor: 'background.neutral',
+              }}
+            />
+          </Box>
+        )}
+
+        {renderActions({ withSharePopover: false })}
+
+        <Divider />
+
+        {renderCommentFilter()}
+        {commentsCount ? (
+          renderCommentList()
+        ) : (
+          <Typography variant="body2" sx={{ px: 3, pb: 2, color: 'text.secondary' }}>
+            Aún no hay comentarios.
+          </Typography>
+        )}
+      </DialogContent>
+
+      <Box
+        sx={{
+          pt: 2,
+          borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+          bgcolor: 'background.paper',
+        }}
+      >
+        {renderInput()}
+      </Box>
+    </Dialog>
+  );
+
   return (
     <>
       {hidden ? (
@@ -831,12 +1620,13 @@ export function ProfilePostItem({
           {renderMedia()}
 
           {renderActions()}
-          {!!comments.length && renderCommentList()}
-          {renderInput()}
         </Card>
       )}
 
       {renderReportDialog()}
+      {renderDeleteDialog()}
+      {renderReminderDialog()}
+      {renderDetailDialog()}
     </>
   );
 }

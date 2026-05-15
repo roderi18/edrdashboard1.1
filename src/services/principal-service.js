@@ -1,9 +1,11 @@
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   doc,
   query,
   limit,
   where,
   setDoc,
+  getDoc,
   getDocs,
   deleteDoc,
   increment,
@@ -12,7 +14,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
+import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -33,6 +35,7 @@ export const COLECCIONES_PRINCIPAL = {
 
 const ESTADO_ACTIVO = 'activo';
 const VISIBILIDAD_PUBLICA = 'publico';
+const COLECCIONES_USUARIOS_NOTIFICACIONES = ['users', 'usuarios_roles', 'admins'];
 
 const createId = (prefix) =>
   `${prefix}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
@@ -82,6 +85,22 @@ export const getPrincipalMemberId = (user = {}) =>
 const getCodigoMiembro = (user = {}) =>
   user?.codigoMiembro || user?.codigoUsuario || user?.codigo || user?.memberId || '';
 
+const getFileExtension = (file = {}) => {
+  const nameExtension = String(file?.name || '')
+    .split('.')
+    .pop()
+    ?.toLowerCase();
+
+  if (nameExtension && nameExtension !== file?.name) return nameExtension;
+  if (file?.type === 'image/png') return 'png';
+  if (file?.type === 'image/jpeg') return 'jpg';
+  if (file?.type === 'image/gif') return 'gif';
+  if (file?.type === 'image/webp') return 'webp';
+  if (file?.type === 'image/svg+xml') return 'svg';
+
+  return 'jpg';
+};
+
 const getUserName = (user = {}) =>
   user?.displayName ||
   user?.nombre ||
@@ -101,9 +120,19 @@ const getUserDestacamentoId = (user = {}) =>
 const getUserDestacamentoName = (user = {}) =>
   user?.nombreDestacamento || user?.destacamentoName || user?.destName || user?.destacamento || '';
 
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const buildAuthorFields = (user = {}) => ({
+  uidAutor: user?.uid || '',
   autorIdMiembros: getPrincipalMemberId(user),
   codigoMiembroAutor: getCodigoMiembro(user),
+  correoAutor: user?.correo || user?.email || '',
   nombreAutor: getUserName(user),
   fotoAutorURL: getUserPhoto(user),
   idDestacamentoAutor: getUserDestacamentoId(user),
@@ -111,8 +140,10 @@ const buildAuthorFields = (user = {}) => ({
 });
 
 const buildUserFields = (user = {}, prefix = 'usuario') => ({
+  [`uid${prefix[0].toUpperCase()}${prefix.slice(1)}`]: user?.uid || '',
   [`${prefix}IdMiembros`]: getPrincipalMemberId(user),
   [`codigoMiembro${prefix[0].toUpperCase()}${prefix.slice(1)}`]: getCodigoMiembro(user),
+  [`correo${prefix[0].toUpperCase()}${prefix.slice(1)}`]: user?.correo || user?.email || '',
   [`nombre${prefix[0].toUpperCase()}${prefix.slice(1)}`]: getUserName(user),
   [`foto${prefix[0].toUpperCase()}${prefix.slice(1)}URL`]: getUserPhoto(user),
 });
@@ -136,26 +167,39 @@ const uploadPrincipalImages = async ({ idPublicacion, imagenes = [], tipo = 'pub
   }
 
   const files = imagenes.map((image) => image.file || image).filter(Boolean);
-  const uploadResult = await uploadOptimizedImages({
-    files,
-    preset: 'post',
-    storagePathBuilder: (file, index) =>
-      `principal/${idPublicacion}/${tipo}_${index + 1}_${Date.now()}.webp`,
-    metadataBuilder: (file, index) => ({
-      idPublicacion,
-      tipo,
-      orden: String(index),
-      nombreArchivo: file?.name || '',
-    }),
-  });
+  const uploads = await Promise.all(
+    files.map(async (file, index) => {
+      const extension = getFileExtension(file);
+      const storagePath = `principal/${idPublicacion}/${tipo}_${index + 1}_${Date.now()}.${extension}`;
+      const storageRef = ref(FIREBASE_STORAGE, storagePath);
 
-  return uploadResult.uploads.map((item, index) => ({
+      await uploadBytes(storageRef, file, {
+        contentType: file?.type || 'image/jpeg',
+        customMetadata: {
+          idPublicacion,
+          tipo,
+          orden: String(index),
+          nombreArchivo: file?.name || '',
+          calidadOriginal: 'true',
+        },
+      });
+
+      return {
+        downloadUrl: await getDownloadURL(storageRef),
+        storagePath,
+      };
+    })
+  );
+
+  return uploads.map((item, index) => ({
     url: item.downloadUrl,
     rutaArchivo: item.storagePath,
     tipoArchivo: 'imagen',
+    tipoMime: files[index]?.type || '',
     nombreArchivo: files[index]?.name || `imagen-${index + 1}`,
-    tamanoBytes: item.optimizedSizeBytes || files[index]?.size || 0,
+    tamanoBytes: files[index]?.size || 0,
     orden: index,
+    calidadOriginal: true,
   }));
 };
 
@@ -169,16 +213,27 @@ const reactionToLike = (reaction = {}) => ({
 
 const commentToUi = (comment = {}) => ({
   id: comment.idComentario || comment.id,
+  idComentarioPadre: comment.idComentarioPadre || '',
+  replyToName: comment.respuestaANombreAutor || '',
+  uidAutor: comment.uidAutor || '',
+  autorIdMiembros: comment.autorIdMiembros || null,
+  codigoMiembroAutor: comment.codigoMiembroAutor || '',
+  correoAutor: comment.correoAutor || '',
+  nombreAutor: comment.nombreAutor || 'Usuario',
+  fotoAutorURL: comment.fotoAutorURL || '',
   author: {
     id: comment.autorIdMiembros || comment.codigoMiembroAutor,
+    uid: comment.uidAutor || '',
     idMiembros: comment.autorIdMiembros,
     codigoMiembro: comment.codigoMiembroAutor,
+    correo: comment.correoAutor || '',
     name: comment.nombreAutor || 'Usuario',
     avatarUrl: comment.fotoAutorURL || '',
   },
   createdAt: toIso(comment.fechaCreacion),
   message: comment.mensaje || '',
   imageUrl: comment.imagenURL || '',
+  replies: Array.isArray(comment.replies) ? comment.replies : [],
 });
 
 const publicationToUi = ({ publication = {}, comments = [], reactions = [], usuarioIdMiembros }) => {
@@ -186,6 +241,18 @@ const publicationToUi = ({ publication = {}, comments = [], reactions = [], usua
     ? publication.archivosMultimedia
     : [];
   const mediaItems = archivosMultimedia.map((item) => item.url).filter(Boolean);
+  const commentItems = comments.map(commentToUi);
+  const repliesByParent = commentItems.reduce((acc, comment) => {
+    if (!comment.idComentarioPadre) return acc;
+
+    return {
+      ...acc,
+      [comment.idComentarioPadre]: [...(acc[comment.idComentarioPadre] || []), comment],
+    };
+  }, {});
+  const rootComments = commentItems
+    .filter((comment) => !comment.idComentarioPadre)
+    .map((comment) => ({ ...comment, replies: repliesByParent[comment.id] || [] }));
 
   return {
     id: publication.idPublicacion || publication.id,
@@ -194,14 +261,16 @@ const publicationToUi = ({ publication = {}, comments = [], reactions = [], usua
     mediaItems,
     message: publication.mensaje || '',
     personLikes: reactions.map(reactionToLike),
-    comments: comments.map(commentToUi),
+    comments: rootComments,
     isLikedByMe: reactions.some(
       (reaction) => Number(reaction.usuarioIdMiembros) === Number(usuarioIdMiembros)
     ),
     author: {
       id: publication.autorIdMiembros || publication.codigoMiembroAutor,
+      uid: publication.uidAutor,
       idMiembros: publication.autorIdMiembros,
       codigoMiembro: publication.codigoMiembroAutor,
+      correo: publication.correoAutor,
       displayName: publication.nombreAutor || 'Usuario',
       photoURL: publication.fotoAutorURL || '',
     },
@@ -228,6 +297,265 @@ const getCollectionDataByPublications = async ({ collectionName, ids }) => {
   return Object.fromEntries(entries);
 };
 
+const obtenerPerfilNotificacionAutor = async ({
+  uidAutor = '',
+  autorIdMiembros = null,
+  codigoMiembroAutor = '',
+  correoAutor = '',
+} = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE) return null;
+
+  if (uidAutor) {
+    return {
+      uid: String(uidAutor),
+      rolDestinatario: '',
+    };
+  }
+
+  const memberId = toNumberOrNull(autorIdMiembros);
+  const codigo = String(codigoMiembroAutor || '').trim();
+  const correo = String(correoAutor || '').trim().toLowerCase();
+
+  if (!memberId && !codigo && !correo) return null;
+
+  const snapshots = await Promise.all(
+    COLECCIONES_USUARIOS_NOTIFICACIONES.map((collectionName) =>
+      getDocs(collection(FIRESTORE, collectionName)).catch(() => ({ docs: [] }))
+    )
+  );
+
+  const profile =
+    snapshots
+      .flatMap((snapshot, index) =>
+        snapshot.docs.map((item) => ({
+          id: item.id,
+          coleccion: COLECCIONES_USUARIOS_NOTIFICACIONES[index],
+          ...(item.data() || {}),
+        }))
+      )
+      .find((item) => {
+        const perfilIdMiembros = toNumberOrNull(item.idMiembros || item.memberId);
+        const perfilCodigo = String(item.codigoMiembro || item.codigoUsuario || item.memberId || '')
+          .trim()
+          .toLowerCase();
+        const perfilCorreo = String(item.correo || item.email || '').trim().toLowerCase();
+
+        return (
+          (memberId && perfilIdMiembros === memberId) ||
+          (codigo && perfilCodigo === codigo.toLowerCase()) ||
+          (correo && perfilCorreo === correo)
+        );
+      }) || null;
+
+  if (!profile) return null;
+
+  return {
+    uid: String(profile.uid || profile.id),
+    rolDestinatario:
+      profile.coleccion === 'admins' || profile.rol === 'admin' || profile.rol === 'administrador'
+        ? 'admin'
+        : 'usuario',
+  };
+};
+
+const crearNotificacionComentarioPublicacion = async ({ publicacion, comentario, usuario }) => {
+  if (!isFirebaseConfigured || !FIRESTORE) return null;
+
+  const autorIdMiembros = Number(publicacion?.autorIdMiembros || 0);
+  const comentaristaIdMiembros = Number(comentario?.autorIdMiembros || getPrincipalMemberId(usuario) || 0);
+  const autorUid = String(publicacion?.uidAutor || '').trim();
+  const comentaristaUid = String(usuario?.uid || '').trim();
+  const autorCodigo = String(publicacion?.codigoMiembroAutor || '').trim();
+  const comentaristaCodigo = String(comentario?.codigoMiembroAutor || getCodigoMiembro(usuario) || '').trim();
+
+  if (
+    (autorUid && comentaristaUid && autorUid === comentaristaUid) ||
+    (autorIdMiembros && comentaristaIdMiembros && autorIdMiembros === comentaristaIdMiembros) ||
+    (autorCodigo && comentaristaCodigo && autorCodigo === comentaristaCodigo)
+  ) {
+    return null;
+  }
+
+  const destinatario = await obtenerPerfilNotificacionAutor(publicacion);
+
+  if (!destinatario?.uid) return null;
+
+  const fechaActual = new Date().toISOString();
+  const idPublicacion = publicacion.idPublicacion || publicacion.id;
+  const idComentario = comentario.idComentario || comentario.id;
+  const actorNombre = comentario.nombreAutor || getUserName(usuario);
+  const notificationId = `comentario_publicacion_${idPublicacion}_${idComentario}_${destinatario.uid}`;
+  const esRespuesta = Boolean(comentario.idComentarioPadre);
+  const mensaje = esRespuesta
+    ? 'respondio un comentario en tu publicacion.'
+    : 'comentó tu publicacion.';
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'publicacion_comentada',
+    modulo: 'publicaciones',
+    titulo: esRespuesta ? 'Respuesta en publicacion' : 'Comentario en publicacion',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> ${escapeHtml(mensaje)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: destinatario.rolDestinatario,
+    idsDestinatarios: [destinatario.uid],
+    prioridad: 'informativa',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(comentaristaIdMiembros || usuario?.uid || 'usuario'),
+    actorTipo: 'usuario',
+    actorNombre,
+    actorFotoURL: comentario.fotoAutorURL || getUserPhoto(usuario),
+    entidadTipo: 'publicacion',
+    entidadId: String(idPublicacion),
+    ruta: `/dashboard/principal/#comment-${idComentario}`,
+    imagenTipo: 'persona',
+    imagenURL: comentario.fotoAutorURL || getUserPhoto(usuario) || null,
+    miniaturaURL: comentario.fotoAutorURL || getUserPhoto(usuario) || null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver publicacion',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      idPublicacion,
+      idComentario,
+      idComentarioPadre: comentario.idComentarioPadre || '',
+      mensajeComentario: comentario.mensaje || '',
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    cleanFirestoreData(notificacion),
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacion;
+};
+
+const getCommentAuthorFields = (comentario = {}) => ({
+  uidAutor: comentario.uidAutor || comentario.author?.uid || '',
+  autorIdMiembros: comentario.autorIdMiembros || comentario.author?.idMiembros || null,
+  codigoMiembroAutor: comentario.codigoMiembroAutor || comentario.author?.codigoMiembro || '',
+  correoAutor: comentario.correoAutor || comentario.author?.correo || '',
+  nombreAutor: comentario.nombreAutor || comentario.author?.name || 'Usuario',
+});
+
+const crearNotificacionRespuestaComentarioPublicacion = async ({
+  publicacion,
+  comentario,
+  comentarioPadre,
+  usuario,
+}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !comentarioPadre) return null;
+
+  const autorComentario = getCommentAuthorFields(comentarioPadre);
+  const autorIdMiembros = Number(autorComentario.autorIdMiembros || 0);
+  const responderIdMiembros = Number(comentario?.autorIdMiembros || getPrincipalMemberId(usuario) || 0);
+  const autorUid = String(autorComentario.uidAutor || '').trim();
+  const responderUid = String(usuario?.uid || '').trim();
+  const autorCodigo = String(autorComentario.codigoMiembroAutor || '').trim();
+  const responderCodigo = String(comentario?.codigoMiembroAutor || getCodigoMiembro(usuario) || '').trim();
+  const publicacionUid = String(publicacion?.uidAutor || '').trim();
+  const publicacionIdMiembros = Number(publicacion?.autorIdMiembros || 0);
+  const publicacionCodigo = String(publicacion?.codigoMiembroAutor || '').trim();
+
+  if (
+    (autorUid && responderUid && autorUid === responderUid) ||
+    (autorIdMiembros && responderIdMiembros && autorIdMiembros === responderIdMiembros) ||
+    (autorCodigo && responderCodigo && autorCodigo === responderCodigo)
+  ) {
+    return null;
+  }
+
+  if (
+    (publicacionUid && autorUid && publicacionUid === autorUid) ||
+    (publicacionIdMiembros && autorIdMiembros && publicacionIdMiembros === autorIdMiembros) ||
+    (publicacionCodigo && autorCodigo && publicacionCodigo === autorCodigo)
+  ) {
+    return null;
+  }
+
+  const destinatario = await obtenerPerfilNotificacionAutor(autorComentario);
+
+  if (!destinatario?.uid) return null;
+
+  const fechaActual = new Date().toISOString();
+  const idPublicacion = publicacion?.idPublicacion || publicacion?.id || comentario.idPublicacion;
+  const idComentario = comentario.idComentario || comentario.id;
+  const idComentarioPadre = comentario.idComentarioPadre || comentarioPadre.idComentario || comentarioPadre.id;
+  const actorNombre = comentario.nombreAutor || getUserName(usuario);
+  const mensaje = 'respondio a tu comentario.';
+  const notificationId = `respuesta_comentario_${idPublicacion}_${idComentario}_${destinatario.uid}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'publicacion_comentada',
+    modulo: 'publicaciones',
+    titulo: 'Respuesta a comentario',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> ${escapeHtml(mensaje)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: destinatario.rolDestinatario,
+    idsDestinatarios: [destinatario.uid],
+    prioridad: 'informativa',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(responderIdMiembros || usuario?.uid || 'usuario'),
+    actorTipo: 'usuario',
+    actorNombre,
+    actorFotoURL: comentario.fotoAutorURL || getUserPhoto(usuario),
+    entidadTipo: 'publicacion',
+    entidadId: String(idPublicacion),
+    ruta: `/dashboard/principal/#comment-${idComentario}`,
+    imagenTipo: 'persona',
+    imagenURL: comentario.fotoAutorURL || getUserPhoto(usuario) || null,
+    miniaturaURL: comentario.fotoAutorURL || getUserPhoto(usuario) || null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver comentario',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      idPublicacion,
+      idComentario,
+      idComentarioPadre,
+      mensajeComentario: comentario.mensaje || '',
+      destinatarioComentarioNombre: autorComentario.nombreAutor,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    cleanFirestoreData(notificacion),
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacion;
+};
+
 export async function obtenerPublicacionesPrincipal({ usuarioIdMiembros, mocks = [] } = {}) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return mocks;
@@ -248,11 +576,11 @@ export async function obtenerPublicacionesPrincipal({ usuarioIdMiembros, mocks =
 
   const hiddenSnapshot = usuarioIdMiembros
     ? await getDocs(
-        query(
-          collection(FIRESTORE, COLECCIONES_PRINCIPAL.ocultas),
-          where('usuarioIdMiembros', '==', usuarioIdMiembros)
-        )
+      query(
+        collection(FIRESTORE, COLECCIONES_PRINCIPAL.ocultas),
+        where('usuarioIdMiembros', '==', usuarioIdMiembros)
       )
+    )
     : { docs: [] };
   const publicacionesOcultas = new Set(
     hiddenSnapshot.docs.map((item) => item.data()?.idPublicacion).filter(Boolean)
@@ -336,6 +664,8 @@ export async function crearComentarioPublicacion({
   mensaje = '',
   imagen = null,
   usuario = {},
+  idComentarioPadre = '',
+  comentarioPadre = null,
 } = {}) {
   const idComentario = createId('comentario');
   const archivos = imagen
@@ -345,6 +675,9 @@ export async function crearComentarioPublicacion({
   const comentario = {
     idComentario,
     idPublicacion,
+    idComentarioPadre: idComentarioPadre || '',
+    respuestaAIdComentario: idComentarioPadre || '',
+    respuestaANombreAutor: comentarioPadre?.author?.name || comentarioPadre?.nombreAutor || '',
     ...buildAuthorFields(usuario),
     mensaje,
     imagenURL: archivos[0]?.url || '',
@@ -356,18 +689,183 @@ export async function crearComentarioPublicacion({
   };
 
   if (isFirebaseConfigured && FIRESTORE) {
+    const publicacionSnapshot = await getDoc(
+      doc(FIRESTORE, COLECCIONES_PRINCIPAL.publicaciones, idPublicacion)
+    ).catch(() => null);
+    const publicacion = publicacionSnapshot?.exists()
+      ? { id: publicacionSnapshot.id, ...publicacionSnapshot.data() }
+      : null;
+
     await setDoc(
       doc(FIRESTORE, COLECCIONES_PRINCIPAL.comentarios, idComentario),
       cleanFirestoreData(comentario)
     );
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('principal:comentario-sincronizado', {
+          detail: { idPublicacion, idComentario, idComentarioPadre: comentario.idComentarioPadre },
+        })
+      );
+    }
+
     await updateDoc(doc(FIRESTORE, COLECCIONES_PRINCIPAL.publicaciones, idPublicacion), {
       cantidadComentarios: increment(1),
       fechaActualizacion: comentario.fechaActualizacion,
       actualizadoEnServidor: serverTimestamp(),
     }).catch(() => null);
+
+    if (publicacion) {
+      await crearNotificacionComentarioPublicacion({
+        publicacion,
+        comentario,
+        usuario,
+      }).catch((error) => console.error('[principal] no se pudo notificar comentario', error));
+
+      if (comentario.idComentarioPadre) {
+        await crearNotificacionRespuestaComentarioPublicacion({
+          publicacion,
+          comentario,
+          comentarioPadre,
+          usuario,
+        }).catch((error) =>
+          console.error('[principal] no se pudo notificar respuesta de comentario', error)
+        );
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('notificaciones:actualizar'));
+      }
+    }
   }
 
   return commentToUi(comentario);
+}
+
+export async function eliminarPublicacionPrincipal({ idPublicacion, usuario = {} } = {}) {
+  if (!isFirebaseConfigured || !FIRESTORE || !idPublicacion) {
+    return null;
+  }
+
+  const publicacionRef = doc(FIRESTORE, COLECCIONES_PRINCIPAL.publicaciones, idPublicacion);
+  const publicacionSnapshot = await getDoc(publicacionRef);
+
+  if (!publicacionSnapshot.exists()) {
+    throw new Error('La publicacion no existe.');
+  }
+
+  const publicacion = publicacionSnapshot.data() || {};
+  const autorIdMiembros = Number(publicacion.autorIdMiembros || 0);
+  const usuarioIdMiembros = Number(getPrincipalMemberId(usuario) || 0);
+  const esAutor =
+    Boolean(autorIdMiembros && usuarioIdMiembros && autorIdMiembros === usuarioIdMiembros) ||
+    Boolean(
+      publicacion.codigoMiembroAutor &&
+      getCodigoMiembro(usuario) &&
+      publicacion.codigoMiembroAutor === getCodigoMiembro(usuario)
+    );
+
+  if (!esAutor) {
+    throw new Error('Solo el autor puede borrar esta publicacion.');
+  }
+
+  const fechaEliminacion = new Date().toISOString();
+
+  await updateDoc(publicacionRef, {
+    estado: 'eliminado',
+    eliminadoPorIdMiembros: usuarioIdMiembros || null,
+    codigoMiembroEliminadoPor: getCodigoMiembro(usuario),
+    fechaEliminacion,
+    fechaActualizacion: fechaEliminacion,
+    actualizadoEnServidor: serverTimestamp(),
+  });
+
+  return { idPublicacion, estado: 'eliminado' };
+}
+
+export async function crearRecordatorioPublicacion({
+  publicacion = {},
+  usuario = {},
+  fechaProgramada,
+  canales = {},
+} = {}) {
+  if (!fechaProgramada) {
+    throw new Error('Selecciona una fecha para el recordatorio.');
+  }
+
+  const fechaRecordatorio =
+    fechaProgramada?.toDate?.()?.toISOString?.() ||
+    (fechaProgramada instanceof Date
+      ? fechaProgramada.toISOString()
+      : new Date(fechaProgramada).toISOString());
+
+  if (Number.isNaN(new Date(fechaRecordatorio).getTime())) {
+    throw new Error('La fecha del recordatorio no es valida.');
+  }
+
+  const idTarea = createId('recordatorio_publicacion');
+  const idPublicacion = publicacion.id || publicacion.idPublicacion;
+  const uidDestinatario = String(usuario?.uid || usuario?.id || '');
+  const fechaCreacion = new Date().toISOString();
+  const tarea = {
+    idTarea,
+    tipoTarea: 'recordatorio_publicacion',
+    tipoNotificacion: 'recordatorio_publicacion',
+    modulo: 'publicaciones',
+    estado: 'pendiente',
+    idsDestinatarios: uidDestinatario ? [uidDestinatario] : [],
+    rolDestinatario: 'usuario',
+    usuarioIdMiembros: getPrincipalMemberId(usuario),
+    codigoMiembroUsuario: getCodigoMiembro(usuario),
+    nombreUsuario: getUserName(usuario),
+    fotoUsuarioURL: getUserPhoto(usuario),
+    correoUsuario: usuario?.correo || usuario?.email || '',
+    idPublicacion,
+    mensajePublicacion: publicacion.message || publicacion.mensaje || '',
+    autorIdMiembros: publicacion.author?.idMiembros || publicacion.autorIdMiembros || null,
+    nombreAutor: publicacion.author?.displayName || publicacion.author?.name || '',
+    fechaProgramada: fechaRecordatorio,
+    fechaCreacion,
+    fechaEnvio: null,
+    canales: {
+      campanita: true,
+      chat: Boolean(canales.chat),
+      correo: Boolean(canales.correo),
+    },
+    ruta: `/dashboard/principal/#post-${idPublicacion}`,
+    metadatos: {
+      idPublicacion,
+      mensajePublicacion: publicacion.message || publicacion.mensaje || '',
+      canalesSolicitados: {
+        chat: Boolean(canales.chat),
+        correo: Boolean(canales.correo),
+      },
+    },
+    creadoEnServidor: isFirebaseConfigured ? serverTimestamp() : null,
+    actualizadoEnServidor: isFirebaseConfigured ? serverTimestamp() : null,
+  };
+
+  if (isFirebaseConfigured && FIRESTORE) {
+    await setDoc(
+      doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.tareas, idTarea),
+      cleanFirestoreData(tarea)
+    );
+  }
+
+  if (typeof window !== 'undefined') {
+    const delayMs = new Date(fechaRecordatorio).getTime() - Date.now();
+    const maxTimeoutMs = 2147483647;
+
+    if (delayMs <= 0) {
+      window.dispatchEvent(new Event('notificaciones:actualizar'));
+    } else if (delayMs <= maxTimeoutMs) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event('notificaciones:actualizar'));
+      }, delayMs + 1000);
+    }
+  }
+
+  return tarea;
 }
 
 export async function alternarReaccionPublicacion({ idPublicacion, usuario = {}, activo = true } = {}) {

@@ -31,6 +31,8 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'perfil_actualizado',
   'evento_reprogramado',
   'mensaje_recibido',
+  'publicacion_comentada',
+  'recordatorio_publicacion',
   'chat_reportado',
 ];
 
@@ -44,6 +46,8 @@ export const TIPOS_NOTIFICACIONES_USUARIO = [
   'producto_disponible_nuevamente',
   'evento_reprogramado',
   'mensaje_recibido',
+  'publicacion_comentada',
+  'recordatorio_publicacion',
   'cumpleanos_miembro_destacamento_7_dias',
   'cumpleanos_miembro_destacamento_hoy',
 ];
@@ -312,6 +316,28 @@ const DEFINICIONES_NOTIFICACIONES = {
     etiquetaAccion: 'Responder',
     tipoAccion: 'responder',
     requiereFotoPersona: true,
+  },
+  publicacion_comentada: {
+    modulo: 'publicaciones',
+    titulo: 'Comentario en publicacion',
+    mensajePlantilla: '{{actorNombre}} comentó tu publicacion.',
+    rolesDisponibles: ['admin', 'usuario'],
+    prioridadPorDefecto: 'informativa',
+    entidadTipo: 'publicacion',
+    etiquetaAccion: 'Ver publicacion',
+    tipoAccion: 'ver',
+    requiereFotoPersona: true,
+  },
+  recordatorio_publicacion: {
+    modulo: 'publicaciones',
+    titulo: 'Recordatorio de publicacion',
+    mensajePlantilla: 'Tienes una publicacion guardada para recordar.',
+    rolesDisponibles: ['admin', 'usuario'],
+    prioridadPorDefecto: 'informativa',
+    entidadTipo: 'publicacion',
+    etiquetaAccion: 'Ver publicacion',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
   },
   chat_reportado: {
     modulo: 'mensajes',

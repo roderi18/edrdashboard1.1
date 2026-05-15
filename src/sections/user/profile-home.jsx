@@ -23,6 +23,8 @@ import {
   alternarReaccionPublicacion,
   registrarReportePublicacion,
   ocultarPublicacionPrincipal,
+  crearRecordatorioPublicacion,
+  eliminarPublicacionPrincipal,
   obtenerPublicacionesPrincipal,
   registrarCompartidoPublicacion,
   deshacerOcultarPublicacionPrincipal,
@@ -158,12 +160,17 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
   }, [postImages, postMessage, user]);
 
   const handleAddComment = useCallback(
-    async (post, { mensaje, imagen }) => {
+    async (
+      post,
+      { mensaje, imagen, idComentarioPadre = '', comentarioPadre = null, optimisticId = '' }
+    ) => {
       const nextComment = await crearComentarioPublicacion({
         idPublicacion: post.id,
         mensaje,
         imagen,
         usuario: user,
+        idComentarioPadre,
+        comentarioPadre,
       });
 
       setFeedPosts((currentPosts) =>
@@ -171,7 +178,27 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
           currentPost.id === post.id
             ? {
                 ...currentPost,
-                comments: [...(currentPost.comments || []), nextComment],
+                comments: nextComment.idComentarioPadre
+                  ? (currentPost.comments || []).map((comment) =>
+                      comment.id === nextComment.idComentarioPadre
+                        ? {
+                            ...comment,
+                            replies:
+                              optimisticId &&
+                              (comment.replies || []).some((reply) => reply.id === optimisticId)
+                                ? (comment.replies || []).map((reply) =>
+                                    reply.id === optimisticId ? nextComment : reply
+                                  )
+                                : [...(comment.replies || []), nextComment],
+                          }
+                        : comment
+                    )
+                  : optimisticId &&
+                      (currentPost.comments || []).some((comment) => comment.id === optimisticId)
+                    ? (currentPost.comments || []).map((comment) =>
+                        comment.id === optimisticId ? nextComment : comment
+                      )
+                    : [...(currentPost.comments || []), nextComment],
                 cantidadComentarios: Number(currentPost.cantidadComentarios || 0) + 1,
               }
             : currentPost
@@ -257,6 +284,27 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
     [user]
   );
 
+  const handleDeletePost = useCallback(
+    async (post) => {
+      await eliminarPublicacionPrincipal({ idPublicacion: post.id, usuario: user });
+      setFeedPosts((currentPosts) =>
+        currentPosts.filter((currentPost) => currentPost.id !== post.id)
+      );
+    },
+    [user]
+  );
+
+  const handleRememberPost = useCallback(
+    async (post, { fechaProgramada, canales }) =>
+      crearRecordatorioPublicacion({
+        publicacion: post,
+        usuario: user,
+        fechaProgramada,
+        canales,
+      }),
+    [user]
+  );
+
   const renderFollows = () => (
     <Card sx={{ py: 3, textAlign: 'center', typography: 'h4' }}>
       <Stack
@@ -293,7 +341,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
       <InputBase
         multiline
         fullWidth
-        rows={4}
+        rows={2}
         value={postMessage}
         onChange={handleChangePostMessage}
         placeholder="Comparte lo que estas pensando..."
@@ -307,8 +355,8 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
         }
         sx={[
           (theme) => ({
-            p: 2,
-            mb: 3,
+            p: 1.5,
+            mb: 2,
             borderRadius: 1,
             border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
           }),
@@ -351,11 +399,7 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
           <Fab size="small" color="inherit" variant="softExtended" onClick={handleAttach}>
             <Iconify icon="solar:gallery-wide-bold" width={24} sx={{ color: 'success.main' }} />
-            Imagen/Video
-          </Fab>
-          <Fab size="small" color="inherit" variant="softExtended">
-            <Iconify icon="solar:videocamera-record-bold" width={24} sx={{ color: 'error.main' }} />
-            En vivo
+            Fotos
           </Fab>
         </Box>
 
@@ -410,6 +454,8 @@ export function ProfileHome({ info, posts, user, sx, ...other }) {
             onUndoHidePost={handleUndoHidePost}
             onSharePost={handleSharePost}
             onReportPost={handleReportPost}
+            onDeletePost={handleDeletePost}
+            onRememberPost={handleRememberPost}
           />
         ))}
       </Grid>
