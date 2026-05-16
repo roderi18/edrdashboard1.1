@@ -9,7 +9,7 @@ import TableCell from '@mui/material/TableCell';
 import { capitalizeWords } from 'src/utils/text-format';
 import { resolveById } from 'src/utils/resolve-display-name';
 import { getStorageCollection } from 'src/utils/storage-service';
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { SECTIONALS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
@@ -113,6 +113,7 @@ export function MemberTableRow({
             return row.phoneNumber;
           }
         })()}
+        subtitleHref={getPhoneHref(row.phoneNumber)}
         avatarUrl={row.avatarUrl}
         onAvatarClick={handleOpenMemberEdit}
         linkUnderline="always"

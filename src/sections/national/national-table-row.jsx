@@ -1,9 +1,10 @@
+import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { getStorageCollection } from 'src/utils/storage-service';
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { MEMBERS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
@@ -66,7 +67,15 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
         linkSx={{ cursor: member ? 'pointer' : 'default' }}
       />
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatPhoneNumber(member?.phoneNumber)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {member?.phoneNumber ? (
+          <Link href={getPhoneHref(member.phoneNumber)} color="inherit" underline="hover">
+            {formatPhoneNumber(member.phoneNumber)}
+          </Link>
+        ) : (
+          formatPhoneNumber(member?.phoneNumber)
+        )}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {roleConfig?.label || row.nationalXMemberPositionLabel || '-'}

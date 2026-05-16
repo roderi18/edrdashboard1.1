@@ -117,12 +117,23 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                 {line.icon && (
                   <Iconify icon={line.icon} width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
                 )}
-                <Box
-                  component="span"
-                  sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {line.text}
-                </Box>
+                {line.href ? (
+                  <Link
+                    href={line.href}
+                    color="inherit"
+                    underline="hover"
+                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {line.text}
+                  </Link>
+                ) : (
+                  <Box
+                    component="span"
+                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {line.text}
+                  </Box>
+                )}
               </Box>
             ))}
           </Box>

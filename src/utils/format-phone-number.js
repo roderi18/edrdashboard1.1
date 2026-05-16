@@ -15,3 +15,15 @@ export function formatPhoneNumber(phoneNumber, fallback = '') {
     return phoneText;
   }
 }
+
+export function getPhoneHref(phoneNumber) {
+  if (!phoneNumber) return '';
+
+  const phoneText = String(phoneNumber).trim();
+  const digits = phoneText.replace(/\D/g, '');
+
+  if (!digits) return '';
+  if (phoneText.startsWith('+')) return `tel:${phoneText.replace(/[^\d+]/g, '')}`;
+
+  return `tel:+1${digits}`;
+}

@@ -6,7 +6,7 @@ import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
 
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
@@ -59,6 +59,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
         title={directorName}
         href={directorId ? `/dashboard/level/member/${directorId}/edit` : ''}
         subtitle={directorPhoneLabel}
+        subtitleHref={getPhoneHref(directorPhoneNumber)}
         avatarUrl={directorAvatarUrl}
         avatarChildren={!directorAvatarUrl && directorName?.[0]}
         linkSx={{ cursor: directorId ? 'pointer' : 'default' }}

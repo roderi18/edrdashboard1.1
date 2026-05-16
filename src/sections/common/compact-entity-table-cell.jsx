@@ -12,6 +12,7 @@ export function CompactEntityTableCell({
   title,
   href,
   subtitle,
+  subtitleHref,
   avatarUrl,
   avatarAlt,
   avatarChildren,
@@ -55,11 +56,21 @@ export function CompactEntityTableCell({
             </Box>
           )}
 
-          {subtitle !== undefined && (
-            <Box component="span" sx={{ color: 'text.disabled' }}>
-              {subtitle}
-            </Box>
-          )}
+          {subtitle !== undefined &&
+            (subtitleHref ? (
+              <Link
+                href={subtitleHref}
+                color="inherit"
+                underline="hover"
+                sx={{ color: 'text.disabled' }}
+              >
+                {subtitle}
+              </Link>
+            ) : (
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                {subtitle}
+              </Box>
+            ))}
         </Stack>
       </Box>
     </TableCell>

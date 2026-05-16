@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from 'react';
 
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
@@ -123,7 +123,7 @@ export const MemberCard = memo(function MemberCard({
       avatarUrl={resolvedAvatarUrl}
       fallbackText={member?.name || member?.firstName}
       lines={[
-        { icon: 'solar:phone-bold', text: phoneLabel },
+        { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
         { icon: 'mingcute:location-fill', text: destLabel },
       ]}
       rightImage={divisionIcon}

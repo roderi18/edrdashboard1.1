@@ -7,7 +7,7 @@ import TableCell from '@mui/material/TableCell';
 import { RouterLink } from 'src/routes/components';
 
 import { capitalizeWords } from 'src/utils/text-format';
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -55,6 +55,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         title={capitalizeWords(coordinatorName)}
         href={coordinatorId ? `/dashboard/level/member/${coordinatorId}/edit` : ''}
         subtitle={coordinatorPhoneLabel}
+        subtitleHref={getPhoneHref(coordinatorPhoneNumber)}
         avatarUrl={coordinatorAvatarUrl}
         avatarSx={{ width: 40, height: 40 }}
         linkSx={{ cursor: coordinatorId ? 'pointer' : 'default' }}

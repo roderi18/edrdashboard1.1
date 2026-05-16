@@ -6,7 +6,7 @@ import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
 
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -46,6 +46,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         title={row.directorId ? directorName : 'Desconocido'}
         href={row.directorId ? `/dashboard/level/member/${row.directorId}/edit` : ''}
         subtitle={directorPhoneLabel}
+        subtitleHref={getPhoneHref(directorPhoneNumber)}
         avatarUrl={directorAvatarUrl}
         linkSx={{ cursor: row.directorId ? 'pointer' : 'default' }}
       />
