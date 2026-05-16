@@ -50,6 +50,7 @@ import {
   rowInPage,
   TableNoData,
   getComparator,
+  TableSkeleton,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -203,6 +204,7 @@ export function MemberListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const visibleMembers = useMemo(
     () => filterMembersByMemberScope(tableData, user),
     [tableData, user]
@@ -227,39 +229,49 @@ export function MemberListView() {
   }, [dests, user]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       // ðŸš¨ NO correr hasta que haya data
       if (!dests.length || !churches.length || !sectionals.length) return;
 
+      setMembersLoading(true);
+
       try {
         const members = await getMembers();
-        const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
+        if (cancelled) return;
+
+        const destById = new Map(dests.map((dest) => [String(dest.id), dest]));
+        const churchById = new Map();
+        const sectionalById = new Map();
+
+        churches.forEach((church) => {
+          [church?.id, church?.idIglesia].forEach((id) => {
+            if (id !== null && id !== undefined && id !== '') {
+              churchById.set(String(id), church);
+            }
+          });
+        });
+
+        sectionals.forEach((sectional) => {
+          [sectional?.id, sectional?.idSeccion].forEach((id) => {
+            if (id !== null && id !== undefined && id !== '') {
+              sectionalById.set(String(id), sectional);
+            }
+          });
+        });
 
         const mapped = members.map((member) => {
-          const memberPhoto = memberPhotos[String(member.id)];
-
-          const dest = dests.find((d) => String(d.id) === String(member.idDestacamento));
-
-          const church = churches.find(
-            (c) =>
-              String(c.id) === String(dest?.churchId) ||
-              String(c.idIglesia) === String(dest?.churchId) ||
-              Number(c.id) === Number(dest?.churchId)
-          );
-
-          const sectional = sectionals.find(
-            (s) =>
-              String(s.id) === String(church?.idSeccion) ||
-              String(s.idSeccion) === String(church?.idSeccion)
-          );
-          const regional = regionals.find((r) => String(r.id) === String(sectional?.regionalId));
+          const dest = destById.get(String(member.idDestacamento)) || destById.get(String(member.destId));
+          const church = churchById.get(String(dest?.churchId));
+          const sectional = sectionalById.get(String(church?.idSeccion));
 
           return {
             ...member,
             id: member.id,
             idMiembros: member.id,
             memberId: member.id,
-            avatarUrl: memberPhoto?.urlFoto || member.avatarUrl || null,
+            avatarUrl: member.avatarUrl || null,
             name: getMemberFullName(member),
             memberDivision: resolveMemberDivision(member),
             churchId: church?.id || church?.idIglesia || dest?.churchId || null,
@@ -267,20 +279,67 @@ export function MemberListView() {
             sectionalId: sectional?.id,
             sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
             regionalId: sectional?.regionalId || '',
-            regionalName: regional?.regionalName || regional?.name || '',
+            regionalName: '',
             memberPosition: [],
           };
         });
 
         setTableData(mapped);
+        setMembersLoading(false);
+
+        obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
+          .then((memberPhotos) => {
+            if (cancelled) return;
+
+            setTableData((currentMembers) =>
+              currentMembers.map((member) => {
+                const memberPhoto = memberPhotos[String(member.id)];
+
+                return memberPhoto?.urlFoto
+                  ? { ...member, avatarUrl: memberPhoto.urlFoto }
+                  : member;
+              })
+            );
+          })
+          .catch((error) => {
+            console.error('Error loading member photos:', error);
+          });
       } catch (error) {
+        if (cancelled) return;
+
         console.error('Error loading member table data:', error);
         setTableData([]);
+        setMembersLoading(false);
       }
     }
 
     loadData();
-  }, [dests, churches, sectionals, regionals]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dests, churches, sectionals]);
+
+  useEffect(() => {
+    const regionalById = new Map(regionals.map((regional) => [String(regional.id), regional]));
+
+    setTableData((currentMembers) => {
+      if (!currentMembers.length || !regionalById.size) return currentMembers;
+
+      let changed = false;
+      const nextMembers = currentMembers.map((member) => {
+        const regional = regionalById.get(String(member.regionalId));
+        const regionalName = regional?.regionalName || regional?.name || '';
+
+        if (member.regionalName === regionalName) return member;
+
+        changed = true;
+        return { ...member, regionalName };
+      });
+
+      return changed ? nextMembers : currentMembers;
+    });
+  }, [regionals, tableData.length]);
 
   const filters = useSetState({
     name: '',
@@ -589,29 +648,35 @@ export function MemberListView() {
                   />
 
                   <TableBody>
-                    {dataFiltered
-                      .slice(
-                        table.page * table.rowsPerPage,
-                        table.page * table.rowsPerPage + table.rowsPerPage
-                      )
-                      .map((row) => (
-                        <MemberTableRow
-                          key={row.id}
-                          row={row}
-                          selected={table.selected.includes(row.id)}
-                          canManage={memberCanManage}
-                          onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
-                          onDeleteRow={() => handleDeleteRow(row.id)}
-                          editHref={paths.dashboard.level.member.edit(row.id)}
+                    {membersLoading ? (
+                      <TableSkeleton rowCount={table.rowsPerPage} cellCount={TABLE_HEAD.length + 1} />
+                    ) : (
+                      <>
+                        {dataFiltered
+                          .slice(
+                            table.page * table.rowsPerPage,
+                            table.page * table.rowsPerPage + table.rowsPerPage
+                          )
+                          .map((row) => (
+                            <MemberTableRow
+                              key={row.id}
+                              row={row}
+                              selected={table.selected.includes(row.id)}
+                              canManage={memberCanManage}
+                              onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
+                              onDeleteRow={() => handleDeleteRow(row.id)}
+                              editHref={paths.dashboard.level.member.edit(row.id)}
+                            />
+                          ))}
+
+                        <TableEmptyRows
+                          height={table.dense ? 56 : 76}
+                          emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                         />
-                      ))}
 
-                    <TableEmptyRows
-                      height={table.dense ? 56 : 76}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                    />
-
-                    <TableNoData notFound={notFound} />
+                        <TableNoData notFound={notFound} />
+                      </>
+                    )}
                   </TableBody>
                 </Table>
               </Scrollbar>
@@ -632,7 +697,12 @@ export function MemberListView() {
         </Card>
 
         {displayMode !== 'panel' && (
-          <MemberCardList members={dataFiltered} canManage={memberCanManage} dests={dests} />
+          <MemberCardList
+            members={dataFiltered}
+            canManage={memberCanManage}
+            dests={dests}
+            loading={membersLoading}
+          />
         )}
       </DashboardContent>
 
