@@ -12,7 +12,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -41,13 +40,13 @@ import {
   useTable,
   emptyRows,
   rowInPage,
-  TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -77,6 +76,7 @@ export function DestListView() {
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
   const [members, setMembers] = useState([]);
+  const [tableLoading, setTableLoading] = useState(true);
 
   const isValidCoordinator = (member) => {
     if (!member) return false;
@@ -180,6 +180,7 @@ export function DestListView() {
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
           : 'Desconocido',
         coordinatorId: coordinator?.memberId || coordinator?.id || null,
+        coordinatorAvatarUrl: coordinator?.avatarUrl || '',
 
         memberFirstName: coordinator?.firstName ?? '',
         memberLastName: coordinator?.lastName ?? '',
@@ -209,6 +210,55 @@ export function DestListView() {
       setDisplayMode('grid');
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBaseDests() {
+      setTableLoading(true);
+
+      try {
+        const data = await getDestsApi();
+        if (cancelled) return;
+
+        const scopedDests = isMemberSessionUser(user)
+          ? filterDestsByMemberScope(data || [], user)
+          : data || [];
+
+        setTableData(
+          scopedDests.map((dest) => ({
+            ...dest,
+            idIglesia: dest.idIglesia || dest.churchId || null,
+            nombre: dest.nombre || dest.name || '',
+            numero: dest.numero || dest.destNumber || '',
+            destName: dest.nombre || dest.name || '',
+            churchName: dest?.churchName || '',
+            memberFullName: 'Desconocido',
+            coordinatorId: dest.coordinatorId || null,
+            coordinatorPhoneNumber: '',
+            destMemberCount: 0,
+            sectionalId: null,
+            sectionalName: '',
+            regionalId: null,
+            regionalName: '-',
+          }))
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading base dests:', error);
+          setTableData([]);
+        }
+      } finally {
+        if (!cancelled) setTableLoading(false);
+      }
+    }
+
+    loadBaseDests();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!members.length || !churches.length || !sectionals.length || !regionals.length) {
@@ -545,30 +595,28 @@ export function DestListView() {
                     }
                   />
 
-                  <TableBody>
-                    {dataFiltered
-                      .slice(
-                        table.page * table.rowsPerPage,
-                        table.page * table.rowsPerPage + table.rowsPerPage
-                      )
-                      .map((row) => (
-                        <DestTableRow
-                          key={`${row.id || row.idDestacamento}-${row.destName}`}
-                          row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
-                          onDeleteRow={() => handleDeleteRow(row.id)}
-                          editHref={paths.dashboard.level.dest.edit(row.id)}
-                        />
-                      ))}
-
-                    <TableEmptyRows
-                      height={table.dense ? 56 : 56 + 20}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                    />
-
-                    <TableNoData notFound={notFound} />
-                  </TableBody>
+                  <CompactEntityListView
+                    loading={tableLoading}
+                    rows={dataFiltered.slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
+                    )}
+                    renderRow={(row) => (
+                      <DestTableRow
+                        key={`${row.id || row.idDestacamento}-${row.destName}`}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.dashboard.level.dest.edit(row.id)}
+                      />
+                    )}
+                    notFound={notFound}
+                    skeletonRows={table.rowsPerPage}
+                    skeletonCellCount={TABLE_HEAD.length + 1}
+                    emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
                 </Table>
               </Scrollbar>
             </Box>

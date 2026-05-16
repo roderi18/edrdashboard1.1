@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -17,7 +16,6 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
-import { getMembers } from 'src/services/member-service';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
 import { Iconify } from 'src/components/iconify';
@@ -32,16 +30,6 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
-  const [members, setMembers] = useState([]);
-
-  useEffect(() => {
-    async function loadMembers() {
-      const data = await getMembers();
-      setMembers(data);
-    }
-
-    loadMembers();
-  }, []);
 
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
@@ -51,9 +39,10 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
       l.status === 'active'
   );
 
-  const director = members.find(
-    (m) => m.id === directorAssignment?.memberId
-  );
+  const directorId = row.directorId || directorAssignment?.memberId;
+  const directorName = row.memberFullName || 'Desconocido';
+  const directorAvatarUrl = row.directorAvatarUrl;
+  const directorPhoneNumber = row.directorPhoneNumber || '';
 
   const renderQuickEditForm = () => (
     <RegionalQuickEditForm
@@ -157,37 +146,37 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={director?.fullName}
-              src={director?.avatarUrl || undefined}
+              alt={directorName}
+              src={directorAvatarUrl || undefined}
             >
-              {!director?.avatarUrl && director?.fullName?.[0]}
+              {!directorAvatarUrl && directorName?.[0]}
             </Avatar>
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
                 href={
-                  director
-                    ? `/dashboard/level/member/${director.id}/edit`
+                  directorId
+                    ? `/dashboard/level/member/${directorId}/edit`
                     : '#'
                 }
                 color="inherit"
-                sx={{ cursor: director ? 'pointer' : 'default' }}
+                sx={{ cursor: directorId ? 'pointer' : 'default' }}
               >
-                {director?.fullName || 'Desconocido'}
+                {directorName}
               </Link>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {(() => {
                   try {
-                    return director?.phoneNumber
+                    return directorPhoneNumber
                       ? parsePhoneNumber(
-                        director.phoneNumber.startsWith('+')
-                          ? director.phoneNumber
-                          : `+1${director.phoneNumber}`
+                        directorPhoneNumber.startsWith('+')
+                          ? directorPhoneNumber
+                          : `+1${directorPhoneNumber}`
                       )?.formatNational()
                       : '';
-                  } catch (e) {
-                    return director?.phoneNumber || '';
+                  } catch {
+                    return directorPhoneNumber || '';
                   }
                 })()}
               </Box>

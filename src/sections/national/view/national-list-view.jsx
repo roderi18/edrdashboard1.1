@@ -11,7 +11,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -35,14 +34,13 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
-  TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 
 import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
@@ -161,8 +159,6 @@ export function NationalListView() {
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
   });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
     !!currentFilters.name ||
@@ -287,27 +283,27 @@ export function NationalListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+          {displayMode === 'panel' && (
+            <Box sx={{ position: 'relative' }}>
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+                action={
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
 
-            {displayMode === 'panel' ? (
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                   <TableHeadCustom
@@ -325,36 +321,32 @@ export function NationalListView() {
                     }
                   />
 
-                  <TableBody>
-                    {dataFiltered
-                      .slice(
-                        table.page * table.rowsPerPage,
-                        table.page * table.rowsPerPage + table.rowsPerPage
-                      )
-                      .map((row) => (
-                        <NationalTableRow
-                          key={row.id}
-                          row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
-                          onDeleteRow={() => handleDeleteRow(row.id)}
-                          editHref={paths.dashboard.level.national.edit(row.id)}
-                        />
-                      ))}
-
-                    <TableEmptyRows
-                      height={table.dense ? 56 : 56 + 20}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                    />
-
-                    <TableNoData notFound={notFound} />
-                  </TableBody>
+                  <CompactEntityListView
+                    loading={false}
+                    rows={dataFiltered.slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
+                    )}
+                    renderRow={(row) => (
+                      <NationalTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.dashboard.level.national.edit(row.id)}
+                      />
+                    )}
+                    notFound={notFound}
+                    skeletonRows={table.rowsPerPage}
+                    skeletonCellCount={TABLE_HEAD.length + 1}
+                    emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
                 </Table>
               </Scrollbar>
-            ) : (
-              <NationalCardList nationals={dataFiltered} />
-            )}
-          </Box>
+            </Box>
+          )}
 
           {displayMode === 'panel' && (
             <TablePaginationCustom
@@ -368,6 +360,8 @@ export function NationalListView() {
             />
           )}
         </Card>
+
+        {displayMode !== 'panel' && <NationalCardList nationals={dataFiltered} />}
       </DashboardContent>
 
       {renderConfirmDialog()}

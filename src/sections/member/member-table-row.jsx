@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -20,7 +19,6 @@ import { resolveById } from 'src/utils/resolve-display-name';
 import { getStorageCollection } from 'src/utils/storage-service';
 
 import { SECTIONALS } from 'src/_mock/assets';
-import { getDestsApi } from 'src/services/dest-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import { Iconify } from 'src/components/iconify';
@@ -40,29 +38,16 @@ export function MemberTableRow({
   onDeleteRow,
   canManage = true,
 }) {
-  const [dests, setDests] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await getDestsApi();
-        setDests(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error loading dests for member table row:', error);
-        setDests([]);
-      }
-    };
-
-    load();
-  }, []);
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
   const capitalize = (text = '') =>
     text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   const showMorePositions = useBoolean();
-  const dest = dests.find((d) => String(d.id) === String(row.destId));
   const memberEditId = row.idMiembros ?? row.id ?? row.memberId;
+  const destName = row.destName || '';
+  const destNumber = row.destNumber || '';
+  const destAvatarUrl = row.destAvatarUrl || '';
 
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
@@ -74,7 +59,7 @@ export function MemberTableRow({
   // );
 
   const sectionalName = row.sectionalName || '-';
-  const churchName = row.churchName || dest?.churchName || 'Iglesia desconocida';
+  const churchName = row.churchName || 'Iglesia desconocida';
 
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
 
@@ -213,8 +198,8 @@ export function MemberTableRow({
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={capitalize(dest?.name || '')}
-              src={dest?.avatarUrl}
+              alt={capitalize(destName)}
+              src={destAvatarUrl}
               sx={{
                 width: 40,
                 height: 40,
@@ -223,10 +208,10 @@ export function MemberTableRow({
 
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <UnderlineLink
-                href={`/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`}
+                href={`/dashboard/level/dest?name=${encodeURIComponent(destName)}`}
                 color="inherit"
               >
-                {`${capitalize(dest?.name || '')} ${dest?.destNumber || ''}`.trim()}
+                {`${capitalize(destName)} ${destNumber}`.trim()}
               </UnderlineLink>
 
               <Box component="span" sx={{ color: 'text.disabled' }}>
@@ -248,7 +233,7 @@ export function MemberTableRow({
                   let link = '#';
 
                   if (leadership.level === 'dest') {
-                    link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`;
+                    link = `/dashboard/level/dest?name=${encodeURIComponent(destName)}`;
                   }
 
                   if (leadership.level === 'sectional') {
@@ -292,7 +277,7 @@ export function MemberTableRow({
                         let link = '#';
 
                         if (leadership.level === 'dest') {
-                          link = `/dashboard/level/dest?name=${encodeURIComponent(dest?.name)}`;
+                          link = `/dashboard/level/dest?name=${encodeURIComponent(destName)}`;
                         }
 
                         if (leadership.level === 'sectional') {

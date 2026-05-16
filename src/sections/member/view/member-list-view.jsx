@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
@@ -12,7 +12,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -48,14 +47,13 @@ import {
   useTable,
   emptyRows,
   rowInPage,
-  TableNoData,
   getComparator,
-  TableSkeleton,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -204,6 +202,7 @@ export function MemberListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState([]);
+  const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [membersLoading, setMembersLoading] = useState(true);
   const visibleMembers = useMemo(
     () => filterMembersByMemberScope(tableData, user),
@@ -231,74 +230,45 @@ export function MemberListView() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadData() {
-      // ðŸš¨ NO correr hasta que haya data
-      if (!dests.length || !churches.length || !sectionals.length) return;
-
+    async function loadMembers() {
       setMembersLoading(true);
+      setMemberPhotoUrls({});
 
       try {
         const members = await getMembers();
         if (cancelled) return;
 
-        const destById = new Map(dests.map((dest) => [String(dest.id), dest]));
-        const churchById = new Map();
-        const sectionalById = new Map();
-
-        churches.forEach((church) => {
-          [church?.id, church?.idIglesia].forEach((id) => {
-            if (id !== null && id !== undefined && id !== '') {
-              churchById.set(String(id), church);
-            }
-          });
-        });
-
-        sectionals.forEach((sectional) => {
-          [sectional?.id, sectional?.idSeccion].forEach((id) => {
-            if (id !== null && id !== undefined && id !== '') {
-              sectionalById.set(String(id), sectional);
-            }
-          });
-        });
-
-        const mapped = members.map((member) => {
-          const dest = destById.get(String(member.idDestacamento)) || destById.get(String(member.destId));
-          const church = churchById.get(String(dest?.churchId));
-          const sectional = sectionalById.get(String(church?.idSeccion));
-
-          return {
+        setTableData(
+          members.map((member) => ({
             ...member,
             id: member.id,
             idMiembros: member.id,
             memberId: member.id,
+            destId: member.destId || member.idDestacamento || '',
             avatarUrl: member.avatarUrl || null,
             name: getMemberFullName(member),
             memberDivision: resolveMemberDivision(member),
-            churchId: church?.id || church?.idIglesia || dest?.churchId || null,
-            churchName: church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
-            sectionalId: sectional?.id,
-            sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
-            regionalId: sectional?.regionalId || '',
+            churchId: null,
+            churchName: 'Iglesia desconocida',
+            sectionalId: '',
+            sectionalName: 'Sección desconocida',
+            regionalId: '',
             regionalName: '',
             memberPosition: [],
-          };
-        });
-
-        setTableData(mapped);
+          }))
+        );
         setMembersLoading(false);
 
         obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
           .then((memberPhotos) => {
             if (cancelled) return;
 
-            setTableData((currentMembers) =>
-              currentMembers.map((member) => {
-                const memberPhoto = memberPhotos[String(member.id)];
-
-                return memberPhoto?.urlFoto
-                  ? { ...member, avatarUrl: memberPhoto.urlFoto }
-                  : member;
-              })
+            setMemberPhotoUrls(
+              Object.fromEntries(
+                Object.entries(memberPhotos)
+                  .filter(([, photo]) => photo?.urlFoto)
+                  .map(([memberId, photo]) => [String(memberId), photo.urlFoto])
+              )
             );
           })
           .catch((error) => {
@@ -313,12 +283,79 @@ export function MemberListView() {
       }
     }
 
-    loadData();
+    loadMembers();
 
     return () => {
       cancelled = true;
     };
-  }, [dests, churches, sectionals]);
+  }, []);
+
+  useEffect(() => {
+    if (!tableData.length || !dests.length || !churches.length || !sectionals.length) return;
+
+    const destById = new Map();
+    dests.forEach((dest) => {
+      [dest?.id, dest?.idDestacamento, dest?.destId].forEach((id) => {
+        if (id !== null && id !== undefined && id !== '') {
+          destById.set(String(id), dest);
+        }
+      });
+    });
+
+    const churchById = new Map();
+    churches.forEach((church) => {
+      [church?.id, church?.idIglesia].forEach((id) => {
+        if (id !== null && id !== undefined && id !== '') {
+          churchById.set(String(id), church);
+        }
+      });
+    });
+
+    const sectionalById = new Map();
+    sectionals.forEach((sectional) => {
+      [sectional?.id, sectional?.idSeccion].forEach((id) => {
+        if (id !== null && id !== undefined && id !== '') {
+          sectionalById.set(String(id), sectional);
+        }
+      });
+    });
+
+    setTableData((currentMembers) => {
+      let changed = false;
+
+      const nextMembers = currentMembers.map((member) => {
+        const dest = destById.get(String(member.idDestacamento)) || destById.get(String(member.destId));
+        const church = churchById.get(String(dest?.churchId || dest?.idIglesia));
+        const sectional = sectionalById.get(String(church?.idSeccion || church?.sectionId));
+        const nextMember = {
+          ...member,
+          churchId: church?.id || church?.idIglesia || dest?.churchId || null,
+          churchName: church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
+          sectionalId: sectional?.id || sectional?.idSeccion || '',
+          sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
+          regionalId: sectional?.regionalId || '',
+          destName: dest?.name || dest?.nombre || dest?.destName || '',
+          destNumber: dest?.destNumber || dest?.numero || dest?.number || '',
+          destAvatarUrl: dest?.avatarUrl || '',
+        };
+
+        if (
+          member.churchName === nextMember.churchName &&
+          member.sectionalName === nextMember.sectionalName &&
+          member.regionalId === nextMember.regionalId &&
+          member.destName === nextMember.destName &&
+          member.destAvatarUrl === nextMember.destAvatarUrl
+        ) {
+          return member;
+        }
+
+        changed = true;
+        return nextMember;
+      });
+
+      return changed ? nextMembers : currentMembers;
+    });
+  }, [dests, churches, sectionals, tableData.length]);
 
   useEffect(() => {
     const regionalById = new Map(regionals.map((regional) => [String(regional.id), regional]));
@@ -647,37 +684,32 @@ export function MemberListView() {
                     }
                   />
 
-                  <TableBody>
-                    {membersLoading ? (
-                      <TableSkeleton rowCount={table.rowsPerPage} cellCount={TABLE_HEAD.length + 1} />
-                    ) : (
-                      <>
-                        {dataFiltered
-                          .slice(
-                            table.page * table.rowsPerPage,
-                            table.page * table.rowsPerPage + table.rowsPerPage
-                          )
-                          .map((row) => (
-                            <MemberTableRow
-                              key={row.id}
-                              row={row}
-                              selected={table.selected.includes(row.id)}
-                              canManage={memberCanManage}
-                              onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
-                              onDeleteRow={() => handleDeleteRow(row.id)}
-                              editHref={paths.dashboard.level.member.edit(row.id)}
-                            />
-                          ))}
-
-                        <TableEmptyRows
-                          height={table.dense ? 56 : 76}
-                          emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                        />
-
-                        <TableNoData notFound={notFound} />
-                      </>
+                  <CompactEntityListView
+                    loading={membersLoading}
+                    rows={dataFiltered.slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
                     )}
-                  </TableBody>
+                    renderRow={(row) => (
+                      <MemberTableRow
+                        key={row.id}
+                        row={{
+                          ...row,
+                          avatarUrl: memberPhotoUrls[String(row.id)] || row.avatarUrl,
+                        }}
+                        selected={table.selected.includes(row.id)}
+                        canManage={memberCanManage}
+                        onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.dashboard.level.member.edit(row.id)}
+                      />
+                    )}
+                    notFound={notFound}
+                    skeletonRows={table.rowsPerPage}
+                    skeletonCellCount={TABLE_HEAD.length + 1}
+                    emptyRowsHeight={table.dense ? 56 : 76}
+                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
                 </Table>
               </Scrollbar>
             </Box>
@@ -702,6 +734,7 @@ export function MemberListView() {
             canManage={memberCanManage}
             dests={dests}
             loading={membersLoading}
+            memberPhotoUrls={memberPhotoUrls}
           />
         )}
       </DashboardContent>

@@ -1,5 +1,3 @@
-
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
@@ -19,9 +17,6 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
-import { getMembers } from 'src/services/member-service';
-import { getSectionals } from 'src/services/sectional-service';
-
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -36,80 +31,11 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
   const router = useRouter();
-
-  useEffect(() => {
-    async function loadMembers() {
-      const data = await getMembers();
-      setMembers(data);
-    }
-
-    loadMembers();
-  }, []);
-
-  useEffect(() => {
-    async function load() {
-      const data = await getSectionals();
-      setSectionals(data);
-    }
-    load();
-  }, []);
-
-  const [sectionals, setSectionals] = useState([]);
-  const sectional = sectionals.find((s) => s.id === row.id);
-
-  const [members, setMembers] = useState([]);
-  const [dests, setDests] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
-      setDests(data?.data || data?.Data || []);
-    };
-    load();
-  }, []);
-  const [churches, setChurches] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const resDests = await fetch('/api/dest');
-      const dataDests = await resDests.json();
-      setDests(dataDests?.data || dataDests?.Data || []);
-
-      const resChurches = await fetch('/api/churches');
-      const dataChurches = await resChurches.json();
-      setChurches(dataChurches?.data || dataChurches?.Data || []);
-    };
-
-    load();
-  }, []);
-
-  const director = members.find(
-    (m) => String(m.id) === String(row.directorId)
-  );
-
-  const iglesiasDeSeccion = churches.filter(
-    (c) =>
-      c.idSeccion !== null &&
-      Number(c.idSeccion) === Number(row.idSeccion)
-  );
-
-
-  const destsBySectional = dests.filter((d) =>
-    iglesiasDeSeccion.some(
-      (ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia)
-    )
-  );
-
-  const totalDests = destsBySectional.length || 0;
-
-  const totalMembers = members.filter((m) =>
-    m.idDestacamento !== null &&
-    destsBySectional.some(
-      (d) =>
-        Number(d.idDestacamento) === Number(m.idDestacamento)
-    )
-  ).length;
+  const directorName = row.memberFullName || 'Desconocido';
+  const directorAvatarUrl = row.directorAvatarUrl;
+  const directorPhoneNumber = row.directorPhoneNumber || '';
+  const totalDests = row.sectionalDestCount || 0;
+  const totalMembers = row.sectionalXDestMemberCount || 0;
 
   const renderQuickEditForm = () => (
     <SectionalQuickEditForm
@@ -199,10 +125,10 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {capitalize(sectional?.sectionalName || '') || '-'}
+                {capitalize(row.sectionalName || '') || '-'}
               </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {sectional?.email}
+                {row.email}
               </Box>
             </Stack>
           </Box>
@@ -212,8 +138,8 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={`${director?.firstName || ''} ${director?.lastName || ''}`}
-              src={director?.avatarUrl}
+              alt={directorName}
+              src={directorAvatarUrl}
             />
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <Box
@@ -231,18 +157,18 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
                   },
                 }}
               >
-                {director ? (
+                {row.directorId ? (
                   <Box
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/dashboard/level/member/${director.memberId}/edit`);
+                      router.push(`/dashboard/level/member/${row.directorId}/edit`);
                     }}
                     sx={{
                       cursor: 'pointer',
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >
-                    {`${director.firstName || ''} ${director.lastName || ''}`}
+                    {directorName}
                   </Box>
                 ) : (
                   'Desconocido'
@@ -255,15 +181,15 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {(() => {
                   try {
-                    return director?.phoneNumber
+                    return directorPhoneNumber
                       ? parsePhoneNumber(
-                        director.phoneNumber.startsWith('+')
-                          ? director.phoneNumber
-                          : `+1${director.phoneNumber}`
+                        directorPhoneNumber.startsWith('+')
+                          ? directorPhoneNumber
+                          : `+1${directorPhoneNumber}`
                       )?.formatNational()
                       : '';
                   } catch {
-                    return director?.phoneNumber || '';
+                    return directorPhoneNumber || '';
                   }
                 })()}
               </Box>

@@ -1,10 +1,4 @@
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Link from '@mui/material/Link';
-import Avatar from '@mui/material/Avatar';
-import ListItemText from '@mui/material/ListItemText';
-
-import { Iconify } from 'src/components/iconify';
+import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
 
@@ -34,78 +28,17 @@ export function SectionalCard({ sectional, sx, ...other }) {
   const regionalName = getRegionalName(sectional);
 
   return (
-    <Card
-      sx={[
-        (theme) => ({
-          display: 'flex',
-          alignItems: 'center',
-          minHeight: 88,
-          p: theme.spacing(3, 2, 3, 3),
-        }),
-        ...(Array.isArray(sx) ? sx : [sx]),
+    <CompactEntityCard
+      title={sectionalName}
+      href={editHref}
+      avatarUrl={getSectionalAvatar(sectional)}
+      fallbackText={sectionalName}
+      lines={[
+        { icon: 'solar:user-bold', text: `Director ${directorName}` },
+        { icon: 'mingcute:location-fill', text: `Región ${regionalName}` },
       ]}
+      sx={sx}
       {...other}
-    >
-      <Link href={editHref} color="inherit" underline="none">
-        <Avatar
-          alt={sectionalName}
-          src={getSectionalAvatar(sectional)}
-          sx={{ width: 48, height: 48, mr: 2 }}
-        />
-      </Link>
-
-      <ListItemText
-        primary={
-          <Link href={editHref} color="inherit" underline="hover">
-            {sectionalName}
-          </Link>
-        }
-        secondary={
-          <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
-            <Box
-              component="span"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                minWidth: 0,
-                typography: 'caption',
-                color: 'text.disabled',
-              }}
-            >
-              <Iconify icon="solar:user-bold" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
-              <Box
-                component="span"
-                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                Director {directorName}
-              </Box>
-            </Box>
-
-            <Box
-              component="span"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                minWidth: 0,
-                typography: 'caption',
-                color: 'text.disabled',
-              }}
-            >
-              <Iconify icon="mingcute:location-fill" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
-              <Box
-                component="span"
-                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                Región {regionalName}
-              </Box>
-            </Box>
-          </Box>
-        }
-        slotProps={{
-          primary: { noWrap: true },
-          secondary: { component: 'span', sx: { mt: 0.5, display: 'block' } },
-        }}
-      />
-    </Card>
+    />
   );
 }

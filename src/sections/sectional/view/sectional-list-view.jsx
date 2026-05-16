@@ -13,7 +13,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -39,13 +38,13 @@ import {
   useTable,
   emptyRows,
   rowInPage,
-  TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
@@ -151,6 +150,8 @@ const buildSectionalList = async () => {
         : 'Desconocido',
 
       directorId: director?.id ?? null,
+      directorAvatarUrl: director?.avatarUrl || '',
+      directorPhoneNumber: director?.phoneNumber || '',
     };
   });
 };
@@ -169,6 +170,7 @@ export function SectionalListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState([]);
+  const [tableLoading, setTableLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState('panel');
   const [isClient, setIsClient] = useState(false);
 
@@ -243,11 +245,34 @@ export function SectionalListView() {
 
   useEffect(() => {
     async function loadData() {
-      const regionalsData = await getRegionals();
-      setRegionals(regionalsData);
+      setTableLoading(true);
 
-      const data = await buildSectionalList();
-      setTableData(data);
+      try {
+        const sectionalsData = await getSectionals();
+        setTableData(
+          sectionalsData.map((sectional) => ({
+            ...sectional,
+            sectionalName: sectional.sectionalName || sectional.nombre || sectional.name || '',
+            regionalName: '-',
+            email: sectional.email ?? '',
+            sectionalDestCount: 0,
+            sectionalXDestMemberCount: 0,
+            memberFullName: 'Desconocido',
+            directorId: sectional.directorId || null,
+          }))
+        );
+        setTableLoading(false);
+
+        const regionalsData = await getRegionals();
+        setRegionals(regionalsData);
+
+        const data = await buildSectionalList();
+        setTableData(data);
+      } catch (error) {
+        console.error('Error loading sectionals:', error);
+        setTableData([]);
+        setTableLoading(false);
+      }
     }
 
     loadData();
@@ -447,29 +472,28 @@ export function SectionalListView() {
                     }
                   />
 
-                  <TableBody>
-                    {dataFiltered
-                      .slice(
-                        table.page * table.rowsPerPage,
-                        table.page * table.rowsPerPage + table.rowsPerPage
-                      )
-                      .map((row) => (
-                        <SectionalTableRow
-                          key={row.id}
-                          row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
-                          onDeleteRow={() => handleDeleteRow(row.id)}
-                          editHref={paths.dashboard.level.sectional.edit(row.id)}
-                        />
-                      ))}
-                    <TableEmptyRows
-                      height={table.dense ? 56 : 56 + 20}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                    />
-
-                    <TableNoData notFound={notFound} />
-                  </TableBody>
+                  <CompactEntityListView
+                    loading={tableLoading}
+                    rows={dataFiltered.slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
+                    )}
+                    renderRow={(row) => (
+                      <SectionalTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.dashboard.level.sectional.edit(row.id)}
+                      />
+                    )}
+                    notFound={notFound}
+                    skeletonRows={table.rowsPerPage}
+                    skeletonCellCount={TABLE_HEAD.length + 1}
+                    emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
                 </Table>
               </Scrollbar>
             </Box>

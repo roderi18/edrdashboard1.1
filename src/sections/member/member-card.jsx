@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Link from '@mui/material/Link';
-import Avatar from '@mui/material/Avatar';
-import ListItemText from '@mui/material/ListItemText';
-
-import { Iconify } from 'src/components/iconify';
+import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
 
@@ -93,7 +87,14 @@ const buildDestLabel = (member, dests) => {
 
 // ----------------------------------------------------------------------
 
-export function MemberCard({ member, sx, canManage = true, dests: destsProp = [], ...other }) {
+export const MemberCard = memo(function MemberCard({
+  member,
+  sx,
+  avatarUrl,
+  canManage = true,
+  dests: destsProp = [],
+  ...other
+}) {
   const [dests, setDests] = useState([]);
 
   useEffect(() => {
@@ -122,102 +123,21 @@ export function MemberCard({ member, sx, canManage = true, dests: destsProp = []
   const phoneLabel = formatPhoneNumber(phoneNumber);
   const destLabel = buildDestLabel(member, dests);
   const divisionIcon = getMemberDivisionIcon(member);
+  const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);
 
   return (
-    <Card
-      sx={[
-        (theme) => ({
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          minHeight: 88,
-          p: theme.spacing(3, divisionIcon ? 8 : 2, 3, 3),
-        }),
-        ...(Array.isArray(sx) ? sx : [sx]),
+    <CompactEntityCard
+      title={member?.name}
+      href={canManage && memberEditId ? editHref : '#'}
+      avatarUrl={resolvedAvatarUrl}
+      fallbackText={member?.name || member?.firstName}
+      lines={[
+        { icon: 'solar:phone-bold', text: phoneLabel },
+        { icon: 'mingcute:location-fill', text: destLabel },
       ]}
+      rightImage={divisionIcon}
+      sx={sx}
       {...other}
-    >
-      <Link href={canManage && memberEditId ? editHref : '#'} color="inherit" underline="none">
-        <Avatar
-          alt={member?.name}
-          src={getMemberAvatar(member)}
-          sx={{ width: 48, height: 48, mr: 2 }}
-        />
-      </Link>
-
-      <ListItemText
-        primary={
-          <Link
-            href={canManage && memberEditId ? editHref : '#'}
-            color="inherit"
-            underline="hover"
-          >
-            {member?.name}
-          </Link>
-        }
-        secondary={
-          <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
-            <Box
-              component="span"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                minWidth: 0,
-                typography: 'caption',
-                color: 'text.disabled',
-              }}
-            >
-              <Iconify icon="solar:phone-bold" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
-              <Box
-                component="span"
-                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                {phoneLabel}
-              </Box>
-            </Box>
-
-            <Box
-              component="span"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                minWidth: 0,
-                typography: 'caption',
-                color: 'text.disabled',
-              }}
-            >
-              <Iconify icon="mingcute:location-fill" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
-              <Box
-                component="span"
-                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                {destLabel}
-              </Box>
-            </Box>
-          </Box>
-        }
-        slotProps={{
-          primary: { noWrap: true },
-          secondary: { component: 'span', sx: { mt: 0.5, display: 'block' } },
-        }}
-      />
-
-      {divisionIcon && (
-        <Box
-          component="img"
-          alt={divisionIcon.alt}
-          src={divisionIcon.src}
-          sx={{
-            right: 18,
-            bottom: 16,
-            width: 42,
-            height: 42,
-            objectFit: 'contain',
-            position: 'absolute',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-    </Card>
+    />
   );
-}
+});

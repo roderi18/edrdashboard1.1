@@ -12,7 +12,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -38,13 +37,13 @@ import {
   useTable,
   emptyRows,
   rowInPage,
-  TableNoData,
   getComparator,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 
 import { RegionalTableRow } from '../regional-table-row';
 import { RegionalCardList } from '../regional-card-list';
@@ -83,56 +82,98 @@ export function RegionalListView() {
   };
 
   const [tableData, setTableData] = useState([]);
+  const [tableLoading, setTableLoading] = useState(true);
 
   useEffect(() => {
     async function loadRegionals() {
-      const regionals = await getRegionals();
-      const sectionals = await getSectionals();
+      setTableLoading(true);
 
-      const resChurches = await fetch('/api/churches');
-      const dataChurches = await resChurches.json();
-      const churches = dataChurches?.data || dataChurches?.Data || [];
+      try {
+        const regionals = await getRegionals();
+        setTableData(
+          regionals.map((regional) => ({
+            ...regional,
+            memberFullName: 'Desconocido',
+            directorId: null,
+            regionalXSectionalCount: 0,
+            regionalXSectionalXDestCount: 0,
+            regionalXSectionalMemberCount: 0,
+          }))
+        );
+        setTableLoading(false);
 
-      const resDests = await fetch('/api/dest');
-      const dataDests = await resDests.json();
-      const dests = dataDests?.data || dataDests?.Data || [];
+        const sectionals = await getSectionals();
 
-      const resMembers = await fetch('/api/members');
-      const dataMembers = await resMembers.json();
-      const members = dataMembers?.data || dataMembers?.Data || [];
+        const resChurches = await fetch('/api/churches');
+        const dataChurches = await resChurches.json();
+        const churches = dataChurches?.data || dataChurches?.Data || [];
 
-      const newData = regionals.map((regional) => {
-        const director = getLeadershipByRegional(regional.id, 'director_regional');
-        const seccionesDeRegion = sectionals.filter(
-          (s) => Number(s.regionalId) === Number(regional.id)
+        const resDests = await fetch('/api/dest');
+        const dataDests = await resDests.json();
+        const dests = dataDests?.data || dataDests?.Data || [];
+
+        const resMembers = await fetch('/api/members');
+        const dataMembers = await resMembers.json();
+        const members = dataMembers?.data || dataMembers?.Data || [];
+        const memberById = new Map(
+          [...MEMBERS, ...members].flatMap((member) =>
+            [member?.id, member?.memberId].filter(Boolean).map((id) => [String(id), member])
+          )
         );
 
-        const iglesiasDeRegion = churches.filter((c) =>
-          seccionesDeRegion.some((s) => Number(s.idSeccion) === Number(c.idSeccion))
-        );
+        const newData = regionals.map((regional) => {
+          const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
+            (a) =>
+              a.level === 'regional' &&
+              a.entityId === regional.id &&
+              a.role === 'director_regional' &&
+              a.status === 'active'
+          );
+          const director =
+            memberById.get(String(directorAssignment?.memberId || '')) ||
+            getLeadershipByRegional(regional.id, 'director_regional');
+          const directorName =
+            director?.fullName ||
+            [director?.firstName, director?.lastName].filter(Boolean).join(' ').trim() ||
+            'Desconocido';
+          const seccionesDeRegion = sectionals.filter(
+            (s) => Number(s.regionalId) === Number(regional.id)
+          );
 
-        const destCount = dests.filter((d) =>
-          iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-        ).length;
-        const miembrosDeRegion = members.filter(
-          (m) =>
-            m.idDestacamento !== null &&
-            dests.some(
-              (d) =>
-                Number(d.idDestacamento) === Number(m.idDestacamento) &&
-                iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-            )
-        ).length;
-        return {
-          ...regional,
-          memberFullName: director?.fullName || 'Desconocido',
-          directorId: director?.id ?? null,
-          regionalXSectionalXDestCount: destCount,
-          regionalXSectionalMemberCount: miembrosDeRegion,
-        };
-      });
+          const iglesiasDeRegion = churches.filter((c) =>
+            seccionesDeRegion.some((s) => Number(s.idSeccion) === Number(c.idSeccion))
+          );
 
-      setTableData(newData);
+          const destCount = dests.filter((d) =>
+            iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
+          ).length;
+          const miembrosDeRegion = members.filter(
+            (m) =>
+              m.idDestacamento !== null &&
+              dests.some(
+                (d) =>
+                  Number(d.idDestacamento) === Number(m.idDestacamento) &&
+                  iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
+              )
+          ).length;
+          return {
+            ...regional,
+            memberFullName: directorName,
+            directorId: director?.id ?? director?.memberId ?? null,
+            directorAvatarUrl: director?.avatarUrl || '',
+            directorPhoneNumber: director?.phoneNumber || '',
+            regionalXSectionalCount: seccionesDeRegion.length,
+            regionalXSectionalXDestCount: destCount,
+            regionalXSectionalMemberCount: miembrosDeRegion,
+          };
+        });
+
+        setTableData(newData);
+      } catch (error) {
+        console.error('Error loading regionals:', error);
+        setTableData([]);
+        setTableLoading(false);
+      }
     }
 
     loadRegionals();
@@ -152,7 +193,6 @@ export function RegionalListView() {
   const regionParam = searchParams.get('region');
   const nationalParam = searchParams.get('national');
   const hasAppliedUrlFilter = useRef(false);
-  const isFirstLoad = useRef(true);
 
   useEffect(() => {
     if (hasAppliedUrlFilter.current) return;
@@ -367,30 +407,28 @@ export function RegionalListView() {
                     }
                   />
 
-                  <TableBody>
-                    {dataFiltered
-                      .slice(
-                        table.page * table.rowsPerPage,
-                        table.page * table.rowsPerPage + table.rowsPerPage
-                      )
-                      .map((row) => (
-                        <RegionalTableRow
-                          key={row.id}
-                          row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
-                          onDeleteRow={() => handleDeleteRow(row.id)}
-                          editHref={paths.dashboard.level.regional.edit(row.id)}
-                        />
-                      ))}
-
-                    <TableEmptyRows
-                      height={table.dense ? 56 : 56 + 20}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                    />
-
-                    <TableNoData notFound={notFound} />
-                  </TableBody>
+                  <CompactEntityListView
+                    loading={tableLoading}
+                    rows={dataFiltered.slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
+                    )}
+                    renderRow={(row) => (
+                      <RegionalTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.dashboard.level.regional.edit(row.id)}
+                      />
+                    )}
+                    notFound={notFound}
+                    skeletonRows={table.rowsPerPage}
+                    skeletonCellCount={TABLE_HEAD.length + 1}
+                    emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
                 </Table>
               </Scrollbar>
             </Box>

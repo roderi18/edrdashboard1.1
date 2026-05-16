@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -17,11 +16,6 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
-import { getMembers } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
-import { getRegionals } from 'src/services/regional-service';
-import { getSectionals } from 'src/services/sectional-service';
-
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -34,63 +28,21 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
-  const [churches, setChurches] = useState([]);
-  const [sectionals, setSectionals] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [regionals, setRegionals] = useState([]);
   const capitalize = (text) =>
     (text || '')
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  useEffect(() => {
-    async function load() {
-      const [churchesData, sectionalsData, membersData, regionalsData] = await Promise.all([
-        getChurches(),
-        getSectionals(),
-        getMembers(),
-        getRegionals(),
-      ]);
-
-      setChurches(Array.isArray(churchesData) ? churchesData : []);
-      setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
-      setMembers(Array.isArray(membersData) ? membersData : []);
-      setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
-    }
-
-    load();
-  }, []);
-
-  const church = Array.isArray(churches)
-    ? churches.find((c) => Number(c.id) === Number(row.idIglesia))
-    : null;
-
-  const sectional = sectionals.find(
-    (s) => Number(s.id) === Number(church?.idSeccion)
-  );
-
-  const regional = regionals.find(
-    (r) =>
-      Number(r.idRegion) === Number(sectional?.regionalId) ||
-      Number(r.id) === Number(sectional?.regionalId)
-  );
-
-  const sectionalName = sectional?.sectionalName || '';
-  const regionalName = row.regionalName || regional?.regionalName || regional?.name || regional?.nombre || '-';
-
-  const coordinator =
-    row.coordinatorId
-      ? members.find(
-          (m) =>
-            String(m.memberId) === String(row.coordinatorId) ||
-            String(m.id) === String(row.coordinatorId)
-        )
-      : null;
-
   const id = row.id || row.idDestacamento;
+  const sectionalName = row.sectionalName || '';
+  const regionalName = row.regionalName || '-';
+  const coordinatorName = row.memberFullName || 'Desconocido';
+  const coordinatorId = row.coordinatorId;
+  const coordinatorAvatarUrl = row.coordinatorAvatarUrl;
+  const coordinatorPhoneNumber = row.coordinatorPhoneNumber || '';
+  const destMemberCount = row.destMemberCount || 0;
 
   const churchName =
-    church?.name ||
     row?.churchName ||
     'Iglesia desconocida';
 
@@ -198,45 +150,39 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              alt={
-                coordinator
-                  ? `${coordinator.firstName} ${coordinator.lastName}`
-                  : ''
-              }
-              src={coordinator?.avatarUrl}
+              alt={coordinatorName}
+              src={coordinatorAvatarUrl}
               sx={{ width: 40, height: 40 }}
             />
             <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
                 href={
-                  coordinator
-                    ? `/dashboard/level/member/${coordinator.id}/edit`
+                  coordinatorId
+                    ? `/dashboard/level/member/${coordinatorId}/edit`
                     : '#'
                 }
                 color="inherit"
-                sx={{ cursor: coordinator ? 'pointer' : 'default' }}
+                sx={{ cursor: coordinatorId ? 'pointer' : 'default' }}
               >
-                {coordinator
-                  ? capitalize(`${coordinator.firstName} ${coordinator.lastName}`)
-                  : 'Desconocido'}
+                {capitalize(coordinatorName)}
               </Link>
 
               {/* <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.phoneNumber}
               </Box> */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {coordinator ? (() => {
+                {coordinatorPhoneNumber ? (() => {
                   try {
-                    return coordinator?.phoneNumber
+                    return coordinatorPhoneNumber
                       ? parsePhoneNumber(
-                          coordinator.phoneNumber.startsWith('+')
-                            ? coordinator.phoneNumber
-                            : `+1${coordinator.phoneNumber}`
+                          coordinatorPhoneNumber.startsWith('+')
+                            ? coordinatorPhoneNumber
+                            : `+1${coordinatorPhoneNumber}`
                         )?.formatNational()
                       : '';
-                  } catch (e) {
-                    return coordinator?.phoneNumber || '';
+                  } catch {
+                    return coordinatorPhoneNumber || '';
                   }
                 })() : ''}
               </Box>
@@ -253,11 +199,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               href={`/dashboard/level/member?dest=${id}`}
               color="inherit"
             >
-              {members.filter(
-                (m) =>
-                  m.idDestacamento !== null &&
-                  Number(m.idDestacamento) === Number(row.id || row.idDestacamento)
-              ).length}
+              {destMemberCount}
             </Link>
           </Box>
         </TableCell>
@@ -280,7 +222,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Link
               component={RouterLink}
-              href={`/dashboard/level/regional?region=${regional?.id || regional?.idRegion || row.regionalId || ''}`}
+              href={`/dashboard/level/regional?region=${row.regionalId || ''}`}
               color="inherit"
             >
               {regionalName}
