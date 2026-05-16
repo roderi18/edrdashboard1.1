@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Pagination from '@mui/material/Pagination';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 import { CompactEntityCardSkeleton } from './compact-entity-card';
 
@@ -10,21 +11,28 @@ import { CompactEntityCardSkeleton } from './compact-entity-card';
 export function CompactEntityCardList({
   items,
   loading = false,
-  rowsPerPage = 12,
+  rowsPerPage,
   renderCard,
-  skeletonCount = rowsPerPage,
+  skeletonCount,
 }) {
+  const theme = useTheme();
+  const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'));
   const [page, setPage] = useState(1);
+  const effectiveRowsPerPage = rowsPerPage || (isLargeScreen ? 18 : 12);
+  const effectiveSkeletonCount = skeletonCount || effectiveRowsPerPage;
 
   useEffect(() => {
     setPage(1);
-  }, [items.length, loading]);
+  }, [effectiveRowsPerPage, items.length, loading]);
 
   const handleChangePage = useCallback((event, newPage) => {
     setPage(newPage);
   }, []);
 
-  const pageItems = items.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const pageItems = items.slice(
+    (page - 1) * effectiveRowsPerPage,
+    page * effectiveRowsPerPage
+  );
 
   return (
     <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
@@ -36,13 +44,13 @@ export function CompactEntityCardList({
         }}
       >
         {loading
-          ? Array.from({ length: skeletonCount }, (_, index) => (
+          ? Array.from({ length: effectiveSkeletonCount }, (_, index) => (
               <CompactEntityCardSkeleton key={index} />
             ))
           : pageItems.map(renderCard)}
       </Box>
 
-      {!loading && items.length > rowsPerPage && (
+      {!loading && items.length > effectiveRowsPerPage && (
         <Box
           sx={{
             mt: { xs: 2, md: 4 },
@@ -54,7 +62,7 @@ export function CompactEntityCardList({
           <Pagination
             page={page}
             shape="circular"
-            count={Math.ceil(items.length / rowsPerPage)}
+            count={Math.ceil(items.length / effectiveRowsPerPage)}
             onChange={handleChangePage}
           />
         </Box>

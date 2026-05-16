@@ -254,7 +254,7 @@ export function MemberListView() {
             sectionalName: 'Sección desconocida',
             regionalId: '',
             regionalName: '',
-            memberPosition: [],
+            memberPosition: member.memberPosition || [],
           }))
         );
         setMembersLoading(false);

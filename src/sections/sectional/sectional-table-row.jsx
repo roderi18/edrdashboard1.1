@@ -22,6 +22,8 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const totalDests = row.sectionalDestCount || 0;
   const totalMembers = row.sectionalXDestMemberCount || 0;
   const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);
+  const regionalName = String(row.regionalName || '').trim();
+  const regionalLabel = regionalName || 'Región desconocida';
 
   return (
     <TableRow selected={selected}>
@@ -79,14 +81,18 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/regional?sectional=${encodeURIComponent(row.regionalName || '')}`}
-            color="inherit"
-            underline="always"
-          >
-            {row.regionalName || '-'}
-          </Link>
+          {regionalName ? (
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/regional?sectional=${encodeURIComponent(regionalName)}`}
+              color="inherit"
+              underline="always"
+            >
+              {regionalLabel}
+            </Link>
+          ) : (
+            <Box component="span">{regionalLabel}</Box>
+          )}
         </Box>
       </TableCell>
 

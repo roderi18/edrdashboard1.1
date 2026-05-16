@@ -2,6 +2,8 @@ import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
 
+const UNKNOWN_REGIONAL = 'Región desconocida';
+
 const getSectionalId = (sectional) => sectional?.id ?? sectional?.idSeccion ?? sectional?.sectionalId;
 
 const getSectionalAvatar = (sectional) =>
@@ -16,7 +18,8 @@ const getDirectorName = (sectional) =>
   'Desconocido';
 
 const getRegionalName = (sectional) =>
-  sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || 'Desconocida';
+  String(sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '').trim() ||
+  UNKNOWN_REGIONAL;
 
 // ----------------------------------------------------------------------
 
@@ -26,6 +29,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
   const sectionalName = getSectionalName(sectional);
   const directorName = getDirectorName(sectional);
   const regionalName = getRegionalName(sectional);
+  const regionalLine = regionalName === UNKNOWN_REGIONAL ? regionalName : `Región ${regionalName}`;
 
   return (
     <CompactEntityCard
@@ -35,7 +39,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
       fallbackText={sectionalName}
       lines={[
         { icon: 'solar:user-bold', text: `Director ${directorName}` },
-        { icon: 'mingcute:location-fill', text: `Región ${regionalName}` },
+        { icon: 'mingcute:location-fill', text: regionalLine },
       ]}
       sx={sx}
       {...other}

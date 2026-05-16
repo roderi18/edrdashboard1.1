@@ -27,7 +27,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
   );
 
   const directorId = row.directorId || directorAssignment?.memberId;
-  const directorName = row.memberFullName || 'Desconocido';
+  const directorName = row.memberFullName || 'Director desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
   const directorPhoneNumber = row.directorPhoneNumber || '';
   const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);

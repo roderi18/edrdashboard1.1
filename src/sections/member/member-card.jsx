@@ -55,10 +55,10 @@ const buildDestLabel = (member, dests) => {
     memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
   const dest = hasMemberDestId
     ? dests.find((item) =>
-        [item?.id, item?.idDestacamento, item?.destId].some(
-          (value) => String(value) === String(memberDestId)
-        )
+      [item?.id, item?.idDestacamento, item?.destId].some(
+        (value) => String(value) === String(memberDestId)
       )
+    )
     : null;
 
   const name =
@@ -73,7 +73,7 @@ const buildDestLabel = (member, dests) => {
     return label.toLowerCase().startsWith('dest') ? label : `Dest. ${label}`;
   }
 
-  return memberDestId ? `Dest. ${memberDestId}` : 'Dest. Desconocido';
+  return memberDestId ? `Dest. ${memberDestId}` : 'Dest. desconocido';
 };
 
 // ----------------------------------------------------------------------
@@ -111,7 +111,7 @@ export const MemberCard = memo(function MemberCard({
   const memberEditId = getMemberEditId(member);
   const editHref = memberEditId ? `/dashboard/level/member/${memberEditId}/edit` : '#';
   const phoneNumber = getMemberPhone(member);
-  const phoneLabel = formatPhoneNumber(phoneNumber, '-');
+  const phoneLabel = formatPhoneNumber(phoneNumber);
   const destLabel = buildDestLabel(member, dests);
   const divisionIcon = getMemberDivisionIcon(member);
   const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);

@@ -6,6 +6,7 @@ import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/fireb
 export const COLECCION_PLANTILLAS_CERTIFICADOS = 'certificateTemplates';
 export const COLECCION_LOTES_CERTIFICADOS = 'certificateBatches';
 export const COLECCION_CERTIFICADOS = 'certificates';
+export const COLECCION_ESTADOS_CERTIFICADOS = 'certificateMemberStatuses';
 
 const normalizeIdSegment = (value = '') =>
   String(value || 'archivo')
@@ -172,6 +173,7 @@ export const guardarLoteCertificados = async ({
         firstName: member?.firstName || '',
         lastName: member?.lastName || '',
         memberDivision: member?.memberDivision || '',
+        certificateStatus: member?.certificateStatus || '',
         courseId: batch?.course?.id || '',
         courseName: batch?.course?.name || '',
         certificateTitle: batch?.course?.certificateTitle || batch?.course?.name || '',
@@ -219,4 +221,46 @@ export const buscarCertificadosPorLote = async (batchId) => {
   );
 
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+};
+
+export const listarEstadosCertificados = async (scopeId) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !scopeId) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_ESTADOS_CERTIFICADOS),
+      where('scopeId', '==', String(scopeId))
+    )
+  );
+
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+};
+
+export const guardarEstadoCertificado = async ({ scopeId, member, status, user } = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !scopeId || !member?.id || !status) {
+    throw new Error('Firebase no esta configurado para guardar el estado.');
+  }
+
+  const memberDocId = String(member.id);
+  const memberId = String(member.memberId || member.codigoMiembro || memberDocId);
+  const statusId = `${normalizeIdSegment(scopeId)}-${normalizeIdSegment(memberDocId)}`;
+  const now = new Date().toISOString();
+  const document = {
+    id: statusId,
+    scopeId: String(scopeId),
+    memberDocId,
+    memberId,
+    memberName: member.memberName || member.fullName || '',
+    status,
+    updatedAt: now,
+    updatedBy: getCreator(user),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLECCION_ESTADOS_CERTIFICADOS, statusId),
+    { ...document, updatedAtServer: serverTimestamp() },
+    { merge: true }
+  );
+
+  return document;
 };

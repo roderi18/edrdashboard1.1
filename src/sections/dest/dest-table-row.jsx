@@ -18,9 +18,12 @@ import { DestQuickEditForm } from './dest-quick-edit-form';
 
 export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
   const id = row.id || row.idDestacamento;
-  const sectionalName = row.sectionalName || '';
+  const sectionalName = String(row.sectionalName || '').trim();
+  const sectionalLabel = sectionalName || 'Sección desconocida';
   const regionalName = row.regionalName || '-';
-  const coordinatorName = row.memberFullName || 'Desconocido';
+  const coordinatorName = row.memberFullName || 'Coordinador desconocido';
+  const coordinatorLabel =
+    coordinatorName === 'Coordinador desconocido' ? coordinatorName : capitalizeWords(coordinatorName);
   const coordinatorId = row.coordinatorId;
   const coordinatorAvatarUrl = row.coordinatorAvatarUrl;
   const coordinatorPhoneNumber = row.coordinatorPhoneNumber || '';
@@ -52,7 +55,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       />
 
       <CompactEntityTableCell
-        title={capitalizeWords(coordinatorName)}
+        title={coordinatorLabel}
         href={coordinatorId ? `/dashboard/level/member/${coordinatorId}/edit` : ''}
         subtitle={coordinatorPhoneLabel}
         subtitleHref={getPhoneHref(coordinatorPhoneNumber)}
@@ -76,14 +79,18 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/sectional?section=${encodeURIComponent(sectionalName)}`}
-            color="inherit"
-            underline="always"
-          >
-            {sectionalName || '-'}
-          </Link>
+          {sectionalName ? (
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/sectional?section=${encodeURIComponent(sectionalName)}`}
+              color="inherit"
+              underline="always"
+            >
+              {sectionalLabel}
+            </Link>
+          ) : (
+            <Box component="span">{sectionalLabel}</Box>
+          )}
         </Box>
       </TableCell>
 

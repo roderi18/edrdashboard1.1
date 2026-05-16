@@ -13,7 +13,7 @@ const getRegionalName = (regional) =>
 const getDirectorName = (regional) =>
   regional?.memberFullName ||
   [regional?.memberFirstName, regional?.memberLastName].filter(Boolean).join(' ').trim() ||
-  'Desconocido';
+  'Director desconocido';
 
 // ----------------------------------------------------------------------
 
@@ -22,6 +22,8 @@ export function RegionalCard({ regional, sx, ...other }) {
   const editHref = regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '#';
   const regionalName = getRegionalName(regional);
   const directorName = getDirectorName(regional);
+  const directorLine =
+    directorName === 'Director desconocido' ? directorName : `Director ${directorName}`;
 
   return (
     <CompactEntityCard
@@ -29,7 +31,7 @@ export function RegionalCard({ regional, sx, ...other }) {
       href={editHref}
       avatarUrl={getRegionalAvatar(regional)}
       fallbackText={regionalName}
-      lines={[{ icon: 'solar:user-bold', text: `Director ${directorName}` }]}
+      lines={[{ icon: 'solar:user-bold', text: directorLine }]}
       sx={sx}
       {...other}
     />

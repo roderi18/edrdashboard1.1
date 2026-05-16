@@ -38,11 +38,38 @@ export function MemberTableRow({
   const destAvatarUrl = row.destAvatarUrl || '';
   const sectionalName = row.sectionalName || '-';
   const churchName = row.churchName || 'Iglesia desconocida';
+  const memberDivisionLabel = String(row.memberDivision || '').trim() || 'División desconocida';
 
   const getLeadershipRoleLabel = (roleValue) => {
-    const role = _allLeadershipRoles.find((r) => r.value === roleValue);
-    return role?.label || roleValue;
+    if (Array.isArray(roleValue)) {
+      const roles = roleValue.filter(Boolean);
+
+      return roles.length
+        ? roles.map((roleItem) => getLeadershipRoleLabel(roleItem)).join(', ')
+        : 'Posición desconocida';
+    }
+
+    const normalizedRole = String(roleValue || '').trim();
+
+    if (!normalizedRole) return 'Posición desconocida';
+
+    const role = _allLeadershipRoles.find((r) => r.value === normalizedRole);
+    return role?.label || normalizedRole;
   };
+
+  const memberPositionLabel = (() => {
+    if (Array.isArray(row.memberPosition)) {
+      const positions = row.memberPosition.filter(Boolean);
+
+      return positions.length
+        ? positions.map(getLeadershipRoleLabel).join(', ')
+        : 'Posición desconocida';
+    }
+
+    return String(row.memberPosition || '').trim()
+      ? getLeadershipRoleLabel(row.memberPosition)
+      : 'Posición desconocida';
+  })();
 
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const leaderships = leadershipAssignments
@@ -175,12 +202,12 @@ export function MemberTableRow({
                 </Box>
               ))}
           </Stack>
-        ) : Array.isArray(row.memberPosition) ? (
+        ) : Array.isArray(row.memberPosition) && row.memberPosition.length ? (
           row.memberPosition.map(getLeadershipRoleLabel).join(', ')
         ) : row.memberPosition ? (
-          getLeadershipRoleLabel(row.memberPosition)
+          memberPositionLabel
         ) : (
-          'N/A'
+          'Posición desconocida'
         )}
       </TableCell>
 
@@ -195,7 +222,7 @@ export function MemberTableRow({
         </Box>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{memberDivisionLabel}</TableCell>
 
       <CompactEntityRowActions
         canManage={canManage}

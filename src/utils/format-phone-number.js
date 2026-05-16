@@ -2,11 +2,14 @@ import { parsePhoneNumber } from 'libphonenumber-js';
 
 // ----------------------------------------------------------------------
 
-export function formatPhoneNumber(phoneNumber, fallback = '') {
+export const UNKNOWN_PHONE_LABEL = 'Tel. desconocido';
+
+export function formatPhoneNumber(phoneNumber, fallback = UNKNOWN_PHONE_LABEL) {
   if (!phoneNumber) return fallback;
 
   const phoneText = String(phoneNumber).trim();
   if (!phoneText) return fallback;
+  if (phoneText === '-' || phoneText.toLowerCase() === 'n/a') return fallback;
 
   try {
     return parsePhoneNumber(phoneText.startsWith('+') ? phoneText : `+1${phoneText}`)
