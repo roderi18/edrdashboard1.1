@@ -136,6 +136,12 @@ export const navData = [
         ],
       },
       {
+        title: 'Asistencia',
+        path: paths.dashboard.level.attendance,
+        icon: ICONS.calendar,
+        deepMatch: true,
+      },
+      {
         title: 'Tienda Virtual',
         path: paths.dashboard.product.root,
         icon: ICONS.product,
