@@ -17,7 +17,7 @@ export function RegionalCardList({ regionals }) {
   }, []);
 
   return (
-    <>
+    <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
       <Box
         sx={{
           gap: 3,
@@ -47,6 +47,6 @@ export function RegionalCardList({ regionals }) {
           onChange={handleChangePage}
         />
       </Box>
-    </>
+    </Box>
   );
 }

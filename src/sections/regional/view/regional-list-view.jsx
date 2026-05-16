@@ -102,6 +102,7 @@ export function RegionalListView() {
       const members = dataMembers?.data || dataMembers?.Data || [];
 
       const newData = regionals.map((regional) => {
+        const director = getLeadershipByRegional(regional.id, 'director_regional');
         const seccionesDeRegion = sectionals.filter(
           (s) => Number(s.regionalId) === Number(regional.id)
         );
@@ -124,6 +125,8 @@ export function RegionalListView() {
         ).length;
         return {
           ...regional,
+          memberFullName: director?.fullName || 'Desconocido',
+          directorId: director?.id ?? null,
           regionalXSectionalXDestCount: destCount,
           regionalXSectionalMemberCount: miembrosDeRegion,
         };
@@ -326,27 +329,27 @@ export function RegionalListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+          {displayMode === 'panel' && (
+            <Box sx={{ position: 'relative' }}>
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+                action={
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
 
-            {displayMode === 'panel' ? (
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                   <TableHeadCustom
@@ -390,10 +393,8 @@ export function RegionalListView() {
                   </TableBody>
                 </Table>
               </Scrollbar>
-            ) : (
-              <RegionalCardList regionals={dataFiltered} />
-            )}
-          </Box>
+            </Box>
+          )}
 
           {displayMode === 'panel' && (
             <TablePaginationCustom
@@ -407,6 +408,8 @@ export function RegionalListView() {
             />
           )}
         </Card>
+
+        {displayMode !== 'panel' && <RegionalCardList regionals={dataFiltered} />}
       </DashboardContent>
 
       {renderConfirmDialog()}

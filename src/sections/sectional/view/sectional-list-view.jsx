@@ -409,27 +409,27 @@ export function SectionalListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+          {displayMode === 'panel' && (
+            <Box sx={{ position: 'relative' }}>
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+                action={
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
 
-            {displayMode === 'panel' ? (
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                   <TableHeadCustom
@@ -472,11 +472,8 @@ export function SectionalListView() {
                   </TableBody>
                 </Table>
               </Scrollbar>
-            ) : (
-              <SectionalCardList sectionals={dataFiltered} />
-            )}
-
-          </Box>
+            </Box>
+          )}
 
           {displayMode === 'panel' && (
             <TablePaginationCustom
@@ -490,6 +487,8 @@ export function SectionalListView() {
             />
           )}
         </Card>
+
+        {displayMode !== 'panel' && <SectionalCardList sectionals={dataFiltered} />}
       </DashboardContent>
 
       {renderConfirmDialog()}

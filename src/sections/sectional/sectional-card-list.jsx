@@ -17,7 +17,7 @@ export function SectionalCardList({ sectionals }) {
   }, []);
 
   return (
-    <>
+    <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
       <Box
         sx={{
           gap: 3,
@@ -48,6 +48,6 @@ export function SectionalCardList({ sectionals }) {
           onChange={handleChangePage}
         />
       </Box>
-    </>
+    </Box>
   );
 }

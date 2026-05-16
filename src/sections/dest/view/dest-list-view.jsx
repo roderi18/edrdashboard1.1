@@ -100,8 +100,6 @@ export function DestListView() {
     const allDests = apiDests;
 
     return allDests.map((dest) => {
-      if (dest.name === 'Leones De Sion') {
-      }
       const allMembers = members;
       const leadershipAssignments = getLeadershipAssignments();
 
@@ -167,8 +165,6 @@ export function DestListView() {
           Number(r.idRegion) === Number(sectional?.regionalId)
       );
 
-      const sectionalId = sectional?.idSeccion || sectional?.id || null;
-      const sectionalName = sectional?.nombre || sectional?.name || null;
       return {
         ...dest,
         idIglesia: dest.idIglesia || dest.churchId || null,
@@ -511,74 +507,72 @@ export function DestListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Eliminar">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+          {displayMode === 'panel' && (
+            <Box sx={{ position: 'relative' }}>
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+                action={
+                  <Tooltip title="Eliminar">
+                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
 
-            {displayMode === 'panel' ? (
               <Scrollbar>
-                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                    <TableHeadCustom
-                      order={table.order}
-                      orderBy={table.orderBy}
-                      headCells={TABLE_HEAD}
-                      rowCount={dataFiltered.length}
-                      numSelected={table.selected.length}
-                      onSort={table.onSort}
-                      onSelectAllRows={(checked) =>
-                        table.onSelectAllRows(
-                          checked,
-                          dataFiltered.map((row) => row.id)
-                        )
-                      }
+                <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                  <TableHeadCustom
+                    order={table.order}
+                    orderBy={table.orderBy}
+                    headCells={TABLE_HEAD}
+                    rowCount={dataFiltered.length}
+                    numSelected={table.selected.length}
+                    onSort={table.onSort}
+                    onSelectAllRows={(checked) =>
+                      table.onSelectAllRows(
+                        checked,
+                        dataFiltered.map((row) => row.id)
+                      )
+                    }
+                  />
+
+                  <TableBody>
+                    {dataFiltered
+                      .slice(
+                        table.page * table.rowsPerPage,
+                        table.page * table.rowsPerPage + table.rowsPerPage
+                      )
+                      .map((row) => (
+                        <DestTableRow
+                          key={`${row.id || row.idDestacamento}-${row.destName}`}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.dashboard.level.dest.edit(row.id)}
+                        />
+                      ))}
+
+                    <TableEmptyRows
+                      height={table.dense ? 56 : 56 + 20}
+                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                     />
 
-                    <TableBody>
-                      {dataFiltered
-                        .slice(
-                          table.page * table.rowsPerPage,
-                          table.page * table.rowsPerPage + table.rowsPerPage
-                        )
-                        .map((row) => (
-                          <DestTableRow
-                            key={`${row.id || row.idDestacamento}-${row.destName}`}
-                            row={row}
-                            selected={table.selected.includes(row.id)}
-                            onSelectRow={() => table.onSelectRow(row.id)}
-                            onDeleteRow={() => handleDeleteRow(row.id)}
-                            editHref={paths.dashboard.level.dest.edit(row.id)}
-                          />
-                        ))}
-
-                      <TableEmptyRows
-                        height={table.dense ? 56 : 56 + 20}
-                        emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                      />
-
-                      <TableNoData notFound={notFound} />
-                    </TableBody>
-                  </Table>
-                </Scrollbar>
-            ) : (
-              <DestCardList dests={dataFiltered} />
-            )}
-          </Box>
+                    <TableNoData notFound={notFound} />
+                  </TableBody>
+                </Table>
+              </Scrollbar>
+            </Box>
+          )}
 
           {displayMode === 'panel' && (
             <TablePaginationCustom
@@ -592,6 +586,8 @@ export function DestListView() {
             />
           )}
         </Card>
+
+        {displayMode !== 'panel' && <DestCardList dests={dataFiltered} />}
       </DashboardContent>
 
       {renderConfirmDialog()}

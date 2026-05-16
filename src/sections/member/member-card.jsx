@@ -21,6 +21,37 @@ const getMemberPhone = (member) =>
 
 const getMemberAvatar = (member) => member?.avatarUrl ?? member?.photoURL ?? member?.urlFoto ?? '';
 
+const DIVISION_ICONS = {
+  exploradores: {
+    alt: 'Exploradores',
+    src: '/assets/images/divisions/member/exploradores-ico.png',
+  },
+  liderazgo: {
+    alt: 'Liderazgo',
+    src: '/assets/images/divisions/member/liderazgo-ico.png',
+  },
+  navegantes: {
+    alt: 'Navegantes',
+    src: '/assets/images/divisions/member/navegantes-ico.png',
+  },
+  pioneros: {
+    alt: 'Pioneros',
+    src: '/assets/images/divisions/member/pioneros-ico.png',
+  },
+  seguidores: {
+    alt: 'Seguidores',
+    src: '/assets/images/divisions/member/seguidores-ico.png',
+  },
+};
+
+const getMemberDivisionIcon = (member) => {
+  const division = String(member?.memberDivision ?? member?.division ?? member?.divisionName ?? '')
+    .trim()
+    .toLowerCase();
+
+  return DIVISION_ICONS[division] || null;
+};
+
 const formatPhoneNumber = (phoneNumber) => {
   if (!phoneNumber) return '-';
 
@@ -90,15 +121,17 @@ export function MemberCard({ member, sx, canManage = true, dests: destsProp = []
   const phoneNumber = getMemberPhone(member);
   const phoneLabel = formatPhoneNumber(phoneNumber);
   const destLabel = buildDestLabel(member, dests);
+  const divisionIcon = getMemberDivisionIcon(member);
 
   return (
     <Card
       sx={[
         (theme) => ({
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           minHeight: 88,
-          p: theme.spacing(3, 2, 3, 3),
+          p: theme.spacing(3, divisionIcon ? 8 : 2, 3, 3),
         }),
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
@@ -169,6 +202,22 @@ export function MemberCard({ member, sx, canManage = true, dests: destsProp = []
         }}
       />
 
+      {divisionIcon && (
+        <Box
+          component="img"
+          alt={divisionIcon.alt}
+          src={divisionIcon.src}
+          sx={{
+            right: 18,
+            bottom: 16,
+            width: 42,
+            height: 42,
+            objectFit: 'contain',
+            position: 'absolute',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
     </Card>
   );
 }

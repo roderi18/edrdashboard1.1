@@ -17,7 +17,7 @@ export function DestCardList({ dests }) {
   }, []);
 
   return (
-    <>
+    <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
       <Box
         sx={{
           gap: 3,
@@ -47,6 +47,6 @@ export function DestCardList({ dests }) {
           onChange={handleChangePage}
         />
       </Box>
-    </>
+    </Box>
   );
 }

@@ -1,282 +1,111 @@
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { varAlpha } from 'minimal-shared/utils';
-import { parsePhoneNumber } from 'libphonenumber-js';
-
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
 import ListItemText from '@mui/material/ListItemText';
 
-import {
-  regionalCoverGroup,
-  getCoverPhotoConfig,
-  getCoverPhotoImageSx,
-  DEFAULT_COVER_PHOTO_SRC,
-  fetchCoverPhotoOverrides,
-} from 'src/utils/cover-photos';
+import { Iconify } from 'src/components/iconify';
 
-import { AvatarShape } from 'src/assets/illustrations';
-import { getMembers } from 'src/services/member-service';
-import { getRegionals } from 'src/services/regional-service';
+// ----------------------------------------------------------------------
 
-import { Image } from 'src/components/image';
+const getSectionalId = (sectional) => sectional?.id ?? sectional?.idSeccion ?? sectional?.sectionalId;
+
+const getSectionalAvatar = (sectional) =>
+  sectional?.avatarUrl ?? sectional?.photoURL ?? sectional?.urlFoto ?? '';
+
+const getSectionalName = (sectional) =>
+  sectional?.sectionalName || sectional?.nombre || sectional?.name || 'Sección desconocida';
+
+const getDirectorName = (sectional) =>
+  sectional?.memberFullName ||
+  [sectional?.memberFirstName, sectional?.memberLastName].filter(Boolean).join(' ').trim() ||
+  'Desconocido';
+
+const getRegionalName = (sectional) =>
+  sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || 'Desconocida';
 
 // ----------------------------------------------------------------------
 
 export function SectionalCard({ sectional, sx, ...other }) {
-  const router = useRouter();
-
-  const [members, setMembers] = useState([]);
-  const [regionals, setRegionals] = useState([]);
-  const [, setCoverVersion] = useState(0);
-
-  const director = members.find(
-    (m) =>
-      String(m.memberId) === String(sectional.directorId) ||
-      String(m.id) === String(sectional.directorId)
-  );
-
-  const directorPhone = (() => {
-    try {
-      return director?.phoneNumber
-        ? parsePhoneNumber(
-            director.phoneNumber.startsWith('+')
-              ? director.phoneNumber
-              : `+1${director.phoneNumber}`
-          )?.formatNational()
-        : 'N/A';
-    } catch {
-      return director?.phoneNumber || 'N/A';
-    }
-  })();
-
-  const regional = regionals.find(
-    (item) =>
-      Number(item.id) === Number(sectional?.regionalId) ||
-      Number(item.idRegion) === Number(sectional?.regionalId) ||
-      Number(item.regionId) === Number(sectional?.regionalId) ||
-      String(item.regionalName || item.name || '')
-        .trim()
-        .toLowerCase() ===
-        String(sectional?.regionalName || sectional?.regionName || '')
-          .trim()
-          .toLowerCase()
-  ) || {
-    id: sectional?.regionalId || sectional?.idRegion,
-    idRegion: sectional?.idRegion || sectional?.regionalId,
-    regionId: sectional?.regionalId || sectional?.idRegion,
-    regionalName: sectional?.regionalName || sectional?.regionName,
-    name: sectional?.regionalName || sectional?.regionName,
-  };
-
-  const regionalName = regional?.regionalName || regional?.name;
-
-  const coverConfig = getCoverPhotoConfig({
-    group: regionalCoverGroup,
-    ids: [
-      regional?.id,
-      regional?.idRegion,
-      regional?.regionId,
-      regional?.regionalName,
-      regional?.name,
-      sectional?.regionalId,
-      sectional?.idRegion,
-      sectional?.regionalName,
-      sectional?.regionName,
-    ],
-    defaultSrc: sectional?.coverUrl || DEFAULT_COVER_PHOTO_SRC,
-  });
-
-  const handleGoToSectional = () => {
-    router.push(`/dashboard/level/sectional/${sectional.id}/edit`);
-  };
-
-  useEffect(() => {
-    async function load() {
-      const [membersData, regionalsData] = await Promise.all([getMembers(), getRegionals()]);
-
-      setMembers(membersData || []);
-      setRegionals(regionalsData || []);
-    }
-    load();
-  }, []);
-
-  useEffect(() => {
-    const refreshCover = () => setCoverVersion((currentVersion) => currentVersion + 1);
-
-    fetchCoverPhotoOverrides().then(refreshCover);
-
-    window.addEventListener('storage', refreshCover);
-    window.addEventListener('coverPhotosUpdated', refreshCover);
-
-    return () => {
-      window.removeEventListener('storage', refreshCover);
-      window.removeEventListener('coverPhotosUpdated', refreshCover);
-    };
-  }, []);
+  const sectionalId = getSectionalId(sectional);
+  const editHref = sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '#';
+  const sectionalName = getSectionalName(sectional);
+  const directorName = getDirectorName(sectional);
+  const regionalName = getRegionalName(sectional);
 
   return (
-    <Card sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
-      <Box sx={{ position: 'relative' }}>
-        {/* curva */}
-        <AvatarShape
-          sx={{
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            mx: 'auto',
-            bottom: -26,
-            position: 'absolute',
-          }}
-        />
-
-        <Avatar
-          onClick={handleGoToSectional}
-          alt={sectional.sectionalName}
-          src={sectional.avatarUrl}
-          sx={{
-            left: 0,
-            right: 0,
-            width: 64,
-            height: 64,
-            zIndex: 11,
-            mx: 'auto',
-            bottom: -32,
-            position: 'absolute',
-            cursor: 'pointer',
-          }}
-        />
-        <Image
-          src={coverConfig.src}
-          alt={regionalName || sectional.coverUrl}
-          ratio="16/6"
-          slotProps={{
-            img: {
-              sx: getCoverPhotoImageSx(coverConfig),
-            },
-            overlay: {
-              sx: (theme) => ({
-                bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.48),
-              }),
-            },
-          }}
-        />
-      </Box>
-
-      {/* nombre img */}
-      <ListItemText
-        sx={{ mt: 6, mb: 0.5 }}
-        primary={
-          <Box
-            onClick={handleGoToSectional}
-            sx={{
-              typography: 'subtitle1',
-              cursor: 'pointer',
-              '&:hover': { textDecoration: 'underline' },
-            }}
-          >
-            {sectional.sectionalName}
-          </Box>
-        }
-        secondary={sectional.role}
-      />
-
-      {/* inferior */}
-      <Box
-        sx={{
-          mb: 1,
+    <Card
+      sx={[
+        (theme) => ({
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          textAlign: 'center',
-          gap: 0.5,
-        }}
-      >
-        <Box
-          sx={{
-            typography: 'caption',
-            textAlign: 'center',
-          }}
-        >
-          Director:{' '}
-          {director ? (
+          minHeight: 88,
+          p: theme.spacing(3, 2, 3, 3),
+        }),
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      {...other}
+    >
+      <Link href={editHref} color="inherit" underline="none">
+        <Avatar
+          alt={sectionalName}
+          src={getSectionalAvatar(sectional)}
+          sx={{ width: 48, height: 48, mr: 2 }}
+        />
+      </Link>
+
+      <ListItemText
+        primary={
+          <Link href={editHref} color="inherit" underline="hover">
+            {sectionalName}
+          </Link>
+        }
+        secondary={
+          <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
             <Box
               component="span"
-              onClick={() => router.push(`/dashboard/level/member/${director.memberId}/edit`)}
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 0,
                 typography: 'caption',
-                color: 'primary.main',
-                cursor: 'pointer',
-                '&:hover': { textDecoration: 'underline' },
+                color: 'text.disabled',
               }}
             >
-              {`${director.firstName} ${director.lastName}`}
+              <Iconify icon="solar:user-bold" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
+              <Box
+                component="span"
+                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                Director {directorName}
+              </Box>
             </Box>
-          ) : (
-            'Desconocido'
-          )}
-        </Box>
 
-        <Box
-          component="a"
-          href={director?.phoneNumber ? `tel:${director.phoneNumber}` : undefined}
-          sx={{
-            typography: 'caption',
-            color: director?.phoneNumber ? 'primary.main' : 'text.disabled',
-            textDecoration: 'none',
-            cursor: director?.phoneNumber ? 'pointer' : 'default',
-            '&:hover': {
-              textDecoration: director?.phoneNumber ? 'underline' : 'none',
-            },
-          }}
-        >
-          {directorPhone}
-        </Box>
-      </Box>
-
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Box
-        sx={{
-          py: 0.5,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 1.5,
-        }}
-      >
-        <Box
-          sx={{
-            py: 1.5,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 1.5,
-          }}
-        >
-          {/* Región */}
-          <Box
-            onClick={() =>
-              router.push(
-                `/dashboard/level/regional?sectional=${encodeURIComponent(regionalName || '')}`
-              )
-            }
-            sx={{
-              typography: 'caption',
-              color: 'text.secondary',
-              whiteSpace: 'nowrap',
-              cursor: regional ? 'pointer' : 'default',
-              '&:hover': {
-                textDecoration: regional ? 'underline' : 'none',
-              },
-            }}
-          >
-            {regional?.regionalName || 'Región desconocida'}
+            <Box
+              component="span"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 0,
+                typography: 'caption',
+                color: 'text.disabled',
+              }}
+            >
+              <Iconify icon="mingcute:location-fill" width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
+              <Box
+                component="span"
+                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                Región {regionalName}
+              </Box>
+            </Box>
           </Box>
-        </Box>
-      </Box>
+        }
+        slotProps={{
+          primary: { noWrap: true },
+          secondary: { component: 'span', sx: { mt: 0.5, display: 'block' } },
+        }}
+      />
     </Card>
   );
 }
