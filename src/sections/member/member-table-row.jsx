@@ -1,19 +1,11 @@
+import { useBoolean } from 'minimal-shared/hooks';
 import { parsePhoneNumber } from 'libphonenumber-js';
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
-import IconButton from '@mui/material/IconButton';
-
-import { RouterLink } from 'src/routes/components';
 
 import { resolveById } from 'src/utils/resolve-display-name';
 import { getStorageCollection } from 'src/utils/storage-service';
@@ -21,10 +13,10 @@ import { getStorageCollection } from 'src/utils/storage-service';
 import { SECTIONALS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
-import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
-import { CustomPopover } from 'src/components/custom-popover';
 import { UnderlineLink } from 'src/components/link/underline-link';
+
+import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
+import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
 
 import { MemberQuickEditForm } from './member-quick-edit-form';
 
@@ -38,31 +30,22 @@ export function MemberTableRow({
   onDeleteRow,
   canManage = true,
 }) {
-  const menuActions = usePopover();
-  const confirmDialog = useBoolean();
-  const quickEditForm = useBoolean();
+  const showMorePositions = useBoolean();
   const capitalize = (text = '') =>
     text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-  const showMorePositions = useBoolean();
   const memberEditId = row.idMiembros ?? row.id ?? row.memberId;
   const destName = row.destName || '';
   const destNumber = row.destNumber || '';
   const destAvatarUrl = row.destAvatarUrl || '';
+  const sectionalName = row.sectionalName || '-';
+  const churchName = row.churchName || 'Iglesia desconocida';
 
   const getLeadershipRoleLabel = (roleValue) => {
     const role = _allLeadershipRoles.find((r) => r.value === roleValue);
     return role?.label || roleValue;
   };
 
-  // const church = getChurches().find(
-  //   (c) => c.id === dest?.churchId
-  // );
-
-  const sectionalName = row.sectionalName || '-';
-  const churchName = row.churchName || 'Iglesia desconocida';
-
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
-
   const leaderships = leadershipAssignments
     .filter(
       (l) =>
@@ -78,298 +61,165 @@ export function MemberTableRow({
     }))
     .filter((l) => l.label);
 
-  const renderQuickEditForm = () =>
-    canManage ? (
-      <MemberQuickEditForm
-        currentMember={row}
-        open={quickEditForm.value}
-        onClose={quickEditForm.onFalse}
-      />
-    ) : null;
-
-  const renderMenuActions = () =>
-    canManage ? (
-      <CustomPopover
-        open={menuActions.open}
-        anchorEl={menuActions.anchorEl}
-        onClose={menuActions.onClose}
-        slotProps={{ arrow: { placement: 'right-top' } }}
-      >
-        <MenuList>
-          <li>
-            <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
-              <Iconify icon="solar:pen-bold" />
-              Edit
-            </MenuItem>
-          </li>
-
-          <MenuItem
-            onClick={() => {
-              confirmDialog.onTrue();
-              menuActions.onClose();
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            <Iconify icon="solar:trash-bin-trash-bold" />
-            Delete
-          </MenuItem>
-        </MenuList>
-      </CustomPopover>
-    ) : null;
-
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content="¿Seguro que deseas eliminar este miembro?"
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            onDeleteRow();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
-  );
-
   const handleOpenMemberEdit = () => {
     if (!memberEditId) return;
     window.location.href = `/dashboard/level/member/${memberEditId}/edit`;
   };
 
+  const getLeadershipHref = (leadership) => {
+    if (leadership.level === 'dest') {
+      return `/dashboard/level/dest?name=${encodeURIComponent(destName)}`;
+    }
+
+    if (leadership.level === 'sectional') {
+      return `/dashboard/level/sectional?sectional=${encodeURIComponent(
+        resolveById(SECTIONALS, row.sectionalId)
+      )}`;
+    }
+
+    if (leadership.level === 'regional') {
+      return `/dashboard/level/regional?region=${row.regionalId}`;
+    }
+
+    if (leadership.level === 'national') {
+      return `/dashboard/level/national`;
+    }
+
+    return '#';
+  };
+
   return (
-    <>
-      <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            disabled={!canManage}
-            onClick={canManage ? onSelectRow : undefined}
-            slotProps={{
-              input: {
-                id: `${row.memberId}-checkbox`,
-                'aria-label': `${row.memberId} checkbox`,
-              },
-            }}
-          />
-        </TableCell>
+    <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
+      <TableCell padding="checkbox">
+        <Checkbox
+          checked={selected}
+          disabled={!canManage}
+          onClick={canManage ? onSelectRow : undefined}
+          slotProps={{
+            input: {
+              id: `${row.memberId}-checkbox`,
+              'aria-label': `${row.memberId} checkbox`,
+            },
+          }}
+        />
+      </TableCell>
 
-        <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              alt={row.name}
-              src={row.avatarUrl}
-              onClick={handleOpenMemberEdit}
-              sx={{ cursor: 'pointer' }}
-            />
+      <CompactEntityTableCell
+        title={row.name}
+        href={editHref || `/dashboard/level/member/${memberEditId}/edit`}
+        subtitle={(() => {
+          try {
+            return row.phoneNumber
+              ? parsePhoneNumber(
+                  row.phoneNumber.startsWith('+') ? row.phoneNumber : `+1${row.phoneNumber}`
+                )?.formatNational()
+              : '';
+          } catch {
+            return row.phoneNumber;
+          }
+        })()}
+        avatarUrl={row.avatarUrl}
+        onAvatarClick={handleOpenMemberEdit}
+        linkUnderline="always"
+      />
 
-            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              <UnderlineLink
-                href={editHref || `/dashboard/level/member/${memberEditId}/edit`}
-                color="inherit"
-                underline="always"
-              >
-                {row.name}
-              </UnderlineLink>
+      <CompactEntityTableCell
+        title={`${capitalize(destName)} ${destNumber}`.trim()}
+        href={`/dashboard/level/dest?name=${encodeURIComponent(destName)}`}
+        subtitle={`Iglesia ${capitalize(churchName)}`}
+        avatarAlt={capitalize(destName)}
+        avatarUrl={destAvatarUrl}
+        avatarSx={{ width: 40, height: 40 }}
+      />
 
-              <Box component="span" sx={{ color: 'text.disabled' }}>
-                {(() => {
-                  try {
-                    return row.phoneNumber
-                      ? parsePhoneNumber(
-                          row.phoneNumber.startsWith('+') ? row.phoneNumber : `+1${row.phoneNumber}`
-                        )?.formatNational()
-                      : '';
-                  } catch {
-                    return row.phoneNumber;
-                  }
-                })()}
-              </Box>
-            </Stack>
-          </Box>
-        </TableCell>
-
-        <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              alt={capitalize(destName)}
-              src={destAvatarUrl}
-              sx={{
-                width: 40,
-                height: 40,
+      <TableCell>
+        {leaderships.length ? (
+          <Stack>
+            <Box
+              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              onClick={() => {
+                window.location.href = getLeadershipHref(leaderships[0]);
               }}
-            />
+            >
+              {leaderships[0].label}
+            </Box>
 
-            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
-              <UnderlineLink
-                href={`/dashboard/level/dest?name=${encodeURIComponent(destName)}`}
-                color="inherit"
-              >
-                {`${capitalize(destName)} ${destNumber}`.trim()}
-              </UnderlineLink>
-
-              <Box component="span" sx={{ color: 'text.disabled' }}>
-                {`Iglesia ${capitalize(churchName)}`}
-              </Box>
-            </Stack>
-          </Box>
-        </TableCell>
-
-        <TableCell>
-          {leaderships.length ? (
-            <Stack>
+            {!showMorePositions.value && leaderships.length > 1 && (
               <Box
-                sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-                onClick={() => {
-                  const leadership = leaderships[0];
-                  if (!leadership) return;
-
-                  let link = '#';
-
-                  if (leadership.level === 'dest') {
-                    link = `/dashboard/level/dest?name=${encodeURIComponent(destName)}`;
-                  }
-
-                  if (leadership.level === 'sectional') {
-                    link = `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                      resolveById(SECTIONALS, row.sectionalId)
-                    )}`;
-                  }
-
-                  if (leadership.level === 'regional') {
-                    link = `/dashboard/level/regional?region=${row.regionalId}`;
-                  }
-
-                  if (leadership.level === 'national') {
-                    link = `/dashboard/level/national`;
-                  }
-
-                  window.location.href = link;
-                }}
+                sx={{ color: 'text.secondary', fontSize: 12, cursor: 'pointer' }}
+                onClick={showMorePositions.onTrue}
               >
-                {leaderships[0].label}
+                +{leaderships.length - 1}
               </Box>
-              {!showMorePositions.value && leaderships.length > 1 && (
-                <Box
-                  sx={{ color: 'text.secondary', fontSize: 12, cursor: 'pointer' }}
-                  onClick={showMorePositions.onTrue}
-                >
-                  +{leaderships.length - 1}
-                </Box>
-              )}
-              {showMorePositions.value &&
-                leaderships.slice(1).map((leadership, index) => (
-                  <Box key={index} sx={{ fontSize: 13 }}>
+            )}
+
+            {showMorePositions.value &&
+              leaderships.slice(1).map((leadership, index) => (
+                <Box key={index} sx={{ fontSize: 13 }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      cursor: 'pointer',
+                      color: 'text.secondary',
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                    onClick={() => {
+                      window.location.href = getLeadershipHref(leadership);
+                    }}
+                  >
+                    {leadership.label}
+                  </Box>
+
+                  {index === leaderships.slice(1).length - 1 && (
                     <Box
                       component="span"
                       sx={{
-                        cursor: 'pointer',
+                        ml: 0.5,
                         color: 'text.secondary',
-                        '&:hover': { textDecoration: 'underline' },
+                        cursor: 'pointer',
+                        fontSize: 12,
                       }}
-                      onClick={() => {
-                        let link = '#';
-
-                        if (leadership.level === 'dest') {
-                          link = `/dashboard/level/dest?name=${encodeURIComponent(destName)}`;
-                        }
-
-                        if (leadership.level === 'sectional') {
-                          link = `/dashboard/level/sectional?sectional=${encodeURIComponent(
-                            resolveById(SECTIONALS, row.sectionalId)
-                          )}`;
-                        }
-
-                        if (leadership.level === 'regional') {
-                          link = `/dashboard/level/regional?region=${row.regionalId}`;
-                        }
-
-                        if (leadership.level === 'national') {
-                          link = `/dashboard/level/national`;
-                        }
-
-                        window.location.href = link;
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        showMorePositions.onFalse();
                       }}
                     >
-                      {leadership.label}
+                      -{leaderships.length - 1}
                     </Box>
+                  )}
+                </Box>
+              ))}
+          </Stack>
+        ) : Array.isArray(row.memberPosition) ? (
+          row.memberPosition.map(getLeadershipRoleLabel).join(', ')
+        ) : row.memberPosition ? (
+          getLeadershipRoleLabel(row.memberPosition)
+        ) : (
+          'N/A'
+        )}
+      </TableCell>
 
-                    {index === leaderships.slice(1).length - 1 && (
-                      <Box
-                        component="span"
-                        sx={{
-                          ml: 0.5,
-                          color: 'text.secondary',
-                          cursor: 'pointer',
-                          fontSize: 12,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          showMorePositions.onFalse();
-                        }}
-                      >
-                        -{leaderships.length - 1}
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-            </Stack>
-          ) : Array.isArray(row.memberPosition) ? (
-            row.memberPosition.map(getLeadershipRoleLabel).join(', ')
-          ) : row.memberPosition ? (
-            getLeadershipRoleLabel(row.memberPosition)
-          ) : (
-            'N/A'
-          )}
-        </TableCell>
+      <TableCell>
+        <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+          <UnderlineLink
+            href={`/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`}
+            color="inherit"
+          >
+            {sectionalName}
+          </UnderlineLink>
+        </Box>
+      </TableCell>
 
-        <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <UnderlineLink
-              href={`/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`}
-              color="inherit"
-            >
-              {sectionalName}
-            </UnderlineLink>
-          </Box>
-        </TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.memberDivision}</TableCell>
-
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {canManage ? (
-              <>
-                <Tooltip title="Actualización rápida" placement="top" arrow>
-                  <IconButton
-                    color={quickEditForm.value ? 'inherit' : 'default'}
-                    onClick={quickEditForm.onTrue}
-                  >
-                    <Iconify icon="solar:pen-bold" />
-                  </IconButton>
-                </Tooltip>
-
-                <IconButton
-                  color={menuActions.open ? 'inherit' : 'default'}
-                  onClick={menuActions.onOpen}
-                >
-                  <Iconify icon="eva:more-vertical-fill" />
-                </IconButton>
-              </>
-            ) : null}
-          </Box>
-        </TableCell>
-      </TableRow>
-
-      {renderQuickEditForm()}
-      {renderMenuActions()}
-      {renderConfirmDialog()}
-    </>
+      <CompactEntityRowActions
+        canManage={canManage}
+        editHref={editHref}
+        onDelete={onDeleteRow}
+        QuickEditForm={MemberQuickEditForm}
+        quickEditProps={{ currentMember: row }}
+        deleteContent="¿Seguro que deseas eliminar este miembro?"
+      />
+    </TableRow>
   );
 }
