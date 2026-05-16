@@ -169,7 +169,7 @@ export function HomeFooter({ sx, ...other }) {
         <Logo />
         <Box sx={{ mt: 1, typography: 'caption' }}>
           © Todos los derechos reservados.
-          <br /> hecho por Exploradores del Rey, República Dominicana <span role="img" aria-label="Bandera Dominicana">🇩🇴</span>
+          <br /> hecho por Exploradores del Rey, Rep. Dominicana <span role="img" aria-label="Bandera Dominicana">🇩🇴</span>
         </Box>
       </Container>
     </FooterRoot>

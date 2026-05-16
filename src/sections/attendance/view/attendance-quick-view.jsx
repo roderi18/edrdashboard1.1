@@ -23,6 +23,7 @@ import { paths } from 'src/routes/paths';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 
+import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
@@ -57,6 +58,14 @@ const STATUS_OPTIONS = [
     width: { xs: 48, sm: 58 },
   },
 ];
+
+const DIVISION_ICON_PATHS = {
+  Liderazgo: '/assets/images/divisions/member/liderazgo-ico.png',
+  Exploradores: '/assets/images/divisions/member/exploradores-ico.png',
+  Seguidores: '/assets/images/divisions/member/seguidores-ico.png',
+  Pioneros: '/assets/images/divisions/member/pioneros-ico.png',
+  Navegantes: '/assets/images/divisions/member/navegantes-ico.png',
+};
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -95,6 +104,76 @@ const getMemberName = (member) => {
 
 const getMemberAvatar = (member) =>
   member?.avatarUrl || member?.photoURL || member?.urlFoto || member?.fotoUrl || member?.foto || '';
+
+const getDivisionIconSrc = (division) => DIVISION_ICON_PATHS[division] || '';
+
+function DivisionOptionContent({ option }) {
+  const iconSrc = getDivisionIconSrc(option?.value);
+
+  return (
+    <Stack component="span" direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+      {iconSrc ? (
+        <Box
+          component="img"
+          alt=""
+          src={iconSrc}
+          sx={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
+        />
+      ) : (
+        <Box component="span" sx={{ width: 24, height: 24, flexShrink: 0 }} />
+      )}
+      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {option?.label || 'Todos'}
+      </Box>
+    </Stack>
+  );
+}
+
+const getMemberAge = (birthdate) => {
+  if (!birthdate) return null;
+
+  const parsed = new Date(birthdate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDiff = today.getMonth() - parsed.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+};
+
+const resolveMemberDivision = (member) => {
+  const currentDivision = String(
+    member?.memberDivision ?? member?.division ?? member?.divisionName ?? ''
+  ).trim();
+
+  if (currentDivision) {
+    const normalized = currentDivision.toLowerCase();
+    if (normalized.includes('lider')) return 'Liderazgo';
+    if (normalized.includes('explor')) return 'Exploradores';
+    if (normalized.includes('segu')) return 'Seguidores';
+    if (normalized.includes('pion')) return 'Pioneros';
+    if (normalized.includes('naveg')) return 'Navegantes';
+    return currentDivision;
+  }
+
+  const age = getMemberAge(
+    member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento
+  );
+
+  if (age === null) return '';
+  if (age >= 18) return 'Liderazgo';
+  if (age >= 14) return 'Exploradores';
+  if (age >= 11) return 'Seguidores';
+  if (age >= 8) return 'Pioneros';
+  if (age >= 5) return 'Navegantes';
+
+  return '';
+};
 
 const normalizeText = (value) =>
   String(value ?? '')
@@ -173,6 +252,7 @@ export function AttendanceQuickView() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDestId, setSelectedDestId] = useState('');
+  const [selectedDivision, setSelectedDivision] = useState('all');
   const [statusByMemberId, setStatusByMemberId] = useState({});
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [storageReady, setStorageReady] = useState(false);
@@ -234,19 +314,33 @@ export function AttendanceQuickView() {
     [members, selectedDestId]
   );
 
+  const divisionFilteredMembers = useMemo(() => {
+    if (selectedDivision === 'all') {
+      return selectedDestMembers;
+    }
+
+    return selectedDestMembers.filter((member) => resolveMemberDivision(member) === selectedDivision);
+  }, [selectedDestMembers, selectedDivision]);
+
   const visibleMembers = useMemo(() => {
     const query = normalizeText(search);
 
     if (!query) {
-      return selectedDestMembers;
+      return divisionFilteredMembers;
     }
 
-    return selectedDestMembers.filter((member) =>
-      [getMemberName(member), member?.memberId, member?.codigoMiembro, member?.phoneNumber]
+    return divisionFilteredMembers.filter((member) =>
+      [
+        getMemberName(member),
+        resolveMemberDivision(member),
+        member?.memberId,
+        member?.codigoMiembro,
+        member?.phoneNumber,
+      ]
         .map(normalizeText)
         .some((value) => value.includes(query))
     );
-  }, [search, selectedDestMembers]);
+  }, [search, divisionFilteredMembers]);
 
   useEffect(() => {
     setStorageReady(false);
@@ -299,7 +393,7 @@ export function AttendanceQuickView() {
   const counts = useMemo(() => {
     const base = { present: 0, absent: 0, excused: 0, pending: 0 };
 
-    selectedDestMembers.forEach((member) => {
+    divisionFilteredMembers.forEach((member) => {
       const status = statusByMemberId[getMemberId(member)];
 
       if (status && base[status] !== undefined) {
@@ -310,7 +404,7 @@ export function AttendanceQuickView() {
     });
 
     return base;
-  }, [selectedDestMembers, statusByMemberId]);
+  }, [divisionFilteredMembers, statusByMemberId]);
 
   const handleStatusChange = useCallback((memberId, status) => {
     setStatusByMemberId((current) => {
@@ -330,13 +424,13 @@ export function AttendanceQuickView() {
     setStatusByMemberId((current) => {
       const next = { ...current };
 
-      selectedDestMembers.forEach((member) => {
+      divisionFilteredMembers.forEach((member) => {
         next[getMemberId(member)] = 'present';
       });
 
       return next;
     });
-  }, [selectedDestMembers]);
+  }, [divisionFilteredMembers]);
 
   const handleClear = useCallback(() => {
     setStatusByMemberId({});
@@ -366,7 +460,7 @@ export function AttendanceQuickView() {
         </MenuItem>
 
         <MenuItem
-          disabled={!selectedDestMembers.length}
+          disabled={!divisionFilteredMembers.length}
           onClick={() => {
             menuActions.onClose();
             handleMarkAllPresent();
@@ -447,19 +541,53 @@ export function AttendanceQuickView() {
                 })}
               </TextField>
 
-              <DatePicker
-                label="Fecha"
-                value={date ? dayjs(date) : null}
-                onChange={(newValue) => {
-                  const parsed = dayjs(newValue);
-                  setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  width: { xs: 1, md: 'auto' },
+                  flex: { md: '0 0 420px' },
                 }}
+              >
+                <DatePicker
+                  label="Fecha"
+                  value={date ? dayjs(date) : null}
+                  onChange={(newValue) => {
+                    const parsed = dayjs(newValue);
+                    setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
+                  }}
                 slotProps={{
                   textField: {
-                    sx: { flex: { md: '0 0 220px' } },
+                    sx: { flex: '1 1 0' },
                   },
                 }}
               />
+
+                <TextField
+                  select
+                  label="División"
+                  value={selectedDivision}
+                  onChange={(event) => setSelectedDivision(event.target.value)}
+                  sx={{ flex: '1 1 0' }}
+                  slotProps={{
+                    select: {
+                      renderValue: (selected) => {
+                        const option =
+                          MEMBER_DIVISION_OPTIONS.find((division) => division.value === selected) ||
+                          MEMBER_DIVISION_OPTIONS[0];
+
+                        return <DivisionOptionContent option={option} />;
+                      },
+                    },
+                  }}
+                >
+                  {MEMBER_DIVISION_OPTIONS.map((division) => (
+                    <MenuItem key={division.value} value={division.value}>
+                      <DivisionOptionContent option={division} />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
             </Stack>
 
             <Stack
@@ -532,7 +660,7 @@ export function AttendanceQuickView() {
                             {memberName}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" noWrap>
-                            Ultima: {formatAttendanceDate(lastPresentByMemberId[memberId])}
+                            Última: {formatAttendanceDate(lastPresentByMemberId[memberId])}
                           </Typography>
                         </Box>
                       </Stack>
