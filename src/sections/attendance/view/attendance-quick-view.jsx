@@ -1,5 +1,7 @@
 'use client';
 
+import dayjs from 'dayjs';
+import { usePopover } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -8,16 +10,17 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
+import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { paths } from 'src/routes/paths';
 
-import { formatPhoneNumber } from 'src/utils/format-phone-number';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 
 import { getDestsApi } from 'src/services/dest-service';
@@ -26,14 +29,33 @@ import { getMembers } from 'src/services/member-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
 
 const STATUS_OPTIONS = [
-  { value: 'present', label: 'Presente', color: 'success' },
-  { value: 'absent', label: 'Ausente', color: 'warning' },
-  { value: 'excused', label: 'Excusa', color: 'info' },
+  {
+    value: 'excused',
+    label: 'Excusa',
+    color: 'info',
+    icon: 'solar:info-circle-bold',
+    width: { xs: 42, sm: 50 },
+  },
+  {
+    value: 'absent',
+    label: 'Ausente',
+    color: 'warning',
+    icon: 'solar:minus-circle-bold',
+    width: { xs: 48, sm: 58 },
+  },
+  {
+    value: 'present',
+    label: 'Presente',
+    color: 'success',
+    icon: 'solar:check-circle-bold',
+    width: { xs: 48, sm: 58 },
+  },
 ];
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -81,6 +103,50 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+const formatAttendanceDate = (value) => {
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format('DD/MM/YYYY') : 'sin registro';
+};
+
+const getStoredLastPresentDates = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  const latestByMemberId = {};
+
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+
+    if (!key?.startsWith('rr-attendance:')) {
+      continue;
+    }
+
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(key) || '{}');
+      const [, keyDate] = key.split(':');
+      const attendanceDate = stored?.date || keyDate;
+      const statuses = stored?.statuses && typeof stored.statuses === 'object' ? stored.statuses : {};
+
+      Object.entries(statuses).forEach(([memberId, status]) => {
+        if (status !== 'present') {
+          return;
+        }
+
+        const currentDate = latestByMemberId[memberId];
+
+        if (!currentDate || dayjs(attendanceDate).isAfter(dayjs(currentDate))) {
+          latestByMemberId[memberId] = attendanceDate;
+        }
+      });
+    } catch {
+      // Ignore malformed local attendance snapshots.
+    }
+  }
+
+  return latestByMemberId;
+};
+
 function AttendanceMemberSkeleton() {
   return (
     <Card sx={{ p: 2.5 }}>
@@ -90,7 +156,7 @@ function AttendanceMemberSkeleton() {
           <Skeleton variant="text" width="52%" />
           <Skeleton variant="text" width="36%" />
         </Box>
-        <Skeleton variant="rounded" width={240} height={36} />
+        <Skeleton variant="rounded" width={172} height={36} />
       </Stack>
     </Card>
   );
@@ -99,6 +165,8 @@ function AttendanceMemberSkeleton() {
 // ----------------------------------------------------------------------
 
 export function AttendanceQuickView() {
+  const menuActions = usePopover();
+
   const [date, setDate] = useState(TODAY);
   const [search, setSearch] = useState('');
   const [dests, setDests] = useState([]);
@@ -106,6 +174,7 @@ export function AttendanceQuickView() {
   const [loading, setLoading] = useState(true);
   const [selectedDestId, setSelectedDestId] = useState('');
   const [statusByMemberId, setStatusByMemberId] = useState({});
+  const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [storageReady, setStorageReady] = useState(false);
 
   useEffect(() => {
@@ -126,7 +195,9 @@ export function AttendanceQuickView() {
         setMembers(nextMembers);
 
         if (nextDests.length) {
-          setSelectedDestId((current) => current || String(nextDests[0]?.id ?? nextDests[0]?.idDestacamento ?? ''));
+          setSelectedDestId(
+            (current) => current || String(nextDests[0]?.id ?? nextDests[0]?.idDestacamento ?? '')
+          );
         }
       } catch (error) {
         console.error('Error loading attendance data:', error);
@@ -190,7 +261,9 @@ export function AttendanceQuickView() {
       const stored = window.localStorage.getItem(getAttendanceStorageKey(date, selectedDestId));
       const parsed = stored ? JSON.parse(stored) : {};
 
-      setStatusByMemberId(parsed?.statuses && typeof parsed.statuses === 'object' ? parsed.statuses : {});
+      setStatusByMemberId(
+        parsed?.statuses && typeof parsed.statuses === 'object' ? parsed.statuses : {}
+      );
     } catch {
       setStatusByMemberId({});
     } finally {
@@ -214,6 +287,14 @@ export function AttendanceQuickView() {
       })
     );
   }, [date, selectedDest, selectedDestId, statusByMemberId, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) {
+      return;
+    }
+
+    setLastPresentByMemberId(getStoredLastPresentDates());
+  }, [date, selectedDestId, statusByMemberId, storageReady]);
 
   const counts = useMemo(() => {
     const base = { present: 0, absent: 0, excused: 0, pending: 0 };
@@ -258,182 +339,237 @@ export function AttendanceQuickView() {
     toast.success('Asistencia guardada localmente.');
   }, []);
 
-  return (
-    <DashboardContent>
-      <CustomBreadcrumbs
-        heading="Asistencia rapida"
-        links={[
-          { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Niveles Organizacionales', href: paths.dashboard.level.root },
-          { name: 'Asistencia' },
-        ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
+  const renderMenuActions = () => (
+    <CustomPopover
+      open={menuActions.open}
+      anchorEl={menuActions.anchorEl}
+      onClose={menuActions.onClose}
+      slotProps={{ arrow: { placement: 'right-top' } }}
+    >
+      <MenuList sx={{ minWidth: 220 }}>
+        <MenuItem
+          onClick={() => {
+            menuActions.onClose();
+            handleClear();
+          }}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          <Iconify icon="solar:restart-bold-duotone" />
+          Limpiar
+        </MenuItem>
 
-      <Card sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
-        <Stack spacing={2.5}>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            alignItems={{ xs: 'stretch', md: 'center' }}
-          >
-            <TextField
-              select
-              label="Destacamento"
-              value={selectedDestId}
-              onChange={(event) => setSelectedDestId(event.target.value)}
-              sx={{ minWidth: { md: 300 } }}
+        <MenuItem
+          disabled={!selectedDestMembers.length}
+          onClick={() => {
+            menuActions.onClose();
+            handleMarkAllPresent();
+          }}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          <Iconify icon="solar:check-circle-bold" />
+          Marcar todos presentes
+        </MenuItem>
+      </MenuList>
+    </CustomPopover>
+  );
+
+  return (
+    <>
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Asistencia rapida"
+          links={[
+            { name: 'Panel', href: paths.dashboard.root },
+            { name: 'Asistencia' },
+          ]}
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+
+        <Card sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', md: 'center' }}
             >
-              {dests.map((dest) => {
-                const destId = String(dest?.id ?? dest?.idDestacamento ?? '');
+              <TextField
+                select
+                label="Destacamento"
+                value={selectedDestId}
+                onChange={(event) => setSelectedDestId(event.target.value)}
+                sx={{ minWidth: { md: 300 } }}
+              >
+                {dests.map((dest) => {
+                  const destId = String(dest?.id ?? dest?.idDestacamento ?? '');
+
+                  return (
+                    <MenuItem key={destId || dest.name} value={destId}>
+                      {dest?.name || `Dest. ${destId}`}
+                    </MenuItem>
+                  );
+                })}
+              </TextField>
+
+              <DatePicker
+                label="Fecha"
+                value={date ? dayjs(date) : null}
+                onChange={(newValue) => {
+                  const parsed = dayjs(newValue);
+                  setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
+                }}
+                sx={{ minWidth: { md: 180 } }}
+              />
+
+              <TextField
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar miembro..."
+                sx={{ flex: 1 }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ width: 1 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Chip color="success" label={`${counts.present} presentes`} />
+                <Chip color="warning" label={`${counts.absent} ausentes`} />
+                <Chip color="info" label={`${counts.excused} excusas`} />
+              </Stack>
+              <IconButton
+                color="inherit"
+                onClick={menuActions.onOpen}
+                edge="end"
+                sx={{ width: 32, height: 32 }}
+                aria-label="Acciones de asistencia"
+              >
+                <Iconify icon="eva:more-vertical-fill" />
+              </IconButton>
+            </Stack>
+          </Stack>
+        </Card>
+
+        <Stack spacing={1.5}>
+          {loading ? (
+            Array.from({ length: 6 }).map((_, index) => <AttendanceMemberSkeleton key={index} />)
+          ) : (
+            <>
+              {visibleMembers.map((member) => {
+                const memberId = getMemberId(member);
+                const memberName = getMemberName(member);
+                const status = statusByMemberId[memberId] || '';
+                const avatarUrl = getMemberAvatar(member);
 
                 return (
-                  <MenuItem key={destId || dest.name} value={destId}>
-                    {dest?.name || `Dest. ${destId}`}
-                  </MenuItem>
+                  <Card
+                    key={memberId}
+                    sx={{ p: { xs: 2, md: 2.5 }, minHeight: { xs: 82, sm: 92 } }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={{ xs: 1, sm: 2 }}
+                      alignItems="center"
+                      sx={{ minWidth: 0 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={{ xs: 1, sm: 2 }}
+                        alignItems="center"
+                        sx={{ flex: '1 1 auto', minWidth: 0 }}
+                      >
+                        <Avatar
+                          src={avatarUrl}
+                          alt={memberName}
+                          sx={{
+                            width: { xs: 42, sm: 50 },
+                            height: { xs: 42, sm: 50 },
+                            flexShrink: 0,
+                          }}
+                        >
+                          {memberName.charAt(0)}
+                        </Avatar>
+
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" noWrap>
+                            {memberName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            Ultima: {formatAttendanceDate(lastPresentByMemberId[memberId])}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} sx={{ flexShrink: 0 }}>
+                        {STATUS_OPTIONS.map((option) => (
+                          <Button
+                            key={option.value}
+                            aria-label={option.label}
+                            title={option.label}
+                            size="small"
+                            color={option.color}
+                            variant={status === option.value ? 'contained' : 'outlined'}
+                            onClick={() => handleStatusChange(memberId, option.value)}
+                            sx={{
+                              width: option.width,
+                              minWidth: option.width,
+                              height: { xs: 42, sm: 46 },
+                              px: 0,
+                            }}
+                          >
+                            <Iconify icon={option.icon} width={18} />
+                          </Button>
+                        ))}
+                      </Stack>
+                    </Stack>
+                  </Card>
                 );
               })}
-            </TextField>
 
-            <TextField
-              type="date"
-              label="Fecha"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ minWidth: { md: 180 } }}
-            />
-
-            <TextField
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar miembro..."
-              sx={{ flex: 1 }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.5}
-            alignItems={{ xs: 'stretch', md: 'center' }}
-            justifyContent="space-between"
-          >
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip label={`${selectedDestMembers.length} miembros`} />
-              <Chip color="success" label={`${counts.present} presentes`} />
-              <Chip color="warning" label={`${counts.absent} ausentes`} />
-              <Chip color="info" label={`${counts.excused} excusas`} />
-              <Chip variant="outlined" label={`${counts.pending} pendientes`} />
-            </Stack>
-
-            <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-end', md: 'initial' }}>
-              <Button
-                color="inherit"
-                variant="outlined"
-                startIcon={<Iconify icon="solar:restart-bold" />}
-                onClick={handleClear}
-              >
-                Limpiar
-              </Button>
-              <Button
-                color="inherit"
-                variant="outlined"
-                startIcon={<Iconify icon="solar:checklist-minimalistic-bold" />}
-                onClick={handleMarkAllPresent}
-                disabled={!selectedDestMembers.length}
-              >
-                Todos presentes
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<Iconify icon="solar:diskette-bold" />}
-                onClick={handleSave}
-                disabled={!selectedDestId}
-              >
-                Guardar local
-              </Button>
-            </Stack>
-          </Stack>
-        </Stack>
-      </Card>
-
-      <Stack spacing={1.5}>
-        {loading ? (
-          Array.from({ length: 6 }).map((_, index) => <AttendanceMemberSkeleton key={index} />)
-        ) : (
-          <>
-            {visibleMembers.map((member) => {
-              const memberId = getMemberId(member);
-              const memberName = getMemberName(member);
-              const status = statusByMemberId[memberId] || '';
-              const avatarUrl = getMemberAvatar(member);
-
-              return (
-                <Card key={memberId} sx={{ p: { xs: 2, md: 2.5 } }}>
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={2}
-                    alignItems={{ xs: 'stretch', sm: 'center' }}
-                  >
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-                      <Avatar src={avatarUrl} alt={memberName} sx={{ width: 44, height: 44 }}>
-                        {memberName.charAt(0)}
-                      </Avatar>
-
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle2" noWrap>
-                          {memberName}
-                        </Typography>
-                        <Stack direction="row" spacing={1} alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {formatPhoneNumber(member?.phoneNumber)}
-                          </Typography>
-                          <Typography variant="caption" color="text.disabled" noWrap>
-                            {member?.memberId || member?.codigoMiembro || 'Sin codigo'}
-                          </Typography>
-                        </Stack>
-                      </Box>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-end', sm: 'initial' }}>
-                      {STATUS_OPTIONS.map((option) => (
-                        <Button
-                          key={option.value}
-                          size="small"
-                          color={option.color}
-                          variant={status === option.value ? 'contained' : 'outlined'}
-                          onClick={() => handleStatusChange(memberId, option.value)}
-                          sx={{ minWidth: { xs: 0, sm: 88 } }}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </Stack>
-                  </Stack>
+              {!visibleMembers.length && (
+                <Card sx={{ p: 5, textAlign: 'center' }}>
+                  <Iconify
+                    icon="solar:users-group-rounded-bold"
+                    width={40}
+                    sx={{ color: 'text.disabled', mb: 1 }}
+                  />
+                  <Typography variant="subtitle1">
+                    {selectedDestId ? 'Sin miembros en este destacamento' : 'Selecciona un destacamento'}
+                  </Typography>
                 </Card>
-              );
-            })}
+              )}
 
-            {!visibleMembers.length && (
-              <Card sx={{ p: 5, textAlign: 'center' }}>
-                <Iconify icon="solar:users-group-rounded-bold" width={40} sx={{ color: 'text.disabled', mb: 1 }} />
-                <Typography variant="subtitle1">
-                  {selectedDestId ? 'Sin miembros en este destacamento' : 'Selecciona un destacamento'}
-                </Typography>
-              </Card>
-            )}
-          </>
-        )}
-      </Stack>
-    </DashboardContent>
+              {!!visibleMembers.length && (
+                <Stack sx={{ pt: 1 }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:diskette-bold" />}
+                    onClick={handleSave}
+                    disabled={!selectedDestId}
+                  >
+                    Guardar
+                  </Button>
+                </Stack>
+              )}
+            </>
+          )}
+        </Stack>
+      </DashboardContent>
+
+      {renderMenuActions()}
+    </>
   );
 }
