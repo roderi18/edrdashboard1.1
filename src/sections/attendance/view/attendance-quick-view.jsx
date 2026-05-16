@@ -382,7 +382,7 @@ export function AttendanceQuickView() {
 
   return (
     <>
-      <DashboardContent>
+      <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
         <CustomBreadcrumbs
           heading="Asistencia rapida"
           links={[
@@ -392,7 +392,16 @@ export function AttendanceQuickView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
-        <Card sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Card
+          sx={(theme) => ({
+            p: { xs: 2, md: 3 },
+            mb: 3,
+            top: { xs: 72, md: 88 },
+            zIndex: theme.zIndex.appBar - 1,
+            position: 'sticky',
+            bgcolor: 'background.paper',
+          })}
+        >
           <Stack spacing={2.5}>
             <Stack
               direction={{ xs: 'column', md: 'row' }}
@@ -568,7 +577,14 @@ export function AttendanceQuickView() {
               )}
 
               {!!visibleMembers.length && (
-                <Stack sx={{ pt: 1 }}>
+                <Stack
+                  sx={(theme) => ({
+                    pt: 1,
+                    bottom: { xs: 16, md: 24 },
+                    zIndex: theme.zIndex.appBar - 1,
+                    position: 'sticky',
+                  })}
+                >
                   <Button
                     fullWidth
                     variant="contained"
