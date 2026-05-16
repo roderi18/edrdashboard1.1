@@ -1,5 +1,3 @@
-import { parsePhoneNumber } from 'libphonenumber-js';
-
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
@@ -7,6 +5,9 @@ import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
+
+import { capitalizeWords } from 'src/utils/text-format';
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -16,8 +17,6 @@ import { DestQuickEditForm } from './dest-quick-edit-form';
 // ----------------------------------------------------------------------
 
 export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
-  const capitalize = (text) =>
-    (text || '').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   const id = row.id || row.idDestacamento;
   const sectionalName = row.sectionalName || '';
   const regionalName = row.regionalName || '-';
@@ -27,19 +26,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   const coordinatorPhoneNumber = row.coordinatorPhoneNumber || '';
   const destMemberCount = row.destMemberCount || 0;
   const churchName = row?.churchName || 'Iglesia desconocida';
-  const coordinatorPhoneLabel = coordinatorPhoneNumber
-    ? (() => {
-        try {
-          return parsePhoneNumber(
-            coordinatorPhoneNumber.startsWith('+')
-              ? coordinatorPhoneNumber
-              : `+1${coordinatorPhoneNumber}`
-          )?.formatNational();
-        } catch {
-          return coordinatorPhoneNumber || '';
-        }
-      })()
-    : '';
+  const coordinatorPhoneLabel = formatPhoneNumber(coordinatorPhoneNumber);
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -57,15 +44,15 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       </TableCell>
 
       <CompactEntityTableCell
-        title={`${capitalize(row.nombre)} ${row.numero || ''}`}
+        title={`${capitalizeWords(row.nombre)} ${row.numero || ''}`}
         href={`/dashboard/level/dest/${id}/edit`}
-        subtitle={`Iglesia ${capitalize(churchName)}`}
+        subtitle={`Iglesia ${capitalizeWords(churchName)}`}
         avatarAlt={row.nombre}
         avatarUrl={row.avatarUrl}
       />
 
       <CompactEntityTableCell
-        title={capitalize(coordinatorName)}
+        title={capitalizeWords(coordinatorName)}
         href={coordinatorId ? `/dashboard/level/member/${coordinatorId}/edit` : ''}
         subtitle={coordinatorPhoneLabel}
         avatarUrl={coordinatorAvatarUrl}
@@ -75,7 +62,12 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link component={RouterLink} href={`/dashboard/level/member?dest=${id}`} color="inherit">
+          <Link
+            component={RouterLink}
+            href={`/dashboard/level/member?dest=${id}`}
+            color="inherit"
+            underline="always"
+          >
             {destMemberCount}
           </Link>
         </Box>
@@ -87,6 +79,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
             component={RouterLink}
             href={`/dashboard/level/sectional?section=${encodeURIComponent(sectionalName)}`}
             color="inherit"
+            underline="always"
           >
             {sectionalName || '-'}
           </Link>
@@ -99,6 +92,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
             component={RouterLink}
             href={`/dashboard/level/regional?region=${row.regionalId || ''}`}
             color="inherit"
+            underline="always"
           >
             {regionalName}
           </Link>

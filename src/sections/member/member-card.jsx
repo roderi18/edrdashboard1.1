@@ -1,5 +1,6 @@
 import { memo, useState, useEffect } from 'react';
-import { parsePhoneNumber } from 'libphonenumber-js';
+
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
@@ -46,22 +47,12 @@ const getMemberDivisionIcon = (member) => {
   return DIVISION_ICONS[division] || null;
 };
 
-const formatPhoneNumber = (phoneNumber) => {
-  if (!phoneNumber) return '-';
-
-  try {
-    return parsePhoneNumber(phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber}`)
-      ?.formatNational();
-  } catch {
-    return phoneNumber;
-  }
-};
-
 const getDestValue = (dest, keys) => keys.map((key) => dest?.[key]).find(Boolean);
 
 const buildDestLabel = (member, dests) => {
   const memberDestId = getMemberDestId(member);
-  const hasMemberDestId = memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
+  const hasMemberDestId =
+    memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
   const dest = hasMemberDestId
     ? dests.find((item) =>
         [item?.id, item?.idDestacamento, item?.destId].some(
@@ -120,7 +111,7 @@ export const MemberCard = memo(function MemberCard({
   const memberEditId = getMemberEditId(member);
   const editHref = memberEditId ? `/dashboard/level/member/${memberEditId}/edit` : '#';
   const phoneNumber = getMemberPhone(member);
-  const phoneLabel = formatPhoneNumber(phoneNumber);
+  const phoneLabel = formatPhoneNumber(phoneNumber, '-');
   const destLabel = buildDestLabel(member, dests);
   const divisionIcon = getMemberDivisionIcon(member);
   const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);

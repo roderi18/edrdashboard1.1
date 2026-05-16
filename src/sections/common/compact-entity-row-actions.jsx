@@ -1,5 +1,6 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
@@ -32,7 +33,7 @@ export function CompactEntityRowActions({
   return (
     <TableCell>
       {canManage && (
-        <>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           {QuickEditForm && (
             <Tooltip title={quickEditTitle} placement="top" arrow>
               <IconButton
@@ -47,7 +48,7 @@ export function CompactEntityRowActions({
           <IconButton color={menuActions.open ? 'inherit' : 'default'} onClick={menuActions.onOpen}>
             <Iconify icon="eva:more-vertical-fill" />
           </IconButton>
-        </>
+        </Box>
       )}
 
       {canManage && QuickEditForm && (

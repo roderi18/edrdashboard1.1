@@ -1,10 +1,9 @@
-import { parsePhoneNumber } from 'libphonenumber-js';
-
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { getStorageCollection } from 'src/utils/storage-service';
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { MEMBERS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
@@ -67,9 +66,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
         linkSx={{ cursor: member ? 'pointer' : 'default' }}
       />
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {member?.phoneNumber ? parsePhoneNumber(member.phoneNumber)?.formatNational() : ''}
-      </TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatPhoneNumber(member?.phoneNumber)}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {roleConfig?.label || row.nationalXMemberPositionLabel || '-'}

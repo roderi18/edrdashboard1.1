@@ -2,8 +2,8 @@
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
+import { useRef, useState, useEffect } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -28,10 +28,8 @@ import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 import { getRegionals, deleteRegional } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -44,6 +42,8 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
+import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { RegionalTableRow } from '../regional-table-row';
 import { RegionalCardList } from '../regional-card-list';
@@ -248,67 +248,18 @@ export function RegionalListView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const handleDeleteRow = useCallback(
-    async (id) => {
-      try {
-        await deleteRegional(id);
-
-        const deleteRow = tableData.filter((row) => row.id !== id);
-
-        toast.success('Regional eliminada correctamente.');
-
-        setTableData(deleteRow);
-
-        table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        console.error('Error eliminando regional:', error);
-        toast.error(error?.message || 'No se pudo eliminar la regional.');
-      }
-    },
-    [dataInPage.length, table, tableData]
-  );
-
-  const handleDeleteRows = useCallback(async () => {
-    try {
-      await Promise.all(table.selected.map((id) => deleteRegional(id)));
-
-      const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-      toast.success('Regionales eliminadas correctamente.');
-
-      setTableData(deleteRows);
-
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-    } catch (error) {
-      console.error('Error eliminando regionales:', error);
-      toast.error(error?.message || 'No se pudieron eliminar las regionales.');
-    }
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
-
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content={
-        <>
-          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> regionales?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
-  );
+  const { handleDeleteRow, handleDeleteRows } = useCompactEntityDelete({
+    table,
+    tableData,
+    setTableData,
+    dataInPageLength: dataInPage.length,
+    dataFilteredLength: dataFiltered.length,
+    deleteItem: deleteRegional,
+    singleSuccessMessage: 'Regional eliminada correctamente.',
+    singleErrorMessage: 'No se pudo eliminar la regional.',
+    multipleSuccessMessage: 'Regionales eliminadas correctamente.',
+    multipleErrorMessage: 'No se pudieron eliminar las regionales.',
+  });
 
   return (
     <>
@@ -450,7 +401,13 @@ export function RegionalListView() {
         {displayMode !== 'panel' && <RegionalCardList regionals={dataFiltered} />}
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      <CompactEntityDeleteDialog
+        open={confirmDialog.value}
+        onClose={confirmDialog.onFalse}
+        onConfirm={handleDeleteRows}
+        selectedCount={table.selected.length}
+        entityLabel="regionales"
+      />
     </>
   );
 }

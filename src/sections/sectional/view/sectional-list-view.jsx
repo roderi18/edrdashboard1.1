@@ -1,6 +1,5 @@
 'use client';
 
-
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -26,13 +25,11 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getRegionals } from 'src/services/regional-service';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { getSectionals, deleteSectional } from 'src/services/sectional-service';
-import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
+import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -45,6 +42,8 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
+import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
@@ -70,11 +69,7 @@ const getLeadershipBySectional = (sectionalId, role) => {
   const members = getMembers();
 
   const assignment = leaderships.find(
-    (a) =>
-      a.level === 'sectional' &&
-      a.entityId === sectionalId &&
-      a.role === role &&
-      a.memberId
+    (a) => a.level === 'sectional' && a.entityId === sectionalId && a.role === role && a.memberId
   );
 
   return members.find((m) => m.id === assignment?.memberId) || null;
@@ -92,12 +87,10 @@ const buildSectionalList = async () => {
   const dataChurches = await resChurches.json();
   const churches = dataChurches?.data || dataChurches?.Data || [];
 
-
   const leaderships = getLeadershipAssignments();
 
   return sectionals.map((sectional) => {
     const regional = regionals.find((r) => r.id === sectional.regionalId);
-
 
     const director = members.find(
       (m) =>
@@ -106,28 +99,19 @@ const buildSectionalList = async () => {
     );
 
     const iglesiasDeSeccion = churches.filter(
-      (c) =>
-        c.idSeccion &&
-        Number(c.idSeccion) === Number(sectional.idSeccion)
+      (c) => c.idSeccion && Number(c.idSeccion) === Number(sectional.idSeccion)
     );
 
-
     const destCount = dests.filter((d) =>
-      iglesiasDeSeccion.some(
-        (ig) => Number(ig.idIglesia) === Number(d.idIglesia)
-      )
+      iglesiasDeSeccion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
     ).length;
 
     const destsBySectional = dests.filter((d) =>
-      iglesiasDeSeccion.some(
-        (ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia)
-      )
+      iglesiasDeSeccion.some((ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia))
     );
 
     const membersCount = members.filter((member) =>
-      destsBySectional.some(
-        (dest) => Number(dest.idDestacamento) === Number(member.idDestacamento)
-      )
+      destsBySectional.some((dest) => Number(dest.idDestacamento) === Number(member.idDestacamento))
     ).length;
 
     return {
@@ -194,46 +178,24 @@ export function SectionalListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.regionalName !== 'all';
+    !!currentFilters.name ||
+    currentFilters.role.length > 0 ||
+    currentFilters.regionalName !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const handleDeleteRow = useCallback(
-    async (id) => {
-      try {
-        await deleteSectional(id);
-
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-        toast.success('Seccion eliminada correctamente.');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        console.error('Error eliminando seccion:', error);
-        toast.error(error?.message || 'No se pudo eliminar la seccion.');
-      }
-    },
-    [dataInPage.length, table, tableData]
-  );
-
-  const handleDeleteRows = useCallback(async () => {
-    try {
-      await Promise.all(table.selected.map((id) => deleteSectional(id)));
-
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-      toast.success('Secciones eliminadas correctamente.');
-
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-    } catch (error) {
-      console.error('Error eliminando secciones:', error);
-      toast.error(error?.message || 'No se pudieron eliminar las secciones.');
-    }
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  const { handleDeleteRow, handleDeleteRows } = useCompactEntityDelete({
+    table,
+    tableData,
+    setTableData,
+    dataInPageLength: dataInPage.length,
+    dataFilteredLength: dataFiltered.length,
+    deleteItem: deleteSectional,
+    singleSuccessMessage: 'Seccion eliminada correctamente.',
+    singleErrorMessage: 'No se pudo eliminar la seccion.',
+    multipleSuccessMessage: 'Secciones eliminadas correctamente.',
+    multipleErrorMessage: 'No se pudieron eliminar las secciones.',
+  });
 
   const handleFilterRegionalFullName = useCallback(
     (event, newValue) => {
@@ -312,7 +274,6 @@ export function SectionalListView() {
     hasAppliedUrlFilter.current = true;
   }, [sectionFromUrl, updateFilters, table]);
 
-
   useEffect(() => {
     if (isMobile) {
       setDisplayMode('grid');
@@ -323,34 +284,8 @@ export function SectionalListView() {
     setIsClient(true);
   }, []);
 
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content={
-        <>
-          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> secciones?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
-  );
-
   return (
     <>
-
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Lista de Seccionales"
@@ -392,7 +327,8 @@ export function SectionalListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.regionalName) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === currentFilters.regionalName) &&
+                        'filled') ||
                       'soft'
                     }
                     color={
@@ -408,7 +344,11 @@ export function SectionalListView() {
                     {isClient
                       ? tab.value === 'all'
                         ? tableData.length
-                        : tableData.filter((row) => regionals.find((r) => String(r.id) === String(row.regionalId))?.regionalName === tab.value).length
+                        : tableData.filter(
+                            (row) =>
+                              regionals.find((r) => String(r.id) === String(row.regionalId))
+                                ?.regionalName === tab.value
+                          ).length
                       : 0}
                   </Label>
                 }
@@ -515,12 +455,19 @@ export function SectionalListView() {
         {displayMode !== 'panel' && <SectionalCardList sectionals={dataFiltered} />}
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      <CompactEntityDeleteDialog
+        open={confirmDialog.value}
+        onClose={confirmDialog.onFalse}
+        onConfirm={handleDeleteRows}
+        selectedCount={table.selected.length}
+        entityLabel="secciones"
+      />
     </>
   );
 }
 
-const getRegionalNameBySectional = (sectional) => sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '-';
+const getRegionalNameBySectional = (sectional) =>
+  sectional?.regionalName || sectional?.regionName || sectional?.nombreRegion || '-';
 
 // ----------------------------------------------------------------------
 
@@ -553,11 +500,9 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (regionalName !== 'all') {
     inputData = inputData.filter(
-      (sectional) =>
-        getRegionalNameBySectional(sectional) === regionalName
+      (sectional) => getRegionalNameBySectional(sectional) === regionalName
     );
   }
-
 
   if (role.length) {
     inputData = inputData.filter((sectional) => role.includes(sectional.role));

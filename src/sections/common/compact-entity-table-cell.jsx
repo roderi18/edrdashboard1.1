@@ -16,7 +16,7 @@ export function CompactEntityTableCell({
   avatarAlt,
   avatarChildren,
   onAvatarClick,
-  linkUnderline = 'hover',
+  linkUnderline = 'always',
   linkSx,
   avatarSx,
   cellSx,

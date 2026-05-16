@@ -1,5 +1,3 @@
-import { parsePhoneNumber } from 'libphonenumber-js';
-
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
@@ -7,6 +5,8 @@ import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
+
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -21,17 +21,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
   const directorPhoneNumber = row.directorPhoneNumber || '';
   const totalDests = row.sectionalDestCount || 0;
   const totalMembers = row.sectionalXDestMemberCount || 0;
-  const directorPhoneLabel = (() => {
-    try {
-      return directorPhoneNumber
-        ? parsePhoneNumber(
-            directorPhoneNumber.startsWith('+') ? directorPhoneNumber : `+1${directorPhoneNumber}`
-          )?.formatNational()
-        : '';
-    } catch {
-      return directorPhoneNumber || '';
-    }
-  })();
+  const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);
 
   return (
     <TableRow selected={selected}>
@@ -66,6 +56,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
             component={RouterLink}
             href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.sectionalName)}`}
             color="inherit"
+            underline="always"
           >
             {totalDests}
           </Link>
@@ -78,6 +69,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
             component={RouterLink}
             href={`/dashboard/level/member?sectional=${row.id}`}
             color="inherit"
+            underline="always"
           >
             {totalMembers}
           </Link>
@@ -90,6 +82,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
             component={RouterLink}
             href={`/dashboard/level/regional?sectional=${encodeURIComponent(row.regionalName || '')}`}
             color="inherit"
+            underline="always"
           >
             {row.regionalName || '-'}
           </Link>

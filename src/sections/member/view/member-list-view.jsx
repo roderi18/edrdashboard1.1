@@ -38,10 +38,8 @@ import { getSectionals } from 'src/services/sectional-service';
 import { getMembers, deleteMember } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -54,6 +52,8 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
+import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -324,13 +324,15 @@ export function MemberListView() {
       let changed = false;
 
       const nextMembers = currentMembers.map((member) => {
-        const dest = destById.get(String(member.idDestacamento)) || destById.get(String(member.destId));
+        const dest =
+          destById.get(String(member.idDestacamento)) || destById.get(String(member.destId));
         const church = churchById.get(String(dest?.churchId || dest?.idIglesia));
         const sectional = sectionalById.get(String(church?.idSeccion || church?.sectionId));
         const nextMember = {
           ...member,
           churchId: church?.id || church?.idIglesia || dest?.churchId || null,
-          churchName: church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
+          churchName:
+            church?.name || church?.churchName || dest?.churchName || 'Iglesia desconocida',
           sectionalId: sectional?.id || sectional?.idSeccion || '',
           sectionalName: sectional?.sectionalName || sectional?.nombre || 'Sección desconocida',
           regionalId: sectional?.regionalId || '',
@@ -463,42 +465,18 @@ export function MemberListView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const handleDeleteRow = useCallback(
-    async (id) => {
-      try {
-        await deleteMember(id);
-
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-        toast.success('Miembro eliminado correctamente.');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        console.error('Error eliminando miembro:', error);
-        toast.error(error?.message || 'No se pudo eliminar el miembro.');
-      }
-    },
-    [dataInPage.length, table, tableData]
-  );
-
-  const handleDeleteRows = useCallback(async () => {
-    try {
-      await Promise.all(table.selected.map((id) => deleteMember(id)));
-
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-      toast.success('Miembros eliminados correctamente.');
-
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-    } catch (error) {
-      console.error('Error eliminando miembros:', error);
-      toast.error(error?.message || 'No se pudieron eliminar los miembros.');
-    }
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  const { handleDeleteRow, handleDeleteRows } = useCompactEntityDelete({
+    table,
+    tableData,
+    setTableData,
+    dataInPageLength: dataInPage.length,
+    dataFilteredLength: dataFiltered.length,
+    deleteItem: deleteMember,
+    singleSuccessMessage: 'Miembro eliminado correctamente.',
+    singleErrorMessage: 'No se pudo eliminar el miembro.',
+    multipleSuccessMessage: 'Miembros eliminados correctamente.',
+    multipleErrorMessage: 'No se pudieron eliminar los miembros.',
+  });
 
   const handleFilterMemberDivisionTab = useCallback(
     (event, newValue) => {
@@ -508,31 +486,6 @@ export function MemberListView() {
       });
     },
     [updateFilters, table]
-  );
-
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content={
-        <>
-          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> miembros?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
   );
 
   if (loading || !hydrated) return null;
@@ -605,7 +558,7 @@ export function MemberListView() {
                       tab.value
                     )
                       ? visibleMembers.filter((sectional) => sectional.memberDivision === tab.value)
-                        .length
+                          .length
                       : visibleMembers.length}
                   </Label>
                 }
@@ -739,7 +692,13 @@ export function MemberListView() {
         )}
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      <CompactEntityDeleteDialog
+        open={confirmDialog.value}
+        onClose={confirmDialog.onFalse}
+        onConfirm={handleDeleteRows}
+        selectedCount={table.selected.length}
+        entityLabel="miembros"
+      />
     </>
   );
 }
@@ -787,4 +746,3 @@ function applyFilter({ inputData, comparator, filters }) {
 
   return inputData;
 }
-

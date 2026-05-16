@@ -1,5 +1,4 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { parsePhoneNumber } from 'libphonenumber-js';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -7,8 +6,10 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
+import { capitalizeWords } from 'src/utils/text-format';
 import { resolveById } from 'src/utils/resolve-display-name';
 import { getStorageCollection } from 'src/utils/storage-service';
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { SECTIONALS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
@@ -31,8 +32,6 @@ export function MemberTableRow({
   canManage = true,
 }) {
   const showMorePositions = useBoolean();
-  const capitalize = (text = '') =>
-    text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   const memberEditId = row.idMiembros ?? row.id ?? row.memberId;
   const destName = row.destName || '';
   const destNumber = row.destNumber || '';
@@ -109,11 +108,7 @@ export function MemberTableRow({
         href={editHref || `/dashboard/level/member/${memberEditId}/edit`}
         subtitle={(() => {
           try {
-            return row.phoneNumber
-              ? parsePhoneNumber(
-                  row.phoneNumber.startsWith('+') ? row.phoneNumber : `+1${row.phoneNumber}`
-                )?.formatNational()
-              : '';
+            return formatPhoneNumber(row.phoneNumber);
           } catch {
             return row.phoneNumber;
           }
@@ -124,10 +119,10 @@ export function MemberTableRow({
       />
 
       <CompactEntityTableCell
-        title={`${capitalize(destName)} ${destNumber}`.trim()}
+        title={`${capitalizeWords(destName)} ${destNumber}`.trim()}
         href={`/dashboard/level/dest?name=${encodeURIComponent(destName)}`}
-        subtitle={`Iglesia ${capitalize(churchName)}`}
-        avatarAlt={capitalize(destName)}
+        subtitle={`Iglesia ${capitalizeWords(churchName)}`}
+        avatarAlt={capitalizeWords(destName)}
         avatarUrl={destAvatarUrl}
         avatarSx={{ width: 40, height: 40 }}
       />
@@ -135,14 +130,9 @@ export function MemberTableRow({
       <TableCell>
         {leaderships.length ? (
           <Stack>
-            <Box
-              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-              onClick={() => {
-                window.location.href = getLeadershipHref(leaderships[0]);
-              }}
-            >
+            <UnderlineLink href={getLeadershipHref(leaderships[0])} color="inherit">
               {leaderships[0].label}
-            </Box>
+            </UnderlineLink>
 
             {!showMorePositions.value && leaderships.length > 1 && (
               <Box
@@ -156,19 +146,13 @@ export function MemberTableRow({
             {showMorePositions.value &&
               leaderships.slice(1).map((leadership, index) => (
                 <Box key={index} sx={{ fontSize: 13 }}>
-                  <Box
-                    component="span"
-                    sx={{
-                      cursor: 'pointer',
-                      color: 'text.secondary',
-                      '&:hover': { textDecoration: 'underline' },
-                    }}
-                    onClick={() => {
-                      window.location.href = getLeadershipHref(leadership);
-                    }}
+                  <UnderlineLink
+                    href={getLeadershipHref(leadership)}
+                    color="inherit"
+                    sx={{ color: 'text.secondary' }}
                   >
                     {leadership.label}
-                  </Box>
+                  </UnderlineLink>
 
                   {index === leaderships.slice(1).length - 1 && (
                     <Box

@@ -1,140 +1,21 @@
-import { useCallback, useState, useEffect } from 'react';
-import { getSectionals } from 'src/services/sectional-service';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
-import Chip from '@mui/material/Chip';
-
-import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
+import { CompactEntityFiltersResult } from 'src/sections/common/compact-entity-filters-result';
 
 // ----------------------------------------------------------------------
 
-export function MemberTableFiltersResult({ filters, onResetPage, totalResults, sx }) {
-  const [dests, setDests] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch('/api/dest');
-      const data = await res.json();
-      setDests(data?.Data || []);
-    };
-    load();
-  }, []);
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
-
-  const handleRemoveKeyword = useCallback(() => {
-    onResetPage();
-    updateFilters({ name: '' });
-  }, [onResetPage, updateFilters]);
-
-  const handleRemoveSectionalFullName = useCallback(() => {
-    onResetPage();
-    updateFilters({ sectionalName: 'all' });
-  }, [onResetPage, updateFilters]);
-
-  const handleRemoveState = useCallback(() => {
-    onResetPage();
-    updateFilters({ sectionalName: [] });
-  }, [onResetPage, updateFilters]);
-
-  const handleRemovedestName = useCallback(
-    (inputValue) => {
-      onResetPage();
-      updateFilters({
-        destName: currentFilters.destName.filter((item) => item !== inputValue),
-      });
-    },
-    [onResetPage, updateFilters, currentFilters.destName]
-  );
-
-  const handleRemoveRole = useCallback(
-    (inputValue) => {
-      const newValue = currentFilters.memberPosition.filter((item) => item !== inputValue);
-
-      onResetPage();
-      updateFilters({ memberPosition: newValue });
-    },
-    [onResetPage, updateFilters, currentFilters.memberPosition]
-  );
-
-  const handleReset = useCallback(() => {
-    onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
-
-  const [sectionals, setSectionals] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const data = await getSectionals();
-      setSectionals(Array.isArray(data) ? data : []);
-    };
-    load();
-  }, []);
-
+export function MemberTableFiltersResult({ filters, options, onResetPage, totalResults, sx }) {
   return (
-    <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="División:" isShow={currentFilters.memberDivision.length > 0}>
-        {/* {currentFilters.memberDivision.map((item) => ( */}
-        {currentFilters.memberDivision.map((item, index) => (
-          <Chip
-            {...chipProps}
-            // key={item
-            key={`division-${item}-${index}`}
-            label={item}
-            onDelete={() =>
-              updateFilters({
-                memberDivision: currentFilters.memberDivision.filter((d) => d !== item),
-              })
-            }
-          />
-        ))}
-      </FiltersBlock>
-
-      <FiltersBlock label="Destacamento:" isShow={!!currentFilters.destName.length}>
-        {/* {currentFilters.destName.map((item) => ( */}
-        {currentFilters.destName.map((item, index) => (
-          <Chip
-            {...chipProps}
-            key={`dest-${item}-${index}`}
-            label={dests.find((d) => d.id === item)?.name}
-            onDelete={() => handleRemovedestName(item)}
-          />
-        ))}
-      </FiltersBlock>
-
-
-      <FiltersBlock label="Posición:" isShow={!!currentFilters.memberPosition.length}>
-        {currentFilters.memberPosition.map((item) => (
-          <Chip
-            {...chipProps}
-            key={item}
-            label={
-              _allLeadershipRoles.find((r) => r.value === item)?.label || item
-            }
-            onDelete={() => handleRemoveRole(item)}
-          />
-        ))}
-      </FiltersBlock>
-
-      <FiltersBlock label="Sección:" isShow={currentFilters.sectionalId.length > 0}>
-        {currentFilters.sectionalId.map((item) => {
-          const found = sectionals.find((s) => String(s.id) === String(item));
-
-          return (
-            <Chip
-              {...chipProps}
-              key={item}
-              label={found?.sectionalName || found?.nombre || item}
-              onDelete={() => handleRemoveState(item)}
-            />
-          );
-        })}
-      </FiltersBlock>
-
-
-
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.name}>
-        <Chip {...chipProps} label={currentFilters.name} onDelete={handleRemoveKeyword} />
-      </FiltersBlock>
-    </FiltersResult>
+    <CompactEntityFiltersResult
+      filters={filters}
+      totalResults={totalResults}
+      onResetPage={onResetPage}
+      sx={sx}
+      configs={[
+        { name: 'memberDivision', label: 'División:' },
+        { name: 'destName', label: 'Destacamento:', options: options?.destName },
+        { name: 'memberPosition', label: 'Posición:', options: options?.memberPosition },
+        { name: 'sectionalId', label: 'Sección:', options: options?.sectionalId },
+        { name: 'name', label: 'Keyword:', resetValue: '' },
+      ]}
+    />
   );
 }

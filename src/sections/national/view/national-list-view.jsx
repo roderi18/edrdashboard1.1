@@ -29,7 +29,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -41,6 +40,7 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
@@ -190,32 +190,8 @@ export function NationalListView() {
     window.location.reload();
   }, [leadershipAssignments, table.selected]);
 
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content={
-        <>
-          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> registros?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
-  );
   if (!hydrated) {
-    return <></>;
+    return null;
   }
   return (
     <>
@@ -364,7 +340,13 @@ export function NationalListView() {
         {displayMode !== 'panel' && <NationalCardList nationals={dataFiltered} />}
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      <CompactEntityDeleteDialog
+        open={confirmDialog.value}
+        onClose={confirmDialog.onFalse}
+        onConfirm={handleDeleteRows}
+        selectedCount={table.selected.length}
+        entityLabel="registros"
+      />
     </>
   );
 }

@@ -1,5 +1,3 @@
-import { parsePhoneNumber } from 'libphonenumber-js';
-
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
@@ -7,6 +5,8 @@ import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
+
+import { formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 
@@ -30,17 +30,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
   const directorPhoneNumber = row.directorPhoneNumber || '';
-  const directorPhoneLabel = (() => {
-    try {
-      return directorPhoneNumber
-        ? parsePhoneNumber(
-            directorPhoneNumber.startsWith('+') ? directorPhoneNumber : `+1${directorPhoneNumber}`
-          )?.formatNational()
-        : '';
-    } catch {
-      return directorPhoneNumber || '';
-    }
-  })();
+  const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -80,6 +70,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
             component={RouterLink}
             href={`/dashboard/level/sectional?region=${encodeURIComponent(row.regionalName)}`}
             color="inherit"
+            underline="always"
           >
             {row.regionalXSectionalCount}
           </Link>
@@ -92,6 +83,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
             component={RouterLink}
             href={`/dashboard/level/dest?region=${row.id}`}
             color="inherit"
+            underline="always"
           >
             {row.regionalXSectionalXDestCount}
           </Link>
@@ -104,6 +96,7 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
             component={RouterLink}
             href={`/dashboard/level/member?region=${row.id}`}
             color="inherit"
+            underline="always"
           >
             {row.regionalXSectionalMemberCount}
           </Link>

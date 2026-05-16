@@ -28,13 +28,11 @@ import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getDestsApi, deleteDestApi } from 'src/services/dest-service';
-import { getMembers , getLeadershipAssignments } from 'src/services/member-service';
+import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -47,6 +45,8 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
+import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -81,8 +81,12 @@ export function DestListView() {
   const isValidCoordinator = (member) => {
     if (!member) return false;
 
-    const firstName = String(member.firstName || '').trim().toLowerCase();
-    const lastName = String(member.lastName || '').trim().toLowerCase();
+    const firstName = String(member.firstName || '')
+      .trim()
+      .toLowerCase();
+    const lastName = String(member.lastName || '')
+      .trim()
+      .toLowerCase();
     const phoneNumber = String(member.phoneNumber || '').trim();
 
     if (firstName === 'juan' && lastName === 'perez' && phoneNumber === '8090000000') {
@@ -134,8 +138,7 @@ export function DestListView() {
           isValidCoordinator(member)
       );
 
-      const fallbackCoordinator =
-        realMembersInDest.length === 1 ? realMembersInDest[0] : null;
+      const fallbackCoordinator = realMembersInDest.length === 1 ? realMembersInDest[0] : null;
 
       const coordinator = isValidCoordinator(coordinatorByDestField)
         ? coordinatorByDestField
@@ -149,7 +152,6 @@ export function DestListView() {
           Number(c.id) === Number(dest.idIglesia || dest.churchId)
       );
 
-
       const sectional = sectionals.find(
         (s) =>
           Number(s.idSeccion) === Number(church?.idSeccion) ||
@@ -157,7 +159,6 @@ export function DestListView() {
           Number(s.idSeccion) === Number(church?.sectionId) ||
           Number(s.id) === Number(church?.sectionId)
       );
-
 
       const regional = regionals.find(
         (r) =>
@@ -268,13 +269,11 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-
       const scopedDests = isMemberSessionUser(user)
         ? filterDestsByMemberScope(data || [], user)
         : data || [];
 
       const built = buildDestList(scopedDests);
-
 
       setTableData(built);
     };
@@ -320,7 +319,6 @@ export function DestListView() {
     label: s.nombre || s.sectionalName || s.name || 'Sin nombre',
   }));
 
-
   useEffect(() => {
     if (appliedFromUrl.current) return;
     if (!nameFromUrl) return;
@@ -336,8 +334,7 @@ export function DestListView() {
     if (appliedFromUrl.current) return;
 
     const sectional = sectionals.find(
-      (item) =>
-        String(item.idSeccion || item.id || '') === String(sectionalFromUrl)
+      (item) => String(item.idSeccion || item.id || '') === String(sectionalFromUrl)
     );
 
     if (!sectional) return;
@@ -397,42 +394,18 @@ export function DestListView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const handleDeleteRow = useCallback(
-    async (id) => {
-      try {
-        await deleteDestApi(id);
-
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-        toast.success('Destacamento eliminado correctamente.');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        console.error('Error eliminando destacamento:', error);
-        toast.error(error?.message || 'No se pudo eliminar el destacamento.');
-      }
-    },
-    [dataInPage.length, table, tableData]
-  );
-
-  const handleDeleteRows = useCallback(async () => {
-    try {
-      await Promise.all(table.selected.map((id) => deleteDestApi(id)));
-
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-      toast.success('Destacamentos eliminados correctamente.');
-
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-    } catch (error) {
-      console.error('Error eliminando destacamentos:', error);
-      toast.error(error?.message || 'No se pudieron eliminar los destacamentos.');
-    }
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  const { handleDeleteRow, handleDeleteRows } = useCompactEntityDelete({
+    table,
+    tableData,
+    setTableData,
+    dataInPageLength: dataInPage.length,
+    dataFilteredLength: dataFiltered.length,
+    deleteItem: deleteDestApi,
+    singleSuccessMessage: 'Destacamento eliminado correctamente.',
+    singleErrorMessage: 'No se pudo eliminar el destacamento.',
+    multipleSuccessMessage: 'Destacamentos eliminados correctamente.',
+    multipleErrorMessage: 'No se pudieron eliminar los destacamentos.',
+  });
 
   const handleFilterRegionalFullName = useCallback(
     (event, newValue) => {
@@ -440,31 +413,6 @@ export function DestListView() {
       updateFilters({ regionalName: newValue });
     },
     [updateFilters, table]
-  );
-
-  const renderConfirmDialog = () => (
-    <ConfirmDialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content={
-        <>
-          ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong> destacamentos?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
-        >
-          Eliminar
-        </Button>
-      }
-    />
   );
 
   return (
@@ -638,7 +586,13 @@ export function DestListView() {
         {displayMode !== 'panel' && <DestCardList dests={dataFiltered} />}
       </DashboardContent>
 
-      {renderConfirmDialog()}
+      <CompactEntityDeleteDialog
+        open={confirmDialog.value}
+        onClose={confirmDialog.onFalse}
+        onConfirm={handleDeleteRows}
+        selectedCount={table.selected.length}
+        entityLabel="destacamentos"
+      />
     </>
   );
 }
