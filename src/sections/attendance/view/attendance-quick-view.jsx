@@ -156,7 +156,7 @@ function AttendanceMemberSkeleton() {
           <Skeleton variant="text" width="52%" />
           <Skeleton variant="text" width="36%" />
         </Box>
-        <Skeleton variant="rounded" width={172} height={36} />
+        <Skeleton variant="rounded" width={172} height={50} />
       </Stack>
     </Card>
   );
@@ -313,10 +313,17 @@ export function AttendanceQuickView() {
   }, [selectedDestMembers, statusByMemberId]);
 
   const handleStatusChange = useCallback((memberId, status) => {
-    setStatusByMemberId((current) => ({
-      ...current,
-      [memberId]: status,
-    }));
+    setStatusByMemberId((current) => {
+      const next = { ...current };
+
+      if (next[memberId] === status) {
+        delete next[memberId];
+        return next;
+      }
+
+      next[memberId] = status;
+      return next;
+    });
   }, []);
 
   const handleMarkAllPresent = useCallback(() => {
@@ -393,11 +400,32 @@ export function AttendanceQuickView() {
               alignItems={{ xs: 'stretch', md: 'center' }}
             >
               <TextField
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar miembro..."
+                sx={{
+                  flex: { md: '1 1 auto' },
+                  minWidth: { md: 320 },
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+
+              <TextField
                 select
                 label="Destacamento"
                 value={selectedDestId}
                 onChange={(event) => setSelectedDestId(event.target.value)}
-                sx={{ minWidth: { md: 300 } }}
+                sx={{
+                  flex: { md: '0 0 300px' },
+                }}
               >
                 {dests.map((dest) => {
                   const destId = String(dest?.id ?? dest?.idDestacamento ?? '');
@@ -417,21 +445,9 @@ export function AttendanceQuickView() {
                   const parsed = dayjs(newValue);
                   setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
                 }}
-                sx={{ minWidth: { md: 180 } }}
-              />
-
-              <TextField
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar miembro..."
-                sx={{ flex: 1 }}
                 slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                      </InputAdornment>
-                    ),
+                  textField: {
+                    sx: { flex: { md: '0 0 220px' } },
                   },
                 }}
               />
@@ -525,7 +541,7 @@ export function AttendanceQuickView() {
                             sx={{
                               width: option.width,
                               minWidth: option.width,
-                              height: { xs: 42, sm: 46 },
+                              height: 50,
                               px: 0,
                             }}
                           >
