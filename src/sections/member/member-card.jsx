@@ -6,7 +6,8 @@ import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
 
-const getMemberEditId = (member) => member?.idMiembros ?? member?.id ?? member?.memberId;
+const getMemberEditId = (member) =>
+  member?.memberId ?? member?.codigoMiembro ?? member?.idMiembros ?? member?.id;
 
 const getMemberDestId = (member) =>
   member?.destId ?? member?.idDestacamento ?? member?.destacamentoId ?? member?.idDest;
@@ -55,10 +56,10 @@ const buildDestLabel = (member, dests) => {
     memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
   const dest = hasMemberDestId
     ? dests.find((item) =>
-      [item?.id, item?.idDestacamento, item?.destId].some(
-        (value) => String(value) === String(memberDestId)
+        [item?.id, item?.idDestacamento, item?.destId].some(
+          (value) => String(value) === String(memberDestId)
+        )
       )
-    )
     : null;
 
   const name =

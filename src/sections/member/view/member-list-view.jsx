@@ -654,7 +654,9 @@ export function MemberListView() {
                         canManage={memberCanManage}
                         onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.dashboard.level.member.edit(row.id)}
+                        editHref={paths.dashboard.level.member.edit(
+                          row.memberId || row.codigoMiembro || row.id
+                        )}
                       />
                     )}
                     notFound={notFound}

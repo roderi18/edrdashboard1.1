@@ -8,7 +8,6 @@ import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { getMembers } from 'src/services/member-service';
 
-import { MemberCard } from 'src/sections/member/member-card';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -26,7 +25,10 @@ export default function Page() {
       const allMembers = await getMembers();
 
       const member = allMembers.find(
-        (m) => String(m.id) === String(id) || String(m.memberId) === String(id)
+        (m) =>
+          String(m.id) === String(id) ||
+          String(m.memberId) === String(id) ||
+          String(m.codigoMiembro) === String(id)
       );
 
       if (!member) {

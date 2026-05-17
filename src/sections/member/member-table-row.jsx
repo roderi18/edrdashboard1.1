@@ -32,7 +32,7 @@ export function MemberTableRow({
   canManage = true,
 }) {
   const showMorePositions = useBoolean();
-  const memberEditId = row.idMiembros ?? row.id ?? row.memberId;
+  const memberEditId = row.memberId ?? row.codigoMiembro ?? row.idMiembros ?? row.id;
   const destName = row.destName || '';
   const destNumber = row.destNumber || '';
   const destAvatarUrl = row.destAvatarUrl || '';
