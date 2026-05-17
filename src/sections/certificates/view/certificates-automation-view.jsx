@@ -509,6 +509,9 @@ const normalizeText = (value) =>
 const getTemplateAwardRoute = (template = {}) =>
   template.vinculoAscenso || template.rutaAscenso || null;
 
+const formatAwardRouteText = (routeText = '') =>
+  String(routeText || '').replace(/\s*\/\s*/g, ' > ');
+
 const getAwardRouteKey = (route) => {
   const safeRoute = route || {};
 
@@ -2696,7 +2699,8 @@ export function CertificatesAutomationView() {
                       }}
                     >
                       Se guardará en{' '}
-                      {getTemplateAwardRoute(selectedTemplate)?.rutaTexto || 'Ruta no seleccionada'}
+                      {formatAwardRouteText(getTemplateAwardRoute(selectedTemplate)?.rutaTexto) ||
+                        'Ruta no seleccionada'}
                     </Typography>
 
                     <Box
