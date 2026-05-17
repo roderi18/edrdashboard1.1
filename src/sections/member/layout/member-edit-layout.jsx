@@ -119,7 +119,11 @@ export function MemberEditLayout({ children, ...other }) {
             /> */}
       <CustomBreadcrumbs
         heading={isMobile ? null : 'Editar miembro'}
-        links={[{ name: 'Panel', href: paths.dashboard.root }, { name: memberName }]}
+        links={[
+          { name: 'Panel', href: paths.dashboard.root },
+          { name: 'Miembros', href: paths.dashboard.level.member.root },
+          { name: memberName },
+        ]}
         sx={{ mb: 3 }}
       />
 
