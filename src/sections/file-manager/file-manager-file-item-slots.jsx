@@ -7,12 +7,11 @@ import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
-import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
-
-import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+
+import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
 
 // ----------------------------------------------------------------------
 
@@ -214,7 +213,16 @@ export function FileItemInfo({ type, title, values, sx, ...other }) {
 
 // ----------------------------------------------------------------------
 
-export function FileItemActions({ sx, id, checked, onChange, openMenu, onOpenMenu, ...other }) {
+export function FileItemActions({
+  sx,
+  id,
+  checked,
+  onChange,
+  openMenu,
+  onOpenMenu,
+  showFavorite = true,
+  ...other
+}) {
   return (
     <Box
       sx={[
@@ -230,19 +238,21 @@ export function FileItemActions({ sx, id, checked, onChange, openMenu, onOpenMen
       ]}
       {...other}
     >
-      <Checkbox
-        color="warning"
-        icon={<Iconify icon="eva:star-outline" />}
-        checkedIcon={<Iconify icon="eva:star-fill" />}
-        checked={checked}
-        onChange={onChange}
-        slotProps={{
-          input: {
-            id: `favorite-${id}-checkbox`,
-            'aria-label': `Favorite ${id} checkbox`,
-          },
-        }}
-      />
+      {showFavorite && (
+        <Checkbox
+          color="warning"
+          icon={<Iconify icon="eva:star-outline" />}
+          checkedIcon={<Iconify icon="eva:star-fill" />}
+          checked={checked}
+          onChange={onChange}
+          slotProps={{
+            input: {
+              id: `favorite-${id}-checkbox`,
+              'aria-label': `Favorite ${id} checkbox`,
+            },
+          }}
+        />
+      )}
 
       <IconButton color={openMenu ? 'inherit' : 'default'} onClick={onOpenMenu}>
         <Iconify icon="eva:more-vertical-fill" />

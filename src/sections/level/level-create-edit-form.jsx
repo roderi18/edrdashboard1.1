@@ -182,13 +182,6 @@ export function LevelCreateEditForm({ currentLevel }) {
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             />
 
-            {currentLevel && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete level
-                </Button>
-              </Stack>
-            )}
           </Card>
         </Grid>
 

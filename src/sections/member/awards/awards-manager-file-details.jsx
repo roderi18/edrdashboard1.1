@@ -31,7 +31,6 @@ import { StatusSelectCell } from 'src/sections/member/awards/components/status/S
 import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
-
 // ----------------------------------------------------------------------
 
 export function FileManagerFileDetails({
@@ -65,7 +64,6 @@ export function FileManagerFileDetails({
   const confirmDeleteForStatus = useBoolean();
   const [pendingStatus, setPendingStatus] = useState(null);
 
-
   const resolvedMemberId = memberId || file?.memberId;
   const resolvedSystem = system;
 
@@ -76,7 +74,6 @@ export function FileManagerFileDetails({
     });
   }
 
-
   const actions = createAwardsActions({
     system: resolvedSystem,
     memberId: resolvedMemberId,
@@ -84,12 +81,17 @@ export function FileManagerFileDetails({
       resolvedSystem === 'academia'
         ? { parentId: file?.parentId, rowId: file?.id }
         : {
-          sectionId: file?.sectionId ?? file?.parentId?.split('-')[2], // 👈 fallback real
-          parentId: file?.parentId,
-          rowId: file?.id,
-        },
+            sectionId: file?.sectionId ?? file?.parentId?.split('-')[2], // 👈 fallback real
+            parentId: file?.parentId,
+            rowId: file?.id,
+          },
+    metadata: {
+      nombreItemAscenso: file?.name,
+      idGrupo: file?.parentId,
+      nombreGrupo: file?.parentName || file?.parentId,
+      idDivision: file?.sectionId || '',
+    },
   });
-
 
   useEffect(() => {
     if (!resolvedMemberId || !file?.id) return;
@@ -134,7 +136,6 @@ export function FileManagerFileDetails({
       if (resolvedSystem === 'sistemaAscenso') {
         setTimesCompleted(rowData?.timesCompleted || 0);
       }
-
     };
 
     loadData();
@@ -151,7 +152,6 @@ export function FileManagerFileDetails({
       window.removeEventListener('awards-status-changed', handleChange);
     };
   }, [resolvedMemberId, file, resolvedSystem]);
-
 
   const hasShared = file?.shared && !!file?.shared.length;
 
@@ -171,6 +171,8 @@ export function FileManagerFileDetails({
     reader.onload = () => {
       const certificate = {
         name: fileUploaded.name,
+        type: fileUploaded.type,
+        size: fileUploaded.size,
         fileBase64: reader.result,
       };
 
@@ -216,7 +218,10 @@ export function FileManagerFileDetails({
 
   const renderDescription = () => {
     const fileDetails = [
-      { label: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.' },
+      {
+        label:
+          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      },
     ];
 
     return (
@@ -271,9 +276,7 @@ export function FileManagerFileDetails({
           <IconButton size="small" onClick={showAwardsStatus.onToggle}>
             <Iconify
               icon={
-                showAwardsStatus.value
-                  ? 'eva:arrow-ios-upward-fill'
-                  : 'eva:arrow-ios-downward-fill'
+                showAwardsStatus.value ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'
               }
             />
           </IconButton>
@@ -281,7 +284,6 @@ export function FileManagerFileDetails({
 
         {showAwardsStatus.value && (
           <Stack spacing={2}>
-
             {/* ESTADO */}
             <Box>
               <Typography
@@ -295,11 +297,7 @@ export function FileManagerFileDetails({
                 value={localStatus}
                 hasCertificate={hasCertificate}
                 onChange={(next) => {
-                  if (
-                    hasCertificate &&
-                    localStatus === 'completado' &&
-                    next !== 'completado'
-                  ) {
+                  if (hasCertificate && localStatus === 'completado' && next !== 'completado') {
                     setPendingStatus(next);
                     confirmDeleteForStatus.onTrue();
                     return;
@@ -380,13 +378,11 @@ export function FileManagerFileDetails({
                 </Box>
               </Box>
             )}
-
           </Stack>
         )}
       </Stack>
     );
   };
-
 
   // const renderTags = () => (
   //   <Stack spacing={1.5}>
@@ -552,7 +548,8 @@ export function FileManagerFileDetails({
                 sx={{ mb: 1 }}
                 onClick={() => {
                   const link = document.createElement('a');
-                  link.href = certificateFile.fileBase64;
+                  link.href =
+                    certificateFile.fileBase64 || certificateFile.urlPdf || certificateFile.pdfUrl;
                   link.download = certificateFile.name || 'certificado.pdf';
                   link.click();
                 }}
@@ -569,11 +566,9 @@ export function FileManagerFileDetails({
               >
                 Eliminar certificado
               </Button>
-
             </>
           )}
         </Box>
-
       </Drawer>
       <ConfirmDialog
         open={confirmDeleteForStatus.value}
@@ -630,11 +625,11 @@ export function FileManagerFileDetails({
         }
       />
 
-
       <PdfViewerDialog
         open={pdfViewer.value}
         onClose={pdfViewer.onFalse}
         fileBase64={certificateFile?.fileBase64}
+        urlPdf={certificateFile?.urlPdf || certificateFile?.pdfUrl}
       />
 
       <AwardsManagerShareDialog

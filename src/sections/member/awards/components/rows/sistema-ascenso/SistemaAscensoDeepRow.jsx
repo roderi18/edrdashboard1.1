@@ -20,114 +20,101 @@ import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsA
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
 
-
 export function SistemaAscensoDeepRow({
-    memberId,
-    rowId,
-    parentId,
-    sectionId,
-    setStatus,
-    completedDate,
-    setCompletedDate,
+  memberId,
+  rowId,
+  parentId,
+  sectionId,
+  metadata,
+  setStatus,
+  completedDate,
+  setCompletedDate,
 
+  onCertificateUploaded,
+  onCertificateDeleted,
+}) {
+  const [status, setLocalStatus] = useState('no_iniciado');
+  const [certificateFile, setCertificateFile] = useState(null);
+  const [hasCertificate, setHasCertificate] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [highlightUpload, setHighlightUpload] = useState(false);
+  const [dateError, setDateError] = useState(false);
+  const [timesCompleted, setTimesCompleted] = useState(0);
+
+  const isCompleted = status === 'completado';
+  const pdfViewer = useBoolean();
+  if (typeof window === 'undefined') return null;
+
+  const confirmDeleteForStatus = useBoolean();
+  const menuActions = usePopover();
+
+  const fileInputId = `cert-upload-${rowId}`;
+  const statusKey = memberId ? `awards-status-${memberId}` : null;
+  const dataKey = memberId ? `awards-data-${memberId}` : null;
+
+  const [view, setView] = useState('year');
+
+  const getRowData = (data) => data?.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {};
+
+  const actions = createAwardsActions({
+    system: 'sistemaAscenso',
+    memberId,
+    context: {
+      sectionId,
+      parentId,
+      rowId,
+    },
+    metadata,
+  });
+
+  useAwardsSync({
+    system: 'sistemaAscenso',
+    memberId,
+    context: { sectionId, parentId, rowId },
+    setStatus: setLocalStatus,
+    setCompletedDate,
+    setTimesCompleted,
+    hasCertificate,
+    certificateFile,
+    setHasCertificate,
+    setCertificateFile,
     onCertificateUploaded,
     onCertificateDeleted,
+  });
 
-}) {
+  const updateTimesCompleted = (value) => {
+    const next = Math.min(10, Math.max(0, value));
+    setTimesCompleted(next);
+    const now = new Date().toISOString();
 
+    if (!dataKey) return;
+    const currentData = JSON.parse(localStorage.getItem(dataKey) || '{}');
 
-    const [status, setLocalStatus] = useState('no_iniciado');
-    const [certificateFile, setCertificateFile] = useState(null);
-    const [hasCertificate, setHasCertificate] = useState(false);
-    const [pendingStatus, setPendingStatus] = useState(null);
-    const [highlightUpload, setHighlightUpload] = useState(false);
-    const [dateError, setDateError] = useState(false);
-    const [timesCompleted, setTimesCompleted] = useState(0);
-
-    const isCompleted = status === 'completado';
-    const pdfViewer = useBoolean();
-    if (typeof window === 'undefined') return null;
-
-    const confirmDeleteForStatus = useBoolean();
-    const menuActions = usePopover();
-
-    const fileInputId = `cert-upload-${rowId}`;
-    const statusKey = memberId ? `awards-status-${memberId}` : null;
-    const dataKey = memberId ? `awards-data-${memberId}` : null;
-
-
-    const [view, setView] = useState('year');
-
-
-    const getRowData = (data) =>
-        data?.sistemaAscenso
-        ?.[sectionId]
-        ?.[parentId]
-        ?.[rowId] || {};
-
-    const actions = createAwardsActions({
-        system: 'sistemaAscenso',
-        memberId,
-        context: {
-            sectionId,
-            parentId,
-            rowId,
-        },
-    });
-
-    useAwardsSync({
-        system: 'sistemaAscenso',
-        memberId,
-        context: { sectionId, parentId, rowId },
-        setStatus: setLocalStatus,
-        setCompletedDate,
-        setTimesCompleted,
-        hasCertificate,
-        certificateFile,
-        setHasCertificate,
-        setCertificateFile,
-        onCertificateUploaded,
-        onCertificateDeleted,
-    });
-
-
-    const updateTimesCompleted = (value) => {
-        const next = Math.min(10, Math.max(0, value));
-        setTimesCompleted(next);
-        const now = new Date().toISOString();
-
-        if (!dataKey) return;
-        const currentData = JSON.parse(localStorage.getItem(dataKey) || '{}');
-
-        const updatedData = {
-            ...currentData,
-            sistemaAscenso: {
-                ...(currentData.sistemaAscenso || {}),
-                [sectionId]: {
-                    ...((currentData.sistemaAscenso || {})[sectionId] || {}),
-                    [parentId]: {
-                        ...(((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {}),
-                        updatedAt: now, // actualiza Exploradores / Seguidores / etc
-                        [rowId]: {
-                            ...((((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {})[rowId] || {}),
-                            timesCompleted: next,
-                            updatedAt: now,
-                        },
-
-                    },
-                },
+    const updatedData = {
+      ...currentData,
+      sistemaAscenso: {
+        ...(currentData.sistemaAscenso || {}),
+        [sectionId]: {
+          ...((currentData.sistemaAscenso || {})[sectionId] || {}),
+          [parentId]: {
+            ...(((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {}),
+            updatedAt: now, // actualiza Exploradores / Seguidores / etc
+            [rowId]: {
+              ...((((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {})[rowId] ||
+                {}),
+              timesCompleted: next,
+              updatedAt: now,
             },
-        };
-
-
-
-
-        // localStorage.setItem(dataKey, JSON.stringify(updatedData));
-        localStorage.setItem(dataKey, JSON.stringify(updatedData));
+          },
+        },
+      },
     };
 
+    // localStorage.setItem(dataKey, JSON.stringify(updatedData));
+    localStorage.setItem(dataKey, JSON.stringify(updatedData));
+  };
 
-    const borderPulseKeyframes = `
+  const borderPulseKeyframes = `
 @keyframes borderPulseTwice {
   0%   { box-shadow: 0 0 0 0 rgba(25,118,210, 0); }
   25%  { box-shadow: 0 0 0 3px rgba(25,118,210, 1); }
@@ -137,77 +124,74 @@ export function SistemaAscensoDeepRow({
 }
 `;
 
-    useEffect(() => {
-        if (typeof document === 'undefined') return;
-        if (document.getElementById('border-pulse-keyframes')) return;
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('border-pulse-keyframes')) return;
 
-        const style = document.createElement('style');
-        style.id = 'border-pulse-keyframes';
-        style.innerHTML = borderPulseKeyframes;
-        document.head.appendChild(style);
-    }, []);
+    const style = document.createElement('style');
+    style.id = 'border-pulse-keyframes';
+    style.innerHTML = borderPulseKeyframes;
+    document.head.appendChild(style);
+  }, []);
 
-    return (
-        <>
-            {/* Estado */}
-            {/* Completado en fecha */}
-            {/* Veces completado */}
-            {/* Certificado */}
-            <AwardsActionCells
-                state={{ status, completedDate, hasCertificate, timesCompleted }}
-                actions={actions}
-                fileInputId={fileInputId}
-                pdfViewer={pdfViewer}
-                certificateFile={certificateFile}
-                onRequireDeleteCertificate={(nextStatus) => {
-                    setPendingStatus(nextStatus);
-                    confirmDeleteForStatus.onTrue();
-                }}
-            />
+  return (
+    <>
+      {/* Estado */}
+      {/* Completado en fecha */}
+      {/* Veces completado */}
+      {/* Certificado */}
+      <AwardsActionCells
+        state={{ status, completedDate, hasCertificate, timesCompleted }}
+        actions={actions}
+        fileInputId={fileInputId}
+        pdfViewer={pdfViewer}
+        certificateFile={certificateFile}
+        onRequireDeleteCertificate={(nextStatus) => {
+          setPendingStatus(nextStatus);
+          confirmDeleteForStatus.onTrue();
+        }}
+      />
 
+      <PdfViewerDialog
+        open={pdfViewer.value}
+        onClose={pdfViewer.onFalse}
+        fileBase64={certificateFile?.fileBase64}
+        urlPdf={certificateFile?.urlPdf || certificateFile?.pdfUrl}
+      />
 
-            <PdfViewerDialog
-                open={pdfViewer.value}
-                onClose={pdfViewer.onFalse}
-                fileBase64={certificateFile?.fileBase64}
-            />
+      <ConfirmDialog
+        open={confirmDeleteForStatus.value}
+        onClose={() => {
+          confirmDeleteForStatus.onFalse();
+          setPendingStatus(null);
+        }}
+        title="Eliminar certificado"
+        content="Has cargado un certificado. Para cambiar el estado debes eliminar el archivo primero. ¿Deseas eliminarlo?"
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              const confirmAction = actions.requireCertificateDeletion({
+                hasCertificate,
+                nextStatus: pendingStatus,
+                onConfirm: () => {
+                  setHasCertificate(false);
+                  setCertificateFile(null);
+                  onCertificateDeleted?.();
+                },
+              });
 
+              confirmAction?.();
 
-            <ConfirmDialog
-                open={confirmDeleteForStatus.value}
-                onClose={() => {
-                    confirmDeleteForStatus.onFalse();
-                    setPendingStatus(null);
-                }}
-                title="Eliminar certificado"
-                content="Has cargado un certificado. Para cambiar el estado debes eliminar el archivo primero. ¿Deseas eliminarlo?"
-                action={
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={() => {
-                            const confirmAction = actions.requireCertificateDeletion({
-                                hasCertificate,
-                                nextStatus: pendingStatus,
-                                onConfirm: () => {
-                                    setHasCertificate(false);
-                                    setCertificateFile(null);
-                                    onCertificateDeleted?.();
-                                },
-                            });
-
-                            confirmAction?.();
-
-                            confirmDeleteForStatus.onFalse();
-                            setPendingStatus(null);
-                        }}
-
-                    >
-                        Eliminar y cambiar estado
-                    </Button>
-                }
-            />
-
-        </>
-    );
+              confirmDeleteForStatus.onFalse();
+              setPendingStatus(null);
+            }}
+          >
+            Eliminar y cambiar estado
+          </Button>
+        }
+      />
+    </>
+  );
 }

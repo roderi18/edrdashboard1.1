@@ -62,6 +62,7 @@ export function FileManagerTableRow({
   showAvatar = true,
   showThumbnail = true,
   showRowOutline = true,
+  showFavorite = true,
 }) {
   const theme = useTheme();
   const router = useRouter();
@@ -365,6 +366,7 @@ export function FileManagerTableRow({
             onChange={favorite.onToggle}
             openMenu={menuActions.open}
             onOpenMenu={menuActions.onOpen}
+            showFavorite={showFavorite}
             sx={{ position: 'static' }}
           />
         </TableCell>

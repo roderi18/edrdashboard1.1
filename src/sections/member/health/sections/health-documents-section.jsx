@@ -260,6 +260,7 @@ export function HealthDocumentsSection({
                                                     showAvatar={false}
                                                     showThumbnail
                                                     showRowOutline={false}
+                                                    showFavorite={false}
                                                 />
                                             ))}
 

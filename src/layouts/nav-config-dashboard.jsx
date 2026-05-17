@@ -105,7 +105,13 @@ export const navData = [
         title: 'Niveles Organizacionales',
         path: paths.dashboard.level.root,
         icon: ICONS.user,
-        deepMatch: true,
+        activePaths: [
+          paths.dashboard.level.national.list,
+          paths.dashboard.level.regional.list,
+          paths.dashboard.level.sectional.list,
+          paths.dashboard.level.dest.list,
+          paths.dashboard.level.member.list,
+        ],
         children: [
           // { title: 'Profile', path: paths.dashboard.level.profile },
           {

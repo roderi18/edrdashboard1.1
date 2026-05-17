@@ -68,6 +68,7 @@ const DIVISION_ICON_PATHS = {
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
+const AUTO_ABSENT_STATUS = 'absent-unmarked';
 
 const getAttendanceStorageKey = (date, destId) => `rr-attendance:${date}:${destId}`;
 
@@ -76,7 +77,11 @@ const getMemberDestId = (member) =>
 
 const getMemberId = (member) => String(member?.idMiembros ?? member?.id ?? member?.memberId ?? '');
 
-const getFirstWord = (value) => String(value ?? '').trim().split(/\s+/).filter(Boolean)[0] || '';
+const getFirstWord = (value) =>
+  String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)[0] || '';
 
 const getMemberName = (member) => {
   const firstName = getFirstWord(member?.firstName ?? member?.nombres);
@@ -122,7 +127,10 @@ function DivisionOptionContent({ option }) {
       ) : (
         <Box component="span" sx={{ width: 24, height: 24, flexShrink: 0 }} />
       )}
-      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <Box
+        component="span"
+        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
         {option?.label || 'Todos'}
       </Box>
     </Stack>
@@ -205,7 +213,8 @@ const getStoredLastPresentDates = () => {
       const stored = JSON.parse(window.localStorage.getItem(key) || '{}');
       const [, keyDate] = key.split(':');
       const attendanceDate = stored?.date || keyDate;
-      const statuses = stored?.statuses && typeof stored.statuses === 'object' ? stored.statuses : {};
+      const statuses =
+        stored?.statuses && typeof stored.statuses === 'object' ? stored.statuses : {};
 
       Object.entries(statuses).forEach(([memberId, status]) => {
         if (status !== 'present') {
@@ -319,7 +328,9 @@ export function AttendanceQuickView() {
       return selectedDestMembers;
     }
 
-    return selectedDestMembers.filter((member) => resolveMemberDivision(member) === selectedDivision);
+    return selectedDestMembers.filter(
+      (member) => resolveMemberDivision(member) === selectedDivision
+    );
   }, [selectedDestMembers, selectedDivision]);
 
   const visibleMembers = useMemo(() => {
@@ -437,8 +448,33 @@ export function AttendanceQuickView() {
   }, []);
 
   const handleSave = useCallback(() => {
+    if (!selectedDestId) {
+      return;
+    }
+
+    const statusesToSave = { ...statusByMemberId };
+
+    divisionFilteredMembers.forEach((member) => {
+      const memberId = getMemberId(member);
+
+      if (!statusesToSave[memberId]) {
+        statusesToSave[memberId] = AUTO_ABSENT_STATUS;
+      }
+    });
+
+    window.localStorage.setItem(
+      getAttendanceStorageKey(date, selectedDestId),
+      JSON.stringify({
+        date,
+        destId: selectedDestId,
+        destName: selectedDest?.name || '',
+        statuses: statusesToSave,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
     toast.success('Asistencia guardada localmente.');
-  }, []);
+  }, [date, selectedDest, selectedDestId, statusByMemberId, divisionFilteredMembers]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -479,10 +515,7 @@ export function AttendanceQuickView() {
       <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
         <CustomBreadcrumbs
           heading="Asistencia rapida"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Asistencia' },
-          ]}
+          links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -497,19 +530,21 @@ export function AttendanceQuickView() {
           })}
         >
           <Stack spacing={2.5}>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
-              alignItems={{ xs: 'stretch', md: 'center' }}
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'minmax(220px, 1.25fr) minmax(220px, 1fr) minmax(180px, 0.75fr) minmax(170px, 0.75fr)',
+                },
+              }}
             >
               <TextField
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar miembro..."
-                sx={{
-                  flex: { md: '1 1 auto' },
-                  minWidth: { md: 320 },
-                }}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -526,9 +561,6 @@ export function AttendanceQuickView() {
                 label="Destacamento"
                 value={selectedDestId}
                 onChange={(event) => setSelectedDestId(event.target.value)}
-                sx={{
-                  flex: { md: '0 0 300px' },
-                }}
               >
                 {dests.map((dest) => {
                   const destId = String(dest?.id ?? dest?.idDestacamento ?? '');
@@ -541,54 +573,44 @@ export function AttendanceQuickView() {
                 })}
               </TextField>
 
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{
-                  width: { xs: 1, md: 'auto' },
-                  flex: { md: '0 0 420px' },
+              <DatePicker
+                label="Fecha"
+                value={date ? dayjs(date) : null}
+                onChange={(newValue) => {
+                  const parsed = dayjs(newValue);
+                  setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
                 }}
-              >
-                <DatePicker
-                  label="Fecha"
-                  value={date ? dayjs(date) : null}
-                  onChange={(newValue) => {
-                    const parsed = dayjs(newValue);
-                    setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
-                  }}
                 slotProps={{
                   textField: {
-                    sx: { flex: '1 1 0' },
+                    fullWidth: true,
                   },
                 }}
               />
 
-                <TextField
-                  select
-                  label="División"
-                  value={selectedDivision}
-                  onChange={(event) => setSelectedDivision(event.target.value)}
-                  sx={{ flex: '1 1 0' }}
-                  slotProps={{
-                    select: {
-                      renderValue: (selected) => {
-                        const option =
-                          MEMBER_DIVISION_OPTIONS.find((division) => division.value === selected) ||
-                          MEMBER_DIVISION_OPTIONS[0];
+              <TextField
+                select
+                label="División"
+                value={selectedDivision}
+                onChange={(event) => setSelectedDivision(event.target.value)}
+                slotProps={{
+                  select: {
+                    renderValue: (selected) => {
+                      const option =
+                        MEMBER_DIVISION_OPTIONS.find((division) => division.value === selected) ||
+                        MEMBER_DIVISION_OPTIONS[0];
 
-                        return <DivisionOptionContent option={option} />;
-                      },
+                      return <DivisionOptionContent option={option} />;
                     },
-                  }}
-                >
-                  {MEMBER_DIVISION_OPTIONS.map((division) => (
-                    <MenuItem key={division.value} value={division.value}>
-                      <DivisionOptionContent option={division} />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-            </Stack>
+                  },
+                }}
+              >
+                {MEMBER_DIVISION_OPTIONS.map((division) => (
+                  <MenuItem key={division.value} value={division.value}>
+                    <DivisionOptionContent option={division} />
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
 
             <Stack
               direction="row"
@@ -699,7 +721,9 @@ export function AttendanceQuickView() {
                     sx={{ color: 'text.disabled', mb: 1 }}
                   />
                   <Typography variant="subtitle1">
-                    {selectedDestId ? 'Sin miembros en este destacamento' : 'Selecciona un destacamento'}
+                    {selectedDestId
+                      ? 'Sin miembros en este destacamento'
+                      : 'Selecciona un destacamento'}
                   </Typography>
                 </Card>
               )}

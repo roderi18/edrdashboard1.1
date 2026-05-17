@@ -28,7 +28,14 @@ export function NavList({
 
   const pathname = usePathname();
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const matchesPath = useCallback(
+    (targetPath) => pathname === targetPath || pathname.startsWith(`${targetPath}/`),
+    [pathname]
+  );
+
+  const isActive = Array.isArray(data.activePaths) && data.activePaths.length
+    ? data.activePaths.some((activePath) => matchesPath(activePath))
+    : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
 
   const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover();
 

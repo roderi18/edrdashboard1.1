@@ -1,46 +1,44 @@
-import { useState, useCallback } from 'react';
-import { varAlpha } from 'minimal-shared/utils';
-import { useBoolean, usePopover, useDoubleClick, useCopyToClipboard } from 'minimal-shared/hooks';
-import Select from '@mui/material/Select';
 import dayjs from 'dayjs';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { useRouter } from 'next/navigation';
+import { varAlpha } from 'minimal-shared/utils';
+import { useState, useEffect, useCallback } from 'react';
+import { useBoolean, usePopover, useDoubleClick, useCopyToClipboard } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import { useTheme } from '@mui/material/styles';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
 import TableRow, { tableRowClasses } from '@mui/material/TableRow';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
-import { useRouter } from 'next/navigation';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
 import { CustomPopover } from 'src/components/custom-popover';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 
-import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
-import { FileManagerFileDetails } from './awards-manager-file-details';
-import { FileItemActions } from 'src/sections/file-manager/file-manager-file-item-slots';
-import { getTotalAwards, getCompletedAwards } from '../awards/utils/get-awards-count';
-import { SistemaAscensoDeepRow } from './components/rows/sistema-ascenso/SistemaAscensoDeepRow';
-import { AcademiaSubRow } from './components/rows/academia/AcademiaSubRow';
-import { DefaultRow } from './components/rows/DefaultRow';
-import { AcademiaMinisterialRow } from './components/rows/academia/AcademiaMinisterialRow';
-import { SistemaAscensoRow } from './components/rows/sistema-ascenso/SistemaAscensoRow';
-import { SistemaAscensoSubRow } from './components/rows/sistema-ascenso/SistemaAscensoSubRow';
+import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
 import { getCustomFileIcon } from 'src/sections/member/awards/utils/get-file-icon';
+import { FileItemActions } from 'src/sections/file-manager/file-manager-file-item-slots';
 import { DownloadCertificateMenuItem } from 'src/sections/member/awards/components/certificate/DownloadCertificateMenuItem';
 
-import { useEffect } from 'react';
+import { DefaultRow } from './components/rows/DefaultRow';
+import { FileManagerFileDetails } from './awards-manager-file-details';
+import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
+import { AcademiaSubRow } from './components/rows/academia/AcademiaSubRow';
+import { getTotalAwards, getCompletedAwards } from '../awards/utils/get-awards-count';
+import { SistemaAscensoRow } from './components/rows/sistema-ascenso/SistemaAscensoRow';
+import { AcademiaMinisterialRow } from './components/rows/academia/AcademiaMinisterialRow';
+import { SistemaAscensoSubRow } from './components/rows/sistema-ascenso/SistemaAscensoSubRow';
+import { SistemaAscensoDeepRow } from './components/rows/sistema-ascenso/SistemaAscensoDeepRow';
 
 // ----------------------------------------------------------------------
 
@@ -75,8 +73,6 @@ export function AwardsManagerTableRow({
     window.addEventListener('awards-status-changed', handler);
     window.addEventListener('storage', handler);
 
-
-
     return () => {
       window.removeEventListener('awards-status-changed', handler);
       window.removeEventListener('storage', handler);
@@ -88,9 +84,7 @@ export function AwardsManagerTableRow({
   const isSistemaAscensoRow = row.id === 'sistema-de-ascenso';
   const isAcademiaMinisterialRow =
     row.type === 'folder' &&
-    (row.id === 'academia-ministerial' ||
-      row.parentId === 'academia-ministerial');
-
+    (row.id === 'academia-ministerial' || row.parentId === 'academia-ministerial');
 
   const isSistemaAscensoChild = row.parentId === 'sistema-de-ascenso';
   const isSistemaAscensoRootView = isSistemaAscenso && !isSistemaAscensoChild;
@@ -114,6 +108,15 @@ export function AwardsManagerTableRow({
   const [ascensoCertificate, setAscensoCertificate] = useState(null);
   const [deleteCertCtx, setDeleteCertCtx] = useState(null);
   const ascensoSectionId = allData.find((i) => i.id === row.parentId)?.parentId || null;
+  const academiaParent = allData.find((item) => item.id === row.parentId);
+  const ascensoParent = allData.find((item) => item.id === row.parentId);
+  const ascensoDivision = allData.find((item) => item.id === ascensoSectionId);
+  const hasAcademiaCertificate = Boolean(
+    academiaCertificate?.fileBase64 || academiaCertificate?.urlPdf || academiaCertificate?.pdfUrl
+  );
+  const hasAscensoCertificate = Boolean(
+    ascensoCertificate?.fileBase64 || ascensoCertificate?.urlPdf || ascensoCertificate?.pdfUrl
+  );
 
   // Estado del adiestramiento (solo Academia Subfolder)
   const [status, setStatus] = useState(row.status ?? 'no_iniciado');
@@ -124,12 +127,7 @@ export function AwardsManagerTableRow({
     const key = `awards-status-${memberId}`;
     const saved = JSON.parse(localStorage.getItem(key) || '{}');
 
-
-
-    const value =
-      saved?.['academia-ministerial']
-      ?.[row.parentId]
-      ?.[row.id];
+    const value = saved?.['academia-ministerial']?.[row.parentId]?.[row.id];
 
     if (value) {
       setStatus(value);
@@ -143,11 +141,7 @@ export function AwardsManagerTableRow({
     const dataKey = `awards-data-${memberId}`;
     const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
 
-    const cert =
-      saved?.academia
-        ?.[row.parentId]
-        ?.[row.id]
-        ?.certificate;
+    const cert = saved?.academia?.[row.parentId]?.[row.id]?.certificate;
 
     setAcademiaCertificate(cert ?? null);
   }, [memberId, row.parentId, row.id, isAcademiaSubFolder]);
@@ -160,12 +154,7 @@ export function AwardsManagerTableRow({
     const dataKey = `awards-data-${memberId}`;
     const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
 
-    const cert =
-      saved?.sistemaAscenso
-        ?.[ascensoSectionId]
-        ?.[row.parentId]
-        ?.[row.id]
-        ?.certificate;
+    const cert = saved?.sistemaAscenso?.[ascensoSectionId]?.[row.parentId]?.[row.id]?.certificate;
 
     setAscensoCertificate(cert ?? null);
   }, [memberId, isSistemaAscensoDeepSubFolder, ascensoSectionId, row.parentId, row.id]);
@@ -193,24 +182,16 @@ export function AwardsManagerTableRow({
   // const totalAwards = isRootFolder
   //   ? getTotalAwards(row.id, tableData)
   //   : 0;
-  const totalAwards = isRootFolder
-    ? getTotalAwards(row.id, allData)
-    : 0;
+  const totalAwards = isRootFolder ? getTotalAwards(row.id, allData) : 0;
 
-
-  const childrenCount = allData.filter(
-    (item) => item.parentId === row.id
-  ).length;
+  const childrenCount = allData.filter((item) => item.parentId === row.id).length;
 
   const handleCopy = useCallback(() => {
     toast.success('Copiado!');
     copy(row.url);
   }, [copy, row.url]);
 
-
-  const [ascensoStatus, setAscensoStatus] = useState(
-    row.status ?? 'no_iniciado'
-  );
+  const [ascensoStatus, setAscensoStatus] = useState(row.status ?? 'no_iniciado');
 
   const [ascensoCompletedDate, setAscensoCompletedDate] = useState(
     row.completedDate ?? new Date().toISOString().slice(0, 10)
@@ -238,17 +219,15 @@ export function AwardsManagerTableRow({
       onClose={menuActions.onClose}
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
-
-
       <MenuList>
-        {isAcademiaSubFolder && academiaCertificate?.fileBase64 && (
+        {isAcademiaSubFolder && hasAcademiaCertificate && (
           <DownloadCertificateMenuItem
             certificate={academiaCertificate}
             onClose={menuActions.onClose}
           />
         )}
 
-        {isSistemaAscensoDeepSubFolder && ascensoCertificate?.fileBase64 && (
+        {isSistemaAscensoDeepSubFolder && hasAscensoCertificate && (
           <DownloadCertificateMenuItem
             certificate={ascensoCertificate}
             onClose={menuActions.onClose}
@@ -265,8 +244,6 @@ export function AwardsManagerTableRow({
           Copiar link
         </MenuItem>
 
-
-
         <MenuItem
           onClick={() => {
             menuActions.onClose();
@@ -277,45 +254,44 @@ export function AwardsManagerTableRow({
           Compartir
         </MenuItem>
 
-        {(isAcademiaSubFolder && academiaCertificate?.fileBase64) && (
+        {isAcademiaSubFolder && hasAcademiaCertificate && (
           <Divider sx={{ borderStyle: 'dashed' }} />
         )}
 
-        {(isSistemaAscensoDeepSubFolder && ascensoCertificate?.fileBase64) && (
+        {isSistemaAscensoDeepSubFolder && hasAscensoCertificate && (
           <Divider sx={{ borderStyle: 'dashed' }} />
         )}
 
-        {((isAcademiaSubFolder && academiaCertificate?.fileBase64) ||
-          (isSistemaAscensoDeepSubFolder && ascensoCertificate?.fileBase64)) && (
-            <MenuItem
-              key="delete-cert"
-              onClick={() => {
-                menuActions.onClose();
+        {((isAcademiaSubFolder && hasAcademiaCertificate) ||
+          (isSistemaAscensoDeepSubFolder && hasAscensoCertificate)) && (
+          <MenuItem
+            key="delete-cert"
+            onClick={() => {
+              menuActions.onClose();
 
-                if (isAcademiaSubFolder) {
-                  setDeleteCertCtx({
-                    type: 'academia',
-                    parentId: row.parentId,
-                    rowId: row.id,
-                  });
-                } else if (isSistemaAscensoDeepSubFolder) {
-                  setDeleteCertCtx({
-                    type: 'sistemaAscenso',
-                    sectionId: ascensoSectionId,
-                    parentId: row.parentId,
-                    rowId: row.id,
-                  });
-                }
+              if (isAcademiaSubFolder) {
+                setDeleteCertCtx({
+                  type: 'academia',
+                  parentId: row.parentId,
+                  rowId: row.id,
+                });
+              } else if (isSistemaAscensoDeepSubFolder) {
+                setDeleteCertCtx({
+                  type: 'sistemaAscenso',
+                  sectionId: ascensoSectionId,
+                  parentId: row.parentId,
+                  rowId: row.id,
+                });
+              }
 
-                confirmDialog.onTrue();
-              }}
-              sx={{ color: 'error.main' }}
-            >
-              <Iconify icon="solar:trash-bin-trash-bold" />
-              Eliminar certificado
-            </MenuItem>
-          )}
-
+              confirmDialog.onTrue();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar certificado
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -330,13 +306,10 @@ export function AwardsManagerTableRow({
           url: row.url ?? '',
 
           sectionId: row.sectionId ?? allData.find((i) => i.id === row.parentId)?.parentId,
-
         }}
         memberId={memberId}
         system={
-          isSistemaAscensoDeepSubFolder ||
-            isSistemaAscensoSubFolder ||
-            isSistemaAscenso
+          isSistemaAscensoDeepSubFolder || isSistemaAscensoSubFolder || isSistemaAscenso
             ? 'sistemaAscenso'
             : 'academia'
         }
@@ -347,9 +320,7 @@ export function AwardsManagerTableRow({
         onClose={detailsDrawer.onFalse}
         onDelete={onDeleteRow}
       />
-
     ) : null;
-
 
   const renderShareDialog = () => (
     <AwardsManagerShareDialog
@@ -372,7 +343,9 @@ export function AwardsManagerTableRow({
       title="Eliminar"
       content="¿Deseas eliminar este certificado?"
       action={
-        <Button variant="contained" color="error"
+        <Button
+          variant="contained"
+          color="error"
           onClick={() => {
             const dataKey = `awards-data-${memberId}`;
             const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
@@ -403,7 +376,6 @@ export function AwardsManagerTableRow({
             confirmDialog.onFalse();
             window.dispatchEvent(new Event('storage'));
           }}
-
         >
           Sí, eliminar
         </Button>
@@ -439,9 +411,7 @@ export function AwardsManagerTableRow({
           }),
         }}
       >
-
         <TableCell padding="checkbox">
-
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
@@ -465,46 +435,45 @@ export function AwardsManagerTableRow({
               cursor: row.type === 'folder' ? 'pointer' : 'default',
             }}
           >
-
             {/* {showThumbnail && <FileThumbnail file={row.type} />} */}
-            {showThumbnail && (() => {
-              // 📄 Archivos (PDF, etc.)
-              if (row.type !== 'folder') {
-                const customPdf = getCustomFileIcon({ id: row.id });
+            {showThumbnail &&
+              (() => {
+                // 📄 Archivos (PDF, etc.)
+                if (row.type !== 'folder') {
+                  const customPdf = getCustomFileIcon({ id: row.id });
 
-                return customPdf ? (
+                  return customPdf ? (
+                    <Box
+                      component="img"
+                      src={customPdf.src}
+                      sx={{
+                        width: customPdf.size,
+                        height: customPdf.size,
+                        objectFit: 'contain',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <FileThumbnail file={row.type} />
+                  );
+                }
+
+                // 📁 Carpetas
+                const customFolder = getFolderIcon({ id: row.id });
+
+                return (
                   <Box
                     component="img"
-                    src={customPdf.src}
+                    src={customFolder?.src || '/assets/icons/files/ic-folder.svg'}
                     sx={{
-                      width: customPdf.size,
-                      height: customPdf.size,
+                      width: customFolder?.size ?? 32,
+                      height: customFolder?.size ?? 32,
                       objectFit: 'contain',
                       flexShrink: 0,
                     }}
                   />
-                ) : (
-                  <FileThumbnail file={row.type} />
                 );
-              }
-
-              // 📁 Carpetas
-              const customFolder = getFolderIcon({ id: row.id });
-
-              return (
-                <Box
-                  component="img"
-                  src={customFolder?.src || '/assets/icons/files/ic-folder.svg'}
-                  sx={{
-                    width: customFolder?.size ?? 32,
-                    height: customFolder?.size ?? 32,
-                    objectFit: 'contain',
-                    flexShrink: 0,
-                  }}
-                />
-              );
-            })()}
-
+              })()}
 
             <Typography
               noWrap
@@ -519,7 +488,6 @@ export function AwardsManagerTableRow({
             </Typography>
           </Box>
         </TableCell>
-
 
         {/* ===================== */}
         {/* COLUMNAS NORMALES */}
@@ -539,9 +507,7 @@ export function AwardsManagerTableRow({
               }}
               onClick={handleClick}
             />
-
           )}
-
 
         {isAcademiaMinisterialRow && (
           <AcademiaMinisterialRow
@@ -549,13 +515,12 @@ export function AwardsManagerTableRow({
             row={{
               ...row,
               total: getTotalAwards(row.id, allData),
-              completed: getCompletedAwards(row.id, memberId)
+              completed: getCompletedAwards(row.id, memberId),
             }}
             onClick={handleClick}
             showTarget={isRootFolder}
           />
         )}
-
 
         {isSistemaAscensoRow && (
           <SistemaAscensoRow
@@ -568,7 +533,6 @@ export function AwardsManagerTableRow({
             onClick={handleClick}
           />
         )}
-
 
         {isSistemaAscensoChild && !isSistemaAscensoDeepSubFolder && (
           <SistemaAscensoSubRow
@@ -588,18 +552,22 @@ export function AwardsManagerTableRow({
             memberId={memberId}
             rowId={row.id}
             parentId={row.parentId} // premios-requeridos
-            sectionId={allData.find(i => i.id === row.parentId)?.parentId} // exploradores
+            sectionId={allData.find((i) => i.id === row.parentId)?.parentId} // exploradores
+            metadata={{
+              nombreItemAscenso: row.name,
+              idGrupo: row.parentId,
+              nombreGrupo: ascensoParent?.name || row.parentId,
+              idDivision: ascensoSectionId || '',
+              nombreDivision: ascensoDivision?.name || '',
+            }}
             status={ascensoStatus}
             setStatus={setAscensoStatus}
             completedDate={completedDate}
             setCompletedDate={setCompletedDate}
-
             onCertificateUploaded={(cert) => setAscensoCertificate(cert)}
             onCertificateDeleted={() => setAscensoCertificate(null)}
           />
-
         )}
-
 
         {/* ===================== */}
         {/* SUBCARPETAS ACADEMIA */}
@@ -609,9 +577,13 @@ export function AwardsManagerTableRow({
             memberId={memberId}
             rowId={row.id}
             parentId={row.parentId}
+            metadata={{
+              nombreItemAscenso: row.name,
+              idGrupo: row.parentId,
+              nombreGrupo: academiaParent?.name || row.parentId,
+            }}
             completedDate={completedDate}
             setCompletedDate={setCompletedDate}
-
             onCertificateUploaded={(cert) => {
               setAcademiaCertificate(cert);
             }}
@@ -620,7 +592,6 @@ export function AwardsManagerTableRow({
             }}
           />
         )}
-
 
         {/* Mantener al final */}
         <TableCell align="right" sx={{ px: 0 }}>
@@ -633,7 +604,7 @@ export function AwardsManagerTableRow({
             sx={{ position: 'static' }}
           />
         </TableCell>
-      </TableRow >
+      </TableRow>
 
       {renderFileDetailsDrawer()}
       {renderShareDialog()}
@@ -641,15 +612,8 @@ export function AwardsManagerTableRow({
       {renderMenuActions()}
       {renderConfirmDialog()}
 
-      <Dialog
-        open={renameOpen}
-        onClose={() => setRenameOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ pb: 0 }}>
-          Renombrar documento
-        </DialogTitle>
+      <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 0 }}>Renombrar documento</DialogTitle>
 
         <Box
           sx={{
@@ -670,9 +634,7 @@ export function AwardsManagerTableRow({
         </Box>
 
         <DialogActions>
-          <Button onClick={() => setRenameOpen(false)}>
-            Cancelar
-          </Button>
+          <Button onClick={() => setRenameOpen(false)}>Cancelar</Button>
 
           <Button
             variant="contained"
@@ -690,8 +652,6 @@ export function AwardsManagerTableRow({
           </Button>
         </DialogActions>
       </Dialog>
-
-
     </>
   );
 }

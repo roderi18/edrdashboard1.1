@@ -274,7 +274,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
             <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
             <Stack
-                spacing={5}
+                spacing={3}
                 sx={{
                     mx: 'auto',
                     maxWidth: { xs: 720, xl: 880 },

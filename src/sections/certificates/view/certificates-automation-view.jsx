@@ -12,6 +12,7 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
+import Menu from '@mui/material/Menu';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Select from '@mui/material/Select';
@@ -28,6 +29,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -54,6 +56,8 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { AwardsPathSelector } from 'src/sections/member/awards/components/awards-path-selector';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -184,7 +188,7 @@ dayjs.locale('es');
 const DEFAULT_TEMPLATE_POSITIONS = {
   memberName: { x: 50, y: 77, align: 'center' },
   date: { x: 50, y: 87, align: 'center' },
-  qrCode: { x: 12, y: 14, align: 'center' },
+  qrCode: { x: 11, y: 14, align: 'center' },
   place: { x: 50, y: 79, align: 'center' },
   signature1: { x: 83, y: 86, align: 'center' },
   signature2: { x: 50, y: 88, align: 'center' },
@@ -197,13 +201,13 @@ const buildTemplateField = (field) => ({
   width: field.width || 220,
 });
 
-const getDefaultTemplateFields = () =>
-  CERTIFICATE_TEMPLATE_FIELDS.map(buildTemplateField);
+const getDefaultTemplateFields = () => CERTIFICATE_TEMPLATE_FIELDS.map(buildTemplateField);
 
 const getTemplateFields = (template) => {
-  const source = (Array.isArray(template?.fields) && template.fields.length
-    ? template.fields
-    : getDefaultTemplateFields()
+  const source = (
+    Array.isArray(template?.fields) && template.fields.length
+      ? template.fields
+      : getDefaultTemplateFields()
   ).map(buildTemplateField);
   const withRequiredFields = [
     ...source,
@@ -223,7 +227,11 @@ const getTemplateFields = (template) => {
   );
 };
 
-const getTemplateFieldPreview = (field) => field.text || field.preview || field.label;
+const getTemplateFieldPreview = (field) => {
+  const value = field?.text || field?.preview || field?.label || field?.id || '';
+
+  return String(value).trim() || field?.label || 'Texto';
+};
 
 const getScaledTemplatePreviewFontSize = (field) =>
   Math.max(6, Math.round((Number(field.fontSize) || 14) * 0.5));
@@ -377,8 +385,8 @@ function ImportedTemplateCertificatePage({ course, member, formValues, template,
         {!!imageSource && <Image src={imageSource} style={certificateStyles.importedBackground} />}
 
         {getTemplateFields(template).map((field) => {
-          const position =
-            template.positions?.[field.id] || DEFAULT_TEMPLATE_POSITIONS[field.id] || {
+          const position = template.positions?.[field.id] ||
+            DEFAULT_TEMPLATE_POSITIONS[field.id] || {
               x: 50,
               y: 50,
             };
@@ -498,6 +506,22 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+const getTemplateAwardRoute = (template = {}) =>
+  template.vinculoAscenso || template.rutaAscenso || null;
+
+const getAwardRouteKey = (route) => {
+  const safeRoute = route || {};
+
+  return [
+    safeRoute.sistema || '',
+    safeRoute.idDivision || '',
+    safeRoute.idGrupo || '',
+    safeRoute.idItemAscenso || '',
+  ]
+    .map((value) => String(value || '').trim())
+    .join('|');
+};
+
 const buildCertificateFileName = (course, selectedCount) => {
   const courseName = normalizeText(course.name).replace(/\s+/g, '-');
   const date = dayjs().format('YYYY-MM-DD');
@@ -521,6 +545,9 @@ const getCreatorName = (user) =>
   user?.email ||
   user?.codigoMiembro ||
   'Usuario';
+
+const getMemberEmail = (member = {}) =>
+  member.email || member.correo || member.memberEmail || member.emailAddress || '';
 
 const loadCertificateBatches = () => {
   try {
@@ -657,6 +684,36 @@ const createEmptyTemplateDraft = () => ({
   textColor: '#111827',
   fields: getDefaultTemplateFields(),
   positions: { ...DEFAULT_TEMPLATE_POSITIONS },
+  vinculoAscenso: null,
+});
+
+const sortObjectByKey = (value = {}) =>
+  Object.fromEntries(
+    Object.entries(value || {}).sort(([firstKey], [secondKey]) => firstKey.localeCompare(secondKey))
+  );
+
+const normalizeTemplateDraftForComparison = (template = {}) => ({
+  name: template.name || '',
+  fileName: template.fileName || '',
+  sourceType: template.sourceType || '',
+  pageCount: Number(template.pageCount || 0),
+  dataUrl: template.dataUrl || '',
+  pdfDataUrl: template.pdfDataUrl || '',
+  textColor: template.textColor || '',
+  fields: getTemplateFields(template).map((field) => ({
+    id: field.id || '',
+    kind: field.kind || '',
+    label: field.label || '',
+    text: field.text || '',
+    preview: field.preview || '',
+    fontFamily: normalizeTemplateFont(field.fontFamily),
+    fontSize: Number(field.fontSize || 0),
+    width: Number(field.width || 0),
+    size: Number(field.size || 0),
+    fontWeight: field.fontWeight || '',
+  })),
+  positions: sortObjectByKey(template.positions || {}),
+  rutaAscenso: getAwardRouteKey(template.vinculoAscenso || template.rutaAscenso),
 });
 
 const getCertificateStatusOption = (value) =>
@@ -732,16 +789,23 @@ export function CertificatesAutomationView() {
   const [formValues, setFormValues] = useState(DEFAULT_FORM);
   const [createdBatches, setCreatedBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [certificateMenuAnchor, setCertificateMenuAnchor] = useState(null);
+  const [certificateActionMode, setCertificateActionMode] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteTemplateConfirmOpen, setDeleteTemplateConfirmOpen] = useState(false);
+  const [duplicateRouteConfirmOpen, setDuplicateRouteConfirmOpen] = useState(false);
+  const [duplicateRouteTemplate, setDuplicateRouteTemplate] = useState(null);
   const [importedTemplates, setImportedTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [templateDraft, setTemplateDraft] = useState(createEmptyTemplateDraft);
+  const [templateDraftBaseline, setTemplateDraftBaseline] = useState(createEmptyTemplateDraft);
   const [downloadingCertificates, setDownloadingCertificates] = useState(false);
   const [downloadingCertificateId, setDownloadingCertificateId] = useState('');
   const [convertingTemplateFile, setConvertingTemplateFile] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [selectedTemplateFieldId, setSelectedTemplateFieldId] = useState('memberName');
   const [showTemplateGrid, setShowTemplateGrid] = useState(false);
+  const [importDialogStep, setImportDialogStep] = useState('template');
   const [templateCenterGuide, setTemplateCenterGuide] = useState({
     horizontal: false,
     vertical: false,
@@ -777,6 +841,34 @@ export function CertificatesAutomationView() {
       getTemplateFields(templateDraft).find((field) => field.id === selectedTemplateFieldId) ||
       null,
     [selectedTemplateFieldId, templateDraft]
+  );
+
+  const templateDraftHasChanges = useMemo(
+    () =>
+      JSON.stringify(normalizeTemplateDraftForComparison(templateDraft)) !==
+      JSON.stringify(normalizeTemplateDraftForComparison(templateDraftBaseline)),
+    [templateDraft, templateDraftBaseline]
+  );
+
+  const usedAwardRoutes = useMemo(
+    () =>
+      importedTemplates
+        .filter((template) => String(template.id) !== String(templateDraft.id))
+        .map((template) => {
+          const route = getTemplateAwardRoute(template);
+          const routeKey = getAwardRouteKey(route);
+
+          if (!routeKey.replace(/\|/g, '')) return null;
+
+          return {
+            id: route?.id || '',
+            key: routeKey,
+            templateName: template.name || 'Plantilla existente',
+            routeText: route?.rutaTexto || '',
+          };
+        })
+        .filter(Boolean),
+    [importedTemplates, templateDraft.id]
   );
 
   const handleCourseSelect = (value) => {
@@ -830,10 +922,9 @@ export function CertificatesAutomationView() {
             guardarPlantillaCertificado({ template, user }).catch(() => null)
           )
         );
-        const templates = [
-          ...migratedTemplates.filter(Boolean),
-          ...enrichedRemoteTemplates,
-        ].filter((template) => normalizeText(template.name).includes('seguridad'));
+        const templates = [...migratedTemplates.filter(Boolean), ...enrichedRemoteTemplates].filter(
+          (template) => normalizeText(template.name).includes('seguridad')
+        );
 
         setImportedTemplates(templates);
         setSelectedTemplateId(templates[0]?.id || '');
@@ -919,10 +1010,7 @@ export function CertificatesAutomationView() {
         members.map((member, index) => {
           const memberId = String(member.id);
 
-          return [
-            memberId,
-            certificateStatuses[memberId] || getInitialCertificateStatus(index),
-          ];
+          return [memberId, certificateStatuses[memberId] || getInitialCertificateStatus(index)];
         })
       ),
     [certificateStatuses, members]
@@ -1008,7 +1096,9 @@ export function CertificatesAutomationView() {
   const handleOpenImportDialog = () => {
     const emptyDraft = createEmptyTemplateDraft();
     setTemplateDraft(emptyDraft);
+    setTemplateDraftBaseline(emptyDraft);
     setSelectedTemplateFieldId(emptyDraft.fields[0]?.id || '');
+    setImportDialogStep('template');
     setImportDialogOpen(true);
   };
 
@@ -1025,7 +1115,9 @@ export function CertificatesAutomationView() {
     };
 
     setTemplateDraft(draft);
+    setTemplateDraftBaseline(draft);
     setSelectedTemplateFieldId(draft.fields[0]?.id || '');
+    setImportDialogStep('template');
     setImportDialogOpen(true);
   };
 
@@ -1100,8 +1192,8 @@ export function CertificatesAutomationView() {
 
     if (!rect) return;
 
-    const currentPosition =
-      templateDraft.positions?.[fieldId] || DEFAULT_TEMPLATE_POSITIONS[fieldId] || { x: 50, y: 50 };
+    const currentPosition = templateDraft.positions?.[fieldId] ||
+      DEFAULT_TEMPLATE_POSITIONS[fieldId] || { x: 50, y: 50 };
     const currentCenterX = rect.left + (currentPosition.x / 100) * rect.width;
     const currentCenterY = rect.top + (currentPosition.y / 100) * rect.height;
     const pointerOffsetX = event.clientX - currentCenterX;
@@ -1231,7 +1323,21 @@ export function CertificatesAutomationView() {
     window.addEventListener('pointerup', handlePointerUp);
   };
 
-  const handleSaveTemplate = async () => {
+  const findTemplateWithSameRoute = () => {
+    const routeKey = getAwardRouteKey(templateDraft.vinculoAscenso);
+
+    if (!routeKey.replace(/\|/g, '')) return null;
+
+    return (
+      importedTemplates.find((template) => {
+        if (String(template.id) === String(templateDraft.id)) return false;
+
+        return getAwardRouteKey(getTemplateAwardRoute(template)) === routeKey;
+      }) || null
+    );
+  };
+
+  const handleSaveTemplate = async ({ skipRouteCheck = false } = {}) => {
     if (!templateDraft.name.trim()) {
       toast.error('Coloca un nombre para la plantilla.');
       return;
@@ -1243,11 +1349,30 @@ export function CertificatesAutomationView() {
     }
 
     if (isRemoteImageUrl(templateDraft.dataUrl) && !templateDraft.pdfDataUrl) {
-      toast.error('Reemplaza el archivo de la plantilla antes de guardar para que el PDF no salga en blanco.');
+      toast.error(
+        'Reemplaza el archivo de la plantilla antes de guardar para que el PDF no salga en blanco.'
+      );
       return;
     }
 
+    if (!templateDraft.vinculoAscenso?.idItemAscenso) {
+      toast.error('Selecciona la ruta de Awards donde se guardará este certificado.');
+      setImportDialogStep('awards');
+      return;
+    }
+
+    if (!skipRouteCheck) {
+      const templateWithSameRoute = findTemplateWithSameRoute();
+
+      if (templateWithSameRoute) {
+        setDuplicateRouteTemplate(templateWithSameRoute);
+        setDuplicateRouteConfirmOpen(true);
+        return;
+      }
+    }
+
     try {
+      setSavingTemplate(true);
       const savedTemplate = await guardarPlantillaCertificado({ template: templateDraft, user });
 
       setImportedTemplates((current) => {
@@ -1256,7 +1381,10 @@ export function CertificatesAutomationView() {
         return next;
       });
       setSelectedTemplateId(savedTemplate.id);
+      setTemplateDraftBaseline(savedTemplate);
       setImportDialogOpen(false);
+      setDuplicateRouteConfirmOpen(false);
+      setDuplicateRouteTemplate(null);
       toast.success('Plantilla guardada en Firebase.');
     } catch (error) {
       setImportedTemplates((current) => {
@@ -1266,8 +1394,31 @@ export function CertificatesAutomationView() {
       });
       setSelectedTemplateId(templateDraft.id);
       setImportDialogOpen(false);
+      setDuplicateRouteConfirmOpen(false);
+      setDuplicateRouteTemplate(null);
       toast.error(error?.message || 'No se pudo guardar la plantilla en Firebase.');
+    } finally {
+      setSavingTemplate(false);
     }
+  };
+
+  const handleGoToAwardPathSelection = () => {
+    if (!templateDraft.name.trim()) {
+      toast.error('Coloca un nombre para la plantilla.');
+      return;
+    }
+
+    if (!templateDraft.dataUrl) {
+      toast.error('Importa una imagen del certificado.');
+      return;
+    }
+
+    if (isRemoteImageUrl(templateDraft.dataUrl) && !templateDraft.pdfDataUrl) {
+      toast.error('Reemplaza el archivo de la plantilla antes de continuar.');
+      return;
+    }
+
+    setImportDialogStep('awards');
   };
 
   const handleDeleteSelectedTemplate = async () => {
@@ -1317,89 +1468,168 @@ export function CertificatesAutomationView() {
     };
   };
 
-  const handleDownloadCertificates = async () => {
+  const buildCertificatesForSelectedMembers = async () => {
+    const batch = buildCertificateBatch();
+
+    if (!batch) return null;
+
+    const pdfTemplate = await resolveTemplateForPdf(selectedTemplate);
+    const certificateFiles = await Promise.all(
+      selectedMembers.map(async (member) => ({
+        member: {
+          ...member,
+          memberName: getMemberFullName(member) || member.memberId || member.codigoMiembro || '',
+        },
+        fileName: buildSingleCertificateFileName(selectedCourse, member),
+        blob: await pdf(
+          <CertificatePdfDocument
+            course={selectedCourse}
+            members={[member]}
+            template={pdfTemplate}
+            formValues={formValues}
+          />
+        ).toBlob(),
+      }))
+    );
+    const savedBatch = await guardarLoteCertificados({
+      batch,
+      certificateFiles,
+      user,
+      buildFinalBlob: async ({ member, pdfUrl }) => {
+        const qrDataUrl = await buildQrCodeDataUrl(pdfUrl);
+        const qrKey = String(member.id || member.memberId || member.codigoMiembro || '');
+
+        return pdf(
+          <CertificatePdfDocument
+            course={selectedCourse}
+            members={[member]}
+            template={pdfTemplate}
+            formValues={formValues}
+            certificateQrs={{ [qrKey]: qrDataUrl, [String(member.memberId || '')]: qrDataUrl }}
+          />
+        ).toBlob();
+      },
+    });
+    const certificateQrs = {};
+
+    await Promise.all(
+      savedBatch.certificates.map(async (certificate) => {
+        const qrDataUrl = await buildQrCodeDataUrl(certificate.pdfUrl);
+
+        [certificate.memberDocId, certificate.memberId, certificate.id]
+          .filter(Boolean)
+          .forEach((key) => {
+            certificateQrs[String(key)] = qrDataUrl;
+          });
+      })
+    );
+    const combinedBlob = await pdf(
+      <CertificatePdfDocument
+        course={selectedCourse}
+        members={selectedMembers}
+        template={pdfTemplate}
+        formValues={formValues}
+        certificateQrs={certificateQrs}
+      />
+    ).toBlob();
+
+    setCreatedBatches((current) => {
+      const next = [savedBatch, ...current.filter((item) => item.id !== savedBatch.id)].slice(
+        0,
+        100
+      );
+      saveCertificateBatches(next);
+      return next;
+    });
+
+    return { savedBatch, combinedBlob };
+  };
+
+  const openCertificatesEmailDraft = (savedBatch) => {
+    const recipients = Array.from(
+      new Set(
+        selectedMembers
+          .map(getMemberEmail)
+          .filter(Boolean)
+          .map((email) => email.trim())
+      )
+    );
+
+    if (!recipients.length) {
+      toast.error('Los miembros seleccionados no tienen correo registrado.');
+      return false;
+    }
+
+    const certificatesByMemberId = new Map(
+      (savedBatch.certificates || []).map((certificate) => [
+        String(certificate.memberDocId || certificate.id || certificate.memberId || ''),
+        certificate,
+      ])
+    );
+    const certificateLines = selectedMembers.map((member) => {
+      const certificate =
+        certificatesByMemberId.get(String(member.id || '')) ||
+        (savedBatch.certificates || []).find(
+          (item) =>
+            String(item.memberId || '') === String(member.memberId || member.codigoMiembro || '')
+        );
+      const memberName = getMemberFullName(member) || member.memberId || member.codigoMiembro || '';
+
+      return `${memberName}: ${certificate?.pdfUrl || 'certificado pendiente'}`;
+    });
+    const subject = `Certificados - ${selectedCourse.certificateTitle || selectedCourse.name}`;
+    const body = [
+      'Saludos,',
+      '',
+      'Comparto los certificados generados:',
+      '',
+      ...certificateLines,
+      '',
+      'Exploradores del Rey, Rep. Dominicana 🇩🇴',
+    ].join('\n');
+    const mailtoUrl = `mailto:?bcc=${encodeURIComponent(recipients.join(','))}&subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+
+    window.location.href = mailtoUrl;
+    toast.success('Se abrió el correo con los enlaces de certificados.');
+
+    return true;
+  };
+
+  const handleCertificateMenuClose = () => {
+    setCertificateMenuAnchor(null);
+  };
+
+  const handleCertificateAction = async (mode) => {
     if (!selectedMembers.length || downloadingCertificates) return;
+
+    handleCertificateMenuClose();
+    setCertificateActionMode(mode);
 
     try {
       setDownloadingCertificates(true);
-      const batch = buildCertificateBatch();
+      const result = await buildCertificatesForSelectedMembers();
 
-      if (!batch) return;
+      if (!result) return;
 
-      const pdfTemplate = await resolveTemplateForPdf(selectedTemplate);
-      const certificateFiles = await Promise.all(
-        selectedMembers.map(async (member) => ({
-          member: {
-            ...member,
-            memberName: getMemberFullName(member) || member.memberId || member.codigoMiembro || '',
-          },
-          fileName: buildSingleCertificateFileName(selectedCourse, member),
-          blob: await pdf(
-            <CertificatePdfDocument
-              course={selectedCourse}
-              members={[member]}
-              template={pdfTemplate}
-              formValues={formValues}
-            />
-          ).toBlob(),
-        }))
-      );
-      const savedBatch = await guardarLoteCertificados({
-        batch,
-        certificateFiles,
-        user,
-        buildFinalBlob: async ({ member, pdfUrl }) => {
-          const qrDataUrl = await buildQrCodeDataUrl(pdfUrl);
-          const qrKey = String(member.id || member.memberId || member.codigoMiembro || '');
-
-          return pdf(
-            <CertificatePdfDocument
-              course={selectedCourse}
-              members={[member]}
-              template={pdfTemplate}
-              formValues={formValues}
-              certificateQrs={{ [qrKey]: qrDataUrl, [String(member.memberId || '')]: qrDataUrl }}
-            />
-          ).toBlob();
-        },
-      });
-      const certificateQrs = {};
-
-      await Promise.all(
-        savedBatch.certificates.map(async (certificate) => {
-          const qrDataUrl = await buildQrCodeDataUrl(certificate.pdfUrl);
-
-          [certificate.memberDocId, certificate.memberId, certificate.id]
-            .filter(Boolean)
-            .forEach((key) => {
-              certificateQrs[String(key)] = qrDataUrl;
-            });
-        })
-      );
-      const blob = await pdf(
-        <CertificatePdfDocument
-          course={selectedCourse}
-          members={selectedMembers}
-          template={pdfTemplate}
-          formValues={formValues}
-          certificateQrs={certificateQrs}
-        />
-      ).toBlob();
-
-      setCreatedBatches((current) => {
-        const next = [savedBatch, ...current.filter((item) => item.id !== savedBatch.id)].slice(
-          0,
-          100
+      if (mode === 'download' || mode === 'download-and-send') {
+        downloadPdfBlob(
+          result.combinedBlob,
+          buildCertificateFileName(selectedCourse, selectedMembers.length)
         );
-        saveCertificateBatches(next);
-        return next;
-      });
-      downloadPdfBlob(blob, buildCertificateFileName(selectedCourse, selectedMembers.length));
+      }
+
+      if (mode === 'send' || mode === 'download-and-send') {
+        openCertificatesEmailDraft(result.savedBatch);
+      }
+
       toast.success('Certificados guardados en Firebase.');
     } catch (error) {
       toast.error(error?.message || 'No se pudieron guardar los certificados.');
     } finally {
       setDownloadingCertificates(false);
+      setCertificateActionMode('');
     }
   };
 
@@ -1448,22 +1678,54 @@ export function CertificatesAutomationView() {
       );
     }
 
+    const actionLabel =
+      certificateActionMode === 'send'
+        ? 'Enviando certificados...'
+        : certificateActionMode === 'download-and-send'
+          ? 'Descargando y enviando...'
+          : 'Preparando PDF...';
+
     return (
-      <Button
-        fullWidth
-        variant="contained"
-        disabled={downloadingCertificates}
-        onClick={handleDownloadCertificates}
-        startIcon={
-          downloadingCertificates ? (
-            <CircularProgress size={18} color="inherit" />
-          ) : (
-            <Iconify icon="solar:download-bold" />
-          )
-        }
-      >
-        {downloadingCertificates ? 'Preparando PDF...' : 'Descargar certificados'}
-      </Button>
+      <>
+        <Button
+          fullWidth
+          variant="contained"
+          disabled={downloadingCertificates}
+          onClick={(event) => setCertificateMenuAnchor(event.currentTarget)}
+          startIcon={
+            downloadingCertificates ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              <Iconify icon="solar:download-bold" />
+            )
+          }
+          endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+        >
+          {downloadingCertificates ? actionLabel : 'Certificados'}
+        </Button>
+
+        <Menu
+          open={Boolean(certificateMenuAnchor)}
+          anchorEl={certificateMenuAnchor}
+          onClose={handleCertificateMenuClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { minWidth: certificateMenuAnchor?.offsetWidth || 220 } } }}
+        >
+          <MenuItem onClick={() => handleCertificateAction('download')}>
+            <Iconify icon="solar:download-bold" sx={{ mr: 1.5 }} />
+            Descargar certificados
+          </MenuItem>
+          <MenuItem onClick={() => handleCertificateAction('send')}>
+            <Iconify icon="solar:letter-bold" sx={{ mr: 1.5 }} />
+            Enviar certificados
+          </MenuItem>
+          <MenuItem onClick={() => handleCertificateAction('download-and-send')}>
+            <Iconify icon="solar:mailbox-bold" sx={{ mr: 1.5 }} />
+            Descargar y enviar certificados
+          </MenuItem>
+        </Menu>
+      </>
     );
   };
 
@@ -1525,7 +1787,9 @@ export function CertificatesAutomationView() {
                       )}
                     </Stack>
                   </TableCell>
-                  <TableCell>{batch.totalCertificates || batch.certificates?.length || 0}</TableCell>
+                  <TableCell>
+                    {batch.totalCertificates || batch.certificates?.length || 0}
+                  </TableCell>
                   <TableCell>{dayjs(batch.createdAt).format('DD/MM/YYYY')}</TableCell>
                   <TableCell>{dayjs(batch.createdAt).format('hh:mm A')}</TableCell>
                   <TableCell>
@@ -1550,7 +1814,9 @@ export function CertificatesAutomationView() {
                 <TableRow>
                   <TableCell colSpan={7}>
                     <Box sx={{ py: 8, textAlign: 'center' }}>
-                      <Typography variant="subtitle1">Todavía no hay certificados creados</Typography>
+                      <Typography variant="subtitle1">
+                        Todavía no hay certificados creados
+                      </Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                         Cuando descargues un lote, aparecerá aquí con su detalle.
                       </Typography>
@@ -1606,7 +1872,9 @@ export function CertificatesAutomationView() {
                 {selectedBatch.certificates.map((certificate) => {
                   const isDownloading = downloadingCertificateId === String(certificate.id);
                   const statusOption = getCertificateStatusOption(
-                    certificate.certificateStatus || certificate.status || DEFAULT_CERTIFICATE_STATUS
+                    certificate.certificateStatus ||
+                      certificate.status ||
+                      DEFAULT_CERTIFICATE_STATUS
                   );
 
                   return (
@@ -1665,6 +1933,18 @@ export function CertificatesAutomationView() {
     );
   };
 
+  const canSelectAwardPath = Boolean(templateDraft.dataUrl) && !convertingTemplateFile;
+  const canSaveTemplateChanges =
+    Boolean(templateDraft.vinculoAscenso?.idItemAscenso) &&
+    Boolean(templateDraft.dataUrl) &&
+    templateDraftHasChanges &&
+    !convertingTemplateFile;
+  const selectAwardPathTooltip = !templateDraft.dataUrl
+    ? 'Primero debes seleccionar una plantilla.'
+    : convertingTemplateFile
+      ? 'Cargando plantilla...'
+      : '';
+
   const renderImportDialog = () => (
     <Dialog
       fullWidth
@@ -1672,469 +1952,546 @@ export function CertificatesAutomationView() {
       open={importDialogOpen}
       onClose={() => setImportDialogOpen(false)}
     >
-      <DialogTitle>Importar certificado</DialogTitle>
+      <DialogTitle>
+        {importDialogStep === 'template' ? (
+          'Importar certificado'
+        ) : (
+          <Stack spacing={0.75}>
+            <Typography variant="h6">Seleccionar ruta de Sistema Ascenso</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Esta ruta se guardará junto a la plantilla para depositar el certificado en el premio
+              correcto del miembro.
+            </Typography>
+          </Stack>
+        )}
+      </DialogTitle>
 
       <DialogContent dividers>
-        <Box
-          sx={{
-            gap: 3,
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '320px 1fr' },
-            alignItems: 'start',
-          }}
-        >
-          <Stack spacing={2.5} sx={{ pt: 0.75 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Los objetos (textos) sobre el certificado son ejemplos para ubicar los datos. Al guardar la
-              plantilla y generar el certificado, cada dato real aparecerá en el lugar elegido.
-            </Typography>
-
-            <TextField
-              fullWidth
-              sx={{ mt: 0.75 }}
-              label="Nombre de la plantilla"
-              value={templateDraft.name}
-              onChange={(event) =>
-                setTemplateDraft((current) => ({ ...current, name: event.target.value }))
-              }
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                  sx: { px: 0.5, bgcolor: 'background.paper' },
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              type="color"
-              label="Color del texto"
-              value={templateDraft.textColor}
-              onChange={(event) =>
-                setTemplateDraft((current) => ({ ...current, textColor: event.target.value }))
-              }
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-
-            <Stack spacing={1}>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Letra del texto seleccionado
+        {importDialogStep === 'template' ? (
+          <Box
+            sx={{
+              gap: 3,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '320px 1fr' },
+              alignItems: 'start',
+            }}
+          >
+            <Stack spacing={2.5} sx={{ pt: 0.75 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Los objetos (textos) sobre el certificado son ejemplos para ubicar los datos. Al
+                guardar la plantilla y generar el certificado, cada dato real aparecerá en el lugar
+                elegido.
               </Typography>
 
               <TextField
-                select
                 fullWidth
-                size="small"
-                disabled={!selectedTemplateField}
-                helperText={isQrTemplateField(selectedTemplateField) ? 'El QR no usa tipo de letra.' : ''}
-                value={normalizeTemplateFont(selectedTemplateField?.fontFamily)}
+                sx={{ mt: 0.75 }}
+                label="Nombre de la plantilla"
+                value={templateDraft.name}
                 onChange={(event) =>
-                  handleUpdateTemplateField(selectedTemplateFieldId, {
-                    fontFamily: event.target.value,
-                  })
+                  setTemplateDraft((current) => ({ ...current, name: event.target.value }))
                 }
-              >
-                {TEMPLATE_FONT_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Stack>
-
-            <Divider />
-
-            <Stack
-              spacing={1.5}
-              sx={{
-                opacity: templateDraft.dataUrl ? 1 : 0.48,
-                pointerEvents: templateDraft.dataUrl ? 'auto' : 'none',
-              }}
-            >
-              {getTemplateFields(templateDraft).map((field) => {
-                const position =
-                  templateDraft.positions?.[field.id] ||
-                  DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
-                const sizeOptions = isQrTemplateField(field)
-                  ? TEMPLATE_QR_SIZE_OPTIONS
-                  : TEMPLATE_FONT_SIZE_OPTIONS;
-
-                return (
-                  <Stack
-                    key={field.id}
-                    spacing={1}
-                    onClick={() => setSelectedTemplateFieldId(field.id)}
-                    sx={{
-                      p: 1,
-                      borderRadius: 1,
-                      cursor: 'pointer',
-                      border: (theme) =>
-                        `solid 1px ${selectedTemplateFieldId === field.id
-                          ? theme.vars.palette.text.primary
-                          : theme.vars.palette.divider
-                        }`,
-                    }}
-                  >
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          width: 54,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {field.label}
-                      </Typography>
-                      <TextField
-                        select
-                        size="small"
-                        value={isQrTemplateField(field) ? getTemplateFieldSize(field) : field.fontSize ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) =>
-                          isQrTemplateField(field)
-                            ? handleUpdateTemplateField(field.id, {
-                              size: Number(event.target.value) || 72,
-                              width: Number(event.target.value) || 72,
-                            })
-                            : handleUpdateTemplateField(field.id, {
-                              fontSize: Number(event.target.value) || 14,
-                            })
-                        }
-                        sx={{
-                          width: 66,
-                          mr: 'auto',
-                          '& .MuiInputBase-root': {
-                            height: 32,
-                            alignItems: 'center',
-                          },
-                          '& .MuiSelect-select': {
-                            py: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            pr: '24px !important',
-                          },
-                        }}
-                      >
-                        {sizeOptions.map((size) => (
-                          <MenuItem key={size} value={size}>
-                            {size}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <Chip
-                        size="small"
-                        variant="soft"
-                        label={`${Math.round(position.x)}%, ${Math.round(position.y)}%`}
-                      />
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleRemoveTemplateField(field.id)}
-                      >
-                        <Iconify width={16} icon="solar:close-circle-bold" />
-                      </IconButton>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} sx={{ display: 'none' }}>
-                      <TextField
-                        select
-                        size="small"
-                        label="TamaÃ±o"
-                        value={field.fontSize ?? ''}
-                        onChange={(event) =>
-                          handleUpdateTemplateField(field.id, {
-                            fontSize: Number(event.target.value) || 14,
-                          })
-                        }
-                        sx={{
-                          width: 82,
-                          '& .MuiSelect-select': {
-                            py: 0.75,
-                            pr: '28px !important',
-                          },
-                        }}
-                      >
-                        {TEMPLATE_FONT_SIZE_OPTIONS.map((size) => (
-                          <MenuItem key={size} value={size}>
-                            {size}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Stack>
-                  </Stack>
-                );
-              })}
-
-              <Button
-                fullWidth
-                variant="outlined"
-                disabled={!templateDraft.dataUrl}
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                onClick={handleAddTemplateText}
-              >
-                Agregar texto
-              </Button>
-            </Stack>
-          </Stack>
-
-          <Stack spacing={1.25}>
-            <Box
-              ref={templatePreviewRef}
-              onClick={() => {
-                if (!templateDraft.dataUrl) {
-                  templateFileInputRef.current?.click();
-                }
-              }}
-              onDrop={handleDropTemplateFile}
-              onDragOver={(event) => event.preventDefault()}
-              sx={{
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: 1,
-                aspectRatio: '1.414 / 1',
-                bgcolor: 'background.neutral',
-                cursor: convertingTemplateFile ? 'wait' : templateDraft.dataUrl ? 'default' : 'pointer',
-                border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-              }}
-            >
-              <Box
-                ref={templateFileInputRef}
-                hidden
-                component="input"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
-                onChange={handleTemplateFile}
+                slotProps={{
+                  inputLabel: {
+                    shrink: true,
+                    sx: { px: 0.5, bgcolor: 'background.paper' },
+                  },
+                }}
               />
 
-              {templateDraft.dataUrl ? (
-                <Box
-                  component="img"
-                  src={templateDraft.dataUrl}
-                  alt={templateDraft.name || 'Certificado importado'}
-                  sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
-                />
-              ) : (
-                <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ height: 1 }}>
-                  {convertingTemplateFile ? (
-                    <CircularProgress size={34} />
-                  ) : (
-                    <Iconify width={40} icon="solar:gallery-add-bold" />
-                  )}
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Presiona o arrastra una imagen/PDF de certificado
-                  </Typography>
-                </Stack>
-              )}
+              <TextField
+                fullWidth
+                type="color"
+                label="Color del texto"
+                value={templateDraft.textColor}
+                onChange={(event) =>
+                  setTemplateDraft((current) => ({ ...current, textColor: event.target.value }))
+                }
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
 
-              {templateDraft.dataUrl && showTemplateGrid && (
-                <Box
-                  sx={{
-                    inset: 0,
-                    zIndex: 1,
-                    opacity: 0.5,
-                    position: 'absolute',
-                    pointerEvents: 'none',
-                    backgroundImage: `
-                    linear-gradient(to right, rgba(37, 99, 235, 0.42) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(37, 99, 235, 0.42) 1px, transparent 1px)
-                  `,
-                    backgroundSize: '5% 5%',
-                  }}
-                />
-              )}
+              <Stack spacing={1}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Letra del texto seleccionado
+                </Typography>
 
-              {templateDraft.dataUrl && templateCenterGuide.vertical && (
-                <Box
-                  sx={{
-                    top: 0,
-                    bottom: 0,
-                    left: '50%',
-                    zIndex: 1,
-                    width: 2,
-                    position: 'absolute',
-                    bgcolor: 'primary.main',
-                    pointerEvents: 'none',
-                    transform: 'translateX(-50%)',
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.72)',
-                  }}
-                />
-              )}
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  disabled={!selectedTemplateField}
+                  value={normalizeTemplateFont(selectedTemplateField?.fontFamily)}
+                  onChange={(event) =>
+                    handleUpdateTemplateField(selectedTemplateFieldId, {
+                      fontFamily: event.target.value,
+                    })
+                  }
+                >
+                  {TEMPLATE_FONT_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
 
-              {templateDraft.dataUrl && templateCenterGuide.horizontal && (
-                <Box
-                  sx={{
-                    left: 0,
-                    right: 0,
-                    top: '50%',
-                    zIndex: 1,
-                    height: 2,
-                    position: 'absolute',
-                    bgcolor: 'primary.main',
-                    pointerEvents: 'none',
-                    transform: 'translateY(-50%)',
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.72)',
-                  }}
-                />
-              )}
+              <Divider />
 
-              {templateDraft.dataUrl &&
-                getTemplateFields(templateDraft).map((field) => {
-                  const position =
-                    templateDraft.positions?.[field.id] ||
+              <Stack
+                spacing={1.5}
+                sx={{
+                  opacity: templateDraft.dataUrl ? 1 : 0.48,
+                  pointerEvents: templateDraft.dataUrl ? 'auto' : 'none',
+                }}
+              >
+                {getTemplateFields(templateDraft).map((field) => {
+                  const position = templateDraft.positions?.[field.id] ||
                     DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
+                  const sizeOptions = isQrTemplateField(field)
+                    ? TEMPLATE_QR_SIZE_OPTIONS
+                    : TEMPLATE_FONT_SIZE_OPTIONS;
 
                   return (
-                    <Box
+                    <Stack
                       key={field.id}
-                      onClick={(event) => event.preventDefault()}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        setSelectedTemplateFieldId(field.id);
-                        handleMoveTemplateField(field.id, event);
-                      }}
+                      spacing={1}
+                      onClick={() => setSelectedTemplateFieldId(field.id)}
                       sx={{
-                        px: isQrTemplateField(field) ? 0 : 1,
-                        py: isQrTemplateField(field) ? 0 : 0.5,
-                        width: isQrTemplateField(field) ? getTemplateFieldSize(field) : field.width || 220,
-                        height: isQrTemplateField(field) ? getTemplateFieldSize(field) : 'auto',
-                        borderRadius: 0.75,
-                        position: 'absolute',
-                        left: `${position.x}%`,
-                        top: `${position.y}%`,
-                        userSelect: 'none',
-                        cursor: 'grab',
-                        textAlign: 'center',
-                        color: templateDraft.textColor,
-                        fontSize: Number(field.fontSize) || 14,
-                        ...(isQrTemplateField(field) ? {} : getTemplatePreviewTypography(field)),
-                        bgcolor: 'transparent',
-                        border:
-                          selectedTemplateFieldId === field.id
-                            ? '1px dashed rgba(15,23,42,0.86)'
-                            : '1px dashed rgba(15,23,42,0.38)',
-                        transform: 'translate(-50%, -50%)',
+                        p: 1,
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        border: (theme) =>
+                          `solid 1px ${
+                            selectedTemplateFieldId === field.id
+                              ? theme.vars.palette.text.primary
+                              : theme.vars.palette.divider
+                          }`,
                       }}
                     >
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleRemoveTemplateField(field.id);
-                        }}
-                        sx={{
-                          p: 0,
-                          top: -11,
-                          right: -11,
-                          position: 'absolute',
-                          bgcolor: 'background.paper',
-                          '&:hover': { bgcolor: 'background.paper' },
-                        }}
-                      >
-                        <Iconify width={16} icon="solar:close-circle-bold" />
-                      </IconButton>
-                      {!isQrTemplateField(field) && (
-                        <Box
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                          }}
-                          onPointerDown={(event) => handleResizeTemplateField(field.id, event)}
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <Typography
+                          variant="body2"
                           sx={{
-                            top: 'calc(50% + 8px)',
-                            right: -7,
-                            width: 12,
-                            height: 28,
-                            zIndex: 2,
-                            borderRadius: 1,
-                            cursor: 'ew-resize',
-                            position: 'absolute',
-                            bgcolor: 'background.paper',
-                            border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                            transform: 'translateY(-50%)',
-                            '&::before': {
-                              content: '""',
-                              width: 2,
-                              height: 14,
-                              top: 6,
-                              left: 4,
-                              borderRadius: 1,
-                              position: 'absolute',
-                              bgcolor: 'text.disabled',
+                            width: 54,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {field.label}
+                        </Typography>
+                        <TextField
+                          select
+                          size="small"
+                          value={
+                            isQrTemplateField(field)
+                              ? getTemplateFieldSize(field)
+                              : (field.fontSize ?? '')
+                          }
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) =>
+                            isQrTemplateField(field)
+                              ? handleUpdateTemplateField(field.id, {
+                                  size: Number(event.target.value) || 72,
+                                  width: Number(event.target.value) || 72,
+                                })
+                              : handleUpdateTemplateField(field.id, {
+                                  fontSize: Number(event.target.value) || 14,
+                                })
+                          }
+                          sx={{
+                            width: 66,
+                            mr: 'auto',
+                            '& .MuiInputBase-root': {
+                              height: 32,
+                              alignItems: 'center',
+                            },
+                            '& .MuiSelect-select': {
+                              py: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              pr: '24px !important',
                             },
                           }}
+                        >
+                          {sizeOptions.map((size) => (
+                            <MenuItem key={size} value={size}>
+                              {size}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <Chip
+                          size="small"
+                          variant="soft"
+                          label={`${Math.round(position.x)}%, ${Math.round(position.y)}%`}
                         />
-                      )}
-                      {isQrTemplateField(field) ? (
-                        <Box
-                          component="img"
-                          src={SAMPLE_QR_CODE_SRC}
-                          alt="QR"
-                          sx={{ width: 1, height: 1, display: 'block' }}
-                        />
-                      ) : field.kind === 'custom' ? (
-                        <Box
-                          component="span"
-                          contentEditable
-                          suppressContentEditableWarning
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onInput={(event) =>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveTemplateField(field.id)}
+                        >
+                          <Iconify width={16} icon="solar:close-circle-bold" />
+                        </IconButton>
+                      </Stack>
+
+                      <Stack direction="row" spacing={1} sx={{ display: 'none' }}>
+                        <TextField
+                          select
+                          size="small"
+                          label="TamaÃ±o"
+                          value={field.fontSize ?? ''}
+                          onChange={(event) =>
                             handleUpdateTemplateField(field.id, {
-                              text: event.currentTarget.textContent || '',
-                              preview: event.currentTarget.textContent || '',
+                              fontSize: Number(event.target.value) || 14,
                             })
                           }
                           sx={{
-                            display: 'block',
-                            minHeight: 1,
-                            cursor: 'text',
-                            outline: 'none',
-                            whiteSpace: 'pre-wrap',
+                            width: 82,
+                            '& .MuiSelect-select': {
+                              py: 0.75,
+                              pr: '28px !important',
+                            },
                           }}
                         >
-                          {getTemplateFieldPreview(field)}
-                        </Box>
-                      ) : (
-                        getTemplateFieldPreview(field)
-                      )}
-                    </Box>
+                          {TEMPLATE_FONT_SIZE_OPTIONS.map((size) => (
+                            <MenuItem key={size} value={size}>
+                              {size}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Stack>
+                    </Stack>
                   );
                 })}
-            </Box>
 
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-
-              <Button
-                size="small"
-                variant={showTemplateGrid ? 'contained' : 'outlined'}
-                startIcon={<Iconify icon="mingcute:dot-grid-fill" />}
-                onClick={() => setShowTemplateGrid((current) => !current)}
-              >
-                Cuadrí­cula
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={convertingTemplateFile}
-                startIcon={<Iconify icon="solar:gallery-add-bold" />}
-                onClick={() => templateFileInputRef.current?.click()}
-              >
-                Reemplazar
-              </Button>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  disabled={!templateDraft.dataUrl}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={handleAddTemplateText}
+                >
+                  Agregar texto
+                </Button>
+              </Stack>
             </Stack>
-          </Stack>
-        </Box>
+
+            <Stack spacing={1.25}>
+              <Box
+                ref={templatePreviewRef}
+                onClick={() => {
+                  if (!templateDraft.dataUrl) {
+                    templateFileInputRef.current?.click();
+                  }
+                }}
+                onDrop={handleDropTemplateFile}
+                onDragOver={(event) => event.preventDefault()}
+                sx={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 1,
+                  aspectRatio: '1.414 / 1',
+                  bgcolor: 'background.neutral',
+                  cursor: convertingTemplateFile
+                    ? 'wait'
+                    : templateDraft.dataUrl
+                      ? 'default'
+                      : 'pointer',
+                  border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                }}
+              >
+                <Box
+                  ref={templateFileInputRef}
+                  hidden
+                  component="input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
+                  onChange={handleTemplateFile}
+                />
+
+                {templateDraft.dataUrl ? (
+                  <Box
+                    component="img"
+                    src={templateDraft.dataUrl}
+                    alt={templateDraft.name || 'Certificado importado'}
+                    sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ height: 1 }}>
+                    {convertingTemplateFile ? (
+                      <CircularProgress size={34} />
+                    ) : (
+                      <Iconify width={40} icon="solar:gallery-add-bold" />
+                    )}
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Presiona o arrastra una imagen/PDF de certificado
+                    </Typography>
+                  </Stack>
+                )}
+
+                {templateDraft.dataUrl && showTemplateGrid && (
+                  <Box
+                    sx={{
+                      inset: 0,
+                      zIndex: 1,
+                      opacity: 0.5,
+                      position: 'absolute',
+                      pointerEvents: 'none',
+                      backgroundImage: `
+                    linear-gradient(to right, rgba(37, 99, 235, 0.42) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(37, 99, 235, 0.42) 1px, transparent 1px)
+                  `,
+                      backgroundSize: '5% 5%',
+                    }}
+                  />
+                )}
+
+                {templateDraft.dataUrl && templateCenterGuide.vertical && (
+                  <Box
+                    sx={{
+                      top: 0,
+                      bottom: 0,
+                      left: '50%',
+                      zIndex: 1,
+                      width: 2,
+                      position: 'absolute',
+                      bgcolor: 'primary.main',
+                      pointerEvents: 'none',
+                      transform: 'translateX(-50%)',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.72)',
+                    }}
+                  />
+                )}
+
+                {templateDraft.dataUrl && templateCenterGuide.horizontal && (
+                  <Box
+                    sx={{
+                      left: 0,
+                      right: 0,
+                      top: '50%',
+                      zIndex: 1,
+                      height: 2,
+                      position: 'absolute',
+                      bgcolor: 'primary.main',
+                      pointerEvents: 'none',
+                      transform: 'translateY(-50%)',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.72)',
+                    }}
+                  />
+                )}
+
+                {templateDraft.dataUrl &&
+                  getTemplateFields(templateDraft).map((field) => {
+                    const position = templateDraft.positions?.[field.id] ||
+                      DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
+
+                    return (
+                      <Box
+                        key={field.id}
+                        onClick={(event) => event.preventDefault()}
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          setSelectedTemplateFieldId(field.id);
+                          handleMoveTemplateField(field.id, event);
+                        }}
+                        sx={{
+                          px: isQrTemplateField(field) ? 0 : 1,
+                          py: isQrTemplateField(field) ? 0 : 0.5,
+                          width: isQrTemplateField(field)
+                            ? getTemplateFieldSize(field)
+                            : field.width || 220,
+                          height: isQrTemplateField(field) ? getTemplateFieldSize(field) : 'auto',
+                          borderRadius: 0.75,
+                          position: 'absolute',
+                          zIndex: 2,
+                          left: `${position.x}%`,
+                          top: `${position.y}%`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          userSelect: 'none',
+                          cursor: 'grab',
+                          lineHeight: 1.2,
+                          textAlign: 'center',
+                          color: templateDraft.textColor || '#111827',
+                          fontSize: Number(field.fontSize) || 14,
+                          ...(isQrTemplateField(field) ? {} : getTemplatePreviewTypography(field)),
+                          bgcolor: isQrTemplateField(field)
+                            ? 'transparent'
+                            : 'rgba(255,255,255,0.3)',
+                          border:
+                            selectedTemplateFieldId === field.id
+                              ? '1px dashed rgba(15,23,42,0.86)'
+                              : '1px dashed rgba(15,23,42,0.38)',
+                          textShadow:
+                            '0 1px 2px rgba(255,255,255,0.95), 0 -1px 2px rgba(255,255,255,0.95)',
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleRemoveTemplateField(field.id);
+                          }}
+                          sx={{
+                            p: 0,
+                            top: -11,
+                            right: -11,
+                            position: 'absolute',
+                            bgcolor: 'background.paper',
+                            '&:hover': { bgcolor: 'background.paper' },
+                          }}
+                        >
+                          <Iconify width={16} icon="solar:close-circle-bold" />
+                        </IconButton>
+                        {!isQrTemplateField(field) && (
+                          <Box
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                            }}
+                            onPointerDown={(event) => handleResizeTemplateField(field.id, event)}
+                            sx={{
+                              top: 'calc(50% + 8px)',
+                              right: -7,
+                              width: 12,
+                              height: 28,
+                              zIndex: 2,
+                              borderRadius: 1,
+                              cursor: 'ew-resize',
+                              position: 'absolute',
+                              bgcolor: 'background.paper',
+                              border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                              transform: 'translateY(-50%)',
+                              '&::before': {
+                                content: '""',
+                                width: 2,
+                                height: 14,
+                                top: 6,
+                                left: 4,
+                                borderRadius: 1,
+                                position: 'absolute',
+                                bgcolor: 'text.disabled',
+                              },
+                            }}
+                          />
+                        )}
+                        {isQrTemplateField(field) ? (
+                          <Box
+                            component="img"
+                            src={SAMPLE_QR_CODE_SRC}
+                            alt="QR"
+                            sx={{ width: 1, height: 1, display: 'block' }}
+                          />
+                        ) : field.kind === 'custom' ? (
+                          <Box
+                            component="span"
+                            contentEditable
+                            suppressContentEditableWarning
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onInput={(event) =>
+                              handleUpdateTemplateField(field.id, {
+                                text: event.currentTarget.textContent || '',
+                                preview: event.currentTarget.textContent || '',
+                              })
+                            }
+                            sx={{
+                              display: 'block',
+                              minHeight: 1,
+                              cursor: 'text',
+                              outline: 'none',
+                              whiteSpace: 'pre-wrap',
+                            }}
+                          >
+                            {getTemplateFieldPreview(field)}
+                          </Box>
+                        ) : (
+                          getTemplateFieldPreview(field)
+                        )}
+                      </Box>
+                    );
+                  })}
+              </Box>
+
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button
+                  size="small"
+                  variant={showTemplateGrid ? 'contained' : 'outlined'}
+                  startIcon={<Iconify icon="mingcute:dot-grid-fill" />}
+                  onClick={() => setShowTemplateGrid((current) => !current)}
+                >
+                  Cuadrí­cula
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={convertingTemplateFile}
+                  startIcon={<Iconify icon="solar:gallery-add-bold" />}
+                  onClick={() => templateFileInputRef.current?.click()}
+                >
+                  Reemplazar
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        ) : (
+          <AwardsPathSelector
+            value={templateDraft.vinculoAscenso}
+            usedRoutes={usedAwardRoutes}
+            onChange={(route) =>
+              setTemplateDraft((current) => ({
+                ...current,
+                vinculoAscenso: route,
+              }))
+            }
+          />
+        )}
       </DialogContent>
 
-      <DialogActions>
-        <Button variant="outlined" onClick={() => setImportDialogOpen(false)}>
-          Cancelar
-        </Button>
-        <Button variant="contained" onClick={handleSaveTemplate}>
-          Guardar plantilla
-        </Button>
+      <DialogActions sx={{ gap: 1 }}>
+        {importDialogStep === 'template' ? (
+          <>
+            <LoadingButton
+              variant="contained"
+              loading={savingTemplate}
+              disabled={!canSaveTemplateChanges}
+              onClick={() => handleSaveTemplate()}
+              sx={{ mr: 'auto' }}
+            >
+              Guardar cambios
+            </LoadingButton>
+            <Button variant="outlined" onClick={() => setImportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Tooltip title={selectAwardPathTooltip}>
+              <span>
+                <Button
+                  variant="contained"
+                  disabled={!canSelectAwardPath}
+                  onClick={handleGoToAwardPathSelection}
+                >
+                  Seleccionar ruta de Sistema Ascenso
+                </Button>
+              </span>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            <Button variant="outlined" onClick={() => setImportDialogStep('template')}>
+              Atrás
+            </Button>
+            <LoadingButton
+              variant="contained"
+              loading={savingTemplate}
+              disabled={!templateDraft.vinculoAscenso?.idItemAscenso}
+              onClick={() => handleSaveTemplate()}
+            >
+              Guardar plantilla
+            </LoadingButton>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
@@ -2154,6 +2511,38 @@ export function CertificatesAutomationView() {
         <Button variant="contained" color="error" onClick={handleDeleteSelectedTemplate}>
           Eliminar
         </Button>
+      }
+    />
+  );
+
+  const renderDuplicateRouteConfirmDialog = () => (
+    <ConfirmDialog
+      open={duplicateRouteConfirmOpen}
+      onClose={() => {
+        setDuplicateRouteConfirmOpen(false);
+        setDuplicateRouteTemplate(null);
+      }}
+      title="Ruta ya vinculada"
+      content={
+        <>
+          Ya existe una plantilla con la misma ruta
+          {duplicateRouteTemplate?.name ? (
+            <>
+              : <strong>{duplicateRouteTemplate.name}</strong>
+            </>
+          ) : null}
+          .<br />
+          ¿Realmente deseas cambiarla?
+        </>
+      }
+      action={
+        <LoadingButton
+          variant="contained"
+          loading={savingTemplate}
+          onClick={() => handleSaveTemplate({ skipRouteCheck: true })}
+        >
+          Sí, cambiarla
+        </LoadingButton>
       }
     />
   );
@@ -2248,7 +2637,6 @@ export function CertificatesAutomationView() {
                   value={formValues.instructor}
                   onChange={handleFormValue('instructor')}
                 />
-
               </Stack>
             </Card>
 
@@ -2299,67 +2687,81 @@ export function CertificatesAutomationView() {
                 </Stack>
 
                 {selectedTemplate ? (
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      overflow: 'hidden',
-                      borderRadius: 1,
-                      aspectRatio: '1.414 / 1',
-                      bgcolor: 'background.neutral',
-                      border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={selectedTemplate.dataUrl}
-                      alt={selectedTemplate.name}
-                      sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
-                    />
-                    {getTemplateFields(selectedTemplate).map((field) => {
-                      const position =
-                        selectedTemplate.positions?.[field.id] ||
-                        DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
-                      const previewSize = Math.max(
-                        24,
-                        Math.round(getTemplateFieldSize(field) * 0.5)
-                      );
+                  <>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      Se guardará en{' '}
+                      {getTemplateAwardRoute(selectedTemplate)?.rutaTexto || 'Ruta no seleccionada'}
+                    </Typography>
 
-                      return (
-                        <Box
-                          key={field.id}
-                          sx={{
-                            px: isQrTemplateField(field) ? 0 : 0.75,
-                            py: isQrTemplateField(field) ? 0 : 0.25,
-                            width: isQrTemplateField(field)
-                              ? previewSize
-                              : Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
-                            height: isQrTemplateField(field) ? previewSize : 'auto',
-                            borderRadius: 0.75,
-                            position: 'absolute',
-                            left: `${position.x}%`,
-                            top: `${position.y}%`,
-                            color: selectedTemplate.textColor,
-                            fontSize: getScaledTemplatePreviewFontSize(field),
-                            ...(isQrTemplateField(field) ? {} : getTemplatePreviewTypography(field)),
-                            textAlign: 'center',
-                            bgcolor: 'rgba(255,255,255,0.72)',
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        >
-                          {isQrTemplateField(field) ? (
-                            <Box
-                              component="img"
-                              src={SAMPLE_QR_CODE_SRC}
-                              alt="QR"
-                              sx={{ width: 1, height: 1, display: 'block' }}
-                            />
-                          ) : (
-                            getTemplateFieldPreview(field)
-                          )}
-                        </Box>
-                      );
-                    })}
-                  </Box>
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: 1,
+                        aspectRatio: '1.414 / 1',
+                        bgcolor: 'background.neutral',
+                        border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={selectedTemplate.dataUrl}
+                        alt={selectedTemplate.name}
+                        sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
+                      />
+                      {getTemplateFields(selectedTemplate).map((field) => {
+                        const position = selectedTemplate.positions?.[field.id] ||
+                          DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
+                        const previewSize = Math.max(
+                          24,
+                          Math.round(getTemplateFieldSize(field) * 0.5)
+                        );
+
+                        return (
+                          <Box
+                            key={field.id}
+                            sx={{
+                              px: isQrTemplateField(field) ? 0 : 0.75,
+                              py: isQrTemplateField(field) ? 0 : 0.25,
+                              width: isQrTemplateField(field)
+                                ? previewSize
+                                : Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
+                              height: isQrTemplateField(field) ? previewSize : 'auto',
+                              borderRadius: 0.75,
+                              position: 'absolute',
+                              left: `${position.x}%`,
+                              top: `${position.y}%`,
+                              color: selectedTemplate.textColor,
+                              fontSize: getScaledTemplatePreviewFontSize(field),
+                              ...(isQrTemplateField(field)
+                                ? {}
+                                : getTemplatePreviewTypography(field)),
+                              textAlign: 'center',
+                              bgcolor: 'rgba(255,255,255,0.72)',
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          >
+                            {isQrTemplateField(field) ? (
+                              <Box
+                                component="img"
+                                src={SAMPLE_QR_CODE_SRC}
+                                alt="QR"
+                                sx={{ width: 1, height: 1, display: 'block' }}
+                              />
+                            ) : (
+                              getTemplateFieldPreview(field)
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </>
                 ) : (
                   <Box
                     sx={{
@@ -2425,8 +2827,9 @@ export function CertificatesAutomationView() {
                 <Chip
                   color="primary"
                   variant="soft"
-                  label={`${selectedMembers.length} seleccionado${selectedMembers.length === 1 ? '' : 's'
-                    }`}
+                  label={`${selectedMembers.length} seleccionado${
+                    selectedMembers.length === 1 ? '' : 's'
+                  }`}
                 />
               </Stack>
 
@@ -2536,9 +2939,7 @@ export function CertificatesAutomationView() {
                             <TableCell sx={{ width: 132 }}>
                               <CertificateStatusSelect
                                 value={certificateStatus}
-                                onChange={(status) =>
-                                  handleChangeCertificateStatus(member, status)
-                                }
+                                onChange={(status) => handleChangeCertificateStatus(member, status)}
                               />
                             </TableCell>
                           </TableRow>
@@ -2570,6 +2971,7 @@ export function CertificatesAutomationView() {
       {renderBatchDialog()}
       {renderImportDialog()}
       {renderDeleteTemplateConfirmDialog()}
+      {renderDuplicateRouteConfirmDialog()}
     </DashboardContent>
   );
 }

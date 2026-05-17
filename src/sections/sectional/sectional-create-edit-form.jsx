@@ -252,13 +252,6 @@ export function SectionalCreateEditForm({ currentSectional }) {
               </Stack>
             )}
 
-            {currentSectional && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete sectional
-                </Button>
-              </Stack>
-            )}
           </Card>
         </Grid>
 

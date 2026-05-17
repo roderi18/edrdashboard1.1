@@ -182,13 +182,6 @@ export function NationalCreateEditForm({ currentNational }) {
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             />
 
-            {currentNational && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete national
-                </Button>
-              </Stack>
-            )}
           </Card>
         </Grid>
 

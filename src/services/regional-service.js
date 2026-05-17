@@ -1,7 +1,5 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 
-const STORAGE_KEY = 'regionals';
-
 function mapApiRegionalToUI(regional) {
     return {
         id: String(regional.idRegion || regional.id),
@@ -9,6 +7,8 @@ function mapApiRegionalToUI(regional) {
         regionalName: regional.nombre || '',
         name: regional.nombre,
         regionId: String(regional.idRegion || regional.id),
+        countryId: String(regional.idPais || regional.countryId || ''),
+        idPais: regional.idPais || regional.countryId || null,
         email: regional.correo || regional.email || '',
 
         avatarUrl: null,
@@ -31,7 +31,7 @@ export const getRegionals = async () => {
         const res = await fetch('/api/regional');
 
         if (!res.ok) {
-            const text = await res.text();
+            await res.text();
             throw new Error('Error al obtener regionales');
         }
 

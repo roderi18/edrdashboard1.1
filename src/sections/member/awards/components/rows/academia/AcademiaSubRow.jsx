@@ -1,4 +1,3 @@
-
 import Button from '@mui/material/Button';
 import { useEffect, useState } from 'react';
 
@@ -12,174 +11,166 @@ import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
 
 export function AcademiaSubRow({
-    memberId,
-    rowId,
-    parentId,
-    completedDate,
-    setCompletedDate,
+  memberId,
+  rowId,
+  parentId,
+  metadata,
+  completedDate,
+  setCompletedDate,
 
+  onCertificateUploaded,
+  onCertificateDeleted,
+}) {
+  const [localStatus, setLocalStatus] = useState('no_iniciado');
+  const [certificateFile, setCertificateFile] = useState(null);
+  const [hasCertificate, setHasCertificate] = useState(false);
+  const [timesCompleted, setTimesCompleted] = useState(0);
+
+  const actions = createAwardsActions({
+    system: 'academia',
+    memberId,
+    context: { parentId, rowId },
+    metadata,
+  });
+
+  useAwardsSync({
+    system: 'academia',
+    memberId,
+    context: { parentId, rowId },
+    setStatus: setLocalStatus,
+    setCompletedDate,
+    setTimesCompleted, // no se usa en academia, pero se mantiene por compatibilidad
+    hasCertificate,
+    certificateFile,
+    setHasCertificate,
+    setCertificateFile,
     onCertificateUploaded,
     onCertificateDeleted,
-}) {
-    const [localStatus, setLocalStatus] = useState('no_iniciado');
-    const [certificateFile, setCertificateFile] = useState(null);
-    const [hasCertificate, setHasCertificate] = useState(false);
-    const [timesCompleted, setTimesCompleted] = useState(0);
+  });
 
-    const actions = createAwardsActions({
-        system: 'academia',
-        memberId,
-        context: { parentId, rowId },
-    });
+  const isCompleted = localStatus === 'completado';
+  const fileInputId = `cert-upload-${rowId}`;
+  const [dateError, setDateError] = useState(false);
+  const [highlightUpload, setHighlightUpload] = useState(false);
 
-    useAwardsSync({
-        system: 'academia',
-        memberId,
-        context: { parentId, rowId },
-        setStatus: setLocalStatus,
-        setCompletedDate,
-        setTimesCompleted, // no se usa en academia, pero se mantiene por compatibilidad
-        hasCertificate,
-        certificateFile,
-        setHasCertificate,
-        setCertificateFile,
-        onCertificateUploaded,
-        onCertificateDeleted,
-    });
+  const pdfViewer = useBoolean();
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const confirmDeleteForStatus = useBoolean();
 
+  const statusKey = memberId ? `awards-status-${memberId}` : null;
+  const dataKey = memberId ? `awards-data-${memberId}` : null;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!dataKey) return;
 
-    const isCompleted = localStatus === 'completado';
-    const fileInputId = `cert-upload-${rowId}`;
-    const [dateError, setDateError] = useState(false);
-    const [highlightUpload, setHighlightUpload] = useState(false);
+    const syncCertificate = () => {
+      const savedData = JSON.parse(localStorage.getItem(dataKey) || '{}');
 
-    const pdfViewer = useBoolean();
-    const [pendingStatus, setPendingStatus] = useState(null);
-    const confirmDeleteForStatus = useBoolean();
+      const cert = savedData?.academia?.[parentId]?.[rowId]?.certificate;
 
-    const statusKey = memberId ? `awards-status-${memberId}` : null;
-    const dataKey = memberId ? `awards-data-${memberId}` : null;
-
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        if (!dataKey) return;
-
-        const syncCertificate = () => {
-
-            const savedData = JSON.parse(localStorage.getItem(dataKey) || '{}');
-
-            const cert =
-                savedData?.academia
-                    ?.[parentId]
-                    ?.[rowId]
-                    ?.certificate;
-
-            if (cert?.fileBase64) {
-                setHasCertificate(true);
-                setCertificateFile(cert);
-            } else {
-                setHasCertificate(false);
-                setCertificateFile(null);
-            }
-        };
-
-        syncCertificate();
-
-        window.addEventListener('storage', syncCertificate);
-
-        return () => {
-            window.removeEventListener('storage', syncCertificate);
-        };
-    }, [dataKey, parentId, rowId]);
-
-
-    const handleCertificateDeleted = () => {
+      if (cert?.fileBase64 || cert?.urlPdf || cert?.pdfUrl) {
+        setHasCertificate(true);
+        setCertificateFile(cert);
+      } else {
         setHasCertificate(false);
         setCertificateFile(null);
-        onCertificateDeleted?.();
+      }
     };
 
-    useEffect(() => {
-        const handleHighlight = () => {
-            setHighlightUpload(true);
-            setTimeout(() => setHighlightUpload(false), 2000);
-        };
+    syncCertificate();
 
-        window.addEventListener('highlight-upload', handleHighlight);
+    window.addEventListener('storage', syncCertificate);
 
-        return () => {
-            window.removeEventListener('highlight-upload', handleHighlight);
-        };
-    }, []);
+    return () => {
+      window.removeEventListener('storage', syncCertificate);
+    };
+  }, [dataKey, parentId, rowId]);
 
-    useBorderPulse();
+  const handleCertificateDeleted = () => {
+    setHasCertificate(false);
+    setCertificateFile(null);
+    onCertificateDeleted?.();
+  };
 
+  useEffect(() => {
+    const handleHighlight = () => {
+      setHighlightUpload(true);
+      setTimeout(() => setHighlightUpload(false), 2000);
+    };
 
-    return (
-        <>
-            {/* Estado */}
-            {/* Fecha */}
-            {/* Certificado */}
-            <AwardsActionCells
-                state={{
-                    status: localStatus,
-                    completedDate,
-                    hasCertificate,
-                    timesCompleted,
-                }}
-                actions={actions}
-                fileInputId={fileInputId}
-                pdfViewer={pdfViewer}
-                certificateFile={certificateFile}
-                showTimesCompleted={false}
-                onRequireDeleteCertificate={(nextStatus) => {
-                    setPendingStatus(nextStatus);
-                    confirmDeleteForStatus.onTrue();
-                }}
-            />
+    window.addEventListener('highlight-upload', handleHighlight);
 
-            <PdfViewerDialog
-                open={pdfViewer.value}
-                onClose={pdfViewer.onFalse}
-                fileBase64={certificateFile?.fileBase64}
-            />
+    return () => {
+      window.removeEventListener('highlight-upload', handleHighlight);
+    };
+  }, []);
 
-            <ConfirmDialog
-                open={confirmDeleteForStatus.value}
-                onClose={() => {
-                    confirmDeleteForStatus.onFalse();
-                    setPendingStatus(null);
-                }}
-                title="Eliminar certificado"
-                content="Has cargado un certificado. Para cambiar el estado debes eliminar el archivo primero. ¿Deseas eliminarlo?"
-                action={
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={() => {
-                            const confirmAction = actions.requireCertificateDeletion({
-                                hasCertificate,
-                                nextStatus: pendingStatus,
-                                onConfirm: () => {
-                                    setHasCertificate(false);
-                                    setCertificateFile(null);
-                                    onCertificateDeleted?.();
-                                },
-                            });
+  useBorderPulse();
 
-                            confirmAction?.();
+  return (
+    <>
+      {/* Estado */}
+      {/* Fecha */}
+      {/* Certificado */}
+      <AwardsActionCells
+        state={{
+          status: localStatus,
+          completedDate,
+          hasCertificate,
+          timesCompleted,
+        }}
+        actions={actions}
+        fileInputId={fileInputId}
+        pdfViewer={pdfViewer}
+        certificateFile={certificateFile}
+        showTimesCompleted={false}
+        onRequireDeleteCertificate={(nextStatus) => {
+          setPendingStatus(nextStatus);
+          confirmDeleteForStatus.onTrue();
+        }}
+      />
 
-                            setPendingStatus(null);
-                            confirmDeleteForStatus.onFalse();
-                        }}
-                    >
-                        Eliminar y cambiar estado
-                    </Button>
-                }
-            />
+      <PdfViewerDialog
+        open={pdfViewer.value}
+        onClose={pdfViewer.onFalse}
+        fileBase64={certificateFile?.fileBase64}
+        urlPdf={certificateFile?.urlPdf || certificateFile?.pdfUrl}
+      />
 
-        </>
-    );
+      <ConfirmDialog
+        open={confirmDeleteForStatus.value}
+        onClose={() => {
+          confirmDeleteForStatus.onFalse();
+          setPendingStatus(null);
+        }}
+        title="Eliminar certificado"
+        content="Has cargado un certificado. Para cambiar el estado debes eliminar el archivo primero. ¿Deseas eliminarlo?"
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              const confirmAction = actions.requireCertificateDeletion({
+                hasCertificate,
+                nextStatus: pendingStatus,
+                onConfirm: () => {
+                  setHasCertificate(false);
+                  setCertificateFile(null);
+                  onCertificateDeleted?.();
+                },
+              });
+
+              confirmAction?.();
+
+              setPendingStatus(null);
+              confirmDeleteForStatus.onFalse();
+            }}
+          >
+            Eliminar y cambiar estado
+          </Button>
+        }
+      />
+    </>
+  );
 }

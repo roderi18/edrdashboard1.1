@@ -1,12 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { FlagIcon } from 'src/components/flag-icon';
-import { useEffect, useState } from 'react';
+import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
-import Box from '@mui/material/Box';
+
+import { FlagIcon } from 'src/components/flag-icon';
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +23,9 @@ export default function CountrySelectApi({
         const loadCountries = async () => {
             const res = await fetch('/api/countries', { cache: 'no-store' });
             const data = await res.json();
-            setCountries(Array.isArray(data) ? data : []);
+            const list = data?.data || data?.Data || data;
+
+            setCountries(Array.isArray(list) ? list : []);
         };
 
         loadCountries();
@@ -46,7 +49,10 @@ export default function CountrySelectApi({
                             Number(option.id) === Number(value.id)
                         }
                         onChange={(_, newValue) => {
-                            setValue(name, newValue?.id || null);
+                            setValue(name, newValue?.id ? String(newValue.id) : '', {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                            });
                         }}
 
                         renderOption={(props, option) => {

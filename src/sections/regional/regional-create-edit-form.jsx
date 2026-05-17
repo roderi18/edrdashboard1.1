@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
@@ -14,12 +14,11 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { AUTH } from 'src/lib/firebase';
-
-import { RegionalSchema } from 'src/models/regional-schema';
-import { getRegionals } from 'src/services/regional-service';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+
+import { AUTH } from 'src/lib/firebase';
+import { RegionalSchema } from 'src/models/regional-schema';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -30,7 +29,7 @@ import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGe
 
 const DEFAULT_VALUES = {
   name: '',
-  countryId: '',
+  countryId: '1',
   regionalXSectionalCount: 0,
   regionalXSectionalXDestCount: 0,
   regionalXSectionalMemberCount: 0,
@@ -59,17 +58,6 @@ export function RegionalCreateEditForm({ currentRegional }) {
   } = methods;
 
   const values = watch();
-
-  const resolveRegionalId = async (regionalName) => {
-    if (currentRegional?.id) return currentRegional.id;
-
-    const regionals = await getRegionals();
-    const savedRegional = regionals.find(
-      (regional) => String(regional?.name || '').trim().toLowerCase() === String(regionalName || '').trim().toLowerCase()
-    );
-
-    return savedRegional?.id || savedRegional?.regionId || null;
-  };
 
   const handleUploadRegionalPhoto = async (acceptedFiles) => {
     const file = acceptedFiles?.[0];
@@ -120,7 +108,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
       const payload = {
         idRegion: currentRegional?.id || 0,
         nombre: data.name,
-        idPais: 1,
+        idPais: Number(data.countryId) || 1,
         idCargoInstitucional: Number(data.idCargoInstitucional) || null,
       };
 
@@ -242,22 +230,6 @@ export function RegionalCreateEditForm({ currentRegional }) {
               />
             )}
 
-            <Field.Switch
-              name="isVerified"
-              labelPlacement="start"
-              label={
-                <>
-                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    Email verified
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Disabling this will automatically send the regional a verification email
-                  </Typography>
-                </>
-              }
-              sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-            />
-
             {currentRegional && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                 <EntityInfoPdfMenu
@@ -299,13 +271,6 @@ export function RegionalCreateEditForm({ currentRegional }) {
               </Stack>
             )}
 
-            {currentRegional && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete regional
-                </Button>
-              </Stack>
-            )}
           </Card>
         </Grid>
 

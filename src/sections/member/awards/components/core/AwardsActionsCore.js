@@ -1,261 +1,295 @@
+import { guardarCertificadoAscensoManual } from 'src/services/certificate-service';
+import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
+
 export function createAwardsActions({
-    system,     // 'academia' | 'sistemaAscenso'
-    memberId,
-    context,    // { sectionId?, parentId, rowId }
+  system, // 'academia' | 'sistemaAscenso'
+  memberId,
+  context, // { sectionId?, parentId, rowId }
+  metadata = {},
 }) {
+  const statusKey = `awards-status-${memberId}`;
 
+  if (
+    !system ||
+    !memberId ||
+    !context?.rowId ||
+    (system === 'sistemaAscenso' && !context?.sectionId)
+  ) {
+    return {
+      setStatus: () => {},
+      setCompletedDate: () => {},
+      uploadCertificate: () => {},
+      deleteCertificate: () => {},
+      updateTimesCompleted: () => {},
+    };
+  }
 
-    const statusKey = `awards-status-${memberId}`;
-    if (
-        !system ||
-        !memberId ||
-        !context?.rowId ||
-        (system === 'sistemaAscenso' && !context?.sectionId)
-    ) {
-        return {
-            setStatus: () => { },
-            setCompletedDate: () => { },
-            uploadCertificate: () => { },
-            deleteCertificate: () => { },
-            updateTimesCompleted: () => { },
-        };
+  const dataKey = `awards-data-${memberId}`;
+
+  const readStatus = () => JSON.parse(localStorage.getItem(statusKey) || '{}');
+
+  const readData = () => JSON.parse(localStorage.getItem(dataKey) || '{}');
+
+  const saveAll = (status, data) => {
+    localStorage.setItem(statusKey, JSON.stringify(status));
+    localStorage.setItem(dataKey, JSON.stringify(data));
+
+    window.dispatchEvent(new CustomEvent('awards-status-changed', { detail: { memberId } }));
+  };
+
+  const ensurePath = (obj, path) => {
+    let current = obj;
+
+    path.forEach((key) => {
+      current[key] ??= {};
+      current = current[key];
+    });
+
+    return current;
+  };
+
+  const getNode = (data) => {
+    if (system === 'academia') {
+      return data.academia?.[context.parentId]?.[context.rowId] || {};
     }
 
-    const dataKey = `awards-data-${memberId}`;
+    return data.sistemaAscenso?.[context.sectionId]?.[context.parentId]?.[context.rowId] || {};
+  };
 
-    const readStatus = () =>
-        JSON.parse(localStorage.getItem(statusKey) || '{}');
+  const setNode = (data, value) => {
+    if (system === 'academia') {
+      ensurePath(data, ['academia', context.parentId])[context.rowId] = value;
+      return;
+    }
 
-    const readData = () =>
-        JSON.parse(localStorage.getItem(dataKey) || '{}');
+    ensurePath(data, ['sistemaAscenso', context.sectionId, context.parentId])[context.rowId] =
+      value;
+  };
 
-    const saveAll = (status, data) => {
-        localStorage.setItem(statusKey, JSON.stringify(status));
-        localStorage.setItem(dataKey, JSON.stringify(data));
+  const setStatusValue = (status, value) => {
+    if (system === 'academia') {
+      ensurePath(status, ['academia', context.parentId])[context.rowId] = value;
+      return;
+    }
 
-        window.dispatchEvent(
-            new CustomEvent('awards-status-changed', { detail: { memberId } })
-        );
+    ensurePath(status, ['sistemaAscenso', context.sectionId, context.parentId])[context.rowId] =
+      value;
+  };
+
+  const getVinculo = () => ({
+    id: `${system}_${context.sectionId || 'academia'}_${context.parentId}_${context.rowId}`,
+    idItemAscenso: context.rowId,
+    nombreItemAscenso:
+      metadata.nombreItemAscenso || metadata.nombre || context.rowName || context.rowId,
+    sistema: system,
+    idDivision: context.sectionId || metadata.idDivision || '',
+    nombreDivision: metadata.nombreDivision || '',
+    idGrupo: context.parentId,
+    nombreGrupo: metadata.nombreGrupo || context.parentName || context.parentId,
+    activo: true,
+  });
+
+  const persistProgress = (overrides = {}) => {
+    guardarProgresoAscensoMiembro({
+      idMiembro: memberId,
+      vinculo: getVinculo(),
+      ...overrides,
+    }).catch((error) => {
+      console.error('[Awards] No se pudo guardar el progreso en Firebase.', error);
+    });
+  };
+
+  const setStatus = (nextStatus) => {
+    const now = new Date().toISOString();
+    const status = readStatus();
+    const data = readData();
+    const existing = getNode(data);
+    const nextNode = {
+      ...existing,
+      status: nextStatus,
+      updatedAt: now,
+      ...(nextStatus === 'completado' && {
+        completedDate: existing.completedDate || now,
+        timesCompleted:
+          system === 'sistemaAscenso' ? existing.timesCompleted || 1 : existing.timesCompleted,
+      }),
+      ...(nextStatus !== 'completado' && {
+        completedDate: null,
+        ...(system === 'sistemaAscenso' && { timesCompleted: 0 }),
+      }),
     };
 
-    const ensurePath = (obj, path) => {
-        let ref = obj;
-        path.forEach((k) => {
-            ref[k] ??= {};
-            ref = ref[k];
-        });
-        return ref;
+    setStatusValue(status, nextStatus);
+    setNode(data, nextNode);
+    saveAll(status, data);
+
+    persistProgress({
+      estado: nextStatus,
+      fechaCompletado: nextNode.completedDate,
+      vecesCompletado: Number(nextNode.timesCompleted || (nextStatus === 'completado' ? 1 : 0)),
+      certificado: nextNode.certificate,
+    });
+  };
+
+  const setCompletedDate = (isoDate) => {
+    if (!isoDate) return;
+
+    const status = readStatus();
+    const data = readData();
+    const now = new Date().toISOString();
+    const existing = getNode(data);
+    const nextNode = {
+      ...existing,
+      status: 'completado',
+      completedDate: isoDate,
+      timesCompleted:
+        system === 'sistemaAscenso' ? existing.timesCompleted || 1 : existing.timesCompleted,
+      updatedAt: now,
     };
 
-    const setStatus = (nextStatus) => {
-        const now = new Date().toISOString();
-        const status = readStatus();
-        const data = readData();
+    setStatusValue(status, 'completado');
+    setNode(data, nextNode);
+    saveAll(status, data);
 
-        if (system === 'academia') {
-            const { parentId, rowId } = context;
+    persistProgress({
+      estado: 'completado',
+      fechaCompletado: isoDate,
+      vecesCompletado: Number(nextNode.timesCompleted || 1),
+      certificado: nextNode.certificate,
+    });
+  };
 
-            ensurePath(status, ['academia', parentId])[rowId] = nextStatus;
+  const mergeSavedCertificate = (savedCertificate) => {
+    if (!savedCertificate) return;
 
-            const existing =
-                data.academia?.[parentId]?.[rowId] || {};
-
-            ensurePath(data, ['academia', parentId])[rowId] = {
-                ...existing,
-                status: nextStatus,
-                updatedAt: now,
-
-                ...(nextStatus === 'completado' && {
-                    completedDate:
-                        existing.completedDate || now,
-                }),
-
-                ...(nextStatus !== 'completado' && {
-                    completedDate: null,
-                }),
-            };
-
-            localStorage.setItem(statusKey, JSON.stringify(status));
-            localStorage.setItem(dataKey, JSON.stringify(data));
-        }
-
-        if (system === 'sistemaAscenso') {
-            const { sectionId, parentId, rowId } = context;
-
-            ensurePath(status, ['sistemaAscenso', sectionId, parentId])[rowId] = nextStatus;
-
-
-            ensurePath(data, ['sistemaAscenso', sectionId, parentId])[rowId] = {
-                ...(data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {}),
-                status: nextStatus,
-                updatedAt: now,
-
-                ...(nextStatus === 'completado' && {
-                    completedDate:
-                        data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]
-                            ?.completedDate || new Date().toISOString(),
-                    timesCompleted:
-                        data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]
-                            ?.timesCompleted || 1,
-                }),
-
-                ...(nextStatus !== 'completado' && {
-                    timesCompleted: 0,
-                    completedDate: null,
-                }),
-            };
-
-            localStorage.setItem(statusKey, JSON.stringify(status));
-            localStorage.setItem(dataKey, JSON.stringify(data));
-        }
-
-        window.dispatchEvent(new CustomEvent('awards-status-changed', { detail: { memberId } }));
+    const data = readData();
+    const status = readStatus();
+    const existing = getNode(data);
+    const nextNode = {
+      ...existing,
+      certificate: savedCertificate,
+      status: 'completado',
+      timesCompleted:
+        system === 'sistemaAscenso' ? existing.timesCompleted || 1 : existing.timesCompleted,
+      completedDate:
+        existing.completedDate || savedCertificate.uploadedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const setCompletedDate = (isoDate) => {
-        if (!isoDate) return;
+    setStatusValue(status, 'completado');
+    setNode(data, nextNode);
+    saveAll(status, data);
+  };
 
-        const status = readStatus();
-        const data = readData();
-        const now = new Date().toISOString();
+  const uploadCertificate = (certificate) => {
+    if (!certificate) return;
 
-        if (system === 'academia') {
-            const { parentId, rowId } = context;
-
-            ensurePath(status, ['academia', parentId])[rowId] = 'completado';
-
-            ensurePath(data, ['academia', parentId])[rowId] = {
-                ...(data.academia?.[parentId]?.[rowId] || {}),
-                status: 'completado',
-                completedDate: isoDate,
-                updatedAt: now,
-            };
-        }
-
-        if (system === 'sistemaAscenso') {
-            const { sectionId, parentId, rowId } = context;
-
-            ensurePath(status, ['sistemaAscenso', sectionId, parentId])[rowId] = 'completado';
-
-            ensurePath(data, ['sistemaAscenso', sectionId, parentId])[rowId] = {
-                ...(data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {}),
-                status: 'completado',
-                completedDate: isoDate,
-                updatedAt: now,
-            };
-        }
-
-        saveAll(status, data);
+    const now = new Date().toISOString();
+    const status = readStatus();
+    const data = readData();
+    const existing = getNode(data);
+    const localCertificate = {
+      ...certificate,
+      uploadedAt: certificate.uploadedAt || now,
+    };
+    const nextNode = {
+      ...existing,
+      status: 'completado',
+      certificate: localCertificate,
+      timesCompleted:
+        system === 'sistemaAscenso' ? existing.timesCompleted || 1 : existing.timesCompleted,
+      completedDate: existing.completedDate || localCertificate.uploadedAt,
+      updatedAt: now,
     };
 
+    setStatusValue(status, 'completado');
+    setNode(data, nextNode);
+    saveAll(status, data);
 
-    const uploadCertificate = (certificate) => {
-        if (!certificate) return;
-        setStatus('completado');
+    guardarCertificadoAscensoManual({
+      idMiembro: memberId,
+      sistema: system,
+      context,
+      metadata,
+      certificate: localCertificate,
+    })
+      .then(mergeSavedCertificate)
+      .catch((error) => {
+        console.error('[Awards] No se pudo guardar el certificado en Firebase.', error);
+      });
+  };
 
-        const data = readData();
-        const now = new Date().toISOString();
+  const deleteCertificate = () => {
+    const data = readData();
+    const existing = getNode(data);
 
-        if (system === 'academia') {
-            const { parentId, rowId } = context;
-            ensurePath(data, ['academia', parentId])[rowId].certificate =
-                certificate;
-            ensurePath(data, ['academia', parentId])[rowId].updatedAt = now;
-        }
+    if (!existing) return;
 
-        if (system === 'sistemaAscenso') {
-            const { sectionId, parentId, rowId } = context;
-            ensurePath(data, ['sistemaAscenso', sectionId, parentId])[rowId] = {
-                ...(data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {}),
-                certificate,
-                timesCompleted:
-                    data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]
-                        ?.timesCompleted || 1,
-                completedDate:
-                    data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]
-                        ?.completedDate || new Date().toISOString(),
-                updatedAt: now,
-            };
-        }
-
-        saveAll(readStatus(), data);
+    const nextNode = {
+      ...existing,
+      certificate: null,
+      updatedAt: new Date().toISOString(),
     };
 
-    const deleteCertificate = () => {
-        const data = readData();
-        const now = new Date().toISOString();
+    setNode(data, nextNode);
+    saveAll(readStatus(), data);
 
-        if (system === 'academia') {
-            const { parentId, rowId } = context;
-            if (data.academia?.[parentId]?.[rowId]) {
-                delete data.academia[parentId][rowId].certificate;
-                data.academia[parentId][rowId].updatedAt = now;
-            }
-        }
+    persistProgress({
+      estado: nextNode.status || 'no_iniciado',
+      fechaCompletado: nextNode.completedDate,
+      vecesCompletado: Number(nextNode.timesCompleted || 0),
+      certificado: null,
+    });
+  };
 
-        if (system === 'sistemaAscenso') {
-            const { sectionId, parentId, rowId } = context;
-            if (data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]) {
-                delete data.sistemaAscenso[sectionId][parentId][rowId]
-                    .certificate;
-                data.sistemaAscenso[sectionId][parentId][rowId].updatedAt = now;
-            }
-        }
+  const updateTimesCompleted = (value) => {
+    if (system !== 'sistemaAscenso') return;
 
-        saveAll(readStatus(), data);
+    const data = readData();
+    const status = readStatus();
+    const now = new Date().toISOString();
+    const safe = Math.min(10, Math.max(0, value));
+    const existing = getNode(data);
+    const nextStatus = safe > 0 ? 'completado' : 'no_iniciado';
+    const nextNode = {
+      ...existing,
+      timesCompleted: safe,
+      status: nextStatus,
+      completedDate: safe > 0 ? existing.completedDate || now : null,
+      updatedAt: now,
     };
 
-    const updateTimesCompleted = (value) => {
-        if (system !== 'sistemaAscenso') return;
+    setNode(data, nextNode);
+    setStatusValue(status, nextStatus);
+    saveAll(status, data);
 
-        const data = readData();
-        const now = new Date().toISOString();
-        const safe = Math.min(10, Math.max(0, value));
-        const { sectionId, parentId, rowId } = context;
+    persistProgress({
+      estado: nextStatus,
+      fechaCompletado: nextNode.completedDate,
+      vecesCompletado: safe,
+      certificado: nextNode.certificate,
+    });
+  };
 
-        ensurePath(data, ['sistemaAscenso', sectionId, parentId])[rowId] = {
-            ...(data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {}),
-            timesCompleted: safe,
-            ...(safe > 0 && {
-                completedDate:
-                    data.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]
-                        ?.completedDate || new Date().toISOString(),
-                status: 'completado',
-            }),
-            updatedAt: now,
-        };
+  const requireCertificateDeletion = ({ hasCertificate, nextStatus, onConfirm }) => {
+    if (!hasCertificate) {
+      setStatus(nextStatus);
+      return undefined;
+    }
 
-        const status = readStatus();
-        ensurePath(status, ['sistemaAscenso', sectionId, parentId])[rowId] =
-            safe > 0 ? 'completado' : 'no_iniciado';
-
-        saveAll(status, data);
-
+    return () => {
+      deleteCertificate();
+      setStatus(nextStatus);
+      onConfirm?.();
     };
-    const requireCertificateDeletion = ({
-        hasCertificate,
-        nextStatus,
-        onConfirm,
-    }) => {
-        if (!hasCertificate) {
-            setStatus(nextStatus);
-            return;
-        }
+  };
 
-        // Retornamos una función que el componente puede usar
-        return () => {
-            deleteCertificate();
-            setStatus(nextStatus);
-            onConfirm?.();
-        };
-    };
-
-    return {
-        setStatus,
-        setCompletedDate,
-        uploadCertificate,
-        deleteCertificate,
-        updateTimesCompleted,
-        requireCertificateDeletion,
-    };
+  return {
+    setStatus,
+    setCompletedDate,
+    uploadCertificate,
+    deleteCertificate,
+    updateTimesCompleted,
+    requireCertificateDeletion,
+  };
 }
