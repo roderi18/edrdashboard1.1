@@ -30,6 +30,7 @@ import { createAwardsActions } from 'src/sections/member/awards/components/core/
 import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
 import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -46,6 +47,7 @@ export function FileManagerFileDetails({
   isGridView = false,
   ...other
 }) {
+  const { user } = useAuthContext();
   const shareDialog = useBoolean();
   const showTags = useBoolean(false); //desplegable cerrado por default
   const showDescription = useBoolean(true);
@@ -91,6 +93,7 @@ export function FileManagerFileDetails({
       nombreGrupo: file?.parentName || file?.parentId,
       idDivision: file?.sectionId || '',
     },
+    user,
   });
 
   useEffect(() => {

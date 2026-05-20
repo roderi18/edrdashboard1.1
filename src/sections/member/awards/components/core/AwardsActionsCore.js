@@ -6,6 +6,7 @@ export function createAwardsActions({
   memberId,
   context, // { sectionId?, parentId, rowId }
   metadata = {},
+  user,
 }) {
   const statusKey = `awards-status-${memberId}`;
 
@@ -93,6 +94,7 @@ export function createAwardsActions({
     guardarProgresoAscensoMiembro({
       idMiembro: memberId,
       vinculo: getVinculo(),
+      user,
       ...overrides,
     }).catch((error) => {
       console.error('[Awards] No se pudo guardar el progreso en Firebase.', error);

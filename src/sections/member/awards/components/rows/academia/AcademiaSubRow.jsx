@@ -9,6 +9,7 @@ import { useBorderPulse } from 'src/sections/member/awards/hooks/useBorderPulse'
 import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
+import { useAuthContext } from 'src/auth/hooks';
 
 export function AcademiaSubRow({
   memberId,
@@ -21,6 +22,7 @@ export function AcademiaSubRow({
   onCertificateUploaded,
   onCertificateDeleted,
 }) {
+  const { user } = useAuthContext();
   const [localStatus, setLocalStatus] = useState('no_iniciado');
   const [certificateFile, setCertificateFile] = useState(null);
   const [hasCertificate, setHasCertificate] = useState(false);
@@ -31,6 +33,7 @@ export function AcademiaSubRow({
     memberId,
     context: { parentId, rowId },
     metadata,
+    user,
   });
 
   useAwardsSync({

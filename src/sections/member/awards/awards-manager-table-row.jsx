@@ -27,6 +27,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
 import { getCustomFileIcon } from 'src/sections/member/awards/utils/get-file-icon';
+import { useAwardFavorite } from 'src/sections/member/awards/hooks/use-award-favorite';
 import { FileItemActions } from 'src/sections/file-manager/file-manager-file-item-slots';
 import { DownloadCertificateMenuItem } from 'src/sections/member/awards/components/certificate/DownloadCertificateMenuItem';
 
@@ -103,7 +104,11 @@ export function AwardsManagerTableRow({
   const detailsDrawer = useBoolean();
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
-  const favorite = useBoolean(row.isFavorited);
+  const { favorited, onToggleFavorite } = useAwardFavorite({
+    memberId,
+    item: row,
+    initialValue: row.isFavorited,
+  });
   const [academiaCertificate, setAcademiaCertificate] = useState(null);
   const [ascensoCertificate, setAscensoCertificate] = useState(null);
   const [deleteCertCtx, setDeleteCertCtx] = useState(null);
@@ -313,8 +318,8 @@ export function AwardsManagerTableRow({
             ? 'sistemaAscenso'
             : 'academia'
         }
-        favorited={favorite.value}
-        onFavorite={favorite.onToggle}
+        favorited={favorited}
+        onFavorite={onToggleFavorite}
         onCopyLink={handleCopy}
         open={detailsDrawer.value}
         onClose={detailsDrawer.onFalse}
@@ -597,8 +602,8 @@ export function AwardsManagerTableRow({
         <TableCell align="right" sx={{ px: 0 }}>
           <FileItemActions
             id={row.id}
-            checked={favorite.value}
-            onChange={favorite.onToggle}
+            checked={favorited}
+            onChange={onToggleFavorite}
             openMenu={menuActions.open}
             onOpenMenu={menuActions.onOpen}
             sx={{ position: 'static' }}

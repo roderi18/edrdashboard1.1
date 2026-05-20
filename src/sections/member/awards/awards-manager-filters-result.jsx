@@ -8,7 +8,13 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 
 // ----------------------------------------------------------------------
 
-export function AwardsManagerFiltersResult({ filters, onResetPage, totalResults, sx }) {
+export function AwardsManagerFiltersResult({
+  filters,
+  onResetPage,
+  totalResults,
+  showStatusFilter = true,
+  sx,
+}) {
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
@@ -60,7 +66,7 @@ export function AwardsManagerFiltersResult({ filters, onResetPage, totalResults,
         ))}
       </FiltersBlock>
 
-      <FiltersBlock label="Estado:" isShow={!!currentFilters.status?.length}>
+      <FiltersBlock label="Estado:" isShow={showStatusFilter && !!currentFilters.status?.length}>
         {currentFilters.status?.map((item) => (
           <Chip
             {...chipProps}

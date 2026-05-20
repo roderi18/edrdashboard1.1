@@ -3,31 +3,29 @@
 
 import { useState, useCallback } from 'react';
 import { useBoolean, usePopover, useCopyToClipboard } from 'minimal-shared/hooks';
-import dayjs from 'dayjs';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 
-import { fData } from 'src/utils/format-number';
-import { fDateTime } from 'src/utils/format-time';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
-import { FileManagerFileDetails } from './awards-manager-file-details';
 import {
   FileItem,
-  AwardsItemIcon,
   FileItemInfo,
+  AwardsItemIcon,
   FileItemAvatar,
   FileItemActions,
   FileItemActionOverlay,
 } from 'src/sections/member/awards/awards-manager-file-item-slots';
+
+import { useAwardFavorite } from './hooks/use-award-favorite';
+import { FileManagerFileDetails } from './awards-manager-file-details';
+import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import { getCompletionGridLabel } from './utils/get-completion-grid-label';
 
 // } from 'src/sections/file-manager/awards-manager-file-item-slots';
@@ -47,7 +45,11 @@ export function FileManagerFileItem({ file, selected, onSelect, isGridView = fal
   const menuActions = usePopover();
 
   const checkbox = useBoolean();
-  const favorite = useBoolean(file.isFavorited);
+  const { favorited, onToggleFavorite } = useAwardFavorite({
+    memberId: file?.memberId,
+    item: file,
+    initialValue: file.isFavorited,
+  });
 
   const { copy } = useCopyToClipboard();
 
@@ -142,8 +144,8 @@ export function FileManagerFileItem({ file, selected, onSelect, isGridView = fal
       file={file}
       memberId={file?.memberId}
       system={file?.systemSent}
-      favorited={favorite.value}
-      onFavorite={favorite.onToggle}
+      favorited={favorited}
+      onFavorite={onToggleFavorite}
       onCopyLink={handleCopy}
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
@@ -213,8 +215,8 @@ export function FileManagerFileItem({ file, selected, onSelect, isGridView = fal
 
         <FileItemActions
           id={file.id}
-          checked={favorite.value}
-          onChange={favorite.onToggle}
+          checked={favorited}
+          onChange={onToggleFavorite}
           openMenu={menuActions.open}
           onOpenMenu={menuActions.onOpen}
         />

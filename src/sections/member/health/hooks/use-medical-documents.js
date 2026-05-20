@@ -195,7 +195,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
       setMedicalDocuments((prev) => prev.filter((item) => item.id !== id));
 
       try {
-        await eliminarDocumentoSaludMiembro(document);
+        await eliminarDocumentoSaludMiembro(document, user);
         toast.success('Documento eliminado');
       } catch (error) {
         console.error(error);
@@ -203,7 +203,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         toast.error('No se pudo eliminar el documento.');
       }
     },
-    [medicalDocuments]
+    [medicalDocuments, user]
   );
 
   const deleteSelected = useCallback(async () => {
@@ -217,14 +217,16 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     table.onSelectAllRows(false, []);
 
     try {
-      await Promise.all(selectedDocuments.map(eliminarDocumentoSaludMiembro));
+      await Promise.all(
+        selectedDocuments.map((documento) => eliminarDocumentoSaludMiembro(documento, user))
+      );
       toast.success(`${selectedDocuments.length} documentos eliminados`);
     } catch (error) {
       console.error(error);
       setMedicalDocuments((prev) => [...selectedDocuments, ...prev]);
       toast.error('No se pudieron eliminar todos los documentos.');
     }
-  }, [medicalDocuments, table]);
+  }, [medicalDocuments, table, user]);
 
   const removeAll = useCallback(() => {
     setMedicalDocuments([]);
@@ -266,7 +268,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         )
       );
 
-      renombrarDocumentoSaludMiembro(currentDoc, finalName)
+      renombrarDocumentoSaludMiembro(currentDoc, finalName, user)
         .then((updatedDocument) => {
           if (updatedDocument) {
             setMedicalDocuments((prev) =>
@@ -285,7 +287,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
       toast.success('Nombre actualizado');
       return true;
     },
-    [invalidNameRegex, medicalDocuments]
+    [invalidNameRegex, medicalDocuments, user]
   );
 
   return {

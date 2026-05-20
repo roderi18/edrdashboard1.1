@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
 export const COLECCION_INFORMACION_MEDICA_BASICA = 'informacion_medica_basica_miembros';
 export const COLECCION_MEDICAMENTOS_MIEMBROS = 'medicamentos_miembros';
@@ -71,6 +72,48 @@ const spanishToYesNo = (value, unknownValue = 'unknown') => {
   if (value === 'no' || value === false) return 'no';
 
   return unknownValue;
+};
+
+const HEALTH_HISTORY_FIELDS = {
+  healthInsurance: 'Tiene seguro médico',
+  insuranceName: 'Nombre del seguro',
+  policyNumber: 'Número de póliza',
+  bloodType: 'Tipo de sangre',
+  heightApprox: 'Estatura aproximada',
+  heightUnit: 'Unidad de estatura',
+  weightApprox: 'Peso aproximado',
+  weightUnit: 'Unidad de peso',
+  medicalContactName: 'Contacto médico',
+  medicalPrimaryPhone: 'Teléfono principal médico',
+  medicalSecondaryPhone: 'Teléfono alterno médico',
+  medicalRelationship: 'Relación del contacto médico',
+  medicalNotes: 'Notas médicas',
+  hasAllergies: 'Tiene alergias',
+  drugAllergy: 'Alergia a medicamentos',
+  drugAllergyDetails: 'Detalle de alergia a medicamentos',
+  hasFoodAllergies: 'Tiene alergias alimentarias',
+  foodAllergies: 'Alergias alimentarias',
+  foodAllergyOther: 'Otra alergia alimentaria',
+  hasEnvironmentalAllergies: 'Tiene alergias ambientales',
+  environmentalAllergies: 'Alergias ambientales',
+  environmentalAllergyOther: 'Otra alergia ambiental',
+  allergyReaction: 'Tipo de reacción',
+  hasMedicalConditions: 'Tiene condiciones médicas',
+  medicalConditions: 'Condiciones médicas',
+  medicalConditionsOther: 'Otra condición médica',
+  surgeryDetails: 'Detalle de operación',
+  specialCare: 'Cuidados especiales',
+  hasMedication: 'Toma medicamento',
+  medications: 'Medicamentos',
+  selfAdministered: 'Se administra solo',
+  administeredBy: 'Administrado por',
+  useDuringActivities: 'Usa durante actividades',
+  activityTiming: 'Momento de uso en actividad',
+  hasRescueMedication: 'Tiene medicamento de rescate',
+  rescueMedicationName: 'Nombre medicamento de rescate',
+  rescueMedicationUsage: 'Uso medicamento de rescate',
+  rescueMedicationStorage: 'Lugar de guardado medicamento de rescate',
+  medicationObservations: 'Observaciones de medicamento',
 };
 
 const getBasePayload = async ({ coleccion, idMiembros, codigoMiembro, usuario }) => {
@@ -451,6 +494,8 @@ export const guardarSaludMiembro = async ({ idMiembros, codigoMiembro, data, usu
     throw new Error('La informacion de salud necesita idMiembros valido.');
   }
 
+  const historialAnterior = await obtenerSaludMiembro(normalizedId).catch(() => ({}));
+
   await Promise.all([
     guardarInformacionMedicaBasicaMiembro({
       idMiembros: normalizedId,
@@ -467,4 +512,21 @@ export const guardarSaludMiembro = async ({ idMiembros, codigoMiembro, data, usu
     }),
     guardarMedicamentosMiembro({ idMiembros: normalizedId, codigoMiembro, data, usuario }),
   ]);
+
+  const historialNuevo = await obtenerSaludMiembro(normalizedId).catch(() => data);
+
+  registrarCambiosHistorialMiembro({
+    idMiembro: normalizedId,
+    codigoMiembro,
+    modulo: 'Dispensa médica',
+    antes: historialAnterior,
+    despues: historialNuevo,
+    campos: HEALTH_HISTORY_FIELDS,
+    usuario,
+    metadata: {
+      origen: 'member-health-service',
+    },
+  }).catch((error) => {
+    console.error('[member health] member history failed', error);
+  });
 };

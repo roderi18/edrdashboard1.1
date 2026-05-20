@@ -10,12 +10,24 @@ import {
 } from 'firebase/firestore';
 
 import { getMemberById } from 'src/services/member-service';
-
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
 export const COLECCION_ITEMS_ASCENSO = 'itemsAscenso';
 export const COLECCION_PROGRESO_ASCENSO_MIEMBROS = 'progresoAscensoMiembros';
 export const COLECCION_VINCULOS_CERTIFICADOS_ASCENSO = 'vinculosCertificadosAscenso';
+export const COLECCION_FAVORITOS_ASCENSO_MIEMBROS = 'favoritosAscensoMiembros';
+
+const AWARD_PROGRESS_HISTORY_FIELDS = {
+  estado: 'Estado',
+  fechaCompletado: 'Fecha completado',
+  vecesCompletado: 'Veces completado',
+  idCertificadoActual: 'Certificado actual',
+};
+
+const AWARD_FAVORITE_HISTORY_FIELDS = {
+  favorito: 'Favorito',
+};
 
 export const normalizeIdSegment = (value = '') =>
   String(value || 'archivo')
@@ -287,6 +299,25 @@ export const guardarProgresoAscensoMiembro = async ({
     { merge: true }
   );
 
+  registrarCambiosHistorialMiembro({
+    idMiembro: finalIdMiembro,
+    codigoMiembro: finalCodigoMiembro,
+    nombreMiembro: finalNombreMiembro,
+    modulo: 'Sistema de Ascenso',
+    antes: previous,
+    despues: document,
+    campos: AWARD_PROGRESS_HISTORY_FIELDS,
+    usuario: user,
+    metadata: {
+      origen: 'member-awards-service',
+      idItemAscenso: vinculo.idItemAscenso,
+      nombreItemAscenso: vinculo.nombreItemAscenso,
+      sistema: vinculo.sistema,
+    },
+  }).catch((error) => {
+    console.error('[Awards] No se pudo guardar historial del miembro.', error);
+  });
+
   return document;
 };
 
@@ -382,4 +413,81 @@ export const sincronizarProgresoAscensoLocal = async (idMiembro) => {
   }
 
   return result;
+};
+
+export const listarFavoritosAscensoMiembro = async (idMiembro) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idMiembro) return {};
+
+  const snap = await getDoc(
+    doc(FIRESTORE, COLECCION_FAVORITOS_ASCENSO_MIEMBROS, String(idMiembro))
+  ).catch(() => null);
+
+  if (!snap?.exists?.()) return {};
+
+  const data = snap.data() || {};
+
+  return data.elementos || data.items || {};
+};
+
+export const guardarFavoritoAscensoMiembro = async ({
+  idMiembro,
+  itemId,
+  favorito,
+  item = {},
+  user,
+} = {}) => {
+  if (!idMiembro || !itemId) return null;
+
+  const key = String(itemId);
+  const now = new Date().toISOString();
+  const payload = {
+    favorito: Boolean(favorito),
+    idItem: key,
+    nombreItem: item.name || item.nombre || '',
+    tipoItem: item.type || '',
+    idPadre: item.parentId || '',
+    actualizadoEn: now,
+    actualizadoPor: getCreator(user),
+  };
+
+  if (!isFirebaseConfigured || !FIRESTORE) return payload;
+
+  const docRef = doc(FIRESTORE, COLECCION_FAVORITOS_ASCENSO_MIEMBROS, String(idMiembro));
+  const currentSnap = await getDoc(docRef).catch(() => null);
+  const currentData = currentSnap?.exists?.() ? currentSnap.data() || {} : {};
+  const currentItems = currentData.elementos || currentData.items || {};
+  const previousItem = currentItems[key] || {};
+
+  await setDoc(
+    docRef,
+    {
+      idMiembro: String(idMiembro),
+      elementos: {
+        ...currentItems,
+        [key]: payload,
+      },
+      actualizadoEn: now,
+      actualizadoEnServidor: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  registrarCambiosHistorialMiembro({
+    idMiembro: String(idMiembro),
+    modulo: 'Sistema de Ascenso',
+    antes: previousItem,
+    despues: payload,
+    campos: AWARD_FAVORITE_HISTORY_FIELDS,
+    usuario: user,
+    metadata: {
+      origen: 'member-awards-service',
+      idItem: key,
+      nombreItem: payload.nombreItem,
+      tipoItem: payload.tipoItem,
+    },
+  }).catch((error) => {
+    console.error('[Awards] No se pudo guardar historial de favorito.', error);
+  });
+
+  return payload;
 };

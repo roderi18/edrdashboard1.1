@@ -4,6 +4,10 @@ import { doc, query, where, setDoc, getDocs, deleteDoc, collection } from 'fireb
 import { uploadFilesToStorage } from 'src/utils/firebase-file-storage';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
+import {
+  crearRegistroHistorialMiembro,
+  registrarCambiosHistorialMiembro,
+} from 'src/services/member-history-service';
 
 export const COLECCION_DOCUMENTOS_SALUD_MIEMBROS = 'documentos_salud_miembros';
 
@@ -150,10 +154,33 @@ export const subirDocumentosSaludMiembro = async ({
     )
   );
 
+  await Promise.all(
+    documents.map((documento) =>
+      crearRegistroHistorialMiembro({
+        idMiembro: idMiembros,
+        codigoMiembro,
+        modulo: 'Dispensa médica',
+        campo: 'documentoSalud',
+        campoAfectado: 'Documento de salud',
+        antes: '',
+        despues: documento.nombreArchivo,
+        usuario: creadoPor,
+        metadata: {
+          origen: 'member-health-documents-service',
+          accion: 'subir_documento',
+          idDocumento: documento.idDocumento,
+          tipoDocumentoSalud: documento.tipoDocumentoSalud,
+        },
+      })
+    )
+  ).catch((error) => {
+    console.error('[member health documents] member history failed', error);
+  });
+
   return documents.map(mapearDocumentoSaludFirestoreAUi);
 };
 
-export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre) => {
+export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre, usuario) => {
   if (!isFirebaseConfigured || !FIRESTORE || !documento?.id) return null;
 
   const now = new Date().toISOString();
@@ -169,6 +196,23 @@ export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre) => 
     { merge: true }
   );
 
+  registrarCambiosHistorialMiembro({
+    idMiembro: documento.idMiembros,
+    codigoMiembro: documento.codigoMiembro,
+    modulo: 'Dispensa médica',
+    antes: { nombreArchivo: documento.name || documento.nombreArchivo || '' },
+    despues: { nombreArchivo: nuevoNombre },
+    campos: { nombreArchivo: 'Nombre del documento de salud' },
+    usuario,
+    metadata: {
+      origen: 'member-health-documents-service',
+      accion: 'renombrar_documento',
+      idDocumento: documento.id,
+    },
+  }).catch((error) => {
+    console.error('[member health documents] member history failed', error);
+  });
+
   return mapearDocumentoSaludFirestoreAUi({
     ...documento,
     idDocumento: documento.id,
@@ -178,7 +222,7 @@ export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre) => 
   });
 };
 
-export const eliminarDocumentoSaludMiembro = async (documento) => {
+export const eliminarDocumentoSaludMiembro = async (documento, usuario) => {
   const fileId = typeof documento === 'string' ? documento : documento?.id;
   const storagePath = typeof documento === 'string' ? '' : documento?.storagePath;
 
@@ -189,4 +233,24 @@ export const eliminarDocumentoSaludMiembro = async (documento) => {
   }
 
   await deleteDoc(doc(FIRESTORE, COLECCION_DOCUMENTOS_SALUD_MIEMBROS, String(fileId)));
+
+  if (typeof documento !== 'string') {
+    crearRegistroHistorialMiembro({
+      idMiembro: documento.idMiembros,
+      codigoMiembro: documento.codigoMiembro,
+      modulo: 'Dispensa médica',
+      campo: 'documentoSalud',
+      campoAfectado: 'Documento de salud',
+      antes: documento.name || documento.nombreArchivo || fileId,
+      despues: '',
+      usuario,
+      metadata: {
+        origen: 'member-health-documents-service',
+        accion: 'eliminar_documento',
+        idDocumento: fileId,
+      },
+    }).catch((error) => {
+      console.error('[member health documents] member history failed', error);
+    });
+  }
 };

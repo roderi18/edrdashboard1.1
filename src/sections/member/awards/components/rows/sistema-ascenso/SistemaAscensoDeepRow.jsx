@@ -19,6 +19,7 @@ import { CertificateMenuActions } from 'src/sections/member/awards/components/ce
 import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
+import { useAuthContext } from 'src/auth/hooks';
 
 export function SistemaAscensoDeepRow({
   memberId,
@@ -33,6 +34,7 @@ export function SistemaAscensoDeepRow({
   onCertificateUploaded,
   onCertificateDeleted,
 }) {
+  const { user } = useAuthContext();
   const [status, setLocalStatus] = useState('no_iniciado');
   const [certificateFile, setCertificateFile] = useState(null);
   const [hasCertificate, setHasCertificate] = useState(false);
@@ -65,6 +67,7 @@ export function SistemaAscensoDeepRow({
       rowId,
     },
     metadata,
+    user,
   });
 
   useAwardsSync({

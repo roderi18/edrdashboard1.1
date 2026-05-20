@@ -13,15 +13,16 @@ import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
+import { useAwardFavorite } from './hooks/use-award-favorite';
 import { FileManagerFileDetails } from './awards-manager-file-details';
+import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import {
   FileItem,
   FileItemInfo,
   FileItemAvatar,
   FileItemActions,
   FileItemActionOverlay,
-} from './file-manager-file-item-slots';
+} from './awards-manager-file-item-slots';
 
 // ----------------------------------------------------------------------
 
@@ -32,7 +33,11 @@ export function FileRecentItem({ file, onDelete, sx, ...other }) {
 
   const shareDialog = useBoolean();
   const detailsDrawer = useBoolean();
-  const favorite = useBoolean(file.isFavorited);
+  const { favorited, onToggleFavorite } = useAwardFavorite({
+    memberId: file?.memberId,
+    item: file,
+    initialValue: file.isFavorited,
+  });
 
   const [inviteEmail, setInviteEmail] = useState('');
 
@@ -106,8 +111,8 @@ export function FileRecentItem({ file, onDelete, sx, ...other }) {
   const renderFileDetailsDrawer = () => (
     <FileManagerFileDetails
       file={file}
-      favorited={favorite.value}
-      onFavorite={favorite.onToggle}
+      favorited={favorited}
+      onFavorite={onToggleFavorite}
       onCopyLink={handleCopy}
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
@@ -151,8 +156,8 @@ export function FileRecentItem({ file, onDelete, sx, ...other }) {
 
         <FileItemActions
           id={file.id}
-          checked={favorite.value}
-          onChange={favorite.onToggle}
+          checked={favorited}
+          onChange={onToggleFavorite}
           openMenu={menuActions.open}
           onOpenMenu={menuActions.onOpen}
           sx={{ position: { xs: 'absolute', sm: 'unset' } }}

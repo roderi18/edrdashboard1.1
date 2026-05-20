@@ -1,21 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState , useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useTheme, useMediaQuery } from '@mui/material';
-import { useEffect } from 'react';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-import { FILE_TYPE_OPTIONS } from 'src/_mock';
 import { _awards } from 'src/_mock/_awards';
+import { DashboardContent } from 'src/layouts/dashboard';
 import { sincronizarProgresoAscensoLocal } from 'src/services/member-awards-service';
 
 import { toast } from 'src/components/snackbar';
@@ -23,16 +21,15 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { detectFileFormat } from 'src/components/file-thumbnail';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useTable, rowInPage, getComparator } from 'src/components/table';
 
 import { AwardsManagerTable } from '../awards-manager-table';
 import { AwardsManagerFilters } from '../awards-manager-filters';
 import { AwardsManagerGridView } from '../awards-manager-grid-view';
 import { AwardsManagerFiltersResult } from '../awards-manager-filters-result';
-import { AwardsManagerCreateFolderDialog } from '../awards-manager-create-folder-dialog';
-
 import { useAwardsFolderNavigation } from '../hooks/use-awards-folder-navigation';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { AwardsManagerCreateFolderDialog } from '../awards-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -96,7 +93,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   useEffect(() => {
     if (!isMobile) {
       setDelayedActiveInput(null);
-      return;
+      return undefined;
     }
 
     if (activeInput) {
@@ -108,6 +105,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
 
       return () => clearTimeout(timeout);
     }
+
+    return undefined;
   }, [activeInput, isMobile]);
 
   useEffect(() => {
@@ -136,7 +135,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   }, [memberId]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !memberId) return;
+    if (typeof window === 'undefined' || !memberId) return undefined;
 
     const syncLocalStatus = (event) => {
       if (event?.detail?.memberId && String(event.detail.memberId) !== String(memberId)) return;
@@ -189,6 +188,14 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
 
   const isSistemaAscensoDeepSubFolder =
     sistemaAscensoIndex !== -1 && folderBreadcrumbs.length >= sistemaAscensoIndex + 3;
+  const showStatusFilter = isAcademiaSubFolder || isSistemaAscensoDeepSubFolder;
+
+  useEffect(() => {
+    if (!showStatusFilter && currentFilters.status?.length) {
+      filters.setState({ status: [] });
+      table.onResetPage();
+    }
+  }, [currentFilters.status, filters, showStatusFilter, table]);
 
   const SISTEMA_ASCENSO_DEEP_SUBFOLDER_HEAD = [
     { id: 'award', label: 'Premio', width: 50 },
@@ -256,6 +263,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     comparator: getComparator(table.order, table.orderBy),
     filters: currentFilters,
     dateError,
+    showStatusFilter,
   });
 
   const dataWithStats = dataFiltered.map((item) => ({
@@ -270,7 +278,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   const canReset =
     !!currentFilters.name ||
     currentFilters.type.length > 0 ||
-    currentFilters.status?.length > 0 ||
+    (showStatusFilter && currentFilters.status?.length > 0) ||
     (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
@@ -327,11 +335,10 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
           dateError={dateError}
           onResetPage={table.onResetPage}
           openDateRange={dateRange.value}
-          onOpenDateRange={dateRange.onTrue}
           onCloseDateRange={dateRange.onFalse}
-          options={{ types: FILE_TYPE_OPTIONS }}
           activeInput={activeInput}
           setActiveInput={setActiveInput}
+          showStatusFilter={showStatusFilter}
         />
       </Box>
 
@@ -395,6 +402,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       filters={filters}
       totalResults={dataFiltered.length}
       onResetPage={table.onResetPage}
+      showStatusFilter={showStatusFilter}
     />
   );
 
@@ -432,8 +440,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       />
     );
 
-  const renderFolderContent = () => {
-    return (
+  const renderFolderContent = () => (
       <Box sx={{ position: 'relative' }}>
         <Box
           sx={{
@@ -492,7 +499,6 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
         </Box>
       </Box>
     );
-  };
 
   return (
     <>
@@ -518,7 +524,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
 
 // ----------------------------------------------------------------------
 
-function applyFilter({ inputData, comparator, filters, dateError }) {
+function applyFilter({ inputData, comparator, filters, dateError, showStatusFilter = true }) {
   const { name, type, status, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
@@ -539,7 +545,7 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
     inputData = inputData.filter((file) => type.includes(detectFileFormat(file.type)));
   }
 
-  if (status?.length) {
+  if (showStatusFilter && status?.length) {
     inputData = inputData.filter((file) => {
       const realStatus = file.status;
 

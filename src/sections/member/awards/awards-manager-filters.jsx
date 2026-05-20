@@ -1,36 +1,30 @@
+'use client';
+
 import { useCallback } from 'react';
-import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 import { ExpandableSearchInput } from 'src/components/expandable/search/ExpandableSearchInput';
 import { ExpandableMultiSelect } from 'src/components/expandable/select/ExpandableMultiSelect';
-import { useTheme, useMediaQuery } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
 export function AwardsManagerFilters({
   filters,
-  options,
   dateError,
   onResetPage,
   openDateRange,
-  onOpenDateRange,
   onCloseDateRange,
   activeInput,
   setActiveInput,
+  showStatusFilter = true,
 }) {
-  const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { state: currentFilters, setState: updateFilters } = filters;
-  const safeStatus = Array.isArray(currentFilters.status) ? currentFilters.status : [];
-
-  const displayLabel = currentFilters.type.length
-    ? currentFilters.type.slice(0, 2).join(',')
-    : 'All type';
 
   const handleFilterName = useCallback(
     (event) => {
@@ -54,22 +48,6 @@ export function AwardsManagerFilters({
     },
     [updateFilters]
   );
-
-  const handleFilterType = useCallback(
-    (newValue) => {
-      const checked = currentFilters.type.includes(newValue)
-        ? currentFilters.type.filter((value) => value !== newValue)
-        : [...currentFilters.type, newValue];
-
-      updateFilters({ type: checked });
-    },
-    [updateFilters, currentFilters.type]
-  );
-
-  const handleResetType = useCallback(() => {
-    menuActions.onClose();
-    updateFilters({ type: [] });
-  }, [menuActions, updateFilters]);
 
   const handleFilterStatus = useCallback(
     (event) => {
@@ -104,19 +82,17 @@ export function AwardsManagerFilters({
   // );
 
   const renderFilterDate = () => (
-    <>
-      <CustomDateRangePicker
-        variant="calendar"
-        startDate={currentFilters.startDate}
-        endDate={currentFilters.endDate}
-        onChangeStartDate={handleFilterStartDate}
-        onChangeEndDate={handleFilterEndDate}
-        open={openDateRange}
-        onClose={onCloseDateRange}
-        selected={!!currentFilters.startDate && !!currentFilters.endDate}
-        error={dateError}
-      />
-    </>
+    <CustomDateRangePicker
+      variant="calendar"
+      startDate={currentFilters.startDate}
+      endDate={currentFilters.endDate}
+      onChangeStartDate={handleFilterStartDate}
+      onChangeEndDate={handleFilterEndDate}
+      open={openDateRange}
+      onClose={onCloseDateRange}
+      selected={!!currentFilters.startDate && !!currentFilters.endDate}
+      error={dateError}
+    />
   );
 
   return (
@@ -141,16 +117,18 @@ export function AwardsManagerFilters({
       />
 
 
-      <ExpandableMultiSelect
-        label="Estado"
-        value={currentFilters.status || []}
-        onChange={handleFilterStatus}
-        options={['completado', 'en_progreso', 'no_iniciado']}
-        width={{ xs: 140, md: 200 }}
-        compact={isMobile}
-        onOpen={() => setActiveInput('status')}
-        onClose={() => setActiveInput(null)}
-      />
+      {showStatusFilter && (
+        <ExpandableMultiSelect
+          label="Estado"
+          value={currentFilters.status || []}
+          onChange={handleFilterStatus}
+          options={['completado', 'en_progreso', 'no_iniciado']}
+          width={{ xs: 140, md: 200 }}
+          compact={isMobile}
+          onOpen={() => setActiveInput('status')}
+          onClose={() => setActiveInput(null)}
+        />
+      )}
 
 
 

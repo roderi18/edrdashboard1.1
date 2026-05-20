@@ -6,26 +6,24 @@ import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 
-import { fData } from 'src/utils/format-number';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
-import { FileManagerFileDetails } from './awards-manager-file-details';
-import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-dialog';
-import { getCompletedAwards, getTotalAwards } from './utils/get-awards-count';
-
 import {
   FileItem,
-  AwardsItemIcon,
   FileItemInfo,
+  AwardsItemIcon,
   FileItemAvatar,
   FileItemActions,
-  FileItemActionOverlay,
 } from 'src/sections/member/awards/awards-manager-file-item-slots';
+
+import { useAwardFavorite } from './hooks/use-award-favorite';
+import { FileManagerFileDetails } from './awards-manager-file-details';
+import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
+import { getTotalAwards, getCompletedAwards } from './utils/get-awards-count';
+import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -37,7 +35,11 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
   const editFolderDialog = useBoolean();
 
   const checkbox = useBoolean();
-  const favorite = useBoolean(folder.isFavorited);
+  const { favorited, onToggleFavorite } = useAwardFavorite({
+    memberId: folder?.memberId,
+    item: folder,
+    initialValue: folder.isFavorited,
+  });
 
   const menuActions = usePopover();
 
@@ -191,8 +193,8 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
   const renderFileDetailsDrawer = () => (
     <FileManagerFileDetails
       file={folder}
-      favorited={favorite.value}
-      onFavorite={favorite.onToggle}
+      favorited={favorited}
+      onFavorite={onToggleFavorite}
       onCopyLink={handleCopy}
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
@@ -264,12 +266,8 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
 
         <FileItemActions
           id={folder.id}
-          checked={favorite.value}
-          onChange={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            favorite.onToggle();
-          }}
+          checked={favorited}
+          onChange={onToggleFavorite}
           openMenu={menuActions.open}
           onOpenMenu={(e) => {
             e.preventDefault();

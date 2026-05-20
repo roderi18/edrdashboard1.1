@@ -57,6 +57,7 @@ import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { crearNotificacionMiembroCreado } from 'src/services/notification-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
+import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
 // components
 import { Label } from 'src/components/label';
@@ -197,6 +198,47 @@ const getRowsFromApi = (payload) => {
 };
 
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
+
+const MEMBER_HISTORY_FIELDS = {
+  codigoMiembro: 'Código de miembro',
+  nombres: 'Nombres',
+  apellidos: 'Apellidos',
+  genero: 'Género',
+  fechaNacimiento: 'Fecha de nacimiento',
+  idDestacamento: 'Destacamento',
+  telefono: 'Teléfono',
+  direccion: 'Dirección',
+  correo: 'Correo',
+  idCargoLocal: 'Cargo local',
+  idCargoInstitucional: 'Cargo institucional',
+  idDivision: 'División',
+  instructorCertificadoCi: 'Instructor certificado CI',
+  estatusVigenciaCi: 'Estatus vigencia CI',
+  fechaInicioCertificado: 'Fecha inicio certificado CI',
+  fechaFinCertificado: 'Fecha vencimiento certificado CI',
+};
+
+const mapCurrentMemberToHistoryPayload = (member = {}) => ({
+  codigoMiembro: member.codigoMiembro || member.memberId || '',
+  nombres: member.nombres || member.firstName || '',
+  apellidos: member.apellidos || member.lastName || '',
+  genero:
+    member.genero ||
+    (member.gender === 'Masculino' ? 'M' : member.gender === 'Femenino' ? 'F' : member.gender) ||
+    '',
+  fechaNacimiento: member.fechaNacimiento || member.birthDate || null,
+  idDestacamento: member.idDestacamento ?? member.destId ?? null,
+  telefono: member.telefono || member.phoneNumber || '',
+  direccion: member.direccion || member.memberAddress || '',
+  correo: member.correo || member.email || '',
+  idCargoLocal: member.idCargoLocal ?? null,
+  idCargoInstitucional: member.idCargoInstitucional ?? null,
+  idDivision: member.idDivision ?? null,
+  instructorCertificadoCi: member.instructorCertificadoCi ?? member.InstructorCertificadoCI ?? null,
+  estatusVigenciaCi: member.estatusVigenciaCi ?? member.EstatusVigenciaCI ?? null,
+  fechaInicioCertificado: member.fechaInicioCertificado || member.FechaInicioCI || null,
+  fechaFinCertificado: member.fechaFinCertificado || member.FechaVencimientoCI || null,
+});
 
 const hasDuplicatedCodigoMiembro = (membersList, codigoMiembro, currentMemberId) => {
   const normalizedCodigoMiembro = normalizeMemberUsername(codigoMiembro);
@@ -641,6 +683,23 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
       subidoPor: user?.uid || user?.id || null,
     });
 
+    registrarCambiosHistorialMiembro({
+      idMiembro: idMiembros,
+      codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+      nombreMiembro: memberFullName,
+      modulo: 'Información general',
+      antes: { fotoPerfil: currentMember?.avatarUrl || '' },
+      despues: { fotoPerfil: photo.urlFoto || '' },
+      campos: { fotoPerfil: 'Foto de perfil' },
+      usuario: user,
+      metadata: {
+        origen: 'member-create-edit-form',
+        accion: 'foto_perfil',
+      },
+    }).catch((historyError) => {
+      console.error('[member form] member photo history failed', historyError);
+    });
+
     if (showSuccess) {
       toast.success(getImageOptimizationMessage(info));
     }
@@ -863,6 +922,32 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           } catch (notificationError) {
             console.error('[member form] member notification failed', notificationError);
           }
+        }
+
+        const historyMemberId =
+          currentMember?.id ||
+          savedMember?.id ||
+          responseData?.idMiembros ||
+          responseData?.data?.idMiembros ||
+          responseData?.Data?.idMiembros;
+
+        if (historyMemberId) {
+          registrarCambiosHistorialMiembro({
+            idMiembro: historyMemberId,
+            codigoMiembro,
+            nombreMiembro: `${submittedFirstName} ${submittedLastName}`.trim(),
+            modulo: 'Información general',
+            antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : {},
+            despues: payload,
+            campos: MEMBER_HISTORY_FIELDS,
+            usuario: user,
+            metadata: {
+              origen: 'member-create-edit-form',
+              accion: currentMember ? 'actualizacion' : 'creacion',
+            },
+          }).catch((historyError) => {
+            console.error('[member form] member history failed', historyError);
+          });
         }
 
         const selectedPhoto = formData.avatarUrl;
