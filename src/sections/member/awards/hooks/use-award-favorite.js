@@ -9,25 +9,18 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-const getStorageKey = (memberId) => `awards-favorites-${memberId}`;
+const favoriteCache = new Map();
 
-const readLocalFavorites = (memberId) => {
-  if (typeof window === 'undefined' || !memberId) return {};
+const readCachedFavorites = (memberId) =>
+  memberId ? favoriteCache.get(String(memberId)) || {} : {};
 
-  try {
-    return JSON.parse(window.localStorage.getItem(getStorageKey(memberId)) || '{}');
-  } catch {
-    return {};
-  }
-};
-
-const writeLocalFavorite = (memberId, itemId, payload) => {
+const writeCachedFavorite = (memberId, itemId, payload) => {
   if (typeof window === 'undefined' || !memberId || !itemId) return;
 
-  const current = readLocalFavorites(memberId);
+  const current = readCachedFavorites(memberId);
   const next = { ...current, [String(itemId)]: payload };
 
-  window.localStorage.setItem(getStorageKey(memberId), JSON.stringify(next));
+  favoriteCache.set(String(memberId), next);
   window.dispatchEvent(
     new CustomEvent('awards-favorites-changed', {
       detail: { memberId: String(memberId), itemId: String(itemId) },
@@ -40,8 +33,8 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
   const itemId = item?.id;
   const [favorited, setFavorited] = useState(Boolean(initialValue));
 
-  const localFavorite = useMemo(() => {
-    const stored = readLocalFavorites(memberId)?.[String(itemId)];
+  const cachedFavorite = useMemo(() => {
+    const stored = readCachedFavorites(memberId)?.[String(itemId)];
 
     return stored ? Boolean(stored.favorito) : null;
   }, [memberId, itemId]);
@@ -52,8 +45,8 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
       return undefined;
     }
 
-    if (localFavorite !== null) {
-      setFavorited(localFavorite);
+    if (cachedFavorite !== null) {
+      setFavorited(cachedFavorite);
     }
 
     let active = true;
@@ -64,7 +57,7 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
       const remote = favorites?.[String(itemId)];
 
       if (remote) {
-        writeLocalFavorite(memberId, itemId, remote);
+        writeCachedFavorite(memberId, itemId, remote);
         setFavorited(Boolean(remote.favorito));
       }
     });
@@ -72,19 +65,17 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
     const handleFavoritesChange = (event) => {
       if (event.detail?.memberId && String(event.detail.memberId) !== String(memberId)) return;
 
-      const next = readLocalFavorites(memberId)?.[String(itemId)];
+      const next = readCachedFavorites(memberId)?.[String(itemId)];
       setFavorited(next ? Boolean(next.favorito) : Boolean(initialValue));
     };
 
     window.addEventListener('awards-favorites-changed', handleFavoritesChange);
-    window.addEventListener('storage', handleFavoritesChange);
 
     return () => {
       active = false;
       window.removeEventListener('awards-favorites-changed', handleFavoritesChange);
-      window.removeEventListener('storage', handleFavoritesChange);
     };
-  }, [initialValue, itemId, localFavorite, memberId]);
+  }, [initialValue, itemId, cachedFavorite, memberId]);
 
   const onToggleFavorite = useCallback(
     async (event) => {
@@ -107,7 +98,7 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
       };
 
       setFavorited(nextValue);
-      writeLocalFavorite(memberId, itemId, payload);
+      writeCachedFavorite(memberId, itemId, payload);
 
       try {
         await guardarFavoritoAscensoMiembro({
@@ -117,8 +108,8 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
           item,
           user: user || authUser,
         });
-      } catch (error) {
-        console.error('[Awards] No se pudo guardar favorito en Firebase.', error);
+      } catch {
+        // Keep the optimistic UI state; Firebase will be retried on the next user action.
       }
     },
     [authUser, favorited, item, itemId, memberId, user]

@@ -19,6 +19,12 @@ import DialogActions from '@mui/material/DialogActions';
 import TableRow, { tableRowClasses } from '@mui/material/TableRow';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 
+import {
+  getAwardsProgressCache,
+  setAwardsProgressCache,
+  notifyAwardsProgressChanged,
+} from 'src/services/awards-progress-cache';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -129,10 +135,9 @@ export function AwardsManagerTableRow({
     if (typeof window === 'undefined') return;
     if (!memberId) return;
 
-    const key = `awards-status-${memberId}`;
-    const saved = JSON.parse(localStorage.getItem(key) || '{}');
+    const { status: saved = {} } = getAwardsProgressCache(memberId);
 
-    const value = saved?.['academia-ministerial']?.[row.parentId]?.[row.id];
+    const value = saved?.academia?.[row.parentId]?.[row.id];
 
     if (value) {
       setStatus(value);
@@ -143,8 +148,7 @@ export function AwardsManagerTableRow({
     if (typeof window === 'undefined') return;
     if (!memberId || !isAcademiaSubFolder) return;
 
-    const dataKey = `awards-data-${memberId}`;
-    const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
+    const { data: saved = {} } = getAwardsProgressCache(memberId);
 
     const cert = saved?.academia?.[row.parentId]?.[row.id]?.certificate;
 
@@ -156,8 +160,7 @@ export function AwardsManagerTableRow({
     if (!memberId || !isSistemaAscensoDeepSubFolder) return;
     if (!ascensoSectionId) return;
 
-    const dataKey = `awards-data-${memberId}`;
-    const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
+    const { data: saved = {} } = getAwardsProgressCache(memberId);
 
     const cert = saved?.sistemaAscenso?.[ascensoSectionId]?.[row.parentId]?.[row.id]?.certificate;
 
@@ -352,15 +355,13 @@ export function AwardsManagerTableRow({
           variant="contained"
           color="error"
           onClick={() => {
-            const dataKey = `awards-data-${memberId}`;
-            const saved = JSON.parse(localStorage.getItem(dataKey) || '{}');
+            const { status: cachedStatus, data: saved } = getAwardsProgressCache(memberId);
 
             if (deleteCertCtx?.type === 'academia') {
               const { parentId, rowId } = deleteCertCtx;
 
               if (saved?.academia?.[parentId]?.[rowId]?.certificate) {
                 delete saved.academia[parentId][rowId].certificate;
-                localStorage.setItem(dataKey, JSON.stringify(saved));
               }
 
               setAcademiaCertificate(null);
@@ -371,7 +372,6 @@ export function AwardsManagerTableRow({
 
               if (saved?.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId]?.certificate) {
                 delete saved.sistemaAscenso[sectionId][parentId][rowId].certificate;
-                localStorage.setItem(dataKey, JSON.stringify(saved));
               }
 
               setAscensoCertificate(null);
@@ -379,7 +379,8 @@ export function AwardsManagerTableRow({
 
             setDeleteCertCtx(null);
             confirmDialog.onFalse();
-            window.dispatchEvent(new Event('storage'));
+            setAwardsProgressCache(memberId, { status: cachedStatus, data: saved });
+            notifyAwardsProgressChanged(memberId);
           }}
         >
           Sí, eliminar

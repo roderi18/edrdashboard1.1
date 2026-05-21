@@ -17,7 +17,7 @@ const TreeNode = dynamic(() => import('react-organizational-chart').then((mod) =
 
 // ----------------------------------------------------------------------
 
-export function OrganizationalChart({ data, nodeItem, ...other }) {
+export function OrganizationalChart({ data, nodeItem, nodeClassName, ...other }) {
   const theme = useTheme();
 
   const cloneNode = (props) => cloneElement(nodeItem(props));
@@ -34,7 +34,13 @@ export function OrganizationalChart({ data, nodeItem, ...other }) {
       {...other}
     >
       {data.children.map((list, index) => (
-        <TreeList key={index} depth={1} data={list} nodeItem={nodeItem} />
+        <TreeList
+          key={index}
+          depth={1}
+          data={list}
+          nodeItem={nodeItem}
+          nodeClassName={nodeClassName}
+        />
       ))}
     </Tree>
   );
@@ -42,7 +48,7 @@ export function OrganizationalChart({ data, nodeItem, ...other }) {
 
 // ----------------------------------------------------------------------
 
-function TreeList({ data, depth, nodeItem }) {
+function TreeList({ data, depth, nodeItem, nodeClassName }) {
   const childs = data.children;
 
   const cloneNode = (props) => cloneElement(nodeItem(props));
@@ -52,19 +58,32 @@ function TreeList({ data, depth, nodeItem }) {
   const label = cloneNode({ ...data, depth, totalChildren });
 
   return (
-    <TreeNode label={label}>
-      {childs && <TreeSubList data={childs} depth={depth} nodeItem={nodeItem} />}
+    <TreeNode label={label} className={nodeClassName?.(data)}>
+      {childs && (
+        <TreeSubList
+          data={childs}
+          depth={depth}
+          nodeItem={nodeItem}
+          nodeClassName={nodeClassName}
+        />
+      )}
     </TreeNode>
   );
 }
 
 // ----------------------------------------------------------------------
 
-function TreeSubList({ data, depth, nodeItem }) {
+function TreeSubList({ data, depth, nodeItem, nodeClassName }) {
   return (
     <>
       {data.map((list, index) => (
-        <TreeList key={index} data={list} depth={depth + 1} nodeItem={nodeItem} />
+        <TreeList
+          key={index}
+          data={list}
+          depth={depth + 1}
+          nodeItem={nodeItem}
+          nodeClassName={nodeClassName}
+        />
       ))}
     </>
   );

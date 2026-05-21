@@ -12,6 +12,11 @@ import {
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import {
+  getAwardsProgressCache,
+  setAwardsProgressCache,
+  notifyAwardsProgressChanged,
+} from 'src/services/awards-progress-cache';
 
 export const COLECCION_ITEMS_ASCENSO = 'itemsAscenso';
 export const COLECCION_PROGRESO_ASCENSO_MIEMBROS = 'progresoAscensoMiembros';
@@ -314,9 +319,7 @@ export const guardarProgresoAscensoMiembro = async ({
       nombreItemAscenso: vinculo.nombreItemAscenso,
       sistema: vinculo.sistema,
     },
-  }).catch((error) => {
-    console.error('[Awards] No se pudo guardar historial del miembro.', error);
-  });
+  }).catch(() => null);
 
   return document;
 };
@@ -349,13 +352,12 @@ const toLocalCertificate = (progress) => {
   };
 };
 
-export const mergeAwardsProgressIntoLocalStorage = (idMiembro, progressList = []) => {
-  if (typeof window === 'undefined' || !idMiembro) return { status: {}, data: {} };
+export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => {
+  if (!idMiembro) return { status: {}, data: {} };
 
-  const statusKey = `awards-status-${idMiembro}`;
-  const dataKey = `awards-data-${idMiembro}`;
-  const status = JSON.parse(window.localStorage.getItem(statusKey) || '{}');
-  const data = JSON.parse(window.localStorage.getItem(dataKey) || '{}');
+  const cached = getAwardsProgressCache(idMiembro);
+  const status = { ...(cached.status || {}) };
+  const data = { ...(cached.data || {}) };
 
   progressList.forEach((progress) => {
     const system = progress.sistema === 'sistemaAscenso' ? 'sistemaAscenso' : 'academia';
@@ -396,21 +398,14 @@ export const mergeAwardsProgressIntoLocalStorage = (idMiembro, progressList = []
     }
   });
 
-  window.localStorage.setItem(statusKey, JSON.stringify(status));
-  window.localStorage.setItem(dataKey, JSON.stringify(data));
-
-  return { status, data };
+  return setAwardsProgressCache(idMiembro, { status, data });
 };
 
-export const sincronizarProgresoAscensoLocal = async (idMiembro) => {
+export const sincronizarProgresoAscensoFirebase = async (idMiembro) => {
   const progressList = await listarProgresoAscensoMiembro(idMiembro);
-  const result = mergeAwardsProgressIntoLocalStorage(idMiembro, progressList);
+  const result = combinarProgresoAscensoEnCache(idMiembro, progressList);
 
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('awards-status-changed', { detail: { memberId: idMiembro } })
-    );
-  }
+  notifyAwardsProgressChanged(idMiembro);
 
   return result;
 };
@@ -485,9 +480,7 @@ export const guardarFavoritoAscensoMiembro = async ({
       nombreItem: payload.nombreItem,
       tipoItem: payload.tipoItem,
     },
-  }).catch((error) => {
-    console.error('[Awards] No se pudo guardar historial de favorito.', error);
-  });
+  }).catch(() => null);
 
   return payload;
 };

@@ -1,9 +1,9 @@
-export function getLastUpdatedFromStorage(memberId, scope) {
-    if (!memberId || typeof window === 'undefined') return null;
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
 
-    const data = JSON.parse(
-        localStorage.getItem(`awards-data-${memberId}`) || '{}'
-    );
+export function getLastUpdatedFromStorage(memberId, scope) {
+    if (!memberId) return null;
+
+    const data = getAwardsProgressCache(memberId).data || {};
 
     let latest = null;
 

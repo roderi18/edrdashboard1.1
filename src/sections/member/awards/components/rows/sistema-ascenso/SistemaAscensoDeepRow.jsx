@@ -1,24 +1,15 @@
-import TableCell from '@mui/material/TableCell';
-import MenuItem from '@mui/material/MenuItem';
-import Button from '@mui/material/Button';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { useEffect, useState } from 'react';
-import dayjs from 'dayjs';
-import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
+import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
-import { usePopover } from 'minimal-shared/hooks';
-import MenuList from '@mui/material/MenuList';
-import Divider from '@mui/material/Divider';
-import { CustomPopover } from 'src/components/custom-popover';
-import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
-import { CertificateActionCell } from 'src/sections/member/awards/components/certificate/CertificateActionCell';
-import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
-import { DownloadCertificateMenuItem } from 'src/sections/member/awards/components/certificate/DownloadCertificateMenuItem';
-import { CertificateMenuActions } from 'src/sections/member/awards/components/certificate/CertificateMenuActions';
-import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
+
+import Button from '@mui/material/Button';
+
+import { ConfirmDialog } from 'src/components/custom-dialog';
+
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
+import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
+import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 export function SistemaAscensoDeepRow({
@@ -45,18 +36,10 @@ export function SistemaAscensoDeepRow({
 
   const isCompleted = status === 'completado';
   const pdfViewer = useBoolean();
-  if (typeof window === 'undefined') return null;
 
   const confirmDeleteForStatus = useBoolean();
-  const menuActions = usePopover();
 
   const fileInputId = `cert-upload-${rowId}`;
-  const statusKey = memberId ? `awards-status-${memberId}` : null;
-  const dataKey = memberId ? `awards-data-${memberId}` : null;
-
-  const [view, setView] = useState('year');
-
-  const getRowData = (data) => data?.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] || {};
 
   const actions = createAwardsActions({
     system: 'sistemaAscenso',
@@ -84,38 +67,6 @@ export function SistemaAscensoDeepRow({
     onCertificateUploaded,
     onCertificateDeleted,
   });
-
-  const updateTimesCompleted = (value) => {
-    const next = Math.min(10, Math.max(0, value));
-    setTimesCompleted(next);
-    const now = new Date().toISOString();
-
-    if (!dataKey) return;
-    const currentData = JSON.parse(localStorage.getItem(dataKey) || '{}');
-
-    const updatedData = {
-      ...currentData,
-      sistemaAscenso: {
-        ...(currentData.sistemaAscenso || {}),
-        [sectionId]: {
-          ...((currentData.sistemaAscenso || {})[sectionId] || {}),
-          [parentId]: {
-            ...(((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {}),
-            updatedAt: now, // actualiza Exploradores / Seguidores / etc
-            [rowId]: {
-              ...((((currentData.sistemaAscenso || {})[sectionId] || {})[parentId] || {})[rowId] ||
-                {}),
-              timesCompleted: next,
-              updatedAt: now,
-            },
-          },
-        },
-      },
-    };
-
-    // localStorage.setItem(dataKey, JSON.stringify(updatedData));
-    localStorage.setItem(dataKey, JSON.stringify(updatedData));
-  };
 
   const borderPulseKeyframes = `
 @keyframes borderPulseTwice {

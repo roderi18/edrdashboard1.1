@@ -1,24 +1,32 @@
+import dayjs from 'dayjs';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
+
+import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
+import {
+  getAwardsProgressCache,
+  setAwardsProgressCache,
+  notifyAwardsProgressChanged,
+} from 'src/services/awards-progress-cache';
 
 import { Iconify } from 'src/components/iconify';
 
-import { AwardsManagerPanel } from './awards-manager-panel';
+import { useAuthContext } from 'src/auth/hooks';
+
 import { FileManagerFileItem } from './awards-manager-file-item';
 import { FileManagerFolderItem } from './awards-manager-folder-item';
 import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import { AwardsManagerActionSelected } from './awards-manager-action-selected';
 import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-dialog';
-import dayjs from 'dayjs';
 
 // ----------------------------------------------------------------------
 
 export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteItem, onOpenConfirm, onOpenFolder }) {
+  const { user } = useAuthContext();
   const { selected, onSelectRow: onSelectItem, onSelectAllRows: onSelectAllItems } = table;
   const memberId = table?.memberId;
   const parentId = table?.parentId;
@@ -29,17 +37,13 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
 
 
 
-  const statusKey = memberId ? `awards-status-${memberId}` : null;
-  const dataKey = memberId ? `awards-data-${memberId}` : null;
-
   const handleMarkCompleted = () => {
-    if (!statusKey || !dataKey) return;
+    if (!memberId) return;
 
     const now = new Date().toISOString();
     const today = dayjs().toISOString();
 
-    const currentStatus = JSON.parse(localStorage.getItem(statusKey) || '{}');
-    const currentData = JSON.parse(localStorage.getItem(dataKey) || '{}');
+    const { status: currentStatus = {}, data: currentData = {} } = getAwardsProgressCache(memberId);
 
     const ROOT_ID = 'academia-ministerial';
 
@@ -56,12 +60,29 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
         completedDate: today,
         updatedAt: now,
       };
+
+      guardarProgresoAscensoMiembro({
+        idMiembro: memberId,
+        vinculo: {
+          id: `academia_${parentId}_${rowId}`,
+          idItemAscenso: rowId,
+          nombreItemAscenso: dataFiltered.find((item) => item.id === rowId)?.name || rowId,
+          sistema: 'academia',
+          idDivision: '',
+          nombreDivision: '',
+          idGrupo: parentId,
+          nombreGrupo: allData.find((item) => item.id === parentId)?.name || parentId,
+          activo: true,
+        },
+        estado: 'completado',
+        fechaCompletado: today,
+        vecesCompletado: 1,
+        user,
+      }).catch(() => null);
     });
 
-    localStorage.setItem(statusKey, JSON.stringify(currentStatus));
-    localStorage.setItem(dataKey, JSON.stringify(currentData));
-
-    window.dispatchEvent(new Event('awards-status-changed'));
+    setAwardsProgressCache(memberId, { status: currentStatus, data: currentData });
+    notifyAwardsProgressChanged(memberId);
   };
 
   const containerRef = useRef(null);
@@ -121,9 +142,7 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
   );
 
   const renderFolders = () => (
-    <>
-
-      <Collapse in={!foldersCollapse.value} unmountOnExit>
+    <Collapse in={!foldersCollapse.value} unmountOnExit>
         <Box
           sx={{
             gap: 2.5,
@@ -154,7 +173,6 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
             ))}
         </Box>
       </Collapse>
-    </>
   );
 
   // const renderAwards = () => (

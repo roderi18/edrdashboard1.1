@@ -27,11 +27,18 @@ import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
+import {
+  guardarAsistenciaDestacamento,
+  obtenerAsistenciaDestacamento,
+  obtenerUltimasPresenciasMiembros,
+} from 'src/services/attendance-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -69,8 +76,6 @@ const DIVISION_ICON_PATHS = {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const AUTO_ABSENT_STATUS = 'absent-unmarked';
-
-const getAttendanceStorageKey = (date, destId) => `rr-attendance:${date}:${destId}`;
 
 const getMemberDestId = (member) =>
   member?.idDestacamento ?? member?.destId ?? member?.destacamentoId ?? member?.idDest ?? '';
@@ -195,46 +200,6 @@ const formatAttendanceDate = (value) => {
   return parsed.isValid() ? parsed.format('DD/MM/YYYY') : 'sin registro';
 };
 
-const getStoredLastPresentDates = () => {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-
-  const latestByMemberId = {};
-
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index);
-
-    if (!key?.startsWith('rr-attendance:')) {
-      continue;
-    }
-
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(key) || '{}');
-      const [, keyDate] = key.split(':');
-      const attendanceDate = stored?.date || keyDate;
-      const statuses =
-        stored?.statuses && typeof stored.statuses === 'object' ? stored.statuses : {};
-
-      Object.entries(statuses).forEach(([memberId, status]) => {
-        if (status !== 'present') {
-          return;
-        }
-
-        const currentDate = latestByMemberId[memberId];
-
-        if (!currentDate || dayjs(attendanceDate).isAfter(dayjs(currentDate))) {
-          latestByMemberId[memberId] = attendanceDate;
-        }
-      });
-    } catch {
-      // Ignore malformed local attendance snapshots.
-    }
-  }
-
-  return latestByMemberId;
-};
-
 function AttendanceMemberSkeleton() {
   return (
     <Card sx={{ p: 2.5 }}>
@@ -253,6 +218,7 @@ function AttendanceMemberSkeleton() {
 // ----------------------------------------------------------------------
 
 export function AttendanceQuickView() {
+  const { user } = useAuthContext();
   const menuActions = usePopover();
 
   const [date, setDate] = useState(TODAY);
@@ -264,7 +230,8 @@ export function AttendanceQuickView() {
   const [selectedDivision, setSelectedDivision] = useState('all');
   const [statusByMemberId, setStatusByMemberId] = useState({});
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
-  const [storageReady, setStorageReady] = useState(false);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [savingAttendance, setSavingAttendance] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -288,8 +255,7 @@ export function AttendanceQuickView() {
             (current) => current || String(nextDests[0]?.id ?? nextDests[0]?.idDestacamento ?? '')
           );
         }
-      } catch (error) {
-        console.error('Error loading attendance data:', error);
+      } catch {
         toast.error('No se pudo cargar la lista de asistencia.');
       } finally {
         if (active) {
@@ -354,52 +320,67 @@ export function AttendanceQuickView() {
   }, [search, divisionFilteredMembers]);
 
   useEffect(() => {
-    setStorageReady(false);
+    let active = true;
 
-    if (!selectedDestId) {
-      setStatusByMemberId({});
-      setStorageReady(true);
-      return;
-    }
+    const loadAttendance = async () => {
+      if (!selectedDestId) {
+        setStatusByMemberId({});
+        return;
+      }
 
-    try {
-      const stored = window.localStorage.getItem(getAttendanceStorageKey(date, selectedDestId));
-      const parsed = stored ? JSON.parse(stored) : {};
+      try {
+        setLoadingAttendance(true);
+        const statuses = await obtenerAsistenciaDestacamento({
+          fecha: date,
+          idDestacamento: selectedDestId,
+        });
 
-      setStatusByMemberId(
-        parsed?.statuses && typeof parsed.statuses === 'object' ? parsed.statuses : {}
-      );
-    } catch {
-      setStatusByMemberId({});
-    } finally {
-      setStorageReady(true);
-    }
+        if (active) {
+          setStatusByMemberId(statuses);
+        }
+      } catch (error) {
+        if (active) {
+          setStatusByMemberId({});
+          toast.error(error?.message || 'No se pudo cargar la asistencia desde Firebase.');
+        }
+      } finally {
+        if (active) {
+          setLoadingAttendance(false);
+        }
+      }
+    };
+
+    loadAttendance();
+
+    return () => {
+      active = false;
+    };
   }, [date, selectedDestId]);
 
   useEffect(() => {
-    if (!storageReady || !selectedDestId) {
-      return;
-    }
+    let active = true;
 
-    window.localStorage.setItem(
-      getAttendanceStorageKey(date, selectedDestId),
-      JSON.stringify({
-        date,
-        destId: selectedDestId,
-        destName: selectedDest?.name || '',
-        statuses: statusByMemberId,
-        updatedAt: new Date().toISOString(),
-      })
-    );
-  }, [date, selectedDest, selectedDestId, statusByMemberId, storageReady]);
+    const loadLastPresentDates = async () => {
+      const memberIds = selectedDestMembers.map(getMemberId).filter(Boolean);
 
-  useEffect(() => {
-    if (!storageReady) {
-      return;
-    }
+      if (!memberIds.length) {
+        setLastPresentByMemberId({});
+        return;
+      }
 
-    setLastPresentByMemberId(getStoredLastPresentDates());
-  }, [date, selectedDestId, statusByMemberId, storageReady]);
+      const dates = await obtenerUltimasPresenciasMiembros(memberIds);
+
+      if (active) {
+        setLastPresentByMemberId(dates);
+      }
+    };
+
+    loadLastPresentDates();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDestMembers]);
 
   const counts = useMemo(() => {
     const base = { present: 0, absent: 0, excused: 0, pending: 0 };
@@ -407,7 +388,9 @@ export function AttendanceQuickView() {
     divisionFilteredMembers.forEach((member) => {
       const status = statusByMemberId[getMemberId(member)];
 
-      if (status && base[status] !== undefined) {
+      if (status === AUTO_ABSENT_STATUS) {
+        base.absent += 1;
+      } else if (status && base[status] !== undefined) {
         base[status] += 1;
       } else {
         base.pending += 1;
@@ -447,7 +430,7 @@ export function AttendanceQuickView() {
     setStatusByMemberId({});
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!selectedDestId) {
       return;
     }
@@ -462,19 +445,52 @@ export function AttendanceQuickView() {
       }
     });
 
-    window.localStorage.setItem(
-      getAttendanceStorageKey(date, selectedDestId),
-      JSON.stringify({
-        date,
-        destId: selectedDestId,
-        destName: selectedDest?.name || '',
-        statuses: statusesToSave,
-        updatedAt: new Date().toISOString(),
-      })
-    );
+    try {
+      setSavingAttendance(true);
 
-    toast.success('Asistencia guardada localmente.');
-  }, [date, selectedDest, selectedDestId, statusByMemberId, divisionFilteredMembers]);
+      await guardarAsistenciaDestacamento({
+        fecha: date,
+        destacamento: {
+          idDestacamento: selectedDestId,
+          nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
+        },
+        miembros: divisionFilteredMembers,
+        estados: statusesToSave,
+        usuario: user
+          ? {
+              uid: user.uid || user.id || '',
+              nombre:
+                user.displayName ||
+                user.name ||
+                [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
+                user.email ||
+                '',
+              correo: user.email || '',
+            }
+          : null,
+      });
+
+      setStatusByMemberId(statusesToSave);
+      setLastPresentByMemberId((current) => {
+        const next = { ...current };
+
+        divisionFilteredMembers.forEach((member) => {
+          const memberId = getMemberId(member);
+
+          if (statusesToSave[memberId] === 'present') {
+            next[memberId] = date;
+          }
+        });
+
+        return next;
+      });
+      toast.success('Asistencia guardada en Firebase.');
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar la asistencia en Firebase.');
+    } finally {
+      setSavingAttendance(false);
+    }
+  }, [date, selectedDest, selectedDestId, statusByMemberId, divisionFilteredMembers, user]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -640,6 +656,10 @@ export function AttendanceQuickView() {
         <Stack spacing={1.5}>
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => <AttendanceMemberSkeleton key={index} />)
+          ) : loadingAttendance ? (
+            Array.from({ length: Math.max(visibleMembers.length, 3) }).map((_, index) => (
+              <AttendanceMemberSkeleton key={index} />
+            ))
           ) : (
             <>
               {visibleMembers.map((member) => {
@@ -742,9 +762,9 @@ export function AttendanceQuickView() {
                     variant="contained"
                     startIcon={<Iconify icon="solar:diskette-bold" />}
                     onClick={handleSave}
-                    disabled={!selectedDestId}
+                    disabled={!selectedDestId || savingAttendance}
                   >
-                    Guardar
+                    {savingAttendance ? 'Guardando...' : 'Guardar'}
                   </Button>
                 </Stack>
               )}

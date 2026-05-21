@@ -1,3 +1,6 @@
+import dayjs from 'dayjs';
+import { useState } from 'react';
+
 import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import Tooltip from '@mui/material/Tooltip';
@@ -6,8 +9,13 @@ import IconButton from '@mui/material/IconButton';
 import TableContainer from '@mui/material/TableContainer';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { tablePaginationClasses } from '@mui/material/TablePagination';
-import { useState } from 'react';
-import dayjs from 'dayjs';
+
+import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
+import {
+  getAwardsProgressCache,
+  setAwardsProgressCache,
+  notifyAwardsProgressChanged,
+} from 'src/services/awards-progress-cache';
 
 import { Iconify } from 'src/components/iconify';
 import {
@@ -16,6 +24,8 @@ import {
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { AwardsManagerTableRow } from './awards-manager-table-row';
 
@@ -51,6 +61,7 @@ export function AwardsManagerTable({
 
   ...other
 }) {
+  const { user } = useAuthContext();
   const {
     dense,
     page,
@@ -70,14 +81,10 @@ export function AwardsManagerTable({
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleMarkCompleted = () => {
-    const statusKey = `awards-status-${memberId}`;
-    const dataKey = `awards-data-${memberId}`;
+    const { status: currentStatus = {}, data: currentData = {} } = getAwardsProgressCache(memberId);
 
-    const currentStatus = JSON.parse(localStorage.getItem(statusKey) || '{}');
-    const currentData = JSON.parse(localStorage.getItem(dataKey) || '{}');
-
-    const ROOT_ID = 'sistema-de-ascenso';
-    const ACADEMIA_ROOT_ID = 'academia-ministerial';
+    const ROOT_ID = 'sistemaAscenso';
+    const ACADEMIA_ROOT_ID = 'academia';
     const now = new Date().toISOString();
     const today = dayjs().toISOString();
 
@@ -135,19 +142,31 @@ export function AwardsManagerTable({
         };
       }
 
+      guardarProgresoAscensoMiembro({
+        idMiembro: memberId,
+        vinculo: {
+          id: isAcademiaSubFolder
+            ? `academia_${parentId}_${rowId}`
+            : `sistemaAscenso_${sectionId}_${parentId}_${rowId}`,
+          idItemAscenso: rowId,
+          nombreItemAscenso: row.name || row.nombre || rowId,
+          sistema: isAcademiaSubFolder ? 'academia' : 'sistemaAscenso',
+          idDivision: isAcademiaSubFolder ? '' : sectionId || '',
+          nombreDivision: isAcademiaSubFolder ? '' : allData.find((item) => item.id === sectionId)?.name || '',
+          idGrupo: parentId,
+          nombreGrupo: allData.find((item) => item.id === parentId)?.name || parentId,
+          activo: true,
+        },
+        estado: 'completado',
+        fechaCompletado: today,
+        vecesCompletado: 1,
+        user,
+      }).catch(() => null);
     });
 
-    localStorage.setItem(statusKey, JSON.stringify(currentStatus));
-    localStorage.setItem(dataKey, JSON.stringify(currentData));
+    setAwardsProgressCache(memberId, { status: currentStatus, data: currentData });
     setRefreshKey((v) => v + 1);
-
-    window.dispatchEvent(
-      new CustomEvent('awards-status-changed', {
-        detail: {
-          memberId,
-        },
-      })
-    );
+    notifyAwardsProgressChanged(memberId);
 
   };
 

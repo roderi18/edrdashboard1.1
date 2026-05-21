@@ -63,8 +63,6 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-const CERTIFICATE_BATCHES_STORAGE_KEY = 'certificate-created-batches';
-const CERTIFICATE_TEMPLATES_STORAGE_KEY = 'certificate-imported-templates';
 const IMPORTED_TEMPLATE_COURSE_PREFIX = 'template:';
 const DEFAULT_COURSE_PREFIX = 'course:';
 
@@ -552,21 +550,6 @@ const getCreatorName = (user) =>
 const getMemberEmail = (member = {}) =>
   member.email || member.correo || member.memberEmail || member.emailAddress || '';
 
-const loadCertificateBatches = () => {
-  try {
-    const raw = window.localStorage.getItem(CERTIFICATE_BATCHES_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveCertificateBatches = (batches) => {
-  window.localStorage.setItem(CERTIFICATE_BATCHES_STORAGE_KEY, JSON.stringify(batches));
-};
-
 const downloadPdfBlob = (blob, fileName) => {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -628,29 +611,6 @@ const resolveTemplateForPdf = async (template) => {
     return template;
   }
 };
-
-const loadImportedTemplates = () => {
-  try {
-    const raw = window.localStorage.getItem(CERTIFICATE_TEMPLATES_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.map((template) => ({
-      ...template,
-      fields: getTemplateFields(template),
-    }));
-  } catch {
-    return [];
-  }
-};
-
-const saveImportedTemplates = (templates) => {
-  window.localStorage.setItem(CERTIFICATE_TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
-};
-
-const getSecurityTemplatesFromLocalStorage = () =>
-  loadImportedTemplates().filter((template) => normalizeText(template.name).includes('seguridad'));
 
 const convertPdfFileToImageDataUrl = async (file) => {
   const pdfjs = await import('pdfjs-dist/build/pdf.mjs');
@@ -891,53 +851,20 @@ export function CertificatesAutomationView() {
           listarPlantillasCertificados(),
           listarLotesCertificados(),
         ]);
-        const localTemplates = loadImportedTemplates();
-        const localSecurityTemplates = localTemplates.filter((template) =>
-          normalizeText(template.name).includes('seguridad')
-        );
-        const missingSecurityTemplates = localSecurityTemplates.filter(
-          (localTemplate) =>
-            !remoteTemplates.some(
-              (remoteTemplate) =>
-                remoteTemplate.id === localTemplate.id ||
-                normalizeText(remoteTemplate.name) === normalizeText(localTemplate.name)
-            )
-        );
-        const enrichedRemoteTemplates = remoteTemplates.map((remoteTemplate) => {
-          const localTemplate = localTemplates.find(
-            (item) =>
-              item.id === remoteTemplate.id ||
-              normalizeText(item.name) === normalizeText(remoteTemplate.name)
-          );
-
-          return {
+        const templates = remoteTemplates
+          .map((remoteTemplate) => ({
             ...remoteTemplate,
             fields: getTemplateFields(remoteTemplate),
-            pdfDataUrl:
-              remoteTemplate.pdfDataUrl ||
-              localTemplate?.pdfDataUrl ||
-              (!isRemoteImageUrl(localTemplate?.dataUrl) ? localTemplate?.dataUrl : ''),
-          };
-        });
-
-        const migratedTemplates = await Promise.all(
-          missingSecurityTemplates.map((template) =>
-            guardarPlantillaCertificado({ template, user }).catch(() => null)
-          )
-        );
-        const templates = [...migratedTemplates.filter(Boolean), ...enrichedRemoteTemplates].filter(
-          (template) => normalizeText(template.name).includes('seguridad')
-        );
+          }))
+          .filter((template) => normalizeText(template.name).includes('seguridad'));
 
         setImportedTemplates(templates);
         setSelectedTemplateId(templates[0]?.id || '');
-        setCreatedBatches(remoteBatches.length ? remoteBatches : loadCertificateBatches());
+        setCreatedBatches(remoteBatches);
       } catch (error) {
-        const localTemplates = getSecurityTemplatesFromLocalStorage();
-
-        setImportedTemplates(localTemplates);
-        setSelectedTemplateId(localTemplates[0]?.id || '');
-        setCreatedBatches(loadCertificateBatches());
+        setImportedTemplates([]);
+        setSelectedTemplateId('');
+        setCreatedBatches([]);
         toast.error(error?.message || 'No se pudieron cargar los certificados desde Firebase.');
       }
     };
@@ -1380,7 +1307,6 @@ export function CertificatesAutomationView() {
 
       setImportedTemplates((current) => {
         const next = [savedTemplate, ...current.filter((item) => item.id !== savedTemplate.id)];
-        saveImportedTemplates(next);
         return next;
       });
       setSelectedTemplateId(savedTemplate.id);
@@ -1390,13 +1316,6 @@ export function CertificatesAutomationView() {
       setDuplicateRouteTemplate(null);
       toast.success('Plantilla guardada en Firebase.');
     } catch (error) {
-      setImportedTemplates((current) => {
-        const next = [templateDraft, ...current.filter((item) => item.id !== templateDraft.id)];
-        saveImportedTemplates(next);
-        return next;
-      });
-      setSelectedTemplateId(templateDraft.id);
-      setImportDialogOpen(false);
       setDuplicateRouteConfirmOpen(false);
       setDuplicateRouteTemplate(null);
       toast.error(error?.message || 'No se pudo guardar la plantilla en Firebase.');
@@ -1438,7 +1357,6 @@ export function CertificatesAutomationView() {
 
     setImportedTemplates((current) => {
       const next = current.filter((item) => item.id !== selectedTemplate.id);
-      saveImportedTemplates(next);
       return next;
     });
     setSelectedTemplateId('');
@@ -1541,7 +1459,6 @@ export function CertificatesAutomationView() {
         0,
         100
       );
-      saveCertificateBatches(next);
       return next;
     });
 

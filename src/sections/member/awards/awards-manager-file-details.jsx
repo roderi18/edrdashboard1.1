@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -7,30 +8,25 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import Autocomplete from '@mui/material/Autocomplete';
-import MenuItem from '@mui/material/MenuItem';
-
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
+
 import { Iconify } from 'src/components/iconify';
-
-import { fData } from 'src/utils/format-number';
-import { fDateTime } from 'src/utils/format-time';
-import dayjs from 'dayjs';
-
 import { Scrollbar } from 'src/components/scrollbar';
-import { FileThumbnail, detectFileFormat } from 'src/components/file-thumbnail';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+import { FileThumbnail } from 'src/components/file-thumbnail';
+
+import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
+import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
+import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import { AwardsManagerInvitedItem } from './awards-manager-invited-item';
-import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
-import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
-import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
-import { ConfirmDialog } from 'src/components/custom-dialog';
-import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -97,14 +93,11 @@ export function FileManagerFileDetails({
   });
 
   useEffect(() => {
-    if (!resolvedMemberId || !file?.id) return;
+    if (!resolvedMemberId || !file?.id) return undefined;
 
     const loadData = () => {
-      const statusKey = `awards-status-${resolvedMemberId}`;
-      const dataKey = `awards-data-${resolvedMemberId}`;
-
-      const storedStatus = JSON.parse(localStorage.getItem(statusKey) || '{}');
-      const storedData = JSON.parse(localStorage.getItem(dataKey) || '{}');
+      const { status: storedStatus = {}, data: storedData = {} } =
+        getAwardsProgressCache(resolvedMemberId);
 
       const rowStatus =
         resolvedSystem === 'academia'
@@ -264,8 +257,7 @@ export function FileManagerFileDetails({
   };
 
   ////////////////////
-  const renderAwardsStatus = () => {
-    return (
+  const renderAwardsStatus = () => (
       <Stack spacing={1.5}>
         <Box
           sx={{
@@ -385,7 +377,6 @@ export function FileManagerFileDetails({
         )}
       </Stack>
     );
-  };
 
   // const renderTags = () => (
   //   <Stack spacing={1.5}>

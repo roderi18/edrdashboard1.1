@@ -41,7 +41,12 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
   const roleValue = assignment?.role || row.nationalXMemberPosition;
   const roleConfig = _allLeadershipRoles.find((r) => r.value === roleValue);
   const member = allMembers.find((m) => m.id === row.memberId || m.memberId === row.memberId);
-  const structureLabel = NATIONAL_STRUCTURES[roleConfig?.structure] || '-';
+  const memberName = member?.fullName || row.nationalXname || 'Desconocido';
+  const memberHref = member ? `/dashboard/level/member/${member.id}/edit` : '';
+  const phoneNumber = member?.phoneNumber || row.phoneNumber;
+  const positionLabel = roleConfig?.label || row.nationalXMemberPositionLabel || '-';
+  const structureLabel =
+    NATIONAL_STRUCTURES[roleConfig?.structure] || row.nationalEstructureLabel || '-';
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -59,8 +64,8 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       </TableCell>
 
       <CompactEntityTableCell
-        title={member?.fullName || row.nationalXname || 'Desconocido'}
-        href={member ? `/dashboard/level/member/${member.id}/edit` : ''}
+        title={memberName}
+        href={memberHref}
         subtitle={member?.email || row.email || ''}
         avatarAlt={row.nationalXname}
         avatarUrl={row.avatarUrl}
@@ -68,22 +73,21 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       />
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {member?.phoneNumber ? (
-          <Link href={getPhoneHref(member.phoneNumber)} color="inherit" underline="hover">
-            {formatPhoneNumber(member.phoneNumber)}
+        {phoneNumber ? (
+          <Link href={getPhoneHref(phoneNumber)} color="inherit" underline="hover">
+            {formatPhoneNumber(phoneNumber)}
           </Link>
         ) : (
-          formatPhoneNumber(member?.phoneNumber)
+          formatPhoneNumber(phoneNumber)
         )}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {roleConfig?.label || row.nationalXMemberPositionLabel || '-'}
-      </TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{positionLabel}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{structureLabel}</TableCell>
 
       <CompactEntityRowActions
+        allowDelete={!row.isLocalhostTest}
         editHref={editHref}
         onDelete={onDeleteRow}
         QuickEditForm={NationalQuickEditForm}

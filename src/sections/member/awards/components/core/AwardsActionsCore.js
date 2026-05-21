@@ -1,5 +1,10 @@
 import { guardarCertificadoAscensoManual } from 'src/services/certificate-service';
 import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
+import {
+  getAwardsProgressCache,
+  setAwardsProgressCache,
+  notifyAwardsProgressChanged,
+} from 'src/services/awards-progress-cache';
 
 export function createAwardsActions({
   system, // 'academia' | 'sistemaAscenso'
@@ -8,8 +13,6 @@ export function createAwardsActions({
   metadata = {},
   user,
 }) {
-  const statusKey = `awards-status-${memberId}`;
-
   if (
     !system ||
     !memberId ||
@@ -25,17 +28,13 @@ export function createAwardsActions({
     };
   }
 
-  const dataKey = `awards-data-${memberId}`;
+  const readStatus = () => getAwardsProgressCache(memberId).status || {};
 
-  const readStatus = () => JSON.parse(localStorage.getItem(statusKey) || '{}');
-
-  const readData = () => JSON.parse(localStorage.getItem(dataKey) || '{}');
+  const readData = () => getAwardsProgressCache(memberId).data || {};
 
   const saveAll = (status, data) => {
-    localStorage.setItem(statusKey, JSON.stringify(status));
-    localStorage.setItem(dataKey, JSON.stringify(data));
-
-    window.dispatchEvent(new CustomEvent('awards-status-changed', { detail: { memberId } }));
+    setAwardsProgressCache(memberId, { status, data });
+    notifyAwardsProgressChanged(memberId);
   };
 
   const ensurePath = (obj, path) => {
@@ -96,9 +95,7 @@ export function createAwardsActions({
       vinculo: getVinculo(),
       user,
       ...overrides,
-    }).catch((error) => {
-      console.error('[Awards] No se pudo guardar el progreso en Firebase.', error);
-    });
+    }).catch(() => null);
   };
 
   const setStatus = (nextStatus) => {
@@ -214,11 +211,10 @@ export function createAwardsActions({
       context,
       metadata,
       certificate: localCertificate,
+      user,
     })
       .then(mergeSavedCertificate)
-      .catch((error) => {
-        console.error('[Awards] No se pudo guardar el certificado en Firebase.', error);
-      });
+      .catch(() => null);
   };
 
   const deleteCertificate = () => {

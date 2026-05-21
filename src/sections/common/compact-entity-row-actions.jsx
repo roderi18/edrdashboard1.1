@@ -18,6 +18,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 export function CompactEntityRowActions({
   canManage = true,
+  allowDelete = true,
   editHref,
   onDelete,
   QuickEditForm,
@@ -78,21 +79,23 @@ export function CompactEntityRowActions({
               </MenuItem>
             </li>
 
-            <MenuItem
-              onClick={() => {
-                confirmDialog.onTrue();
-                menuActions.onClose();
-              }}
-              sx={{ color: 'error.main' }}
-            >
-              <Iconify icon="solar:trash-bin-trash-bold" />
-              Delete
-            </MenuItem>
+            {allowDelete && (
+              <MenuItem
+                onClick={() => {
+                  confirmDialog.onTrue();
+                  menuActions.onClose();
+                }}
+                sx={{ color: 'error.main' }}
+              >
+                <Iconify icon="solar:trash-bin-trash-bold" />
+                Delete
+              </MenuItem>
+            )}
           </MenuList>
         </CustomPopover>
       )}
 
-      {canManage && (
+      {canManage && allowDelete && (
         <ConfirmDialog
           open={confirmDialog.value}
           onClose={confirmDialog.onFalse}

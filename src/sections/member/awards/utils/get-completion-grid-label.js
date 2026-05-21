@@ -1,15 +1,9 @@
 import dayjs from 'dayjs';
 
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
+
 export function getCompletionGridLabel(file) {
-    if (typeof window === 'undefined') return 'No completado';
-
-    const statusRaw = localStorage.getItem(`awards-status-${file.memberId}`);
-    const dataRaw = localStorage.getItem(`awards-data-${file.memberId}`);
-
-    if (!statusRaw || !dataRaw) return 'No completado';
-
-    const statusData = JSON.parse(statusRaw);
-    const data = JSON.parse(dataRaw);
+    const { status: statusData = {}, data = {} } = getAwardsProgressCache(file.memberId);
 
     let isCompleted = false;
     let completedDate = null;

@@ -1,14 +1,16 @@
-import Button from '@mui/material/Button';
-import { useEffect, useState } from 'react';
-
+import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 
+import Button from '@mui/material/Button';
+
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
+
+import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { useBorderPulse } from 'src/sections/member/awards/hooks/useBorderPulse';
 import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
-import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
+import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 export function AcademiaSubRow({
@@ -59,36 +61,6 @@ export function AcademiaSubRow({
   const pdfViewer = useBoolean();
   const [pendingStatus, setPendingStatus] = useState(null);
   const confirmDeleteForStatus = useBoolean();
-
-  const statusKey = memberId ? `awards-status-${memberId}` : null;
-  const dataKey = memberId ? `awards-data-${memberId}` : null;
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!dataKey) return;
-
-    const syncCertificate = () => {
-      const savedData = JSON.parse(localStorage.getItem(dataKey) || '{}');
-
-      const cert = savedData?.academia?.[parentId]?.[rowId]?.certificate;
-
-      if (cert?.fileBase64 || cert?.urlPdf || cert?.pdfUrl) {
-        setHasCertificate(true);
-        setCertificateFile(cert);
-      } else {
-        setHasCertificate(false);
-        setCertificateFile(null);
-      }
-    };
-
-    syncCertificate();
-
-    window.addEventListener('storage', syncCertificate);
-
-    return () => {
-      window.removeEventListener('storage', syncCertificate);
-    };
-  }, [dataKey, parentId, rowId]);
 
   const handleCertificateDeleted = () => {
     setHasCertificate(false);

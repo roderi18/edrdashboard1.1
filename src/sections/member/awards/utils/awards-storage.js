@@ -1,18 +1,17 @@
+import {
+    getAwardsCacheKeys,
+    writeAwardsJsonToCache,
+    readAwardsJsonFromCache,
+} from 'src/services/awards-progress-cache';
+
 export function getAwardsKeys(memberId) {
-    return {
-        statusKey: `awards-status-${memberId}`,
-        dataKey: `awards-data-${memberId}`,
-    };
+    return getAwardsCacheKeys(memberId);
 }
 
 export function readJSON(key, fallback = {}) {
-    try {
-        return JSON.parse(localStorage.getItem(key) || '') || fallback;
-    } catch {
-        return fallback;
-    }
+    return readAwardsJsonFromCache(key, fallback);
 }
 
 export function writeJSON(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
+    writeAwardsJsonToCache(key, value);
 }

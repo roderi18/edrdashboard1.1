@@ -1,5 +1,7 @@
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
+import { isLocalhostNationalTestId } from './national-localhost-test-user';
+
 // ----------------------------------------------------------------------
 
 const getNationalName = (national) => national?.nationalXname || 'Desconocido';
@@ -7,7 +9,11 @@ const getNationalName = (national) => national?.nationalXname || 'Desconocido';
 const getNationalAvatar = (national) => national?.avatarUrl ?? national?.photoURL ?? '';
 
 const getNationalHref = (national) =>
-  national?.memberId ? `/dashboard/level/member/${national.memberId}/edit` : '#';
+  isLocalhostNationalTestId(national?.id)
+    ? `/dashboard/level/national/${national.id}/edit`
+    : national?.memberId
+    ? `/dashboard/level/member/${national.memberId}/edit`
+    : '#';
 
 // ----------------------------------------------------------------------
 

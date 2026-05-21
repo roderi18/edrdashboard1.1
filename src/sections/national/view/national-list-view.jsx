@@ -46,6 +46,10 @@ import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
 import { NationalTableToolbar } from '../national-table-toolbar';
 import { NationalTableFiltersResult } from '../national-table-filters-result';
+import {
+  LOCALHOST_NATIONAL_TEST_MEMBER,
+  LOCALHOST_NATIONAL_TEST_ASSIGNMENT,
+} from '../national-localhost-test-user';
 
 // ----------------------------------------------------------------------
 
@@ -58,6 +62,32 @@ const TABLE_HEAD = [
   // { id: 'status', label: 'Estado', width: 100 },
   { id: '', width: 88 },
 ];
+
+function isLocalhost() {
+  if (typeof window === 'undefined') return false;
+
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
+function withLocalhostNationalTestUser({ members, assignments }) {
+  if (!isLocalhost()) {
+    return { members, assignments };
+  }
+
+  const nextMembers = members.some(
+    (member) => String(member?.id) === LOCALHOST_NATIONAL_TEST_MEMBER.id
+  )
+    ? members
+    : [LOCALHOST_NATIONAL_TEST_MEMBER, ...members];
+
+  const nextAssignments = assignments.some(
+    (assignment) => String(assignment?.id) === LOCALHOST_NATIONAL_TEST_ASSIGNMENT.id
+  )
+    ? assignments
+    : [LOCALHOST_NATIONAL_TEST_ASSIGNMENT, ...assignments];
+
+  return { members: nextMembers, assignments: nextAssignments };
+}
 
 // ----------------------------------------------------------------------
 
@@ -72,8 +102,14 @@ export function NationalListView() {
     setHydrated(true);
   }, []);
 
-  const allMembers = getStorageCollection('members') || [];
-  const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+  const storedMembers = getStorageCollection('members') || [];
+  const storedLeadershipAssignments = getStorageCollection('leadershipAssignments') || [];
+  const { members: allMembers, assignments: leadershipAssignments } = withLocalhostNationalTestUser(
+    {
+      members: storedMembers,
+      assignments: storedLeadershipAssignments,
+    }
+  );
 
   const nationalAssignments = leadershipAssignments.filter(
     (l) => ['national', 'regional', 'sectional'].includes(l.level) && l.status === 'active'
@@ -122,7 +158,8 @@ export function NationalListView() {
       id: assignment.id,
       memberId: member?.id,
       level: assignment.level,
-      nationalXname: `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim(),
+      nationalXname:
+        member?.fullName || `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim(),
       email: member?.email,
       phoneNumber: member?.phoneNumber,
 
@@ -136,6 +173,7 @@ export function NationalListView() {
       nationalEstructureLabel: NATIONAL_STRUCTURES[roleConfig?.structure] || '-',
 
       nationalXAssignedRegional: regionalName,
+      isLocalhostTest: assignment.id === LOCALHOST_NATIONAL_TEST_ASSIGNMENT.id,
     };
   });
 

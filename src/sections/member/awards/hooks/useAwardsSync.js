@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
 import dayjs from 'dayjs';
+import { useEffect } from 'react';
+
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
 
 export function useAwardsSync({
     system,        // 'sistemaAscenso' | 'academia'
@@ -24,18 +26,13 @@ export function useAwardsSync({
 
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        if (!memberId || !rowId) return;
-
-        const statusKey = `awards-status-${memberId}`;
-        const dataKey = `awards-data-${memberId}`;
+        if (typeof window === 'undefined') return undefined;
+        if (!memberId || !rowId) return undefined;
 
         const sync = () => {
-            const statusData = JSON.parse(localStorage.getItem(statusKey) || '{}');
-            const data = JSON.parse(localStorage.getItem(dataKey) || '{}');
+            const { status: statusData = {}, data = {} } = getAwardsProgressCache(memberId);
 
             if (system === 'sistemaAscenso') {
-                const { sectionId, parentId, rowId } = context;
                 // const ROOT = 'sistema-de-ascenso';
                 const ROOT = 'sistemaAscenso';
 
@@ -68,8 +65,6 @@ export function useAwardsSync({
             }
 
             if (system === 'academia') {
-                const { parentId, rowId } = context;
-
                 const nextStatus =
                     statusData?.academia?.[parentId]?.[rowId];
 
@@ -97,11 +92,9 @@ export function useAwardsSync({
         sync();
 
         window.addEventListener('awards-status-changed', sync);
-        window.addEventListener('storage', sync);
 
         return () => {
             window.removeEventListener('awards-status-changed', sync);
-            window.removeEventListener('storage', sync);
         };
     }, [
         system,

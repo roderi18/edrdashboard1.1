@@ -1,3 +1,5 @@
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
+
 export function getTotalAwards(rootFolderId, items = []) {
 
     const root = items.find((i) => i.id === rootFolderId);
@@ -35,10 +37,7 @@ export function getTotalAwards(rootFolderId, items = []) {
 export function getCompletedAwards(memberId, folderId) {
 
     if (!memberId) return 0;
-    if (typeof window === 'undefined') return 0;
-
-    const key = `awards-status-${memberId}`;
-    const saved = JSON.parse(localStorage.getItem(key) || '{}');
+    const saved = getAwardsProgressCache(memberId).status || {};
 
     const countRecursive = (node) => {
         let total = 0;

@@ -2,14 +2,9 @@
 
 import { useState, useEffect } from 'react';
 
-import { paths } from 'src/routes/paths';
-
-import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionalById } from 'src/services/sectional-service';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SectionalCreateEditForm } from '../sectional-create-edit-form';
 
@@ -60,20 +55,5 @@ export function SectionalEditView({ sectionalId }) {
     load();
   }, [sectionalId]);
 
-  return (
-    <DashboardContent>
-      <CustomBreadcrumbs
-        heading="Editar"
-        backHref={paths.dashboard.level.sectional}
-        links={[
-          { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Sección', href: paths.dashboard.level.sectional.root },
-          { name: currentSectional?.sectionalName },
-        ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
-
-      <SectionalCreateEditForm currentSectional={currentSectional} />
-    </DashboardContent>
-  );
+  return <SectionalCreateEditForm currentSectional={currentSectional} />;
 }

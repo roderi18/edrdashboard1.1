@@ -14,7 +14,8 @@ import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { _awards } from 'src/_mock/_awards';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { sincronizarProgresoAscensoLocal } from 'src/services/member-awards-service';
+import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
+import { sincronizarProgresoAscensoFirebase } from 'src/services/member-awards-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -116,15 +117,14 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       if (typeof window === 'undefined' || !memberId) return;
 
       try {
-        await sincronizarProgresoAscensoLocal(memberId);
-      } catch (error) {
-        console.error('[Awards] No se pudo sincronizar el progreso desde Firebase.', error);
+        await sincronizarProgresoAscensoFirebase(memberId);
+      } catch {
+        // Leave the current cache untouched if Firebase is temporarily unavailable.
       }
 
       if (!active) return;
 
-      const stored = JSON.parse(localStorage.getItem(`awards-status-${memberId}`) || '{}');
-      setStatusStorage(stored);
+      setStatusStorage(getAwardsProgressCache(memberId).status || {});
     };
 
     loadProgress();
@@ -140,16 +140,13 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     const syncLocalStatus = (event) => {
       if (event?.detail?.memberId && String(event.detail.memberId) !== String(memberId)) return;
 
-      const stored = JSON.parse(localStorage.getItem(`awards-status-${memberId}`) || '{}');
-      setStatusStorage(stored);
+      setStatusStorage(getAwardsProgressCache(memberId).status || {});
     };
 
     window.addEventListener('awards-status-changed', syncLocalStatus);
-    window.addEventListener('storage', syncLocalStatus);
 
     return () => {
       window.removeEventListener('awards-status-changed', syncLocalStatus);
-      window.removeEventListener('storage', syncLocalStatus);
     };
   }, [memberId]);
 

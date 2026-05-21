@@ -2,12 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-import { paths } from 'src/routes/paths';
-
-import { DashboardContent } from 'src/layouts/dashboard';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-
 import { getRegionals } from 'src/services/regional-service';
 
 import { RegionalCreateEditForm } from '../regional-create-edit-form';
@@ -32,20 +26,5 @@ export function RegionalEditView({ id }) {
 
   if (!currentRegional) return null;
 
-  return (
-    <DashboardContent>
-      <CustomBreadcrumbs
-        heading="Editar"
-        backHref={paths.dashboard.level.regional}
-        links={[
-          { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Región', href: paths.dashboard.level.regional.root },
-          { name: currentRegional?.name },
-        ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
-
-      <RegionalCreateEditForm currentRegional={currentRegional} />
-    </DashboardContent>
-  );
+  return <RegionalCreateEditForm currentRegional={currentRegional} />;
 }

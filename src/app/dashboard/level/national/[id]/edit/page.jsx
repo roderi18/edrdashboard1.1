@@ -2,6 +2,11 @@ import { CONFIG } from 'src/global-config';
 import { _nationalList } from 'src/_mock/_national';
 
 import { NationalEditView } from 'src/sections/national/view';
+import { NationalEditLayout } from 'src/sections/national/layout/national-edit-layout';
+import {
+  isLocalhostNationalTestId,
+  LOCALHOST_NATIONAL_TEST_EDIT_RECORD,
+} from 'src/sections/national/national-localhost-test-user';
 
 // ----------------------------------------------------------------------
 
@@ -10,9 +15,15 @@ export const metadata = { title: `National edit | Dashboard - ${CONFIG.appName}`
 export default async function Page({ params }) {
   const { id } = await params;
 
-  const currentNational = _nationalList.find((national) => national.id === id);
+  const currentNational = isLocalhostNationalTestId(id)
+    ? LOCALHOST_NATIONAL_TEST_EDIT_RECORD
+    : _nationalList.find((national) => national.id === id);
 
-  return <NationalEditView national={currentNational} />;
+  return (
+    <NationalEditLayout>
+      <NationalEditView national={currentNational} />
+    </NationalEditLayout>
+  );
 }
 
 // ----------------------------------------------------------------------

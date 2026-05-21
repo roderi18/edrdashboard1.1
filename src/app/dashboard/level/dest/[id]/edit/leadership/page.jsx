@@ -48,6 +48,17 @@ import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
 import { SIMPLE_DATA, LEADER_GROUP_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
+import {
+  LeadershipLayoutEditor,
+  getLeadershipEditGridSx,
+  getLeadershipConnections,
+  useLeadershipLayoutEditor,
+  hasLeadershipLayoutOffsets,
+  getLeadershipEditableNodeSx,
+  LeadershipLayoutOffsetStyles,
+  LeadershipLayoutConnectorLayer,
+  getLeadershipConnectorOverrideSx,
+} from 'src/sections/common/leadership-layout-editor';
 
 const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
@@ -329,9 +340,24 @@ function LeadershipPdfDocument({ destName, chartData }) {
   );
 }
 
-function DivisionNode({ name, avatarUrl, role, sx }) {
+function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
+  const nodeId = id || name;
+  const editProps = layoutEditor?.getNodeEditProps({
+    id: nodeId,
+    name,
+    role,
+  });
+  const isRootNode = depth === undefined;
+
   return (
     <Card
+      data-leadership-node-id={nodeId}
+      {...(editProps && {
+        onPointerUp: editProps.onPointerUp,
+        onPointerMove: editProps.onPointerMove,
+        onPointerDown: editProps.onPointerDown,
+        onPointerCancel: editProps.onPointerCancel,
+      })}
       sx={[
         () => ({
           px: 1.5,
@@ -343,6 +369,7 @@ function DivisionNode({ name, avatarUrl, role, sx }) {
           alignItems: 'center',
           display: 'inline-flex',
         }),
+        editProps ? getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }) : null,
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
@@ -446,10 +473,13 @@ const getAssignmentKey = (asignacion) =>
   ].join('|');
 
 function LeadershipNode({
+  id,
   name,
+  depth,
   avatarUrl,
   role,
   sx,
+  layoutEditor,
   miembroAsignado,
   asignacionOrganigrama,
   onCambiarMiembro,
@@ -463,6 +493,13 @@ function LeadershipNode({
   const memberProfileHref = miembroAsignadoId
     ? `/dashboard/level/member/${miembroAsignadoId}/edit`
     : '';
+  const nodeId = id || getAssignmentKey(asignacionOrganigrama) || role || name;
+  const editProps = layoutEditor?.getNodeEditProps({
+    id: nodeId,
+    name: displayName,
+    role,
+  });
+  const isRootNode = depth === undefined;
 
   const handleCambiarMiembro = () => {
     menuActions.onClose();
@@ -523,6 +560,13 @@ function LeadershipNode({
   return (
     <>
       <Card
+        data-leadership-node-id={nodeId}
+        {...(editProps && {
+          onPointerUp: editProps.onPointerUp,
+          onPointerMove: editProps.onPointerMove,
+          onPointerDown: editProps.onPointerDown,
+          onPointerCancel: editProps.onPointerCancel,
+        })}
         sx={[
           () => ({
             p: 2,
@@ -533,6 +577,7 @@ function LeadershipNode({
             display: 'inline-flex',
             flexDirection: 'column',
           }),
+          editProps ? getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }) : null,
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
       >
@@ -691,6 +736,7 @@ export default function Page() {
   const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
+  const layoutEditor = useLeadershipLayoutEditor();
   const [destName, setDestName] = useState('Destacamento');
   const [members, setMembers] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -704,6 +750,20 @@ export default function Page() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const zoomPercentage = Math.round(zoom * 100);
+  const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
+  const titleText =
+    destName && destName !== 'Destacamento' ? `Destacamento ${destName}` : 'Destacamento';
+  const titleEditProps = layoutEditor.getNodeEditProps({
+    id: 'titulo-destacamento',
+    name: titleText,
+    role: 'Titulo de estructura',
+  });
+  const connections = useMemo(
+    () => getLeadershipConnections([SIMPLE_DATA, ...LEADER_GROUP_DATA]),
+    []
+  );
+  const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
+  const connectorWatchKey = `${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
   const membersById = useMemo(
     () =>
       members.reduce((acc, member) => {
@@ -1021,7 +1081,7 @@ export default function Page() {
           display: 'flex',
           overflow: 'hidden',
           position: 'relative',
-          minHeight: 680,
+          minHeight: containerMinHeight,
           justifyContent: 'center',
           bgcolor: 'background.neutral',
           border: '1px solid',
@@ -1032,12 +1092,14 @@ export default function Page() {
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
           touchAction: 'none',
+          ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
             touchAction: 'auto',
           },
           '& .MuiCard-root': {
-            cursor: 'default',
+            cursor: layoutEditor.editMode ? 'move' : 'default',
             touchAction: 'auto',
           },
           '& .MuiCard-root button': {
@@ -1193,6 +1255,8 @@ export default function Page() {
             '--chart-pan-y': `${pan.y}px`,
             '--chart-zoom': zoom,
             width: 1080,
+            zIndex: 2,
+            position: 'relative',
             flexShrink: 0,
             '--chart-base-scale': {
               xs: 0.42,
@@ -1213,26 +1277,33 @@ export default function Page() {
         >
           <Typography
             variant="h3"
+            onPointerUp={titleEditProps.onPointerUp}
+            onPointerMove={titleEditProps.onPointerMove}
+            onPointerDown={titleEditProps.onPointerDown}
+            onPointerCancel={titleEditProps.onPointerCancel}
             sx={{
               mb: 3,
+              mx: 'auto',
+              width: 'fit-content',
               textAlign: 'center',
               fontWeight: 700,
+              ...getLeadershipEditableNodeSx(titleEditProps),
             }}
           >
-            {destName && destName !== 'Destacamento'
-              ? `Destacamento ${destName}`
-              : 'Destacamento'}
+            {titleText}
           </Typography>
 
           <OrganizationalChart
-            lineWidth="1px"
+            lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
             data={SIMPLE_DATA}
+            nodeClassName={layoutEditor.getNodeTreeClassName}
             nodeItem={(props) => (
               <LeadershipNode
                 sx={{}}
                 {...props}
+                layoutEditor={layoutEditor}
                 miembroAsignado={getAssignedMember(props)}
                 onCambiarMiembro={handleOpenChangeMember}
                 onRemoverMiembro={handleOpenRemoveMember}
@@ -1252,17 +1323,19 @@ export default function Page() {
             {LEADER_GROUP_DATA.map((node) => (
               <OrganizationalChart
                 key={node.id}
-                lineWidth="1px"
+                lineWidth="2px"
                 lineHeight="34px"
                 lineColor="var(--palette-grey-500)"
                 data={node}
+                nodeClassName={layoutEditor.getNodeTreeClassName}
                 nodeItem={(props) =>
                   props.isDivision ? (
-                    <DivisionNode sx={{}} {...props} />
+                    <DivisionNode sx={{}} {...props} layoutEditor={layoutEditor} />
                   ) : (
                     <LeadershipNode
                       sx={{}}
                       {...props}
+                      layoutEditor={layoutEditor}
                       miembroAsignado={getAssignedMember(props)}
                       onCambiarMiembro={handleOpenChangeMember}
                       onRemoverMiembro={handleOpenRemoveMember}
@@ -1274,6 +1347,25 @@ export default function Page() {
             ))}
           </Box>
         </Box>
+
+        <LeadershipLayoutConnectorLayer
+          active={connectorLayerActive}
+          watchKey={connectorWatchKey}
+          connections={connections}
+          containerRef={chartCaptureRef}
+          lineWidth={2}
+        />
+
+        <LeadershipLayoutOffsetStyles editor={layoutEditor} />
+
+        <LeadershipLayoutEditor
+          pan={pan}
+          zoom={zoom}
+          chartWidth={1080}
+          title={titleText}
+          editor={layoutEditor}
+          containerMinHeight={containerMinHeight}
+        />
       </Box>
 
       <Dialog

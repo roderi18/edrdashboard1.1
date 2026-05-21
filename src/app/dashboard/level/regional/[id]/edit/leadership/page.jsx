@@ -1,20 +1,16 @@
 import { CONFIG } from 'src/global-config';
 
-import { RegionalEditView } from 'src/sections/regional/view';
 import { RegionalEditLayout } from 'src/sections/regional/layout/regional-edit-layout';
+import { RegionalLeadershipView } from 'src/sections/regional/leadership/regional-leadership-view';
 
 // ----------------------------------------------------------------------
 
-export const metadata = {
-  title: `Regional edit | Dashboard - ${CONFIG.appName}`,
-};
+export const metadata = { title: `Directiva regional | Dashboard - ${CONFIG.appName}` };
 
-export default async function Page({ params }) {
-  const { id } = await params;
-
+export default function Page() {
   return (
     <RegionalEditLayout>
-      <RegionalEditView id={id} />
+      <RegionalLeadershipView />
     </RegionalEditLayout>
   );
 }
