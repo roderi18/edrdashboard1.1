@@ -354,7 +354,7 @@ export function NationalLeadershipView() {
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-directiva-nacional',
     name: 'Directiva nacional',
-    role: 'Titulo de estructura',
+    role: 'Titulo del diagrama',
   });
 
   return (
@@ -405,7 +405,8 @@ export function NationalLeadershipView() {
           position: 'absolute',
           top: 16,
           right: 16,
-          zIndex: 2,
+          zIndex: 20,
+          pointerEvents: 'auto',
         }}
       >
         <Box

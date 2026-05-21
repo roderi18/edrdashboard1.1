@@ -182,9 +182,7 @@ export function SectionalLeadershipView() {
   const structureTitle = useMemo(() => {
     const normalizedSectionalName = String(sectionalName || '').trim();
 
-    return normalizedSectionalName
-      ? `Estructura Sección ${normalizedSectionalName}`
-      : 'Estructura seccional';
+    return normalizedSectionalName ? `Sección ${normalizedSectionalName}` : 'Sección';
   }, [sectionalName]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
   const connections = useMemo(() => getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), []);
@@ -307,7 +305,7 @@ export function SectionalLeadershipView() {
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-estructura-seccional',
     name: structureTitle,
-    role: 'Titulo de estructura',
+    role: 'Titulo del diagrama',
   });
 
   return (
@@ -358,7 +356,8 @@ export function SectionalLeadershipView() {
           position: 'absolute',
           top: 16,
           right: 16,
-          zIndex: 2,
+          zIndex: 20,
+          pointerEvents: 'auto',
         }}
       >
         <Box

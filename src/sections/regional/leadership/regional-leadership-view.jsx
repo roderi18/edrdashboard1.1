@@ -179,9 +179,7 @@ export function RegionalLeadershipView() {
   const structureTitle = useMemo(() => {
     const normalizedRegionalName = String(regionalName || '').trim();
 
-    return normalizedRegionalName
-      ? `Estructura Región ${normalizedRegionalName}`
-      : 'Estructura regional';
+    return normalizedRegionalName ? `Región ${normalizedRegionalName}` : 'Región';
   }, [regionalName]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
   const connections = useMemo(() => getLeadershipConnections(REGIONAL_LEADERSHIP_DATA), []);
@@ -307,7 +305,7 @@ export function RegionalLeadershipView() {
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-estructura-regional',
     name: structureTitle,
-    role: 'Titulo de estructura',
+    role: 'Titulo del diagrama',
   });
 
   return (
@@ -358,7 +356,8 @@ export function RegionalLeadershipView() {
           position: 'absolute',
           top: 16,
           right: 16,
-          zIndex: 2,
+          zIndex: 20,
+          pointerEvents: 'auto',
         }}
       >
         <Box

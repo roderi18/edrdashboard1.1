@@ -756,7 +756,7 @@ export default function Page() {
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-destacamento',
     name: titleText,
-    role: 'Titulo de estructura',
+    role: 'Titulo del diagrama',
   });
   const connections = useMemo(
     () => getLeadershipConnections([SIMPLE_DATA, ...LEADER_GROUP_DATA]),
@@ -1115,7 +1115,8 @@ export default function Page() {
             position: 'absolute',
             top: 16,
             right: 16,
-            zIndex: 2,
+            zIndex: 20,
+            pointerEvents: 'auto',
           }}
         >
           <Box
