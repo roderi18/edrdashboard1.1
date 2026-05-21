@@ -25,6 +25,7 @@ import municipiosData from 'src/data/municipios.json';
 import { updateMemberApi } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
+import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -161,7 +162,9 @@ const mapMemberToValues = (member) => {
         ? 'Sí'
         : 'No',
     estatusVigenciaCi: formatStatus(member?.estatusVigenciaCi),
-    fechaInicioCertificado: member?.fechaInicioCertificado ? dayjs(member.fechaInicioCertificado) : null,
+    fechaInicioCertificado: member?.fechaInicioCertificado
+      ? dayjs(member.fechaInicioCertificado)
+      : null,
     fechaFinCertificado: member?.fechaFinCertificado ? dayjs(member.fechaFinCertificado) : null,
     destName: member?.destacamentoName ?? member?.destacamento ?? member?.idDestacamento ?? '',
     provinceId: province?.id ? String(province.id) : '',
@@ -172,12 +175,48 @@ const mapMemberToValues = (member) => {
   };
 };
 
+const mapAccountMemberToHistoryPayload = (member = {}) => ({
+  codigoMiembro: member.codigoMiembro ?? '',
+  nombres: member.nombres ?? '',
+  apellidos: member.apellidos ?? '',
+  genero: member.genero ?? '',
+  fechaNacimiento: member.fechaNacimiento ?? null,
+  idDestacamento: member.idDestacamento ?? null,
+  telefono: member.telefono ?? '',
+  direccion: member.direccion ?? '',
+  correo: member.correo ?? '',
+  idCargoLocal: member.idCargoLocal ?? null,
+  idCargoInstitucional: member.idCargoInstitucional ?? null,
+  idDivision: member.idDivision ?? null,
+  instructorCertificadoCi: member.instructorCertificadoCi ?? false,
+  estatusVigenciaCi: member.estatusVigenciaCi ?? null,
+  fechaInicioCertificado: member.fechaInicioCertificado ?? null,
+  fechaFinCertificado: member.fechaFinCertificado ?? null,
+  estatusMiembro: member.estatusMiembro ?? 'active',
+});
+
+const ACCOUNT_HISTORY_FIELDS = {
+  codigoMiembro: 'Código de miembro',
+  nombres: 'Nombres',
+  apellidos: 'Apellidos',
+  genero: 'Género',
+  fechaNacimiento: 'Fecha de nacimiento',
+  idDestacamento: 'Destacamento',
+  telefono: 'Teléfono',
+  direccion: 'Dirección',
+  correo: 'Correo electrónico',
+  idCargoLocal: 'Cargo local',
+  idCargoInstitucional: 'Cargo institucional',
+  idDivision: 'División',
+  instructorCertificadoCi: 'Instructor certificado CI',
+  estatusVigenciaCi: 'Estatus vigencia CI',
+  fechaInicioCertificado: 'Fecha inicio certificado',
+  fechaFinCertificado: 'Fecha fin certificado',
+  estatusMiembro: 'Estatus miembro',
+};
+
 const ReadOnlyTextField = ({ name, label }) => (
-  <Field.Text
-    name={name}
-    label={label}
-    slotProps={{ htmlInput: { readOnly: true } }}
-  />
+  <Field.Text name={name} label={label} slotProps={{ htmlInput: { readOnly: true } }} />
 );
 
 // ----------------------------------------------------------------------
@@ -188,10 +227,11 @@ export function UserAccountGeneral() {
   const [dests, setDests] = useState([]);
   const [loadingMember, setLoadingMember] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const canEditAll = user?.role === 'admin' || user?.role === 'administrator' || user?.memberRole === 'admin';
+  const canEditAll =
+    user?.role === 'admin' || user?.role === 'administrator' || user?.memberRole === 'admin';
 
   const memberCode = useMemo(
-    () => (getMemberCodeLabel(user) || String(member?.codigoMiembro ?? '').toUpperCase()),
+    () => getMemberCodeLabel(user) || String(member?.codigoMiembro ?? '').toUpperCase(),
     [member?.codigoMiembro, user]
   );
 
@@ -217,16 +257,24 @@ export function UserAccountGeneral() {
           .toUpperCase();
 
         const currentMember = (Array.isArray(rawMembers) ? rawMembers : []).find((item) => {
-          const candidateCode = String(item?.codigoMiembro ?? '').trim().toUpperCase();
+          const candidateCode = String(item?.codigoMiembro ?? '')
+            .trim()
+            .toUpperCase();
           const candidateId = String(item?.idMiembros ?? '').trim();
           const sessionId = String(user?.idMiembros ?? user?.memberId ?? '').trim();
 
           return (
             (normalizedSessionCode && candidateCode === normalizedSessionCode) ||
             (sessionId && candidateId === sessionId) ||
-            (String(item?.correo ?? '').trim().toLowerCase() &&
-              String(item?.correo ?? '').trim().toLowerCase() ===
-                String(user?.email ?? '').trim().toLowerCase())
+            (String(item?.correo ?? '')
+              .trim()
+              .toLowerCase() &&
+              String(item?.correo ?? '')
+                .trim()
+                .toLowerCase() ===
+                String(user?.email ?? '')
+                  .trim()
+                  .toLowerCase())
           );
         });
 
@@ -387,6 +435,27 @@ export function UserAccountGeneral() {
 
       setMember((prev) => ({ ...prev, avatarUrl }));
       setValue('avatarUrl', avatarUrl, { shouldValidate: true });
+
+      registrarCambiosHistorialMiembro({
+        idMiembros: memberId,
+        codigoMiembro: member?.codigoMiembro || user?.codigoMiembro || '',
+        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${
+          member?.apellidos ?? user?.apellidos ?? ''
+        }`.trim(),
+        modulo: 'Información general',
+        antes: { avatarUrl: member?.avatarUrl || '' },
+        despues: { avatarUrl },
+        campos: { avatarUrl: 'Foto de perfil' },
+        usuario: user,
+        metadatos: {
+          origen: 'user-account-general',
+          accion: 'foto_perfil_usuario',
+          realizadoPorElMismoMiembro: true,
+        },
+      }).catch((historyError) => {
+        console.error('[user-account] photo history failed', historyError);
+      });
+
       await checkUserSession?.();
       toast.success(getImageOptimizationMessage(file.__optimizationInfo));
 
@@ -420,16 +489,20 @@ export function UserAccountGeneral() {
 
       const payload = {
         idMiembros: memberId,
-        codigoMiembro: canEditAll ? data.codigoMiembro || member.codigoMiembro : member.codigoMiembro,
-        nombres: canEditAll ? data.firstName ?? member.nombres ?? '' : member.nombres ?? '',
-        apellidos: canEditAll ? data.lastName ?? member.apellidos ?? '' : member.apellidos ?? '',
-        genero: canEditAll ? parseGender(data.gender ?? member.genero) : member.genero ?? '',
+        codigoMiembro: canEditAll
+          ? data.codigoMiembro || member.codigoMiembro
+          : member.codigoMiembro,
+        nombres: canEditAll ? (data.firstName ?? member.nombres ?? '') : (member.nombres ?? ''),
+        apellidos: canEditAll
+          ? (data.lastName ?? member.apellidos ?? '')
+          : (member.apellidos ?? ''),
+        genero: canEditAll ? parseGender(data.gender ?? member.genero) : (member.genero ?? ''),
         fechaNacimiento: canEditAll
           ? parseDate(data.birthdate ?? member.fechaNacimiento)
-          : member.fechaNacimiento ?? null,
+          : (member.fechaNacimiento ?? null),
         idDestacamento: canEditAll
           ? Number(data.destId || member.idDestacamento || 0) || null
-          : member.idDestacamento ?? null,
+          : (member.idDestacamento ?? null),
         telefono: data.phoneNumber ?? member.telefono ?? '',
         direccion: buildAddress({
           provinceId: data.provinceId,
@@ -438,25 +511,51 @@ export function UserAccountGeneral() {
           street: data.street,
         }),
         correo: data.email?.trim() || null,
-        idCargoLocal: canEditAll ? data.idCargoLocal ?? member.idCargoLocal ?? null : member.idCargoLocal ?? null,
+        idCargoLocal: canEditAll
+          ? (data.idCargoLocal ?? member.idCargoLocal ?? null)
+          : (member.idCargoLocal ?? null),
         idCargoInstitucional: canEditAll
-          ? data.idCargoInstitucional ?? member.idCargoInstitucional ?? null
-          : member.idCargoInstitucional ?? null,
-        idDivision: canEditAll ? Number(data.idDivision ?? member.idDivision ?? 0) || null : member.idDivision ?? null,
+          ? (data.idCargoInstitucional ?? member.idCargoInstitucional ?? null)
+          : (member.idCargoInstitucional ?? null),
+        idDivision: canEditAll
+          ? Number(data.idDivision ?? member.idDivision ?? 0) || null
+          : (member.idDivision ?? null),
         instructorCertificadoCi: canEditAll
           ? data.instructorCertificadoCi === 'Sí' || data.instructorCertificadoCi === '1'
-          : member.instructorCertificadoCi ?? false,
-        estatusVigenciaCi: canEditAll ? data.estatusVigenciaCi ?? member.estatusVigenciaCi ?? null : member.estatusVigenciaCi ?? null,
+          : (member.instructorCertificadoCi ?? false),
+        estatusVigenciaCi: canEditAll
+          ? (data.estatusVigenciaCi ?? member.estatusVigenciaCi ?? null)
+          : (member.estatusVigenciaCi ?? null),
         fechaInicioCertificado: canEditAll
           ? parseDate(data.fechaInicioCertificado ?? member.fechaInicioCertificado)
-          : member.fechaInicioCertificado ?? null,
+          : (member.fechaInicioCertificado ?? null),
         fechaFinCertificado: canEditAll
           ? parseDate(data.fechaFinCertificado ?? member.fechaFinCertificado)
-          : member.fechaFinCertificado ?? null,
-        estatusMiembro: canEditAll ? data.status ?? member.estatusMiembro ?? 'active' : member.estatusMiembro ?? 'active',
+          : (member.fechaFinCertificado ?? null),
+        estatusMiembro: canEditAll
+          ? (data.status ?? member.estatusMiembro ?? 'active')
+          : (member.estatusMiembro ?? 'active'),
       };
 
       await updateMemberApi(payload);
+
+      registrarCambiosHistorialMiembro({
+        idMiembros: memberId,
+        codigoMiembro: payload.codigoMiembro,
+        nombreMiembro: `${payload.nombres ?? ''} ${payload.apellidos ?? ''}`.trim(),
+        modulo: 'Información general',
+        antes: mapAccountMemberToHistoryPayload(member),
+        despues: payload,
+        campos: ACCOUNT_HISTORY_FIELDS,
+        usuario: user,
+        metadatos: {
+          origen: 'user-account-general',
+          accion: 'actualizacion_cuenta_usuario',
+          realizadoPorElMismoMiembro: true,
+        },
+      }).catch((historyError) => {
+        console.error('[user-account] account history failed', historyError);
+      });
 
       if (isFirebaseConfigured && FIRESTORE) {
         await setDoc(
@@ -472,6 +571,11 @@ export function UserAccountGeneral() {
           { merge: true }
         );
       }
+
+      setMember((prev) => ({
+        ...prev,
+        ...payload,
+      }));
 
       await checkUserSession?.();
       toast.success('Cuenta actualizada con éxito.');
@@ -513,7 +617,9 @@ export function UserAccountGeneral() {
               />
             </Box>
 
-            <Typography variant="subtitle1">{`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}</Typography>
+            <Typography variant="subtitle1">
+              {`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}
+            </Typography>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
               {memberCode}

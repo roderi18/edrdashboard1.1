@@ -50,12 +50,22 @@ const getMemberDivisionIcon = (member) => {
 
 const getDestValue = (dest, keys) => keys.map((key) => dest?.[key]).find(Boolean);
 
+const normalizeDests = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.Data)) return value.Data;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.items)) return value.items;
+
+  return [];
+};
+
 const buildDestLabel = (member, dests) => {
+  const destList = normalizeDests(dests);
   const memberDestId = getMemberDestId(member);
   const hasMemberDestId =
     memberDestId !== null && memberDestId !== undefined && memberDestId !== '';
   const dest = hasMemberDestId
-    ? dests.find((item) =>
+    ? destList.find((item) =>
         [item?.id, item?.idDestacamento, item?.destId].some(
           (value) => String(value) === String(memberDestId)
         )
@@ -90,8 +100,10 @@ export const MemberCard = memo(function MemberCard({
   const [dests, setDests] = useState([]);
 
   useEffect(() => {
-    if (destsProp.length) {
-      setDests(destsProp);
+    const normalizedDestsProp = normalizeDests(destsProp);
+
+    if (normalizedDestsProp.length) {
+      setDests(normalizedDestsProp);
       return undefined;
     }
 
@@ -99,7 +111,7 @@ export const MemberCard = memo(function MemberCard({
       try {
         const res = await fetch('/api/dest');
         const data = await res.json();
-        setDests(data?.Data || data || []);
+        setDests(normalizeDests(data));
       } catch (error) {
         console.error('Error loading dests for member card:', error);
         setDests([]);

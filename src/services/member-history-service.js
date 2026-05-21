@@ -2,9 +2,12 @@ import {
   doc,
   limit,
   query,
-  setDoc,
+  getDoc,
   getDocs,
   orderBy,
+  increment,
+  writeBatch,
+  startAfter,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -28,7 +31,9 @@ const getNombreUsuario = (usuario = {}) =>
   'Sistema';
 
 const getUsuarioHistorial = (usuario = {}) => ({
-  uid: usuario.uid || usuario.id || '',
+  idUsuario: usuario.uid || usuario.id || '',
+  idMiembros: usuario.idMiembros || usuario.memberId || '',
+  codigoMiembro: usuario.codigoMiembro || usuario.codigoUsuario || '',
   nombre: getNombreUsuario(usuario),
   correo: usuario.email || usuario.correo || '',
   rol: usuario.role || usuario.rol || '',
@@ -61,11 +66,20 @@ const normalizeValue = (value) => {
 
 const valuesAreEqual = (before, after) => normalizeValue(before) === normalizeValue(after);
 
-const getLogRef = (idMiembro, idHistorial) =>
+const normalizeIdMiembros = (value) => {
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) && String(value).trim() !== '' ? numericValue : value;
+};
+
+const getMemberHistoryRef = (idMiembros) =>
+  doc(FIRESTORE, COLECCION_HISTORIAL_MIEMBROS, String(idMiembros));
+
+const getLogRef = (idMiembros, idHistorial) =>
   doc(
     FIRESTORE,
     COLECCION_HISTORIAL_MIEMBROS,
-    String(idMiembro),
+    String(idMiembros),
     SUBCOLECCION_REGISTROS_HISTORIAL,
     idHistorial
   );
@@ -93,16 +107,36 @@ const formatDate = (value) => {
 const formatTime = (value) => {
   const date = toDate(value);
 
-  return date
-    ? new Intl.DateTimeFormat('es-DO', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(date)
-    : '';
+  if (!date) return '';
+
+  const time = new Intl.DateTimeFormat('es-DO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+
+  return time.replace(/\s*a\.\s*m\./i, ' A.M.').replace(/\s*p\.\s*m\./i, ' P.M.');
+};
+
+const mapHistoryDoc = (item) => {
+  const data = item.data();
+
+  return {
+    id: data.idHistorial || item.id,
+    fecha: formatDate(data.fechaServidor || data.fecha),
+    hora: formatTime(data.fechaServidor || data.fecha),
+    modulo: data.modulo || '',
+    afectado: data.campoAfectado || data.campo || '',
+    antes: data.valorAnterior || '',
+    despues: data.valorNuevo || '',
+    realizadoPor: data.realizadoPor?.nombre || 'Sistema',
+    raw: data,
+  };
 };
 
 export const crearRegistroHistorialMiembro = async ({
   idMiembro,
+  idMiembros,
   codigoMiembro = '',
   nombreMiembro = '',
   modulo,
@@ -112,36 +146,61 @@ export const crearRegistroHistorialMiembro = async ({
   despues,
   usuario,
   metadata = {},
+  metadatos,
 }) => {
-  if (!isFirebaseConfigured || !FIRESTORE || !idMiembro || !modulo || !campoAfectado) {
+  const resolvedIdMiembros = idMiembros || idMiembro;
+
+  if (!isFirebaseConfigured || !FIRESTORE || !resolvedIdMiembros || !modulo || !campoAfectado) {
     return null;
   }
 
   const idHistorial = getRegistroId();
   const fecha = new Date().toISOString();
+  const realizadoPor = getUsuarioHistorial(usuario);
+  const normalizedIdMiembros = normalizeIdMiembros(resolvedIdMiembros);
+  const normalizedCodigoMiembro = String(codigoMiembro || '');
+  const normalizedNombreMiembro = nombreMiembro || '';
+  const normalizedMetadatos = metadatos || metadata || {};
+
   const registro = {
     idHistorial,
-    idMiembro: String(idMiembro),
-    codigoMiembro: String(codigoMiembro || ''),
-    nombreMiembro: nombreMiembro || '',
+    idMiembros: normalizedIdMiembros,
+    codigoMiembro: normalizedCodigoMiembro,
+    nombreMiembro: normalizedNombreMiembro,
     modulo,
     campo: campo || campoAfectado,
     campoAfectado,
     valorAnterior: normalizeValue(antes),
     valorNuevo: normalizeValue(despues),
-    realizadoPor: getUsuarioHistorial(usuario),
+    realizadoPor,
     fecha,
     fechaServidor: serverTimestamp(),
-    metadata,
+    metadatos: normalizedMetadatos,
   };
 
-  await setDoc(getLogRef(idMiembro, idHistorial), registro);
+  const miembroResumen = {
+    idMiembros: normalizedIdMiembros,
+    codigoMiembro: normalizedCodigoMiembro,
+    nombreMiembro: normalizedNombreMiembro,
+    totalRegistros: increment(1),
+    fechaUltimoCambio: serverTimestamp(),
+    actualizadoPor: realizadoPor.nombre,
+    realizadoPor,
+  };
+
+  const batch = writeBatch(FIRESTORE);
+
+  batch.set(getMemberHistoryRef(resolvedIdMiembros), miembroResumen, { merge: true });
+  batch.set(getLogRef(resolvedIdMiembros, idHistorial), registro);
+
+  await batch.commit();
 
   return registro;
 };
 
 export const registrarCambiosHistorialMiembro = async ({
   idMiembro,
+  idMiembros,
   codigoMiembro = '',
   nombreMiembro = '',
   modulo,
@@ -150,8 +209,11 @@ export const registrarCambiosHistorialMiembro = async ({
   campos = {},
   usuario,
   metadata = {},
+  metadatos,
 }) => {
-  if (!idMiembro || !modulo) return [];
+  const resolvedIdMiembros = idMiembros || idMiembro;
+
+  if (!resolvedIdMiembros || !modulo) return [];
 
   const keys = Object.keys(campos).length
     ? Object.keys(campos)
@@ -171,45 +233,66 @@ export const registrarCambiosHistorialMiembro = async ({
   return Promise.all(
     cambios.map((cambio) =>
       crearRegistroHistorialMiembro({
-        idMiembro,
+        idMiembros: resolvedIdMiembros,
         codigoMiembro,
         nombreMiembro,
         modulo,
         usuario,
-        metadata,
+        metadatos: metadatos || metadata,
         ...cambio,
       })
     )
   );
 };
 
-export const listarHistorialMiembro = async (idMiembro, maxRegistros = 100) => {
-  if (!isFirebaseConfigured || !FIRESTORE || !idMiembro) return [];
+export const listarHistorialMiembro = async (idMiembros, maxRegistros = 100) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) return [];
+
+  const result = await listarHistorialMiembroPagina(idMiembros, { maxRegistros });
+
+  return result.registros;
+};
+
+export const listarHistorialMiembroPagina = async (
+  idMiembros,
+  { maxRegistros = 5, cursor = null } = {}
+) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) {
+    return {
+      registros: [],
+      totalRegistros: 0,
+      ultimoDocumento: null,
+      hayMas: false,
+    };
+  }
+
+  const historyRef = getMemberHistoryRef(idMiembros);
+  const historyDoc = await getDoc(historyRef).catch(() => null);
+  const totalRegistros = Number(historyDoc?.data()?.totalRegistros || 0);
 
   const registrosRef = collection(
     FIRESTORE,
     COLECCION_HISTORIAL_MIEMBROS,
-    String(idMiembro),
+    String(idMiembros),
     SUBCOLECCION_REGISTROS_HISTORIAL
   );
 
-  const snapshot = await getDocs(
-    query(registrosRef, orderBy('fechaServidor', 'desc'), limit(maxRegistros))
-  ).catch(() => getDocs(query(registrosRef, limit(maxRegistros))));
+  const orderedQuery = cursor
+    ? query(registrosRef, orderBy('fechaServidor', 'desc'), startAfter(cursor), limit(maxRegistros))
+    : query(registrosRef, orderBy('fechaServidor', 'desc'), limit(maxRegistros));
 
-  return snapshot.docs.map((item) => {
-    const data = item.data();
+  const fallbackQuery = cursor
+    ? query(registrosRef, startAfter(cursor), limit(maxRegistros))
+    : query(registrosRef, limit(maxRegistros));
 
-    return {
-      id: data.idHistorial || item.id,
-      fecha: formatDate(data.fechaServidor || data.fecha),
-      hora: formatTime(data.fechaServidor || data.fecha),
-      modulo: data.modulo || '',
-      afectado: data.campoAfectado || data.campo || '',
-      antes: data.valorAnterior || '',
-      despues: data.valorNuevo || '',
-      realizadoPor: data.realizadoPor?.nombre || 'Sistema',
-      raw: data,
-    };
-  });
+  const snapshot = await getDocs(orderedQuery).catch(() => getDocs(fallbackQuery));
+  const registros = snapshot.docs.map(mapHistoryDoc);
+  const safeTotal = totalRegistros || registros.length;
+
+  return {
+    registros,
+    totalRegistros: safeTotal,
+    ultimoDocumento: snapshot.docs[snapshot.docs.length - 1] || null,
+    hayMas: registros.length === maxRegistros && safeTotal > registros.length,
+  };
 };
