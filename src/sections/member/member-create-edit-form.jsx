@@ -761,6 +761,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
         const codigoMiembro = currentMember?.memberId || (await generateMemberId());
+        const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
 
         if (!currentMember) {
           const existingMembers = await getMembers();
@@ -804,9 +805,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           direccion: buildDireccion(formData) || null,
           correo: formData.email || null,
           idCargoLocal: null,
-          idCargoInstitucional: formData.nationalLeadershipRole
-            ? Number(formData.nationalLeadershipRole)
-            : null,
+          idCargoInstitucional:
+            Number.isFinite(legacyCargoInstitucional) && legacyCargoInstitucional > 0
+              ? legacyCargoInstitucional
+              : null,
           idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
           instructorCertificadoCi:
             formData.InstructorCertificadoCI === 1

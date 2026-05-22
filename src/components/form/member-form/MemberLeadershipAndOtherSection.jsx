@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 
+import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
+
 import { Field } from 'src/components/hook-form';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
@@ -77,7 +79,16 @@ export default function MemberLeadershipAndOtherSection({
             />
 
             {/* Liderazgo Nacional */}
-            <CargoSelectApi name="nationalLeadershipRole" />
+            <CargoSelectApi
+                name="nationalLeadershipRole"
+                label="Cargo Nacional"
+                niveles={[
+                    NIVELES_DIRECTIVA.nacional,
+                    NIVELES_DIRECTIVA.regional,
+                    NIVELES_DIRECTIVA.seccional,
+                ]}
+                groupByLevel
+            />
 
             {/* Destacamento */}
             <Field.Autocomplete
@@ -98,26 +109,12 @@ export default function MemberLeadershipAndOtherSection({
             />
 
             {/* Posición en destacamento */}
-            <Field.Autocomplete
+            <CargoSelectApi
                 name="memberPosition"
-                value={
-                    [{ value: 'none', label: 'Ninguna' }]
-                        .find((r) => r.value === (watch('memberPosition') || 'none')) || null
-                }
                 label="Nivel posición en tu Destacamento"
-                options={[
-                    { value: 'none', label: 'Ninguna' },
-                ]}
-                freeSolo={false}
-                getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option?.label || ''
-                }
-                isOptionEqualToValue={(option, value) =>
-                    option.value === value?.value
-                }
-                onChange={(event, option) =>
-                    methods.setValue('memberPosition', option?.value || 'none')
-                }
+                niveles={[NIVELES_DIRECTIVA.destacamento]}
+                groupByDivision
+                includeNone
             />
 
             {/* Sexo */}
