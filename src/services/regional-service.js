@@ -1,4 +1,7 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+
+const REGIONALS_STORAGE_KEY = 'regionals';
 
 function mapApiRegionalToUI(regional) {
     return {
@@ -25,6 +28,7 @@ function mapApiRegionalToUI(regional) {
     };
 }
 
+export const getCachedRegionals = () => getStorageCollection(REGIONALS_STORAGE_KEY) || [];
 
 export const getRegionals = async () => {
     try {
@@ -41,13 +45,17 @@ export const getRegionals = async () => {
         const mappedRegionals = Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
         const photosByRegionalId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'region' });
 
-        return mappedRegionals.map((regional) => ({
+        const resolvedRegionals = mappedRegionals.map((regional) => ({
             ...regional,
             avatarUrl: photosByRegionalId[String(regional.id)]?.urlFoto || regional.avatarUrl || null,
         }));
+
+        setStorageCollection(REGIONALS_STORAGE_KEY, resolvedRegionals);
+
+        return resolvedRegionals;
     } catch (error) {
         console.error('getRegionals error:', error);
-        return [];
+        return getCachedRegionals();
     }
 };
 

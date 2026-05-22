@@ -2,8 +2,8 @@
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
-import { useRef, useState, useEffect } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -22,10 +22,13 @@ import { normalizeText } from 'src/utils/normalize-text';
 
 import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
-import { getRegionals, deleteRegional } from 'src/services/regional-service';
+import { getRegionals, deleteRegional, getCachedRegionals } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -62,6 +65,15 @@ const TABLE_HEAD = [
   { id: '', width: 88 },
 ];
 
+const mapRegionalToBaseRow = (regional) => ({
+  ...regional,
+  memberFullName: 'Desconocido',
+  directorId: null,
+  regionalXSectionalCount: 0,
+  regionalXSectionalXDestCount: 0,
+  regionalXSectionalMemberCount: 0,
+});
+
 // ----------------------------------------------------------------------
 
 export function RegionalListView() {
@@ -86,35 +98,26 @@ export function RegionalListView() {
 
   useEffect(() => {
     async function loadRegionals() {
-      setTableLoading(true);
+      const cachedRegionals = getCachedRegionals();
+
+      if (cachedRegionals.length) {
+        setTableData(cachedRegionals.map(mapRegionalToBaseRow));
+        setTableLoading(false);
+      } else {
+        setTableLoading(true);
+      }
 
       try {
         const regionals = await getRegionals();
-        setTableData(
-          regionals.map((regional) => ({
-            ...regional,
-            memberFullName: 'Desconocido',
-            directorId: null,
-            regionalXSectionalCount: 0,
-            regionalXSectionalXDestCount: 0,
-            regionalXSectionalMemberCount: 0,
-          }))
-        );
+        setTableData(regionals.map(mapRegionalToBaseRow));
         setTableLoading(false);
 
-        const sectionals = await getSectionals();
-
-        const resChurches = await fetch('/api/churches');
-        const dataChurches = await resChurches.json();
-        const churches = dataChurches?.data || dataChurches?.Data || [];
-
-        const resDests = await fetch('/api/dest');
-        const dataDests = await resDests.json();
-        const dests = dataDests?.data || dataDests?.Data || [];
-
-        const resMembers = await fetch('/api/members');
-        const dataMembers = await resMembers.json();
-        const members = dataMembers?.data || dataMembers?.Data || [];
+        const [sectionals, churches, dests, members] = await Promise.all([
+          getSectionals(),
+          getChurches(),
+          getDestsApi({ includePhotos: false }),
+          getMembers(),
+        ]);
         const memberById = new Map(
           [...MEMBERS, ...members].flatMap((member) =>
             [member?.id, member?.memberId].filter(Boolean).map((id) => [String(id), member])
@@ -178,9 +181,13 @@ export function RegionalListView() {
 
     loadRegionals();
   }, []);
-  const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
   const filters = useSetState({
     name: '',
     role: [],
@@ -229,12 +236,6 @@ export function RegionalListView() {
 
     hasAppliedUrlFilter.current = true;
   }, [sectionParam, updateFilters, table]);
-
-  useEffect(() => {
-    if (isMobile) {
-      setDisplayMode('grid');
-    }
-  }, [isMobile]);
 
   const dataFiltered = applyFilter({
     inputData: tableData,

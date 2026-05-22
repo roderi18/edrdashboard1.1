@@ -2,6 +2,7 @@ import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
     saveItem,
     getStorageCollection,
+    setStorageCollection,
 } from 'src/utils/storage-service';
 
 const DESTS_STORAGE_KEY = 'dests';
@@ -96,7 +97,7 @@ export async function getDestsApi({ includePhotos = true } = {}) {
                 .map((dest) => [String(dest.id), dest])
         );
 
-        return mappedDests.map((dest) => {
+        const resolvedDests = mappedDests.map((dest) => {
             const localDest = localDestsById.get(String(dest.id));
 
             return {
@@ -109,6 +110,10 @@ export async function getDestsApi({ includePhotos = true } = {}) {
                     null,
             };
         });
+
+        setStorageCollection(DESTS_STORAGE_KEY, resolvedDests);
+
+        return resolvedDests;
     } catch (error) {
         console.error('❌ ERROR DEST API:', error);
         return [];

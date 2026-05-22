@@ -116,8 +116,12 @@ export function NationalListView() {
   );
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [displayMode, setDisplayMode] = useState('panel');
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
 
   const filters = useSetState({
     name: '',
@@ -125,12 +129,6 @@ export function NationalListView() {
     status: 'all',
     nationalEstructure: [],
   });
-
-  useEffect(() => {
-    if (isMobile) {
-      setDisplayMode('grid');
-    }
-  }, [isMobile]);
 
   const NATIONAL_STRUCTURES = {
     ministerios_infantiles: 'Ministerios Infantiles',

@@ -27,7 +27,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
-import { getDestsApi, deleteDestApi } from 'src/services/dest-service';
+import { getDests, getDestsApi, deleteDestApi } from 'src/services/dest-service';
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
@@ -66,6 +66,23 @@ const TABLE_HEAD = [
   { id: 'regionalName', label: 'Región', width: 140 },
   { id: '', width: 88 },
 ];
+
+const mapDestToBaseRow = (dest) => ({
+  ...dest,
+  idIglesia: dest.idIglesia || dest.churchId || null,
+  nombre: dest.nombre || dest.name || '',
+  numero: dest.numero || dest.destNumber || '',
+  destName: dest.nombre || dest.name || '',
+  churchName: dest?.churchName || '',
+  memberFullName: 'Desconocido',
+  coordinatorId: dest.coordinatorId || null,
+  coordinatorPhoneNumber: '',
+  destMemberCount: 0,
+  sectionalId: null,
+  sectionalName: '',
+  regionalId: null,
+  regionalName: '-',
+});
 
 // ----------------------------------------------------------------------
 export function DestListView() {
@@ -203,47 +220,39 @@ export function DestListView() {
 
   const [tableData, setTableData] = useState([]);
 
-  const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  useEffect(() => {
-    if (isMobile) {
-      setDisplayMode('grid');
-    }
-  }, [isMobile]);
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadBaseDests() {
-      setTableLoading(true);
+      const cachedDests = getDests();
+      const cachedScopedDests = isMemberSessionUser(user)
+        ? filterDestsByMemberScope(cachedDests, user)
+        : cachedDests;
+
+      if (cachedScopedDests.length) {
+        setTableData(cachedScopedDests.map(mapDestToBaseRow));
+        setTableLoading(false);
+      } else {
+        setTableLoading(true);
+      }
 
       try {
-        const data = await getDestsApi();
+        const data = await getDestsApi({ includePhotos: false });
         if (cancelled) return;
 
         const scopedDests = isMemberSessionUser(user)
           ? filterDestsByMemberScope(data || [], user)
           : data || [];
 
-        setTableData(
-          scopedDests.map((dest) => ({
-            ...dest,
-            idIglesia: dest.idIglesia || dest.churchId || null,
-            nombre: dest.nombre || dest.name || '',
-            numero: dest.numero || dest.destNumber || '',
-            destName: dest.nombre || dest.name || '',
-            churchName: dest?.churchName || '',
-            memberFullName: 'Desconocido',
-            coordinatorId: dest.coordinatorId || null,
-            coordinatorPhoneNumber: '',
-            destMemberCount: 0,
-            sectionalId: null,
-            sectionalName: '',
-            regionalId: null,
-            regionalName: '-',
-          }))
-        );
+        setTableData(scopedDests.map(mapDestToBaseRow));
       } catch (error) {
         if (!cancelled) {
           console.error('Error loading base dests:', error);
@@ -262,6 +271,7 @@ export function DestListView() {
   }, [user]);
 
   useEffect(() => {
+    if (tableLoading) return;
     if (!members.length || !churches.length || !sectionals.length || !regionals.length) {
       return;
     }
@@ -279,9 +289,13 @@ export function DestListView() {
     };
 
     load();
-  }, [members, churches, sectionals, regionals, user]);
+  }, [members, churches, sectionals, regionals, user, tableLoading]);
 
   useEffect(() => {
+    if (tableLoading) return undefined;
+
+    let cancelled = false;
+
     async function load() {
       const [sectionalsData, regionalsData, churchesData, membersData] = await Promise.all([
         getSectionals(),
@@ -290,6 +304,8 @@ export function DestListView() {
         getMembers(),
       ]);
 
+      if (cancelled) return;
+
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
       setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
       setChurches(Array.isArray(churchesData) ? churchesData : []);
@@ -297,7 +313,11 @@ export function DestListView() {
     }
 
     load();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tableLoading]);
 
   const filters = useSetState({ name: '', sectionalName: [], regionalName: 'all' });
   const searchParams = useSearchParams();

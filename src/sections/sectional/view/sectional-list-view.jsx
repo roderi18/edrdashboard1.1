@@ -21,11 +21,13 @@ import { RouterLink } from 'src/routes/components';
 import { normalizeText } from 'src/utils/normalize-text';
 
 import { REGIONALS } from 'src/_mock/assets';
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
-import { getSectionals, deleteSectional } from 'src/services/sectional-service';
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
+import { getSectionals, deleteSectional, getCachedSectionals } from 'src/services/sectional-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -62,6 +64,17 @@ const TABLE_HEAD = [
   { id: '', width: 88 },
 ];
 
+const mapSectionalToBaseRow = (sectional) => ({
+  ...sectional,
+  sectionalName: sectional.sectionalName || sectional.nombre || sectional.name || '',
+  regionalName: '-',
+  email: sectional.email ?? '',
+  sectionalDestCount: 0,
+  sectionalXDestMemberCount: 0,
+  memberFullName: 'Desconocido',
+  directorId: sectional.directorId || null,
+});
+
 // ----------------------------------------------------------------------
 
 const getLeadershipBySectional = (sectionalId, role) => {
@@ -80,12 +93,8 @@ const buildSectionalList = async () => {
   const regionals = await getRegionals();
   const members = await getMembers();
 
-  const res = await fetch('/api/dest');
-  const data = await res.json();
-  const dests = data?.data || data?.Data || [];
-  const resChurches = await fetch('/api/churches');
-  const dataChurches = await resChurches.json();
-  const churches = dataChurches?.data || dataChurches?.Data || [];
+  const dests = await getDestsApi({ includePhotos: false });
+  const churches = await getChurches();
 
   const leaderships = getLeadershipAssignments();
 
@@ -155,12 +164,16 @@ export function SectionalListView() {
 
   const [tableData, setTableData] = useState([]);
   const [tableLoading, setTableLoading] = useState(true);
-  const [displayMode, setDisplayMode] = useState('panel');
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
   const [isClient, setIsClient] = useState(false);
 
   const [regionals, setRegionals] = useState([]);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
   const filters = useSetState({ name: '', role: [], regionalName: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
   const searchParams = useSearchParams();
@@ -207,22 +220,18 @@ export function SectionalListView() {
 
   useEffect(() => {
     async function loadData() {
-      setTableLoading(true);
+      const cachedSectionals = getCachedSectionals();
+
+      if (cachedSectionals.length) {
+        setTableData(cachedSectionals.map(mapSectionalToBaseRow));
+        setTableLoading(false);
+      } else {
+        setTableLoading(true);
+      }
 
       try {
         const sectionalsData = await getSectionals();
-        setTableData(
-          sectionalsData.map((sectional) => ({
-            ...sectional,
-            sectionalName: sectional.sectionalName || sectional.nombre || sectional.name || '',
-            regionalName: '-',
-            email: sectional.email ?? '',
-            sectionalDestCount: 0,
-            sectionalXDestMemberCount: 0,
-            memberFullName: 'Desconocido',
-            directorId: sectional.directorId || null,
-          }))
-        );
+        setTableData(sectionalsData.map(mapSectionalToBaseRow));
         setTableLoading(false);
 
         const regionalsData = await getRegionals();
@@ -273,12 +282,6 @@ export function SectionalListView() {
 
     hasAppliedUrlFilter.current = true;
   }, [sectionFromUrl, updateFilters, table]);
-
-  useEffect(() => {
-    if (isMobile) {
-      setDisplayMode('grid');
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     setIsClient(true);

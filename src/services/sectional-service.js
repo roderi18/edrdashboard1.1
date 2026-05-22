@@ -1,4 +1,7 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+
+const SECTIONALS_STORAGE_KEY = 'sectionals';
 
 function mapApiSectionalToUI(sectional) {
     return {
@@ -26,6 +29,8 @@ function mapApiSectionalToUI(sectional) {
     };
 }
 
+export const getCachedSectionals = () => getStorageCollection(SECTIONALS_STORAGE_KEY) || [];
+
 export const getSectionals = async () => {
     try {
         const res = await fetch('/api/sectional');
@@ -41,13 +46,17 @@ export const getSectionals = async () => {
             : [];
         const photosBySectionalId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' });
 
-        return mappedSectionals.map((sectional) => ({
+        const resolvedSectionals = mappedSectionals.map((sectional) => ({
             ...sectional,
             avatarUrl: photosBySectionalId[String(sectional.id)]?.urlFoto || sectional.avatarUrl || null,
         }));
+
+        setStorageCollection(SECTIONALS_STORAGE_KEY, resolvedSectionals);
+
+        return resolvedSectionals;
     } catch (error) {
         console.error('getSectionals error:', error);
-        return [];
+        return getCachedSectionals();
     }
 };
 
