@@ -68,7 +68,7 @@ export function getDests() {
     return getStorageCollection(DESTS_STORAGE_KEY) || [];
 }
 
-export async function getDestsApi() {
+export async function getDestsApi({ includePhotos = true } = {}) {
     try {
         const res = await fetch('/api/dest');
 
@@ -86,7 +86,9 @@ export async function getDestsApi() {
         const mappedDests = Array.isArray(data)
             ? data.map(mapApiDestToUI)
             : [];
-        const photosByDestId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' });
+        const photosByDestId = includePhotos
+            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' })
+            : {};
         const localDests = getDests();
         const localDestsById = new Map(
             localDests

@@ -12,6 +12,47 @@ import {
 const MEMBERS_KEY = 'members';
 const LEADERSHIP_KEY = 'leadershipAssignments';
 
+const getMemberCacheId = (member) =>
+    member?.id ?? member?.idMiembros ?? member?.codigoMiembro ?? member?.memberId;
+
+const normalizeCachedMember = (member) => {
+    if (!member) return null;
+
+    if (member.idMiembros && !member.firstName && !member.lastName) {
+        return mapApiMemberToUI(member);
+    }
+
+    const id = getMemberCacheId(member);
+
+    if (id === null || id === undefined || id === '') return null;
+
+    return {
+        ...member,
+        id: String(id),
+        memberId: member.memberId ?? member.codigoMiembro ?? member.idMiembros ?? String(id),
+        destId: String(member.destId ?? member.idDestacamento ?? ''),
+    };
+};
+
+const mergeMembersById = (...sources) => {
+    const mergedMembers = new Map();
+
+    sources.flat().forEach((member) => {
+        const normalizedMember = normalizeCachedMember(member);
+
+        if (!normalizedMember?.id) return;
+        if (mergedMembers.has(String(normalizedMember.id))) return;
+
+        mergedMembers.set(String(normalizedMember.id), normalizedMember);
+    });
+
+    return Array.from(mergedMembers.values());
+};
+
+export function getCachedMembers() {
+    return mergeMembersById(getStorageCollection(MEMBERS_KEY) || []);
+}
+
 export function mapApiMemberToUI(member) {
     return {
         id: String(member.idMiembros),
@@ -59,24 +100,11 @@ export async function getMembers() {
 
         const data = response.data || response.Data || response.items || response;
         const apiMembers = Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
-        const localMembers = getStorageCollection(MEMBERS_KEY) || [];
-        const mergedMembers = new Map();
+        const mergedMembers = mergeMembersById(apiMembers, getCachedMembers());
 
-        apiMembers.forEach((member) => {
-            mergedMembers.set(String(member.id), { ...member });
-        });
+        setStorageCollection(MEMBERS_KEY, mergedMembers);
 
-        localMembers.forEach((member) => {
-            if (!member?.id) return;
-            if (mergedMembers.has(String(member.id))) return;
-
-            mergedMembers.set(String(member.id), {
-                ...member,
-                id: String(member.id),
-            });
-        });
-
-        return Array.from(mergedMembers.values());
+        return mergedMembers;
     } catch (error) {
         console.error('âŒ FETCH ERROR:', error);
         return getStorageCollection(MEMBERS_KEY) || [];

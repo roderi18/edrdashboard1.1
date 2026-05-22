@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo } from 'react';
 
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
@@ -97,35 +97,11 @@ export const MemberCard = memo(function MemberCard({
   dests: destsProp = [],
   ...other
 }) {
-  const [dests, setDests] = useState([]);
-
-  useEffect(() => {
-    const normalizedDestsProp = normalizeDests(destsProp);
-
-    if (normalizedDestsProp.length) {
-      setDests(normalizedDestsProp);
-      return undefined;
-    }
-
-    const load = async () => {
-      try {
-        const res = await fetch('/api/dest');
-        const data = await res.json();
-        setDests(normalizeDests(data));
-      } catch (error) {
-        console.error('Error loading dests for member card:', error);
-        setDests([]);
-      }
-    };
-    load();
-    return undefined;
-  }, [destsProp]);
-
   const memberEditId = getMemberEditId(member);
   const editHref = memberEditId ? `/dashboard/level/member/${memberEditId}/edit` : '#';
   const phoneNumber = getMemberPhone(member);
   const phoneLabel = formatPhoneNumber(phoneNumber);
-  const destLabel = buildDestLabel(member, dests);
+  const destLabel = buildDestLabel(member, destsProp);
   const divisionIcon = getMemberDivisionIcon(member);
   const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);
 

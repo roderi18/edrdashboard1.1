@@ -35,7 +35,7 @@ import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
-import { getMembers, deleteMember } from 'src/services/member-service';
+import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -118,81 +118,41 @@ const resolveMemberDivision = (member) => {
   return '';
 };
 
+const mapMemberToTableRow = (member) => ({
+  ...member,
+  id: member.id,
+  idMiembros: member.id,
+  memberId: member.memberId || member.codigoMiembro || member.id,
+  destId: member.destId || member.idDestacamento || '',
+  avatarUrl: member.avatarUrl || null,
+  name: getMemberFullName(member),
+  memberDivision: resolveMemberDivision(member),
+  churchId: null,
+  churchName: 'Iglesia desconocida',
+  sectionalId: '',
+  sectionalName: 'Sección desconocida',
+  regionalId: '',
+  regionalName: '',
+  memberPosition: member.memberPosition || [],
+});
+
 // ----------------------------------------------------------------------
 
 export function MemberListView() {
   const table = useTable();
   const { user, loading } = useAuthContext();
   const [dests, setDests] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await getDestsApi();
-        setDests(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error loading dests for member list:', error);
-        setDests([]);
-      }
-    };
-
-    load();
-  }, []);
-
-  const [displayMode, setDisplayMode] = useState('panel');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
-
-  useEffect(() => {
-    if (isMobile) {
-      setDisplayMode('grid');
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    const loadChurches = async () => {
-      try {
-        const data = await getChurches();
-        setChurches(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error loading churches for member list:', error);
-        setChurches([]);
-      }
-    };
-
-    loadChurches();
-  }, []);
-
-  useEffect(() => {
-    const loadRegionals = async () => {
-      try {
-        const data = await getRegionals();
-        setRegionals(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error loading regionals for member list:', error);
-        setRegionals([]);
-      }
-    };
-
-    loadRegionals();
-  }, []);
-
-  useEffect(() => {
-    const loadSectionals = async () => {
-      try {
-        const data = await getSectionals();
-        setSectionals(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error loading sectionals for member list:', error);
-        setSectionals([]);
-      }
-    };
-
-    loadSectionals();
-  }, []);
+  const metadataLoadedRef = useRef(false);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -204,6 +164,53 @@ export function MemberListView() {
   const [tableData, setTableData] = useState([]);
   const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [membersLoading, setMembersLoading] = useState(true);
+
+  useEffect(() => {
+    if (membersLoading || metadataLoadedRef.current) return undefined;
+
+    let cancelled = false;
+    metadataLoadedRef.current = true;
+
+    const loadMetadata = async () => {
+      const [destsResult, churchesResult, regionalsResult, sectionalsResult] =
+        await Promise.allSettled([
+          getDestsApi({ includePhotos: false }),
+          getChurches(),
+          getRegionals(),
+          getSectionals(),
+        ]);
+
+      if (cancelled) return;
+
+      setDests(
+        destsResult.status === 'fulfilled' && Array.isArray(destsResult.value)
+          ? destsResult.value
+          : []
+      );
+      setChurches(
+        churchesResult.status === 'fulfilled' && Array.isArray(churchesResult.value)
+          ? churchesResult.value
+          : []
+      );
+      setRegionals(
+        regionalsResult.status === 'fulfilled' && Array.isArray(regionalsResult.value)
+          ? regionalsResult.value
+          : []
+      );
+      setSectionals(
+        sectionalsResult.status === 'fulfilled' && Array.isArray(sectionalsResult.value)
+          ? sectionalsResult.value
+          : []
+      );
+    };
+
+    loadMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [membersLoading]);
+
   const visibleMembers = useMemo(
     () => filterMembersByMemberScope(tableData, user),
     [tableData, user]
@@ -231,32 +238,22 @@ export function MemberListView() {
     let cancelled = false;
 
     async function loadMembers() {
-      setMembersLoading(true);
       setMemberPhotoUrls({});
+
+      const cachedMembers = getCachedMembers();
+
+      if (cachedMembers.length) {
+        setTableData(cachedMembers.map(mapMemberToTableRow));
+        setMembersLoading(false);
+      } else {
+        setMembersLoading(true);
+      }
 
       try {
         const members = await getMembers();
         if (cancelled) return;
 
-        setTableData(
-          members.map((member) => ({
-            ...member,
-            id: member.id,
-            idMiembros: member.id,
-            memberId: member.id,
-            destId: member.destId || member.idDestacamento || '',
-            avatarUrl: member.avatarUrl || null,
-            name: getMemberFullName(member),
-            memberDivision: resolveMemberDivision(member),
-            churchId: null,
-            churchName: 'Iglesia desconocida',
-            sectionalId: '',
-            sectionalName: 'Sección desconocida',
-            regionalId: '',
-            regionalName: '',
-            memberPosition: member.memberPosition || [],
-          }))
-        );
+        setTableData(members.map(mapMemberToTableRow));
         setMembersLoading(false);
 
         obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
