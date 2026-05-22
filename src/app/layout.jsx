@@ -5,15 +5,14 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 
 import { CONFIG } from 'src/global-config';
 import { LocalizationProvider } from 'src/locales';
-import { detectLanguage } from 'src/locales/server';
 import { I18nProvider } from 'src/locales/i18n-provider';
+import { fallbackLng } from 'src/locales/locales-config';
 import { themeConfig, ThemeProvider, primary as primaryColor } from 'src/theme';
 
 import { Snackbar } from 'src/components/snackbar';
-import { ServiceWorkerRegister } from 'src/components/pwa';
 import { ProgressBar } from 'src/components/progress-bar';
+import { ServiceWorkerRegister } from 'src/components/pwa';
 import { MotionLazy } from 'src/components/animate/motion-lazy';
-import { detectSettings } from 'src/components/settings/server';
 import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/components/settings';
 
 import { CheckoutProvider } from 'src/sections/checkout/context';
@@ -65,28 +64,17 @@ export const metadata = {
 
 // ----------------------------------------------------------------------
 
-async function getAppConfig() {
-  if (CONFIG.isStaticExport) {
-    return {
-      lang: 'en',
-      i18nLang: undefined,
-      cookieSettings: undefined,
-      dir: defaultSettings.direction,
-    };
-  } else {
-    const [lang, settings] = await Promise.all([detectLanguage(), detectSettings()]);
-
-    return {
-      lang,
-      i18nLang: lang,
-      cookieSettings: settings,
-      dir: settings.direction,
-    };
-  }
+function getAppConfig() {
+  return {
+    lang: fallbackLng,
+    i18nLang: fallbackLng,
+    cookieSettings: undefined,
+    dir: defaultSettings.direction,
+  };
 }
 
-export default async function RootLayout({ children }) {
-  const appConfig = await getAppConfig();
+export default function RootLayout({ children }) {
+  const appConfig = getAppConfig();
 
   return (
     <html lang={appConfig.lang} dir={appConfig.dir} suppressHydrationWarning>
