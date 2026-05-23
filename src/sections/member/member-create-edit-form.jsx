@@ -53,11 +53,13 @@ import { getDivisions } from 'src/services/division-service';
 import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
+import { NATIONAL_LEADERSHIP_LEVELS } from 'src/catalogs/directiva-positions';
 // services
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { crearNotificacionMiembroCreado } from 'src/services/notification-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
 
 // components
 import { Label } from 'src/components/label';
@@ -74,12 +76,6 @@ import MemberLeadershipAndOtherSection from 'src/components/form/member-form/Mem
 import { useAuthContext } from 'src/auth/hooks';
 
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
-// local options
-import {
-  MEMBER_SHIRT_SIZES,
-  MEMBER_OCUPATIONS_SORTED,
-  NATIONAL_LEADERSHIP_LEVELS,
-} from './member-create-edit-options';
 // ----------------------------------------------------------------------
 
 const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';

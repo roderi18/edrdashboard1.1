@@ -4,17 +4,15 @@ import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 
 import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
+import {
+  MEMBER_GENDERS,
+  MEMBER_SHIRT_SIZES,
+  MEMBER_OCUPATIONS_SORTED,
+} from 'src/catalogs/member-catalogs';
 
 import { Field } from 'src/components/hook-form';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
-
-import {
-    MEMBER_GENDERS,
-    MEMBER_SHIRT_SIZES,
-    MEMBER_OCUPATIONS_SORTED,
-
-} from 'src/sections/member/member-create-edit-options';
 
 const getRowsFromApi = (payload) => {
     if (Array.isArray(payload)) return payload;
