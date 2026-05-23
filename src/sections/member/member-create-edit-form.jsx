@@ -317,6 +317,7 @@ const mapMemberToForm = (member) => {
     city: member.city ?? '',
     address: member.direccion ?? '',
     memberDivision: member.memberDivision ?? '',
+    idDivision: member.idDivision ?? 0,
     destId: member.destId || member.dest_id || member.dest || '',
     ocupation:
       MEMBER_OCUPATIONS_SORTED.find((o) =>
@@ -400,6 +401,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     address: '',
     ocupation: null,
     memberDivision: '',
+    idDivision: 0,
     memberPosition: '',
     gender: 'Masculino',
     shirtSize: '',
@@ -868,10 +870,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
         if (!res.ok) {
           throw new Error(
             responseData?.message ||
-            responseData?.Message ||
-            responseData?.error ||
-            text ||
-            `Error de red o servidor (${res.status})`
+              responseData?.Message ||
+              responseData?.error ||
+              text ||
+              `Error de red o servidor (${res.status})`
           );
         }
 
@@ -911,7 +913,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               destId: selectedDestId,
               memberId: savedMember?.id || null,
             });
-
           } catch (authError) {
             if (authError?.code === 'auth/email-already-in-use') {
               console.warn('[member form] firebase auth user already exists', authError);
@@ -994,9 +995,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             }
           } catch (photoError) {
             console.error('[member form] deferred photo upload failed', photoError);
-            toast.error(
-              photoError.message || 'Miembro creado, pero no se pudo subir la foto.'
-            );
+            toast.error(photoError.message || 'Miembro creado, pero no se pudo subir la foto.');
           } finally {
             setUploadingPhoto(false);
           }
@@ -1033,448 +1032,451 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   return (
     <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
       <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentMember && (
-              <Label
-                color={
-                  (values.status === 'active' && 'success') ||
-                  (values.status === 'banned' && 'error') ||
-                  'warning'
-                }
-                sx={{ position: 'absolute', top: 24, right: 24 }}
-              >
-                {values.status}
-              </Label>
-            )}
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Card sx={{ pt: 10, pb: 5, px: 3 }}>
+              {currentMember && (
+                <Label
+                  color={
+                    (values.status === 'active' && 'success') ||
+                    (values.status === 'banned' && 'error') ||
+                    'warning'
+                  }
+                  sx={{ position: 'absolute', top: 24, right: 24 }}
+                >
+                  {values.status}
+                </Label>
+              )}
 
-            <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                loading={uploadingPhoto}
-                disabled={uploadingPhoto}
-                onDrop={handleUploadMemberPhoto}
-                optimizationToast={false}
-                onDropRejected={handlePhotoDropRejected}
-                hideFilesRejected
-                helperText={
-                  <>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        mt: 3,
-                        mx: 'auto',
-                        display: 'block',
-                        textAlign: 'center',
-                        color: 'text.disabled',
-                      }}
-                    >
-                      Permitido *.jpeg, *.jpg, *.png, *.gif
-                      <br /> la imagen se optimiza al cargar.
-                    </Typography>
-
-                    {!!photoUploadErrorMessage && (
+              <Box sx={{ mb: 5 }}>
+                <Field.UploadAvatar
+                  name="avatarUrl"
+                  loading={uploadingPhoto}
+                  disabled={uploadingPhoto}
+                  onDrop={handleUploadMemberPhoto}
+                  optimizationToast={false}
+                  onDropRejected={handlePhotoDropRejected}
+                  hideFilesRejected
+                  helperText={
+                    <>
                       <Typography
                         variant="caption"
                         sx={{
-                          mt: 1,
+                          mt: 3,
                           mx: 'auto',
                           display: 'block',
                           textAlign: 'center',
-                          color: 'error.main',
-                          fontWeight: 700,
+                          color: 'text.disabled',
                         }}
                       >
-                        {photoUploadErrorMessage}
+                        Permitido *.jpeg, *.jpg, *.png, *.gif
+                        <br /> la imagen se optimiza al cargar.
                       </Typography>
-                    )}
 
-                    <ContextInfo
-                      items={[
-                        {
-                          show: isCreateView && !!memberFullName,
-                          text: memberFullName,
-                          variant: 'subtitle1',
-                          bold: true,
-                          mt: 1,
-                          color: 'text.primary',
-                        },
-                        {
-                          show: !isCreateView && !!currentMember?.memberId,
-                          text: `Miembro ${currentMember?.memberId}`,
-                        },
-                        {
-                          show: isCreateView && !!selectedDest?.name,
-                          text: `pertenecerÃƒÂ¡ a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
-                        },
-                        {
-                          show: isCreateView && !!destChurch?.name,
-                          text: destChurch?.name,
-                        },
-                        {
-                          show: isCreateView && !!selectedSectional?.name,
-                          text: `SecciÃƒÂ³n ${selectedSectional?.name}`,
-                        },
-                        {
-                          show: isCreateView && !!selectedRegional?.name,
-                          text: selectedRegional?.name,
-                        },
-                      ]}
-                    />
-
-                    {/* Coordinador de Dest... */}
-                    {memberDestText && !destLeadership && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          mt: 1,
-                          mx: 'auto',
-                          display: 'block',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {memberDestText.includes(destName) ? (
-                          <>
-                            {memberDestText.replace(destName, '')}
-                            <UnderlineLink
-                              href={`/dashboard/level/dest/${destId}/edit`}
-                              sx={{ color: 'text.primary' }}
-                            >
-                              {destName}
-                            </UnderlineLink>
-                          </>
-                        ) : (
-                          memberDestText
-                        )}
-                      </Typography>
-                    )}
-
-                    {!isCreateView &&
-                      leadershipTexts.map((text, index) => (
+                      {!!photoUploadErrorMessage && (
                         <Typography
-                          key={`${text}-${index}`}
+                          variant="caption"
+                          sx={{
+                            mt: 1,
+                            mx: 'auto',
+                            display: 'block',
+                            textAlign: 'center',
+                            color: 'error.main',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {photoUploadErrorMessage}
+                        </Typography>
+                      )}
+
+                      <ContextInfo
+                        items={[
+                          {
+                            show: isCreateView && !!memberFullName,
+                            text: memberFullName,
+                            variant: 'subtitle1',
+                            bold: true,
+                            mt: 1,
+                            color: 'text.primary',
+                          },
+                          {
+                            show: !isCreateView && !!currentMember?.memberId,
+                            text: `Miembro ${currentMember?.memberId}`,
+                          },
+                          {
+                            show: isCreateView && !!selectedDest?.name,
+                            text: `pertenecerÃƒÂ¡ a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
+                          },
+                          {
+                            show: isCreateView && !!destChurch?.name,
+                            text: destChurch?.name,
+                          },
+                          {
+                            show: isCreateView && !!selectedSectional?.name,
+                            text: `SecciÃƒÂ³n ${selectedSectional?.name}`,
+                          },
+                          {
+                            show: isCreateView && !!selectedRegional?.name,
+                            text: selectedRegional?.name,
+                          },
+                        ]}
+                      />
+
+                      {/* Coordinador de Dest... */}
+                      {memberDestText && !destLeadership && (
+                        <Typography
                           variant="body2"
                           sx={{
-                            mt: index === 0 ? 0.5 : 0.3,
+                            mt: 1,
                             mx: 'auto',
                             display: 'block',
                             textAlign: 'center',
                           }}
                         >
-                          {text}
-                        </Typography>
-                      ))}
-                  </>
-                }
-              />
-            </Box>
-
-            {currentMember && (
-              <FormControlLabel
-                labelPlacement="start"
-                control={
-                  <Controller
-                    name="status"
-                    control={control}
-                    render={({ field }) => (
-                      <Switch
-                        {...field}
-                        checked={field.value !== 'active'}
-                        onChange={(event) =>
-                          field.onChange(event.target.checked ? 'banned' : 'active')
-                        }
-                      />
-                    )}
-                  />
-                }
-                label={
-                  <>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      Desarrollo
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      Lorem ipsum dolor sit.
-                    </Typography>
-                  </>
-                }
-                sx={{
-                  mx: 0,
-                  mb: 3,
-                  width: 1,
-                  justifyContent: 'space-between',
-                }}
-              />
-            )}
-            {currentMember && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <MemberInfoPdfMenu
-                  values={values}
-                  memberCode={currentMember?.memberId}
-                  fullName={memberFullName}
-                  destName={destName}
-                  avatarUrl={currentMember?.avatarUrl}
-                />
-              </Stack>
-            )}
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Card sx={{ p: 3 }}>
-            <Box
-              sx={{
-                rowGap: 3,
-                columnGap: 2,
-                display: 'grid',
-                gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
-              }}
-            >
-              {(!isCreateView || step === 1) && (
-                <MemberGeneralSection
-                  age={age}
-                  division={division}
-                  isCreateView={isCreateView}
-                  control={control}
-                  minBirthdate={minBirthdate}
-                  maxBirthdate={maxBirthdate}
-                />
-              )}
-
-              {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
-              {!isCreateView && (!isMobile || showMore) && (
-                <>
-                  <MemberAddressSection isEdit />
-
-                  {isCreateView && (
-                    <>
-                      <Field.Select
-                        name="nationalLeadershipLevel"
-                        label="PosiciÃƒÂ³n en Consejo Nacional"
-                        value={watch('nationalLeadershipLevel') ?? ''}
-                      >
-                        {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
-                          <MenuItem key={option.label} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Field.Select>
-
-                      {watch('nationalLeadershipLevel') !== 'none' && (
-                        <Field.Select name="nationalLeadershipRole" label="Cargo">
-                          {_leadershipRolesByLevel[watch('nationalLeadershipLevel')]?.map(
-                            (role) => (
-                              <MenuItem key={role.value} value={role.value}>
-                                {role.label}
-                              </MenuItem>
-                            )
+                          {memberDestText.includes(destName) ? (
+                            <>
+                              {memberDestText.replace(destName, '')}
+                              <UnderlineLink
+                                href={`/dashboard/level/dest/${destId}/edit`}
+                                sx={{ color: 'text.primary' }}
+                              >
+                                {destName}
+                              </UnderlineLink>
+                            </>
+                          ) : (
+                            memberDestText
                           )}
-                        </Field.Select>
+                        </Typography>
                       )}
+
+                      {!isCreateView &&
+                        leadershipTexts.map((text, index) => (
+                          <Typography
+                            key={`${text}-${index}`}
+                            variant="body2"
+                            sx={{
+                              mt: index === 0 ? 0.5 : 0.3,
+                              mx: 'auto',
+                              display: 'block',
+                              textAlign: 'center',
+                            }}
+                          >
+                            {text}
+                          </Typography>
+                        ))}
                     </>
-                  )}
-
-                  <MemberLeadershipAndOtherSection
-                    watch={watch}
-                    methods={methods}
-                    isCreateView={false}
-                    isEdit
-                  />
-
-                  <MemberInstructorCISection
-                    instructorCI={instructorCI}
-                    diasRestantesCI={diasRestantesCI}
-                    isEdit
-                  />
-                </>
-              )}
-
-              {/* SOLO /new: STEP 1 = DirecciÃƒÂ³n */}
-              {isCreateView && step === 1 && (
-                <>
-                  <Box
-                    sx={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: '100%',
-                    }}
-                  >
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                    <Typography sx={{ mx: 2, typography: 'subtitle2', color: 'text.secondary' }}>
-                      Dirección
-                    </Typography>
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                  </Box>
-
-                  <MemberAddressSection />
-                </>
-              )}
-
-              {/* SOLO /new: STEP 2 = Otros (OcupaciÃƒÂ³n + Size T-Shirt) */}
-              {isCreateView && step === 2 && (
-                <>
-                  <Box
-                    sx={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: '100%',
-                      my: 1,
-                    }}
-                  >
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-                    <Typography
-                      sx={{
-                        mx: 2,
-                        typography: 'subtitle2',
-                        color: 'text.secondary',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Destacamento, liderazgo, otros
-                    </Typography>
-
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                  </Box>
-
-                  <MemberLeadershipAndOtherSection watch={watch} methods={methods} isCreateView />
-                  <Box
-                    sx={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: '100%',
-                      my: 1,
-                    }}
-                  >
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-                    <Typography
-                      sx={{
-                        mx: 2,
-                        typography: 'subtitle2',
-                        color: 'text.secondary',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Instructor CI
-                    </Typography>
-
-                    <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                  </Box>
-
-                  <Field.Select name="InstructorCertificadoCI" label="Ã‚Â¿Instructor Certificado?">
-                    <MenuItem value={1}>SÃƒÂ­</MenuItem>
-                    <MenuItem value={0}>No</MenuItem>
-                  </Field.Select>
-
-                  {instructorCI === 1 && (
-                    <>
-                      <Field.Select
-                        name="EstatusVigenciaCI"
-                        label="Estatus vigencia CI"
-                        defaultValue="na"
-                        sx={{
-                          '& .MuiSelect-icon': {
-                            display: 'none',
-                          },
-                        }}
-                        disabled
-                      >
-                        <MenuItem value={1}>Activo</MenuItem>
-                        <MenuItem value={0}>Inactivo</MenuItem>
-                        <MenuItem value="na">N/A</MenuItem>
-                      </Field.Select>
-
-                      <Field.DatePicker
-                        name="FechaInicioCI"
-                        label="Fecha inicio CI"
-                        format="DD/MM/YYYY"
-                        views={['year', 'month', 'day']}
-                        minDate={dayjs().subtract(5, 'year').add(1, 'day')}
-                        maxDate={dayjs()}
-                      />
-                      <Field.DatePicker
-                        name="FechaVencimientoCI"
-                        label={`Fecha vencimiento CI${
-                          diasRestantesCI !== null && diasRestantesCI <= 365
-                            ? ` (${
-                                diasRestantesCI >= 0
-                                  ? `${diasRestantesCI} dÃƒÂ­as restantes`
-                                  : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
-                              })`
-                            : ''
-                        }`}
-                        format="DD/MM/YYYY"
-                        views={['year', 'month', 'day']}
-                        disabled
-                        sx={{
-                          '& .MuiInputAdornment-root': {
-                            display: 'none',
-                          },
-                        }}
-                      />
-                    </>
-                  )}
-                </>
-              )}
-            </Box>
-
-            {/* SOLO EDIT */}
-            {!isCreateView && isMobile && (
-              <Box sx={{ mt: 2 }}>
-                <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
-                  {showMore ? 'Ocultar informaciÃƒÂ³n' : 'Ver mÃƒÂ¡s informaciÃƒÂ³n'}
-                </Button>
+                  }
+                />
               </Box>
-            )}
 
-            {!readOnly && (
-            <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-              {/* SOLO /new */}
-              {isCreateView && step === 2 && (
-                <Button variant="outlined" onClick={prevStep}>
-                  Atrás
-                </Button>
+              {currentMember && (
+                <FormControlLabel
+                  labelPlacement="start"
+                  control={
+                    <Controller
+                      name="status"
+                      control={control}
+                      render={({ field }) => (
+                        <Switch
+                          {...field}
+                          checked={field.value !== 'active'}
+                          onChange={(event) =>
+                            field.onChange(event.target.checked ? 'banned' : 'active')
+                          }
+                        />
+                      )}
+                    />
+                  }
+                  label={
+                    <>
+                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                        Desarrollo
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Lorem ipsum dolor sit.
+                      </Typography>
+                    </>
+                  }
+                  sx={{
+                    mx: 0,
+                    mb: 3,
+                    width: 1,
+                    justifyContent: 'space-between',
+                  }}
+                />
               )}
+              {currentMember && (
+                <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
+                  <MemberInfoPdfMenu
+                    values={values}
+                    memberCode={currentMember?.memberId}
+                    fullName={memberFullName}
+                    destName={destName}
+                    avatarUrl={currentMember?.avatarUrl}
+                  />
+                </Stack>
+              )}
+            </Card>
+          </Grid>
 
-              {isCreateView && step === 1 && (
-                <Button variant="contained" onClick={nextStep}>
-                  Siguiente (1 / 2)
-                </Button>
-              )}
-
-              {isCreateView && step === 2 && (
-                <Button type="submit" variant="contained" loading={isSubmitting}>
-                  Crear miembro
-                </Button>
-              )}
-
-              {/* SOLO EDIT */}
-              {!isCreateView && (
-                <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                  Guardar cambios
-                </LoadingButton>
-              )}
-            </Stack>
-            )}
-            {!readOnly && formErrorMessage && (
-              <Typography
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Card sx={{ p: 3 }}>
+              <Box
                 sx={{
-                  mt: 1,
-                  typography: 'caption',
-                  color: 'error.main',
-                  textAlign: 'right',
+                  rowGap: 3,
+                  columnGap: 2,
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
                 }}
               >
-                Faltan campos obligatorios por completar
-              </Typography>
-            )}
-          </Card>
+                {(!isCreateView || step === 1) && (
+                  <MemberGeneralSection
+                    age={age}
+                    division={division}
+                    isCreateView={isCreateView}
+                    control={control}
+                    minBirthdate={minBirthdate}
+                    maxBirthdate={maxBirthdate}
+                  />
+                )}
+
+                {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
+                {!isCreateView && (!isMobile || showMore) && (
+                  <>
+                    <MemberAddressSection isEdit />
+
+                    {isCreateView && (
+                      <>
+                        <Field.Select
+                          name="nationalLeadershipLevel"
+                          label="PosiciÃƒÂ³n en Consejo Nacional"
+                          value={watch('nationalLeadershipLevel') ?? ''}
+                        >
+                          {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
+                            <MenuItem key={option.label} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </Field.Select>
+
+                        {watch('nationalLeadershipLevel') !== 'none' && (
+                          <Field.Select name="nationalLeadershipRole" label="Cargo">
+                            {_leadershipRolesByLevel[watch('nationalLeadershipLevel')]?.map(
+                              (role) => (
+                                <MenuItem key={role.value} value={role.value}>
+                                  {role.label}
+                                </MenuItem>
+                              )
+                            )}
+                          </Field.Select>
+                        )}
+                      </>
+                    )}
+
+                    <MemberLeadershipAndOtherSection
+                      watch={watch}
+                      methods={methods}
+                      isCreateView={false}
+                      isEdit
+                    />
+
+                    <MemberInstructorCISection
+                      instructorCI={instructorCI}
+                      diasRestantesCI={diasRestantesCI}
+                      isEdit
+                    />
+                  </>
+                )}
+
+                {/* SOLO /new: STEP 1 = DirecciÃƒÂ³n */}
+                {isCreateView && step === 1 && (
+                  <>
+                    <Box
+                      sx={{
+                        gridColumn: '1 / -1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                      }}
+                    >
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+                      <Typography sx={{ mx: 2, typography: 'subtitle2', color: 'text.secondary' }}>
+                        Dirección
+                      </Typography>
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+                    </Box>
+
+                    <MemberAddressSection />
+                  </>
+                )}
+
+                {/* SOLO /new: STEP 2 = Otros (OcupaciÃƒÂ³n + Size T-Shirt) */}
+                {isCreateView && step === 2 && (
+                  <>
+                    <Box
+                      sx={{
+                        gridColumn: '1 / -1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        my: 1,
+                      }}
+                    >
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+
+                      <Typography
+                        sx={{
+                          mx: 2,
+                          typography: 'subtitle2',
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Destacamento, liderazgo, otros
+                      </Typography>
+
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+                    </Box>
+
+                    <MemberLeadershipAndOtherSection watch={watch} methods={methods} isCreateView />
+                    <Box
+                      sx={{
+                        gridColumn: '1 / -1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        my: 1,
+                      }}
+                    >
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+
+                      <Typography
+                        sx={{
+                          mx: 2,
+                          typography: 'subtitle2',
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Instructor CI
+                      </Typography>
+
+                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+                    </Box>
+
+                    <Field.Select
+                      name="InstructorCertificadoCI"
+                      label="Ã‚Â¿Instructor Certificado?"
+                    >
+                      <MenuItem value={1}>SÃƒÂ­</MenuItem>
+                      <MenuItem value={0}>No</MenuItem>
+                    </Field.Select>
+
+                    {instructorCI === 1 && (
+                      <>
+                        <Field.Select
+                          name="EstatusVigenciaCI"
+                          label="Estatus vigencia CI"
+                          defaultValue="na"
+                          sx={{
+                            '& .MuiSelect-icon': {
+                              display: 'none',
+                            },
+                          }}
+                          disabled
+                        >
+                          <MenuItem value={1}>Activo</MenuItem>
+                          <MenuItem value={0}>Inactivo</MenuItem>
+                          <MenuItem value="na">N/A</MenuItem>
+                        </Field.Select>
+
+                        <Field.DatePicker
+                          name="FechaInicioCI"
+                          label="Fecha inicio CI"
+                          format="DD/MM/YYYY"
+                          views={['year', 'month', 'day']}
+                          minDate={dayjs().subtract(5, 'year').add(1, 'day')}
+                          maxDate={dayjs()}
+                        />
+                        <Field.DatePicker
+                          name="FechaVencimientoCI"
+                          label={`Fecha vencimiento CI${
+                            diasRestantesCI !== null && diasRestantesCI <= 365
+                              ? ` (${
+                                  diasRestantesCI >= 0
+                                    ? `${diasRestantesCI} dÃƒÂ­as restantes`
+                                    : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
+                                })`
+                              : ''
+                          }`}
+                          format="DD/MM/YYYY"
+                          views={['year', 'month', 'day']}
+                          disabled
+                          sx={{
+                            '& .MuiInputAdornment-root': {
+                              display: 'none',
+                            },
+                          }}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </Box>
+
+              {/* SOLO EDIT */}
+              {!isCreateView && isMobile && (
+                <Box sx={{ mt: 2 }}>
+                  <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
+                    {showMore ? 'Ocultar informaciÃƒÂ³n' : 'Ver mÃƒÂ¡s informaciÃƒÂ³n'}
+                  </Button>
+                </Box>
+              )}
+
+              {!readOnly && (
+                <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
+                  {/* SOLO /new */}
+                  {isCreateView && step === 2 && (
+                    <Button variant="outlined" onClick={prevStep}>
+                      Atrás
+                    </Button>
+                  )}
+
+                  {isCreateView && step === 1 && (
+                    <Button variant="contained" onClick={nextStep}>
+                      Siguiente (1 / 2)
+                    </Button>
+                  )}
+
+                  {isCreateView && step === 2 && (
+                    <Button type="submit" variant="contained" loading={isSubmitting}>
+                      Crear miembro
+                    </Button>
+                  )}
+
+                  {/* SOLO EDIT */}
+                  {!isCreateView && (
+                    <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                      Guardar cambios
+                    </LoadingButton>
+                  )}
+                </Stack>
+              )}
+              {!readOnly && formErrorMessage && (
+                <Typography
+                  sx={{
+                    mt: 1,
+                    typography: 'caption',
+                    color: 'error.main',
+                    textAlign: 'right',
+                  }}
+                >
+                  Faltan campos obligatorios por completar
+                </Typography>
+              )}
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
       </Box>
     </Form>
   );
