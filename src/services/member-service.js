@@ -12,6 +12,31 @@ const LEADERSHIP_KEY = 'leadershipAssignments';
 const getMemberCacheId = (member) =>
   member?.id ?? member?.idMiembros ?? member?.codigoMiembro ?? member?.memberId;
 
+const getDivisionIdByBirthdate = (birthDate) => {
+  if (!birthDate) return null;
+
+  const today = new Date();
+  const [year, month, day] = String(birthDate).split('T')[0].split('-');
+  const birth = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (Number.isNaN(birth.getTime())) return null;
+
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+
+  if (age >= 5 && age <= 7) return 1;
+  if (age >= 8 && age <= 10) return 2;
+  if (age >= 11 && age <= 13) return 3;
+  if (age >= 14 && age <= 17) return 4;
+  if (age >= 18) return 5;
+
+  return null;
+};
+
 const normalizeCachedMember = (member) => {
   if (!member) return null;
 
@@ -61,7 +86,7 @@ export function mapApiMemberToUI(member) {
 
     gender: member.genero || '',
     birthDate: member.fechaNacimiento || null,
-    idDivision: member.idDivision ?? null,
+    idDivision: member.idDivision ?? getDivisionIdByBirthdate(member.fechaNacimiento),
     shirtSize: member.sizeCamisas || '',
     ocupation: member.ocupacion || '',
 
