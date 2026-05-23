@@ -55,6 +55,9 @@ export async function POST(req) {
                     apellidos: body.apellidos,
                     genero: body.genero,
                     fechaNacimiento: body.fechaNacimiento,
+                    sizeCamisas: body.sizeCamisas ?? null,
+                    ocupacion: body.ocupacion ?? null,
+                    fechaCreacion: body.fechaCreacion ?? new Date().toISOString(),
                     idDestacamento: body.idDestacamento
                         ? Number(body.idDestacamento)
                         : null,

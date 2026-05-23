@@ -64,6 +64,8 @@ export function mapApiMemberToUI(member) {
 
         gender: member.genero || '',
         birthDate: member.fechaNacimiento || null,
+        shirtSize: member.sizeCamisas || '',
+        ocupation: member.ocupacion || '',
 
         destId: String(member.idDestacamento || ''),
 

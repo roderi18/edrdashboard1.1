@@ -199,6 +199,13 @@ const getRowsFromApi = (payload) => {
 
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
+const getOccupationValue = (occupation) => {
+  if (!occupation) return '';
+  if (typeof occupation === 'string') return occupation;
+
+  return occupation.label || occupation.value || '';
+};
+
 const MEMBER_HISTORY_FIELDS = {
   codigoMiembro: 'Código de miembro',
   nombres: 'Nombres',
@@ -311,7 +318,10 @@ const mapMemberToForm = (member) => {
     address: member.direccion ?? '',
     memberDivision: member.memberDivision ?? '',
     destId: member.destId || member.dest_id || member.dest || '',
-    ocupation: MEMBER_OCUPATIONS_SORTED.find((o) => o.label === member.ocupation) || null,
+    ocupation:
+      MEMBER_OCUPATIONS_SORTED.find((o) =>
+        [o.label, o.value].some((value) => String(value) === String(member.ocupation))
+      ) || null,
     memberPosition: destLeadership?.role ?? 'none',
 
     gender: member.gender === 'M' ? 'Masculino' : member.gender === 'F' ? 'Femenino' : '',
@@ -800,6 +810,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           fechaNacimiento: formData.birthdate
             ? dayjs(formData.birthdate).format('YYYY-MM-DD')
             : null,
+          sizeCamisas: formData.shirtSize || null,
+          ocupacion: getOccupationValue(formData.ocupation) || null,
+          fechaCreacion:
+            currentMember?.createdAt ||
+            currentMember?.fechaCreacion ||
+            currentMember?.created_at ||
+            new Date().toISOString(),
           idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
           telefono: formData.phoneNumber || '',
           direccion: buildDireccion(formData) || null,
