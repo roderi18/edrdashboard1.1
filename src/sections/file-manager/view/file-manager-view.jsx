@@ -17,6 +17,7 @@ import { isMemberSessionUser } from 'src/utils/member-access';
 
 import { _folders, FILE_TYPE_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getFirebaseStorageUsageSummary } from 'src/services/firebase-storage-usage-service';
 import {
   listarArchivosGestorFirestore,
   eliminarArchivoGestorFirestore,
@@ -62,18 +63,26 @@ export function FileManagerView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentFolderId = searchParams.get('folder');
+  const isStorageSource = searchParams.get('source') === 'storage';
   const table = useTable({ defaultRowsPerPage: 10 });
 
   const dateRange = useBoolean();
   const confirmDialog = useBoolean();
   const newFilesDialog = useBoolean();
 
-  const [displayMode, setDisplayMode] = useState('list');
+  const [displayMode, setDisplayMode] = useState(
+    searchParams.get('view') === 'grid' ? 'grid' : 'list'
+  );
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [storageFileManagerItems, setStorageFileManagerItems] = useState([]);
+  const [storageLoading, setStorageLoading] = useState(false);
 
   const canDeleteFiles = Boolean(user) && !isMemberSessionUser(user);
 
-  const tableData = useMemo(() => buildFileManagerData(uploadedFiles), [uploadedFiles]);
+  const tableData = useMemo(
+    () => (isStorageSource ? storageFileManagerItems : buildFileManagerData(uploadedFiles)),
+    [isStorageSource, storageFileManagerItems, uploadedFiles]
+  );
 
   const filters = useSetState({
     name: '',
@@ -104,9 +113,11 @@ export function FileManagerView() {
     currentFilters.type.length > 0 ||
     (!!currentFilters.startDate && !!currentFilters.endDate);
 
-  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+  const notFound = !storageLoading && ((!dataFiltered.length && canReset) || !dataFiltered.length);
 
   useEffect(() => {
+    if (isStorageSource) return undefined;
+
     let mounted = true;
 
     listarArchivosGestorFirestore()
@@ -122,7 +133,39 @@ export function FileManagerView() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isStorageSource]);
+
+  useEffect(() => {
+    if (!isStorageSource) {
+      setStorageFileManagerItems([]);
+      return undefined;
+    }
+
+    let mounted = true;
+
+    setStorageLoading(true);
+    getFirebaseStorageUsageSummary()
+      .then((summary) => {
+        if (mounted) {
+          setStorageFileManagerItems(summary.fileManagerItems || summary.folders || []);
+        }
+      })
+      .catch((error) => {
+        console.error('No se pudo cargar el resumen de Firebase Storage:', error);
+        if (mounted) {
+          setStorageFileManagerItems([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setStorageLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isStorageSource]);
 
   const handleChangeView = useCallback((event, newView) => {
     if (newView !== null) {
@@ -206,8 +249,12 @@ export function FileManagerView() {
   }, [currentFolderId, newFilesDialog]);
 
   const handleBackToRoot = useCallback(() => {
-    router.push('/dashboard/file-manager/');
-  }, [router]);
+    router.push(
+      isStorageSource
+        ? '/dashboard/file-manager/?source=storage&view=grid'
+        : '/dashboard/file-manager/'
+    );
+  }, [isStorageSource, router]);
 
   const renderFilters = () => (
     <Box
@@ -339,7 +386,13 @@ export function FileManagerView() {
           {canReset && renderResults()}
         </Stack>
 
-        {notFound ? <EmptyContent filled sx={{ py: 10 }} /> : renderList()}
+        {storageLoading ? (
+          <EmptyContent filled title="Cargando archivos..." sx={{ py: 10 }} />
+        ) : notFound ? (
+          <EmptyContent filled sx={{ py: 10 }} />
+        ) : (
+          renderList()
+        )}
       </DashboardContent>
 
       {renderUploadFilesDialog()}

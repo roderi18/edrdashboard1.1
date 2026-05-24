@@ -63,7 +63,7 @@ export function FileManagerActionSelected({
               }),
             ]}
           >
-            {selected.length} items selected
+            {selected.length} elementos seleccionados
           </Box>
         )}
 

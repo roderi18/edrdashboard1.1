@@ -8,7 +8,10 @@ const getRegionalAvatar = (regional) =>
   regional?.avatarUrl ?? regional?.photoURL ?? regional?.urlFoto ?? '';
 
 const getRegionalName = (regional) =>
-  regional?.regionalName || regional?.name || regional?.nombre || 'Región desconocida';
+  regional?.regionalName || regional?.name || regional?.nombre || 'Regi\u00f3n desconocida';
+
+const getDirectorId = (regional) =>
+  regional?.directorId ?? regional?.memberId ?? regional?.idMiembro;
 
 const getDirectorName = (regional) =>
   regional?.memberFullName ||
@@ -19,11 +22,14 @@ const getDirectorName = (regional) =>
 
 export function RegionalCard({ regional, sx, ...other }) {
   const regionalId = getRegionalId(regional);
+  const directorId = getDirectorId(regional);
   const editHref = regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '#';
   const regionalName = getRegionalName(regional);
   const directorName = getDirectorName(regional);
   const directorLine =
     directorName === 'Director desconocido' ? directorName : `Director ${directorName}`;
+  const sectionalCount = regional?.regionalXSectionalCount;
+  const destCount = regional?.regionalXSectionalXDestCount;
 
   return (
     <CompactEntityCard
@@ -31,7 +37,31 @@ export function RegionalCard({ regional, sx, ...other }) {
       href={editHref}
       avatarUrl={getRegionalAvatar(regional)}
       fallbackText={regionalName}
-      lines={[{ icon: 'solar:user-bold', text: directorLine }]}
+      lines={[
+        {
+          icon: 'solar:user-bold',
+          text: directorLine,
+          href: directorId ? `/dashboard/level/member/${directorId}/edit` : '',
+        },
+        ...(sectionalCount !== undefined
+          ? [
+              {
+                icon: 'mingcute:location-fill',
+                text: `${sectionalCount} secci\u00f3n${Number(sectionalCount) === 1 ? '' : 'es'}`,
+                href: `/dashboard/level/sectional?region=${encodeURIComponent(regionalName)}`,
+              },
+            ]
+          : []),
+        ...(destCount !== undefined
+          ? [
+              {
+                icon: 'solar:home-2-bold',
+                text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
+                href: regionalId ? `/dashboard/level/dest?region=${regionalId}` : '',
+              },
+            ]
+          : []),
+      ]}
       sx={sx}
       {...other}
     />

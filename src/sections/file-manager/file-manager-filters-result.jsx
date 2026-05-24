@@ -38,7 +38,7 @@ export function FileManagerFiltersResult({ filters, onResetPage, totalResults, s
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
-      <FiltersBlock label="Types:" isShow={!!currentFilters.type.length}>
+      <FiltersBlock label="Tipos:" isShow={!!currentFilters.type.length}>
         {currentFilters.type.map((item) => (
           <Chip
             {...chipProps}
@@ -51,7 +51,7 @@ export function FileManagerFiltersResult({ filters, onResetPage, totalResults, s
       </FiltersBlock>
 
       <FiltersBlock
-        label="Date:"
+        label="Fecha:"
         isShow={Boolean(currentFilters.startDate && currentFilters.endDate)}
       >
         <Chip
@@ -61,7 +61,7 @@ export function FileManagerFiltersResult({ filters, onResetPage, totalResults, s
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.name}>
+      <FiltersBlock label="Búsqueda:" isShow={!!currentFilters.name}>
         <Chip {...chipProps} label={currentFilters.name} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
     </FiltersResult>

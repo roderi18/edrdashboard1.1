@@ -58,7 +58,7 @@ export function FileManagerCreateFolderDialog({
       <DialogTitle sx={[(theme) => ({ p: theme.spacing(3, 3, 2, 3) })]}>{title}</DialogTitle>
 
       <IconButton
-        aria-label="Close"
+        aria-label="Cerrar"
         onClick={onClose}
         sx={{ top: 8, right: 8, position: 'absolute' }}
       >
@@ -69,7 +69,7 @@ export function FileManagerCreateFolderDialog({
         {(onCreate || onUpdate) && (
           <TextField
             fullWidth
-            label="Folder name"
+            label="Nombre de la carpeta"
             value={folderName}
             onChange={onChangeFolderName}
             sx={{ mb: 3 }}
@@ -90,14 +90,14 @@ export function FileManagerCreateFolderDialog({
 
         {!!files.length && (
           <Button variant="outlined" color="inherit" onClick={handleRemoveAllFiles}>
-            Remove all
+            Quitar todo
           </Button>
         )}
 
         {(onCreate || onUpdate) && (
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
             <Button variant="soft" onClick={onCreate || onUpdate}>
-              {onUpdate ? 'Save' : 'Crear'}
+              {onUpdate ? 'Guardar' : 'Crear'}
             </Button>
           </Box>
         )}

@@ -27,7 +27,7 @@ export function FileUpgrade({ sx, ...other }) {
     >
       <Box
         component="img"
-        alt="Upgrade Illustration"
+        alt="Ilustración de mejora"
         src={`${CONFIG.assetsDir}/assets/illustrations/illustration-upgrade.webp`}
         sx={{
           right: 16,
@@ -52,11 +52,11 @@ export function FileUpgrade({ sx, ...other }) {
 
       <Stack spacing={3} sx={{ alignItems: 'flex-start' }}>
         <Typography variant="h6" sx={{ maxWidth: 180 }}>
-          Upgrade your plan and get more space
+          Mejora tu plan y obtén más espacio
         </Typography>
 
         <Button color="warning" variant="contained">
-          Upgrade plan
+          Mejorar plan
         </Button>
       </Stack>
     </Card>

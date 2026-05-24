@@ -1,5 +1,5 @@
-import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useBoolean, usePopover, useCopyToClipboard } from 'minimal-shared/hooks';
 
 import Button from '@mui/material/Button';
@@ -40,6 +40,8 @@ export function FileManagerFolderItem({
   ...other
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const shareDialog = useBoolean();
   const confirmDialog = useBoolean();
   const detailsDrawer = useBoolean();
@@ -58,14 +60,27 @@ export function FileManagerFolderItem({
     setFolderName(event.target.value);
   }, []);
 
-  const handleCopy = useCallback((link) => {
-    toast.success('Copiado!');
-    copy(link || getFileManagerShareLink(folder));
-  }, [copy, folder]);
+  const handleCopy = useCallback(
+    (link) => {
+      toast.success('Copiado!');
+      copy(link || getFileManagerShareLink(folder));
+    },
+    [copy, folder]
+  );
 
   const handleOpenFolder = useCallback(() => {
-    router.push(`?folder=${folder.id}`);
-  }, [folder.id, router]);
+    const isFileManagerPath = pathname?.includes('/dashboard/file-manager');
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set('folder', folder.id);
+
+    if (!isFileManagerPath && folder.source === 'storage') {
+      params.set('source', 'storage');
+      params.set('view', 'grid');
+    }
+
+    router.push(`${isFileManagerPath ? '' : '/dashboard/file-manager/'}?${params.toString()}`);
+  }, [folder.id, folder.source, pathname, router, searchParams]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -82,7 +97,7 @@ export function FileManagerFolderItem({
           }}
         >
           <Iconify icon="eva:link-2-fill" />
-          Copiar link
+          Copiar enlace
         </MenuItem>
 
         <MenuItem

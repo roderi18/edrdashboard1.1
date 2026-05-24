@@ -55,7 +55,7 @@ export function FileManagerUploadDialog({
     const nextFiles = acceptedFiles.filter(isAllowedFileManagerFile);
 
     if (nextFiles.length !== acceptedFiles.length) {
-      setError('Solo se permiten imagenes y archivos PDF.');
+      setError('Solo se permiten imágenes y archivos PDF.');
     } else {
       setError('');
     }
@@ -142,7 +142,7 @@ export function FileManagerUploadDialog({
           helperText={
             error || (
               <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
-                Las imagenes se comprimen automaticamente antes de subirlas.
+                Las imágenes se comprimen automáticamente antes de subirlas.
               </Typography>
             )
           }

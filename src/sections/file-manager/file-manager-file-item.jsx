@@ -49,10 +49,13 @@ export function FileManagerFileItem({
 
   const { copy } = useCopyToClipboard();
 
-  const handleCopy = useCallback((link) => {
-    toast.success('Copiado!');
-    copy(link || getFileManagerShareLink(file));
-  }, [copy, file]);
+  const handleCopy = useCallback(
+    (link) => {
+      toast.success('Copiado!');
+      copy(link || getFileManagerShareLink(file));
+    },
+    [copy, file]
+  );
 
   const handleDownload = useCallback(() => {
     downloadFileFromUrl(file.url, file.name || 'archivo');
@@ -73,7 +76,7 @@ export function FileManagerFileItem({
           }}
         >
           <Iconify icon="eva:link-2-fill" />
-          Copiar link
+          Copiar enlace
         </MenuItem>
 
         <MenuItem
@@ -188,7 +191,11 @@ export function FileManagerFileItem({
         <FileItemInfo
           type="file"
           title={file.name}
-          values={file.uploading ? [fData(file.size), 'Cargando...'] : [fData(file.size), fDateTime(file.modifiedAt)]}
+          values={
+            file.uploading
+              ? [fData(file.size), 'Cargando...']
+              : [fData(file.size), fDateTime(file.modifiedAt)]
+          }
         />
 
         <FileItemAvatar sharedUsers={file.shared} />

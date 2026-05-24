@@ -7,6 +7,7 @@ import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { capitalizeWords } from 'src/utils/text-format';
+import { isUnknownLabel } from 'src/utils/is-unknown-label';
 import { resolveById } from 'src/utils/resolve-display-name';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
@@ -36,7 +37,7 @@ export function MemberTableRow({
   const destName = row.destName || '';
   const destNumber = row.destNumber || '';
   const destAvatarUrl = row.destAvatarUrl || '';
-  const sectionalName = row.sectionalName || '-';
+  const sectionalName = String(row.sectionalName || '').trim() || 'Sección desconocida';
   const churchName = row.churchName || 'Iglesia desconocida';
   const memberDivisionLabel = String(row.memberDivision || '').trim() || 'División desconocida';
 
@@ -58,6 +59,10 @@ export function MemberTableRow({
   };
 
   const memberPositionLabel = (() => {
+    if (row.destLeadershipPosition || row.directivaLeadershipPosition) {
+      return row.destLeadershipPosition || row.directivaLeadershipPosition;
+    }
+
     if (Array.isArray(row.memberPosition)) {
       const positions = row.memberPosition.filter(Boolean);
 
@@ -86,6 +91,11 @@ export function MemberTableRow({
       label: getLeadershipRoleLabel(l.role),
     }))
     .filter((l) => l.label);
+  const hasDirectLeadershipPosition = Boolean(
+    row.destLeadershipPosition || row.directivaLeadershipPosition
+  );
+  const isPositionUnknown =
+    !hasDirectLeadershipPosition && !leaderships.length && isUnknownLabel(memberPositionLabel);
 
   const handleOpenMemberEdit = () => {
     if (!memberEditId) return;
@@ -155,8 +165,35 @@ export function MemberTableRow({
         avatarSx={{ width: 40, height: 40 }}
       />
 
-      <TableCell>
-        {leaderships.length ? (
+      <TableCell sx={isPositionUnknown ? { color: 'text.disabled' } : undefined}>
+        {row.destLeadershipPosition || row.directivaLeadershipPosition ? (
+          <Stack spacing={0.25}>
+            {row.destLeadershipPosition ? (
+              <Box
+                sx={{
+                  typography: 'body2',
+                  fontWeight: 600,
+                  ...(isUnknownLabel(row.destLeadershipPosition) && { color: 'text.disabled' }),
+                }}
+              >
+                {row.destLeadershipPosition}
+              </Box>
+            ) : null}
+
+            {row.directivaLeadershipPosition ? (
+              <Box
+                sx={{
+                  typography: 'caption',
+                  color: isUnknownLabel(row.directivaLeadershipPosition)
+                    ? 'text.disabled'
+                    : 'text.secondary',
+                }}
+              >
+                {row.directivaLeadershipPosition}
+              </Box>
+            ) : null}
+          </Stack>
+        ) : leaderships.length ? (
           <Stack>
             <UnderlineLink href={getLeadershipHref(leaderships[0])} color="inherit">
               {leaderships[0].label}
@@ -222,7 +259,14 @@ export function MemberTableRow({
         </Box>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{memberDivisionLabel}</TableCell>
+      <TableCell
+        sx={{
+          whiteSpace: 'nowrap',
+          ...(isUnknownLabel(memberDivisionLabel) && { color: 'text.disabled' }),
+        }}
+      >
+        {memberDivisionLabel}
+      </TableCell>
 
       <CompactEntityRowActions
         canManage={canManage}

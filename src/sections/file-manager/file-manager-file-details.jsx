@@ -34,7 +34,6 @@ export function FileManagerFileDetails({
   onCopyLink,
   ...other
 }) {
-
   const shareDialog = useBoolean();
   const showTags = useBoolean(true);
   const showProperties = useBoolean(true);
@@ -56,7 +55,7 @@ export function FileManagerFileDetails({
       }}
     >
       <Typography variant="h6" sx={{ flexGrow: 1 }}>
-        Info
+        Información
       </Typography>
 
       <Checkbox
@@ -77,9 +76,9 @@ export function FileManagerFileDetails({
 
   const renderProperties = () => {
     const fileDetails = [
-      { label: 'Size', value: fData(file?.size) },
-      { label: 'Modified', value: fDateTime(file?.modifiedAt) },
-      { label: 'Type', value: detectFileFormat(file?.type) },
+      { label: 'Tamaño', value: fData(file?.size) },
+      { label: 'Modificado', value: fDateTime(file?.modifiedAt) },
+      { label: 'Tipo', value: detectFileFormat(file?.type) },
     ];
 
     return (
@@ -92,7 +91,7 @@ export function FileManagerFileDetails({
             justifyContent: 'space-between',
           }}
         >
-          Properties
+          Propiedades
           <IconButton size="small" onClick={showProperties.onToggle}>
             <Iconify
               icon={
@@ -128,7 +127,7 @@ export function FileManagerFileDetails({
           justifyContent: 'space-between',
         }}
       >
-        Tags
+        Etiquetas
         <IconButton size="small" onClick={showTags.onToggle}>
           <Iconify
             icon={showTags.value ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
@@ -147,7 +146,7 @@ export function FileManagerFileDetails({
           onChange={(event, newValue) => {
             handleChangeTags(newValue);
           }}
-          renderInput={(params) => <TextField {...params} placeholder="#Add a tags" />}
+          renderInput={(params) => <TextField {...params} placeholder="#Agregar etiqueta" />}
           slotProps={{
             chip: { size: 'small', variant: 'soft' },
           }}
@@ -167,7 +166,7 @@ export function FileManagerFileDetails({
           justifyContent: 'space-between',
         }}
       >
-        Share with
+        Compartir con
         <IconButton
           size="small"
           color="primary"
@@ -246,7 +245,7 @@ export function FileManagerFileDetails({
             startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
             onClick={onDelete}
           >
-            Delete
+            Eliminar
           </Button>
         </Box>
       </Drawer>

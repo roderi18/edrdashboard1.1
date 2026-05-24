@@ -11,6 +11,8 @@ import { Iconify } from 'src/components/iconify';
 // ----------------------------------------------------------------------
 
 export function FileWidget({ sx, icon, title, value, total, ...other }) {
+  const progressValue = total ? Math.min(100, Math.round((Number(value || 0) / total) * 100)) : 0;
+
   return (
     <Card sx={[{ p: 3 }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
       <IconButton sx={{ top: 8, right: 8, position: 'absolute' }}>
@@ -23,7 +25,12 @@ export function FileWidget({ sx, icon, title, value, total, ...other }) {
         {title}
       </Typography>
 
-      <LinearProgress value={24} variant="determinate" color="inherit" sx={{ my: 2, height: 6 }} />
+      <LinearProgress
+        value={progressValue}
+        variant="determinate"
+        color="inherit"
+        sx={{ my: 2, height: 6 }}
+      />
 
       <Box
         sx={{

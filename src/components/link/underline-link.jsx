@@ -1,65 +1,57 @@
-import Link from '@mui/material/Link';
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
+
 import { RouterLink } from 'src/routes/components';
 
-export function UnderlineLink({
-    href,
-    underline = 'always',
-    sx,
-    children,
-    ...props
-}) {
-    const text = String(children || '').toLowerCase().trim();
+import { isUnknownLabel } from 'src/utils/is-unknown-label';
 
-    const isDisabled =
-        !text ||
-        text === '-' ||
-        text === 'n/a' ||
-        text.includes('desconocida');
+export function UnderlineLink({ href, underline = 'always', sx, children, ...props }) {
+  const text = String(children || '')
+    .toLowerCase()
+    .trim();
 
-    // 🔴 SI ESTÁ DESHABILITADO → NO LINK
-    if (isDisabled) {
-        return (
-            <Box
-                sx={{
-                    color: 'text.disabled',
-                    typography: 'body2',
-                    cursor: 'default',
-                    ...sx,
-                }}
-            >
-                {children}
-            </Box>
-        );
-    }
+  const isDisabled = !text || text === '-' || text === 'n/a' || isUnknownLabel(text);
 
-    // ✅ SI ES VÁLIDO → LINK NORMAL
+  // 🔴 SI ESTÁ DESHABILITADO → NO LINK
+  if (isDisabled) {
     return (
-        <Link
-            component={RouterLink}
-            href={href}
-            underline={underline}
-            sx={(theme) => ({
-                cursor: 'pointer',
-
-                color:
-                    theme.palette.mode === 'dark'
-                        ? '#ffffff'
-                        : 'inherit',
-
-                textUnderlineOffset: '3px',
-
-                textDecorationColor: 'rgba(128,128,128,0.5)',
-
-                '&:hover': {
-                    textDecorationColor: 'rgba(128,128,128,0.5)',
-                },
-
-                ...sx,
-            })}
-            {...props}
-        >
-            {children}
-        </Link>
+      <Box
+        sx={{
+          typography: 'body2',
+          cursor: 'default',
+          ...sx,
+          color: 'text.disabled',
+        }}
+      >
+        {children}
+      </Box>
     );
+  }
+
+  // ✅ SI ES VÁLIDO → LINK NORMAL
+  return (
+    <Link
+      component={RouterLink}
+      href={href}
+      underline={underline}
+      sx={(theme) => ({
+        cursor: 'pointer',
+
+        color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit',
+
+        textUnderlineOffset: '3px',
+
+        textDecorationColor: 'rgba(128,128,128,0.5)',
+
+        '&:hover': {
+          textDecorationColor: 'rgba(128,128,128,0.5)',
+        },
+
+        ...sx,
+      })}
+      {...props}
+    >
+      {children}
+    </Link>
+  );
 }

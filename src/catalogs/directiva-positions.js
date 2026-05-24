@@ -126,6 +126,7 @@ export const DIRECTIVA_POSITIONS = [
     nombreCargo: 'Concilio de las Asambleas de Dios, INC.',
     idNodoDiagrama: 'asambleas-de-dios',
     orden: 1,
+    asignable: false,
   }),
   createPosition({
     idCargo: 'nacional-ministerios-infantiles',
@@ -146,6 +147,7 @@ export const DIRECTIVA_POSITIONS = [
     idNodoPadre: 'ministerios-infantiles',
     nombreCargoPadre: 'Ministerios infantiles',
     orden: 3,
+    asignable: false,
   }),
   createPosition({
     idCargo: 'nacional-director-nacional',
@@ -178,6 +180,7 @@ export const DIRECTIVA_POSITIONS = [
     idNodoPadre: 'director-nacional',
     nombreCargoPadre: 'Director Nacional',
     orden: 6,
+    asignable: false,
   }),
   createPosition({
     idCargo: 'nacional-coordinador-adiestramiento',
@@ -280,6 +283,7 @@ export const DIRECTIVA_POSITIONS = [
     nombreCargo: 'Consejo Ejecutivo',
     idNodoDiagrama: 'consejo-ejecutivo',
     orden: 1,
+    asignable: false,
   }),
   createPosition({
     idCargo: 'regional-directiva-regional',
@@ -520,6 +524,7 @@ export const DIRECTIVA_POSITIONS = [
     idNodoPadre: 'coordinador-seccional',
     nombreCargoPadre: 'Coordinador Seccional',
     orden: 14,
+    asignable: false,
   }),
   createPosition({
     idCargo: 'seccional-grupos-locales',
@@ -530,6 +535,7 @@ export const DIRECTIVA_POSITIONS = [
     idNodoPadre: 'zonas',
     nombreCargoPadre: 'Zonas',
     orden: 15,
+    asignable: false,
   }),
 
   createPosition({

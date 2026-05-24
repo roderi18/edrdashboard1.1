@@ -25,13 +25,7 @@ import {
 
 // ----------------------------------------------------------------------
 
-export function FileRecentItem({
-  file,
-  onDelete,
-  sx,
-  disableDetails = false,
-  ...other
-}) {
+export function FileRecentItem({ file, onDelete, sx, disableDetails = false, ...other }) {
   const { copy } = useCopyToClipboard();
 
   const menuActions = usePopover();
@@ -66,7 +60,7 @@ export function FileRecentItem({
           }}
         >
           <Iconify icon="eva:link-2-fill" />
-          Copiar link
+          Copiar enlace
         </MenuItem>
 
         <MenuItem
@@ -76,7 +70,7 @@ export function FileRecentItem({
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
@@ -89,7 +83,7 @@ export function FileRecentItem({
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -147,7 +141,6 @@ export function FileRecentItem({
             }}
           />
         )}
-
 
         <FileThumbnail file={file.type} />
 

@@ -154,6 +154,7 @@ export function NationalListView() {
 
     return {
       id: assignment.id,
+      entityId: assignment.entityId,
       memberId: member?.id,
       level: assignment.level,
       nationalXname:

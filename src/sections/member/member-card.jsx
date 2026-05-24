@@ -87,6 +87,16 @@ const buildDestLabel = (member, dests) => {
   return memberDestId ? `Dest. ${memberDestId}` : 'Dest. desconocido';
 };
 
+const getDestHref = (member, dests) => {
+  const destLabel = buildDestLabel(member, dests)
+    .replace(/^Dest\.\s*/i, '')
+    .trim();
+
+  return destLabel && destLabel.toLowerCase() !== 'desconocido'
+    ? `/dashboard/level/dest?name=${encodeURIComponent(destLabel)}`
+    : '';
+};
+
 // ----------------------------------------------------------------------
 
 export const MemberCard = memo(function MemberCard({
@@ -102,6 +112,7 @@ export const MemberCard = memo(function MemberCard({
   const phoneNumber = getMemberPhone(member);
   const phoneLabel = formatPhoneNumber(phoneNumber);
   const destLabel = buildDestLabel(member, destsProp);
+  const destHref = getDestHref(member, destsProp);
   const divisionIcon = getMemberDivisionIcon(member);
   const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);
 
@@ -113,7 +124,7 @@ export const MemberCard = memo(function MemberCard({
       fallbackText={member?.name || member?.firstName}
       lines={[
         { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
-        { icon: 'mingcute:location-fill', text: destLabel },
+        { icon: 'mingcute:location-fill', text: destLabel, href: destHref },
       ]}
       rightImage={divisionIcon}
       sx={sx}

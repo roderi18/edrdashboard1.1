@@ -1,4 +1,4 @@
-const CARGOS_ENDPOINT = 'https://systexploradores.somee.com/api/Cargos';
+const CARGOS_MIEMBROS_ENDPOINT = 'https://systexploradores.somee.com/api/CargosMiembros';
 
 const jsonResponse = (payload, status = 200) =>
   new Response(JSON.stringify(payload), {
@@ -22,8 +22,15 @@ const parseApiResponse = async (res) => {
   }
 };
 
-const proxyCargoRequest = async ({ endpoint, method = 'GET', body }) => {
-  const res = await fetch(`${CARGOS_ENDPOINT}/${endpoint}`, {
+const normalizeCargoMiembroPayload = (body = {}) => ({
+  idCargo: Number(body.idCargo || 0),
+  idMiembro: Number(body.idMiembro || body.idMiembros || 0),
+  fechaInicio: body.fechaInicio || new Date().toISOString().slice(0, 10),
+  fechaFin: body.fechaFin || null,
+});
+
+const proxyCargoMiembroRequest = async ({ endpoint, method = 'GET', body }) => {
+  const res = await fetch(`${CARGOS_MIEMBROS_ENDPOINT}/${endpoint}`, {
     method,
     headers: {
       Accept: 'application/json',
@@ -37,7 +44,7 @@ const proxyCargoRequest = async ({ endpoint, method = 'GET', body }) => {
     return jsonResponse(
       {
         Success: false,
-        Message: `Error en API de cargos (${res.status})`,
+        Message: `Error en API de cargos de miembros (${res.status})`,
         data,
         raw: text,
       },
@@ -54,16 +61,18 @@ const proxyCargoRequest = async ({ endpoint, method = 'GET', body }) => {
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const idMiembro = searchParams.get('idMiembro') || searchParams.get('id');
 
-    return proxyCargoRequest({
-      endpoint: id ? `GetCargosById?id=${encodeURIComponent(id)}` : 'GetAllCargos',
+    return proxyCargoMiembroRequest({
+      endpoint: idMiembro
+        ? `GetAllCargosByIdMiembro?id=${encodeURIComponent(idMiembro)}`
+        : 'GetAllCargosMiembros',
     });
   } catch (error) {
     return jsonResponse(
       {
         Success: false,
-        Message: 'Error al obtener cargos',
+        Message: 'Error al obtener cargos de miembros',
         error: error.message,
       },
       500
@@ -75,43 +84,16 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    return proxyCargoRequest({
-      endpoint: 'SetCargos',
+    return proxyCargoMiembroRequest({
+      endpoint: 'SetCargosMiembro',
       method: 'POST',
-      body: {
-        idCargo: Number(body.idCargo || 0),
-        nombre: body.nombre ?? null,
-      },
+      body: normalizeCargoMiembroPayload(body),
     });
   } catch (error) {
     return jsonResponse(
       {
         Success: false,
-        Message: 'Error creando cargo',
-        error: error.message,
-      },
-      500
-    );
-  }
-}
-
-export async function PUT(req) {
-  try {
-    const body = await req.json();
-
-    return proxyCargoRequest({
-      endpoint: 'UpdateCargos',
-      method: 'POST',
-      body: {
-        idCargo: Number(body.idCargo || 0),
-        nombre: body.nombre ?? null,
-      },
-    });
-  } catch (error) {
-    return jsonResponse(
-      {
-        Success: false,
-        Message: 'Error actualizando cargo',
+        Message: 'Error guardando cargo de miembro',
         error: error.message,
       },
       500
@@ -121,18 +103,18 @@ export async function PUT(req) {
 
 export async function DELETE(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const body = await req.json();
 
-    return proxyCargoRequest({
-      endpoint: `DeleteCargos?id=${encodeURIComponent(id || '')}`,
+    return proxyCargoMiembroRequest({
+      endpoint: 'DeleteCargosMiembro',
       method: 'DELETE',
+      body: normalizeCargoMiembroPayload(body),
     });
   } catch (error) {
     return jsonResponse(
       {
         Success: false,
-        Message: 'Error eliminando cargo',
+        Message: 'Error eliminando cargo de miembro',
         error: error.message,
       },
       500

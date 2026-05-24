@@ -60,6 +60,17 @@ import { crearNotificacionMiembroCreado } from 'src/services/notification-servic
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import {
+  asegurarCargoApi,
+  guardarCargoMiembroApi,
+  obtenerCargosMiembroApi,
+} from 'src/services/cargos-api-service';
+import {
+  DIVISIONES_DIRECTIVA,
+  obtenerCargosDirectiva,
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectivaPorMiembro,
+} from 'src/services/directivas-organizacionales-service';
 
 // components
 import { Label } from 'src/components/label';
@@ -259,6 +270,17 @@ const hasDuplicatedCodigoMiembro = (membersList, codigoMiembro, currentMemberId)
   });
 };
 
+const getDirectivaDivisionByMemberDivisionId = (idDivision) => {
+  const divisionId = Number(idDivision);
+
+  if (divisionId === 1) return DIVISIONES_DIRECTIVA.navegantes;
+  if (divisionId === 2) return DIVISIONES_DIRECTIVA.pioneros;
+  if (divisionId === 3) return DIVISIONES_DIRECTIVA.seguidores;
+  if (divisionId === 4) return DIVISIONES_DIRECTIVA.exploradores;
+
+  return '';
+};
+
 const mapMemberToForm = (member) => {
   const leadershipAssignments = getLeadershipAssignments();
   const memberLeaderships = leadershipAssignments.filter(
@@ -422,6 +444,94 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     }
   }, [currentMember]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMemberCargos = async () => {
+      const memberId = currentMember?.id || currentMember?.idMiembros;
+
+      if (!memberId) {
+        return;
+      }
+
+      try {
+        const [cargosMiembro, cargosDirectiva, asignacionesDirectiva] = await Promise.all([
+          obtenerCargosMiembroApi(memberId),
+          obtenerCargosDirectiva({ incluirNoAsignables: false }),
+          obtenerAsignacionesDirectivaPorMiembro({ idMiembro: memberId }),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        const cargoIds = cargosMiembro
+          .map((cargoMiembro) => Number(cargoMiembro.idCargo))
+          .filter((idCargo) => Number.isFinite(idCargo) && idCargo > 0);
+        const positionsByAssignment = asignacionesDirectiva
+          .map((asignacion) =>
+            cargosDirectiva.find((cargo) =>
+              [
+                cargo.idPosicionDirectiva,
+                cargo.id,
+                cargo.idCargo,
+                cargo.idCargoApi,
+              ].some(
+                (value) =>
+                  String(value || '') === String(asignacion.idPosicionDirectiva || '') ||
+                  String(value || '') === String(asignacion.idCargo || '')
+              )
+            )
+          )
+          .filter(Boolean);
+        const positionsByCargoApi = cargosDirectiva.filter((cargo) =>
+          cargoIds.includes(Number(cargo.idCargo || cargo.idCargoApi))
+        );
+        const memberDivisionKey = getDirectivaDivisionByMemberDivisionId(
+          currentMember?.idDivision || currentMember?.divisionId
+        );
+        const selectedPositions = [...positionsByAssignment, ...positionsByCargoApi];
+        const nationalCargo = selectedPositions.find((cargo) => cargo.nivel !== 'destacamento');
+        const destCargoFromAssignment = positionsByAssignment.find(
+          (cargo) => cargo.nivel === 'destacamento'
+        );
+        const destCargoFromApi =
+          positionsByCargoApi.find(
+            (cargo) => cargo.nivel === 'destacamento' && cargo.division === memberDivisionKey
+          ) || positionsByCargoApi.find((cargo) => cargo.nivel === 'destacamento');
+        const destCargo = destCargoFromAssignment || destCargoFromApi;
+
+        if (nationalCargo) {
+          methods.setValue(
+            'nationalLeadershipRole',
+            nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo,
+            {
+              shouldDirty: false,
+            }
+          );
+        }
+
+        if (destCargo) {
+          methods.setValue(
+            'memberPosition',
+            destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo,
+            {
+              shouldDirty: false,
+            }
+          );
+        }
+      } catch {
+        // Si el API de cargos no responde, no bloquea la edicion del miembro.
+      }
+    };
+
+    loadMemberCargos();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentMember?.divisionId, currentMember?.id, currentMember?.idDivision, currentMember?.idMiembros, methods]);
+
   const {
     reset,
     watch,
@@ -561,6 +671,86 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
 
   const regional = REGIONALS.find((r) => r.id === currentMember?.regionalId);
   const regionalName = regional?.name;
+
+  const getCargoOptionByValue = async (value) => {
+    if (!value || value === 'none') {
+      return null;
+    }
+
+    const cargos = await obtenerCargosDirectiva({ incluirNoAsignables: false });
+
+    return cargos.find((cargo) =>
+      [cargo?.idCargo, cargo?.idCargoApi, cargo?.idPosicionDirectiva, cargo?.id, cargo?.value].some(
+        (optionValue) => String(optionValue || '') === String(value)
+      )
+    );
+  };
+
+  const getCargoEntityId = (cargo) => {
+    if (cargo?.nivel === 'destacamento') {
+      return selectedDestId || currentMember?.destId || currentMember?.idDestacamento || '';
+    }
+
+    if (cargo?.nivel === 'seccional') {
+      return selectedSectional?.id || currentMember?.sectionalId || 'general';
+    }
+
+    if (cargo?.nivel === 'regional') {
+      return selectedRegional?.id || currentMember?.regionalId || 'general';
+    }
+
+    return 'nacional';
+  };
+
+  const saveSelectedCargo = async ({ value, idMiembro }) => {
+    const cargo = await getCargoOptionByValue(value);
+
+    if (!cargo || !idMiembro) {
+      return;
+    }
+
+    const cargoApi = await asegurarCargoApi({
+      idCargo: cargo?.idCargo || cargo?.idCargoApi || 0,
+      nombre: cargo?.nombreCargo || cargo?.nombre || cargo?.label,
+    });
+    const idCargo = Number(cargoApi?.idCargo || cargo?.idCargo || cargo?.idCargoApi || 0);
+
+    if (!Number.isFinite(idCargo) || idCargo <= 0) {
+      throw new Error(`No se pudo resolver el idCargo para ${cargo?.nombreCargo || 'el cargo'}.`);
+    }
+
+    const fechaInicio = dayjs().format('YYYY-MM-DD');
+    const idEntidad = getCargoEntityId(cargo);
+
+    await guardarCargoMiembroApi({
+      idCargo,
+      idMiembro,
+      fechaInicio,
+      fechaFin: null,
+    });
+
+    await guardarAsignacionDirectiva({
+      nivel: cargo.nivel,
+      idEntidad,
+      nombreEntidad: '',
+      idCargo,
+      idMiembro,
+      idPosicionDirectiva: cargo.idPosicionDirectiva || cargo.id || '',
+      division: cargo.division ?? null,
+      orden: cargo.orden || 1,
+      origen: 'api-cargos-miembros',
+      fechaInicio,
+      fechaFin: null,
+      activo: true,
+    });
+  };
+
+  const saveSelectedMemberCargos = async ({ idMiembro, formData }) => {
+    await Promise.all([
+      saveSelectedCargo({ value: formData.nationalLeadershipRole, idMiembro }),
+      saveSelectedCargo({ value: formData.memberPosition, idMiembro }),
+    ]);
+  };
 
   const leaderships = LEADERSHIP_ASSIGNMENTS.filter(
     (l) =>
@@ -846,7 +1036,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             : null,
         };
 
-        const res = await fetch(currentMember ? '/api/members/put' : '/api/members/post', {
+        const res = await fetch(currentMember ? '/api/members/put/' : '/api/members/post/', {
           method: currentMember ? 'PUT' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -964,6 +1154,15 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           }).catch((historyError) => {
             console.error('[member form] member history failed', historyError);
           });
+
+          try {
+            await saveSelectedMemberCargos({
+              idMiembro: historyMemberId,
+              formData,
+            });
+          } catch (cargoError) {
+            toast.error(cargoError.message || 'No se pudo guardar el cargo del miembro.');
+          }
         }
 
         const selectedPhoto = formData.avatarUrl;

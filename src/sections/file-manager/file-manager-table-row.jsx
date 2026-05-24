@@ -1,6 +1,6 @@
-import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useBoolean, usePopover, useDoubleClick, useCopyToClipboard } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -66,6 +66,7 @@ export function FileManagerTableRow({
 }) {
   const theme = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { copy } = useCopyToClipboard();
 
@@ -83,7 +84,10 @@ export function FileManagerTableRow({
   const handleClick = useDoubleClick({
     click: () => {
       if (row.type === 'folder') {
-        router.push(`?folder=${row.id}`);
+        const params = new URLSearchParams(searchParams.toString());
+
+        params.set('folder', row.id);
+        router.push(`?${params.toString()}`);
         return;
       }
 
@@ -92,11 +96,13 @@ export function FileManagerTableRow({
     doubleClick: () => console.info('DOUBLE CLICK'),
   });
 
-
-  const handleCopy = useCallback((link) => {
-    toast.success('Copiado!');
-    copy(link || getFileManagerShareLink(row));
-  }, [copy, row]);
+  const handleCopy = useCallback(
+    (link) => {
+      toast.success('Copiado!');
+      copy(link || getFileManagerShareLink(row));
+    },
+    [copy, row]
+  );
 
   const handleDownload = useCallback(() => {
     downloadFileFromUrl(row.url, row.name || 'archivo');
@@ -146,7 +152,7 @@ export function FileManagerTableRow({
           }}
         >
           <Iconify icon="eva:link-2-fill" />
-          Copiar link
+          Copiar enlace
         </MenuItem>
 
         {row.type !== 'folder' && (
@@ -296,7 +302,6 @@ export function FileManagerTableRow({
               cursor: row.type === 'folder' ? 'pointer' : 'default',
             }}
           >
-
             {showThumbnail && <FileThumbnail file={row.type} />}
 
             <Box sx={{ minWidth: 0 }}>
@@ -321,11 +326,9 @@ export function FileManagerTableRow({
           </Box>
         </TableCell>
 
-
         <TableCell onClick={handleClick} sx={{ whiteSpace: 'nowrap' }}>
           {fData(row.size)}
         </TableCell>
-
 
         {showType && (
           <TableCell onClick={handleClick} sx={{ whiteSpace: 'nowrap' }}>
@@ -333,15 +336,10 @@ export function FileManagerTableRow({
           </TableCell>
         )}
 
-
         <TableCell onClick={handleClick} sx={{ whiteSpace: 'nowrap' }}>
           <ListItemText
             primary={fDate(row.modifiedAt)}
-            secondary={
-              <span suppressHydrationWarning>
-                {fTime(row.modifiedAt)}
-              </span>
-            }
+            secondary={<span suppressHydrationWarning>{fTime(row.modifiedAt)}</span>}
             slotProps={{
               primary: { sx: { typography: 'body2' } },
               secondary: {
@@ -349,7 +347,6 @@ export function FileManagerTableRow({
               },
             }}
           />
-
         </TableCell>
 
         {showAvatar && (
@@ -357,7 +354,6 @@ export function FileManagerTableRow({
             <FileItemAvatar sharedUsers={row.shared} />
           </TableCell>
         )}
-
 
         <TableCell align="right" sx={{ px: 1 }}>
           <FileItemActions
@@ -370,7 +366,7 @@ export function FileManagerTableRow({
             sx={{ position: 'static' }}
           />
         </TableCell>
-      </TableRow >
+      </TableRow>
 
       {renderFileDetailsDrawer()}
       {renderShareDialog()}
@@ -378,15 +374,8 @@ export function FileManagerTableRow({
       {renderMenuActions()}
       {renderConfirmDialog()}
 
-      <Dialog
-        open={renameOpen}
-        onClose={() => setRenameOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ pb: 0 }}>
-          Renombrar documento
-        </DialogTitle>
+      <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 0 }}>Renombrar documento</DialogTitle>
 
         {/* 🔥 CONTENEDOR MANUAL */}
         <Box
@@ -408,9 +397,7 @@ export function FileManagerTableRow({
         </Box>
 
         <DialogActions>
-          <Button onClick={() => setRenameOpen(false)}>
-            Cancelar
-          </Button>
+          <Button onClick={() => setRenameOpen(false)}>Cancelar</Button>
 
           <Button
             variant="contained"
@@ -428,8 +415,6 @@ export function FileManagerTableRow({
           </Button>
         </DialogActions>
       </Dialog>
-
-
     </>
   );
 }

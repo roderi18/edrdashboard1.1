@@ -7,6 +7,8 @@ import Avatar from '@mui/material/Avatar';
 import Skeleton from '@mui/material/Skeleton';
 import ListItemText from '@mui/material/ListItemText';
 
+import { isUnknownLabel } from 'src/utils/is-unknown-label';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -43,10 +45,26 @@ export const CompactEntityCard = memo(function CompactEntityCard({
 }) {
   const [avatarLoaded, setAvatarLoaded] = useState(false);
   const initial = String(fallbackText || title || '?').charAt(0);
+  const titleColor = isUnknownLabel(title) ? 'text.disabled' : 'inherit';
 
   useEffect(() => {
     setAvatarLoaded(false);
   }, [avatarUrl]);
+
+  const canUseHref = (hrefValue, textValue) => {
+    const normalizedText = String(textValue ?? '')
+      .trim()
+      .toLowerCase();
+
+    return (
+      Boolean(hrefValue) &&
+      hrefValue !== '#' &&
+      normalizedText &&
+      normalizedText !== '-' &&
+      normalizedText !== 'n/a' &&
+      !isUnknownLabel(textValue)
+    );
+  };
 
   return (
     <Card
@@ -62,7 +80,39 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       ]}
       {...other}
     >
-      <Link href={href} color="inherit" underline="none">
+      {canUseHref(href, title) ? (
+        <Link href={href} color="inherit" underline="none">
+          <Avatar
+            alt={title}
+            sx={{
+              width: 48,
+              height: 48,
+              mr: 2,
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            <Box component="span">{initial}</Box>
+            {avatarUrl && (
+              <Box
+                component="img"
+                alt={title}
+                src={avatarUrl}
+                onLoad={() => setAvatarLoaded(true)}
+                sx={{
+                  inset: 0,
+                  width: 1,
+                  height: 1,
+                  objectFit: 'cover',
+                  position: 'absolute',
+                  opacity: avatarLoaded ? 1 : 0,
+                  transition: 'opacity 180ms ease',
+                }}
+              />
+            )}
+          </Avatar>
+        </Link>
+      ) : (
         <Avatar
           alt={title}
           sx={{
@@ -92,13 +142,19 @@ export const CompactEntityCard = memo(function CompactEntityCard({
             />
           )}
         </Avatar>
-      </Link>
+      )}
 
       <ListItemText
         primary={
-          <Link href={href} color="inherit" underline="hover">
-            {title}
-          </Link>
+          canUseHref(href, title) ? (
+            <Link href={href} color="inherit" underline="hover" sx={{ color: titleColor }}>
+              {title}
+            </Link>
+          ) : (
+            <Box component="span" sx={{ color: titleColor }}>
+              {title}
+            </Box>
+          )
         }
         secondary={
           <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
@@ -117,7 +173,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                 {line.icon && (
                   <Iconify icon={line.icon} width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
                 )}
-                {line.href ? (
+                {canUseHref(line.href, line.text) ? (
                   <Link
                     href={line.href}
                     color="inherit"

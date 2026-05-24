@@ -13,7 +13,7 @@ import { Chart, useChart, ChartSelect } from 'src/components/chart';
 export function FileDataActivity({ title, subheader, chart, sx, ...other }) {
   const theme = useTheme();
 
-  const [selectedSeries, setSelectedSeries] = useState('Yearly');
+  const [selectedSeries, setSelectedSeries] = useState('Anual');
 
   const currentSeries = chart.series.find((i) => i.name === selectedSeries);
 
@@ -30,6 +30,7 @@ export function FileDataActivity({ title, subheader, chart, sx, ...other }) {
     stroke: { width: 0 },
     legend: { show: true },
     xaxis: { categories: currentSeries?.categories },
+    yaxis: { labels: { formatter: (value) => fData(value) } },
     tooltip: { y: { formatter: (value) => fData(value) } },
     ...chart.options,
   });

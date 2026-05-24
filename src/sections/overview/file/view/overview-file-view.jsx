@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -10,8 +10,12 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
-import { _files, _folders } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
+import {
+  FIREBASE_STORAGE_LIMIT_BYTES,
+  getFirebaseStorageUsageSummary,
+  createEmptyStorageUsageSummary,
+} from 'src/services/firebase-storage-usage-service';
 
 import { Iconify } from 'src/components/iconify';
 import { UploadBox } from 'src/components/upload';
@@ -28,15 +32,61 @@ import { FileManagerCreateFolderDialog } from '../../../file-manager/file-manage
 
 // ----------------------------------------------------------------------
 
-const GB = 1000000000 * 24;
+const CATEGORY_ICONS = {
+  images: `${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`,
+  media: `${CONFIG.assetsDir}/assets/icons/files/ic-video.svg`,
+  documents: `${CONFIG.assetsDir}/assets/icons/files/ic-document.svg`,
+  other: `${CONFIG.assetsDir}/assets/icons/files/ic-file.svg`,
+  records: `${CONFIG.assetsDir}/assets/icons/files/ic-folder.svg`,
+};
+
+const buildCategoryRow = (category, icon, countLabel) => ({
+  name: category.label,
+  usedStorage: category.usedStorage,
+  filesCount: category.filesCount,
+  countLabel,
+  icon: <Box component="img" src={icon} />,
+});
+
+const FILE_MANAGER_STORAGE_LINK = `${paths.dashboard.fileManager}?source=storage&view=grid`;
 
 export function OverviewFileView() {
   const [folderName, setFolderName] = useState('');
 
   const [files, setFiles] = useState([]);
+  const [usageSummary, setUsageSummary] = useState(createEmptyStorageUsageSummary);
+  const [usageLoading, setUsageLoading] = useState(true);
 
   const newFilesDialog = useBoolean();
   const newFolderDialog = useBoolean();
+
+  useEffect(() => {
+    let mounted = true;
+
+    getFirebaseStorageUsageSummary()
+      .then((summary) => {
+        if (mounted) {
+          setUsageSummary(summary);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          setUsageSummary({
+            ...createEmptyStorageUsageSummary(),
+            error: error?.message || 'No se pudo leer Firebase Storage.',
+          });
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setUsageLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleChangeFolderName = useCallback((event) => {
     setFolderName(event.target.value);
@@ -55,38 +105,25 @@ export function OverviewFileView() {
     [files]
   );
 
+  const storageOverviewData = [
+    buildCategoryRow(usageSummary.categories.images, CATEGORY_ICONS.images),
+    buildCategoryRow(usageSummary.categories.media, CATEGORY_ICONS.media),
+    buildCategoryRow(usageSummary.categories.documents, CATEGORY_ICONS.documents),
+    buildCategoryRow(usageSummary.categories.other, CATEGORY_ICONS.other),
+    {
+      name: 'Registros',
+      usedStorage: 0,
+      filesCount: usageSummary.recordsCount,
+      countLabel: `${usageSummary.recordsCount} registros`,
+      icon: <Box component="img" src={CATEGORY_ICONS.records} />,
+    },
+  ];
+
   const renderStorageOverview = () => (
     <FileStorageOverview
-      total={GB}
-      chart={{ series: 76 }}
-      data={[
-        {
-          name: 'Images',
-          usedStorage: GB / 2,
-          filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`} />,
-        },
-        {
-          name: 'Media',
-          usedStorage: GB / 5,
-          filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-video.svg`} />,
-        },
-        {
-          name: 'Documents',
-          usedStorage: GB / 5,
-          filesCount: 223,
-          icon: (
-            <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-document.svg`} />
-          ),
-        },
-        {
-          name: 'Other',
-          usedStorage: GB / 10,
-          filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-file.svg`} />,
-        },
-      ]}
+      total={FIREBASE_STORAGE_LIMIT_BYTES}
+      chart={{ series: usageSummary.percentUsed, used: usageSummary.usedBytes }}
+      data={storageOverviewData}
     />
   );
 
@@ -98,7 +135,7 @@ export function OverviewFileView() {
     <FileManagerCreateFolderDialog
       open={newFolderDialog.value}
       onClose={newFolderDialog.onFalse}
-      title="Add folder"
+      title="Agregar carpeta"
       folderName={folderName}
       onChangeFolderName={handleChangeFolderName}
       onCreate={handleCreateFolder}
@@ -115,14 +152,14 @@ export function OverviewFileView() {
 
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FileWidget
-              title="Dropbox"
-              value={GB / 10}
-              total={GB}
+              title="Imágenes"
+              value={usageSummary.categories.images.usedStorage}
+              total={FIREBASE_STORAGE_LIMIT_BYTES}
               icon={
                 <Box
                   component="img"
-                  alt="Dropbox"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-dropbox.svg`}
+                  alt="Imágenes"
+                  src={CATEGORY_ICONS.images}
                   sx={{ width: 48, height: 48 }}
                 />
               }
@@ -131,14 +168,14 @@ export function OverviewFileView() {
 
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FileWidget
-              title="Drive"
-              value={GB / 5}
-              total={GB}
+              title="Multimedia"
+              value={usageSummary.categories.media.usedStorage}
+              total={FIREBASE_STORAGE_LIMIT_BYTES}
               icon={
                 <Box
                   component="img"
-                  alt="Google Drive"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-drive.svg`}
+                  alt="Multimedia"
+                  src={CATEGORY_ICONS.media}
                   sx={{ width: 48, height: 48 }}
                 />
               }
@@ -147,14 +184,14 @@ export function OverviewFileView() {
 
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FileWidget
-              title="OneDrive"
-              value={GB / 2}
-              total={GB}
+              title="Documentos"
+              value={usageSummary.categories.documents.usedStorage}
+              total={FIREBASE_STORAGE_LIMIT_BYTES}
               icon={
                 <Box
                   component="img"
-                  alt="OneDrive"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-onedrive.svg`}
+                  alt="Documentos"
+                  src={CATEGORY_ICONS.documents}
                   sx={{ width: 48, height: 48 }}
                 />
               }
@@ -163,59 +200,31 @@ export function OverviewFileView() {
 
           <Grid size={{ xs: 12, md: 6, lg: 8 }}>
             <FileDataActivity
-              title="Data activity"
-              chart={{
-                series: [
-                  {
-                    name: 'Weekly',
-                    categories: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
-                    data: [
-                      { name: 'Images', data: [20, 34, 48, 65, 37] },
-                      { name: 'Media', data: [10, 34, 13, 26, 27] },
-                      { name: 'Documents', data: [10, 14, 13, 16, 17] },
-                      { name: 'Other', data: [5, 12, 6, 7, 8] },
-                    ],
-                  },
-                  {
-                    name: 'Monthly',
-                    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-                    data: [
-                      { name: 'Images', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
-                      { name: 'Media', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
-                      { name: 'Documents', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
-                      { name: 'Other', data: [10, 34, 13, 56, 77, 88, 99, 77, 45, 12, 43, 34] },
-                    ],
-                  },
-                  {
-                    name: 'Yearly',
-                    categories: ['2018', '2019', '2020', '2021', '2022', '2023'],
-                    data: [
-                      { name: 'Images', data: [24, 34, 32, 56, 77, 48] },
-                      { name: 'Media', data: [24, 34, 32, 56, 77, 48] },
-                      { name: 'Documents', data: [24, 34, 32, 56, 77, 48] },
-                      { name: 'Other', data: [24, 34, 32, 56, 77, 48] },
-                    ],
-                  },
-                ],
-              }}
+              title="Actividad de datos"
+              subheader={
+                usageLoading
+                  ? 'Leyendo Firebase Storage...'
+                  : usageSummary.error || `${usageSummary.totalFiles} archivos en Storage`
+              }
+              chart={usageSummary.activityChart}
             />
 
             <Box sx={{ mt: 5 }}>
               <FileManagerPanel
-                title="Folders"
-                link={paths.dashboard.fileManager}
+                title="Carpetas"
+                link={FILE_MANAGER_STORAGE_LINK}
                 onOpen={newFolderDialog.onTrue}
               />
 
               <Scrollbar sx={{ mb: 3, minHeight: 186 }}>
                 <Box sx={{ gap: 3, display: 'flex' }}>
-                  {_folders.map((folder) => (
+                  {usageSummary.folders.map((folder) => (
                     <FileManagerFolderItem
                       key={folder.id}
                       folder={folder}
-                      onDelete={() => console.info('DELETE', folder.id)}
+                      onDelete={() => console.info('ELIMINAR', folder.id)}
                       sx={{
-                        ...(_folders.length > 3 && {
+                        ...(usageSummary.folders.length > 3 && {
                           width: 240,
                           flexShrink: 0,
                         }),
@@ -226,17 +235,17 @@ export function OverviewFileView() {
               </Scrollbar>
 
               <FileManagerPanel
-                title="Recent files"
-                link={paths.dashboard.fileManager}
+                title="Archivos recientes"
+                link={FILE_MANAGER_STORAGE_LINK}
                 onOpen={newFilesDialog.onTrue}
               />
 
               <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
-                {_files.slice(0, 5).map((file) => (
+                {usageSummary.recentFiles.slice(0, 5).map((file) => (
                   <FileRecentItem
                     key={file.id}
                     file={file}
-                    onDelete={() => console.info('DELETE', file.id)}
+                    onDelete={() => console.info('ELIMINAR', file.id)}
                   />
                 ))}
               </Box>
@@ -258,7 +267,7 @@ export function OverviewFileView() {
                     }}
                   >
                     <Iconify icon="eva:cloud-upload-fill" width={40} />
-                    <Typography variant="body2">Upload file</Typography>
+                    <Typography variant="body2">Subir archivo</Typography>
                   </Box>
                 }
                 sx={{

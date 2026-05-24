@@ -6,6 +6,8 @@ import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
 
+import { isUnknownLabel } from 'src/utils/is-unknown-label';
+
 // ----------------------------------------------------------------------
 
 export function CompactEntityTableCell({
@@ -23,6 +25,10 @@ export function CompactEntityTableCell({
   cellSx,
 }) {
   const hasHref = Boolean(href);
+  const titleSx = {
+    ...linkSx,
+    ...(isUnknownLabel(title) && { color: 'text.disabled' }),
+  };
 
   return (
     <TableCell sx={cellSx}>
@@ -46,12 +52,12 @@ export function CompactEntityTableCell({
               href={href}
               color="inherit"
               underline={linkUnderline}
-              sx={{ cursor: 'pointer', ...linkSx }}
+              sx={{ cursor: 'pointer', ...titleSx }}
             >
               {title}
             </Link>
           ) : (
-            <Box component="span" sx={linkSx}>
+            <Box component="span" sx={titleSx}>
               {title}
             </Box>
           )}

@@ -35,7 +35,12 @@ import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
+import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
 import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
+import {
+  obtenerCargosDirectiva,
+  obtenerAsignacionesDirectivaMiembros,
+} from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -118,6 +123,32 @@ const resolveMemberDivision = (member) => {
   return '';
 };
 
+const getDirectivaDivisionByMemberDivision = (memberDivision = '') => {
+  const normalized = String(memberDivision || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (normalized.includes('naveg')) return 'navegantes';
+  if (normalized.includes('pion')) return 'pioneros';
+  if (normalized.includes('segu')) return 'seguidores';
+  if (normalized.includes('explor')) return 'exploradores';
+
+  return '';
+};
+
+const getCargoOptionValue = (cargo = {}) => cargo.idPosicionDirectiva || cargo.id || cargo.idCargo;
+
+const getCargoLabel = (cargo = {}) => {
+  const cargoName = cargo.nombreCargo || cargo.nombre || cargo.label || '';
+
+  if (cargo.nivel === 'destacamento' && cargo.nombreDivision && !cargoName.includes('(')) {
+    return `${cargoName} (${cargo.nombreDivision})`;
+  }
+
+  return cargoName;
+};
+
 const mapMemberToTableRow = (member) => ({
   ...member,
   id: member.id,
@@ -134,6 +165,8 @@ const mapMemberToTableRow = (member) => ({
   regionalId: '',
   regionalName: '',
   memberPosition: member.memberPosition || [],
+  destLeadershipPosition: member.destLeadershipPosition || '',
+  directivaLeadershipPosition: member.directivaLeadershipPosition || '',
 });
 
 // ----------------------------------------------------------------------
@@ -164,6 +197,78 @@ export function MemberListView() {
   const [tableData, setTableData] = useState([]);
   const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [membersLoading, setMembersLoading] = useState(true);
+
+  const hydrateMemberPositions = useCallback(async (members) => {
+    const [cargosMiembros, cargosDirectiva, asignacionesDirectiva] = await Promise.all([
+      obtenerCargosMiembroApi(),
+      obtenerCargosDirectiva({ incluirNoAsignables: false }),
+      obtenerAsignacionesDirectivaMiembros(),
+    ]);
+
+    const cargosByMember = new Map();
+    cargosMiembros.forEach((cargoMiembro) => {
+      const memberId = String(cargoMiembro.idMiembro || cargoMiembro.idMiembros || '');
+
+      if (!memberId) return;
+
+      const current = cargosByMember.get(memberId) || [];
+      current.push(Number(cargoMiembro.idCargo));
+      cargosByMember.set(memberId, current);
+    });
+
+    const assignmentsByMember = new Map();
+    asignacionesDirectiva.forEach((asignacion) => {
+      const memberId = String(asignacion.idMiembro || asignacion.idMiembros || '');
+
+      if (!memberId) return;
+
+      const current = assignmentsByMember.get(memberId) || [];
+      current.push(asignacion);
+      assignmentsByMember.set(memberId, current);
+    });
+
+    return members.map((member) => {
+      const memberId = String(member.id || member.idMiembros || '');
+      const cargoIds = cargosByMember.get(memberId) || [];
+      const assignments = assignmentsByMember.get(memberId) || [];
+      const memberDivisionKey = getDirectivaDivisionByMemberDivision(member.memberDivision);
+
+      const positionsByAssignment = assignments
+        .map((asignacion) =>
+          cargosDirectiva.find((cargo) =>
+            [cargo.idPosicionDirectiva, cargo.id, cargo.idCargo, cargo.idCargoApi].some(
+              (value) =>
+                String(value || '') === String(asignacion.idPosicionDirectiva || '') ||
+                String(value || '') === String(asignacion.idCargo || '')
+            )
+          )
+        )
+        .filter(Boolean);
+      const positionsByApi = cargosDirectiva.filter((cargo) =>
+        cargoIds.includes(Number(cargo.idCargo || cargo.idCargoApi))
+      );
+      const mergedPositions = [...positionsByAssignment, ...positionsByApi].filter(
+        (cargo, index, list) =>
+          index ===
+          list.findIndex(
+            (item) =>
+              String(getCargoOptionValue(item) || '') === String(getCargoOptionValue(cargo) || '')
+          )
+      );
+      const destPosition =
+        mergedPositions.find(
+          (cargo) => cargo.nivel === 'destacamento' && cargo.division === memberDivisionKey
+        ) || mergedPositions.find((cargo) => cargo.nivel === 'destacamento');
+      const directivaPosition = mergedPositions.find((cargo) => cargo.nivel !== 'destacamento');
+
+      return {
+        ...member,
+        memberPosition: mergedPositions.map((cargo) => getCargoOptionValue(cargo)).filter(Boolean),
+        destLeadershipPosition: destPosition ? getCargoLabel(destPosition) : '',
+        directivaLeadershipPosition: directivaPosition ? getCargoLabel(directivaPosition) : '',
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (membersLoading || metadataLoadedRef.current) return undefined;
@@ -253,8 +358,17 @@ export function MemberListView() {
         const members = await getMembers();
         if (cancelled) return;
 
-        setTableData(members.map(mapMemberToTableRow));
+        const mappedMembers = members.map(mapMemberToTableRow);
+        setTableData(mappedMembers);
         setMembersLoading(false);
+
+        hydrateMemberPositions(mappedMembers)
+          .then((membersWithPositions) => {
+            if (!cancelled) {
+              setTableData(membersWithPositions);
+            }
+          })
+          .catch(() => {});
 
         obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
           .then((memberPhotos) => {
@@ -285,7 +399,7 @@ export function MemberListView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hydrateMemberPositions]);
 
   useEffect(() => {
     if (!tableData.length || !dests.length || !churches.length || !sectionals.length) return;
@@ -392,16 +506,24 @@ export function MemberListView() {
     labelResolver: (id) => dests.find((d) => d.id === id)?.name || id,
   });
 
-  const distinctPositions = [...new Set(visibleMembers.flatMap((m) => m.memberPosition || []))].map(
-    (role) => {
-      const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
+  const distinctPositions = [
+    ...new Set(
+      visibleMembers.flatMap((member) =>
+        [
+          ...(member.memberPosition || []),
+          member.destLeadershipPosition,
+          member.directivaLeadershipPosition,
+        ].filter(Boolean)
+      )
+    ),
+  ].map((role) => {
+    const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
 
-      return {
-        value: role,
-        label: roleInfo?.label || role,
-      };
-    }
-  );
+    return {
+      value: role,
+      label: roleInfo?.label || role,
+    };
+  });
   const distinctSectionals = getAvailableOptionsFromData({
     inputData: visibleMembers,
     property: 'sectionalId',
@@ -738,9 +860,15 @@ function applyFilter({ inputData, comparator, filters }) {
   }
 
   if (memberPosition?.length) {
-    inputData = inputData.filter((member) =>
-      member.memberPosition?.some((role) => memberPosition.includes(role))
-    );
+    inputData = inputData.filter((member) => {
+      const positions = [
+        ...(member.memberPosition || []),
+        member.destLeadershipPosition,
+        member.directivaLeadershipPosition,
+      ].filter(Boolean);
+
+      return positions.some((role) => memberPosition.includes(role));
+    });
   }
 
   return inputData;

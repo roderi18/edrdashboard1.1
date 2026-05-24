@@ -111,15 +111,7 @@ const buildMessage = ({ item, shareUrl, note }) => {
 
 // ----------------------------------------------------------------------
 
-export function FileManagerShareDialog({
-  sx,
-  item,
-  open,
-  shared,
-  onClose,
-  onCopyLink,
-  ...other
-}) {
+export function FileManagerShareDialog({ sx, item, open, shared, onClose, onCopyLink, ...other }) {
   const { user } = useAuthContext();
   const [contacts, setContacts] = useState([]);
   const [selectedContacts, setSelectedContacts] = useState([]);
@@ -130,7 +122,8 @@ export function FileManagerShareDialog({
   const shareLabel = useMemo(() => getFileManagerShareLabel(item), [item]);
   const currentContact = useMemo(() => findCurrentContact(contacts, user), [contacts, user]);
   const recipientOptions = useMemo(
-    () => uniqueContacts(contacts.filter((contact) => !isSameContact(contact, currentContact || user))),
+    () =>
+      uniqueContacts(contacts.filter((contact) => !isSameContact(contact, currentContact || user))),
     [contacts, currentContact, user]
   );
 
@@ -173,7 +166,7 @@ export function FileManagerShareDialog({
     }
 
     navigator.clipboard?.writeText(shareUrl);
-    toast.success('Link copiado.');
+    toast.success('Enlace copiado.');
   }, [onCopyLink, shareUrl]);
 
   const handleSendToMessages = useCallback(async () => {
@@ -228,7 +221,7 @@ export function FileManagerShareDialog({
 
       <Box sx={{ px: 3, pb: 2 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Link del elemento
+          Enlace del elemento
         </Typography>
 
         <Box
@@ -263,11 +256,7 @@ export function FileManagerShareDialog({
             const optionKey = getContactOptionKey(option, state?.index) || key;
 
             return (
-              <Box
-                key={optionKey}
-                component="li"
-                {...optionProps}
-              >
+              <Box key={optionKey} component="li" {...optionProps}>
                 <Avatar
                   key={`${optionKey}-avatar`}
                   src={option.avatarUrl}
@@ -325,7 +314,7 @@ export function FileManagerShareDialog({
 
       <DialogActions sx={{ justifyContent: 'space-between' }}>
         <Button startIcon={<Iconify icon="eva:link-2-fill" />} onClick={handleCopyLink}>
-          Copiar link
+          Copiar enlace
         </Button>
 
         {onClose && (

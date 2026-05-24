@@ -12,6 +12,8 @@ import { Chart, useChart } from 'src/components/chart';
 export function FileStorageOverview({ data, total, chart, sx, ...other }) {
   const theme = useTheme();
 
+  const usedStorage =
+    chart.used ?? data.reduce((sum, item) => sum + Number(item.usedStorage || 0), 0);
   const chartColors = chart.colors ?? [theme.palette.secondary.main, theme.palette.secondary.light];
 
   const chartOptions = useChart({
@@ -37,7 +39,7 @@ export function FileStorageOverview({ data, total, chart, sx, ...other }) {
           name: { offsetY: 8 },
           value: { offsetY: -36 },
           total: {
-            label: `Used of ${fData(total)} / ${fData(total * 2)}`,
+            label: `Usado: ${fData(usedStorage)} de ${fData(total)}`,
             color: theme.vars.palette.text.disabled,
             fontSize: theme.typography.caption.fontSize,
             fontWeight: theme.typography.caption.fontWeight,
@@ -83,7 +85,7 @@ export function FileStorageOverview({ data, total, chart, sx, ...other }) {
 
             <ListItemText
               primary={category.name}
-              secondary={`${category.filesCount} files`}
+              secondary={category.countLabel || `${category.filesCount} archivos`}
               slotProps={{
                 secondary: { sx: { mt: 0.5, typography: 'caption', color: 'text.disabled' } },
               }}

@@ -67,11 +67,11 @@ export function FileManagerGridView({
     <FileManagerCreateFolderDialog
       open={newFolderDialog.value}
       onClose={newFolderDialog.onFalse}
-      title="Add folder"
+      title="Agregar carpeta"
       onCreate={() => {
         newFolderDialog.onFalse();
         setFolderName('');
-        console.info('CREATE NEW FOLDER', folderName);
+        console.info('CREAR CARPETA', folderName);
       }}
       folderName={folderName}
       onChangeFolderName={handleChangeFolderName}
@@ -81,8 +81,8 @@ export function FileManagerGridView({
   const renderFolders = () => (
     <>
       <FileManagerPanel
-        title="Folders"
-        subtitle={`${dataFiltered.filter((item) => item.type === 'folder').length} folders`}
+        title="Carpetas"
+        subtitle={`${dataFiltered.filter((item) => item.type === 'folder').length} carpetas`}
         onOpen={newFolderDialog.onTrue}
         collapse={foldersCollapse.value}
         onCollapse={foldersCollapse.onToggle}
@@ -111,14 +111,12 @@ export function FileManagerGridView({
                   memberId: table.memberId,
                   allData,
                 }}
-
                 selected={selected.includes(folder.id)}
                 onSelect={() => onSelectItem(folder.id)}
                 onDelete={() => onDeleteItem(folder.id)}
                 canDelete={false}
               />
             ))}
-
         </Box>
       </Collapse>
     </>
@@ -127,8 +125,8 @@ export function FileManagerGridView({
   const renderFiles = () => (
     <>
       <FileManagerPanel
-        title="Files"
-        subtitle={`${dataFiltered.filter((item) => item.type !== 'folder').length} files`}
+        title="Archivos"
+        subtitle={`${dataFiltered.filter((item) => item.type !== 'folder').length} archivos`}
         onOpen={newFilesDialog.onTrue}
         collapse={filesCollapse.value}
         onCollapse={filesCollapse.onToggle}
@@ -159,7 +157,6 @@ export function FileManagerGridView({
                 canDelete={canDelete}
               />
             ))}
-
         </Box>
       </Collapse>
     </>
