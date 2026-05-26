@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { varAlpha } from 'minimal-shared/utils';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
 import Box from '@mui/material/Box';
@@ -11,16 +10,9 @@ import ListItemText from '@mui/material/ListItemText';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { getStorageCollection } from 'src/utils/storage-service';
-import {
-  getCoverPhotoImageSx,
-  fetchCoverPhotoOverrides,
-  getMemberDivisionCoverConfig,
-} from 'src/utils/cover-photos';
 
 import { AvatarShape } from 'src/assets/illustrations';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
-
-import { Image } from 'src/components/image';
 
 // ----------------------------------------------------------------------
 
@@ -30,7 +22,6 @@ export function AdminCard({ admin, sx, ...other }) {
   const router = useRouter();
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const [dests, setDests] = useState([]);
-  const [, setCoverVersion] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -40,22 +31,6 @@ export function AdminCard({ admin, sx, ...other }) {
     };
     load();
   }, []);
-
-  useEffect(() => {
-    const refreshCover = () => setCoverVersion((currentVersion) => currentVersion + 1);
-
-    fetchCoverPhotoOverrides().then(refreshCover);
-
-    window.addEventListener('storage', refreshCover);
-    window.addEventListener('coverPhotosUpdated', refreshCover);
-
-    return () => {
-      window.removeEventListener('storage', refreshCover);
-      window.removeEventListener('coverPhotosUpdated', refreshCover);
-    };
-  }, []);
-
-  const coverConfig = getMemberDivisionCoverConfig(admin.memberDivision);
 
   const dest = dests.find((d) => Number(d.idDestacamento) === Number(admin.destId));
 
@@ -119,20 +94,10 @@ export function AdminCard({ admin, sx, ...other }) {
           }}
         />
 
-        <Image
-          src={coverConfig.src}
-          alt={admin.memberDivision}
-          ratio="16/6"
-          slotProps={{
-            img: {
-              sx: getCoverPhotoImageSx(coverConfig),
-            },
-            overlay: {
-              sx: (overlayTheme) => ({
-                // sombra img trasera
-                bgcolor: varAlpha(overlayTheme.vars.palette.common.blackChannel, 0.46),
-              }),
-            },
+        <Box
+          sx={{
+            aspectRatio: '16 / 6',
+            bgcolor: 'background.neutral',
           }}
         />
       </Box>

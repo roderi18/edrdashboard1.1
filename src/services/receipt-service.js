@@ -9,6 +9,11 @@ import {
   mapearEstadoReciboUiAFirestore,
 } from 'src/models/receipt-model';
 
+import {
+  crearNotificacionFacturaGenerada,
+  crearNotificacionFacturaDisponible,
+} from './notification-service';
+
 const receiptsCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.recibos);
 
 export const guardarReciboFirestore = async ({ user, receiptId, orderId, checkoutState }) => {
@@ -27,7 +32,18 @@ export const guardarReciboFirestore = async ({ user, receiptId, orderId, checkou
 
   await setDoc(receiptRef, receiptDoc);
 
-  return mapearReciboFirestoreAUi({ id: currentReceiptId, ...receiptDoc });
+  const receipt = mapearReciboFirestoreAUi({ id: currentReceiptId, ...receiptDoc });
+
+  if (!previous.exists()) {
+    crearNotificacionFacturaGenerada({ factura: receipt, usuario: user }).catch((error) => {
+      console.error('[receipt service] no se pudo notificar factura generada', error);
+    });
+    crearNotificacionFacturaDisponible({ factura: receipt, usuario: user }).catch((error) => {
+      console.error('[receipt service] no se pudo notificar factura disponible', error);
+    });
+  }
+
+  return receipt;
 };
 
 export const listarRecibosFirestore = async () => {
@@ -76,7 +92,7 @@ export const actualizarEstadoReciboFirestore = async (receiptId, estado) => {
   return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
 };
 
-export const actualizarReciboFirestore = async (receiptId, data = {}) => {
+export const actualizarReciboFirestore = async (receiptId, data = {}, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
 
   const receiptRef = doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId));
@@ -120,5 +136,14 @@ export const actualizarReciboFirestore = async (receiptId, data = {}) => {
 
   await setDoc(receiptRef, nextDoc, { merge: true });
 
-  return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
+  const receipt = mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
+
+  crearNotificacionFacturaGenerada({ factura: receipt, usuario: user }).catch((error) => {
+    console.error('[receipt service] no se pudo notificar factura generada', error);
+  });
+  crearNotificacionFacturaDisponible({ factura: receipt, usuario: user }).catch((error) => {
+    console.error('[receipt service] no se pudo notificar factura disponible', error);
+  });
+
+  return receipt;
 };

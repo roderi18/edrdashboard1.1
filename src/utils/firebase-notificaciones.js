@@ -32,6 +32,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'evento_reprogramado',
   'mensaje_recibido',
   'publicacion_comentada',
+  'publicacion_reportada',
   'recordatorio_publicacion',
   'chat_reportado',
 ];
@@ -328,6 +329,17 @@ const DEFINICIONES_NOTIFICACIONES = {
     tipoAccion: 'ver',
     requiereFotoPersona: true,
   },
+  publicacion_reportada: {
+    modulo: 'publicaciones',
+    titulo: 'Publicacion reportada',
+    mensajePlantilla: '{{actorNombre}} reporto una publicacion. Motivo: {{razon}}.',
+    rolesDisponibles: ['admin'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'publicacion',
+    etiquetaAccion: 'Ver publicacion',
+    tipoAccion: 'ver',
+    requiereFotoPersona: true,
+  },
   recordatorio_publicacion: {
     modulo: 'publicaciones',
     titulo: 'Recordatorio de publicacion',
@@ -451,6 +463,7 @@ export function construirPreferenciasNotificacionesBase({ idUsuario, rol = 'usua
       administradores: esAdmin,
       archivos: esAdmin,
       cuentas: true,
+      publicaciones: true,
     },
     tiposNotificacion: Object.fromEntries(tiposPermitidos.map((tipo) => [tipo, true])),
   };

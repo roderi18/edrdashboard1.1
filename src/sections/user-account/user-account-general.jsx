@@ -26,6 +26,10 @@ import { updateMemberApi } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import {
+  crearNotificacionPerfilActualizado,
+  crearNotificacionErrorSubidaArchivoImagen,
+} from 'src/services/notification-service';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -462,6 +466,14 @@ export function UserAccountGeneral() {
       return avatarUrl;
     } catch (error) {
       console.error('[user-account] upload photo failed', error);
+      crearNotificacionErrorSubidaArchivoImagen({
+        archivo: file,
+        error,
+        contexto: 'foto_perfil_usuario',
+        usuario: user,
+      }).catch((notificationError) => {
+        console.error('[user-account] upload error notification failed', notificationError);
+      });
       toast.error(error?.message || 'No se pudo subir la foto.');
       return null;
     } finally {
@@ -576,6 +588,17 @@ export function UserAccountGeneral() {
         ...prev,
         ...payload,
       }));
+
+      crearNotificacionPerfilActualizado({
+        perfil: {
+          ...member,
+          ...payload,
+          origen: 'user-account-general',
+        },
+        usuario: user,
+      }).catch((notificationError) => {
+        console.error('[user-account] profile notification failed', notificationError);
+      });
 
       await checkUserSession?.();
       toast.success('Cuenta actualizada con éxito.');

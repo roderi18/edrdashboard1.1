@@ -30,6 +30,7 @@ import { guardarReciboFirestore, actualizarEstadoReciboFirestore } from './recei
 import {
   crearNotificacionesPedidoCreado,
   crearNotificacionEvaluacionPedido,
+  crearNotificacionPedidoCanceladoAdmin,
   crearNotificacionArchivosFaltantesPedido,
 } from './notification-service';
 
@@ -385,6 +386,18 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
 
   await setDoc(orderRef, nextData, { merge: true });
 
+  if (isCancelling) {
+    try {
+      await crearNotificacionPedidoCanceladoAdmin({
+        orden: { id: snapshot.id, ...nextData },
+        razon: 'Cancelacion administrativa',
+        usuario: user,
+      });
+    } catch (notificationError) {
+      console.error('[order service] no se pudo notificar la cancelacion', notificationError);
+    }
+  }
+
   if (currentData?.reciboId) {
     await actualizarEstadoReciboFirestore(
       currentData.reciboId,
@@ -476,6 +489,12 @@ export const evaluarOrdenRestringidaFirestore = async ({
       razon,
       usuario: user,
       metadatosExtra: chatMessage || {},
+    });
+
+    await crearNotificacionPedidoCanceladoAdmin({
+      orden: updatedData,
+      razon,
+      usuario: user,
     });
   }
 

@@ -18,6 +18,8 @@ import { actualizarReciboFirestore } from 'src/services/receipt-service';
 
 import { Form, schemaUtils } from 'src/components/hook-form';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { InvoiceCreateEditAddress } from './invoice-create-edit-address';
 import { InvoiceCreateEditStatusDate } from './invoice-create-edit-status-date';
 import { defaultItem, InvoiceCreateEditDetails } from './invoice-create-edit-details';
@@ -94,6 +96,7 @@ export const InvoiceCreateSchema = z
 
 export function InvoiceCreateEditForm({ currentInvoice }) {
   const router = useRouter();
+  const { user } = useAuthContext();
 
   const loadingSave = useBoolean();
   const loadingSend = useBoolean();
@@ -130,7 +133,7 @@ export function InvoiceCreateEditForm({ currentInvoice }) {
 
   const updateReceipt = (data) =>
     currentInvoice?.id
-      ? actualizarReciboFirestore(currentInvoice.id, { ...currentInvoice, ...data })
+      ? actualizarReciboFirestore(currentInvoice.id, { ...currentInvoice, ...data }, user)
       : null;
 
   const handleSaveAsDraft = handleSubmit(async (data) => {

@@ -65,18 +65,6 @@ export const _kanban = {
         comments: [createComment(4, 'Pendiente confirmar el criterio final de duplicados.')],
         due: [today(), fAdd({ days: 3 })],
       }),
-      createTask({
-        id: 'task-cover-photos',
-        status: 'Backlog',
-        name: 'Organizar portadas de divisiones',
-        description:
-          'Preparar imagenes base para Exploradores, Seguidores, Pioneros, Navegantes y Liderazgo.',
-        priority: 'medium',
-        labels: ['Administradores'],
-        assignee: [createUser(5)],
-        attachments: [_mock.image.cover(1)],
-        due: [today(), fAdd({ days: 5 })],
-      }),
     ],
     todo: [
       createTask({

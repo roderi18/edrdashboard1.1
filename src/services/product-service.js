@@ -13,6 +13,14 @@ import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
+import {
+  crearNotificacionProductoSinStock,
+  crearNotificacionProductoPublicado,
+  crearNotificacionProductoStockBajo,
+  crearNotificacionErrorSubidaArchivoImagen,
+  crearNotificacionProductoDisponibleNuevamente,
+} from './notification-service';
+
 const isStoredImageValue = (image) =>
   typeof image === 'string' && /^(https?:|data:|blob:)/i.test(image);
 
@@ -97,7 +105,7 @@ export const resolverProductoCombinadoPorId = async ({ productId, productoRemoto
   return firestoreProduct || productoRemoto || null;
 };
 
-export const guardarProductoFirestore = async (data, { publish = true } = {}) => {
+export const guardarProductoFirestore = async (data, { publish = true, user = {} } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const productId = data?.id || `producto-${Date.now()}`;
@@ -109,19 +117,33 @@ export const guardarProductoFirestore = async (data, { publish = true } = {}) =>
   const inputImages = Array.isArray(data?.images) ? data.images : [];
   const storedImages = inputImages.filter(isStoredImageValue);
   const fileImages = inputImages.filter((image) => image instanceof File);
-  const uploadedImagesResult = fileImages.length
-    ? await uploadOptimizedImages({
-        files: fileImages,
-        preset: 'producto',
-        storagePathBuilder: (file, index) =>
-          `productos/${productId}/imagen-${Date.now()}-${index}.webp`,
-        metadataBuilder: (file, index) => ({
-          tipoEntidad: 'producto',
-          productoId: String(productId),
-          indice: String(index),
-        }),
-      })
-    : { uploads: [], summary: null };
+  let uploadedImagesResult = { uploads: [], summary: null };
+
+  try {
+    uploadedImagesResult = fileImages.length
+      ? await uploadOptimizedImages({
+          files: fileImages,
+          preset: 'producto',
+          storagePathBuilder: (file, index) =>
+            `productos/${productId}/imagen-${Date.now()}-${index}.webp`,
+          metadataBuilder: (file, index) => ({
+            tipoEntidad: 'producto',
+            productoId: String(productId),
+            indice: String(index),
+          }),
+        })
+      : { uploads: [], summary: null };
+  } catch (error) {
+    await crearNotificacionErrorSubidaArchivoImagen({
+      archivo: fileImages[0],
+      error,
+      contexto: 'producto',
+      usuario: user,
+    }).catch((notificationError) => {
+      console.error('[product service] no se pudo notificar error de imagen', notificationError);
+    });
+    throw error;
+  }
   const images = [
     ...storedImages,
     ...uploadedImagesResult.uploads.map((image) => image.downloadUrl),
@@ -140,8 +162,36 @@ export const guardarProductoFirestore = async (data, { publish = true } = {}) =>
 
   await setDoc(productRef, productDoc);
 
+  const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
+  const previousWasPublished =
+    previousProduct?.publish === 'published' || previousProduct?.publicacion === 'publicado';
+  const isPublished = savedProduct?.publish === 'published' || productDoc?.publicacion === 'publicado';
+
+  if (publish && isPublished && !previousWasPublished) {
+    crearNotificacionProductoPublicado({ producto: savedProduct, usuario: user }).catch((error) => {
+      console.error('[product service] no se pudo notificar producto publicado', error);
+    });
+  }
+
+  const disponibles = Number(savedProduct?.available ?? productDoc?.disponibles ?? 0);
+  const previousAvailable = Number(previousProduct?.available ?? previousProduct?.disponibles ?? 0);
+
+  if (previous.exists() && previousAvailable <= 0 && disponibles > 0) {
+    crearNotificacionProductoDisponibleNuevamente({ producto: savedProduct, usuario: user }).catch((error) => {
+      console.error('[product service] no se pudo notificar producto disponible nuevamente', error);
+    });
+  } else if (disponibles <= 0) {
+    crearNotificacionProductoSinStock({ producto: savedProduct, usuario: user }).catch((error) => {
+      console.error('[product service] no se pudo notificar producto sin stock', error);
+    });
+  } else if (disponibles <= 10) {
+    crearNotificacionProductoStockBajo({ producto: savedProduct, usuario: user }).catch((error) => {
+      console.error('[product service] no se pudo notificar stock bajo', error);
+    });
+  }
+
   return {
-    product: mapearProductoFirestoreAUi({ id: productId, ...productDoc }),
+    product: savedProduct,
     imageStats: uploadedImagesResult.summary,
   };
 };
@@ -172,7 +222,7 @@ export const guardarSnapshotProductoFirestore = async (product) => {
   return mapearProductoFirestoreAUi({ id: product.id, ...productDoc });
 };
 
-export const actualizarPublicacionProductoFirestore = async (productId, publish) => {
+export const actualizarPublicacionProductoFirestore = async (productId, publish, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return null;
 
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
@@ -193,7 +243,15 @@ export const actualizarPublicacionProductoFirestore = async (productId, publish)
 
   await setDoc(productRef, nextDoc, { merge: true });
 
-  return mapearProductoFirestoreAUi({ id: productId, ...nextDoc });
+  const updatedProduct = mapearProductoFirestoreAUi({ id: productId, ...nextDoc });
+
+  if (publish === 'published') {
+    crearNotificacionProductoPublicado({ producto: updatedProduct, usuario: user }).catch((error) => {
+      console.error('[product service] no se pudo notificar producto publicado', error);
+    });
+  }
+
+  return updatedProduct;
 };
 
 export const eliminarProductoFirestore = async (productId) => {

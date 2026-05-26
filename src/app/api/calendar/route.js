@@ -1,10 +1,16 @@
+import { doc, getDoc } from 'firebase/firestore';
+
 import {
+  COLECCION_CALENDARIO,
   guardarActividadCalendario,
   eliminarActividadCalendario,
   obtenerActividadesCalendario,
   sembrarActividadesCalendario,
   actualizarActividadCalendario,
 } from 'src/utils/firebase-calendar';
+
+import { FIRESTORE } from 'src/lib/firebase';
+import { crearNotificacionEventoReprogramado } from 'src/services/notification-service';
 
 // ----------------------------------------------------------------------
 
@@ -30,8 +36,40 @@ export async function POST(request) {
 
 export async function PUT(request) {
   const body = await request.json().catch(() => ({}));
+  const eventData = body.eventData || body;
+  const eventId = eventData?.id;
+  let previousData = null;
 
-  await actualizarActividadCalendario(body.eventData || body);
+  if (eventId && FIRESTORE) {
+    const snapshot = await getDoc(doc(FIRESTORE, COLECCION_CALENDARIO, String(eventId))).catch(
+      () => null
+    );
+    previousData = snapshot?.exists() ? snapshot.data() : null;
+  }
+
+  await actualizarActividadCalendario(eventData);
+
+  const previousStart = previousData?.fechaInicio?.toDate?.()?.toISOString?.() || null;
+  const previousEnd = previousData?.fechaFin?.toDate?.()?.toISOString?.() || null;
+  const nextStart = eventData?.start || eventData?.fechaInicio || null;
+  const nextEnd = eventData?.end || eventData?.fechaFin || null;
+  const wasRescheduled =
+    previousData && (String(previousStart) !== String(nextStart) || String(previousEnd) !== String(nextEnd));
+
+  if (wasRescheduled) {
+    crearNotificacionEventoReprogramado({
+      evento: eventData,
+      usuario: body.usuario || eventData?.actualizadoPor || {},
+      cambios: {
+        fechaInicioAnterior: previousStart,
+        fechaFinAnterior: previousEnd,
+        fechaInicioNueva: nextStart,
+        fechaFinNueva: nextEnd,
+      },
+    }).catch((error) => {
+      console.error('[calendar api] no se pudo notificar evento reprogramado', error);
+    });
+  }
 
   return Response.json({ ok: true });
 }

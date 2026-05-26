@@ -30,6 +30,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 const PRODUCT_COLOR_NAME_OPTIONS_ES = PRODUCT_COLOR_NAME_OPTIONS.map((option) => ({
@@ -208,6 +210,7 @@ export const ProductCreateSchema = z
 
 export function ProductCreateEditForm({ currentProduct }) {
   const router = useRouter();
+  const { user } = useAuthContext();
 
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
@@ -304,7 +307,7 @@ export function ProductCreateEditForm({ currentProduct }) {
         setSubmissionMessage(
           shouldCompactImages ? 'Compactando imagenes...' : 'Publicando producto...'
         );
-        const result = await guardarProductoFirestore(updatedData, { publish });
+        const result = await guardarProductoFirestore(updatedData, { publish, user });
         reset();
         const compressionMessage = result?.imageStats?.totalOriginalSizeBytes
           ? `${formatStorageSizeEs(result.imageStats.totalOriginalSizeBytes)} a ${formatStorageSizeEs(

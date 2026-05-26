@@ -15,6 +15,7 @@ import {
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
 // ----------------------------------------------------------------------
 
@@ -167,7 +168,7 @@ const createAdminRoleNotification = async ({ member = {}, action = 'assigned', a
     ? 'fue asignado como administrador.'
     : 'fue removido como administrador y ahora es un usuario común.';
 
-  await setDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId), {
+  const notificacion = await resolverNotificacionConConfiguracion({
     id: notificationId,
     tipoNotificacion: isAssigned ? 'administrador_creado' : 'permisos_cambiados',
     modulo: 'administradores',
@@ -196,6 +197,15 @@ const createAdminRoleNotification = async ({ member = {}, action = 'assigned', a
     },
     actualizadoEnServidor: serverTimestamp(),
   });
+
+  if (!notificacion) {
+    return null;
+  }
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
+    notificacion
+  );
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));

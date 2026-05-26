@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useEffect } from 'react';
 import { removeLastSlash } from 'minimal-shared/utils';
 
 import Tab from '@mui/material/Tab';
@@ -29,14 +30,14 @@ const NAV_ITEMS = [
     href: paths.dashboard.admin.logs,
   },
   {
-    label: 'Fotos de portadas',
-    icon: <Iconify width={24} icon="solar:gallery-wide-bold" />,
-    href: paths.dashboard.admin.coverPhotos,
-  },
-  {
     label: 'Permisos a usuarios',
     icon: <Iconify width={24} icon="solar:shield-user-bold" />,
     href: paths.dashboard.admin.userPermissions,
+  },
+  {
+    label: 'Notificaciones',
+    icon: <Iconify width={24} icon="solar:bell-bing-bold" />,
+    href: paths.dashboard.admin.notifications,
   },
 ];
 
@@ -51,6 +52,7 @@ const resolveTabValue = (pathname) => {
 };
 
 export function AdminTabsLayout({ action = null, children, ...other }) {
+  const tabsRef = useRef(null);
   const pathname = usePathname();
   const tabValue = resolveTabValue(pathname);
   const resolvedAction = action ?? (
@@ -64,6 +66,16 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
     </Button>
   );
 
+  useEffect(() => {
+    const activeTab = tabsRef.current?.querySelector('[data-admin-tab-active="true"]');
+
+    activeTab?.scrollIntoView({
+      block: 'nearest',
+      inline: 'center',
+      behavior: 'smooth',
+    });
+  }, [tabValue]);
+
   return (
     <DashboardContent {...other}>
       <CustomBreadcrumbs
@@ -74,11 +86,17 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
       />
 
       <Tabs
+        ref={tabsRef}
         value={tabValue}
+        variant="scrollable"
+        scrollButtons={false}
         sx={{
           mb: { xs: 3, md: 5 },
           '& .MuiTabs-flexContainer': {
-            gap: '42px',
+            gap: { xs: '28px', md: '42px' },
+          },
+          '& .MuiTabs-scroller': {
+            scrollBehavior: 'smooth',
           },
           '& .MuiTab-root': {
             minHeight: 48,
@@ -95,6 +113,7 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
             icon={tab.icon}
             value={tab.href}
             href={tab.href}
+            data-admin-tab-active={tab.href === tabValue ? 'true' : 'false'}
           />
         ))}
       </Tabs>

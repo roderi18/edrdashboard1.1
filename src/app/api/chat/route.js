@@ -15,6 +15,7 @@ import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
 // ----------------------------------------------------------------------
 
@@ -56,6 +57,21 @@ const escapeHtml = (value) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+const guardarNotificacionConfigurada = async (notificacion) => {
+  const notificacionConfigurada = await resolverNotificacionConConfiguracion(notificacion);
+
+  if (!notificacionConfigurada) {
+    return null;
+  }
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacionConfigurada.id),
+    notificacionConfigurada
+  );
+
+  return notificacionConfigurada;
+};
 
 const normalizeMember = (member = {}) => {
   const idMiembros = toNumberOrNull(member.idMiembros ?? member.id ?? member.memberId);
@@ -429,9 +445,7 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
     recipientProfiles.map((profile) => {
       const notificationId = `mensaje_recibido_${conversation.idConversacion || conversation.id}_${message.idMensaje}_${profile.uid}`;
 
-      return setDoc(
-        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
-        {
+      return guardarNotificacionConfigurada({
           id: notificationId,
           tipoNotificacion: 'mensaje_recibido',
           modulo: 'mensajes',
@@ -472,9 +486,7 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
           },
           creadoEnServidor: serverTimestamp(),
           actualizadoEnServidor: serverTimestamp(),
-        },
-        { merge: true }
-      );
+        });
     })
   );
 }
@@ -934,7 +946,7 @@ async function updateConversationAction({
       admins.map((admin) => {
         const notificationId = `reporte_chat_${conversationId}_${Date.now()}_${admin.uid}`;
 
-        return setDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId), {
+        return guardarNotificacionConfigurada({
           id: notificationId,
           tipoNotificacion: 'chat_reportado',
           modulo: 'mensajes',

@@ -112,7 +112,7 @@ export function ProductListView() {
   }, []);
 
   const handlePublishRow = useCallback(async (id) => {
-    const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published');
+    const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published', user);
 
     if (!updatedProduct) {
       toast.error('No se pudo publicar el producto');
@@ -123,7 +123,7 @@ export function ProductListView() {
       prev.map((row) => (row.id === id ? { ...row, ...updatedProduct } : row))
     );
     toast.success('Producto publicado!');
-  }, []);
+  }, [user]);
 
   const handleAddProductToCart = useCallback(
     (product) => {

@@ -56,7 +56,6 @@ import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { NATIONAL_LEADERSHIP_LEVELS } from 'src/catalogs/directiva-positions';
 // services
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
-import { crearNotificacionMiembroCreado } from 'src/services/notification-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
@@ -71,6 +70,12 @@ import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectivaPorMiembro,
 } from 'src/services/directivas-organizacionales-service';
+import {
+  crearNotificacionCuentaCreada,
+  crearNotificacionMiembroCreado,
+  crearNotificacionMiembroActualizado,
+  crearNotificacionErrorSubidaArchivoImagen,
+} from 'src/services/notification-service';
 
 // components
 import { Label } from 'src/components/label';
@@ -187,7 +192,7 @@ const createFirebaseAuthForMember = async ({
         );
     });
 
-    return { emailFake, username, password };
+    return { uid: credential.user.uid, emailFake, username, password };
   } finally {
     if (secondaryAuth?.app) {
       deleteApp(secondaryAuth.app).catch(() => {});
@@ -932,6 +937,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
       return result?.urlFoto || null;
     } catch (error) {
       console.error('[member form] photo upload failed', error);
+      crearNotificacionErrorSubidaArchivoImagen({
+        archivo: file,
+        error,
+        contexto: 'foto_miembro',
+        usuario: user,
+      }).catch((notificationError) => {
+        console.error('[member form] upload error notification failed', notificationError);
+      });
       toast.error(error.message || 'No se pudo subir la foto.');
 
       return null;
@@ -1082,6 +1095,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
         );
 
         let savedMember = null;
+        let authCredentials = null;
 
         if (!currentMember) {
           const createdMembers = await getMembers();
@@ -1092,7 +1106,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           );
 
           try {
-            const authCredentials = await createFirebaseAuthForMember({
+            authCredentials = await createFirebaseAuthForMember({
               codigoMiembro,
               firstName: submittedFirstName,
               lastName: submittedLastName,
@@ -1124,9 +1138,42 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               usuario: user,
             });
 
+            if (authCredentials) {
+              await crearNotificacionCuentaCreada({
+                cuenta: {
+                  ...savedMember,
+                  idMiembros: savedMember?.id || responseData?.idMiembros || null,
+                  codigoMiembro,
+                  uid: authCredentials.uid,
+                  displayName: `${submittedFirstName} ${submittedLastName}`.trim(),
+                  email: authCredentials.emailFake,
+                },
+                usuario: user,
+              });
+            }
+
             window.dispatchEvent(new Event('notificaciones:actualizar'));
           } catch (notificationError) {
             console.error('[member form] member notification failed', notificationError);
+          }
+        } else {
+          try {
+            await crearNotificacionMiembroActualizado({
+              miembro: {
+                ...currentMember,
+                ...payload,
+                id: currentMember?.id || currentMember?.idMiembros,
+                memberId: codigoMiembro,
+                firstName: submittedFirstName,
+                lastName: submittedLastName,
+                phoneNumber: formData.phoneNumber || '',
+                email: formData.email || '',
+                status: formData.status ?? currentMember?.status ?? 'active',
+              },
+              usuario: user,
+            });
+          } catch (notificationError) {
+            console.error('[member form] member update notification failed', notificationError);
           }
         }
 

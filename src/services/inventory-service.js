@@ -6,6 +6,12 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearDocumentoMovimientoInventario } from 'src/models/inventory-movement-model';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
+import {
+  crearNotificacionProductoSinStock,
+  crearNotificacionProductoStockBajo,
+  crearNotificacionProductoDisponibleNuevamente,
+} from './notification-service';
+
 const mapInventoryTypeEs = (available) => {
   const currentAvailable = Number(available) || 0;
 
@@ -74,5 +80,21 @@ export const ajustarInventarioProducto = async ({
     movementDoc
   );
 
-  return mapearProductoFirestoreAUi({ id: producto.id, ...result.productDoc });
+  const updatedProduct = mapearProductoFirestoreAUi({ id: producto.id, ...result.productDoc });
+
+  if (result.previousAvailable <= 0 && result.nextAvailable > 0) {
+    crearNotificacionProductoDisponibleNuevamente({ producto: updatedProduct, usuario: user }).catch((error) => {
+      console.error('[inventory service] no se pudo notificar producto disponible nuevamente', error);
+    });
+  } else if (result.previousAvailable > 0 && result.nextAvailable <= 0) {
+    crearNotificacionProductoSinStock({ producto: updatedProduct, usuario: user }).catch((error) => {
+      console.error('[inventory service] no se pudo notificar producto sin stock', error);
+    });
+  } else if (result.previousAvailable > 10 && result.nextAvailable <= 10) {
+    crearNotificacionProductoStockBajo({ producto: updatedProduct, usuario: user }).catch((error) => {
+      console.error('[inventory service] no se pudo notificar stock bajo', error);
+    });
+  }
+
+  return updatedProduct;
 };

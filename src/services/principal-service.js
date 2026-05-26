@@ -17,6 +17,7 @@ import {
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
+import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
 // ----------------------------------------------------------------------
 
@@ -75,6 +76,26 @@ const cleanFirestoreData = (value) => {
   }
 
   return value === undefined ? null : value;
+};
+
+const guardarNotificacionConfigurada = async (notificacion) => {
+  const notificacionConfigurada = await resolverNotificacionConConfiguracion(notificacion);
+
+  if (!notificacionConfigurada) {
+    return null;
+  }
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacionConfigurada.id),
+    cleanFirestoreData(notificacionConfigurada),
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacionConfigurada;
 };
 
 export const getPrincipalMemberId = (user = {}) =>
@@ -432,17 +453,7 @@ const crearNotificacionComentarioPublicacion = async ({ publicacion, comentario,
     actualizadoEnServidor: serverTimestamp(),
   };
 
-  await setDoc(
-    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
-    cleanFirestoreData(notificacion),
-    { merge: true }
-  );
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('notificaciones:actualizar'));
-  }
-
-  return notificacion;
+  return guardarNotificacionConfigurada(notificacion);
 };
 
 const getCommentAuthorFields = (comentario = {}) => ({
@@ -543,17 +554,7 @@ const crearNotificacionRespuestaComentarioPublicacion = async ({
     actualizadoEnServidor: serverTimestamp(),
   };
 
-  await setDoc(
-    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
-    cleanFirestoreData(notificacion),
-    { merge: true }
-  );
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('notificaciones:actualizar'));
-  }
-
-  return notificacion;
+  return guardarNotificacionConfigurada(notificacion);
 };
 
 const filtrarMocksPorAutor = (mocks = [], autorIdMiembros = null) => {
