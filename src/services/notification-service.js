@@ -2227,10 +2227,14 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
     tipoNotificacion: notificacion.tipoNotificacion || '',
     category: obtenerCategoriaNotificacion(notificacion.modulo),
     estado,
-    isUnRead: estado !== 'leida',
+    isUnRead: estado === 'no_leida',
     createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,
     ruta: notificacion.ruta || null,
     entidadId: notificacion.entidadId || null,
+    tipoAccion: notificacion.tipoAccion || 'ver',
+    etiquetaAccion: notificacion.etiquetaAccion || '',
+    tipoAccionSecundaria: notificacion.tipoAccionSecundaria || null,
+    etiquetaAccionSecundaria: notificacion.etiquetaAccionSecundaria || null,
     metadatos: notificacion.metadatos || {},
     title: construirTituloHtml(notificacion),
   };
@@ -2467,6 +2471,28 @@ export async function marcarNotificacionComoLeida(notificationId, idUsuario = ''
       updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id), {
         ...(usuarioId ? { leidaPor: arrayUnion(usuarioId) } : { estado: 'leida' }),
         fechaLectura: new Date().toISOString(),
+        actualizadoEnServidor: serverTimestamp(),
+      })
+    )
+  );
+}
+
+export async function marcarNotificacionComoAtendida(notificationId, idUsuario = '') {
+  asegurarFirebaseNotificaciones();
+
+  const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId];
+  const usuarioId = String(idUsuario || '').trim();
+
+  if (!notificationIds.filter(Boolean).length) {
+    return;
+  }
+
+  await Promise.all(
+    notificationIds.filter(Boolean).map((id) =>
+      updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id), {
+        estado: 'atendida',
+        atendidaPor: usuarioId ? arrayUnion(usuarioId) : [],
+        fechaAtencion: new Date().toISOString(),
         actualizadoEnServidor: serverTimestamp(),
       })
     )

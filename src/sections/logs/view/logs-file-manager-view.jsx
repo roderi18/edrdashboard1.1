@@ -10,7 +10,6 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -22,18 +21,13 @@ import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { fDate, fTime, fIsAfter, fDateTime, fIsBetween } from 'src/utils/format-time';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import {
-  listarAuditoriaSistema,
-  eliminarAuditoriaTemporalPrueba,
-} from 'src/services/audit-log-service';
+import { listarAuditoriaSistema } from 'src/services/audit-log-service';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ExportTableButton } from 'src/components/export-table-button';
@@ -172,8 +166,6 @@ export function LogsFileManagerView({ embedded = false }) {
   const [actorFilter, setActorFilter] = useState('todos');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [importantOnly, setImportantOnly] = useState(false);
-  const [cleaningTestLogs, setCleaningTestLogs] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
   const loadLogs = useCallback(async () => {
@@ -199,7 +191,6 @@ export function LogsFileManagerView({ embedded = false }) {
   }, [
     actorFilter,
     endDate,
-    importantOnly,
     moduleFilter,
     onResetPage,
     originFilter,
@@ -244,8 +235,6 @@ export function LogsFileManagerView({ embedded = false }) {
       const matchesSeverity = severityFilter === 'todos' || registro.severidad === severityFilter;
       const matchesOrigin = originFilter === 'todos' || registro.origen === originFilter;
       const matchesActor = actorFilter === 'todos' || getActorName(registro) === actorFilter;
-      const matchesImportant =
-        !importantOnly || ['importante', 'critica'].includes(registro.severidad);
       const matchesDate =
         dateError || !startDate || !endDate || fIsBetween(registro.fecha, startDate, endDate);
 
@@ -255,7 +244,6 @@ export function LogsFileManagerView({ embedded = false }) {
         !matchesSeverity ||
         !matchesOrigin ||
         !matchesActor ||
-        !matchesImportant ||
         !matchesDate
       ) {
         return false;
@@ -283,7 +271,6 @@ export function LogsFileManagerView({ embedded = false }) {
     actorFilter,
     dateError,
     endDate,
-    importantOnly,
     moduleFilter,
     originFilter,
     registros,
@@ -321,44 +308,6 @@ export function LogsFileManagerView({ embedded = false }) {
       ),
     [sortedLogs, table.page, table.rowsPerPage]
   );
-
-  const canResetFilters =
-    !!search ||
-    moduleFilter !== 'todos' ||
-    resultFilter !== 'todos' ||
-    severityFilter !== 'todos' ||
-    originFilter !== 'todos' ||
-    actorFilter !== 'todos' ||
-    Boolean(startDate) ||
-    Boolean(endDate) ||
-    importantOnly;
-
-  const handleResetFilters = useCallback(() => {
-    setSearch('');
-    setModuleFilter('todos');
-    setResultFilter('todos');
-    setSeverityFilter('todos');
-    setOriginFilter('todos');
-    setActorFilter('todos');
-    setStartDate(null);
-    setEndDate(null);
-    setImportantOnly(false);
-  }, []);
-
-  const handleDeleteTestLogs = useCallback(async () => {
-    setCleaningTestLogs(true);
-
-    try {
-      const deletedCount = await eliminarAuditoriaTemporalPrueba();
-      toast.success(`${deletedCount} logs temporales eliminados.`);
-      await loadLogs();
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message || 'No se pudieron eliminar los logs temporales.');
-    } finally {
-      setCleaningTestLogs(false);
-    }
-  }, [loadLogs]);
 
   const content = (
     <Stack spacing={3}>
@@ -500,53 +449,12 @@ export function LogsFileManagerView({ embedded = false }) {
             ))}
           </TextField>
 
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={importantOnly}
-                onChange={(event) => setImportantOnly(event.target.checked)}
-              />
-            }
-            label="Solo críticos/importantes"
-            sx={{ minHeight: 40 }}
-          />
-        </Box>
-
-        <Stack
-          spacing={2}
-          direction={{ xs: 'column', md: 'row' }}
-          sx={{ px: 2.5, pb: 2.5 }}
-          alignItems={{ xs: 'stretch', md: 'center' }}
-          justifyContent="flex-end"
-        >
-          <Button
-            color="inherit"
-            variant="outlined"
-            disabled={!canResetFilters}
-            startIcon={<Iconify icon="solar:eraser-bold" />}
-            onClick={handleResetFilters}
-            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-          >
-            Limpiar filtros
-          </Button>
-
-          <Button
-            color="warning"
-            variant="outlined"
-            disabled={loading || cleaningTestLogs}
-            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={handleDeleteTestLogs}
-            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-          >
-            Limpiar pruebas
-          </Button>
-
           <Button
             color="inherit"
             variant="outlined"
             startIcon={<Iconify icon="solar:refresh-bold" />}
             onClick={loadLogs}
-            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            sx={{ minHeight: 40, whiteSpace: 'nowrap' }}
           >
             Actualizar
           </Button>
@@ -558,9 +466,9 @@ export function LogsFileManagerView({ embedded = false }) {
             title="Logs de auditoría"
             fileNamePrefix="logs-auditoria"
             disabled={loading}
-            buttonProps={{ sx: { flexShrink: 0, whiteSpace: 'nowrap' } }}
+            buttonProps={{ sx: { minHeight: 40, whiteSpace: 'nowrap' } }}
           />
-        </Stack>
+        </Box>
 
         {loading ? (
           <LogsTableSkeleton />

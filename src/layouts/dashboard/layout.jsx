@@ -20,6 +20,7 @@ import { _contacts, _notifications } from 'src/_mock';
 import { useGetContacts, useGetConversations } from 'src/actions/chat';
 import {
   marcarNotificacionComoLeida,
+  marcarNotificacionComoAtendida,
   listarNotificacionesDrawerParaUsuario,
   marcarNotificacionesComoLeidasPorUsuario,
 } from 'src/services/notification-service';
@@ -165,6 +166,24 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     }
   };
 
+  const handleMarcarNotificacionComoAtendida = async (notificationId) => {
+    const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId];
+
+    setNotificacionesDrawer((prevState) =>
+      prevState.map((notification) =>
+        notificationIds.includes(notification.id)
+          ? { ...notification, isUnRead: false, estado: 'atendida' }
+          : notification
+      )
+    );
+
+    try {
+      await marcarNotificacionComoAtendida(notificationId, user?.uid);
+    } catch (error) {
+      console.error('[notifications] no se pudo marcar como atendida', error);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -306,6 +325,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <NotificationsDrawer
             data={notificacionesDrawer}
             onMarkAsRead={handleMarcarNotificacionComoLeida}
+            onMarkAsAttended={handleMarcarNotificacionComoAtendida}
             onMarkAllAsRead={handleMarcarTodasComoLeidas}
           />
 

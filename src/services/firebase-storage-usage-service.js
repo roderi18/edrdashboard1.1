@@ -475,3 +475,7 @@ export async function getFirebaseStorageUsageSummary({ force = false } = {}) {
 
   return currentRequest;
 }
+
+export function getCachedFirebaseStorageUsageSummary({ allowStale = true } = {}) {
+  return readCache({ allowStale });
+}

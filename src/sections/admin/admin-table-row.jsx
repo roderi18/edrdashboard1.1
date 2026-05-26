@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -14,10 +15,20 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { AdminPermissionsDialog } from './admin-permissions-dialog';
+
 // ----------------------------------------------------------------------
 
-export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin, onRemoveAdmin }) {
+export function AdminTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onAssignAdmin,
+  onRemoveAdmin,
+  onPermissionsSaved,
+}) {
   const menuActions = usePopover();
+  const [openPermissionsDialog, setOpenPermissionsDialog] = useState(false);
 
   const isAdminActive =
     Boolean(row.adminId || row.esAdministrador) ||
@@ -46,7 +57,15 @@ export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin, onRem
           {isAdminActive ? 'Quitar administrador' : 'Asignar administrador'}
         </MenuItem>
 
-        <MenuItem onClick={menuActions.onClose}>
+        <MenuItem
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            setOpenPermissionsDialog(true);
+            menuActions.onClose();
+          }}
+        >
           <Iconify icon="solar:shield-keyhole-bold" />
           Ver permisos
         </MenuItem>
@@ -110,6 +129,13 @@ export function AdminTableRow({ row, selected, onSelectRow, onAssignAdmin, onRem
       </TableRow>
 
       {renderMenuActions()}
+
+      <AdminPermissionsDialog
+        open={openPermissionsDialog}
+        admin={row}
+        onClose={() => setOpenPermissionsDialog(false)}
+        onSaved={(permissions) => onPermissionsSaved?.(row, permissions)}
+      />
     </>
   );
 }

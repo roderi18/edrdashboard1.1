@@ -134,6 +134,16 @@ export function AdminListView() {
     }
   }, [removeAdminRow, user]);
 
+  const handlePermissionsSaved = useCallback((adminRow, permissions) => {
+    setAdmins((currentAdmins) =>
+      currentAdmins.map((admin) =>
+        String(admin.adminId || admin.id) === String(adminRow?.adminId || adminRow?.id)
+          ? { ...admin, permisos: permissions, permissions }
+          : admin
+      )
+    );
+  }, []);
+
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;
 
@@ -172,6 +182,7 @@ export function AdminListView() {
                   selected={table.selected.includes(row.id)}
                   onSelectRow={() => table.onSelectRow(row.id)}
                   onRemoveAdmin={setRemoveAdminRow}
+                  onPermissionsSaved={handlePermissionsSaved}
                 />
               ))}
 
@@ -200,6 +211,7 @@ export function AdminListView() {
           </Button>
         }
       />
+
     </Card>
   );
 }

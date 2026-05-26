@@ -26,6 +26,7 @@ import { NotificationItem } from './notification-item';
 const TABS = [
   { value: 'all', label: 'Todos', count: 22 },
   { value: 'Unread', label: 'No leídas', count: 12 },
+  { value: 'attended', label: 'Atendidas', count: 0 },
   { value: 'archived', label: 'Archivadas', count: 10 },
 ];
 
@@ -34,6 +35,7 @@ const TABS = [
 export function NotificationsDrawer({
   data = [],
   onMarkAsRead,
+  onMarkAsAttended,
   onMarkAllAsRead,
   sx,
   ...other
@@ -53,6 +55,7 @@ export function NotificationsDrawer({
 
   const totalUnRead = notifications.filter((item) => item.isUnRead === true).length;
   const totalArchivadas = notifications.filter((item) => item.estado === 'archivada').length;
+  const totalAtendidas = notifications.filter((item) => item.estado === 'atendida').length;
 
   const notificationsFiltradas = notifications.filter((notification) => {
     if (currentTab === 'Unread') {
@@ -61,6 +64,10 @@ export function NotificationsDrawer({
 
     if (currentTab === 'archived') {
       return notification.estado === 'archivada';
+    }
+
+    if (currentTab === 'attended') {
+      return notification.estado === 'atendida';
     }
 
     return true;
@@ -81,6 +88,17 @@ export function NotificationsDrawer({
     await onMarkAsRead?.(notification.idsNotificaciones || notification.id);
     setCurrentTab('all');
     onClose();
+  };
+
+  const handleMarkAsAttended = async (notification) => {
+    setNotifications((prevState) =>
+      prevState.map((item) =>
+        item.id === notification.id ? { ...item, isUnRead: false, estado: 'atendida' } : item
+      )
+    );
+
+    await onMarkAsAttended?.(notification.idsNotificaciones || notification.id);
+    setCurrentTab('all');
   };
 
   const renderHead = () => (
@@ -123,6 +141,7 @@ export function NotificationsDrawer({
           (tab.value === 'all' && notifications.length) ||
           (tab.value === 'Unread' && totalUnRead) ||
           (tab.value === 'archived' && totalArchivadas) ||
+          (tab.value === 'attended' && totalAtendidas) ||
           0;
 
         return (
@@ -137,6 +156,7 @@ export function NotificationsDrawer({
               color={
                 (tab.value === 'Unread' && 'info') ||
                 (tab.value === 'archived' && 'success') ||
+                (tab.value === 'attended' && 'success') ||
                 'default'
               }
             >
@@ -157,6 +177,7 @@ export function NotificationsDrawer({
             <NotificationItem
               notification={notification}
               onClickNotification={handleClickNotification}
+              onMarkAsAttended={handleMarkAsAttended}
             />
           </Box>
         ))}

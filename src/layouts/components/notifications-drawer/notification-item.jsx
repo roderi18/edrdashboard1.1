@@ -72,9 +72,23 @@ const getNotificationRoute = (notification = {}) => {
   return notification.ruta;
 };
 
-export function NotificationItem({ notification, onClickNotification }) {
+const getNotificationActionLabel = (notification = {}) => {
+  if (notification.tipoNotificacion === 'publicacion_reportada') return 'Revisar publicación';
+  if (['miembro_creado', 'miembro_actualizado'].includes(notification.tipoNotificacion)) {
+    return 'Ver miembro';
+  }
+  if (['factura_generada', 'factura_disponible'].includes(notification.tipoNotificacion)) {
+    return 'Abrir factura';
+  }
+  if (notification.tipoNotificacion === 'error_subida_archivo_imagen') return 'Resolver error';
+
+  return notification.etiquetaAccion || (notification.ruta ? 'Abrir' : '');
+};
+
+export function NotificationItem({ notification, onClickNotification, onMarkAsAttended }) {
   const router = useRouter();
   const notificationRoute = getNotificationRoute(notification);
+  const actionLabel = getNotificationActionLabel(notification);
 
   const handleClickNotification = async () => {
     await onClickNotification?.(notification);
@@ -82,6 +96,16 @@ export function NotificationItem({ notification, onClickNotification }) {
     if (notificationRoute) {
       router.push(notificationRoute);
     }
+  };
+
+  const handlePrimaryAction = async (event) => {
+    event.stopPropagation();
+    await handleClickNotification();
+  };
+
+  const handleAttendAction = async (event) => {
+    event.stopPropagation();
+    await onMarkAsAttended?.(notification);
   };
 
   const renderAvatar = () => (
@@ -264,6 +288,23 @@ export function NotificationItem({ notification, onClickNotification }) {
     </Box>
   );
 
+  const renderNotificationActions = () =>
+    (actionLabel || notification.estado !== 'atendida') && (
+      <Box sx={{ gap: 1, mt: 1.5, display: 'flex', flexWrap: 'wrap' }}>
+        {!!actionLabel && notificationRoute && (
+          <Button size="small" variant="contained" onClick={handlePrimaryAction}>
+            {actionLabel}
+          </Button>
+        )}
+
+        {notification.estado !== 'atendida' && (
+          <Button size="small" variant="outlined" color="inherit" onClick={handleAttendAction}>
+            Marcar como atendida
+          </Button>
+        )}
+      </Box>
+    );
+
   return (
     <ListItemButton
       disableRipple
@@ -287,6 +328,7 @@ export function NotificationItem({ notification, onClickNotification }) {
         {notification.type === 'file' && renderFileAction()}
         {notification.type === 'tags' && renderTagsAction()}
         {notification.type === 'payment' && renderPaymentAction()}
+        {renderNotificationActions()}
       </Box>
     </ListItemButton>
   );

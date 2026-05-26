@@ -39,6 +39,16 @@ const NAV_ITEMS = [
     icon: <Iconify width={24} icon="solar:bell-bing-bold" />,
     href: paths.dashboard.admin.notifications,
   },
+  {
+    label: 'Mantenimiento',
+    icon: <Iconify width={24} icon="solar:database-bold" />,
+    href: paths.dashboard.admin.maintenance,
+  },
+  {
+    label: 'Salud del sistema',
+    icon: <Iconify width={24} icon="solar:pulse-2-bold" />,
+    href: paths.dashboard.admin.health,
+  },
 ];
 
 const resolveTabValue = (pathname) => {

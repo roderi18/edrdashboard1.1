@@ -38,8 +38,59 @@ const TABLE_HEAD = [
   { id: 'realizadoPor', label: 'Quién lo realizó', width: 220 },
 ];
 
+const LONG_VALUE_LENGTH = 72;
+
 function HistoryValue({ value }) {
-  return <Typography variant="body2">{value || 'Sin dato'}</Typography>;
+  const [expanded, setExpanded] = useState(false);
+  const text = value === null || value === undefined || value === '' ? 'Sin dato' : String(value);
+  const canExpand = text.length > LONG_VALUE_LENGTH;
+
+  const content = (
+    <Typography
+      variant="body2"
+      component="span"
+      sx={{
+        display: '-webkit-box',
+        maxWidth: 1,
+        overflow: expanded ? 'visible' : 'hidden',
+        overflowWrap: 'anywhere',
+        textAlign: 'left',
+        whiteSpace: 'normal',
+        wordBreak: 'break-word',
+        WebkitBoxOrient: 'vertical',
+        WebkitLineClamp: expanded ? 'unset' : 2,
+      }}
+    >
+      {text}
+    </Typography>
+  );
+
+  if (!canExpand) {
+    return content;
+  }
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => setExpanded((current) => !current)}
+      sx={{
+        p: 0,
+        m: 0,
+        width: 1,
+        border: 0,
+        cursor: 'pointer',
+        display: 'block',
+        bgcolor: 'transparent',
+        font: 'inherit',
+        color: 'inherit',
+      }}
+      aria-expanded={expanded}
+      title={expanded ? 'Contraer valor' : 'Ver valor completo'}
+    >
+      {content}
+    </Box>
+  );
 }
 
 const FILTER_INITIAL_STATE = {
@@ -359,14 +410,14 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Valor anterior
                 </Typography>
-                <Typography variant="body2">{row.antes || 'Sin dato'}</Typography>
+                <HistoryValue value={row.antes} />
               </Box>
 
               <Box>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Valor nuevo
                 </Typography>
-                <Typography variant="body2">{row.despues || 'Sin dato'}</Typography>
+                <HistoryValue value={row.despues} />
               </Box>
             </Box>
           </Stack>
@@ -384,9 +435,9 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
   );
 
   const renderListView = () => (
-    <TableContainer sx={{ overflow: 'unset' }}>
-      <Scrollbar>
-        <Table size={dense ? 'small' : 'medium'} sx={{ minWidth: 1060 }}>
+    <TableContainer sx={{ overflowX: 'hidden' }}>
+      <Scrollbar slotProps={{ contentWrapperSx: { overflowX: 'hidden !important' } }}>
+        <Table size={dense ? 'small' : 'medium'} sx={{ width: 1, tableLayout: 'fixed' }}>
           <TableHeadCustom headCells={TABLE_HEAD} />
 
           <TableBody>
@@ -405,19 +456,19 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
                   <Label color="info">{row.modulo}</Label>
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ maxWidth: 0 }}>
                   <Typography variant="body2">{row.afectado}</Typography>
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ maxWidth: 0 }}>
                   <HistoryValue value={row.antes} />
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ maxWidth: 0 }}>
                   <HistoryValue value={row.despues} />
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ maxWidth: 0 }}>
                   <Typography variant="body2">{row.realizadoPor}</Typography>
                 </TableCell>
               </TableRow>
