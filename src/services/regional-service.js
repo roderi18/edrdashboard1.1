@@ -1,6 +1,8 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
 const REGIONALS_STORAGE_KEY = 'regionals';
 
 function mapApiRegionalToUI(regional) {
@@ -59,7 +61,38 @@ export const getRegionals = async () => {
     }
 };
 
-export const saveRegional = async (payload) => {
+const getRegionalAuditName = (regional = {}) =>
+    regional.nombre || regional.regionalName || regional.name || 'Región';
+
+const registrarAuditoriaRegional = ({
+    accion,
+    descripcion,
+    payload,
+    usuario,
+    antes = null,
+    severidad = 'informativa',
+}) => {
+    registrarAuditoriaSilenciosa({
+        modulo: 'regiones',
+        accion,
+        descripcion,
+        severidad,
+        entidad: {
+            tipo: 'region',
+            id: payload?.idRegion || payload?.id,
+            nombre: getRegionalAuditName(payload),
+            ruta: payload?.idRegion || payload?.id
+                ? `/dashboard/level/regional/${payload?.idRegion || payload?.id}/edit`
+                : '/dashboard/level/regional',
+        },
+        antes,
+        despues: payload,
+        realizadoPor: usuario,
+        origen: 'niveles_organizacionales',
+    });
+};
+
+export const saveRegional = async (payload, { usuario } = {}) => {
     const res = await fetch('/api/regional/post', {
         method: 'POST',
         headers: {
@@ -70,12 +103,28 @@ export const saveRegional = async (payload) => {
 
     const text = await res.text();
 
-    if (!text || text.startsWith('<')) return {};
+    if (!text || text.startsWith('<')) {
+        registrarAuditoriaRegional({
+            accion: 'region_creada',
+            descripcion: `Se creó la región ${getRegionalAuditName(payload)}.`,
+            payload,
+            usuario,
+        });
+        return {};
+    }
 
-    return JSON.parse(text);
+    const response = JSON.parse(text);
+    registrarAuditoriaRegional({
+        accion: 'region_creada',
+        descripcion: `Se creó la región ${getRegionalAuditName(payload)}.`,
+        payload: { ...payload, ...response },
+        usuario,
+    });
+
+    return response;
 };
 
-export const updateRegional = async (payload) => {
+export const updateRegional = async (payload, { usuario, antes = null } = {}) => {
     const res = await fetch('/api/regional/put', {
         method: 'PUT',
         headers: {
@@ -86,12 +135,30 @@ export const updateRegional = async (payload) => {
 
     const text = await res.text();
 
-    if (!text || text.startsWith('<')) return {};
+    if (!text || text.startsWith('<')) {
+        registrarAuditoriaRegional({
+            accion: 'region_actualizada',
+            descripcion: `Se actualizó la región ${getRegionalAuditName(payload)}.`,
+            payload,
+            usuario,
+            antes,
+        });
+        return {};
+    }
 
-    return JSON.parse(text);
+    const response = JSON.parse(text);
+    registrarAuditoriaRegional({
+        accion: 'region_actualizada',
+        descripcion: `Se actualizó la región ${getRegionalAuditName(payload)}.`,
+        payload: { ...payload, ...response },
+        usuario,
+        antes,
+    });
+
+    return response;
 };
 
-export const deleteRegional = async (id) => {
+export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
     const res = await fetch(`/api/regional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });
@@ -100,6 +167,15 @@ export const deleteRegional = async (id) => {
     if (!res.ok) {
         throw new Error(text || `Error eliminando regional (${res.status})`);
     }
+
+    registrarAuditoriaRegional({
+        accion: 'region_eliminada',
+        descripcion: `Se eliminó la región ${getRegionalAuditName(antes)}.`,
+        payload: { ...(antes || {}), idRegion: id },
+        usuario,
+        antes,
+        severidad: 'importante',
+    });
 
     if (!text) return {};
 

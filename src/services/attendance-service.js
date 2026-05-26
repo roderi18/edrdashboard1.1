@@ -11,6 +11,8 @@ import {
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
 export const COLECCION_ASISTENCIAS = 'asistencias';
 export const COLECCION_REGISTROS_ASISTENCIA = 'registrosAsistencia';
 export const COLECCION_ULTIMAS_ASISTENCIAS_MIEMBROS = 'ultimasAsistenciasMiembros';
@@ -196,6 +198,26 @@ export const guardarAsistenciaDestacamento = async ({
   batch.set(doc(FIRESTORE, COLECCION_ASISTENCIAS, idAsistencia), asistencia, { merge: true });
 
   await batch.commit();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'asistencia_guardada',
+    descripcion: `Se guardó la asistencia de ${asistencia.nombreDestacamento || idDestacamento}.`,
+    entidad: {
+      tipo: 'asistencia',
+      id: idAsistencia,
+      nombre: asistencia.nombreDestacamento || idDestacamento,
+      ruta: '/dashboard/attendance',
+    },
+    despues: {
+      fecha: asistencia.fecha,
+      idDestacamento,
+      conteo,
+      totalMiembros: asistencia.totalMiembros,
+    },
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
 
   return asistencia;
 };

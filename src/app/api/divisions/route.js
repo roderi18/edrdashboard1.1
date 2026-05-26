@@ -18,7 +18,7 @@ export async function GET() {
             normalizeApiResponse({ ...data, data: data?.data || data?.Data || [] })
         );
     } catch (error) {
-        console.error('ERROR DIVISIONES ðŸ‘‰', error);
+        console.error('ERROR DIVISIONES =>', error);
 
         return Response.json({ data: [] });
     }

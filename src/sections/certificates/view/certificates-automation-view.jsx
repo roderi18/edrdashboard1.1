@@ -1769,7 +1769,7 @@ export function CertificatesAutomationView() {
           <Stack spacing={0.5}>
             <Typography variant="h6">{selectedBatch.id}</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {selectedBatch.course?.certificateTitle} Â·{' '}
+              {selectedBatch.course?.certificateTitle} ?{' '}
               {dayjs(selectedBatch.createdAt).format('DD/MM/YYYY hh:mm A')}
             </Typography>
           </Stack>
@@ -2056,7 +2056,7 @@ export function CertificatesAutomationView() {
                         <TextField
                           select
                           size="small"
-                          label="TamaÃ±o"
+                          label="Tama?o"
                           value={field.fontSize ?? ''}
                           onChange={(event) =>
                             handleUpdateTemplateField(field.id, {

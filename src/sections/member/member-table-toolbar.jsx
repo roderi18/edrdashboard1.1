@@ -29,6 +29,7 @@ import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-uploa
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
@@ -91,6 +92,17 @@ const DEFAULT_DOWNLOAD_FILTERS = {
 };
 
 const ALL_DOWNLOAD_OPTION = { value: 'all', label: 'Todos' };
+
+const MEMBER_EXPORT_COLUMNS = [
+  { label: 'Código', value: (row) => row.memberId || row.codigoMiembro || '' },
+  { label: 'Nombre', value: (row) => row.name || `${row.firstName || ''} ${row.lastName || ''}`.trim() },
+  { label: 'Teléfono', value: (row) => row.phoneNumber || '' },
+  { label: 'Correo', value: (row) => row.email || '' },
+  { label: 'Destacamento', value: (row) => row.destName || row.destamento || row.idDestacamento || '' },
+  { label: 'Sección', value: (row) => row.sectionalName || '' },
+  { label: 'Región', value: (row) => row.regionalName || '' },
+  { label: 'División', value: (row) => row.memberDivision || '' },
+];
 
 const normalizeDownloadOptions = (items = []) =>
   items
@@ -653,6 +665,15 @@ export function MemberTableToolbar({
           <Iconify icon="solar:import-bold" />
           Descargar
         </MenuItem>
+
+        <ExportTableButton
+          rows={members}
+          columns={MEMBER_EXPORT_COLUMNS}
+          title="Lista de miembros"
+          fileNamePrefix="lista-miembros"
+          trigger="menuItem"
+          buttonLabel="Exportar vista"
+        />
 
         {canManageMembers && (
           <MenuItem onClick={() => uploadInputRef.current?.click()}>

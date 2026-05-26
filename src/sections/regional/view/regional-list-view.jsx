@@ -48,6 +48,8 @@ import { CompactEntityListView } from 'src/sections/common/compact-entity-list-v
 import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { RegionalTableRow } from '../regional-table-row';
 import { RegionalCardList } from '../regional-card-list';
 import { RegionalTableToolbar } from '../regional-table-toolbar';
@@ -77,6 +79,7 @@ const mapRegionalToBaseRow = (regional) => ({
 // ----------------------------------------------------------------------
 
 export function RegionalListView() {
+  const { user } = useAuthContext();
   const table = useTable();
 
   const confirmDialog = useBoolean();
@@ -255,7 +258,11 @@ export function RegionalListView() {
     setTableData,
     dataInPageLength: dataInPage.length,
     dataFilteredLength: dataFiltered.length,
-    deleteItem: deleteRegional,
+    deleteItem: (id) =>
+      deleteRegional(id, {
+        usuario: user,
+        antes: tableData.find((row) => String(row.id) === String(id)),
+      }),
     singleSuccessMessage: 'Regional eliminada correctamente.',
     singleErrorMessage: 'No se pudo eliminar la regional.',
     multipleSuccessMessage: 'Regionales eliminadas correctamente.',

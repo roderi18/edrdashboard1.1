@@ -1,11 +1,7 @@
+import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
-import { getSectionals } from 'src/services/sectional-service';
-import { getRegionals } from 'src/services/regional-service';
-import { getMembers } from 'src/services/member-service';
-import { createChurchApi } from 'src/services/church-service';
-import { ChurchSchema } from 'src/models/church-schema';
-import { getChurches } from 'src/services/church-service';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -13,35 +9,48 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { useEffect, useState } from 'react';
+
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
-import { AUTH } from 'src/lib/firebase';
-import { ContextInfo } from 'src/components/info/context-info';
-import LoadingButton from '@mui/lab/LoadingButton';
-import DashedAccordion from 'src/components/expandable/DashedAccordion';
-import StatusLabel from 'src/components/common/status-label';
-import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
-import { Form, Field } from 'src/components/hook-form';
-import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
+
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
+
+import { AUTH } from 'src/lib/firebase';
+import barriosData from 'src/data/barrios.json';
 import { DestSchema } from 'src/models/dest-schema';
-import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
-import { mapApiDestToUI, saveDest } from 'src/services/dest-service';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
-import barriosData from 'src/data/barrios.json';
-
+import { ChurchSchema } from 'src/models/church-schema';
+import { getMembers } from 'src/services/member-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
+import { getChurches, createChurchApi } from 'src/services/church-service';
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
 // import { createChurchApi } from 'src/services/church-service';
-import { createDestApi, getDestsApi, updateDestApi } from 'src/services/dest-service';
+import {
+  saveDest,
+  getDestsApi,
+  createDestApi,
+  updateDestApi,
+  mapApiDestToUI,
+} from 'src/services/dest-service';
+
+import { toast } from 'src/components/snackbar';
+import { Form, Field } from 'src/components/hook-form';
+import StatusLabel from 'src/components/common/status-label';
+import { ContextInfo } from 'src/components/info/context-info';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
+import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
+import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
+
+import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -113,6 +122,7 @@ export function DestCreateEditForm({ currentDest }) {
   const isCreateView = !currentDest;
   const [step, setStep] = useState(isCreateView ? 1 : 2);
   const router = useRouter();
+  const { user } = useAuthContext();
   const [dests, setDests] = useState([]);
   const [sectionals, setSectionals] = useState([]);
   const [regionals, setRegionals] = useState([]);
@@ -156,7 +166,6 @@ export function DestCreateEditForm({ currentDest }) {
     fechaInicio: '',
     direccion: '',
     concilio: '',
-    sectionId: '',
   };
 
   const CombinedSchema = step === 1 ? ChurchSchema : DestSchema;
@@ -170,8 +179,8 @@ export function DestCreateEditForm({ currentDest }) {
   useEffect(() => {
     let isMounted = true;
 
-    if (!currentDest) return;
-    if (churches.length === 0) return;
+    if (!currentDest) return undefined;
+    if (churches.length === 0) return undefined;
 
     if (isMounted) {
       methods.reset(
@@ -296,9 +305,9 @@ export function DestCreateEditForm({ currentDest }) {
       };
 
       if (currentDest) {
-        await updateDestApi(destPayloadData);
+        await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
       } else {
-        await createDestApi(destPayloadData);
+        await createDestApi(destPayloadData, { usuario: user });
       }
 
       const resolvedDestId = await resolveDestId(data.name, data.destNumber);

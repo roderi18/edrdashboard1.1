@@ -10,6 +10,8 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
+import Checkbox from '@mui/material/Checkbox';
+import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TextField from '@mui/material/TextField';
@@ -19,13 +21,19 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 import InputAdornment from '@mui/material/InputAdornment';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { fDate, fTime, fDateTime } from 'src/utils/format-time';
+import { fDate, fTime, fIsAfter, fDateTime, fIsBetween } from 'src/utils/format-time';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { listarAuditoriaSistema } from 'src/services/audit-log-service';
+import {
+  listarAuditoriaSistema,
+  eliminarAuditoriaTemporalPrueba,
+} from 'src/services/audit-log-service';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ExportTableButton } from 'src/components/export-table-button';
@@ -71,6 +79,29 @@ const EXPORT_COLUMNS = [
 ];
 
 const PDF_COLUMNS = EXPORT_COLUMNS.slice(0, 8);
+
+function LogsTableSkeleton() {
+  return (
+    <Stack spacing={1.5} sx={{ p: 3 }}>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <Stack
+          key={index}
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          sx={{ minHeight: 48 }}
+        >
+          <Skeleton variant="text" width={110} />
+          <Skeleton variant="text" width="18%" />
+          <Skeleton variant="text" width="24%" />
+          <Skeleton variant="text" width="16%" />
+          <Skeleton variant="rounded" width={84} height={24} />
+          <Skeleton variant="circular" width={32} height={32} />
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
 
 const toReadableName = (value = '') => {
   const text = String(value || '')
@@ -136,6 +167,13 @@ export function LogsFileManagerView({ embedded = false }) {
   const [search, setSearch] = useState('');
   const [moduleFilter, setModuleFilter] = useState('todos');
   const [resultFilter, setResultFilter] = useState('todos');
+  const [severityFilter, setSeverityFilter] = useState('todos');
+  const [originFilter, setOriginFilter] = useState('todos');
+  const [actorFilter, setActorFilter] = useState('todos');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [importantOnly, setImportantOnly] = useState(false);
+  const [cleaningTestLogs, setCleaningTestLogs] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
   const loadLogs = useCallback(async () => {
@@ -158,7 +196,18 @@ export function LogsFileManagerView({ embedded = false }) {
 
   useEffect(() => {
     onResetPage();
-  }, [moduleFilter, onResetPage, resultFilter, search]);
+  }, [
+    actorFilter,
+    endDate,
+    importantOnly,
+    moduleFilter,
+    onResetPage,
+    originFilter,
+    resultFilter,
+    search,
+    severityFilter,
+    startDate,
+  ]);
 
   const modules = useMemo(
     () =>
@@ -168,14 +217,47 @@ export function LogsFileManagerView({ embedded = false }) {
     [registros]
   );
 
+  const actors = useMemo(
+    () =>
+      Array.from(
+        new Set(registros.map((registro) => getActorName(registro)).filter(Boolean))
+      ).sort((a, b) => String(a).localeCompare(String(b))),
+    [registros]
+  );
+
+  const origins = useMemo(
+    () =>
+      Array.from(new Set(registros.map((registro) => registro.origen).filter(Boolean))).sort(
+        (a, b) => String(a).localeCompare(String(b))
+      ),
+    [registros]
+  );
+
+  const dateError = fIsAfter(startDate, endDate);
+
   const filteredLogs = useMemo(() => {
     const currentSearch = normalizeSearch(search);
 
     return registros.filter((registro) => {
       const matchesModule = moduleFilter === 'todos' || registro.modulo === moduleFilter;
       const matchesResult = resultFilter === 'todos' || registro.resultado === resultFilter;
+      const matchesSeverity = severityFilter === 'todos' || registro.severidad === severityFilter;
+      const matchesOrigin = originFilter === 'todos' || registro.origen === originFilter;
+      const matchesActor = actorFilter === 'todos' || getActorName(registro) === actorFilter;
+      const matchesImportant =
+        !importantOnly || ['importante', 'critica'].includes(registro.severidad);
+      const matchesDate =
+        dateError || !startDate || !endDate || fIsBetween(registro.fecha, startDate, endDate);
 
-      if (!matchesModule || !matchesResult) {
+      if (
+        !matchesModule ||
+        !matchesResult ||
+        !matchesSeverity ||
+        !matchesOrigin ||
+        !matchesActor ||
+        !matchesImportant ||
+        !matchesDate
+      ) {
         return false;
       }
 
@@ -197,7 +279,19 @@ export function LogsFileManagerView({ embedded = false }) {
 
       return haystack.includes(currentSearch);
     });
-  }, [moduleFilter, registros, resultFilter, search]);
+  }, [
+    actorFilter,
+    dateError,
+    endDate,
+    importantOnly,
+    moduleFilter,
+    originFilter,
+    registros,
+    resultFilter,
+    search,
+    severityFilter,
+    startDate,
+  ]);
 
   const resumen = useMemo(() => {
     const usuarios = new Set(
@@ -228,6 +322,44 @@ export function LogsFileManagerView({ embedded = false }) {
     [sortedLogs, table.page, table.rowsPerPage]
   );
 
+  const canResetFilters =
+    !!search ||
+    moduleFilter !== 'todos' ||
+    resultFilter !== 'todos' ||
+    severityFilter !== 'todos' ||
+    originFilter !== 'todos' ||
+    actorFilter !== 'todos' ||
+    Boolean(startDate) ||
+    Boolean(endDate) ||
+    importantOnly;
+
+  const handleResetFilters = useCallback(() => {
+    setSearch('');
+    setModuleFilter('todos');
+    setResultFilter('todos');
+    setSeverityFilter('todos');
+    setOriginFilter('todos');
+    setActorFilter('todos');
+    setStartDate(null);
+    setEndDate(null);
+    setImportantOnly(false);
+  }, []);
+
+  const handleDeleteTestLogs = useCallback(async () => {
+    setCleaningTestLogs(true);
+
+    try {
+      const deletedCount = await eliminarAuditoriaTemporalPrueba();
+      toast.success(`${deletedCount} logs temporales eliminados.`);
+      await loadLogs();
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudieron eliminar los logs temporales.');
+    } finally {
+      setCleaningTestLogs(false);
+    }
+  }, [loadLogs]);
+
   const content = (
     <Stack spacing={3}>
       {!embedded && (
@@ -250,11 +382,16 @@ export function LogsFileManagerView({ embedded = false }) {
       </Box>
 
       <Card>
-        <Stack
-          spacing={2}
-          direction={{ xs: 'column', md: 'row' }}
-          sx={{ p: 2.5 }}
-          alignItems={{ xs: 'stretch', md: 'center' }}
+        <Box
+          sx={{
+            gap: 2,
+            p: 2.5,
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              md: 'minmax(260px, 1.2fr) repeat(4, minmax(150px, 0.6fr))',
+            },
+          }}
         >
           <TextField
             size="small"
@@ -270,10 +407,25 @@ export function LogsFileManagerView({ embedded = false }) {
                 ),
               },
             }}
-            sx={{
-              flex: { xs: '1 1 auto', md: '0 1 480px' },
-              width: { xs: 1, md: 480 },
-              maxWidth: { md: 480 },
+          />
+
+          <DatePicker
+            label="Desde"
+            value={startDate}
+            onChange={setStartDate}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+
+          <DatePicker
+            label="Hasta"
+            value={endDate}
+            onChange={setEndDate}
+            slotProps={{
+              textField: {
+                size: 'small',
+                error: dateError,
+                helperText: dateError ? 'Fecha inválida' : '',
+              },
             }}
           />
 
@@ -283,7 +435,6 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Módulo"
             value={moduleFilter}
             onChange={(event) => setModuleFilter(event.target.value)}
-            sx={{ minWidth: { md: 220 } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {modules.map((modulo) => (
@@ -299,13 +450,96 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Resultado"
             value={resultFilter}
             onChange={(event) => setResultFilter(event.target.value)}
-            sx={{ minWidth: { md: 180 } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             <MenuItem value="exitoso">Exitoso</MenuItem>
             <MenuItem value="advertencia">Advertencia</MenuItem>
             <MenuItem value="error">Error</MenuItem>
           </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Severidad"
+            value={severityFilter}
+            onChange={(event) => setSeverityFilter(event.target.value)}
+          >
+            <MenuItem value="todos">Todas</MenuItem>
+            <MenuItem value="informativa">Informativa</MenuItem>
+            <MenuItem value="importante">Importante</MenuItem>
+            <MenuItem value="critica">Crítica</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Actor"
+            value={actorFilter}
+            onChange={(event) => setActorFilter(event.target.value)}
+          >
+            <MenuItem value="todos">Todos</MenuItem>
+            {actors.map((actor) => (
+              <MenuItem key={actor} value={actor}>
+                {actor}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Origen"
+            value={originFilter}
+            onChange={(event) => setOriginFilter(event.target.value)}
+          >
+            <MenuItem value="todos">Todos</MenuItem>
+            {origins.map((origin) => (
+              <MenuItem key={origin} value={origin}>
+                {toReadableName(origin)}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={importantOnly}
+                onChange={(event) => setImportantOnly(event.target.checked)}
+              />
+            }
+            label="Solo críticos/importantes"
+            sx={{ minHeight: 40 }}
+          />
+        </Box>
+
+        <Stack
+          spacing={2}
+          direction={{ xs: 'column', md: 'row' }}
+          sx={{ px: 2.5, pb: 2.5 }}
+          alignItems={{ xs: 'stretch', md: 'center' }}
+          justifyContent="flex-end"
+        >
+          <Button
+            color="inherit"
+            variant="outlined"
+            disabled={!canResetFilters}
+            startIcon={<Iconify icon="solar:eraser-bold" />}
+            onClick={handleResetFilters}
+            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+          >
+            Limpiar filtros
+          </Button>
+
+          <Button
+            color="warning"
+            variant="outlined"
+            disabled={loading || cleaningTestLogs}
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={handleDeleteTestLogs}
+            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+          >
+            Limpiar pruebas
+          </Button>
 
           <Button
             color="inherit"
@@ -329,11 +563,7 @@ export function LogsFileManagerView({ embedded = false }) {
         </Stack>
 
         {loading ? (
-          <Box sx={{ p: 4 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Cargando registros de auditoría...
-            </Typography>
-          </Box>
+          <LogsTableSkeleton />
         ) : filteredLogs.length ? (
           <TableContainer sx={{ maxHeight: 'calc(100vh - 360px)', minHeight: 420 }}>
             <Table stickyHeader size={table.dense ? 'small' : 'medium'}>

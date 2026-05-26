@@ -6,7 +6,8 @@ import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/fireb
 export const FIREBASE_STORAGE_LIMIT_BYTES = 5 * 1024 ** 3;
 
 const CACHE_KEY = 'firebase-storage-usage-summary-es-v3';
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 30 * 60 * 1000;
+const STALE_CACHE_TTL = 24 * 60 * 60 * 1000;
 const METADATA_CONCURRENCY = 8;
 
 const CATEGORY_DEFINITIONS = {
@@ -396,30 +397,34 @@ const summarizeStorageItems = async (items) => {
 
 let latestSummary = null;
 
-const isFreshSummary = (summary) => {
+const isFreshSummary = (summary, maxAge = CACHE_TTL) => {
   if (!summary?.generatedAt) return false;
 
   const age = Date.now() - new Date(summary.generatedAt).getTime();
 
-  return age <= CACHE_TTL;
+  return age <= maxAge;
 };
 
-const readCache = () => {
+const readCache = ({ allowStale = false } = {}) => {
   if (isFreshSummary(latestSummary)) {
     return { ...latestSummary, fromCache: true };
+  }
+
+  if (allowStale && isFreshSummary(latestSummary, STALE_CACHE_TTL)) {
+    return { ...latestSummary, fromCache: true, stale: true };
   }
 
   if (typeof window === 'undefined') return null;
 
   try {
-    const raw = window.sessionStorage.getItem(CACHE_KEY);
+    const raw = window.localStorage.getItem(CACHE_KEY) || window.sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    if (!isFreshSummary(parsed)) return null;
+    if (!isFreshSummary(parsed, allowStale ? STALE_CACHE_TTL : CACHE_TTL)) return null;
 
     latestSummary = parsed;
-    return { ...parsed, fromCache: true };
+    return { ...parsed, fromCache: true, stale: allowStale && !isFreshSummary(parsed) };
   } catch {
     return null;
   }
@@ -432,6 +437,7 @@ const writeCache = (summary) => {
 
   try {
     window.sessionStorage.setItem(CACHE_KEY, JSON.stringify(summary));
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(summary));
   } catch {
     // Cache is an optimization only.
   }
@@ -450,6 +456,9 @@ export async function getFirebaseStorageUsageSummary({ force = false } = {}) {
   if (!force) {
     const cached = readCache();
     if (cached) return cached;
+
+    const stale = readCache({ allowStale: true });
+    if (stale) return stale;
   }
 
   if (currentRequest && !force) return currentRequest;

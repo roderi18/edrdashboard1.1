@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -13,13 +13,13 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { AUTH } from 'src/lib/firebase';
+import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
+import { AUTH } from 'src/lib/firebase';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
 import { getSectionals, saveSectional, updateSectional } from 'src/services/sectional-service';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
-import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -27,10 +27,13 @@ import { Form, Field } from 'src/components/hook-form';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
+  const { user } = useAuthContext();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const methods = useForm({
@@ -117,9 +120,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
       };
 
       if (currentSectional) {
-        await updateSectional(payload);
+        await updateSectional(payload, { usuario: user, antes: currentSectional });
       } else {
-        await saveSectional(payload);
+        await saveSectional(payload, { usuario: user });
       }
 
       toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');

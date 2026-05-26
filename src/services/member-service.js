@@ -2,6 +2,8 @@ import dayjs from 'dayjs';
 
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
 // ------------------------------------------------------------
 // STORAGE KEYS
 // ------------------------------------------------------------
@@ -136,7 +138,7 @@ export async function getMembers() {
 
     return mergedMembers;
   } catch (error) {
-    console.error('âŒ FETCH ERROR:', error);
+    console.error('ERROR FETCH ERROR:', error);
     return getStorageCollection(MEMBERS_KEY) || [];
   }
 }
@@ -146,7 +148,15 @@ export async function getMemberById(id) {
   return members.find((m) => String(m.id) === String(id));
 }
 
-export async function createMemberApi(payload) {
+const getMemberDisplayName = (member = {}) =>
+  [member.firstName || member.nombres, member.lastName || member.apellidos].filter(Boolean).join(' ') ||
+  member.nombre ||
+  member.nombreMiembro ||
+  member.codigoMiembro ||
+  member.memberId ||
+  'Miembro';
+
+export async function createMemberApi(payload, { usuario } = {}) {
   const res = await fetch('/api/members/post', {
     method: 'POST',
     headers: {
@@ -161,10 +171,27 @@ export async function createMemberApi(payload) {
     throw new Error(text || 'Error creando miembro');
   }
 
-  return text ? JSON.parse(text) : {};
+  const response = text ? JSON.parse(text) : {};
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'miembros',
+    accion: 'miembro_creado',
+    descripcion: `Se creó el miembro ${getMemberDisplayName(payload)}.`,
+    entidad: {
+      tipo: 'miembro',
+      id: response?.idMiembros || response?.data?.idMiembros || payload?.idMiembros,
+      nombre: getMemberDisplayName(payload),
+      ruta: '/dashboard/level/member',
+    },
+    despues: payload,
+    realizadoPor: usuario,
+    origen: 'miembros',
+  });
+
+  return response;
 }
 
-export async function updateMemberApi(payload) {
+export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
   const res = await fetch('/api/members/put', {
     method: 'PUT',
     headers: {
@@ -186,10 +213,26 @@ export async function updateMemberApi(payload) {
     );
   }
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'miembros',
+    accion: 'miembro_actualizado',
+    descripcion: `Se actualizó el miembro ${getMemberDisplayName(payload)}.`,
+    entidad: {
+      tipo: 'miembro',
+      id: payload?.idMiembros || payload?.id,
+      nombre: getMemberDisplayName(payload),
+      ruta: `/dashboard/level/member/${payload?.idMiembros || payload?.id || ''}/edit`,
+    },
+    antes,
+    despues: payload,
+    realizadoPor: usuario,
+    origen: 'miembros',
+  });
+
   return response;
 }
 
-export async function deleteMember(memberId) {
+export async function deleteMember(memberId, { usuario, antes = null } = {}) {
   const res = await fetch(`/api/members?id=${encodeURIComponent(memberId)}`, {
     method: 'DELETE',
   });
@@ -204,11 +247,63 @@ export async function deleteMember(memberId) {
   );
   setStorageCollection(MEMBERS_KEY, members);
 
-  if (!text) return {};
+  if (!text) {
+    registrarAuditoriaSilenciosa({
+      modulo: 'miembros',
+      accion: 'miembro_eliminado',
+      descripcion: `Se eliminó el miembro ${getMemberDisplayName(antes)}.`,
+      severidad: 'importante',
+      entidad: {
+        tipo: 'miembro',
+        id: memberId,
+        nombre: getMemberDisplayName(antes),
+        ruta: '/dashboard/level/member',
+      },
+      antes,
+      realizadoPor: usuario,
+      origen: 'miembros',
+    });
+
+    return {};
+  }
 
   try {
-    return JSON.parse(text);
+    const response = JSON.parse(text);
+
+    registrarAuditoriaSilenciosa({
+      modulo: 'miembros',
+      accion: 'miembro_eliminado',
+      descripcion: `Se eliminó el miembro ${getMemberDisplayName(antes)}.`,
+      severidad: 'importante',
+      entidad: {
+        tipo: 'miembro',
+        id: memberId,
+        nombre: getMemberDisplayName(antes),
+        ruta: '/dashboard/level/member',
+      },
+      antes,
+      realizadoPor: usuario,
+      origen: 'miembros',
+    });
+
+    return response;
   } catch {
+    registrarAuditoriaSilenciosa({
+      modulo: 'miembros',
+      accion: 'miembro_eliminado',
+      descripcion: `Se eliminó el miembro ${getMemberDisplayName(antes)}.`,
+      severidad: 'importante',
+      entidad: {
+        tipo: 'miembro',
+        id: memberId,
+        nombre: getMemberDisplayName(antes),
+        ruta: '/dashboard/level/member',
+      },
+      antes,
+      realizadoPor: usuario,
+      origen: 'miembros',
+    });
+
     return { raw: text };
   }
 }
@@ -288,4 +383,23 @@ export function saveMemberWithLeadership({
   }
 
   setLeadershipAssignments(assignments);
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'liderazgo_miembro_actualizado',
+    descripcion: `Se actualizaron los cargos o liderazgos del miembro ${memberUUID}.`,
+    entidad: {
+      tipo: 'miembro',
+      id: memberUUID,
+      nombre: memberUUID,
+      ruta: `/dashboard/level/member/${memberUUID}/edit`,
+    },
+    despues: {
+      destLeadershipRole,
+      destId,
+      nationalLeadershipLevel,
+      nationalLeadershipRole,
+    },
+    origen: 'miembros',
+  });
 }

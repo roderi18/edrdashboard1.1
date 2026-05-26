@@ -5,6 +5,8 @@ import {
     setStorageCollection,
 } from 'src/utils/storage-service';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
 const DESTS_STORAGE_KEY = 'dests';
 // ------------------------------------------------------------
 // DESTS
@@ -168,7 +170,29 @@ export const buildDestPayload = (data) => ({
     fechaInicio: normalizeDateTimeForApi(data?.fechaInicio),
 });
 
-export const createDestApi = async (data) => {
+const getDestAuditName = (data = {}) =>
+    [data.name || data.nombre, data.destNumber || data.numero].filter(Boolean).join(' ') ||
+    'Destacamento';
+
+const registrarAuditoriaDestacamento = ({ accion, descripcion, data, response, usuario, severidad = 'informativa' }) => {
+    registrarAuditoriaSilenciosa({
+        modulo: 'destacamentos',
+        accion,
+        descripcion,
+        severidad,
+        entidad: {
+            tipo: 'destacamento',
+            id: response?.idDestacamento || response?.data?.idDestacamento || data?.idDestacamento || data?.id,
+            nombre: getDestAuditName(data),
+            ruta: '/dashboard/level/dest',
+        },
+        despues: data,
+        realizadoPor: usuario,
+        origen: 'niveles_organizacionales',
+    });
+};
+
+export const createDestApi = async (data, { usuario } = {}) => {
     const payload = buildDestPayload(data);
 
     const res = await fetch('/api/dest/post', {
@@ -186,16 +210,40 @@ export const createDestApi = async (data) => {
         throw new Error(text || `Error creando destacamento (${res.status})`);
     }
 
-    if (!text) return {};
+    if (!text) {
+        registrarAuditoriaDestacamento({
+            accion: 'destacamento_creado',
+            descripcion: `Se creó el destacamento ${getDestAuditName(data)}.`,
+            data,
+            response: {},
+            usuario,
+        });
+        return {};
+    }
 
     try {
-        return JSON.parse(text);
+        const response = JSON.parse(text);
+        registrarAuditoriaDestacamento({
+            accion: 'destacamento_creado',
+            descripcion: `Se creó el destacamento ${getDestAuditName(data)}.`,
+            data,
+            response,
+            usuario,
+        });
+        return response;
     } catch {
+        registrarAuditoriaDestacamento({
+            accion: 'destacamento_creado',
+            descripcion: `Se creó el destacamento ${getDestAuditName(data)}.`,
+            data,
+            response: {},
+            usuario,
+        });
         return { raw: text };
     }
 };
 
-export const updateDestApi = async (data) => {
+export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
     const payload = buildDestPayload(data);
 
     const res = await fetch('/api/dest/put', {
@@ -213,16 +261,64 @@ export const updateDestApi = async (data) => {
         throw new Error(text || `Error actualizando destacamento (${res.status})`);
     }
 
-    if (!text) return {};
+    if (!text) {
+        registrarAuditoriaSilenciosa({
+            modulo: 'destacamentos',
+            accion: 'destacamento_actualizado',
+            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
+            entidad: {
+                tipo: 'destacamento',
+                id: data?.idDestacamento || data?.id,
+                nombre: getDestAuditName(data),
+                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
+            },
+            antes,
+            despues: data,
+            realizadoPor: usuario,
+            origen: 'niveles_organizacionales',
+        });
+        return {};
+    }
 
     try {
-        return JSON.parse(text);
+        const response = JSON.parse(text);
+        registrarAuditoriaSilenciosa({
+            modulo: 'destacamentos',
+            accion: 'destacamento_actualizado',
+            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
+            entidad: {
+                tipo: 'destacamento',
+                id: data?.idDestacamento || data?.id,
+                nombre: getDestAuditName(data),
+                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
+            },
+            antes,
+            despues: data,
+            realizadoPor: usuario,
+            origen: 'niveles_organizacionales',
+        });
+        return response;
     } catch {
+        registrarAuditoriaSilenciosa({
+            modulo: 'destacamentos',
+            accion: 'destacamento_actualizado',
+            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
+            entidad: {
+                tipo: 'destacamento',
+                id: data?.idDestacamento || data?.id,
+                nombre: getDestAuditName(data),
+                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
+            },
+            antes,
+            despues: data,
+            realizadoPor: usuario,
+            origen: 'niveles_organizacionales',
+        });
         return { raw: text };
     }
 };
 
-export const deleteDestApi = async (id) => {
+export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
     const res = await fetch(`/api/dest?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });
@@ -231,6 +327,24 @@ export const deleteDestApi = async (id) => {
     if (!res.ok) {
         throw new Error(text || `Error eliminando destacamento (${res.status})`);
     }
+
+    const auditPayload = {
+        modulo: 'destacamentos',
+        accion: 'destacamento_eliminado',
+        descripcion: `Se eliminó el destacamento ${getDestAuditName(antes)}.`,
+        severidad: 'importante',
+        entidad: {
+            tipo: 'destacamento',
+            id,
+            nombre: getDestAuditName(antes),
+            ruta: '/dashboard/level/dest',
+        },
+        antes,
+        realizadoPor: usuario,
+        origen: 'niveles_organizacionales',
+    };
+
+    registrarAuditoriaSilenciosa(auditPayload);
 
     if (!text) return {};
 

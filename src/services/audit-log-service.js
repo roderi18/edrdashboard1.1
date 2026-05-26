@@ -2,9 +2,11 @@ import {
   doc,
   limit,
   query,
+  where,
   setDoc,
   getDocs,
   orderBy,
+  deleteDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -160,4 +162,22 @@ export async function listarAuditoriaSistema({ maxRegistros = 150 } = {}) {
       .map(mapearAuditoriaFirestoreAUi)
       .sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime());
   }
+}
+
+export async function eliminarAuditoriaTemporalPrueba() {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    return 0;
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_AUDITORIA_SISTEMA),
+      where('origen', '==', 'prueba_localhost'),
+      limit(500)
+    )
+  );
+
+  await Promise.all(snapshot.docs.map((item) => deleteDoc(item.ref)));
+
+  return snapshot.docs.length;
 }

@@ -420,7 +420,11 @@ export function DestListView() {
     setTableData,
     dataInPageLength: dataInPage.length,
     dataFilteredLength: dataFiltered.length,
-    deleteItem: deleteDestApi,
+    deleteItem: (id) =>
+      deleteDestApi(id, {
+        usuario: user,
+        antes: tableData.find((row) => String(row.id) === String(id)),
+      }),
     singleSuccessMessage: 'Destacamento eliminado correctamente.',
     singleErrorMessage: 'No se pudo eliminar el destacamento.',
     multipleSuccessMessage: 'Destacamentos eliminados correctamente.',

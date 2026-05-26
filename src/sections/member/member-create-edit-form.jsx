@@ -54,6 +54,7 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { NATIONAL_LEADERSHIP_LEVELS } from 'src/catalogs/directiva-positions';
+import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 // services
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
@@ -413,7 +414,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     name: '',
     email: '',
     phoneNumber: '',
-    // country: 'RepÃƒÂºblica Dominicana',
+    // country: 'Rep?blica Dominicana',
 
     provinceId: '',
     municipioId: '',
@@ -747,6 +748,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
       fechaInicio,
       fechaFin: null,
       activo: true,
+      usuario: user,
     });
   };
 
@@ -1062,7 +1064,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
         try {
           responseData = text ? JSON.parse(text) : {};
         } catch {
-          console.error('RAW RESPONSE Ã°Å¸â€˜â€°', text);
+          console.error('RAW RESPONSE =>', text);
           responseData = {};
         }
 
@@ -1076,6 +1078,26 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           );
         }
 
+        registrarAuditoriaSilenciosa({
+          modulo: 'miembros',
+          accion: currentMember ? 'miembro_actualizado' : 'miembro_creado',
+          descripcion: currentMember
+            ? `Se actualizó el miembro ${submittedFirstName} ${submittedLastName}.`
+            : `Se creó el miembro ${submittedFirstName} ${submittedLastName}.`,
+          entidad: {
+            tipo: 'miembro',
+            id: currentMember?.id || responseData?.idMiembros || responseData?.data?.idMiembros,
+            nombre: `${submittedFirstName} ${submittedLastName}`.trim(),
+            ruta: currentMember
+              ? `/dashboard/level/member/${currentMember?.id || ''}/edit`
+              : '/dashboard/level/member',
+          },
+          antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : null,
+          despues: payload,
+          realizadoPor: user,
+          origen: 'miembros',
+        });
+
         const completedMessage = (responseData?.message || responseData?.Message)
           ?.toLowerCase()
           .includes('completada');
@@ -1084,7 +1106,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
           (responseData?.success === false || responseData?.Success === false) &&
           !completedMessage
         ) {
-          console.error('API ERROR Ã°Å¸â€˜â€°', responseData);
+          console.error('API ERROR =>', responseData);
           throw new Error(
             responseData?.message || responseData?.Message || 'Error guardando en API'
           );
@@ -1119,7 +1141,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
             } else {
               console.error('[member form] firebase auth user creation failed', authError);
               toast.error(
-                'Miembro creado, pero no se pudo crear su usuario de inicio de sesiÃƒÂ³n.'
+                'Miembro creado, pero no se pudo crear su usuario de inicio de sesi?n.'
               );
             }
           }
@@ -1347,7 +1369,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                           },
                           {
                             show: isCreateView && !!selectedDest?.name,
-                            text: `pertenecerÃƒÂ¡ a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
+                            text: `pertenecer? a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
                           },
                           {
                             show: isCreateView && !!destChurch?.name,
@@ -1355,7 +1377,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                           },
                           {
                             show: isCreateView && !!selectedSectional?.name,
-                            text: `SecciÃƒÂ³n ${selectedSectional?.name}`,
+                            text: `Secci?n ${selectedSectional?.name}`,
                           },
                           {
                             show: isCreateView && !!selectedRegional?.name,
@@ -1482,7 +1504,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                   />
                 )}
 
-                {/* SOLO EDIT: mantener comportamiento "Ver mÃƒÂ¡s" */}
+                {/* SOLO EDIT: mantener comportamiento "Ver m?s" */}
                 {!isCreateView && (!isMobile || showMore) && (
                   <>
                     <MemberAddressSection isEdit />
@@ -1491,7 +1513,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                       <>
                         <Field.Select
                           name="nationalLeadershipLevel"
-                          label="PosiciÃƒÂ³n en Consejo Nacional"
+                          label="Posici?n en Consejo Nacional"
                           value={watch('nationalLeadershipLevel') ?? ''}
                         >
                           {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
@@ -1530,7 +1552,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                   </>
                 )}
 
-                {/* SOLO /new: STEP 1 = DirecciÃƒÂ³n */}
+                {/* SOLO /new: STEP 1 = Direcci?n */}
                 {isCreateView && step === 1 && (
                   <>
                     <Box
@@ -1552,7 +1574,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                   </>
                 )}
 
-                {/* SOLO /new: STEP 2 = Otros (OcupaciÃƒÂ³n + Size T-Shirt) */}
+                {/* SOLO /new: STEP 2 = Otros (Ocupaci?n + Size T-Shirt) */}
                 {isCreateView && step === 2 && (
                   <>
                     <Box
@@ -1608,9 +1630,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
 
                     <Field.Select
                       name="InstructorCertificadoCI"
-                      label="Ã‚Â¿Instructor Certificado?"
+                      label="?Instructor Certificado?"
                     >
-                      <MenuItem value={1}>SÃƒÂ­</MenuItem>
+                      <MenuItem value={1}>S?</MenuItem>
                       <MenuItem value={0}>No</MenuItem>
                     </Field.Select>
 
@@ -1646,8 +1668,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                             diasRestantesCI !== null && diasRestantesCI <= 365
                               ? ` (${
                                   diasRestantesCI >= 0
-                                    ? `${diasRestantesCI} dÃƒÂ­as restantes`
-                                    : `vencido hace ${Math.abs(diasRestantesCI)} dÃƒÂ­as`
+                                    ? `${diasRestantesCI} d?as restantes`
+                                    : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
                                 })`
                               : ''
                           }`}
@@ -1670,7 +1692,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
               {!isCreateView && isMobile && (
                 <Box sx={{ mt: 2 }}>
                   <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
-                    {showMore ? 'Ocultar informaciÃƒÂ³n' : 'Ver mÃƒÂ¡s informaciÃƒÂ³n'}
+                    {showMore ? 'Ocultar informaci?n' : 'Ver m?s informaci?n'}
                   </Button>
                 </Box>
               )}

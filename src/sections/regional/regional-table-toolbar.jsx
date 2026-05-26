@@ -9,11 +9,12 @@ import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { printTablePdf } from 'src/utils/download-table-pdf';
 import { getCell, uploadExcelRows } from 'src/utils/excel-upload';
-import { printTablePdf, downloadTablePdf } from 'src/utils/download-table-pdf';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 // ----------------------------------------------------------------------
@@ -43,16 +44,6 @@ export function RegionalTableToolbar({ filters, options, onResetPage, displayMod
     { label: 'Destacamentos', value: (row) => row.regionalXSectionalXDestCount || row.destCount },
     { label: 'Miembros', value: (row) => row.regionalXSectionalMemberCount || row.memberCount },
   ];
-
-  const handleDownloadPdf = async () => {
-    await downloadTablePdf({
-      title: 'Lista de regiones',
-      fileName: 'lista-regiones.pdf',
-      rows,
-      columns: pdfColumns,
-    });
-    menuActions.onClose();
-  };
 
   const handlePrint = async () => {
     await printTablePdf({
@@ -137,10 +128,13 @@ export function RegionalTableToolbar({ filters, options, onResetPage, displayMod
           Imprimir
         </MenuItem>
 
-        <MenuItem onClick={handleDownloadPdf}>
-          <Iconify icon="solar:import-bold" />
-          Descargar
-        </MenuItem>
+        <ExportTableButton
+          rows={rows}
+          columns={pdfColumns}
+          title="Lista de regiones"
+          fileNamePrefix="lista-regiones"
+          trigger="menuItem"
+        />
 
         <MenuItem onClick={() => uploadInputRef.current?.click()}>
           <Iconify icon="solar:export-bold" />

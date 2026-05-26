@@ -1,3 +1,5 @@
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
 const getRowsFromApi = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -62,7 +64,23 @@ export async function guardarCargoApi({ idCargo, nombre }) {
     body: JSON.stringify({ idCargo, nombre }),
   });
 
-  return ensureOk(res, 'Error guardando cargo en API');
+  const payload = await ensureOk(res, 'Error guardando cargo en API');
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'cargo_creado',
+    descripcion: `Se creó el cargo ${nombre}.`,
+    entidad: {
+      tipo: 'cargo',
+      id: idCargo,
+      nombre,
+      ruta: '/dashboard/level/member',
+    },
+    despues: { idCargo, nombre },
+    origen: 'cargos',
+  });
+
+  return payload;
 }
 
 export async function actualizarCargoApi({ idCargo, nombre }) {
@@ -72,7 +90,23 @@ export async function actualizarCargoApi({ idCargo, nombre }) {
     body: JSON.stringify({ idCargo, nombre }),
   });
 
-  return ensureOk(res, 'Error actualizando cargo en API');
+  const payload = await ensureOk(res, 'Error actualizando cargo en API');
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'cargo_actualizado',
+    descripcion: `Se actualizó el cargo ${nombre}.`,
+    entidad: {
+      tipo: 'cargo',
+      id: idCargo,
+      nombre,
+      ruta: '/dashboard/level/member',
+    },
+    despues: { idCargo, nombre },
+    origen: 'cargos',
+  });
+
+  return payload;
 }
 
 export async function asegurarCargoApi({ idCargo, nombre }) {
@@ -121,7 +155,23 @@ export async function guardarCargoMiembroApi({ idCargo, idMiembro, fechaInicio, 
     body: JSON.stringify({ idCargo, idMiembro, fechaInicio, fechaFin }),
   });
 
-  return ensureOk(res, 'Error guardando cargo del miembro en API');
+  const payload = await ensureOk(res, 'Error guardando cargo del miembro en API');
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'cargo_miembro_asignado',
+    descripcion: `Se asignó el cargo ${idCargo} al miembro ${idMiembro}.`,
+    entidad: {
+      tipo: 'miembro',
+      id: idMiembro,
+      nombre: String(idMiembro),
+      ruta: `/dashboard/level/member/${idMiembro}/edit`,
+    },
+    despues: { idCargo, idMiembro, fechaInicio, fechaFin },
+    origen: 'cargos',
+  });
+
+  return payload;
 }
 
 export async function eliminarCargoMiembroApi({
@@ -136,5 +186,22 @@ export async function eliminarCargoMiembroApi({
     body: JSON.stringify({ idCargo, idMiembro, fechaInicio, fechaFin }),
   });
 
-  return ensureOk(res, 'Error eliminando cargo del miembro en API');
+  const payload = await ensureOk(res, 'Error eliminando cargo del miembro en API');
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'cargo_miembro_eliminado',
+    descripcion: `Se eliminó el cargo ${idCargo} del miembro ${idMiembro}.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'miembro',
+      id: idMiembro,
+      nombre: String(idMiembro),
+      ruta: `/dashboard/level/member/${idMiembro}/edit`,
+    },
+    antes: { idCargo, idMiembro, fechaInicio, fechaFin },
+    origen: 'cargos',
+  });
+
+  return payload;
 }

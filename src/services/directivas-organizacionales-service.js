@@ -2,6 +2,7 @@ import { doc, getDocs, writeBatch, collection, serverTimestamp } from 'firebase/
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { obtenerCargosApi } from 'src/services/cargos-api-service';
+import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import {
   DIRECTIVA_LEVELS,
   DIRECTIVA_DIVISIONS,
@@ -197,6 +198,20 @@ export async function guardarCatalogoCargosDirectiva(cargos = CARGOS_DIRECTIVA_B
 
   await batch.commit();
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'catalogo_cargos_directiva_guardado',
+    descripcion: `Se guardó el catálogo de cargos de directiva (${posiciones.length} posiciones).`,
+    entidad: {
+      tipo: 'catalogo_cargos',
+      id: 'posicionesDirectiva',
+      nombre: 'Catálogo de cargos de directiva',
+      ruta: '/dashboard/level/member',
+    },
+    despues: { totalPosiciones: posiciones.length },
+    origen: 'directivas',
+  });
+
   return posiciones.length;
 }
 
@@ -277,6 +292,20 @@ export async function guardarDirectivaOrganizacional({
     })
     .commit();
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'directiva_organizacional_guardada',
+    descripcion: `Se guardó la directiva de ${directiva.nombreEntidad || directiva.idEntidad}.`,
+    entidad: {
+      tipo: 'directiva',
+      id: idDirectiva,
+      nombre: directiva.nombreEntidad || directiva.idEntidad,
+      ruta: '/dashboard/level/member',
+    },
+    despues: directiva,
+    origen: 'directivas',
+  });
+
   return directiva;
 }
 
@@ -345,6 +374,7 @@ export async function guardarAsignacionDirectiva({
   division = null,
   orden = 1,
   origen = 'miembro',
+  usuario = {},
   fechaInicio = new Date().toISOString().slice(0, 10),
   fechaFin = null,
   activo = true,
@@ -399,6 +429,21 @@ export async function guardarAsignacionDirectiva({
   });
 
   await batch.commit();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'asignacion_directiva_guardada',
+    descripcion: `Se asignó un cargo de directiva al miembro ${idMiembroResolved}.`,
+    entidad: {
+      tipo: 'asignacion_directiva',
+      id: idAsignacion,
+      nombre: idMiembroResolved,
+      ruta: `/dashboard/level/member/${idMiembroResolved}/edit`,
+    },
+    despues: asignacion,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
 
   return asignacion;
 }

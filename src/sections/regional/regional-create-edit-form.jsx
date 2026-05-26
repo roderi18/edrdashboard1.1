@@ -19,12 +19,15 @@ import { getImageOptimizationMessage } from 'src/utils/upload-optimization-messa
 
 import { AUTH } from 'src/lib/firebase';
 import { RegionalSchema } from 'src/models/regional-schema';
+import { saveRegional, updateRegional } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
+
+import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 const DEFAULT_VALUES = {
@@ -37,6 +40,7 @@ const DEFAULT_VALUES = {
 
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
+  const { user } = useAuthContext();
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -112,25 +116,11 @@ export function RegionalCreateEditForm({ currentRegional }) {
         idCargoInstitucional: Number(data.idCargoInstitucional) || null,
       };
 
-      const url = currentRegional
-        ? '/api/regional/put'
-        : '/api/regional/post';
-
-      const method = currentRegional ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const text = await res.text();
-
-      if (!text || text.startsWith('<')) return;
-
-      JSON.parse(text);
+      if (currentRegional) {
+        await updateRegional(payload, { usuario: user, antes: currentRegional });
+      } else {
+        await saveRegional(payload, { usuario: user });
+      }
 
       toast.success(
         currentRegional

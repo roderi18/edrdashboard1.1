@@ -16,6 +16,7 @@ import {
 
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
+import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
@@ -678,6 +679,26 @@ export async function crearPublicacionPrincipal({ mensaje = '', imagenes = [], u
     );
   }
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'publicaciones',
+    accion: 'publicacion_creada',
+    descripcion: `Se creó una publicación de ${getUserName(usuario)}.`,
+    entidad: {
+      tipo: 'publicacion',
+      id: idPublicacion,
+      nombre: String(mensaje || '').slice(0, 80) || idPublicacion,
+      ruta: `/dashboard/principal/#post-${idPublicacion}`,
+    },
+    despues: {
+      idPublicacion,
+      mensaje,
+      totalArchivos: archivosMultimedia.length,
+      visibilidad: VISIBILIDAD_PUBLICA,
+    },
+    realizadoPor: usuario,
+    origen: 'publicaciones',
+  });
+
   return publicationToUi({ publication: publicacion, usuarioIdMiembros: getPrincipalMemberId(usuario) });
 }
 
@@ -800,6 +821,22 @@ export async function eliminarPublicacionPrincipal({ idPublicacion, usuario = {}
     fechaEliminacion,
     fechaActualizacion: fechaEliminacion,
     actualizadoEnServidor: serverTimestamp(),
+  });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'publicaciones',
+    accion: 'publicacion_eliminada',
+    descripcion: `Se eliminó una publicación de ${publicacion.nombreAutor || 'usuario'}.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'publicacion',
+      id: idPublicacion,
+      nombre: String(publicacion.mensaje || idPublicacion).slice(0, 80),
+      ruta: '/dashboard/principal',
+    },
+    antes: publicacion,
+    realizadoPor: usuario,
+    origen: 'publicaciones',
   });
 
   return { idPublicacion, estado: 'eliminado' };
@@ -1030,6 +1067,22 @@ export async function registrarReportePublicacion({
       actualizadoEnServidor: serverTimestamp(),
     }).catch(() => null);
   }
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'publicaciones',
+    accion: 'publicacion_reportada',
+    descripcion: `Se reportó una publicación. Motivo: ${razon || 'No especificado'}.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'publicacion',
+      id: idPublicacion,
+      nombre: idPublicacion,
+      ruta: `/dashboard/principal/#post-${idPublicacion}`,
+    },
+    despues: { idReporte, idPublicacion, razon },
+    realizadoPor: usuario,
+    origen: 'publicaciones',
+  });
 
   return { idReporte, idPublicacion };
 }

@@ -590,7 +590,11 @@ export function MemberListView() {
     setTableData,
     dataInPageLength: dataInPage.length,
     dataFilteredLength: dataFiltered.length,
-    deleteItem: deleteMember,
+    deleteItem: (id) =>
+      deleteMember(id, {
+        usuario: user,
+        antes: tableData.find((row) => String(row.id) === String(id)),
+      }),
     singleSuccessMessage: 'Miembro eliminado correctamente.',
     singleErrorMessage: 'No se pudo eliminar el miembro.',
     multipleSuccessMessage: 'Miembros eliminados correctamente.',

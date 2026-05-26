@@ -12,6 +12,7 @@ import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { fDateTime } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
+import { printTablePdf } from 'src/utils/download-table-pdf';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -59,6 +60,15 @@ export function OrderTableToolbar({ filters, onResetPage, dateError, rows = [] }
     [onResetPage, updateFilters]
   );
 
+  const handlePrint = async () => {
+    await printTablePdf({
+      title: 'Lista de pedidos',
+      rows,
+      columns: ORDER_EXPORT_COLUMNS.slice(0, 7),
+    });
+    menuActions.onClose();
+  };
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}
@@ -67,14 +77,9 @@ export function OrderTableToolbar({ filters, onResetPage, dateError, rows = [] }
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <MenuItem onClick={() => menuActions.onClose()}>
+        <MenuItem onClick={handlePrint}>
           <Iconify icon="solar:printer-minimalistic-bold" />
           Imprimir
-        </MenuItem>
-
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:import-bold" />
-          Importar
         </MenuItem>
 
         <ExportTableButton

@@ -47,6 +47,8 @@ import { CompactEntityListView } from 'src/sections/common/compact-entity-list-v
 import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
 import { SectionalTableToolbar } from '../sectional-table-toolbar';
@@ -150,6 +152,7 @@ const buildSectionalList = async () => {
 };
 
 export function SectionalListView() {
+  const { user } = useAuthContext();
   const getRegionalNameByDest = (sectional) => {
     const regionals = getRegionals();
     const regional =
@@ -203,7 +206,11 @@ export function SectionalListView() {
     setTableData,
     dataInPageLength: dataInPage.length,
     dataFilteredLength: dataFiltered.length,
-    deleteItem: deleteSectional,
+    deleteItem: (id) =>
+      deleteSectional(id, {
+        usuario: user,
+        antes: tableData.find((row) => String(row.id) === String(id)),
+      }),
     singleSuccessMessage: 'Seccion eliminada correctamente.',
     singleErrorMessage: 'No se pudo eliminar la seccion.',
     multipleSuccessMessage: 'Secciones eliminadas correctamente.',

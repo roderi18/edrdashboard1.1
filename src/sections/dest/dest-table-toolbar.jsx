@@ -13,11 +13,12 @@ import FormControl from '@mui/material/FormControl';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import { printTablePdf, downloadTablePdf } from 'src/utils/download-table-pdf';
+import { printTablePdf } from 'src/utils/download-table-pdf';
 import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
@@ -111,16 +112,6 @@ export function DestTableToolbar({
     { label: 'Miembros', value: (row) => row.memberCount },
   ];
 
-  const handleDownloadPdf = async () => {
-    await downloadTablePdf({
-      title: 'Lista de destacamentos',
-      fileName: 'lista-destacamentos.pdf',
-      rows,
-      columns: pdfColumns,
-    });
-    menuActions.onClose();
-  };
-
   const handlePrint = async () => {
     await printTablePdf({
       title: 'Lista de destacamentos',
@@ -213,10 +204,13 @@ export function DestTableToolbar({
           Imprimir
         </MenuItem>
 
-        <MenuItem onClick={handleDownloadPdf}>
-          <Iconify icon="solar:import-bold" />
-          Descargar
-        </MenuItem>
+        <ExportTableButton
+          rows={rows}
+          columns={pdfColumns}
+          title="Lista de destacamentos"
+          fileNamePrefix="lista-destacamentos"
+          trigger="menuItem"
+        />
 
         <MenuItem onClick={() => uploadInputRef.current?.click()}>
           <Iconify icon="solar:export-bold" />
