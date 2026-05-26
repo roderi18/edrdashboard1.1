@@ -28,6 +28,8 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 const PRIORIDAD_OPTIONS = [
@@ -118,6 +120,7 @@ const formatRole = (role = '') => {
 };
 
 export function AdminNotificationsView() {
+  const { user } = useAuthContext();
   const scrollPositionRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -284,6 +287,7 @@ export function AdminNotificationsView() {
           tipoAccionPorDefecto: form.tipoAccion,
           requiereFotoPersona: form.requiereFotoPersona,
         },
+        usuario: user,
       });
 
       setTipos((current) =>
@@ -336,7 +340,7 @@ export function AdminNotificationsView() {
     } finally {
       setSaving(false);
     }
-  }, [form, selectedPlantilla]);
+  }, [form, selectedPlantilla, user]);
 
   const handleToggleRecipient = useCallback(
     async (destinatario, activo) => {
@@ -350,6 +354,7 @@ export function AdminNotificationsView() {
           rol: destinatario.rol,
           tipoNotificacion: form.tipoNotificacion,
           activo,
+          usuario: user,
         });
 
         setPreferencias((current) => {
@@ -388,7 +393,7 @@ export function AdminNotificationsView() {
         setRecipientSavingId('');
       }
     },
-    [form.tipoNotificacion]
+    [form.tipoNotificacion, user]
   );
 
   const recipientRows = useMemo(

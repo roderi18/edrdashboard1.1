@@ -411,6 +411,7 @@ export function InvoiceListView() {
             dateError={dateError}
             onResetPage={table.onResetPage}
             options={{ services: INVOICE_SERVICE_OPTIONS.map((option) => option.name) }}
+            rows={dataFiltered}
           />
 
           {canReset && (

@@ -6,6 +6,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearDocumentoMovimientoInventario } from 'src/models/inventory-movement-model';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import {
   crearNotificacionProductoSinStock,
   crearNotificacionProductoStockBajo,
@@ -81,6 +82,32 @@ export const ajustarInventarioProducto = async ({
   );
 
   const updatedProduct = mapearProductoFirestoreAUi({ id: producto.id, ...result.productDoc });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'inventario',
+    accion: 'inventario_ajustado',
+    descripcion: `Inventario de ${updatedProduct.name || updatedProduct.title || producto.id} ajustado.`,
+    severidad: Number(cantidadDelta || 0) < 0 ? 'importante' : 'informativa',
+    entidad: {
+      tipo: 'producto',
+      id: producto.id,
+      nombre: updatedProduct.name || updatedProduct.title || producto.id,
+      ruta: `/dashboard/product/${producto.id}`,
+    },
+    antes: {
+      disponibles: result.previousAvailable,
+    },
+    despues: {
+      disponibles: result.nextAvailable,
+    },
+    realizadoPor: user,
+    metadatos: {
+      ordenId,
+      tipoMovimiento,
+      motivo,
+      cantidad: Math.abs(Number(cantidadDelta || 0)),
+    },
+  });
 
   if (result.previousAvailable <= 0 && result.nextAvailable > 0) {
     crearNotificacionProductoDisponibleNuevamente({ producto: updatedProduct, usuario: user }).catch((error) => {

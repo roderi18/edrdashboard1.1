@@ -20,6 +20,8 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { useTable, TableNoData, TableHeadCustom } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
 import { AdminTableToolbar } from '../admin-table-toolbar';
@@ -72,6 +74,7 @@ const mapAdminRow = ({ admin, member, photo }) => {
 };
 
 export function AdminListView() {
+  const { user } = useAuthContext();
   const table = useTable();
   const [admins, setAdmins] = useState([]);
   const [removeAdminRow, setRemoveAdminRow] = useState(null);
@@ -115,7 +118,7 @@ export function AdminListView() {
     setIsRemovingAdmin(true);
 
     try {
-      await quitarAdministradorAMiembro(removeAdminRow);
+      await quitarAdministradorAMiembro(removeAdminRow, { usuario: user });
 
       setAdmins((currentAdmins) =>
         currentAdmins.filter((admin) => String(admin.adminId || admin.id) !== String(removeAdminRow.adminId || removeAdminRow.id))
@@ -129,7 +132,7 @@ export function AdminListView() {
     } finally {
       setIsRemovingAdmin(false);
     }
-  }, [removeAdminRow]);
+  }, [removeAdminRow, user]);
 
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;

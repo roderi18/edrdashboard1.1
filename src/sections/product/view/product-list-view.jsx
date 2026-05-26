@@ -106,10 +106,10 @@ export function ProductListView() {
   });
 
   const handleDeleteRow = useCallback(async (id) => {
-    await eliminarProductoFirestore(id);
+    await eliminarProductoFirestore(id, user);
     setTableData((prev) => prev.filter((row) => row.id !== id));
     toast.success('Producto eliminado!');
-  }, []);
+  }, [user]);
 
   const handlePublishRow = useCallback(async (id) => {
     const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published', user);
@@ -155,10 +155,10 @@ export function ProductListView() {
   );
 
   const handleDeleteRows = useCallback(async () => {
-    await Promise.all(Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id)));
+    await Promise.all(Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id, user)));
     setTableData((prev) => prev.filter((row) => !selectedRows.ids.has(row.id)));
     toast.success('Productos eliminados!');
-  }, [selectedRows.ids]);
+  }, [selectedRows.ids, user]);
 
   const columns = useGetColumns({
     onDeleteRow: handleDeleteRow,

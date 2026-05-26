@@ -10,12 +10,27 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
+import { fDateTime } from 'src/utils/format-time';
+import { fDopCurrency } from 'src/utils/format-number';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 
 // ----------------------------------------------------------------------
 
-export function OrderTableToolbar({ filters, onResetPage, dateError }) {
+const ORDER_EXPORT_COLUMNS = [
+  { label: 'Pedido', value: (row) => row.orderNumber || row.id },
+  { label: 'Miembro', value: (row) => row.customer?.name || '' },
+  { label: 'Código miembro', value: (row) => row.customer?.codigoMiembro || row.customer?.memberId || '' },
+  { label: 'Fecha', value: (row) => fDateTime(row.createdAt) },
+  { label: 'Cantidad', value: (row) => row.totalQuantity },
+  { label: 'Subtotal', value: (row) => fDopCurrency(row.subtotal) },
+  { label: 'Estado', value: (row) => row.status },
+  { label: 'Productos', value: (row) => (row.items || []).map((item) => item.name).join(', ') },
+];
+
+export function OrderTableToolbar({ filters, onResetPage, dateError, rows = [] }) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
@@ -62,10 +77,14 @@ export function OrderTableToolbar({ filters, onResetPage, dateError }) {
           Importar
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:export-bold" />
-          Exportar
-        </MenuItem>
+        <ExportTableButton
+          rows={rows}
+          columns={ORDER_EXPORT_COLUMNS}
+          pdfColumns={ORDER_EXPORT_COLUMNS.slice(0, 7)}
+          title="Lista de pedidos"
+          fileNamePrefix="lista-pedidos"
+          trigger="menuItem"
+        />
       </MenuList>
     </CustomPopover>
   );

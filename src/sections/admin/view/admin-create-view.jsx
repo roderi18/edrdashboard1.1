@@ -39,6 +39,8 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
 import { AdminTableToolbar } from '../admin-table-toolbar';
@@ -67,6 +69,7 @@ const mapMemberRow = ({ member, photo }) => ({
 });
 
 export function AdminCreateView() {
+  const { user } = useAuthContext();
   const table = useTable();
   const [members, setMembers] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
@@ -116,7 +119,9 @@ export function AdminCreateView() {
     setIsAssigning(true);
 
     try {
-      const assignedAdmins = await Promise.all(assignRows.map((row) => asignarAdministradorDesdeMiembro(row)));
+      const assignedAdmins = await Promise.all(
+        assignRows.map((row) => asignarAdministradorDesdeMiembro(row, { usuario: user }))
+      );
       const assignedIds = new Set(assignRows.map((row) => String(row.id)));
 
       setMembers((currentMembers) =>
@@ -156,7 +161,7 @@ export function AdminCreateView() {
     } finally {
       setIsAssigning(false);
     }
-  }, [assignRows, table]);
+  }, [assignRows, table, user]);
 
   const handleAssignSelectedAdmins = useCallback(async () => {
     const selectedRows = members.filter((member) => table.selected.includes(member.id));
@@ -183,7 +188,7 @@ export function AdminCreateView() {
     setIsRemovingAdmin(true);
 
     try {
-      await quitarAdministradorAMiembro(removeAdminRow);
+      await quitarAdministradorAMiembro(removeAdminRow, { usuario: user });
 
       setMembers((currentMembers) =>
         currentMembers.map((member) =>
@@ -206,7 +211,7 @@ export function AdminCreateView() {
     } finally {
       setIsRemovingAdmin(false);
     }
-  }, [removeAdminRow]);
+  }, [removeAdminRow, user]);
 
   const dataFiltered = applyFilter({ inputData: members, filters: currentFilters });
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);

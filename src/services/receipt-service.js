@@ -9,6 +9,7 @@ import {
   mapearEstadoReciboUiAFirestore,
 } from 'src/models/receipt-model';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import {
   crearNotificacionFacturaGenerada,
   crearNotificacionFacturaDisponible,
@@ -35,6 +36,23 @@ export const guardarReciboFirestore = async ({ user, receiptId, orderId, checkou
   const receipt = mapearReciboFirestoreAUi({ id: currentReceiptId, ...receiptDoc });
 
   if (!previous.exists()) {
+    registrarAuditoriaSilenciosa({
+      modulo: 'facturas',
+      accion: 'factura_creada',
+      descripcion: `Factura ${receiptDoc.numeroRecibo || currentReceiptId} creada.`,
+      entidad: {
+        tipo: 'factura',
+        id: currentReceiptId,
+        nombre: receiptDoc.numeroRecibo || currentReceiptId,
+        ruta: `/dashboard/invoice/${currentReceiptId}`,
+      },
+      despues: receiptDoc,
+      realizadoPor: user,
+      metadatos: {
+        orderId,
+      },
+    });
+
     crearNotificacionFacturaGenerada({ factura: receipt, usuario: user }).catch((error) => {
       console.error('[receipt service] no se pudo notificar factura generada', error);
     });
@@ -75,7 +93,7 @@ export const listarRecibosUsuarioFirestore = async (user) => {
   return snapshot.docs.map((item) => mapearReciboFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const actualizarEstadoReciboFirestore = async (receiptId, estado) => {
+export const actualizarEstadoReciboFirestore = async (receiptId, estado, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
 
   const receiptRef = doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId));
@@ -88,6 +106,25 @@ export const actualizarEstadoReciboFirestore = async (receiptId, estado) => {
   };
 
   await setDoc(receiptRef, nextDoc, { merge: true });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'facturas',
+    accion: 'factura_estado_actualizado',
+    descripcion: `Estado de la factura ${nextDoc.numeroRecibo || receiptId} actualizado a ${nextDoc.estado}.`,
+    entidad: {
+      tipo: 'factura',
+      id: snapshot.id,
+      nombre: nextDoc.numeroRecibo || snapshot.id,
+      ruta: `/dashboard/invoice/${snapshot.id}`,
+    },
+    antes: {
+      estado: snapshot.data()?.estado,
+    },
+    despues: {
+      estado: nextDoc.estado,
+    },
+    realizadoPor: user,
+  });
 
   return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
 };
@@ -137,6 +174,22 @@ export const actualizarReciboFirestore = async (receiptId, data = {}, user = {})
   await setDoc(receiptRef, nextDoc, { merge: true });
 
   const receipt = mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'facturas',
+    accion: 'factura_actualizada',
+    descripcion: `Factura ${nextDoc.numeroRecibo || receiptId} actualizada.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'factura',
+      id: snapshot.id,
+      nombre: nextDoc.numeroRecibo || snapshot.id,
+      ruta: `/dashboard/invoice/${snapshot.id}`,
+    },
+    antes: currentDoc,
+    despues: nextDoc,
+    realizadoPor: user,
+  });
 
   crearNotificacionFacturaGenerada({ factura: receipt, usuario: user }).catch((error) => {
     console.error('[receipt service] no se pudo notificar factura generada', error);

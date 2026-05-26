@@ -165,14 +165,20 @@ export function MemberTableRow({
         avatarSx={{ width: 40, height: 40 }}
       />
 
-      <TableCell sx={isPositionUnknown ? { color: 'text.disabled' } : undefined}>
+      <TableCell
+        sx={{
+          typography: 'body2',
+          fontWeight: 400,
+          ...(isPositionUnknown && { color: 'text.disabled' }),
+        }}
+      >
         {row.destLeadershipPosition || row.directivaLeadershipPosition ? (
           <Stack spacing={0.25}>
             {row.destLeadershipPosition ? (
               <Box
                 sx={{
                   typography: 'body2',
-                  fontWeight: 600,
+                  fontWeight: 400,
                   ...(isUnknownLabel(row.destLeadershipPosition) && { color: 'text.disabled' }),
                 }}
               >
@@ -195,7 +201,11 @@ export function MemberTableRow({
           </Stack>
         ) : leaderships.length ? (
           <Stack>
-            <UnderlineLink href={getLeadershipHref(leaderships[0])} color="inherit">
+            <UnderlineLink
+              href={getLeadershipHref(leaderships[0])}
+              color="inherit"
+              sx={{ fontWeight: 400 }}
+            >
               {leaderships[0].label}
             </UnderlineLink>
 

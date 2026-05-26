@@ -243,6 +243,7 @@ export function OrderListView() {
             filters={filters}
             onResetPage={table.onResetPage}
             dateError={dateError}
+            rows={dataFiltered}
           />
 
           {canReset && (

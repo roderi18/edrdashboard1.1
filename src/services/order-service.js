@@ -25,6 +25,7 @@ import {
 
 import { limpiarCarritoUsuario } from './cart-service';
 import { ajustarInventarioProducto } from './inventory-service';
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { guardarSnapshotProductoFirestore } from './product-service';
 import { guardarReciboFirestore, actualizarEstadoReciboFirestore } from './receipt-service';
 import {
@@ -279,6 +280,24 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   await setDoc(orderRef, orderDoc);
   await limpiarCarritoUsuario(user);
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: 'pedido_creado',
+    descripcion: `Pedido ${orderDoc.numeroOrden || orderId} creado.`,
+    entidad: {
+      tipo: 'pedido',
+      id: orderId,
+      nombre: orderDoc.numeroOrden || orderId,
+      ruta: `/dashboard/order/${orderId}`,
+    },
+    despues: orderDoc,
+    realizadoPor: user,
+    metadatos: {
+      reciboId: receiptId,
+      requiereEvaluacion,
+    },
+  });
+
   try {
     await crearNotificacionesPedidoCreado({
       orden: orderDoc,
@@ -386,6 +405,26 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
 
   await setDoc(orderRef, nextData, { merge: true });
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: 'pedido_estado_actualizado',
+    descripcion: `Estado del pedido ${currentData.numeroOrden || orderId} cambiado de ${currentStatus} a ${nextStatusEs}.`,
+    severidad: isCancelling ? 'importante' : 'informativa',
+    entidad: {
+      tipo: 'pedido',
+      id: snapshot.id,
+      nombre: currentData.numeroOrden || snapshot.id,
+      ruta: `/dashboard/order/${snapshot.id}`,
+    },
+    antes: {
+      estado: currentStatus,
+    },
+    despues: {
+      estado: nextStatusEs,
+    },
+    realizadoPor: user,
+  });
+
   if (isCancelling) {
     try {
       await crearNotificacionPedidoCanceladoAdmin({
@@ -401,7 +440,8 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
   if (currentData?.reciboId) {
     await actualizarEstadoReciboFirestore(
       currentData.reciboId,
-      nextStatusEs === 'cancelada' ? 'cancelado' : 'pagado'
+      nextStatusEs === 'cancelada' ? 'cancelado' : 'pagado',
+      user
     );
   }
 
@@ -454,6 +494,31 @@ export const evaluarOrdenRestringidaFirestore = async ({
   };
 
   await setDoc(orderRef, nextData, { merge: true });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: 'pedido_evaluacion_actualizada',
+    descripcion: `Evaluación del pedido ${currentData.numeroOrden || orderId} actualizada a ${estadoEvaluacion}.`,
+    severidad: estadoEvaluacion === 'rechazada' ? 'importante' : 'informativa',
+    entidad: {
+      tipo: 'pedido',
+      id: snapshot.id,
+      nombre: currentData.numeroOrden || snapshot.id,
+      ruta: `/dashboard/order/${snapshot.id}`,
+    },
+    antes: {
+      estado: currentData.estado,
+      items: currentData.items,
+    },
+    despues: {
+      estadoEvaluacion,
+      razon,
+    },
+    realizadoPor: user,
+    metadatos: {
+      accion,
+    },
+  });
 
   let updatedData = nextData;
 
@@ -578,6 +643,22 @@ export const cargarArchivosFaltantesOrdenFirestore = async ({
   };
 
   await setDoc(orderRef, nextData, { merge: true });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: 'archivos_faltantes_cargados',
+    descripcion: `Archivos faltantes cargados para el pedido ${currentData.numeroOrden || orderId}.`,
+    entidad: {
+      tipo: 'pedido',
+      id: snapshot.id,
+      nombre: currentData.numeroOrden || snapshot.id,
+      ruta: `/dashboard/order/${snapshot.id}`,
+    },
+    despues: {
+      cantidadArchivos: archivos.length,
+    },
+    realizadoPor: user,
+  });
 
   try {
     await crearNotificacionArchivosFaltantesPedido({
@@ -708,6 +789,29 @@ const actualizarArchivoAdjuntoOrdenFirestore = async ({
   };
 
   await setDoc(orderRef, nextData, { merge: true });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: action === 'restore' ? 'archivo_adjunto_restaurado' : 'archivo_adjunto_eliminado',
+    descripcion:
+      action === 'restore'
+        ? `Archivo ${archivo?.nombre || 'sin nombre'} restaurado en el pedido.`
+        : `Archivo ${archivo?.nombre || 'sin nombre'} eliminado del pedido.`,
+    severidad: action === 'restore' ? 'informativa' : 'importante',
+    entidad: {
+      tipo: 'pedido',
+      id: snapshot.id,
+      nombre: currentData.numeroOrden || snapshot.id,
+      ruta: `/dashboard/order/${snapshot.id}`,
+    },
+    antes: {
+      archivo,
+    },
+    despues: {
+      accion: action,
+    },
+    realizadoPor: user,
+  });
 
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...nextData });
 };

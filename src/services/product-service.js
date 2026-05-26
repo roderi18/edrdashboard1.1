@@ -13,6 +13,7 @@ import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
+import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import {
   crearNotificacionProductoSinStock,
   crearNotificacionProductoPublicado,
@@ -163,6 +164,26 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
   await setDoc(productRef, productDoc);
 
   const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
+  registrarAuditoriaSilenciosa({
+    modulo: 'productos',
+    accion: previous.exists() ? 'producto_actualizado' : 'producto_creado',
+    descripcion: `Producto ${savedProduct.name || savedProduct.title || productId} guardado.`,
+    severidad: publish ? 'importante' : 'informativa',
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: savedProduct.name || savedProduct.title || productId,
+      ruta: `/dashboard/product/${productId}`,
+    },
+    antes: previousProduct,
+    despues: savedProduct,
+    realizadoPor: user,
+    metadatos: {
+      publicacion: productDoc.publicacion,
+      imagenesSubidas: uploadedImagesResult.summary?.uploadedCount || 0,
+    },
+  });
+
   const previousWasPublished =
     previousProduct?.publish === 'published' || previousProduct?.publicacion === 'publicado';
   const isPublished = savedProduct?.publish === 'published' || productDoc?.publicacion === 'publicado';
@@ -245,6 +266,26 @@ export const actualizarPublicacionProductoFirestore = async (productId, publish,
 
   const updatedProduct = mapearProductoFirestoreAUi({ id: productId, ...nextDoc });
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'productos',
+    accion: 'producto_publicacion_actualizada',
+    descripcion: `Publicación del producto ${updatedProduct.name || updatedProduct.title || productId} actualizada.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: updatedProduct.name || updatedProduct.title || productId,
+      ruta: `/dashboard/product/${productId}`,
+    },
+    antes: {
+      publicacion: currentDoc?.publicacion,
+    },
+    despues: {
+      publicacion: nextDoc?.publicacion,
+    },
+    realizadoPor: user,
+  });
+
   if (publish === 'published') {
     crearNotificacionProductoPublicado({ producto: updatedProduct, usuario: user }).catch((error) => {
       console.error('[product service] no se pudo notificar producto publicado', error);
@@ -254,8 +295,26 @@ export const actualizarPublicacionProductoFirestore = async (productId, publish,
   return updatedProduct;
 };
 
-export const eliminarProductoFirestore = async (productId) => {
+export const eliminarProductoFirestore = async (productId, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return;
 
-  await deleteDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId)));
+  const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
+  const previous = await getDoc(productRef);
+
+  await deleteDoc(productRef);
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'productos',
+    accion: 'producto_eliminado',
+    descripcion: `Producto ${productId} eliminado.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: previous.exists() ? previous.data()?.nombre || productId : productId,
+      ruta: '/dashboard/product',
+    },
+    antes: previous.exists() ? previous.data() : null,
+    realizadoPor: user,
+  });
 };

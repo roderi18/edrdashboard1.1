@@ -14,12 +14,28 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
+import { fDateTime } from 'src/utils/format-time';
+import { fDopCurrency } from 'src/utils/format-number';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 
 // ----------------------------------------------------------------------
 
-export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }) {
+const INVOICE_EXPORT_COLUMNS = [
+  { label: 'Recibo', value: (row) => row.invoiceNumber || row.id },
+  { label: 'Cliente', value: (row) => row.invoiceTo?.name || '' },
+  { label: 'Correo', value: (row) => row.invoiceTo?.company || row.invoiceTo?.email || '' },
+  { label: 'Creación', value: (row) => fDateTime(row.createDate) },
+  { label: 'Vence', value: (row) => fDateTime(row.dueDate) },
+  { label: 'Monto', value: (row) => fDopCurrency(row.totalAmount) },
+  { label: 'Enviado', value: (row) => row.sent },
+  { label: 'Estado', value: (row) => row.status },
+  { label: 'Items', value: (row) => (row.items || []).map((item) => item.title || item.name).join(', ') },
+];
+
+export function InvoiceTableToolbar({ filters, options, dateError, onResetPage, rows = [] }) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
@@ -77,10 +93,14 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
           Importar
         </MenuItem>
 
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:export-bold" />
-          Exportar
-        </MenuItem>
+        <ExportTableButton
+          rows={rows}
+          columns={INVOICE_EXPORT_COLUMNS}
+          pdfColumns={INVOICE_EXPORT_COLUMNS.slice(0, 8)}
+          title="Lista de recibos"
+          fileNamePrefix="lista-recibos"
+          trigger="menuItem"
+        />
       </MenuList>
     </CustomPopover>
   );

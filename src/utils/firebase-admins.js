@@ -15,6 +15,7 @@ import {
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
 // ----------------------------------------------------------------------
@@ -214,7 +215,7 @@ const createAdminRoleNotification = async ({ member = {}, action = 'assigned', a
   return notificationId;
 };
 
-export const asignarAdministradorDesdeMiembro = async (member) => {
+export const asignarAdministradorDesdeMiembro = async (member, { usuario = {} } = {}) => {
   const memberId = member?.idMiembros || member?.memberId || member?.id;
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.memberId || '';
   const nombres = member?.firstName || member?.nombres || '';
@@ -307,13 +308,33 @@ export const asignarAdministradorDesdeMiembro = async (member) => {
     console.error('[admins] no se pudo notificar la asignacion de administrador', error);
   });
 
+  registrarAuditoriaSilenciosa({
+    modulo: 'administradores',
+    accion: 'administrador_asignado',
+    descripcion: `${displayName || 'Usuario'} fue asignado como administrador.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'administrador',
+      id: adminDocId,
+      nombre: displayName,
+      ruta: '/dashboard/admin',
+    },
+    despues: adminPayload,
+    realizadoPor: usuario,
+    metadatos: {
+      idMiembros: Number(memberId) || null,
+      codigoMiembro,
+      uid,
+    },
+  });
+
   return {
     id: adminDocId,
     ...adminPayload,
   };
 };
 
-export const quitarAdministradorAMiembro = async (member) => {
+export const quitarAdministradorAMiembro = async (member, { usuario = {} } = {}) => {
   const memberId = member?.idMiembros || member?.memberId || member?.id;
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
   const adminDocId =
@@ -421,6 +442,32 @@ export const quitarAdministradorAMiembro = async (member) => {
     action: 'removed',
   }).catch((error) => {
     console.error('[admins] no se pudo notificar que se quito el administrador', error);
+  });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'administradores',
+    accion: 'administrador_removido',
+    descripcion: `${member?.name || member?.displayName || codigoMiembro || 'Usuario'} fue removido como administrador.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'administrador',
+      id: adminDocId || uid || codigoMiembro,
+      nombre: member?.name || member?.displayName || codigoMiembro,
+      ruta: '/dashboard/admin',
+    },
+    antes: {
+      rol: 'administrador',
+      idMiembros: Number(memberId) || null,
+      codigoMiembro,
+      uid,
+    },
+    despues: {
+      rol: 'usuario',
+      idMiembros: Number(memberId) || null,
+      codigoMiembro,
+      uid,
+    },
+    realizadoPor: usuario,
   });
 
   return {
