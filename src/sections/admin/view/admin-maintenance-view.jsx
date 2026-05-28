@@ -10,7 +10,6 @@ import Button from '@mui/material/Button';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 
@@ -137,17 +136,44 @@ export function AdminMaintenanceView() {
       </Box>
 
       <Card>
-        <CardHeader
-          title="Modo mantenimiento / respaldo"
-          subheader="Exporta datos clave, descarga logs y revisa colecciones vacías o inconsistentes."
-          action={
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        <Box sx={{ p: 3, pb: 1 }}>
+          <Stack
+            spacing={2}
+            direction={{ xs: 'column', md: 'row' }}
+            alignItems={{ xs: 'stretch', md: 'flex-start' }}
+            justifyContent="space-between"
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h6">Modo mantenimiento / respaldo</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                Exporta datos clave, descarga logs y revisa colecciones vacías o inconsistentes.
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                gap: 1,
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr) minmax(0, 1fr)',
+                  sm: 'auto auto auto',
+                },
+                justifyContent: { sm: 'flex-end' },
+                '& .MuiButton-root': {
+                  minWidth: 0,
+                  width: 1,
+                  whiteSpace: 'nowrap',
+                  px: { xs: 0.75, sm: 2 },
+                },
+              }}
+            >
               <Button
                 color="inherit"
                 variant="outlined"
                 loading={loading}
                 startIcon={<Iconify icon="solar:refresh-bold" />}
                 onClick={loadMaintenance}
+                sx={{ order: { xs: 3, sm: 1 }, gridColumn: { xs: '1 / -1', sm: 'auto' } }}
               >
                 Actualizar
               </Button>
@@ -157,6 +183,7 @@ export function AdminMaintenanceView() {
                 loading={downloadingLogs}
                 startIcon={<Iconify icon="solar:download-minimalistic-bold" />}
                 onClick={handleDownloadLogs}
+                sx={{ order: { xs: 1, sm: 2 } }}
               >
                 Descargar logs
               </Button>
@@ -165,12 +192,13 @@ export function AdminMaintenanceView() {
                 loading={exporting}
                 startIcon={<Iconify icon="solar:archive-down-bold" />}
                 onClick={handleExportBackup}
+                sx={{ order: { xs: 2, sm: 3 } }}
               >
                 Exportar respaldo
               </Button>
-            </Stack>
-          }
-        />
+            </Box>
+          </Stack>
+        </Box>
 
         <TableContainer sx={{ mt: 2 }}>
           <Scrollbar>

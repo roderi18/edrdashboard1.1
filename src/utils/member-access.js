@@ -14,6 +14,9 @@ import { MEMBER_AUTH_DOMAIN, normalizeMemberUsername } from './member-auth-crede
 export const isMemberSessionUser = (user) =>
   Boolean(user) && user?.role !== 'admin' && user?.role !== 'administrador';
 
+const isAdminSessionUser = (user) =>
+  ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
+
 export const getMemberPermissions = (user) => user?.permisos ?? user?.permissions ?? {};
 
 export const getMemberScope = (user) => user?.alcance ?? {};
@@ -374,6 +377,115 @@ const navPermissionByItem = (item, user) => {
   return false;
 };
 
+const hasExplicitPermissions = (permissions = {}) =>
+  Boolean(permissions && typeof permissions === 'object' && Object.keys(permissions).length);
+
+const canViewAdminModule = (permissions = {}, moduleKey) => {
+  if (!hasExplicitPermissions(permissions)) {
+    return true;
+  }
+
+  if (!moduleKey) {
+    return true;
+  }
+
+  return Boolean(permissions[moduleKey]?.ver);
+};
+
+const adminModuleByItem = (item) => {
+  const title = normalizeText(item.title || '');
+  const path = String(item.path || '');
+
+  if (
+    path === paths.dashboard.root ||
+    path === paths.dashboard.principal ||
+    path === paths.dashboard.principal2 ||
+    title === 'principal' ||
+    title === 'principal 2' ||
+    title === 'aplicacion' ||
+    title === 'aplicaciÃ³n' ||
+    title === 'dashboard'
+  ) {
+    return null;
+  }
+
+  if (path.startsWith(paths.dashboard.admin.logs) || title.includes('log')) return 'logs';
+  if (path.startsWith(paths.dashboard.admin.notifications) || title.includes('notificacion')) {
+    return 'notificaciones';
+  }
+  if (
+    path.startsWith(paths.dashboard.admin.maintenance) ||
+    path.startsWith(paths.dashboard.admin.health) ||
+    title.includes('mantenimiento') ||
+    title.includes('salud del sistema')
+  ) {
+    return 'mantenimiento';
+  }
+  if (
+    path.startsWith(paths.dashboard.admin.userPermissions) ||
+    title.includes('permiso') ||
+    title.includes('administrador')
+  ) {
+    return 'administradores';
+  }
+
+  if (
+    path.includes('/dashboard/level/member') ||
+    path.includes('/dashboard/member') ||
+    title.includes('miembro')
+  ) {
+    return 'miembros';
+  }
+  if (path.includes('/dashboard/level/dest') || title.includes('destacamento')) {
+    return 'destacamentos';
+  }
+  if (path.includes('/dashboard/level/sectional') || title.includes('seccion')) return 'secciones';
+  if (
+    path.includes('/dashboard/level/regional') ||
+    path.includes('/dashboard/level/national') ||
+    title.includes('region') ||
+    title.includes('consejo nacional')
+  ) {
+    return 'regiones';
+  }
+  if (path.includes('/dashboard/post') || title.includes('blog') || title.includes('publicacion')) {
+    return 'publicaciones';
+  }
+  if (path.includes('/dashboard/order') || title.includes('orden') || title.includes('pedido')) {
+    return 'pedidos';
+  }
+  if (path.includes('/dashboard/invoice') || title.includes('recibo') || title.includes('factura')) {
+    return 'facturas';
+  }
+  if (
+    path.includes('/dashboard/product') ||
+    path.includes('/dashboard/checkout') ||
+    title.includes('producto') ||
+    title.includes('tienda') ||
+    title.includes('carrito')
+  ) {
+    return 'productos';
+  }
+  if (
+    path.includes('/dashboard/file') ||
+    title.includes('archivo') ||
+    title.includes('documento')
+  ) {
+    return 'archivos';
+  }
+
+  return null;
+};
+
+const navPermissionByAdminItem = (item, user) => {
+  if (item.disabled) return false;
+
+  const permissions = getMemberPermissions(user);
+  const moduleKey = adminModuleByItem(item);
+
+  return canViewAdminModule(permissions, moduleKey);
+};
+
 export const filterDashboardNavDataForMember = (navData = [], user) =>
   navData
     .map((section) => {
@@ -463,6 +575,45 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
       return items.length ? { ...section, items } : null;
     })
     .filter(Boolean);
+
+export const filterDashboardNavDataByUser = (navData = [], user) => {
+  if (isMemberSessionUser(user)) {
+    return filterDashboardNavDataForMember(navData, user);
+  }
+
+  if (!isAdminSessionUser(user)) {
+    return navData;
+  }
+
+  const filterItems = (items = []) =>
+    items
+      .map((item) => {
+        const childItems = item.children ? filterItems(item.children) : [];
+        const itemAllowed = navPermissionByAdminItem(item, user);
+
+        if (item.children) {
+          if (itemAllowed || childItems.length) {
+            return {
+              ...item,
+              children: childItems.length ? childItems : undefined,
+            };
+          }
+
+          return null;
+        }
+
+        return itemAllowed ? item : null;
+      })
+      .filter(Boolean);
+
+  return navData
+    .map((section) => {
+      const items = filterItems(section.items);
+
+      return items.length ? { ...section, items } : null;
+    })
+    .filter(Boolean);
+};
 
 export const loadMemberAccessProfile = async (authUser) => {
   if (!isFirebaseConfigured || !FIRESTORE) {

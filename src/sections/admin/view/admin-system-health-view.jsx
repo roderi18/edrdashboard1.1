@@ -126,7 +126,27 @@ export function AdminSystemHealthView() {
             </Box>
           </Stack>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Box
+            sx={{
+              gap: 1,
+              width: { xs: 1, md: 'auto' },
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'minmax(0, 1fr) minmax(0, 1fr)',
+                md: 'auto auto',
+              },
+              '& .MuiButton-root': {
+                minWidth: 0,
+                width: 1,
+                px: { xs: 0.75, sm: 2 },
+                fontSize: { xs: '0.78rem', sm: '0.875rem' },
+                whiteSpace: 'nowrap',
+              },
+              '& .MuiButton-startIcon': {
+                mr: { xs: 0.5, sm: 1 },
+              },
+            }}
+          >
             <Button
               color="inherit"
               variant="outlined"
@@ -144,7 +164,7 @@ export function AdminSystemHealthView() {
             >
               Actualizar salud
             </Button>
-          </Stack>
+          </Box>
         </Stack>
       </Card>
 

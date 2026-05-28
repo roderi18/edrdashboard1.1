@@ -24,11 +24,14 @@ export function AdminTableToolbar({ filters, onResetPage, displayMode, setDispla
   return (
     <Box
       sx={{
-        gap: 2,
+        gap: { xs: 1, md: 2 },
         p: 2.5,
-        display: 'flex',
+        display: 'grid',
         alignItems: 'center',
-        flexDirection: { xs: 'column', md: 'row' },
+        gridTemplateColumns: {
+          xs: 'minmax(0, 1fr) auto auto',
+          md: 'minmax(240px, 360px) 1fr auto auto',
+        },
       }}
     >
       <TextField
@@ -45,10 +48,10 @@ export function AdminTableToolbar({ filters, onResetPage, displayMode, setDispla
             ),
           },
         }}
-        sx={{ maxWidth: { md: 360 } }}
+        sx={{ minWidth: 0, maxWidth: { md: 360 } }}
       />
 
-      <Box sx={{ flexGrow: 1 }} />
+      <Box sx={{ display: { xs: 'none', md: 'block' } }} />
 
       <ViewModeToggle
         value={displayMode}

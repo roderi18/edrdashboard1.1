@@ -190,6 +190,14 @@ export const navData = [
         path: paths.dashboard.admin.root,
         icon: ICONS.lock,
         deepMatch: true,
+        searchChildren: [
+          { title: 'Administradores', path: paths.dashboard.admin.root },
+          { title: 'Historial - Logs', path: paths.dashboard.admin.logs },
+          { title: 'Permisos a usuarios', path: paths.dashboard.admin.userPermissions },
+          { title: 'Notificaciones', path: paths.dashboard.admin.notifications },
+          { title: 'Mantenimiento', path: paths.dashboard.admin.maintenance },
+          { title: 'Salud del sistema', path: paths.dashboard.admin.health },
+        ],
       },
       {
         title: 'Blog',

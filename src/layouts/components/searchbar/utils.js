@@ -16,6 +16,10 @@ const flattenNavItems = (navItems, parentGroup) => {
     if (navItem.children) {
       flattenedItems = flattenedItems.concat(flattenNavItems(navItem.children, currentGroup));
     }
+
+    if (navItem.searchChildren) {
+      flattenedItems = flattenedItems.concat(flattenNavItems(navItem.searchChildren, currentGroup));
+    }
   });
   return flattenedItems;
 };

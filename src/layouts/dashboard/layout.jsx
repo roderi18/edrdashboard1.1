@@ -12,7 +12,7 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { isMemberSessionUser, filterDashboardNavDataForMember } from 'src/utils/member-access';
+import { filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
@@ -234,11 +234,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       mailUnreadCount: mailsSinLeer,
     });
 
-    if (!isMemberSessionUser(user)) {
-      return navDataConIndicadores;
-    }
-
-    return filterDashboardNavDataForMember(navDataConIndicadores, user);
+    return filterDashboardNavDataByUser(navDataConIndicadores, user);
   }, [chatsSinLeer, mailsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';
@@ -316,7 +312,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
           {/** @slot Searchbar */}
-          <Searchbar data={navData} disabled />
+          <Searchbar data={navData} />
 
           {/** @slot Language popover */}
           <LanguagePopover data={allLangs} disabled />

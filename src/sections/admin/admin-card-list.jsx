@@ -21,6 +21,8 @@ export function AdminCardList({ admins }) {
       <Box
         sx={{
           gap: 3,
+          p: 2.5,
+          pt: 0,
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
         }}
