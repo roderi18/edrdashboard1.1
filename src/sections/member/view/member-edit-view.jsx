@@ -46,7 +46,7 @@ export function MemberEditView({ member: currentMember }) {
   }
 
   return (
-    <MemberEditLayout>
+    <MemberEditLayout member={currentMember}>
       <MemberCreateEditForm currentMember={currentMember} />
     </MemberEditLayout>
   );

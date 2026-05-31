@@ -11,6 +11,7 @@ import {
 } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -64,10 +65,12 @@ export default function Page() {
   }
 
   return (
-    <MemberCreateEditForm
-      currentMember={currentMember}
-      readOnly={!canManage}
-      availableDests={availableDests}
-    />
+    <MemberEditLayout member={currentMember}>
+      <MemberCreateEditForm
+        currentMember={currentMember}
+        readOnly={!canManage}
+        availableDests={availableDests}
+      />
+    </MemberEditLayout>
   );
 }

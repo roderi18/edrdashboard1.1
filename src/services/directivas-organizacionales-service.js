@@ -125,6 +125,8 @@ const buildLocalPositionMap = () =>
     ])
   );
 
+const cargosDirectivaCache = new Map();
+
 const mergePositionWithApiCargo = ({ position, apiCargo, localPosition }) => {
   const nombreCargo = apiCargo?.nombre || localPosition?.nombreCargo || '';
   const nombreDivision = position.division ? NOMBRES_DIVISION[position.division] || '' : '';
@@ -264,6 +266,38 @@ export async function obtenerCargosDirectiva({
       .filter((cargo) => (incluirInactivos ? true : cargo.activo !== false))
       .filter((cargo) => (incluirNoAsignables ? true : cargo.asignable !== false))
   );
+}
+
+export async function obtenerCargosDirectivaCached({
+  nivel = '',
+  division,
+  incluirInactivos = false,
+  incluirNoAsignables = true,
+  forceRefresh = false,
+} = {}) {
+  const cacheKey = JSON.stringify({
+    nivel: nivel || '',
+    division: division ?? '__all__',
+    incluirInactivos: Boolean(incluirInactivos),
+    incluirNoAsignables: Boolean(incluirNoAsignables),
+  });
+
+  if (!forceRefresh && cargosDirectivaCache.has(cacheKey)) {
+    return cargosDirectivaCache.get(cacheKey);
+  }
+
+  const request = obtenerCargosDirectiva({
+    nivel,
+    division,
+    incluirInactivos,
+    incluirNoAsignables,
+  }).catch((error) => {
+    cargosDirectivaCache.delete(cacheKey);
+    throw error;
+  });
+
+  cargosDirectivaCache.set(cacheKey, request);
+  return request;
 }
 
 export async function guardarDirectivaOrganizacional({

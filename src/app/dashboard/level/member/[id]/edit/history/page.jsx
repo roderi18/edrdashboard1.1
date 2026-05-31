@@ -8,6 +8,7 @@ import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberHistoryLog } from 'src/sections/member/history/member-history-log';
 
 const LOCAL_DEMO_MEMBER_CODE = 'DO-SD-111111017';
@@ -169,14 +170,16 @@ export default function Page() {
   const memberId = currentMember?.id || id;
 
   return (
-    <MemberHistoryLog
-      memberId={memberId}
-      memberName={memberName}
-      demoLogs={
-        isLocalhost() && isLocalDemoMember(currentMember, id)
-          ? getLocalDemoHistoryLogs(memberName)
-          : []
-      }
-    />
+    <MemberEditLayout member={currentMember}>
+      <MemberHistoryLog
+        memberId={memberId}
+        memberName={memberName}
+        demoLogs={
+          isLocalhost() && isLocalDemoMember(currentMember, id)
+            ? getLocalDemoHistoryLogs(memberName)
+            : []
+        }
+      />
+    </MemberEditLayout>
   );
 }

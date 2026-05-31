@@ -51,7 +51,7 @@ export default function Page() {
     };
 
     return (
-        <MemberEditLayout>
+        <MemberEditLayout member={memberWithResolvedData}>
             <MemberCreateEditForm currentMember={memberWithResolvedData} />
         </MemberEditLayout>
     );

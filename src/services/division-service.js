@@ -1,31 +1,41 @@
+let divisionsCachePromise = null;
+
 export async function getDivisions() {
+    if (divisionsCachePromise) {
+        return divisionsCachePromise;
+    }
+
     try {
-        const isServer = typeof window === 'undefined';
+        divisionsCachePromise = (async () => {
+            const isServer = typeof window === 'undefined';
 
-        const url = isServer
-            ? 'https://systexploradores.somee.com/api/Divisiones/GetAllDivisiones'
-            : '/api/divisions';
+            const url = isServer
+                ? 'https://systexploradores.somee.com/api/Divisiones/GetAllDivisiones'
+                : '/api/divisions';
 
-        const res = await fetch(url);
+            const res = await fetch(url);
 
-        const text = await res.text();
+            const text = await res.text();
 
-        let parsed;
+            let parsed;
 
-        try {
-            parsed = JSON.parse(text);
-        } catch {
-            return [];
-        }
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                return [];
+            }
 
-        const rows = parsed?.data || parsed?.Data || [];
+            const rows = parsed?.data || parsed?.Data || [];
 
-        return rows.map((d) => ({
-            id: d.idDivision,
-            name: d.nombre,
-        }));
+            return rows.map((d) => ({
+                id: d.idDivision,
+                name: d.nombre,
+            }));
+        })();
 
+        return await divisionsCachePromise;
     } catch (error) {
+        divisionsCachePromise = null;
         return [];
     }
 }

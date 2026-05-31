@@ -8,6 +8,7 @@ import { canMemberManageMembers } from 'src/utils/member-access';
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -59,5 +60,9 @@ export default function Page() {
     return <div>Miembro no encontrado</div>;
   }
 
-  return <MemberEditHealthForm currentMember={currentMember} readOnly={!canManage} />;
+  return (
+    <MemberEditLayout member={currentMember}>
+      <MemberEditHealthForm currentMember={currentMember} readOnly={!canManage} />
+    </MemberEditLayout>
+  );
 }

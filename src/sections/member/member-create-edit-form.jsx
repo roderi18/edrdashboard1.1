@@ -1,7 +1,7 @@
 // third-party
 import dayjs from 'dayjs';
 // react
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { doc, setDoc, collection } from 'firebase/firestore';
@@ -67,7 +67,7 @@ import {
 } from 'src/services/cargos-api-service';
 import {
   DIVISIONES_DIRECTIVA,
-  obtenerCargosDirectiva,
+  obtenerCargosDirectivaCached,
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectivaPorMiembro,
 } from 'src/services/directivas-organizacionales-service';
@@ -371,10 +371,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const { user } = useAuthContext();
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
-  const [members, setMembers] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUploadErrorMessage, setPhotoUploadErrorMessage] = useState('');
+  const lastCalculatedBirthdateRef = useRef('');
+  const skippedInitialDivisionFetchRef = useRef(false);
 
   useEffect(() => {
     if (Array.isArray(availableDests) && availableDests.length) {
@@ -389,15 +390,6 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     };
 
     load();
-  }, []);
-
-  useEffect(() => {
-    const loadMembers = async () => {
-      const data = await getMembers();
-      setMembers(data);
-    };
-
-    loadMembers();
   }, []);
   const router = useRouter();
   const theme = useTheme();
@@ -469,7 +461,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       try {
         const [cargosMiembro, cargosDirectiva, asignacionesDirectiva] = await Promise.all([
           obtenerCargosMiembroApi(memberId),
-          obtenerCargosDirectiva({ incluirNoAsignables: false }),
+          obtenerCargosDirectivaCached({ incluirNoAsignables: false }),
           obtenerAsignacionesDirectivaPorMiembro({ idMiembro: memberId }),
         ]);
 
@@ -562,8 +554,38 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   useEffect(() => {
     if (!birthdate) return;
 
+    const normalizedBirthdate = dayjs(birthdate).format('YYYY-MM-DD');
+
+    if (lastCalculatedBirthdateRef.current === normalizedBirthdate) {
+      return;
+    }
+
+    const currentMemberBirthdate = currentMember?.birthDate
+      ? dayjs(currentMember.birthDate).format('YYYY-MM-DD')
+      : currentMember?.birth
+        ? dayjs(currentMember.birth).format('YYYY-MM-DD')
+        : currentMember?.dateOfBirth
+          ? dayjs(currentMember.dateOfBirth).format('YYYY-MM-DD')
+          : '';
+    const hasCurrentDivisionData = Boolean(currentMember?.idDivision || currentMember?.memberDivision);
+
+    if (
+      !skippedInitialDivisionFetchRef.current &&
+      currentMember &&
+      hasCurrentDivisionData &&
+      normalizedBirthdate === currentMemberBirthdate
+    ) {
+      skippedInitialDivisionFetchRef.current = true;
+      lastCalculatedBirthdateRef.current = normalizedBirthdate;
+      setDivision(currentMember?.memberDivision || '');
+      setDivisionId(currentMember?.idDivision || null);
+      return;
+    }
+
+    skippedInitialDivisionFetchRef.current = true;
+    lastCalculatedBirthdateRef.current = normalizedBirthdate;
+
     const load = async () => {
-      const normalizedBirthdate = dayjs(birthdate).format('YYYY-MM-DD');
       const res = await fetch(
         `/api/divisions/calculate?birthdate=${encodeURIComponent(normalizedBirthdate)}`
       );
@@ -694,7 +716,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       return null;
     }
 
-    const cargos = await obtenerCargosDirectiva({ incluirNoAsignables: false });
+    const cargos = await obtenerCargosDirectivaCached({ incluirNoAsignables: false });
 
     return cargos.find((cargo) =>
       [cargo?.idCargo, cargo?.idCargoApi, cargo?.idPosicionDirectiva, cargo?.id, cargo?.value].some(

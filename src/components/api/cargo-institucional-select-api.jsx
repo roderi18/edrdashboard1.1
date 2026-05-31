@@ -9,7 +9,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 
 import {
   NIVELES_DIRECTIVA,
-  obtenerCargosDirectiva,
+  obtenerCargosDirectivaCached,
 } from 'src/services/directivas-organizacionales-service';
 
 import { Iconify } from 'src/components/iconify';
@@ -92,7 +92,7 @@ export default function CargoSelectApi({
       setLoading(true);
 
       try {
-        const data = await obtenerCargosDirectiva({ incluirNoAsignables: false });
+        const data = await obtenerCargosDirectivaCached({ incluirNoAsignables: false });
 
         if (!isMounted) return;
 
