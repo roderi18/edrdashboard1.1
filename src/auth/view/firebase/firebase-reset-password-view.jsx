@@ -5,23 +5,23 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 
+import { PasswordIcon } from 'src/assets/icons';
+import { Form, Field } from 'src/components/hook-form';
 import { paths } from 'src/routes/paths';
-
 import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 
-import { PasswordIcon } from 'src/assets/icons';
-
-import { Form, Field } from 'src/components/hook-form';
-
-import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
 import { FormReturnLink } from '../../components/form-return-link';
 import { sendPasswordResetEmail } from '../../components/context/firebase';
+import { getErrorMessage } from '../../utils';
 
 // ----------------------------------------------------------------------
 
@@ -52,7 +52,7 @@ const findMemberByUsername = async (username) => {
   const res = await fetch('/api/members/');
 
   if (!res.ok) {
-    throw new Error('No se pudo consultar la información del miembro.');
+    throw new Error('No se pudo consultar la informacion del miembro.');
   }
 
   const data = await res.json();
@@ -103,12 +103,14 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         }
 
         if (!admin.data?.correo) {
-          setErrorMessage('No existe ningún correo asignado para este administrador.');
+          setErrorMessage('No existe ningun correo asignado para este administrador.');
           return;
         }
 
         await sendPasswordResetEmail({ email: admin.data.correo });
-        setSuccessMessage(`Te enviamos un enlace para restablecer tu contraseña a ${admin.data.correo}.`);
+        setSuccessMessage(
+          `Te enviamos un enlace para restablecer tu contrasena a ${admin.data.correo}.`
+        );
         return;
       }
 
@@ -126,7 +128,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
 
       await sendPasswordResetEmail({ email: member.correo });
 
-      setSuccessMessage(`Te enviamos un enlace para restablecer tu contraseña a ${member.correo}.`);
+      setSuccessMessage(`Te enviamos un enlace para restablecer tu contrasena a ${member.correo}.`);
     } catch (error) {
       if (!expectedResetErrorCodes.includes(error?.code)) {
         console.error(error);
@@ -148,67 +150,20 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         return;
       }
 
-      setSuccessMessage('Solicitud de recuperación enviada a John Doe - Dest. Prueba 18.');
+      setSuccessMessage(
+        'Solicitud de recuperacion enviada. Tu coordinador recibira el aviso para ayudarte.'
+      );
     } catch (error) {
       console.error(error);
-      setErrorMessage(error?.message || 'No se pudo enviar la solicitud de recuperación.');
+      setErrorMessage(error?.message || 'No se pudo enviar la solicitud de recuperacion.');
     }
   });
-
-  const renderForm = () => (
-    <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      {isAdminMode ? (
-        <Field.Text
-          autoFocus
-          name="loginValue"
-          label="Usuario o correo electrónico"
-          placeholder="admin001 o correo@correo.com"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      ) : (
-        <Field.Text
-          autoFocus
-          name="userNumber"
-          label="Código de usuario"
-          placeholder="111111017"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      )}
-
-      <Button
-        fullWidth
-        size="large"
-        type="button"
-        variant="contained"
-        loading={isSubmitting}
-        loadingIndicator="Enviando solicitud..."
-        onClick={handleSendEmailLink}
-      >
-        Enviar enlace a mi correo
-      </Button>
-
-      {!isAdminMode && (
-        <Button
-          fullWidth
-          size="large"
-          type="button"
-          color="inherit"
-          variant="outlined"
-          loading={isSubmitting}
-          loadingIndicator="Enviando solicitud..."
-          onClick={handleRequestCoordinator}
-        >
-          Solicitar recuperación a mi Coordinador
-        </Button>
-      )}
-    </Box>
-  );
 
   return (
     <>
       <FormHead
         icon={<PasswordIcon />}
-        title="¿Olvidaste tu contraseña?"
+        title="Olvidaste tu contrasena?"
         description={
           isAdminMode
             ? 'Ingresa tu usuario o correo de administrador para recuperar el acceso a tu cuenta.'
@@ -217,20 +172,100 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       />
 
       {!!errorMessage && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {errorMessage}
         </Alert>
       )}
 
       {!!successMessage && (
-        <Alert severity="success" sx={{ mb: 3 }}>
+        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
           {successMessage}
         </Alert>
       )}
 
-      <Form methods={methods}>{renderForm()}</Form>
+      <Form methods={methods}>
+        <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 2.5,
+              border: (theme) => `1px solid ${theme.vars.palette.divider}`,
+              bgcolor: 'background.neutral',
+            }}
+          >
+            <Stack spacing={1.25}>
+              <Typography variant="subtitle2">Que puedes hacer desde aqui</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
+                ayuda a tu coordinador cuando no tengas acceso al email registrado.
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Chip size="small" variant="outlined" label="Enlace por correo" />
+                {!isAdminMode && (
+                  <Chip size="small" variant="outlined" label="Ayuda del coordinador" />
+                )}
+                <Chip size="small" variant="outlined" label="Paso a paso" />
+              </Stack>
+            </Stack>
+          </Box>
 
-      <FormReturnLink href={isAdminMode ? paths.auth.firebase.adminSignIn : paths.auth.firebase.signIn} />
+          {isAdminMode ? (
+            <Field.Text
+              autoFocus
+              name="loginValue"
+              label="Usuario o correo electronico"
+              placeholder="admin001 o correo@correo.com"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          ) : (
+            <Field.Text
+              autoFocus
+              name="userNumber"
+              label="Codigo de usuario"
+              placeholder="111111017"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          )}
+
+          <Button
+            fullWidth
+            size="large"
+            type="button"
+            variant="contained"
+            loading={isSubmitting}
+            loadingIndicator="Enviando solicitud..."
+            onClick={handleSendEmailLink}
+            sx={{ minHeight: 54, borderRadius: 1.8 }}
+          >
+            Enviar enlace a mi correo
+          </Button>
+
+          {!isAdminMode && (
+            <Button
+              fullWidth
+              size="large"
+              type="button"
+              color="inherit"
+              variant="outlined"
+              loading={isSubmitting}
+              loadingIndicator="Enviando solicitud..."
+              onClick={handleRequestCoordinator}
+              sx={{ minHeight: 54, borderRadius: 1.8 }}
+            >
+              Solicitar recuperacion a mi Coordinador
+            </Button>
+          )}
+
+          <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+            Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
+            nuevo.
+          </Typography>
+        </Box>
+      </Form>
+
+      <FormReturnLink
+        href={isAdminMode ? paths.auth.firebase.adminSignIn : paths.auth.firebase.signIn}
+      />
     </>
   );
 }

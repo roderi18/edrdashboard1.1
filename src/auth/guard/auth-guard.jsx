@@ -46,7 +46,13 @@ export function AuthGuard({ children }) {
   }, [authenticated, loading, pathname]);
 
   if (isChecking || loading) {
-    return <SplashScreen />;
+    return (
+      <SplashScreen
+        portal={false}
+        title="Verificando tu acceso"
+        description="Estamos preparando tu sesión para llevarte al panel correcto."
+      />
+    );
   }
 
   return <>{children}</>;

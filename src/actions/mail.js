@@ -110,8 +110,8 @@ const requestJson = async (url, options = {}) => {
 
 // ----------------------------------------------------------------------
 
-export function useGetLabels() {
-  const url = endpoints.mail.labels;
+export function useGetLabels(enabled = true) {
+  const url = enabled ? endpoints.mail.labels : '';
 
   const { data, isLoading, error, isValidating } = useSWR(url, localFetcher, {
     ...swrOptions,

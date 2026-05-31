@@ -58,57 +58,6 @@ const buildAdminSessionFromMemberAccess = (authUser, access = {}) => {
   });
 };
 
-const getIdentityKeys = (values = []) =>
-  values
-    .filter(Boolean)
-    .flatMap((value) => {
-      const normalizedValue = String(value).trim().toLowerCase();
-      const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
-
-      return [normalizedValue, emailUser].filter(Boolean);
-    });
-
-const getAdminMemberPhotoFromContacts = async (profile = {}, authUser = {}) => {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  const response = await fetch(`${window.location.origin}/api/chat/?endpoint=contacts`, {
-    cache: 'no-store',
-  }).catch(() => null);
-
-  if (!response?.ok) {
-    return '';
-  }
-
-  const data = await response.json().catch(() => ({}));
-  const contacts = Array.isArray(data.contacts) ? data.contacts : [];
-  const profileKeys = getIdentityKeys([
-    profile.idMiembros,
-    profile.memberId,
-    profile.codigoMiembro,
-    profile.codigoUsuario,
-    profile.correo,
-    profile.email,
-    authUser.email,
-    authUser.uid,
-  ]);
-
-  const contact = contacts.find((item) =>
-    getIdentityKeys([
-      item.idMiembros,
-      item.id,
-      item.memberId,
-      item.codigoMiembro,
-      item.codigoUsuario,
-      item.correo,
-      item.email,
-    ]).some((value) => profileKeys.includes(value))
-  );
-
-  return contact?.avatarUrl || '';
-};
-
 const buildAdminSessionWithMemberPhoto = async (authUser, profile = {}) => {
   const adminProfile = profile.data ?? profile;
   const idMiembros = adminProfile.idMiembros ?? adminProfile.memberId;
@@ -118,14 +67,10 @@ const buildAdminSessionWithMemberPhoto = async (authUser, profile = {}) => {
         null
       )
     : null;
-  const contactPhotoURL = memberPhoto?.urlFoto
-    ? ''
-    : await withTimeout(getAdminMemberPhotoFromContacts(adminProfile, authUser), '');
 
   return buildAdminSessionUser(authUser, {
     ...adminProfile,
-    photoURL:
-      memberPhoto?.urlFoto || contactPhotoURL || adminProfile.photoURL || adminProfile.avatarUrl || '',
+    photoURL: memberPhoto?.urlFoto || adminProfile.photoURL || adminProfile.avatarUrl || '',
   });
 };
 

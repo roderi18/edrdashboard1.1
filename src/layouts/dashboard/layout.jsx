@@ -103,13 +103,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const theme = useTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isChatRoute = pathname?.startsWith(paths.dashboard.chat);
+  const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
-  const { contacts } = useGetContacts();
-  const { labels: mailLabels } = useGetLabels();
+  const { contacts } = useGetContacts(isChatRoute);
+  const { labels: mailLabels } = useGetLabels(isMailRoute);
   const currentContact = useChatCurrentContact(contacts);
-  const { conversations } = useGetConversations(currentContact.idMiembros);
-  const activeChatId = pathname?.startsWith(paths.dashboard.chat) ? searchParams.get('id') : null;
+  const { conversations } = useGetConversations(currentContact.idMiembros, isChatRoute);
+  const activeChatId = isChatRoute ? searchParams.get('id') : null;
   const chatsSinLeer = conversations.allIds.reduce(
     (total, conversationId) =>
       total +
@@ -218,7 +220,13 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
     cargarNotificaciones();
     window.addEventListener('notificaciones:actualizar', cargarNotificaciones);
-    const intervalId = window.setInterval(cargarNotificaciones, 5000);
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+
+      cargarNotificaciones();
+    }, 30000);
 
     return () => {
       isMounted = false;

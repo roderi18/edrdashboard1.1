@@ -17,6 +17,10 @@ const swrOptions = {
   revalidateOnReconnect: enableServer,
 };
 
+const CHAT_CONTACTS_REFRESH_INTERVAL = 0;
+const CHAT_CONVERSATIONS_REFRESH_INTERVAL = 10000;
+const CHAT_CONVERSATION_REFRESH_INTERVAL = 5000;
+
 // ----------------------------------------------------------------------
 
 const isChatKey = (key, endpoint) =>
@@ -27,12 +31,12 @@ const isConversationKey = (key, conversationId) =>
 
 const isConversationsKey = (key) => isChatKey(key, 'conversations');
 
-export function useGetContacts() {
-  const url = [CHAT_ENDPOINT, { params: { endpoint: 'contacts' } }];
+export function useGetContacts(enabled = true) {
+  const url = enabled ? [CHAT_ENDPOINT, { params: { endpoint: 'contacts' } }] : '';
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
-    refreshInterval: enableServer ? 1500 : 0,
+    refreshInterval: enabled && enableServer ? CHAT_CONTACTS_REFRESH_INTERVAL : 0,
   });
 
   const memoizedValue = useMemo(
@@ -51,14 +55,14 @@ export function useGetContacts() {
 
 // ----------------------------------------------------------------------
 
-export function useGetConversations(idMiembros) {
-  const url = idMiembros
+export function useGetConversations(idMiembros, enabled = true) {
+  const url = enabled && idMiembros
     ? [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }]
     : '';
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
-    refreshInterval: enableServer ? 1500 : 0,
+    refreshInterval: enabled && enableServer ? CHAT_CONVERSATIONS_REFRESH_INTERVAL : 0,
   });
 
   const memoizedValue = useMemo(() => {
@@ -89,7 +93,7 @@ export function useGetConversation(conversationId, idMiembros) {
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
-    refreshInterval: enableServer ? 1500 : 0,
+    refreshInterval: enableServer ? CHAT_CONVERSATION_REFRESH_INTERVAL : 0,
   });
 
   const memoizedValue = useMemo(

@@ -2,7 +2,6 @@
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -35,80 +34,15 @@ import { SignOutButton } from './sign-out-button';
 
 // ----------------------------------------------------------------------
 
-const getIdentityKeys = (values = []) =>
-  values.filter(Boolean).flatMap((value) => {
-    const normalizedValue = String(value).trim().toLowerCase();
-    const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
-
-    return [normalizedValue, emailUser].filter(Boolean);
-  });
-
 export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
-  const [resolvedPhotoURL, setResolvedPhotoURL] = useState('');
   const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
-  const accountPhotoURL = user?.photoURL || resolvedPhotoURL;
-  const userIdentityKeys = useMemo(
-    () =>
-      getIdentityKeys([
-        user?.idMiembros,
-        user?.memberId,
-        user?.codigoMiembro,
-        user?.codigoUsuario,
-        user?.correo,
-        user?.email,
-        user?.uid,
-      ]),
-    [user]
-  );
+  const accountPhotoURL = user?.photoURL || '';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
-
-  useEffect(() => {
-    let active = true;
-
-    if (user?.photoURL || !userIdentityKeys.length) {
-      setResolvedPhotoURL('');
-      return undefined;
-    }
-
-    const resolvePhoto = async () => {
-      const response = await fetch('/api/chat/?endpoint=contacts', { cache: 'no-store' }).catch(
-        () => null
-      );
-
-      if (!active || !response?.ok) {
-        return;
-      }
-
-      const payload = await response.json().catch(() => ({}));
-      const contacts = Array.isArray(payload.contacts) ? payload.contacts : [];
-      const contact = contacts.find((item) =>
-        getIdentityKeys([
-          item.idMiembros,
-          item.id,
-          item.memberId,
-          item.codigoMiembro,
-          item.codigoUsuario,
-          item.correo,
-          item.email,
-        ]).some((value) => userIdentityKeys.includes(value))
-      );
-
-      if (active) {
-        setResolvedPhotoURL(contact?.avatarUrl || '');
-      }
-    };
-
-    resolvePhoto();
-
-    return () => {
-      active = false;
-    };
-  }, [user?.photoURL, userIdentityKeys]);
 
   const renderAvatar = () => (
     <AnimateBorder

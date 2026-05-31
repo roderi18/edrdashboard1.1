@@ -54,14 +54,6 @@ const NAV_ITEMS = [
 
 const TAB_PARAM = 'tab';
 
-const getIdentityKeys = (values = []) =>
-  values.filter(Boolean).flatMap((value) => {
-    const normalizedValue = String(value).trim().toLowerCase();
-    const emailUser = normalizedValue.includes('@') ? normalizedValue.split('@')[0] : '';
-
-    return [normalizedValue, emailUser].filter(Boolean);
-  });
-
 const getDisplayName = (user, fallback = '') =>
   user?.displayName ||
   user?.name ||
@@ -126,72 +118,7 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
   const { user: sessionUser } = useAuthContext();
 
   const [searchFriends, setSearchFriends] = useState('');
-  const [resolvedPhotoURL, setResolvedPhotoURL] = useState('');
   const [targetProfile, setTargetProfile] = useState(null);
-
-  const userIdentityKeys = useMemo(
-    () =>
-      getIdentityKeys([
-        sessionUser?.idMiembros,
-        sessionUser?.memberId,
-        sessionUser?.codigoMiembro,
-        sessionUser?.codigoUsuario,
-        sessionUser?.correo,
-        sessionUser?.email,
-        sessionUser?.uid,
-      ]),
-    [sessionUser]
-  );
-
-  useEffect(() => {
-    let active = true;
-    const hasPhoto = sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto;
-
-    if (!useSessionProfile || hasPhoto || !userIdentityKeys.length) {
-      setResolvedPhotoURL('');
-      return undefined;
-    }
-
-    const resolvePhoto = async () => {
-      const response = await fetch('/api/chat/?endpoint=contacts', { cache: 'no-store' }).catch(
-        () => null
-      );
-
-      if (!active || !response?.ok) {
-        return;
-      }
-
-      const payload = await response.json().catch(() => ({}));
-      const contacts = Array.isArray(payload.contacts) ? payload.contacts : [];
-      const contact = contacts.find((item) =>
-        getIdentityKeys([
-          item.idMiembros,
-          item.id,
-          item.memberId,
-          item.codigoMiembro,
-          item.codigoUsuario,
-          item.correo,
-          item.email,
-        ]).some((value) => userIdentityKeys.includes(value))
-      );
-
-      if (active) {
-        setResolvedPhotoURL(contact?.avatarUrl || '');
-      }
-    };
-
-    resolvePhoto();
-
-    return () => {
-      active = false;
-    };
-  }, [
-    useSessionProfile,
-    userIdentityKeys,
-    sessionUser?.photoURL,
-    sessionUser?.avatarUrl,
-    sessionUser?.urlFoto,
-  ]);
 
   useEffect(() => {
     let active = true;
@@ -232,8 +159,7 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
   }, [profileMemberId]);
 
   const currentDisplayName = getDisplayName(sessionUser, mockedUser?.displayName);
-  const currentPhotoURL =
-    sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto || resolvedPhotoURL;
+  const currentPhotoURL = sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto || '';
   const viewerUser =
     sessionUser || useSessionProfile
       ? {

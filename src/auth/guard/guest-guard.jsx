@@ -50,7 +50,17 @@ export function GuestGuard({ children }) {
   }, [authenticated, forceSignOut, loading]);
 
   if (isChecking) {
-    return <SplashScreen />;
+    return (
+      <SplashScreen
+        portal={false}
+        title={forceSignOut ? 'Cerrando sesión anterior' : 'Preparando acceso'}
+        description={
+          forceSignOut
+            ? 'Estamos limpiando la sesión activa para mostrarte el formulario correcto.'
+            : 'Estamos validando tu sesión para mostrarte la pantalla adecuada.'
+        }
+      />
+    );
   }
 
   return <>{children}</>;

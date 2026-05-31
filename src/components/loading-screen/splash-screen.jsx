@@ -2,21 +2,55 @@
 
 import { Fragment } from 'react';
 
+import Box from '@mui/material/Box';
 import Portal from '@mui/material/Portal';
+import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
 
 import { AnimateLogoZoom } from '../animate';
 
 // ----------------------------------------------------------------------
 
-export function SplashScreen({ portal = true, slots, slotProps, sx, ...other }) {
+export function SplashScreen({
+  portal = true,
+  title,
+  description,
+  slots,
+  slotProps,
+  sx,
+  ...other
+}) {
   const PortalWrapper = portal ? Portal : Fragment;
 
   return (
     <PortalWrapper>
       <LoadingWrapper {...slotProps?.wrapper}>
         <LoadingContent sx={sx} {...other}>
-          {slots?.logo ?? <AnimateLogoZoom {...slotProps?.logo} />}
+          <Box
+            sx={{
+              px: 3,
+              width: 1,
+              maxWidth: 360,
+              display: 'flex',
+              textAlign: 'center',
+              alignItems: 'center',
+              flexDirection: 'column',
+            }}
+          >
+            {slots?.logo ?? <AnimateLogoZoom {...slotProps?.logo} />}
+
+            {(title || description) && (
+              <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {!!title && <Typography variant="h6">{title}</Typography>}
+
+                {!!description && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {description}
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
         </LoadingContent>
       </LoadingWrapper>
     </PortalWrapper>
