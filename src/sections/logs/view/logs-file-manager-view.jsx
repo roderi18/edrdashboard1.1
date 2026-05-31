@@ -341,7 +341,7 @@ export function LogsFileManagerView({ embedded = false }) {
             display: 'grid',
             gridTemplateColumns: {
               xs: 'minmax(0, 1fr) auto',
-              md: 'repeat(6, minmax(0, 1fr))',
+              md: 'repeat(12, minmax(0, 1fr))',
             },
           }}
         >
@@ -350,7 +350,7 @@ export function LogsFileManagerView({ embedded = false }) {
             value={search}
             placeholder="Buscar por acción, usuario, entidad o detalle"
             onChange={(event) => setSearch(event.target.value)}
-            sx={{ minWidth: 0, gridColumn: { md: 'span 2' } }}
+            sx={{ minWidth: 0, gridColumn: { md: 'span 4' } }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -385,7 +385,7 @@ export function LogsFileManagerView({ embedded = false }) {
             sx={{
               gap: 2,
               display: 'grid',
-              gridColumn: { xs: '1 / -1', md: 'span 2' },
+              gridColumn: { xs: '1 / -1', md: 'span 4' },
               gridTemplateColumns: {
                 xs: 'repeat(2, minmax(0, 1fr))',
                 md: 'repeat(2, minmax(0, 1fr))',
@@ -424,7 +424,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Módulo"
             value={moduleFilter}
             onChange={(event) => setModuleFilter(event.target.value)}
-            sx={{ display: { xs: 'none', md: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, gridColumn: { md: 'span 2' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {modules.map((modulo) => (
@@ -440,7 +440,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Resultado"
             value={resultFilter}
             onChange={(event) => setResultFilter(event.target.value)}
-            sx={{ display: { xs: 'none', md: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, gridColumn: { md: 'span 2' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             <MenuItem value="exitoso">Exitoso</MenuItem>
@@ -454,7 +454,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Severidad"
             value={severityFilter}
             onChange={(event) => setSeverityFilter(event.target.value)}
-            sx={{ display: { xs: 'none', md: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, gridColumn: { md: 'span 2' } }}
           >
             <MenuItem value="todos">Todas</MenuItem>
             <MenuItem value="informativa">Informativa</MenuItem>
@@ -468,7 +468,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Actor"
             value={actorFilter}
             onChange={(event) => setActorFilter(event.target.value)}
-            sx={{ display: { xs: 'none', md: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, gridColumn: { md: 'span 2' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {actors.map((actor) => (
@@ -484,7 +484,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Origen"
             value={originFilter}
             onChange={(event) => setOriginFilter(event.target.value)}
-            sx={{ display: { xs: 'none', md: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, gridColumn: { md: 'span 2' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {origins.map((origin) => (
@@ -498,7 +498,7 @@ export function LogsFileManagerView({ embedded = false }) {
             sx={{
               gap: 2,
               display: 'grid',
-              gridColumn: { xs: '1 / -1', md: 'span 3' },
+              gridColumn: { xs: '1 / -1', md: 'span 6' },
               gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(2, minmax(0, 1fr))' },
               justifyContent: { md: 'stretch' },
             }}
