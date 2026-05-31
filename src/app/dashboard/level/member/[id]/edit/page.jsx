@@ -3,11 +3,14 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
-import { getMembers } from 'src/services/member-service';
+import {
+  getResolvedMemberByIdentifier,
+  getMemberDirectoryMetadata,
+} from 'src/services/member-context-service';
 
+import { SplashScreen } from 'src/components/loading-screen';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -18,72 +21,53 @@ export default function Page() {
 
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
+  const [availableDests, setAvailableDests] = useState([]);
   const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
-      const allMembers = await getMembers();
-      const resDests = await fetch('/api/dest');
-      const dataDests = await resDests.json();
-      const dests = dataDests?.data || dataDests?.Data || [];
+      try {
+        const [metadata, member] = await Promise.all([
+          getMemberDirectoryMetadata(),
+          getResolvedMemberByIdentifier(id, { includeMetadata: true, includePhoto: true }),
+        ]);
 
-      const resChurches = await fetch('/api/churches');
-      const dataChurches = await resChurches.json();
-      const churches = dataChurches?.data || dataChurches?.Data || [];
+        if (cancelled) return;
 
-      const resSectionals = await fetch('/api/sectional');
-      const dataSectionals = await resSectionals.json();
-      const sectionals = dataSectionals?.data || dataSectionals?.Data || [];
-
-      const resRegionals = await fetch('/api/regional');
-      const dataRegionals = await resRegionals.json();
-      const regionals = dataRegionals?.data || dataRegionals?.Data || [];
-
-      const member = allMembers.find(
-        (m) =>
-          String(m.id) === String(id) ||
-          String(m.memberId) === String(id) ||
-          String(m.codigoMiembro) === String(id)
-      );
-
-      if (!member) {
-        setCurrentMember(null);
-        setHydrated(true);
-        return;
+        setAvailableDests(metadata?.dests || []);
+        setCurrentMember(member);
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
       }
-
-      const memberDestId = member?.idDestacamento ?? member?.destId;
-      const dest = dests.find((d) => Number(d.idDestacamento) === Number(memberDestId));
-
-      const church = churches.find((c) => Number(c.idIglesia) === Number(dest?.idIglesia));
-
-      const sectional = sectionals.find((s) => Number(s.idSeccion) === Number(church?.idSeccion));
-
-      const regional = regionals.find((r) => Number(r.id) === Number(sectional?.idRegion));
-
-      const memberPhoto = await obtenerFotoPrincipal({
-        tipoEntidad: 'miembro',
-        idEntidad: member?.id,
-      });
-
-      setCurrentMember({
-        ...member,
-        avatarUrl: memberPhoto?.urlFoto || member?.avatarUrl || null,
-        sectionalName: sectional?.nombre || '-',
-        regionalName: regional?.nombre || '-',
-      });
-      setHydrated(true);
     };
 
     load();
-  }, [id]);
-  if (!hydrated) return null;
 
-  if (loading) return null;
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+  if (!hydrated) {
+    return <SplashScreen title="Cargando miembro" subtitle="Preparando su perfil..." />;
+  }
+
+  if (loading) {
+    return <SplashScreen title="Verificando acceso" subtitle="Casi listo..." />;
+  }
 
   if (!currentMember) {
     return <div>Miembro no encontrado</div>;
   }
 
-  return <MemberCreateEditForm currentMember={currentMember} readOnly={!canManage} />;
+  return (
+    <MemberCreateEditForm
+      currentMember={currentMember}
+      readOnly={!canManage}
+      availableDests={availableDests}
+    />
+  );
 }

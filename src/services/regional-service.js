@@ -32,7 +32,7 @@ function mapApiRegionalToUI(regional) {
 
 export const getCachedRegionals = () => getStorageCollection(REGIONALS_STORAGE_KEY) || [];
 
-export const getRegionals = async () => {
+export const getRegionals = async ({ includePhotos = true } = {}) => {
     try {
         const res = await fetch('/api/regional');
 
@@ -45,7 +45,9 @@ export const getRegionals = async () => {
 
         const data = response.data || response.Data || [];
         const mappedRegionals = Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
-        const photosByRegionalId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'region' });
+        const photosByRegionalId = includePhotos
+            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'region' })
+            : {};
 
         const resolvedRegionals = mappedRegionals.map((regional) => ({
             ...regional,

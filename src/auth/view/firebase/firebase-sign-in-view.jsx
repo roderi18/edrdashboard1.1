@@ -256,14 +256,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       <Form methods={methods} onSubmit={onSubmit}>
         <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-          {!!rememberedValue && (
-            <Alert severity="info" sx={{ borderRadius: 2 }}>
-              {isAdminMode
-                ? `Recordaremos este acceso: ${rememberedValue}.`
-                : `Recordaremos este codigo para el proximo ingreso: ${rememberedValue.replace(/^DO-SD-/i, '')}.`}
-            </Alert>
-          )}
-
           {isAdminMode ? (
             <Field.Text
               autoFocus

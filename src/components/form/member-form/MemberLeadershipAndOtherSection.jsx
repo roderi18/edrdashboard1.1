@@ -40,11 +40,17 @@ export default function MemberLeadershipAndOtherSection({
     methods,
     isCreateView,
     isEdit,
+    dests: initialDests = [],
 }) {
 
-    const [dests, setDests] = useState([]);
+    const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
 
     useEffect(() => {
+        if (Array.isArray(initialDests) && initialDests.length) {
+            setDests(initialDests.map(normalizeDest).filter((dest) => dest.id));
+            return undefined;
+        }
+
         const load = async () => {
             const res = await fetch('/api/dest/');
             const data = await res.json();
@@ -52,7 +58,8 @@ export default function MemberLeadershipAndOtherSection({
         };
 
         load();
-    }, []);
+        return undefined;
+    }, [initialDests]);
 
     const Content = (
         <Box

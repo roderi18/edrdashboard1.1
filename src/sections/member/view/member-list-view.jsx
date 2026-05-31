@@ -29,14 +29,11 @@ import {
 } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
-import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
-import { getRegionals } from 'src/services/regional-service';
-import { getSectionals } from 'src/services/sectional-service';
 import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
 import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
+import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
 import {
   obtenerCargosDirectiva,
   obtenerAsignacionesDirectivaMiembros,
@@ -277,36 +274,25 @@ export function MemberListView() {
     metadataLoadedRef.current = true;
 
     const loadMetadata = async () => {
-      const [destsResult, churchesResult, regionalsResult, sectionalsResult] =
-        await Promise.allSettled([
-          getDestsApi({ includePhotos: false }),
-          getChurches(),
-          getRegionals(),
-          getSectionals(),
-        ]);
+      const metadataResult = await Promise.allSettled([
+        getMemberDirectoryMetadata({
+          includeDestPhotos: false,
+          includeRegionalPhotos: false,
+          includeSectionalPhotos: false,
+        }),
+      ]);
+
+      const metadata =
+        metadataResult[0]?.status === 'fulfilled' && metadataResult[0].value
+          ? metadataResult[0].value
+          : null;
 
       if (cancelled) return;
 
-      setDests(
-        destsResult.status === 'fulfilled' && Array.isArray(destsResult.value)
-          ? destsResult.value
-          : []
-      );
-      setChurches(
-        churchesResult.status === 'fulfilled' && Array.isArray(churchesResult.value)
-          ? churchesResult.value
-          : []
-      );
-      setRegionals(
-        regionalsResult.status === 'fulfilled' && Array.isArray(regionalsResult.value)
-          ? regionalsResult.value
-          : []
-      );
-      setSectionals(
-        sectionalsResult.status === 'fulfilled' && Array.isArray(sectionalsResult.value)
-          ? sectionalsResult.value
-          : []
-      );
+      setDests(Array.isArray(metadata?.dests) ? metadata.dests : []);
+      setChurches(Array.isArray(metadata?.churches) ? metadata.churches : []);
+      setRegionals(Array.isArray(metadata?.regionals) ? metadata.regionals : []);
+      setSectionals(Array.isArray(metadata?.sectionals) ? metadata.sectionals : []);
     };
 
     loadMetadata();

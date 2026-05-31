@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 
-import { getMembers } from 'src/services/member-service';
+import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
+import { SplashScreen } from 'src/components/loading-screen';
 import { MemberHistoryLog } from 'src/sections/member/history/member-history-log';
 
 const LOCAL_DEMO_MEMBER_CODE = 'DO-SD-111111017';
@@ -134,24 +135,35 @@ export default function Page() {
   const [currentMember, setCurrentMember] = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      const allMembers = await getMembers();
-      const member =
-        allMembers.find(
-          (item) =>
-            String(item.id) === String(id) ||
-            String(item.memberId) === String(id) ||
-            String(item.codigoMiembro) === String(id)
-        ) || null;
+    let cancelled = false;
 
-      setCurrentMember(member);
-      setHydrated(true);
+    const load = async () => {
+      try {
+        const member = await getResolvedMemberByIdentifier(id, {
+          includeMetadata: false,
+          includePhoto: false,
+        });
+
+        if (!cancelled) {
+          setCurrentMember(member);
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      }
     };
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return <SplashScreen title="Cargando historial" subtitle="Buscando los cambios del miembro..." />;
+  }
 
   const memberName = getMemberFullName(currentMember);
   const memberId = currentMember?.id || id;

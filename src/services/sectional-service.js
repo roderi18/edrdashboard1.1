@@ -33,7 +33,7 @@ function mapApiSectionalToUI(sectional) {
 
 export const getCachedSectionals = () => getStorageCollection(SECTIONALS_STORAGE_KEY) || [];
 
-export const getSectionals = async () => {
+export const getSectionals = async ({ includePhotos = true } = {}) => {
     try {
         const res = await fetch('/api/sectional');
 
@@ -46,7 +46,9 @@ export const getSectionals = async () => {
         const mappedSectionals = Array.isArray(data)
             ? data.map(mapApiSectionalToUI)
             : [];
-        const photosBySectionalId = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' });
+        const photosBySectionalId = includePhotos
+            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' })
+            : {};
 
         const resolvedSectionals = mappedSectionals.map((sectional) => ({
             ...sectional,

@@ -367,7 +367,7 @@ const mapMemberToForm = (member) => {
   };
 };
 
-export function MemberCreateEditForm({ currentMember, readOnly = false }) {
+export function MemberCreateEditForm({ currentMember, readOnly = false, availableDests = [] }) {
   const { user } = useAuthContext();
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
@@ -375,6 +375,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   const [divisions, setDivisions] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUploadErrorMessage, setPhotoUploadErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (Array.isArray(availableDests) && availableDests.length) {
+      setDests(availableDests);
+    }
+  }, [availableDests]);
 
   useEffect(() => {
     const load = async () => {
@@ -586,6 +592,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
   }, [divisionId, methods]);
 
   useEffect(() => {
+    if (Array.isArray(availableDests) && availableDests.length) {
+      return undefined;
+    }
+
     const load = async () => {
       const res = await fetch('/api/dest/');
       let data = null;
@@ -601,7 +611,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
     };
 
     load();
-  }, []);
+    return undefined;
+  }, [availableDests]);
 
   const values = watch();
   const firstName = watch('firstName');
@@ -1537,12 +1548,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                       </>
                     )}
 
-                    <MemberLeadershipAndOtherSection
-                      watch={watch}
-                      methods={methods}
-                      isCreateView={false}
-                      isEdit
-                    />
+                     <MemberLeadershipAndOtherSection
+                        watch={watch}
+                        methods={methods}
+                        isCreateView={false}
+                        isEdit
+                        dests={dests}
+                     />
 
                     <MemberInstructorCISection
                       instructorCI={instructorCI}
@@ -1602,7 +1614,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false }) {
                       <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                     </Box>
 
-                    <MemberLeadershipAndOtherSection watch={watch} methods={methods} isCreateView />
+                    <MemberLeadershipAndOtherSection
+                      watch={watch}
+                      methods={methods}
+                      isCreateView
+                      dests={dests}
+                    />
                     <Box
                       sx={{
                         gridColumn: '1 / -1',

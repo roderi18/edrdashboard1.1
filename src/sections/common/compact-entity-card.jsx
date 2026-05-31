@@ -10,6 +10,7 @@ import ListItemText from '@mui/material/ListItemText';
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 
 import { Iconify } from 'src/components/iconify';
+import { RouterLink } from 'src/routes/components';
 
 // ----------------------------------------------------------------------
 
@@ -66,6 +67,11 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     );
   };
 
+  const isInternalHref = (hrefValue) => String(hrefValue || '').startsWith('/');
+  const titleLinkProps = isInternalHref(href)
+    ? { component: RouterLink, href }
+    : { href };
+
   return (
     <Card
       sx={[
@@ -81,7 +87,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       {...other}
     >
       {canUseHref(href, title) ? (
-        <Link href={href} color="inherit" underline="none">
+        <Link {...titleLinkProps} color="inherit" underline="none">
           <Avatar
             alt={title}
             sx={{
@@ -147,7 +153,12 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       <ListItemText
         primary={
           canUseHref(href, title) ? (
-            <Link href={href} color="inherit" underline="hover" sx={{ color: titleColor }}>
+            <Link
+              {...titleLinkProps}
+              color="inherit"
+              underline="hover"
+              sx={{ color: titleColor }}
+            >
               {title}
             </Link>
           ) : (
@@ -175,7 +186,9 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                 )}
                 {canUseHref(line.href, line.text) ? (
                   <Link
-                    href={line.href}
+                    {...(isInternalHref(line.href)
+                      ? { component: RouterLink, href: line.href }
+                      : { href: line.href })}
                     color="inherit"
                     underline="hover"
                     sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}

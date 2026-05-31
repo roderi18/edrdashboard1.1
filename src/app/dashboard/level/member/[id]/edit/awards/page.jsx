@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
-import { getMembers } from 'src/services/member-service';
+import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
+import { SplashScreen } from 'src/components/loading-screen';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -21,38 +21,39 @@ export default function Page() {
   const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
-      const allMembers = await getMembers();
+      try {
+        const member = await getResolvedMemberByIdentifier(id, {
+          includeMetadata: false,
+          includePhoto: true,
+        });
 
-      const member = allMembers.find(
-        (m) =>
-          String(m.id) === String(id) ||
-          String(m.memberId) === String(id) ||
-          String(m.codigoMiembro) === String(id)
-      );
-
-      if (!member) {
-        setCurrentMember(null);
-        setHydrated(true);
-        return;
+        if (!cancelled) {
+          setCurrentMember(member);
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
       }
-
-      const memberPhoto = await obtenerFotoPrincipal({
-        tipoEntidad: 'miembro',
-        idEntidad: member?.id,
-      });
-
-      setCurrentMember({
-        ...member,
-        avatarUrl: memberPhoto?.urlFoto || member?.avatarUrl || null,
-      });
-      setHydrated(true);
     };
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  if (!hydrated || loading) return null;
+  if (!hydrated) {
+    return <SplashScreen title="Cargando premios" subtitle="Preparando el historial..." />;
+  }
+
+  if (loading) {
+    return <SplashScreen title="Verificando acceso" subtitle="Casi listo..." />;
+  }
 
   if (!currentMember) {
     return <div>Miembro no encontrado</div>;

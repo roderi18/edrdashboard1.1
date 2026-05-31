@@ -6,6 +6,8 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
+import { useRouter } from 'src/routes/hooks';
+
 import { capitalizeWords } from 'src/utils/text-format';
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 import { resolveById } from 'src/utils/resolve-display-name';
@@ -32,6 +34,7 @@ export function MemberTableRow({
   onDeleteRow,
   canManage = true,
 }) {
+  const router = useRouter();
   const showMorePositions = useBoolean();
   const memberEditId = row.memberId ?? row.codigoMiembro ?? row.idMiembros ?? row.id;
   const destName = row.destName || '';
@@ -99,7 +102,7 @@ export function MemberTableRow({
 
   const handleOpenMemberEdit = () => {
     if (!memberEditId) return;
-    window.location.href = `/dashboard/level/member/${memberEditId}/edit`;
+    router.push(`/dashboard/level/member/${memberEditId}/edit`);
   };
 
   const getLeadershipHref = (leadership) => {
