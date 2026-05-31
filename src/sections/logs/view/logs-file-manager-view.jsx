@@ -1,5 +1,6 @@
 'use client';
 
+import { usePopover } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -29,6 +30,7 @@ import { listarAuditoriaSistema } from 'src/services/audit-log-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 import { EmptyContent } from 'src/components/empty-content';
 import { ExportTableButton } from 'src/components/export-table-button';
 import { useTable, TableHeadCustom, TablePaginationCustom } from 'src/components/table';
@@ -156,6 +158,7 @@ const sortLogs = (inputData = [], order = 'desc', orderBy = 'fecha') =>
 export function LogsFileManagerView({ embedded = false }) {
   const table = useTable({ defaultRowsPerPage: 10, defaultOrderBy: 'fecha', defaultOrder: 'desc' });
   const { onResetPage } = table;
+  const filtersMenu = usePopover();
   const [loading, setLoading] = useState(true);
   const [registros, setRegistros] = useState([]);
   const [search, setSearch] = useState('');
@@ -337,8 +340,8 @@ export function LogsFileManagerView({ embedded = false }) {
             p: 2.5,
             display: 'grid',
             gridTemplateColumns: {
-              xs: '1fr',
-              md: 'minmax(260px, 1.2fr) repeat(4, minmax(150px, 0.6fr))',
+              xs: 'minmax(0, 1fr) auto',
+              md: 'repeat(6, minmax(0, 1fr))',
             },
           }}
         >
@@ -347,6 +350,7 @@ export function LogsFileManagerView({ embedded = false }) {
             value={search}
             placeholder="Buscar por acción, usuario, entidad o detalle"
             onChange={(event) => setSearch(event.target.value)}
+            sx={{ minWidth: 0, gridColumn: { md: 'span 2' } }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -358,12 +362,47 @@ export function LogsFileManagerView({ embedded = false }) {
             }}
           />
 
-          <DatePicker
-            label="Desde"
-            value={startDate}
-            onChange={setStartDate}
-            slotProps={{ textField: { size: 'small' } }}
-          />
+          <IconButton
+            onClick={filtersMenu.onOpen}
+            sx={{
+              p: 0.5,
+              m: 0,
+              flexShrink: 0,
+              minWidth: 'auto',
+              border: 'none',
+              borderRadius: 0,
+              backgroundColor: 'transparent',
+              display: { xs: 'inline-flex', md: 'none' },
+              justifySelf: 'end',
+              alignSelf: 'center',
+              '&:hover': { backgroundColor: 'transparent' },
+            }}
+          >
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
+
+          <Box
+            sx={{
+              gap: 2,
+              display: 'grid',
+              gridColumn: { xs: '1 / -1', md: 'span 2' },
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(2, minmax(0, 1fr))',
+              },
+              minWidth: 0,
+            }}
+          >
+            <DatePicker
+              label="Desde"
+              value={startDate}
+              onChange={setStartDate}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                },
+              }}
+            />
 
           <DatePicker
             label="Hasta"
@@ -377,6 +416,7 @@ export function LogsFileManagerView({ embedded = false }) {
               },
             }}
           />
+          </Box>
 
           <TextField
             select
@@ -384,6 +424,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Módulo"
             value={moduleFilter}
             onChange={(event) => setModuleFilter(event.target.value)}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {modules.map((modulo) => (
@@ -399,6 +440,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Resultado"
             value={resultFilter}
             onChange={(event) => setResultFilter(event.target.value)}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             <MenuItem value="exitoso">Exitoso</MenuItem>
@@ -412,6 +454,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Severidad"
             value={severityFilter}
             onChange={(event) => setSeverityFilter(event.target.value)}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             <MenuItem value="todos">Todas</MenuItem>
             <MenuItem value="informativa">Informativa</MenuItem>
@@ -425,6 +468,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Actor"
             value={actorFilter}
             onChange={(event) => setActorFilter(event.target.value)}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {actors.map((actor) => (
@@ -440,6 +484,7 @@ export function LogsFileManagerView({ embedded = false }) {
             label="Origen"
             value={originFilter}
             onChange={(event) => setOriginFilter(event.target.value)}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
             {origins.map((origin) => (
@@ -449,15 +494,24 @@ export function LogsFileManagerView({ embedded = false }) {
             ))}
           </TextField>
 
-          <Button
-            color="inherit"
-            variant="outlined"
-            startIcon={<Iconify icon="solar:refresh-bold" />}
-            onClick={loadLogs}
-            sx={{ minHeight: 40, whiteSpace: 'nowrap' }}
+          <Box
+            sx={{
+              gap: 2,
+              display: 'grid',
+              gridColumn: { xs: '1 / -1', md: 'span 3' },
+              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(2, minmax(0, 1fr))' },
+              justifyContent: { md: 'stretch' },
+            }}
           >
-            Actualizar
-          </Button>
+            <Button
+              color="inherit"
+              variant="outlined"
+              startIcon={<Iconify icon="solar:refresh-bold" />}
+              onClick={loadLogs}
+              sx={{ minHeight: 40, whiteSpace: 'nowrap', width: '100%' }}
+            >
+              Actualizar
+            </Button>
 
           <ExportTableButton
             rows={sortedLogs}
@@ -466,9 +520,93 @@ export function LogsFileManagerView({ embedded = false }) {
             title="Logs de auditoría"
             fileNamePrefix="logs-auditoria"
             disabled={loading}
-            buttonProps={{ sx: { minHeight: 40, whiteSpace: 'nowrap' } }}
+            buttonProps={{ sx: { minHeight: 40, whiteSpace: 'nowrap', width: '100%' } }}
           />
         </Box>
+        </Box>
+
+        <CustomPopover
+          open={filtersMenu.open}
+          anchorEl={filtersMenu.anchorEl}
+          onClose={filtersMenu.onClose}
+          slotProps={{
+            arrow: { placement: 'right-top' },
+            paper: { sx: { width: 280, display: { xs: 'block', md: 'none' } } },
+          }}
+        >
+          <Stack spacing={2} sx={{ p: 2 }}>
+            <TextField
+              select
+              size="small"
+              label="Modulo"
+              value={moduleFilter}
+              onChange={(event) => setModuleFilter(event.target.value)}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              {modules.map((modulo) => (
+                <MenuItem key={modulo} value={modulo}>
+                  {toReadableName(modulo)}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Resultado"
+              value={resultFilter}
+              onChange={(event) => setResultFilter(event.target.value)}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              <MenuItem value="exitoso">Exitoso</MenuItem>
+              <MenuItem value="advertencia">Advertencia</MenuItem>
+              <MenuItem value="error">Error</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Severidad"
+              value={severityFilter}
+              onChange={(event) => setSeverityFilter(event.target.value)}
+            >
+              <MenuItem value="todos">Todas</MenuItem>
+              <MenuItem value="informativa">Informativa</MenuItem>
+              <MenuItem value="importante">Importante</MenuItem>
+              <MenuItem value="critica">Critica</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Actor"
+              value={actorFilter}
+              onChange={(event) => setActorFilter(event.target.value)}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              {actors.map((actor) => (
+                <MenuItem key={actor} value={actor}>
+                  {actor}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Origen"
+              value={originFilter}
+              onChange={(event) => setOriginFilter(event.target.value)}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              {origins.map((origin) => (
+                <MenuItem key={origin} value={origin}>
+                  {toReadableName(origin)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </CustomPopover>
 
         {loading ? (
           <LogsTableSkeleton />
