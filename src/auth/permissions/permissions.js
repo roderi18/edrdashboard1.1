@@ -1,0 +1,258 @@
+// Catalogo canonico de permisos. Los codigos se guardan en Firebase en espanol.
+
+export const COLECCIONES_AUTORIZACION = {
+  permisos: 'permisos',
+  roles: 'roles',
+  usuariosRoles: 'usuarios_roles',
+  solicitudesPermiso: 'solicitudes_permiso',
+  auditoriaPermisos: 'auditoria_permisos',
+};
+
+export const PERMISOS = {
+  MIEMBROS_VER: 'miembros.ver',
+  MIEMBROS_VER_ADULTOS: 'miembros.ver_adultos',
+  MIEMBROS_VER_MENORES: 'miembros.ver_menores',
+  MIEMBROS_VER_DATOS_SENSIBLES: 'miembros.ver_datos_sensibles',
+  MIEMBROS_CREAR: 'miembros.crear',
+  MIEMBROS_EDITAR: 'miembros.editar',
+  MIEMBROS_ELIMINAR: 'miembros.eliminar',
+
+  DESTACAMENTOS_VER: 'destacamentos.ver',
+  DESTACAMENTOS_CREAR: 'destacamentos.crear',
+  DESTACAMENTOS_EDITAR: 'destacamentos.editar',
+  DESTACAMENTOS_ELIMINAR: 'destacamentos.eliminar',
+  DESTACAMENTOS_ASIGNAR_NUMERO_OFICIAL: 'destacamentos.asignar_numero_oficial',
+
+  DOCUMENTOS_VER: 'documentos.ver',
+  DOCUMENTOS_SUBIR: 'documentos.subir',
+  DOCUMENTOS_SOLICITAR_ELIMINACION: 'documentos.solicitar_eliminacion',
+  DOCUMENTOS_ELIMINAR: 'documentos.eliminar',
+
+  ASISTENCIA_VER: 'asistencia.ver',
+  ASISTENCIA_CREAR: 'asistencia.crear',
+  ASISTENCIA_EDITAR: 'asistencia.editar',
+
+  REPORTES_VER_LOCALES: 'reportes.ver_locales',
+  REPORTES_VER_SECCIONALES: 'reportes.ver_seccionales',
+  REPORTES_VER_REGIONALES: 'reportes.ver_regionales',
+  REPORTES_VER_NACIONALES: 'reportes.ver_nacionales',
+
+  ADMINISTRACION_GESTIONAR_USUARIOS: 'administracion.gestionar_usuarios',
+  ADMINISTRACION_GESTIONAR_ROLES: 'administracion.gestionar_roles',
+  ADMINISTRACION_VER_AUDITORIA: 'administracion.ver_auditoria',
+
+  TIENDA_VER: 'tienda.ver',
+  TIENDA_GESTIONAR: 'tienda.gestionar',
+
+  CORREOS_ENVIAR: 'correos.enviar',
+};
+
+export const PERMISOS_CATALOGO = [
+  {
+    codigo: PERMISOS.MIEMBROS_VER,
+    modulo: 'miembros',
+    accion: 'ver',
+    nombre: 'Ver miembros',
+    descripcion: 'Permite consultar miembros autorizados por alcance.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_VER_ADULTOS,
+    modulo: 'miembros',
+    accion: 'ver_adultos',
+    nombre: 'Ver miembros adultos',
+    descripcion: 'Permite consultar informacion autorizada de miembros adultos.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_VER_MENORES,
+    modulo: 'miembros',
+    accion: 'ver_menores',
+    nombre: 'Ver miembros menores',
+    descripcion: 'Permite consultar informacion de menores cuando exista autorizacion.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+    modulo: 'miembros',
+    accion: 'ver_datos_sensibles',
+    nombre: 'Ver datos sensibles de miembros',
+    descripcion: 'Permite consultar informacion personal, salud, direccion y documentos sensibles.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_CREAR,
+    modulo: 'miembros',
+    accion: 'crear',
+    nombre: 'Crear miembros',
+    descripcion: 'Permite registrar nuevos miembros.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_EDITAR,
+    modulo: 'miembros',
+    accion: 'editar',
+    nombre: 'Editar miembros',
+    descripcion: 'Permite modificar informacion autorizada de miembros.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_ELIMINAR,
+    modulo: 'miembros',
+    accion: 'eliminar',
+    nombre: 'Eliminar miembros',
+    descripcion: 'Permite eliminar registros de miembros.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_VER,
+    modulo: 'destacamentos',
+    accion: 'ver',
+    nombre: 'Ver destacamentos',
+    descripcion: 'Permite consultar destacamentos autorizados por alcance.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_CREAR,
+    modulo: 'destacamentos',
+    accion: 'crear',
+    nombre: 'Crear destacamentos',
+    descripcion: 'Permite crear destacamentos sin asignar numero oficial.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_EDITAR,
+    modulo: 'destacamentos',
+    accion: 'editar',
+    nombre: 'Editar destacamentos',
+    descripcion: 'Permite modificar datos generales del destacamento.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_ELIMINAR,
+    modulo: 'destacamentos',
+    accion: 'eliminar',
+    nombre: 'Eliminar destacamentos',
+    descripcion: 'Permite eliminar destacamentos.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_ASIGNAR_NUMERO_OFICIAL,
+    modulo: 'destacamentos',
+    accion: 'asignar_numero_oficial',
+    nombre: 'Asignar numero oficial',
+    descripcion: 'Permite asignar o cambiar el numero oficial del destacamento.',
+  },
+  {
+    codigo: PERMISOS.DOCUMENTOS_VER,
+    modulo: 'documentos',
+    accion: 'ver',
+    nombre: 'Ver documentos',
+    descripcion: 'Permite consultar documentos autorizados.',
+  },
+  {
+    codigo: PERMISOS.DOCUMENTOS_SUBIR,
+    modulo: 'documentos',
+    accion: 'subir',
+    nombre: 'Subir documentos',
+    descripcion: 'Permite cargar documentos al expediente autorizado.',
+  },
+  {
+    codigo: PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
+    modulo: 'documentos',
+    accion: 'solicitar_eliminacion',
+    nombre: 'Solicitar eliminacion de documentos',
+    descripcion: 'Permite solicitar al coordinador la eliminacion de un documento.',
+  },
+  {
+    codigo: PERMISOS.DOCUMENTOS_ELIMINAR,
+    modulo: 'documentos',
+    accion: 'eliminar',
+    nombre: 'Eliminar documentos',
+    descripcion: 'Permite eliminar documentos sin escalamiento.',
+  },
+  {
+    codigo: PERMISOS.ASISTENCIA_VER,
+    modulo: 'asistencia',
+    accion: 'ver',
+    nombre: 'Ver asistencia',
+    descripcion: 'Permite consultar pases de lista autorizados.',
+  },
+  {
+    codigo: PERMISOS.ASISTENCIA_CREAR,
+    modulo: 'asistencia',
+    accion: 'crear',
+    nombre: 'Crear asistencia',
+    descripcion: 'Permite registrar pase de lista.',
+  },
+  {
+    codigo: PERMISOS.ASISTENCIA_EDITAR,
+    modulo: 'asistencia',
+    accion: 'editar',
+    nombre: 'Editar asistencia',
+    descripcion: 'Permite corregir registros de asistencia.',
+  },
+  {
+    codigo: PERMISOS.REPORTES_VER_LOCALES,
+    modulo: 'reportes',
+    accion: 'ver_locales',
+    nombre: 'Ver reportes locales',
+    descripcion: 'Permite ver reportes del destacamento.',
+  },
+  {
+    codigo: PERMISOS.REPORTES_VER_SECCIONALES,
+    modulo: 'reportes',
+    accion: 'ver_seccionales',
+    nombre: 'Ver reportes seccionales',
+    descripcion: 'Permite ver reportes consolidados de una seccion.',
+  },
+  {
+    codigo: PERMISOS.REPORTES_VER_REGIONALES,
+    modulo: 'reportes',
+    accion: 'ver_regionales',
+    nombre: 'Ver reportes regionales',
+    descripcion: 'Permite ver reportes consolidados de una region.',
+  },
+  {
+    codigo: PERMISOS.REPORTES_VER_NACIONALES,
+    modulo: 'reportes',
+    accion: 'ver_nacionales',
+    nombre: 'Ver reportes nacionales',
+    descripcion: 'Permite ver reportes consolidados nacionales.',
+  },
+  {
+    codigo: PERMISOS.ADMINISTRACION_GESTIONAR_USUARIOS,
+    modulo: 'administracion',
+    accion: 'gestionar_usuarios',
+    nombre: 'Gestionar usuarios',
+    descripcion: 'Permite crear y actualizar usuarios autorizados.',
+  },
+  {
+    codigo: PERMISOS.ADMINISTRACION_GESTIONAR_ROLES,
+    modulo: 'administracion',
+    accion: 'gestionar_roles',
+    nombre: 'Gestionar roles',
+    descripcion: 'Permite crear y actualizar roles de acceso.',
+  },
+  {
+    codigo: PERMISOS.ADMINISTRACION_VER_AUDITORIA,
+    modulo: 'administracion',
+    accion: 'ver_auditoria',
+    nombre: 'Ver auditoria',
+    descripcion: 'Permite consultar registros de auditoria.',
+  },
+  {
+    codigo: PERMISOS.TIENDA_VER,
+    modulo: 'tienda',
+    accion: 'ver',
+    nombre: 'Ver tienda',
+    descripcion: 'Permite acceder al modulo de tienda.',
+  },
+  {
+    codigo: PERMISOS.TIENDA_GESTIONAR,
+    modulo: 'tienda',
+    accion: 'gestionar',
+    nombre: 'Gestionar tienda',
+    descripcion: 'Permite administrar productos, ordenes e inventario.',
+  },
+  {
+    codigo: PERMISOS.CORREOS_ENVIAR,
+    modulo: 'correos',
+    accion: 'enviar',
+    nombre: 'Enviar correos',
+    descripcion: 'Permite enviar correos institucionales desde la plataforma.',
+  },
+];
+
+export const PERMISOS_POR_CODIGO = Object.fromEntries(
+  PERMISOS_CATALOGO.map((permiso) => [permiso.codigo, permiso])
+);
