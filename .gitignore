@@ -38,3 +38,6 @@ tsconfig.tsbuildinfo
 
 # QA-only downloaded assets
 qa_vehicle_images/
+
+# Local script execution logs
+scripts/**/*.log
