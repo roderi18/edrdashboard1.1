@@ -30,6 +30,16 @@ const NAV_ITEMS = [
     href: paths.dashboard.admin.logs,
   },
   {
+    label: 'Catalogo de permisos',
+    icon: <Iconify width={24} icon="solar:shield-keyhole-bold" />,
+    href: paths.dashboard.admin.permissions,
+  },
+  {
+    label: 'Roles base',
+    icon: <Iconify width={24} icon="solar:users-group-two-rounded-bold" />,
+    href: paths.dashboard.admin.roles,
+  },
+  {
     label: 'Permisos a usuarios',
     icon: <Iconify width={24} icon="solar:shield-user-bold" />,
     href: paths.dashboard.admin.userPermissions,

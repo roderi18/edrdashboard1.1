@@ -1,4 +1,14 @@
-import { doc, getDoc, setDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  query,
+  getDoc,
+  setDoc,
+  getDocs,
+  orderBy,
+  writeBatch,
+  collection,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -61,6 +71,24 @@ export async function obtenerRolAutorizacion(rolId) {
   const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES_AUTORIZACION.roles, String(rolId)));
 
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+}
+
+export async function obtenerCatalogoPermisos() {
+  assertFirebase();
+
+  const snapshot = await getDocs(
+    query(collection(FIRESTORE, COLECCIONES_AUTORIZACION.permisos), orderBy('modulo', 'asc'))
+  );
+
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+export async function obtenerRolesAutorizacion() {
+  assertFirebase();
+
+  const snapshot = await getDocs(collection(FIRESTORE, COLECCIONES_AUTORIZACION.roles));
+
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
 export async function obtenerAsignacionRolUsuario(uidUsuario) {
