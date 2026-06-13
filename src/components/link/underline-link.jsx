@@ -16,6 +16,7 @@ export function UnderlineLink({ href, underline = 'always', sx, children, ...pro
   if (isDisabled) {
     return (
       <Box
+        component="span"
         sx={{
           typography: 'body2',
           cursor: 'default',

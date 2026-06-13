@@ -13,6 +13,8 @@
     "lint:print": "npx eslint --print-config eslint.config.mjs > eslint-show-config.json",
     "fm:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx}\"",
     "fm:fix": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\"",
+    "qa:vehicles": "node scripts/qa-vehicle-catalog/download-and-upload.mjs",
+    "qa:vehicles:upload": "node scripts/qa-vehicle-catalog/download-and-upload.mjs --upload",
     "fix:all": "npm run lint:fix && npm run fm:fix",
     "clean": "rm -rf node_modules .next out dist build",
     "re:dev": "yarn clean && yarn install && yarn dev",

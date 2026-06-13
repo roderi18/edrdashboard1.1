@@ -1,4 +1,6 @@
 'use client';
+
+import { useEffect } from 'react';
 import { removeLastSlash } from 'minimal-shared/utils';
 
 import Tab from '@mui/material/Tab';
