@@ -43,6 +43,7 @@ export const PERMISOS = {
 
   TIENDA_VER: 'tienda.ver',
   TIENDA_GESTIONAR: 'tienda.gestionar',
+  TIENDA_ACCESO_ADMINISTRATIVO: 'tienda.acceso_administrativo',
 
   CORREOS_ENVIAR: 'correos.enviar',
 };
@@ -243,6 +244,13 @@ export const PERMISOS_CATALOGO = [
     accion: 'gestionar',
     nombre: 'Gestionar tienda',
     descripcion: 'Permite administrar productos, ordenes e inventario.',
+  },
+  {
+    codigo: PERMISOS.TIENDA_ACCESO_ADMINISTRATIVO,
+    modulo: 'tienda',
+    accion: 'acceso_administrativo',
+    nombre: 'Acceso administrativo a tienda',
+    descripcion: 'Permite entrar al panel administrativo de tienda y operar funciones comerciales.',
   },
   {
     codigo: PERMISOS.CORREOS_ENVIAR,

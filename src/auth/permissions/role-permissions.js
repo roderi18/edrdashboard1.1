@@ -6,7 +6,6 @@ const RESTRICCIONES_BASE = {
   requierePermisoParaMenores: false,
   eliminarDocumentosRequiereAprobacion: true,
   puedeAsignarNumeroOficial: false,
-  accesoAdministrativoTienda: false,
 };
 
 export const RESTRICCIONES_ROL = {
@@ -40,7 +39,6 @@ export const RESTRICCIONES_ROL = {
     ...RESTRICCIONES_BASE,
     eliminarDocumentosRequiereAprobacion: false,
     puedeAsignarNumeroOficial: true,
-    accesoAdministrativoTienda: true,
   },
   [ROLES.ADMINISTRADOR_FUNCIONAL]: {
     ...RESTRICCIONES_BASE,
@@ -48,7 +46,6 @@ export const RESTRICCIONES_ROL = {
   },
   [ROLES.ADMINISTRADOR_TIENDA]: {
     ...RESTRICCIONES_BASE,
-    accesoAdministrativoTienda: true,
   },
 };
 
@@ -143,6 +140,7 @@ export const PERMISOS_POR_ROL = {
   [ROLES.ADMINISTRADOR_TIENDA]: [
     PERMISOS.TIENDA_VER,
     PERMISOS.TIENDA_GESTIONAR,
+    PERMISOS.TIENDA_ACCESO_ADMINISTRATIVO,
     PERMISOS.ADMINISTRACION_VER_AUDITORIA,
   ],
 };

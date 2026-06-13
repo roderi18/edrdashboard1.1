@@ -144,6 +144,24 @@ export function AdminListView() {
     );
   }, []);
 
+  const handleRoleSaved = useCallback((adminRow, assignment) => {
+    setAdmins((currentAdmins) =>
+      currentAdmins.map((admin) =>
+        String(admin.adminId || admin.id) === String(adminRow?.adminId || adminRow?.id)
+          ? {
+              ...admin,
+              rol: assignment.rolNombre || assignment.rolId,
+              role: assignment.rolId,
+              rolId: assignment.rolId,
+              rolNombre: assignment.rolNombre,
+              alcance: assignment.alcance,
+              permisosRol: assignment.permisos,
+            }
+          : admin
+      )
+    );
+  }, []);
+
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;
 
@@ -183,6 +201,7 @@ export function AdminListView() {
                   onSelectRow={() => table.onSelectRow(row.id)}
                   onRemoveAdmin={setRemoveAdminRow}
                   onPermissionsSaved={handlePermissionsSaved}
+                  onRoleSaved={handleRoleSaved}
                 />
               ))}
 

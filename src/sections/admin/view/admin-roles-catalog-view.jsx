@@ -8,11 +8,15 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 
 import { Label } from 'src/components/label';
@@ -29,6 +33,8 @@ import {
   obtenerRolesAutorizacion,
   sincronizarCatalogoAutorizacion,
 } from 'src/auth/permissions';
+
+import { AdminPermissionsCatalogContent } from './admin-permissions-catalog-view';
 
 // ----------------------------------------------------------------------
 
@@ -55,7 +61,6 @@ const getRestrictionLabels = (restrictions = {}) =>
     restrictions.requierePermisoParaMenores && 'Menores requieren permiso',
     restrictions.eliminarDocumentosRequiereAprobacion && 'Eliminar documentos requiere aprobacion',
     restrictions.puedeAsignarNumeroOficial && 'Puede asignar numero oficial',
-    restrictions.accesoAdministrativoTienda && 'Acceso administrativo a tienda',
   ].filter(Boolean);
 
 export function AdminRolesCatalogView() {
@@ -63,6 +68,7 @@ export function AdminRolesCatalogView() {
   const [roles, setRoles] = useState(LOCAL_ROLES);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [openPermissionsCatalog, setOpenPermissionsCatalog] = useState(false);
 
   const loadRoles = useCallback(async () => {
     setLoading(true);
@@ -132,15 +138,25 @@ export function AdminRolesCatalogView() {
           title="Roles base"
           subheader="Cada rol agrupa permisos y restricciones. Luego se asigna a un usuario junto a su alcance organizacional."
           action={
-            <Button
-              color="inherit"
-              variant="outlined"
-              loading={syncing}
-              startIcon={<Iconify icon="solar:refresh-bold" />}
-              onClick={handleSync}
-            >
-              Sincronizar Firebase
-            </Button>
+            <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
+              <Button
+                color="inherit"
+                variant="outlined"
+                loading={syncing}
+                startIcon={<Iconify icon="solar:refresh-bold" />}
+                onClick={handleSync}
+              >
+                Sincronizar Firebase
+              </Button>
+              <Button
+                color="inherit"
+                variant="outlined"
+                startIcon={<Iconify icon="solar:shield-keyhole-bold" />}
+                onClick={() => setOpenPermissionsCatalog(true)}
+              >
+                Catálogo de permisos
+              </Button>
+            </Stack>
           }
         />
 
@@ -203,6 +219,23 @@ export function AdminRolesCatalogView() {
           </Scrollbar>
         </TableContainer>
       </Card>
+
+      <Dialog
+        fullWidth
+        maxWidth="lg"
+        open={openPermissionsCatalog}
+        onClose={() => setOpenPermissionsCatalog(false)}
+      >
+        <DialogTitle>Catalogo de permisos</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: 'background.default' }}>
+          <AdminPermissionsCatalogContent showSync={false} />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setOpenPermissionsCatalog(false)}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

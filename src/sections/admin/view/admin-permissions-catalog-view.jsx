@@ -49,7 +49,7 @@ const formatModule = (value = '') =>
     .replace(/_/g, ' ')
     .replace(/^\w/, (letter) => letter.toUpperCase());
 
-export function AdminPermissionsCatalogView() {
+export function AdminPermissionsCatalogContent({ showSummary = true, showSync = true }) {
   const { user } = useAuthContext();
   const [permissions, setPermissions] = useState(PERMISOS_CATALOGO);
   const [loading, setLoading] = useState(false);
@@ -94,47 +94,51 @@ export function AdminPermissionsCatalogView() {
 
   return (
     <Stack spacing={3}>
-      <Box
-        sx={{
-          gap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-        }}
-      >
-        <SummaryCard
-          title="Permisos"
-          value={permissions.length}
-          caption="Acciones disponibles"
-          icon="solar:shield-check-bold"
-        />
-        <SummaryCard
-          title="Modulos"
-          value={modules.length}
-          caption="Agrupados por area"
-          icon="solar:widget-5-bold"
-        />
-        <SummaryCard
-          title="Fuente"
-          value={loading ? 'Cargando' : 'Firebase'}
-          caption="Con respaldo local"
-          icon="solar:database-bold"
-        />
-      </Box>
+      {showSummary && (
+        <Box
+          sx={{
+            gap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+          }}
+        >
+          <SummaryCard
+            title="Permisos"
+            value={permissions.length}
+            caption="Acciones disponibles"
+            icon="solar:shield-check-bold"
+          />
+          <SummaryCard
+            title="Modulos"
+            value={modules.length}
+            caption="Agrupados por area"
+            icon="solar:widget-5-bold"
+          />
+          <SummaryCard
+            title="Fuente"
+            value={loading ? 'Cargando' : 'Firebase'}
+            caption="Con respaldo local"
+            icon="solar:database-bold"
+          />
+        </Box>
+      )}
 
       <Card>
         <CardHeader
           title="Catalogo de permisos"
           subheader="Permisos base que luego se asignan a roles. La edicion diaria debe hacerse sobre roles, no sobre esta lista."
           action={
-            <Button
-              color="inherit"
-              variant="outlined"
-              loading={syncing}
-              startIcon={<Iconify icon="solar:refresh-bold" />}
-              onClick={handleSync}
-            >
-              Sincronizar Firebase
-            </Button>
+            showSync ? (
+              <Button
+                color="inherit"
+                variant="outlined"
+                loading={syncing}
+                startIcon={<Iconify icon="solar:refresh-bold" />}
+                onClick={handleSync}
+              >
+                Sincronizar Firebase
+              </Button>
+            ) : null
           }
         />
 
@@ -182,6 +186,10 @@ export function AdminPermissionsCatalogView() {
       </Card>
     </Stack>
   );
+}
+
+export function AdminPermissionsCatalogView() {
+  return <AdminPermissionsCatalogContent />;
 }
 
 function SummaryCard({ title, value, caption, icon }) {

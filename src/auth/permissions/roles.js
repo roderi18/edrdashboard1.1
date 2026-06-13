@@ -30,7 +30,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_DESTACAMENTO,
-    nombre: 'Usuario de Destacamento',
+    nombre: 'Administrador de Destacamento',
     descripcion: 'Gestion operativa de miembros y documentos dentro de un destacamento.',
     alcancePredeterminado: ALCANCES.DESTACAMENTO,
     asignableDesdeAdministradores: true,
@@ -38,7 +38,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_SECCION,
-    nombre: 'Usuario de Seccion',
+    nombre: 'Administrador de Seccion',
     descripcion: 'Supervision de destacamentos y miembros adultos dentro de una seccion.',
     alcancePredeterminado: ALCANCES.SECCION,
     asignableDesdeAdministradores: true,
@@ -46,7 +46,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_REGION,
-    nombre: 'Usuario de Region',
+    nombre: 'Administrador de Region',
     descripcion: 'Supervision regional de secciones, destacamentos e indicadores.',
     alcancePredeterminado: ALCANCES.REGION,
     asignableDesdeAdministradores: true,

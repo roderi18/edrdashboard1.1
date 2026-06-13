@@ -213,6 +213,24 @@ export function AdminCreateView() {
     }
   }, [removeAdminRow, user]);
 
+  const handleRoleSaved = useCallback((memberRow, assignment) => {
+    setMembers((currentMembers) =>
+      currentMembers.map((member) =>
+        String(member.id) === String(memberRow?.id)
+          ? {
+              ...member,
+              rol: assignment.rolNombre || assignment.rolId,
+              role: assignment.rolId,
+              rolId: assignment.rolId,
+              rolNombre: assignment.rolNombre,
+              alcance: assignment.alcance,
+              permisosRol: assignment.permisos,
+            }
+          : member
+      )
+    );
+  }, []);
+
   const dataFiltered = applyFilter({ inputData: members, filters: currentFilters });
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
   const notFound = !dataFiltered.length;
@@ -285,6 +303,7 @@ export function AdminCreateView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onAssignAdmin={handleOpenAssignDialog}
                         onRemoveAdmin={setRemoveAdminRow}
+                        onRoleSaved={handleRoleSaved}
                       />
                     ))}
 
