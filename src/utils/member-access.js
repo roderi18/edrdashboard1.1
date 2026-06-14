@@ -164,17 +164,38 @@ const mergeMemberPermissions = (permissions = {}) => ({
   },
 });
 
-const mergeMemberScope = (scope = {}, member = {}) => ({
-  modo: scope?.modo ?? 'destacamento',
-  destacamentos:
-    Array.isArray(scope?.destacamentos) && scope.destacamentos.length
-      ? scope.destacamentos
-      : member?.idDestacamento
-        ? [Number(member.idDestacamento)]
-        : [],
-  regiones: Array.isArray(scope?.regiones) ? scope.regiones : [],
-  secciones: Array.isArray(scope?.secciones) ? scope.secciones : [],
-});
+const normalizeScopeList = (...values) =>
+  values
+    .flat()
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => (Number.isFinite(Number(value)) ? Number(value) : String(value)));
+
+const mergeMemberScope = (scope = {}, member = {}) => {
+  const tipo = scope?.tipo ?? scope?.modo ?? 'destacamento';
+  const destacamentos = normalizeScopeList(
+    scope?.destacamentos,
+    scope?.destacamentoId,
+    scope?.idDestacamento,
+    member?.idDestacamento
+  );
+  const secciones = normalizeScopeList(scope?.secciones, scope?.seccionId, scope?.idSeccion);
+  const regiones = normalizeScopeList(scope?.regiones, scope?.regionId, scope?.idRegion);
+
+  return {
+    ...scope,
+    tipo,
+    modo: tipo,
+    destacamentoId: scope?.destacamentoId ?? scope?.idDestacamento ?? destacamentos[0] ?? '',
+    idDestacamento: scope?.idDestacamento ?? scope?.destacamentoId ?? destacamentos[0] ?? '',
+    seccionId: scope?.seccionId ?? scope?.idSeccion ?? secciones[0] ?? '',
+    idSeccion: scope?.idSeccion ?? scope?.seccionId ?? secciones[0] ?? '',
+    regionId: scope?.regionId ?? scope?.idRegion ?? regiones[0] ?? '',
+    idRegion: scope?.idRegion ?? scope?.regionId ?? regiones[0] ?? '',
+    destacamentos,
+    secciones,
+    regiones,
+  };
+};
 
 const normalizeMemberProfile = (profile = {}, member = {}, authUser = {}) => ({
   ...profile,

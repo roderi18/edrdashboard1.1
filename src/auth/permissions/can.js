@@ -45,6 +45,19 @@ export const puedeModificar = (usuario, permiso) => can(usuario, permiso) && !is
 const getResourceScopeValue = (resource = {}, keys = []) =>
   keys.map((key) => resource?.[key]).find((value) => value !== undefined && value !== null && value !== '');
 
+const matchesScopeValue = (resourceValue, directValue, values = []) => {
+  if (!resourceValue) return true;
+
+  const allowedValues = [
+    directValue,
+    ...(Array.isArray(values) ? values : []),
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== '')
+    .map((value) => String(value));
+
+  return allowedValues.includes(String(resourceValue));
+};
+
 export const estaDentroDelAlcance = (usuario, recurso = {}) => {
   const { alcance = {} } = normalizarAccesoUsuario(usuario);
   const tipo = alcance.tipo || alcance.modo || ALCANCES.DESTACAMENTO;
@@ -55,21 +68,26 @@ export const estaDentroDelAlcance = (usuario, recurso = {}) => {
 
   if (tipo === ALCANCES.REGION) {
     const regionId = getResourceScopeValue(recurso, ['regionId', 'idRegion', 'regionalId']);
-    return !regionId || String(regionId) === String(alcance.regionId || alcance.idRegion);
+    return matchesScopeValue(regionId, alcance.regionId || alcance.idRegion, alcance.regiones);
   }
 
   if (tipo === ALCANCES.SECCION) {
     const seccionId = getResourceScopeValue(recurso, ['seccionId', 'idSeccion', 'sectionalId']);
-    return !seccionId || String(seccionId) === String(alcance.seccionId || alcance.idSeccion);
+    return matchesScopeValue(seccionId, alcance.seccionId || alcance.idSeccion, alcance.secciones);
   }
 
   const destacamentoId = getResourceScopeValue(recurso, [
     'destacamentoId',
     'idDestacamento',
     'destId',
+    'id',
   ]);
 
-  return !destacamentoId || String(destacamentoId) === String(alcance.destacamentoId || alcance.idDestacamento);
+  return matchesScopeValue(
+    destacamentoId,
+    alcance.destacamentoId || alcance.idDestacamento,
+    alcance.destacamentos
+  );
 };
 
 export const esMenorDeEdad = (miembro = {}) => {

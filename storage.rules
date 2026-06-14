@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function rutaUsuario(coleccion) {
+      return /databases/(default)/documents/$(coleccion)/$(request.auth.uid);
+    }
+
+    function tieneDocumento(coleccion) {
+      return estaAutenticado() && firestore.exists(rutaUsuario(coleccion));
+    }
+
+    function documentoUsuario(coleccion) {
+      return firestore.get(rutaUsuario(coleccion));
+    }
+
+    function esRolAdministrativo(rol) {
+      return rol in [
+        'admin',
+        'administrador',
+        'administrador_global',
+        'administrador_funcional',
+        'administrador_destacamento',
+        'administrador_seccion',
+        'administrador_region'
+      ];
+    }
+
+    function esAdminRegistrado() {
+      return tieneDocumento('admins')
+        || (
+          tieneDocumento('users')
+          && (
+            esRolAdministrativo(documentoUsuario('users').data.rol)
+            || esRolAdministrativo(documentoUsuario('users').data.role)
+          )
+        );
+    }
+
+    function tienePermisoDirecto(codigoPermiso) {
+      return tieneDocumento('usuarios_roles')
+        && documentoUsuario('usuarios_roles').data.permisos is list
+        && documentoUsuario('usuarios_roles').data.permisos.hasAny([codigoPermiso]);
+    }
+
+    function tienePermisoPorRol(codigoPermiso) {
+      return tieneDocumento('usuarios_roles')
+        && firestore.exists(
+          /databases/(default)/documents/roles/$(documentoUsuario('usuarios_roles').data.rolId)
+        )
+        && firestore.get(
+          /databases/(default)/documents/roles/$(documentoUsuario('usuarios_roles').data.rolId)
+        ).data.permisos is list
+        && firestore.get(
+          /databases/(default)/documents/roles/$(documentoUsuario('usuarios_roles').data.rolId)
+        ).data.permisos.hasAny([codigoPermiso]);
+    }
+
+    function tienePermiso(codigoPermiso) {
+      return esAdminRegistrado()
+        || tienePermisoDirecto(codigoPermiso)
+        || tienePermisoPorRol(codigoPermiso);
+    }
+
+    function esImagenPermitida() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function esArchivoPerfil(archivo) {
+      return archivo.matches('perfil\\.(jpg|jpeg|png|webp)');
+    }
+
+    match /miembros/{idMiembro}/{archivo} {
+      allow read: if estaAutenticado();
+      allow write: if esArchivoPerfil(archivo)
+        && tienePermiso('miembros.subir_foto')
+        && esImagenPermitida();
+    }
+
+    match /destacamentos/{idDestacamento}/{archivo} {
+      allow read: if estaAutenticado();
+      allow write: if esArchivoPerfil(archivo)
+        && tienePermiso('destacamentos.subir_foto')
+        && esImagenPermitida();
+    }
+  }
+}

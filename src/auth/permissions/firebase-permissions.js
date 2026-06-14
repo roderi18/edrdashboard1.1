@@ -109,11 +109,19 @@ export async function obtenerAccesoUsuario(uidUsuario) {
   if (!asignacion?.rolId) return asignacion;
 
   const rol = await obtenerRolAutorizacion(asignacion.rolId);
+  const permisosDirectos = asignacion?.permisos || [];
+  const permisosExcluidos = asignacion?.permisosExcluidos || [];
+  const permisosMetadata = asignacion?.permisosMetadata || {};
 
   return {
     ...asignacion,
     rol,
-    permisos: Array.from(new Set([...(rol?.permisos || []), ...(asignacion?.permisos || [])])),
+    permisosDirectos,
+    permisosExcluidos,
+    permisosMetadata,
+    permisos: Array.from(new Set([...(rol?.permisos || []), ...permisosDirectos])).filter(
+      (permiso) => !permisosExcluidos.includes(permiso)
+    ),
     restricciones: {
       ...(rol?.restricciones || {}),
       ...(asignacion?.restricciones || {}),
@@ -152,6 +160,34 @@ export async function guardarAsignacionRolUsuario({
     activo: true,
     asignadoPor: usuario?.uid || usuario?.email || 'sistema',
     asignadoEn: new Date().toISOString(),
+  });
+
+  await setDoc(doc(FIRESTORE, COLECCIONES_AUTORIZACION.usuariosRoles, String(uidUsuario)), payload, {
+    merge: true,
+  });
+
+  return payload;
+}
+
+export async function guardarPermisosDirectosUsuario({
+  uidUsuario,
+  permisos = [],
+  permisosExcluidos = [],
+  permisosMetadata = {},
+  usuario = null,
+} = {}) {
+  assertFirebase();
+
+  if (!uidUsuario) {
+    throw new Error('uidUsuario es requerido para guardar permisos.');
+  }
+
+  const payload = withTimestamps({
+    permisos: Array.from(new Set(permisos.filter(Boolean).map(String))),
+    permisosExcluidos: Array.from(new Set(permisosExcluidos.filter(Boolean).map(String))),
+    permisosMetadata,
+    permisosActualizadosPor: usuario?.uid || usuario?.email || 'sistema',
+    permisosActualizadosEn: new Date().toISOString(),
   });
 
   await setDoc(doc(FIRESTORE, COLECCIONES_AUTORIZACION.usuariosRoles, String(uidUsuario)), payload, {

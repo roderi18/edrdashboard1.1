@@ -15,11 +15,13 @@ export const PERMISOS = {
   MIEMBROS_VER_DATOS_SENSIBLES: 'miembros.ver_datos_sensibles',
   MIEMBROS_CREAR: 'miembros.crear',
   MIEMBROS_EDITAR: 'miembros.editar',
+  MIEMBROS_SUBIR_FOTO: 'miembros.subir_foto',
   MIEMBROS_ELIMINAR: 'miembros.eliminar',
 
   DESTACAMENTOS_VER: 'destacamentos.ver',
   DESTACAMENTOS_CREAR: 'destacamentos.crear',
   DESTACAMENTOS_EDITAR: 'destacamentos.editar',
+  DESTACAMENTOS_SUBIR_FOTO: 'destacamentos.subir_foto',
   DESTACAMENTOS_ELIMINAR: 'destacamentos.eliminar',
   DESTACAMENTOS_ASIGNAR_NUMERO_OFICIAL: 'destacamentos.asignar_numero_oficial',
 
@@ -92,6 +94,13 @@ export const PERMISOS_CATALOGO = [
     descripcion: 'Permite modificar informacion autorizada de miembros.',
   },
   {
+    codigo: PERMISOS.MIEMBROS_SUBIR_FOTO,
+    modulo: 'miembros',
+    accion: 'subir_foto',
+    nombre: 'Subir foto de miembro',
+    descripcion: 'Permite cargar o reemplazar la foto principal del miembro.',
+  },
+  {
     codigo: PERMISOS.MIEMBROS_ELIMINAR,
     modulo: 'miembros',
     accion: 'eliminar',
@@ -118,6 +127,13 @@ export const PERMISOS_CATALOGO = [
     accion: 'editar',
     nombre: 'Editar destacamentos',
     descripcion: 'Permite modificar datos generales del destacamento.',
+  },
+  {
+    codigo: PERMISOS.DESTACAMENTOS_SUBIR_FOTO,
+    modulo: 'destacamentos',
+    accion: 'subir_foto',
+    nombre: 'Subir foto de destacamento',
+    descripcion: 'Permite cargar o reemplazar la foto principal del destacamento.',
   },
   {
     codigo: PERMISOS.DESTACAMENTOS_ELIMINAR,

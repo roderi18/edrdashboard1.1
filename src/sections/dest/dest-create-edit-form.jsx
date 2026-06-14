@@ -51,6 +51,7 @@ import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar, estaDentroDelAlcance } from 'src/auth/permissions';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -130,6 +131,9 @@ export function DestCreateEditForm({ currentDest }) {
   const [allMembers, setAllMembers] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+  const isLegacyAdmin = ['admin', 'administrador'].includes(
+    String(user?.role || user?.rol || '').trim().toLowerCase()
+  );
 
 
   const defaultValues = {
@@ -240,6 +244,26 @@ export function DestCreateEditForm({ currentDest }) {
   const regional = sectional
     ? regionals.find((r) => String(r.id) === String(sectional.regionalId))
     : null;
+  const currentDestResource = {
+    ...currentDest,
+    id: currentDest?.id,
+    idDestacamento: currentDest?.id || currentDest?.idDestacamento,
+    destacamentoId: currentDest?.id || currentDest?.idDestacamento,
+    seccionId: selectedSectionId || currentDest?.sectionId || currentDest?.idSeccion,
+    idSeccion: selectedSectionId || currentDest?.sectionId || currentDest?.idSeccion,
+    regionId: regional?.id || currentDest?.regionId || currentDest?.idRegion,
+    idRegion: regional?.id || currentDest?.regionId || currentDest?.idRegion,
+  };
+  const canEditDest =
+    isCreateView ||
+    isLegacyAdmin ||
+    (puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
+      estaDentroDelAlcance(user, currentDestResource));
+  const canUploadDestPhoto =
+    isCreateView ||
+    isLegacyAdmin ||
+    (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
+      estaDentroDelAlcance(user, currentDestResource));
 
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
@@ -260,6 +284,11 @@ export function DestCreateEditForm({ currentDest }) {
 
     if (!currentDest || !destId) {
       toast.error('Primero guarda el destacamento antes de subir una foto.');
+      return null;
+    }
+
+    if (!canUploadDestPhoto) {
+      toast.error('No tienes permiso para subir fotos de este destacamento.');
       return null;
     }
 
@@ -289,6 +318,10 @@ export function DestCreateEditForm({ currentDest }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (currentDest && !canEditDest) {
+        toast.error('No tienes permiso para editar este destacamento.');
+        return;
+      }
 
       const destPayloadData = {
         ...data,
@@ -363,7 +396,7 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !canUploadDestPhoto}
                 onDrop={handleUploadDestPhoto}
                 optimizationToast={false}
                 helperText={
@@ -684,7 +717,12 @@ export function DestCreateEditForm({ currentDest }) {
                   )}
                 </>
               ) : (
-                <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  loading={isSubmitting}
+                  disabled={!canEditDest}
+                >
                   Guardar cambios
                 </LoadingButton>
               )}
