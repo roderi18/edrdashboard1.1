@@ -17,6 +17,8 @@ import {
 import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { obtenerAccesoUsuario, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions';
+
 import { AuthContext } from '../auth-context';
 
 // ----------------------------------------------------------------------
@@ -59,7 +61,7 @@ const buildAdminSessionFromMemberAccess = (authUser, access = {}) => {
 };
 
 const buildAdminSessionWithMemberPhoto = async (authUser, profile = {}) => {
-  const adminProfile = profile.data ?? profile;
+  const adminProfile = getAdminProfileData(profile);
   const idMiembros = adminProfile.idMiembros ?? adminProfile.memberId;
   const memberPhoto = idMiembros
     ? await withTimeout(
@@ -72,6 +74,122 @@ const buildAdminSessionWithMemberPhoto = async (authUser, profile = {}) => {
     ...adminProfile,
     photoURL: memberPhoto?.urlFoto || adminProfile.photoURL || adminProfile.avatarUrl || '',
   });
+};
+
+const getAdminProfileData = (profile = {}) => {
+  const profileData = profile?.data ?? profile;
+
+  return {
+    ...profileData,
+    id: profile?.snap?.id || profile?.ref?.id || profileData?.id || profile?.id || '',
+  };
+};
+
+const normalizeScopeList = (...values) =>
+  values
+    .flat()
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => (Number.isFinite(Number(value)) ? Number(value) : String(value)));
+
+const uniqueScopeList = (...values) => Array.from(new Set(normalizeScopeList(...values)));
+
+const getScopeType = (scope = {}, fallback = '') => scope?.tipo || scope?.modo || fallback;
+
+const mergeDestScopeWithMemberAccess = (scope = {}, memberAccess = {}, fallbackScopeType = '') => {
+  const memberScope = memberAccess?.profile?.alcance ?? {};
+  const scopeType = getScopeType(scope, fallbackScopeType || getScopeType(memberScope));
+
+  if (scopeType !== 'destacamento') {
+    return {
+      ...memberScope,
+      ...scope,
+      ...(scopeType ? { tipo: scopeType, modo: scopeType } : {}),
+    };
+  }
+
+  const destacamentos = uniqueScopeList(
+    scope?.destacamentos,
+    scope?.destacamentoId,
+    scope?.idDestacamento,
+    memberScope?.destacamentos,
+    memberScope?.destacamentoId,
+    memberScope?.idDestacamento,
+    memberAccess?.member?.idDestacamento
+  );
+  const primaryDestId =
+    scope?.destacamentoId ??
+    scope?.idDestacamento ??
+    memberScope?.destacamentoId ??
+    memberScope?.idDestacamento ??
+    destacamentos[0] ??
+    '';
+
+  return {
+    ...memberScope,
+    ...scope,
+    tipo: scopeType,
+    modo: scopeType,
+    destacamentoId: primaryDestId,
+    idDestacamento: scope?.idDestacamento ?? scope?.destacamentoId ?? primaryDestId,
+    destacamentos,
+  };
+};
+
+const getAuthorizationCandidateIds = (authUser = {}, profile = {}, memberAccess = {}) =>
+  Array.from(
+    new Set(
+      [
+        authUser?.uid,
+        getAdminProfileData(profile)?.id,
+        getAdminProfileData(profile)?.uid,
+        getAdminProfileData(profile)?.idUsuario,
+        getAdminProfileData(profile)?.idMiembros,
+        getAdminProfileData(profile)?.memberId,
+        getAdminProfileData(profile)?.codigoMiembro,
+        getAdminProfileData(profile)?.codigoUsuario,
+        memberAccess?.profile?.uid,
+        memberAccess?.profile?.idMiembros,
+        memberAccess?.profile?.codigoMiembro,
+      ]
+        .filter((value) => value !== null && value !== undefined && value !== '')
+        .map(String)
+    )
+  );
+
+const loadAuthorizationAccess = async (authUser, profile, memberAccess) => {
+  const candidateIds = getAuthorizationCandidateIds(authUser, profile, memberAccess);
+
+  for (const candidateId of candidateIds) {
+    const access = await withTimeout(obtenerAccesoUsuario(candidateId).catch(() => null), null);
+
+    if (access?.rolId || access?.alcance) {
+      return access;
+    }
+  }
+
+  return null;
+};
+
+const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
+  if (!access) return {};
+
+  const roleId = access.rolId || access.roleId || '';
+  const roleScopeType =
+    access?.rol?.alcancePredeterminado || ALCANCE_PREDETERMINADO_ROL[roleId] || '';
+  const alcance = mergeDestScopeWithMemberAccess(access.alcance, memberAccess, roleScopeType);
+
+  return {
+    rolId: roleId,
+    roleId,
+    rolNombre: access.rolNombre || access.rol?.nombre || '',
+    alcance,
+    restricciones: access.restricciones || {},
+    permisosRol: access.rol?.permisos || access.permisosRol || [],
+    permisosDirectos: access.permisosDirectos || [],
+    permisosExcluidos: access.permisosExcluidos || [],
+    permisosMetadata: access.permisosMetadata || {},
+    permisosAutorizacion: Array.isArray(access.permisos) ? access.permisos : [],
+  };
 };
 
 /**
@@ -113,7 +231,16 @@ export function AuthProvider({ children }) {
           let sessionUser;
 
           if (adminProfile) {
-            sessionUser = await buildAdminSessionWithMemberPhoto(authUser, adminProfile);
+            const adminProfileData = getAdminProfileData(adminProfile);
+            const authorizationAccess =
+              (await loadAuthorizationAccess(authUser, adminProfileData, memberAccess)) ??
+              memberAccess?.profile ??
+              null;
+
+            sessionUser = await buildAdminSessionWithMemberPhoto(authUser, {
+              ...adminProfileData,
+              ...pickAuthorizationProfile(authorizationAccess, memberAccess),
+            });
           } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
             sessionUser = isAdminRole(memberRole)
               ? buildAdminSessionFromMemberAccess(authUser, memberAccess)

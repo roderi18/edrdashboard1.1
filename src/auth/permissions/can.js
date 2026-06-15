@@ -4,15 +4,25 @@ import { PERMISOS_POR_ROL, RESTRICCIONES_ROL } from './role-permissions';
 const normalizeList = (value) =>
   Array.isArray(value)
     ? value.filter(Boolean).map((item) => String(item))
-    : value
+    : typeof value === 'string'
       ? [String(value)]
       : [];
 
 export const normalizarAccesoUsuario = (usuario = {}) => {
   const rolId = usuario.rolId || usuario.roleId || usuario.rol || usuario.role || ROLES.USUARIO_COMUN;
   const permisosRol = PERMISOS_POR_ROL[rolId] || [];
-  const permisosDirectos = normalizeList(usuario.permisos || usuario.permissions);
-  const permisos = Array.from(new Set([...permisosRol, ...permisosDirectos]));
+  const permisosDirectos = [
+    ...normalizeList(usuario.permisos),
+    ...normalizeList(usuario.permissions),
+    ...normalizeList(usuario.permisosRol),
+    ...normalizeList(usuario.permisosDirectos),
+    ...normalizeList(usuario.directPermissions),
+    ...normalizeList(usuario.permisosAutorizacion),
+  ];
+  const permisosExcluidos = normalizeList(usuario.permisosExcluidos || usuario.excludedPermissions);
+  const permisos = Array.from(new Set([...permisosRol, ...permisosDirectos])).filter(
+    (permiso) => !permisosExcluidos.includes(permiso)
+  );
 
   return {
     ...usuario,

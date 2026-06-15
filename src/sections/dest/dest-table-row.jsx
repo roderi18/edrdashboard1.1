@@ -16,7 +16,14 @@ import { DestQuickEditForm } from './dest-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function DestTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canDelete = true,
+}) {
   const id = row.id || row.idDestacamento;
   const sectionalName = String(row.sectionalName || '').trim();
   const sectionalLabel = sectionalName || 'Sección desconocida';
@@ -34,16 +41,18 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
       <TableCell padding="checkbox">
-        <Checkbox
-          checked={selected}
-          onClick={onSelectRow}
-          slotProps={{
-            input: {
-              id: `${id}-checkbox`,
-              'aria-label': `${id} checkbox`,
-            },
-          }}
-        />
+        {canDelete ? (
+          <Checkbox
+            checked={selected}
+            onClick={onSelectRow}
+            slotProps={{
+              input: {
+                id: `${id}-checkbox`,
+                'aria-label': `${id} checkbox`,
+              },
+            }}
+          />
+        ) : null}
       </TableCell>
 
       <CompactEntityTableCell
@@ -109,7 +118,7 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
       <CompactEntityRowActions
         editHref={editHref || `/dashboard/level/dest/${id}/edit`}
-        onDelete={onDeleteRow}
+        onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={DestQuickEditForm}
         quickEditProps={{ currentDest: row }}
         deleteContent="¿Seguro que deseas eliminar este destacamento?"

@@ -14,6 +14,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { getDestsApi } from 'src/services/dest-service';
+import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 
@@ -72,6 +73,9 @@ const getRegionalLabel = (regional) => {
 const getSectionalId = (sectional) =>
   String(sectional?.id || sectional?.idSeccion || sectional?.sectionalId || '');
 
+const getSectionalRegionId = (sectional) =>
+  String(sectional?.regionalId || sectional?.regionId || sectional?.idRegion || '');
+
 const getSectionalLabel = (sectional) => {
   const id = getSectionalId(sectional);
   const name = sectional?.sectionalName || sectional?.name || sectional?.nombre || 'Seccion';
@@ -80,6 +84,23 @@ const getSectionalLabel = (sectional) => {
 };
 
 const getDestId = (dest) => String(dest?.id || dest?.idDestacamento || dest?.destId || '');
+
+const getChurchId = (church) => String(church?.id || church?.idIglesia || church?.churchId || '');
+
+const getChurchSectionId = (church) => String(church?.idSeccion || church?.sectionId || church?.seccionId || '');
+
+const getDestChurchId = (dest) => String(dest?.churchId || dest?.idIglesia || dest?.iglesiaId || '');
+
+const getDestSectionId = (dest, churches = []) => {
+  const directSectionId = String(dest?.sectionalId || dest?.sectionId || dest?.idSeccion || '').trim();
+
+  if (directSectionId) return directSectionId;
+
+  const churchId = getDestChurchId(dest);
+  const church = churches.find((item) => getChurchId(item) === churchId);
+
+  return getChurchSectionId(church);
+};
 
 const getDestLabel = (dest) => {
   const id = getDestId(dest);
@@ -107,6 +128,7 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
     regionals: [],
     sectionals: [],
     dests: [],
+    churches: [],
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -115,6 +137,14 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === rolId) || null,
     [roles, rolId]
+  );
+  const allowedScopeType = selectedRole?.alcancePredeterminado || ALCANCES.DESTACAMENTO;
+  const shouldShowScope =
+    allowedScopeType !== ALCANCES.GLOBAL &&
+    !['administrador_funcional', 'administrador_tienda'].includes(selectedRole?.codigo);
+  const scopeOptionsForRole = useMemo(
+    () => ALCANCE_OPTIONS.filter((option) => option.value === allowedScopeType),
+    [allowedScopeType]
   );
 
   const assignableRoles = useMemo(
@@ -150,6 +180,10 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
       setScope({
         ...buildInitialScope(role),
         ...(assignment?.alcance || admin?.alcance || {}),
+        tipo: role?.alcancePredeterminado || ALCANCES.DESTACAMENTO,
+        nacional:
+          role?.alcancePredeterminado === ALCANCES.NACIONAL ||
+          role?.alcancePredeterminado === ALCANCES.GLOBAL,
       });
     } catch (error) {
       console.error(error);
@@ -162,13 +196,14 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
   const loadScopeOptions = useCallback(async () => {
     if (!open) return;
 
-    const [regionals, sectionals, dests] = await Promise.all([
+    const [regionals, sectionals, dests, churches] = await Promise.all([
       getRegionals({ includePhotos: false }).catch(() => []),
       getSectionals({ includePhotos: false }).catch(() => []),
       getDestsApi({ includePhotos: false }).catch(() => []),
+      getChurches().catch(() => []),
     ]);
 
-    setScopeOptions({ regionals, sectionals, dests });
+    setScopeOptions({ regionals, sectionals, dests, churches });
   }, [open]);
 
   useEffect(() => {
@@ -184,9 +219,10 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
 
     setScope((current) => ({
       ...current,
-      tipo: current.tipo || selectedRole.alcancePredeterminado || ALCANCES.DESTACAMENTO,
+      tipo: selectedRole.alcancePredeterminado || ALCANCES.DESTACAMENTO,
       nacional:
-        current.tipo === ALCANCES.NACIONAL || selectedRole.alcancePredeterminado === ALCANCES.NACIONAL,
+        selectedRole.alcancePredeterminado === ALCANCES.NACIONAL ||
+        selectedRole.alcancePredeterminado === ALCANCES.GLOBAL,
     }));
   }, [selectedRole]);
 
@@ -199,12 +235,62 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
   };
 
   const handleChangeScopeType = (event) => {
-    const nextType = event.target.value;
+    const nextType = event.target.value || allowedScopeType;
 
     setScope((current) => ({
       ...current,
-      tipo: nextType,
+      tipo: nextType === allowedScopeType ? nextType : allowedScopeType,
       nacional: nextType === ALCANCES.NACIONAL || nextType === ALCANCES.GLOBAL,
+    }));
+  };
+
+  const filteredSectionals = useMemo(() => {
+    if (!scope.regionId) return scopeOptions.sectionals;
+
+    return scopeOptions.sectionals.filter(
+      (sectional) => getSectionalRegionId(sectional) === String(scope.regionId)
+    );
+  }, [scope.regionId, scopeOptions.sectionals]);
+
+  const filteredDests = useMemo(() => {
+    if (!scope.seccionId) return scopeOptions.dests;
+
+    return scopeOptions.dests.filter(
+      (dest) => getDestSectionId(dest, scopeOptions.churches) === String(scope.seccionId)
+    );
+  }, [scope.seccionId, scopeOptions.churches, scopeOptions.dests]);
+
+  const handleChangeRegion = (event) => {
+    const nextRegionId = event.target.value;
+
+    setScope((current) => ({
+      ...current,
+      regionId: nextRegionId,
+      seccionId: getSectionalRegionId(
+        scopeOptions.sectionals.find((sectional) => getSectionalId(sectional) === current.seccionId)
+      ) === nextRegionId
+        ? current.seccionId
+        : '',
+      destacamentoId: '',
+    }));
+  };
+
+  const handleChangeSection = (event) => {
+    const nextSectionId = event.target.value;
+    const selectedSection = scopeOptions.sectionals.find(
+      (sectional) => getSectionalId(sectional) === nextSectionId
+    );
+
+    setScope((current) => ({
+      ...current,
+      seccionId: nextSectionId,
+      regionId: getSectionalRegionId(selectedSection) || current.regionId,
+      destacamentoId: getDestSectionId(
+        scopeOptions.dests.find((dest) => getDestId(dest) === current.destacamentoId),
+        scopeOptions.churches
+      ) === nextSectionId
+        ? current.destacamentoId
+        : '',
     }));
   };
 
@@ -276,29 +362,31 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
             ))}
           </TextField>
 
-          <TextField
-            select
-            fullWidth
-            label="Alcance"
-            value={scope.tipo || ALCANCES.DESTACAMENTO}
-            disabled={loading || saving}
-            onChange={handleChangeScopeType}
-          >
-            {ALCANCE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          {shouldShowScope && (
+            <TextField
+              select
+              fullWidth
+              label="Alcance"
+              value={allowedScopeType}
+              disabled={loading || saving}
+              onChange={handleChangeScopeType}
+            >
+              {scopeOptionsForRole.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
 
-          {scope.tipo === ALCANCES.REGION && (
+          {shouldShowScope && scope.tipo === ALCANCES.REGION && (
             <TextField
               select
               fullWidth
               label="Region"
               value={scope.regionId || ''}
               disabled={saving}
-              onChange={(event) => setScope((current) => ({ ...current, regionId: event.target.value }))}
+              onChange={handleChangeRegion}
             >
               {scopeOptions.regionals.map((regional) => (
                 <MenuItem key={getRegionalId(regional)} value={getRegionalId(regional)}>
@@ -308,7 +396,7 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
             </TextField>
           )}
 
-          {scope.tipo === ALCANCES.SECCION && (
+          {shouldShowScope && scope.tipo === ALCANCES.SECCION && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 select
@@ -316,7 +404,7 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
                 label="Region"
                 value={scope.regionId || ''}
                 disabled={saving}
-                onChange={(event) => setScope((current) => ({ ...current, regionId: event.target.value }))}
+                onChange={handleChangeRegion}
               >
                 {scopeOptions.regionals.map((regional) => (
                   <MenuItem key={getRegionalId(regional)} value={getRegionalId(regional)}>
@@ -330,19 +418,9 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
                 label="Seccion"
                 value={scope.seccionId || ''}
                 disabled={saving}
-                onChange={(event) => {
-                  const selectedSection = scopeOptions.sectionals.find(
-                    (sectional) => getSectionalId(sectional) === event.target.value
-                  );
-
-                  setScope((current) => ({
-                    ...current,
-                    seccionId: event.target.value,
-                    regionId: selectedSection?.regionalId || current.regionId,
-                  }));
-                }}
+                onChange={handleChangeSection}
               >
-                {scopeOptions.sectionals.map((sectional) => (
+                {filteredSectionals.map((sectional) => (
                   <MenuItem key={getSectionalId(sectional)} value={getSectionalId(sectional)}>
                     {getSectionalLabel(sectional)}
                   </MenuItem>
@@ -351,46 +429,68 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
             </Stack>
           )}
 
-          {scope.tipo === ALCANCES.DESTACAMENTO && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          {shouldShowScope && scope.tipo === ALCANCES.DESTACAMENTO && (
+            <Stack spacing={2}>
               <TextField
                 select
                 fullWidth
-                label="Seccion"
-                value={scope.seccionId || ''}
+                label="Region"
+                value={scope.regionId || ''}
                 disabled={saving}
-                onChange={(event) => setScope((current) => ({ ...current, seccionId: event.target.value }))}
+                onChange={handleChangeRegion}
               >
-                {scopeOptions.sectionals.map((sectional) => (
-                  <MenuItem key={getSectionalId(sectional)} value={getSectionalId(sectional)}>
-                    {getSectionalLabel(sectional)}
+                {scopeOptions.regionals.map((regional) => (
+                  <MenuItem key={getRegionalId(regional)} value={getRegionalId(regional)}>
+                    {getRegionalLabel(regional)}
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                select
-                fullWidth
-                label="Destacamento"
-                value={scope.destacamentoId || ''}
-                disabled={saving}
-                onChange={(event) => {
-                  const selectedDest = scopeOptions.dests.find(
-                    (dest) => getDestId(dest) === event.target.value
-                  );
 
-                  setScope((current) => ({
-                    ...current,
-                    destacamentoId: event.target.value,
-                    seccionId: selectedDest?.sectionalId || selectedDest?.idSeccion || current.seccionId,
-                  }));
-                }}
-              >
-                {scopeOptions.dests.map((dest) => (
-                  <MenuItem key={getDestId(dest)} value={getDestId(dest)}>
-                    {getDestLabel(dest)}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Seccion"
+                  value={scope.seccionId || ''}
+                  disabled={saving}
+                  onChange={handleChangeSection}
+                >
+                  {filteredSectionals.map((sectional) => (
+                    <MenuItem key={getSectionalId(sectional)} value={getSectionalId(sectional)}>
+                      {getSectionalLabel(sectional)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  fullWidth
+                  label="Destacamento"
+                  value={scope.destacamentoId || ''}
+                  disabled={saving}
+                  onChange={(event) => {
+                    const selectedDest = scopeOptions.dests.find(
+                      (dest) => getDestId(dest) === event.target.value
+                    );
+                    const selectedDestSectionId = getDestSectionId(selectedDest, scopeOptions.churches);
+                    const selectedSection = scopeOptions.sectionals.find(
+                      (sectional) => getSectionalId(sectional) === selectedDestSectionId
+                    );
+
+                    setScope((current) => ({
+                      ...current,
+                      destacamentoId: event.target.value,
+                      seccionId: selectedDestSectionId || current.seccionId,
+                      regionId: getSectionalRegionId(selectedSection) || current.regionId,
+                    }));
+                  }}
+                >
+                  {filteredDests.map((dest) => (
+                    <MenuItem key={getDestId(dest)} value={getDestId(dest)}>
+                      {getDestLabel(dest)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
             </Stack>
           )}
 

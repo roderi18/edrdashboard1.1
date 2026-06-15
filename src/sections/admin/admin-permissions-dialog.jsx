@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -11,16 +12,21 @@ import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { RouterLink } from 'src/routes/components';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 import {
+  PERMISOS,
   ROLES_POR_CODIGO,
   PERMISOS_CATALOGO,
   PERMISOS_POR_CODIGO,
@@ -33,14 +39,14 @@ import {
 const getUserDocId = (admin = {}) =>
   String(
     admin.uid ||
-      admin.idUsuario ||
-      admin.adminId ||
-      admin.idMiembros ||
-      admin.memberId ||
-      admin.codigoMiembro ||
-      admin.memberCode ||
-      admin.id ||
-      ''
+    admin.idUsuario ||
+    admin.adminId ||
+    admin.idMiembros ||
+    admin.memberId ||
+    admin.codigoMiembro ||
+    admin.memberCode ||
+    admin.id ||
+    ''
   ).trim();
 
 const getPermissionLabel = (permissionCode) =>
@@ -93,6 +99,14 @@ const getScopeLabel = (scope = {}) => {
 
 const uniqueList = (items = []) => Array.from(new Set(items.filter(Boolean).map(String)));
 
+const SENSITIVE_PERMISSIONS = {
+  [PERMISOS.MIEMBROS_VER_MENORES]: {
+    title: 'Permiso sensible',
+    message:
+      'Este permiso permite ver información de miembros menores de edad. Se requiere una aprobación de parte de la Oficina Nacional para revisión.',
+  },
+};
+
 const formatChangeDate = (value) => {
   if (!value) return '';
 
@@ -106,12 +120,12 @@ const formatChangeDate = (value) => {
   }).format(date);
 };
 
-function PermissionChip({ permissionCode, origin, changeInfo, onMove, draggable = true }) {
-  const originLabel =
-    origin === 'rol' ? 'Rol' : origin === 'directo' ? 'Directo' : origin === 'excluido' ? 'Quitado' : '';
+function PermissionChip({ permissionCode, origin, changeInfo, draggable = true }) {
   const isChanged = origin === 'directo' || origin === 'excluido';
+  const isPending = origin === 'pendiente';
+  const isSensitive = Boolean(SENSITIVE_PERMISSIONS[permissionCode]);
   const changeTooltip = changeInfo
-    ? `${changeInfo.accion === 'agregado' ? 'Agregado' : 'Quitado'} por ${changeInfo.porNombre || changeInfo.por || 'sistema'}${changeInfo.fecha ? ` · ${formatChangeDate(changeInfo.fecha)}` : ''}`
+    ? `${changeInfo.accion === 'agregado' ? 'Agregado' : changeInfo.accion === 'pendiente' ? 'Solicitud enviada' : 'Quitado'} por ${changeInfo.porNombre || changeInfo.por || 'sistema'}${changeInfo.fecha ? ` · ${formatChangeDate(changeInfo.fecha)}` : ''}`
     : '';
 
   return (
@@ -126,11 +140,6 @@ function PermissionChip({ permissionCode, origin, changeInfo, onMove, draggable 
       label={
         <Stack direction="row" spacing={0.75} alignItems="center">
           <Box component="span">{getPermissionLabel(permissionCode)}</Box>
-          {originLabel ? (
-            <Box component="span" sx={{ typography: 'caption', color: 'text.secondary' }}>
-              {originLabel}
-            </Box>
-          ) : null}
           {isChanged ? (
             <Tooltip title={changeTooltip || 'Permiso modificado manualmente'}>
               <Box component="span" sx={{ lineHeight: 0, color: 'info.main' }}>
@@ -138,10 +147,22 @@ function PermissionChip({ permissionCode, origin, changeInfo, onMove, draggable 
               </Box>
             </Tooltip>
           ) : null}
+          {isPending ? (
+            <Tooltip title={changeTooltip || 'Solicitud pendiente de aprobación'}>
+              <Box component="span" sx={{ lineHeight: 0, color: 'warning.main' }}>
+                <Iconify icon="solar:clock-circle-bold" width={14} />
+              </Box>
+            </Tooltip>
+          ) : null}
+          {isSensitive ? (
+            <Tooltip title="Permiso sensible: involucra menores de edad. Requiere aprobación Oficina Nacional.">
+              <Box component="span" sx={{ lineHeight: 0, color: 'warning.main' }}>
+                <Iconify icon="solar:danger-triangle-bold" width={14} />
+              </Box>
+            </Tooltip>
+          ) : null}
         </Stack>
       }
-      onDelete={onMove}
-      deleteIcon={<Iconify icon="solar:transfer-horizontal-bold" width={14} />}
       sx={{
         cursor: draggable ? 'grab' : 'default',
         maxWidth: 1,
@@ -210,7 +231,6 @@ function PermissionDropZone({
                     permissionCode={permissionCode}
                     origin={getOrigin(permissionCode)}
                     changeInfo={getChangeInfo(permissionCode)}
-                    onMove={() => onMovePermission(permissionCode)}
                   />
                 ))}
               </Stack>
@@ -237,6 +257,9 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
   const [directPermissions, setDirectPermissions] = useState([]);
   const [excludedPermissions, setExcludedPermissions] = useState([]);
   const [permissionsMetadata, setPermissionsMetadata] = useState({});
+  const [sensitiveRequest, setSensitiveRequest] = useState(null);
+  const [sensitiveJustification, setSensitiveJustification] = useState('');
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const userDocId = getUserDocId(admin);
 
   const rolePermissions = uniqueList(access?.rol?.permisos || admin?.permisosRol || []);
@@ -289,7 +312,7 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
     };
   }, [open, userDocId]);
 
-  const addPermission = (permissionCode) => {
+  const applyAddPermission = (permissionCode, extraMetadata = {}) => {
     if (!permissionCode) return;
 
     setExcludedPermissions((current) => current.filter((permission) => permission !== permissionCode));
@@ -305,8 +328,47 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
         fecha: new Date().toISOString(),
         por: user?.uid || user?.email || 'sistema',
         porNombre: user?.displayName || user?.name || user?.email || 'sistema',
+        ...extraMetadata,
       },
     }));
+  };
+
+  const addPermission = (permissionCode) => {
+    if (SENSITIVE_PERMISSIONS[permissionCode] && !activePermissions.includes(permissionCode)) {
+      setSensitiveRequest(permissionCode);
+      setSensitiveJustification('');
+      return;
+    }
+
+    applyAddPermission(permissionCode);
+  };
+
+  const confirmSensitivePermission = () => {
+    const permissionCode = sensitiveRequest;
+
+    if (!permissionCode) return;
+
+    if (!sensitiveJustification.trim()) {
+      setError('Debes indicar una justificacion para otorgar este permiso sensible.');
+      return;
+    }
+
+    setPermissionsMetadata((current) => ({
+      ...current,
+      [permissionCode]: {
+        accion: 'pendiente',
+        sensible: true,
+        notificarOficinaNacional: true,
+        justificacion: sensitiveJustification.trim(),
+        fecha: new Date().toISOString(),
+        por: user?.uid || user?.email || 'sistema',
+        porNombre: user?.displayName || user?.name || user?.email || 'sistema',
+      },
+    }));
+    setSensitiveRequest(null);
+    setSensitiveJustification('');
+    setError('');
+    toast.success('Se envio una notificacion a Oficina Nacional para su aprobacion.');
   };
 
   const removePermission = (permissionCode) => {
@@ -334,10 +396,21 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
     return 'rol';
   };
 
-  const getMissingOrigin = (permissionCode) =>
-    excludedPermissions.includes(permissionCode) ? 'excluido' : 'ninguno';
+  const getMissingOrigin = (permissionCode) => {
+    if (permissionsMetadata[permissionCode]?.accion === 'pendiente') return 'pendiente';
+    return excludedPermissions.includes(permissionCode) ? 'excluido' : 'ninguno';
+  };
 
   const getChangeInfo = (permissionCode) => permissionsMetadata[permissionCode] || null;
+  const hasPermissionChanges =
+    directPermissions.length > 0 || excludedPermissions.length > 0 || Object.keys(permissionsMetadata).length > 0;
+
+  const resetToRoleDefaults = () => {
+    setDirectPermissions([]);
+    setExcludedPermissions([]);
+    setPermissionsMetadata({});
+    setConfirmResetOpen(false);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -384,7 +457,7 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
           <Stack spacing={2.5}>
             {error ? <Alert severity="warning">{error}</Alert> : null}
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-end' }}>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Rol
@@ -398,6 +471,16 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
                 </Typography>
                 <Typography variant="subtitle2">{getScopeLabel(access?.alcance || admin?.alcance)}</Typography>
               </Box>
+
+              <Button
+                color="warning"
+                variant="outlined"
+                disabled={!hasPermissionChanges || saving}
+                onClick={() => setConfirmResetOpen(true)}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Restaurar rol original
+              </Button>
             </Stack>
 
             <Divider />
@@ -441,6 +524,61 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
           Guardar permisos
         </LoadingButton>
       </DialogActions>
+
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={Boolean(sensitiveRequest)}
+        onClose={() => setSensitiveRequest(null)}
+      >
+        <DialogTitle>{SENSITIVE_PERMISSIONS[sensitiveRequest]?.title || 'Permiso sensible'}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="warning">
+              {SENSITIVE_PERMISSIONS[sensitiveRequest]?.message}
+              <Box sx={{ mt: 1 }}>
+                <Link component={RouterLink} href="/politicas-de-privacidad" target="_blank">
+                  Políticas de Privacidad
+                </Link>
+              </Box>
+            </Alert>
+            <TextField
+              multiline
+              minRows={4}
+              label="Justificacion"
+              value={sensitiveJustification}
+              onChange={(event) => setSensitiveJustification(event.target.value)}
+              placeholder="Explica por qué esta persona necesita este permiso."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" variant="outlined" onClick={() => setSensitiveRequest(null)}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={confirmSensitivePermission}>
+            Notificar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmResetOpen} onClose={() => setConfirmResetOpen(false)}>
+        <DialogTitle>Restaurar rol original</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2">
+            Se eliminarán todos los permisos agregados o quitados manualmente para esta persona. El usuario
+            volverá a tener únicamente los permisos heredados de su rol base.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" variant="outlined" onClick={() => setConfirmResetOpen(false)}>
+            Cancelar
+          </Button>
+          <Button color="warning" variant="contained" onClick={resetToRoleDefaults}>
+            Restaurar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }

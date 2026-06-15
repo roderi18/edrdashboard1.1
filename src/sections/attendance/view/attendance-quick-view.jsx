@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { usePopover } from 'minimal-shared/hooks';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -22,12 +22,14 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { paths } from 'src/routes/paths';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { getMemberAllowedDestIds } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import {
+  limpiarAsistenciaDestacamento,
   guardarAsistenciaDestacamento,
   obtenerAsistenciaDestacamento,
   obtenerUltimasPresenciasMiembros,
@@ -35,6 +37,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
@@ -79,6 +82,24 @@ const AUTO_ABSENT_STATUS = 'absent-unmarked';
 
 const getMemberDestId = (member) =>
   member?.idDestacamento ?? member?.destId ?? member?.destacamentoId ?? member?.idDest ?? '';
+
+const getDestId = (dest) => String(dest?.id ?? dest?.idDestacamento ?? dest?.destId ?? '');
+
+const getDestName = (dest) => dest?.name || dest?.nombre || dest?.destName || '';
+
+const getDestNumber = (dest) => dest?.destNumber || dest?.numero || dest?.numeroDestacamento || '';
+
+const getDestTitle = (dest, fallbackId = '') => {
+  const name = getDestName(dest);
+  const number = getDestNumber(dest);
+  const label = [name, number].filter(Boolean).join(' ').trim();
+
+  if (!label) {
+    return fallbackId ? `Destacamento ${fallbackId}` : 'Destacamento';
+  }
+
+  return normalizeText(label).startsWith('destacamento') ? label : `Destacamento ${label}`;
+};
 
 const getMemberId = (member) => String(member?.idMiembros ?? member?.id ?? member?.memberId ?? '');
 
@@ -220,6 +241,7 @@ function AttendanceMemberSkeleton() {
 export function AttendanceQuickView() {
   const { user } = useAuthContext();
   const menuActions = usePopover();
+  const confirmClear = useBoolean();
 
   const [date, setDate] = useState(TODAY);
   const [search, setSearch] = useState('');
@@ -232,6 +254,8 @@ export function AttendanceQuickView() {
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
+  const allowedDestIds = useMemo(() => getMemberAllowedDestIds(user), [user]);
+  const scopedToDest = allowedDestIds instanceof Set;
 
   useEffect(() => {
     let active = true;
@@ -244,7 +268,15 @@ export function AttendanceQuickView() {
 
         if (!active) return;
 
-        const nextDests = Array.isArray(destItems) ? destItems : [];
+        const nextDests = Array.isArray(destItems)
+          ? destItems.filter((dest) => {
+            if (!(allowedDestIds instanceof Set)) {
+              return true;
+            }
+
+            return allowedDestIds.has(getDestId(dest));
+          })
+          : [];
         const nextMembers = Array.isArray(memberItems) ? memberItems : [];
 
         setDests(nextDests);
@@ -252,8 +284,13 @@ export function AttendanceQuickView() {
 
         if (nextDests.length) {
           setSelectedDestId(
-            (current) => current || String(nextDests[0]?.id ?? nextDests[0]?.idDestacamento ?? '')
+            (current) =>
+              nextDests.some((dest) => getDestId(dest) === String(current))
+                ? current
+                : getDestId(nextDests[0])
           );
+        } else {
+          setSelectedDestId('');
         }
       } catch {
         toast.error('No se pudo cargar la lista de asistencia.');
@@ -269,17 +306,19 @@ export function AttendanceQuickView() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [allowedDestIds]);
 
   const selectedDest = useMemo(
     () =>
       dests.find((dest) =>
-        [dest?.id, dest?.idDestacamento, dest?.destId].some(
-          (value) => String(value ?? '') === String(selectedDestId)
-        )
+        [dest?.id, dest?.idDestacamento, dest?.destId].some((value) => String(value ?? '') === String(selectedDestId))
       ),
     [dests, selectedDestId]
   );
+  const attendanceTitle = selectedDestId
+    ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
+    : 'Asistencia';
+  const showDestFilter = !scopedToDest;
 
   const selectedDestMembers = useMemo(
     () =>
@@ -430,6 +469,44 @@ export function AttendanceQuickView() {
     setStatusByMemberId({});
   }, []);
 
+  const getAuditUser = useCallback(
+    () =>
+      user
+        ? {
+          uid: user.uid || user.id || '',
+          nombre:
+            user.displayName ||
+            user.name ||
+            [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
+            user.email ||
+            '',
+          correo: user.email || '',
+        }
+        : null,
+    [user]
+  );
+
+  const handleClearSaved = useCallback(async () => {
+    if (!selectedDestId) {
+      return;
+    }
+
+    try {
+      setSavingAttendance(true);
+      await limpiarAsistenciaDestacamento({
+        fecha: date,
+        idDestacamento: selectedDestId,
+        usuario: getAuditUser(),
+      });
+      handleClear();
+      toast.success('Asistencia limpiada.');
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo limpiar la asistencia.');
+    } finally {
+      setSavingAttendance(false);
+    }
+  }, [date, getAuditUser, handleClear, selectedDestId]);
+
   const handleSave = useCallback(async () => {
     if (!selectedDestId) {
       return;
@@ -456,18 +533,7 @@ export function AttendanceQuickView() {
         },
         miembros: divisionFilteredMembers,
         estados: statusesToSave,
-        usuario: user
-          ? {
-              uid: user.uid || user.id || '',
-              nombre:
-                user.displayName ||
-                user.name ||
-                [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
-                user.email ||
-                '',
-              correo: user.email || '',
-            }
-          : null,
+        usuario: getAuditUser(),
       });
 
       setStatusByMemberId(statusesToSave);
@@ -490,7 +556,14 @@ export function AttendanceQuickView() {
     } finally {
       setSavingAttendance(false);
     }
-  }, [date, selectedDest, selectedDestId, statusByMemberId, divisionFilteredMembers, user]);
+  }, [
+    date,
+    selectedDest,
+    selectedDestId,
+    statusByMemberId,
+    divisionFilteredMembers,
+    getAuditUser,
+  ]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -503,7 +576,7 @@ export function AttendanceQuickView() {
         <MenuItem
           onClick={() => {
             menuActions.onClose();
-            handleClear();
+            confirmClear.onTrue();
           }}
           sx={{ whiteSpace: 'nowrap' }}
         >
@@ -526,24 +599,43 @@ export function AttendanceQuickView() {
     </CustomPopover>
   );
 
+  const renderConfirmClearDialog = () => (
+    <ConfirmDialog
+      open={confirmClear.value}
+      onClose={confirmClear.onFalse}
+      title="Limpiar asistencia"
+      content="¿Seguro que deseas limpiar las marcas de asistencia de esta vista?"
+      action={
+        <Button
+          variant="contained"
+          color="warning"
+          disabled={savingAttendance}
+          onClick={async () => {
+            await handleClearSaved();
+            confirmClear.onFalse();
+          }}
+        >
+          {savingAttendance ? 'Limpiando...' : 'Limpiar'}
+        </Button>
+      }
+    />
+  );
+
   return (
     <>
       <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
         <CustomBreadcrumbs
-          heading="Asistencia rapida"
+          heading={attendanceTitle}
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
         <Card
-          sx={(theme) => ({
+          sx={{
             p: { xs: 2, md: 3 },
             mb: 3,
-            top: { xs: 72, md: 88 },
-            zIndex: theme.zIndex.appBar - 1,
-            position: 'sticky',
             bgcolor: 'background.paper',
-          })}
+          }}
         >
           <Stack spacing={2.5}>
             <Box
@@ -553,7 +645,9 @@ export function AttendanceQuickView() {
                 gridTemplateColumns: {
                   xs: 'minmax(0, 1fr)',
                   sm: 'repeat(2, minmax(0, 1fr))',
-                  lg: 'minmax(220px, 1.25fr) minmax(220px, 1fr) minmax(180px, 0.75fr) minmax(170px, 0.75fr)',
+                  lg: showDestFilter
+                    ? 'minmax(220px, 1.25fr) minmax(220px, 1fr) minmax(180px, 0.75fr) minmax(170px, 0.75fr)'
+                    : 'minmax(220px, 1.25fr) minmax(180px, 0.75fr) minmax(170px, 0.75fr)',
                 },
               }}
             >
@@ -572,22 +666,24 @@ export function AttendanceQuickView() {
                 }}
               />
 
-              <TextField
-                select
-                label="Destacamento"
-                value={selectedDestId}
-                onChange={(event) => setSelectedDestId(event.target.value)}
-              >
-                {dests.map((dest) => {
-                  const destId = String(dest?.id ?? dest?.idDestacamento ?? '');
+              {showDestFilter && (
+                <TextField
+                  select
+                  label="Destacamento"
+                  value={selectedDestId}
+                  onChange={(event) => setSelectedDestId(event.target.value)}
+                >
+                  {dests.map((dest) => {
+                    const destId = getDestId(dest);
 
-                  return (
-                    <MenuItem key={destId || dest.name} value={destId}>
-                      {dest?.name || `Dest. ${destId}`}
-                    </MenuItem>
-                  );
-                })}
-              </TextField>
+                    return (
+                      <MenuItem key={destId || getDestName(dest)} value={destId}>
+                        {getDestTitle(dest, destId)}
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+              )}
 
               <DatePicker
                 label="Fecha"
@@ -774,6 +870,7 @@ export function AttendanceQuickView() {
       </DashboardContent>
 
       {renderMenuActions()}
+      {renderConfirmClearDialog()}
     </>
   );
 }

@@ -38,6 +38,14 @@ service firebase.storage {
             esRolAdministrativo(documentoUsuario('users').data.rol)
             || esRolAdministrativo(documentoUsuario('users').data.role)
           )
+        )
+        || (
+          tieneDocumento('usuarios_roles')
+          && (
+            esRolAdministrativo(documentoUsuario('usuarios_roles').data.rol)
+            || esRolAdministrativo(documentoUsuario('usuarios_roles').data.role)
+            || esRolAdministrativo(documentoUsuario('usuarios_roles').data.rolId)
+          )
         );
     }
 
@@ -60,10 +68,44 @@ service firebase.storage {
         ).data.permisos.hasAny([codigoPermiso]);
     }
 
+    function permisoExcluido(codigoPermiso) {
+      return tieneDocumento('usuarios_roles')
+        && documentoUsuario('usuarios_roles').data.permisosExcluidos is list
+        && documentoUsuario('usuarios_roles').data.permisosExcluidos.hasAny([codigoPermiso]);
+    }
+
+    function rolBaseTienePermiso(codigoPermiso) {
+      return tieneDocumento('usuarios_roles')
+        && (
+          (
+            codigoPermiso == 'miembros.subir_foto'
+            && documentoUsuario('usuarios_roles').data.rolId in [
+              'usuario_destacamento',
+              'usuario_seccion',
+              'consejo_ejecutivo',
+              'administrador_global',
+              'administrador_funcional'
+            ]
+          )
+          || (
+            codigoPermiso == 'destacamentos.subir_foto'
+            && documentoUsuario('usuarios_roles').data.rolId in [
+              'usuario_destacamento',
+              'usuario_seccion',
+              'administrador_global'
+            ]
+          )
+        );
+    }
+
     function tienePermiso(codigoPermiso) {
-      return esAdminRegistrado()
-        || tienePermisoDirecto(codigoPermiso)
-        || tienePermisoPorRol(codigoPermiso);
+      return !permisoExcluido(codigoPermiso)
+        && (
+          esAdminRegistrado()
+          || tienePermisoDirecto(codigoPermiso)
+          || tienePermisoPorRol(codigoPermiso)
+          || rolBaseTienePermiso(codigoPermiso)
+        );
     }
 
     function esImagenPermitida() {

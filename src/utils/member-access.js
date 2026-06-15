@@ -1,9 +1,12 @@
-import { doc, limit, query, where, getDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+
+import { ROLES } from 'src/auth/permissions/roles';
+import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
@@ -76,6 +79,11 @@ export const buildDefaultMemberPermissions = () => ({
     editar: false,
     eliminar: false,
   },
+  asistencia: {
+    ver: false,
+    crear: false,
+    editar: false,
+  },
   tienda: {
     ver: true,
     comprar: true,
@@ -126,6 +134,10 @@ const mergeMemberPermissions = (permissions = {}) => ({
     ...buildDefaultMemberPermissions().tienda,
     ...(permissions?.tienda ?? {}),
   },
+  asistencia: {
+    ...buildDefaultMemberPermissions().asistencia,
+    ...(permissions?.asistencia ?? {}),
+  },
   ordenes: {
     ...buildDefaultMemberPermissions().ordenes,
     ...(permissions?.ordenes ?? {}),
@@ -170,6 +182,19 @@ const normalizeScopeList = (...values) =>
     .filter((value) => value !== null && value !== undefined && value !== '')
     .map((value) => (Number.isFinite(Number(value)) ? Number(value) : String(value)));
 
+const hasDestScopeValues = (scope = {}) =>
+  normalizeScopeList(scope?.destacamentos, scope?.destacamentoId, scope?.idDestacamento).length > 0;
+
+const getScopeMode = (scope = {}, user = null) => {
+  const explicitMode = scope?.modo || scope?.tipo;
+
+  if (explicitMode) return explicitMode;
+  if (hasDestScopeValues(scope)) return 'destacamento';
+  if (isMemberSessionUser(user)) return 'destacamento';
+
+  return '';
+};
+
 const mergeMemberScope = (scope = {}, member = {}) => {
   const tipo = scope?.tipo ?? scope?.modo ?? 'destacamento';
   const destacamentos = normalizeScopeList(
@@ -209,6 +234,40 @@ const normalizeMemberProfile = (profile = {}, member = {}, authUser = {}) => ({
   permisos: mergeMemberPermissions(profile?.permisos),
 });
 
+const syncRoleProfileByAuthUid = async ({
+  authUser = {},
+  sourceProfile = {},
+  profile = {},
+  member = {},
+}) => {
+  if (!authUser?.uid || !FIRESTORE || !profile) {
+    return;
+  }
+
+  const authUid = String(authUser.uid);
+
+  await setDoc(
+    doc(FIRESTORE, 'usuarios_roles', authUid),
+    {
+      ...sourceProfile,
+      uid: authUid,
+      correo: sourceProfile?.correo ?? profile?.correo ?? member?.email ?? authUser?.email ?? '',
+      nombre:
+        sourceProfile?.nombre ?? profile?.nombre ?? member?.name ?? authUser?.displayName ?? '',
+      idMiembros: Number(profile?.idMiembros ?? member?.id ?? 0) || null,
+      codigoMiembro: sourceProfile?.codigoMiembro ?? member?.memberId ?? member?.codigoMiembro ?? '',
+      rol: sourceProfile?.rol ?? profile?.rol ?? 'miembro',
+      role: sourceProfile?.role ?? profile?.role ?? sourceProfile?.rol ?? profile?.rol ?? 'miembro',
+      estado: sourceProfile?.estado ?? profile?.estado ?? 'activo',
+      alcance: profile?.alcance ?? sourceProfile?.alcance ?? {},
+      actualizadoEn: new Date().toISOString(),
+    },
+    { merge: true }
+  ).catch((error) => {
+    console.warn('[member-access] no se pudo sincronizar usuarios_roles por uid', error);
+  });
+};
+
 export const canMemberManageMembers = (user) => {
   if (isMemberSessionUser(user)) {
     return false;
@@ -221,18 +280,21 @@ export const canMemberManageMembers = (user) => {
 };
 
 export const filterMembersByMemberScope = (members = [], user) => {
-  if (!isMemberSessionUser(user)) {
+  const scope = getMemberScope(user);
+  const scopeMode = getScopeMode(scope, user);
+
+  if (!scopeMode) {
     return members;
   }
 
-  const scope = getMemberScope(user);
-
-  if (scope?.modo !== 'destacamento') {
+  if (scopeMode !== 'destacamento') {
     return members;
   }
 
   const allowedDestinations = new Set(
-    Array.isArray(scope.destacamentos) ? scope.destacamentos.map((id) => String(id)) : []
+    normalizeScopeList(scope.destacamentos, scope.destacamentoId, scope.idDestacamento).map((id) =>
+      String(id)
+    )
   );
 
   if (!allowedDestinations.size) {
@@ -247,19 +309,22 @@ export const filterMembersByMemberScope = (members = [], user) => {
 };
 
 export const getMemberAllowedDestIds = (user) => {
-  if (!isMemberSessionUser(user)) {
-    return null;
-  }
-
   const scope = getMemberScope(user);
+  const scopeMode = getScopeMode(scope, user);
 
-  if (scope?.modo !== 'destacamento') {
+  if (!scopeMode) {
     return null;
   }
 
-  const allowedDestinations = Array.isArray(scope?.destacamentos)
-    ? scope.destacamentos.map((id) => String(id))
-    : [];
+  if (scopeMode !== 'destacamento') {
+    return null;
+  }
+
+  const allowedDestinations = normalizeScopeList(
+    scope?.destacamentos,
+    scope?.destacamentoId,
+    scope?.idDestacamento
+  ).map((id) => String(id));
 
   if (!allowedDestinations.length) {
     return new Set();
@@ -269,10 +334,6 @@ export const getMemberAllowedDestIds = (user) => {
 };
 
 export const filterDestsByMemberScope = (dests = [], user) => {
-  if (!isMemberSessionUser(user)) {
-    return dests;
-  }
-
   const allowedDestinations = getMemberAllowedDestIds(user);
 
   if (allowedDestinations === null) {
@@ -358,6 +419,9 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('miembro')) return Boolean(permissions.miembros?.ver);
   if (title.includes('administrador')) return Boolean(permissions.administradores?.ver);
   if (title.includes('destacamento')) return Boolean(permissions.destacamentos?.ver);
+  if (title.includes('asistencia') || path.includes('/dashboard/level/attendance')) {
+    return canViewAdminModule(permissions, 'asistencia', user);
+  }
   if (title.includes('seccion')) return Boolean(permissions.secciones?.ver);
   if (title.includes('region') || title.includes('consejo nacional')) {
     return Boolean(permissions.regiones?.ver || permissions.nacional?.ver);
@@ -401,16 +465,173 @@ const navPermissionByItem = (item, user) => {
 const hasExplicitPermissions = (permissions = {}) =>
   Boolean(permissions && typeof permissions === 'object' && Object.keys(permissions).length);
 
-const canViewAdminModule = (permissions = {}, moduleKey) => {
-  if (!hasExplicitPermissions(permissions)) {
+const CUSTOMER_SHOP_ROLE_IDS = new Set([
+  ROLES.USUARIO_COMUN,
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_REGION,
+]);
+
+const STORE_ADMIN_ROLE_IDS = new Set([ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_TIENDA]);
+
+const getUserRoleId = (user = {}) => {
+  const explicitRoleId = String(
+    user?.rolId ?? user?.roleId ?? user?.rolCodigo ?? user?.roleCodigo ?? user?.memberRole ?? ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if (explicitRoleId) {
+    return explicitRoleId;
+  }
+
+  const roleName = normalizeText(user?.rolNombre ?? user?.roleName ?? user?.cargo ?? '');
+
+  if (roleName.includes('administrador') && roleName.includes('destacamento')) {
+    return ROLES.USUARIO_DESTACAMENTO;
+  }
+
+  if (roleName.includes('usuario') && roleName.includes('comun')) {
+    return ROLES.USUARIO_COMUN;
+  }
+
+  return '';
+};
+
+const getExcludedPermissionCodes = (user = {}) =>
+  [user?.permisosExcluidos, user?.excludedPermissions]
+    .flat()
+    .filter(Boolean)
+    .map((permission) => String(permission).trim().toLowerCase());
+
+const getAuthorizationPermissionCodes = (user = {}) =>
+  (() => {
+    const excludedPermissions = new Set(getExcludedPermissionCodes(user));
+    const rolePermissions = PERMISOS_POR_ROL[getUserRoleId(user)] ?? [];
+
+    return [
+      rolePermissions,
+      user?.permisosRol,
+      user?.permisosDirectos,
+      user?.permisosAutorizacion,
+      Array.isArray(user?.permisos) ? user.permisos : [],
+      Array.isArray(user?.permissions) ? user.permissions : [],
+    ]
+      .flat()
+      .filter(Boolean)
+      .map((permission) => String(permission).trim().toLowerCase())
+      .filter((permission) => !excludedPermissions.has(permission));
+  })();
+
+const hasStoreAdminAccess = (user = {}, permissions = {}) => {
+  const roleId = getUserRoleId(user);
+
+  if (STORE_ADMIN_ROLE_IDS.has(roleId)) {
     return true;
+  }
+
+  const permissionCodes = getAuthorizationPermissionCodes(user);
+
+  if (
+    permissionCodes.includes('tienda.gestionar') ||
+    permissionCodes.includes('tienda.acceso_administrativo')
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    permissions.tienda?.administrar ||
+      permissions.tienda?.gestionarProductos ||
+      permissions.productos?.crear ||
+      permissions.productos?.editar ||
+      permissions.productos?.eliminar
+  );
+};
+
+const shouldUseCustomerShopNav = (user = {}) => {
+  const permissions = getMemberPermissions(user);
+  const roleId = getUserRoleId(user);
+  const permissionCodes = getAuthorizationPermissionCodes(user);
+
+  return (
+    CUSTOMER_SHOP_ROLE_IDS.has(roleId) &&
+    Boolean(permissions.tienda?.ver || permissionCodes.includes('tienda.ver')) &&
+    !hasStoreAdminAccess(user, permissions)
+  );
+};
+
+const isShopNavItem = (item = {}) => {
+  const title = normalizeText(item.title || '');
+  const path = String(item.path || '');
+
+  return (
+    title.includes('tienda') ||
+    title.includes('producto') ||
+    path === paths.dashboard.product.root ||
+    path.includes('/dashboard/product') ||
+    path.includes('/dashboard/checkout')
+  );
+};
+
+const buildCustomerShopNavItem = (item = {}) => ({
+  ...item,
+  title: 'Tienda Virtual',
+  path: paths.dashboard.product.root,
+  children: [
+    {
+      title: 'Lista de productos',
+      path: paths.dashboard.product.root,
+      deepMatch: true,
+      memberShopChild: true,
+    },
+    {
+      title: 'Mis ordenes',
+      path: paths.dashboard.order.root,
+      deepMatch: true,
+      memberShopChild: true,
+    },
+    {
+      title: 'Mis recibos',
+      path: paths.dashboard.invoice.root,
+      deepMatch: true,
+      memberShopChild: true,
+    },
+  ],
+  activePaths: [
+    paths.dashboard.product.root,
+    paths.dashboard.order.root,
+    paths.dashboard.invoice.root,
+  ],
+  deepMatch: true,
+});
+
+const MODULE_PERMISSION_BY_KEY = {
+  asistencia: 'asistencia.ver',
+  destacamentos: 'destacamentos.ver',
+  miembros: 'miembros.ver',
+  secciones: 'secciones.ver',
+  regiones: 'reportes.ver_regionales',
+  productos: 'tienda.ver',
+};
+
+const canViewAdminModule = (permissions = {}, moduleKey, user = {}) => {
+  if (!hasExplicitPermissions(permissions)) {
+    const permissionCode = MODULE_PERMISSION_BY_KEY[moduleKey];
+
+    return permissionCode ? getAuthorizationPermissionCodes(user).includes(permissionCode) : true;
   }
 
   if (!moduleKey) {
     return true;
   }
 
-  return Boolean(permissions[moduleKey]?.ver);
+  if (permissions[moduleKey]?.ver) {
+    return true;
+  }
+
+  const permissionCode = MODULE_PERMISSION_BY_KEY[moduleKey];
+
+  return permissionCode ? getAuthorizationPermissionCodes(user).includes(permissionCode) : false;
 };
 
 const adminModuleByItem = (item) => {
@@ -460,6 +681,9 @@ const adminModuleByItem = (item) => {
   if (path.includes('/dashboard/level/dest') || title.includes('destacamento')) {
     return 'destacamentos';
   }
+  if (path.includes('/dashboard/level/attendance') || title.includes('asistencia')) {
+    return 'asistencia';
+  }
   if (path.includes('/dashboard/level/sectional') || title.includes('seccion')) return 'secciones';
   if (
     path.includes('/dashboard/level/regional') ||
@@ -504,7 +728,7 @@ const navPermissionByAdminItem = (item, user) => {
   const permissions = getMemberPermissions(user);
   const moduleKey = adminModuleByItem(item);
 
-  return canViewAdminModule(permissions, moduleKey);
+  return canViewAdminModule(permissions, moduleKey, user);
 };
 
 export const filterDashboardNavDataForMember = (navData = [], user) =>
@@ -516,10 +740,7 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
             const childItems = item.children ? filterItems(item.children) : [];
             const itemAllowed = navPermissionByItem(item, user);
             const title = normalizeText(item.title || '');
-            const isShopItem =
-              title.includes('tienda') ||
-              title.includes('producto') ||
-              item.path === paths.dashboard.product.root;
+            const isShopItem = isShopNavItem(item);
             const isMemberDirectContentItem =
               title.includes('blog') ||
               title.includes('course') ||
@@ -533,37 +754,7 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
 
             if (item.children) {
               if (isMemberSessionUser(user) && isShopItem) {
-                return itemAllowed
-                  ? {
-                      ...item,
-                      children: [
-                        {
-                          title: 'Lista de productos',
-                          path: paths.dashboard.product.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                        {
-                          title: 'Mis ordenes',
-                          path: paths.dashboard.order.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                        {
-                          title: 'Mis recibos',
-                          path: paths.dashboard.invoice.root,
-                          deepMatch: true,
-                          memberShopChild: true,
-                        },
-                      ],
-                      activePaths: [
-                        paths.dashboard.product.root,
-                        paths.dashboard.order.root,
-                        paths.dashboard.invoice.root,
-                      ],
-                      deepMatch: true,
-                    }
-                  : null;
+                return itemAllowed ? buildCustomerShopNavItem(item) : null;
               }
 
               if (isMemberSessionUser(user) && isMemberDirectContentItem && itemAllowed) {
@@ -609,6 +800,10 @@ export const filterDashboardNavDataByUser = (navData = [], user) => {
   const filterItems = (items = []) =>
     items
       .map((item) => {
+        if (shouldUseCustomerShopNav(user) && isShopNavItem(item)) {
+          return buildCustomerShopNavItem(item);
+        }
+
         const childItems = item.children ? filterItems(item.children) : [];
         const itemAllowed = navPermissionByAdminItem(item, user);
 
@@ -706,29 +901,29 @@ export const loadMemberAccessProfile = async (authUser) => {
         return querySnap.docs[0].data() ?? null;
       })();
 
-  const profile = normalizeMemberProfile(
+  const sourceProfile =
     directProfile ??
-      profileByMemberId ?? {
-        idMiembros: Number(member.id),
-        uid: authUser?.uid ?? '',
-        correo: member.email ?? email,
-        nombre: member.name ?? '',
-        rol: 'miembro',
-        estado: 'activo',
-        alcance: {
-          modo: 'destacamento',
-          destacamentos: member.idDestacamento ? [Number(member.idDestacamento)] : [],
-          regiones: [],
-          secciones: [],
-        },
-        permisos: {
-          ...buildDefaultMemberPermissions(),
-        },
+    profileByMemberId ?? {
+      idMiembros: Number(member.id),
+      uid: authUser?.uid ?? '',
+      correo: member.email ?? email,
+      nombre: member.name ?? '',
+      rol: 'miembro',
+      estado: 'activo',
+      alcance: {
+        modo: 'destacamento',
+        destacamentos: member.idDestacamento ? [Number(member.idDestacamento)] : [],
+        regiones: [],
+        secciones: [],
       },
-    member,
-    authUser
-  );
+      permisos: {
+        ...buildDefaultMemberPermissions(),
+      },
+    };
+  const profile = normalizeMemberProfile(sourceProfile, member, authUser);
   const photoURL = await getActiveMemberPhotoUrl(profile.idMiembros ?? member.id);
+
+  await syncRoleProfileByAuthUid({ authUser, sourceProfile, profile, member });
 
   return {
     member,

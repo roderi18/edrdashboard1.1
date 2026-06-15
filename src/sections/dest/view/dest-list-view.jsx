@@ -20,7 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
-import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-access';
+import { filterDestsByMemberScope } from 'src/utils/member-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -49,6 +49,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 import { DestTableRow } from '../dest-table-row';
 import { DestCardList } from '../dest-card-list';
@@ -83,6 +84,27 @@ const mapDestToBaseRow = (dest) => ({
   regionalId: null,
   regionalName: '-',
 });
+
+const hasAdminRole = (user) =>
+  ['admin', 'administrador'].includes(String(user?.role || user?.rol || '').trim().toLowerCase());
+
+const canModifyDest = (user, permissionCode, actionKey) => {
+  const modulePermissions = user?.permisos?.destacamentos || user?.permissions?.destacamentos;
+
+  if (modulePermissions && typeof modulePermissions === 'object') {
+    return Boolean(modulePermissions[actionKey]);
+  }
+
+  if (user?.rolId || user?.roleId) {
+    return puedeModificar(user, permissionCode);
+  }
+
+  if (hasAdminRole(user)) {
+    return true;
+  }
+
+  return puedeModificar(user, permissionCode);
+};
 
 // ----------------------------------------------------------------------
 export function DestListView() {
@@ -219,6 +241,8 @@ export function DestListView() {
   };
 
   const [tableData, setTableData] = useState([]);
+  const canCreateDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
+  const canDeleteDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_ELIMINAR, 'eliminar');
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
@@ -233,9 +257,7 @@ export function DestListView() {
 
     async function loadBaseDests() {
       const cachedDests = getDests();
-      const cachedScopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(cachedDests, user)
-        : cachedDests;
+      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user);
 
       if (cachedScopedDests.length) {
         setTableData(cachedScopedDests.map(mapDestToBaseRow));
@@ -248,9 +270,7 @@ export function DestListView() {
         const data = await getDestsApi({ includePhotos: false });
         if (cancelled) return;
 
-        const scopedDests = isMemberSessionUser(user)
-          ? filterDestsByMemberScope(data || [], user)
-          : data || [];
+        const scopedDests = filterDestsByMemberScope(data || [], user);
 
         setTableData(scopedDests.map(mapDestToBaseRow));
       } catch (error) {
@@ -279,9 +299,7 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-      const scopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(data || [], user)
-        : data || [];
+      const scopedDests = filterDestsByMemberScope(data || [], user);
 
       const built = buildDestList(scopedDests);
 
@@ -450,7 +468,7 @@ export function DestListView() {
             { name: 'Lista' },
           ]}
           action={
-            !isMemberSessionUser(user) ? (
+            canCreateDest ? (
               <Button
                 component={RouterLink}
                 href={paths.dashboard.level.dest.new}
@@ -531,24 +549,26 @@ export function DestListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canDeleteDest && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -578,9 +598,10 @@ export function DestListView() {
                         key={`${row.id || row.idDestacamento}-${row.destName}`}
                         row={row}
                         selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onSelectRow={() => canDeleteDest && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.dest.edit(row.id)}
+                        canDelete={canDeleteDest}
                       />
                     )}
                     notFound={notFound}
