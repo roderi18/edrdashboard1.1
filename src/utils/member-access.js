@@ -463,16 +463,26 @@ const navPermissionByItem = (item, user) => {
 };
 
 const hasExplicitPermissions = (permissions = {}) =>
-  Boolean(permissions && typeof permissions === 'object' && Object.keys(permissions).length);
+  Boolean(
+    permissions &&
+      typeof permissions === 'object' &&
+      !Array.isArray(permissions) &&
+      Object.keys(permissions).length
+  );
 
-const CUSTOMER_SHOP_ROLE_IDS = new Set([
-  ROLES.USUARIO_COMUN,
-  ROLES.USUARIO_DESTACAMENTO,
-  ROLES.USUARIO_SECCION,
-  ROLES.USUARIO_REGION,
+const STORE_ADMIN_ROLE_IDS = new Set([ROLES.ADMINISTRADOR_TIENDA]);
+
+const ADMIN_PERMISSION_MODULE_KEYS = new Set([
+  'administradores',
+  'secciones',
+  'regiones',
+  'publicaciones',
+  'pedidos',
+  'facturas',
+  'notificaciones',
+  'logs',
+  'mantenimiento',
 ]);
-
-const STORE_ADMIN_ROLE_IDS = new Set([ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_TIENDA]);
 
 const getUserRoleId = (user = {}) => {
   const explicitRoleId = String(
@@ -486,6 +496,10 @@ const getUserRoleId = (user = {}) => {
   }
 
   const roleName = normalizeText(user?.rolNombre ?? user?.roleName ?? user?.cargo ?? '');
+
+  if (roleName.includes('administrador') && roleName.includes('tienda')) {
+    return ROLES.ADMINISTRADOR_TIENDA;
+  }
 
   if (roleName.includes('administrador') && roleName.includes('destacamento')) {
     return ROLES.USUARIO_DESTACAMENTO;
@@ -523,40 +537,46 @@ const getAuthorizationPermissionCodes = (user = {}) =>
       .filter((permission) => !excludedPermissions.has(permission));
   })();
 
-const hasStoreAdminAccess = (user = {}, permissions = {}) => {
+const hasStoreAdminAccess = (user = {}) => STORE_ADMIN_ROLE_IDS.has(getUserRoleId(user));
+
+const hasExplicitAdminPermissions = (permissions = {}) =>
+  hasExplicitPermissions(permissions) &&
+  Object.keys(permissions).some((permissionKey) => ADMIN_PERMISSION_MODULE_KEYS.has(permissionKey));
+
+const isLegacyFullDashboardAdmin = (user = {}) => {
+  if (!isAdminSessionUser(user)) {
+    return false;
+  }
+
   const roleId = getUserRoleId(user);
 
-  if (STORE_ADMIN_ROLE_IDS.has(roleId)) {
+  if (roleId === ROLES.ADMINISTRADOR_GLOBAL) {
     return true;
   }
 
-  const permissionCodes = getAuthorizationPermissionCodes(user);
-
-  if (
-    permissionCodes.includes('tienda.gestionar') ||
-    permissionCodes.includes('tienda.acceso_administrativo')
-  ) {
-    return true;
+  if (roleId === ROLES.ADMINISTRADOR_FUNCIONAL || roleId === ROLES.ADMINISTRADOR_TIENDA) {
+    return false;
   }
 
-  return Boolean(
-    permissions.tienda?.administrar ||
-      permissions.tienda?.gestionarProductos ||
-      permissions.productos?.crear ||
-      permissions.productos?.editar ||
-      permissions.productos?.eliminar
+  return (
+    !roleId &&
+    !hasExplicitAdminPermissions(getMemberPermissions(user)) &&
+    !getAuthorizationPermissionCodes(user).length
   );
 };
 
-const shouldUseCustomerShopNav = (user = {}) => {
-  const permissions = getMemberPermissions(user);
-  const roleId = getUserRoleId(user);
-  const permissionCodes = getAuthorizationPermissionCodes(user);
+const shouldUseCustomerShopNav = (user = {}) =>
+  isAdminSessionUser(user) && !isLegacyFullDashboardAdmin(user) && !hasStoreAdminAccess(user);
+
+const isCustomerShopParentItem = (item = {}) => {
+  const title = normalizeText(item.title || '');
+  const path = String(item.path || '');
 
   return (
-    CUSTOMER_SHOP_ROLE_IDS.has(roleId) &&
-    Boolean(permissions.tienda?.ver || permissionCodes.includes('tienda.ver')) &&
-    !hasStoreAdminAccess(user, permissions)
+    title.includes('tienda') ||
+    title.includes('producto') ||
+    path === paths.dashboard.product.root ||
+    path.includes('/dashboard/product')
   );
 };
 
@@ -725,6 +745,10 @@ const adminModuleByItem = (item) => {
 const navPermissionByAdminItem = (item, user) => {
   if (item.disabled) return false;
 
+  if (isLegacyFullDashboardAdmin(user)) {
+    return true;
+  }
+
   const permissions = getMemberPermissions(user);
   const moduleKey = adminModuleByItem(item);
 
@@ -800,7 +824,7 @@ export const filterDashboardNavDataByUser = (navData = [], user) => {
   const filterItems = (items = []) =>
     items
       .map((item) => {
-        if (shouldUseCustomerShopNav(user) && isShopNavItem(item)) {
+        if (shouldUseCustomerShopNav(user) && isCustomerShopParentItem(item)) {
           return buildCustomerShopNavItem(item);
         }
 

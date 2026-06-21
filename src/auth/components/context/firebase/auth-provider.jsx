@@ -4,6 +4,7 @@ import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, signOut as _signOut } from 'firebase/auth';
 
+import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
@@ -34,6 +35,8 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
 const isAdminRole = (role) =>
   ['admin', 'administrador'].includes(String(role ?? '').trim().toLowerCase());
 
+const isAdminRoleId = (roleId) => ADMIN_ROLE_IDS.includes(String(roleId ?? '').trim());
+
 const SOCIAL_PROVIDER_IDS = new Set(['google.com', 'apple.com', 'facebook.com']);
 
 const isSocialAuthUser = (authUser) =>
@@ -57,6 +60,15 @@ const buildAdminSessionFromMemberAccess = (authUser, access = {}) => {
     codigoMiembro: profile.codigoMiembro ?? member.memberId ?? member.codigoMiembro ?? '',
     idMiembros: Number(profile.idMiembros ?? member.id ?? member.idMiembros ?? 0) || '',
     photoURL: profile.photoURL ?? member.avatarUrl ?? authUser.photoURL ?? '',
+    rolId: profile.rolId ?? profile.roleId ?? '',
+    roleId: profile.roleId ?? profile.rolId ?? '',
+    rolNombre: profile.rolNombre ?? profile.roleName ?? '',
+    alcance: profile.alcance ?? {},
+    permisosRol: profile.permisosRol ?? [],
+    permisosDirectos: profile.permisosDirectos ?? [],
+    permisosExcluidos: profile.permisosExcluidos ?? [],
+    permisosMetadata: profile.permisosMetadata ?? {},
+    permisosAutorizacion: profile.permisosAutorizacion ?? [],
   });
 };
 
@@ -227,6 +239,11 @@ export function AuthProvider({ children }) {
             (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
             null;
           const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;
+          const memberRoleId =
+            memberAccess.profile?.rolId ??
+            memberAccess.profile?.roleId ??
+            memberAccess.profile?.rolCodigo ??
+            memberAccess.profile?.roleCodigo;
 
           let sessionUser;
 
@@ -242,9 +259,23 @@ export function AuthProvider({ children }) {
               ...pickAuthorizationProfile(authorizationAccess, memberAccess),
             });
           } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
-            sessionUser = isAdminRole(memberRole)
-              ? buildAdminSessionFromMemberAccess(authUser, memberAccess)
-              : buildMemberSessionUser(authUser, memberAccess);
+            const authorizationAccess = await loadAuthorizationAccess(
+              authUser,
+              memberAccess?.profile,
+              memberAccess
+            );
+            const authorizationProfile = pickAuthorizationProfile(authorizationAccess, memberAccess);
+
+            sessionUser =
+              isAdminRole(memberRole) || isAdminRoleId(memberRoleId) || isAdminRoleId(authorizationProfile.rolId)
+                ? buildAdminSessionFromMemberAccess(authUser, {
+                    ...memberAccess,
+                    profile: {
+                      ...(memberAccess.profile ?? {}),
+                      ...authorizationProfile,
+                    },
+                  })
+                : buildMemberSessionUser(authUser, memberAccess);
           } else if (isSocialAuthUser(authUser)) {
             await _signOut(AUTH).catch(() => {});
             setState({ user: null, loading: false });

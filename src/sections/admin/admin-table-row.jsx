@@ -14,6 +14,8 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
+import { ADMIN_ROLE_IDS, getAdminRoleLabel } from 'src/utils/admin-role-label';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -40,7 +42,9 @@ export function AdminTableRow({
 
   const isAdminActive =
     Boolean(row.adminId || row.esAdministrador) ||
-    ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase());
+    ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase()) ||
+    ADMIN_ROLE_IDS.includes(row.rolId || row.roleId || row.role);
+  const roleLabel = getAdminRoleLabel(row);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -157,7 +161,7 @@ export function AdminTableRow({
           </Label>
         </TableCell>
 
-        <TableCell>{row.rol || row.role || 'admin'}</TableCell>
+        <TableCell>{roleLabel}</TableCell>
 
         <TableCell align="right">
           <IconButton color="default" onClick={menuActions.onOpen}>

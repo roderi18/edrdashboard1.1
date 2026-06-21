@@ -17,6 +17,7 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { getAdminRoleLabel } from 'src/utils/admin-role-label';
 import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
 
 import { _mock } from 'src/_mock';
@@ -38,7 +39,8 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
-  const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
+  const memberCode = getMemberCodeLabel(user);
+  const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
   const accountPhotoURL = user?.photoURL || '';
 
@@ -163,7 +165,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
 
             {!isMemberSessionUser(user) && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-                administrador
+                {adminRoleLabel}
               </Typography>
             )}
 
