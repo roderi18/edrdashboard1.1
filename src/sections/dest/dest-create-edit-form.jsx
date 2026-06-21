@@ -17,6 +17,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { AUTH } from 'src/lib/firebase';
@@ -131,9 +132,10 @@ export function DestCreateEditForm({ currentDest }) {
   const [allMembers, setAllMembers] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+  const isDestacamentoAdmin = isDestacamentoAdminRole(user);
   const isLegacyAdmin = ['admin', 'administrador'].includes(
     String(user?.role || user?.rol || '').trim().toLowerCase()
-  );
+  ) && !isDestacamentoAdmin;
 
 
   const defaultValues = {
@@ -255,15 +257,17 @@ export function DestCreateEditForm({ currentDest }) {
     idRegion: regional?.id || currentDest?.regionId || currentDest?.idRegion,
   };
   const canEditDest =
-    isCreateView ||
-    isLegacyAdmin ||
-    (puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
-      estaDentroDelAlcance(user, currentDestResource));
+    !isDestacamentoAdmin &&
+    (isCreateView ||
+      isLegacyAdmin ||
+      (puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
+        estaDentroDelAlcance(user, currentDestResource)));
   const canUploadDestPhoto =
-    isCreateView ||
-    isLegacyAdmin ||
-    (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-      estaDentroDelAlcance(user, currentDestResource));
+    !isDestacamentoAdmin &&
+    (isCreateView ||
+      isLegacyAdmin ||
+      (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
+        estaDentroDelAlcance(user, currentDestResource)));
 
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
@@ -450,11 +454,13 @@ export function DestCreateEditForm({ currentDest }) {
                 control={
                   <Switch
                     checked={watch('registradoOfnc') ?? true}
+                    disabled={!canEditDest}
                     onChange={(event) =>
+                      canEditDest &&
                       methods.setValue('registradoOfnc', event.target.checked, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
                     }
                   />
                 }
@@ -481,11 +487,13 @@ export function DestCreateEditForm({ currentDest }) {
                 control={
                   <Switch
                     checked={watch('rritrackActivo') ?? false}
+                    disabled={!canEditDest}
                     onChange={(event) =>
+                      canEditDest &&
                       methods.setValue('rritrackActivo', event.target.checked, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
                     }
                   />
                 }
@@ -620,7 +628,7 @@ export function DestCreateEditForm({ currentDest }) {
                 <>
                   {step === 1 && (
                     <Box sx={{ gridColumn: '1 / -1' }}>
-                      <ChurchDestSection isCreateView />
+                      <ChurchDestSection isCreateView disabled={!canEditDest} />
                     </Box>
                   )}
 
@@ -631,6 +639,7 @@ export function DestCreateEditForm({ currentDest }) {
                       churches={churches}
                       methods={methods}
                       watch={watch}
+                      disabled={!canEditDest}
                     />
                   )}
                 </>
@@ -641,11 +650,12 @@ export function DestCreateEditForm({ currentDest }) {
                     churches={churches}
                     methods={methods}
                     watch={watch}
+                    disabled={!canEditDest}
                   />
 
                   <Box sx={{ gridColumn: '1 / -1' }}>
                     <DashedAccordion title="Información de la iglesia">
-                      <ChurchDestSection />
+                      <ChurchDestSection disabled={!canEditDest} />
                     </DashedAccordion>
                   </Box>
                 </>

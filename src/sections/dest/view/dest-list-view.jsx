@@ -21,6 +21,7 @@ import { RouterLink } from 'src/routes/components';
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { filterDestsByMemberScope } from 'src/utils/member-access';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -89,6 +90,10 @@ const hasAdminRole = (user) =>
   ['admin', 'administrador'].includes(String(user?.role || user?.rol || '').trim().toLowerCase());
 
 const canModifyDest = (user, permissionCode, actionKey) => {
+  if (isDestacamentoAdminRole(user)) {
+    return false;
+  }
+
   const modulePermissions = user?.permisos?.destacamentos || user?.permissions?.destacamentos;
 
   if (modulePermissions && typeof modulePermissions === 'object') {

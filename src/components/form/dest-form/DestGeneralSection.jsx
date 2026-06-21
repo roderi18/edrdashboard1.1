@@ -1,15 +1,15 @@
+import { useParams } from 'next/navigation';
+
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+
 import { Field } from 'src/components/hook-form';
-import { useParams } from 'next/navigation';
 import NameInput from 'src/components/common/name-input';
-import NumberInput from 'src/components/common/number-input';
-import DaysSelect from 'src/components/common/days-select';
 import TimeInput from 'src/components/common/time-input';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
+import DaysSelect from 'src/components/common/days-select';
+import NumberInput from 'src/components/common/number-input';
 
 export default function DestGeneralSection({
     isCreateView,
@@ -17,6 +17,7 @@ export default function DestGeneralSection({
     churches,
     methods,
     watch,
+    disabled = false,
 }) {
     const params = useParams();
     const destId = params?.id;
@@ -25,8 +26,7 @@ export default function DestGeneralSection({
     )?.length || 0;
     return (
         <>
-            {(
-                <Box
+            <Box
                     sx={{
                         gridColumn: '1 / -1',
                         display: 'flex',
@@ -50,12 +50,12 @@ export default function DestGeneralSection({
 
                     <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
                 </Box>
-            )}
 
             <NameInput
                 name="name"
                 label="Nombre de Destacamento"
                 maxLength={100}
+                disabled={disabled}
             // InputProps={{
             //     startAdornment: (
             //         <InputAdornment position="start">
@@ -69,11 +69,13 @@ export default function DestGeneralSection({
                 name="destNumber"
                 label="Número de Destacamento"
                 maxLength={3}
+                disabled={disabled}
             />
 
             <Field.Autocomplete
                 name="churchId"
                 label="Iglesia"
+                disabled={disabled}
                 options={Array.isArray(churches) ? churches : []}
                 getOptionLabel={(option) =>
                     option?.name ? `${option.name} (ID: ${option.id})` : ''
@@ -85,6 +87,8 @@ export default function DestGeneralSection({
                         : null
                 }
                 onChange={(_, value) => {
+                    if (disabled) return;
+
                     methods.setValue('churchId', value?.id ? String(value.id) : '', {
                         shouldValidate: true,
                         shouldDirty: true,
@@ -95,6 +99,7 @@ export default function DestGeneralSection({
             <Field.Autocomplete
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
+                disabled={disabled}
                 options={Array.isArray(members) ? members : []}
                 value={
                     watch('coordinatorId')
@@ -106,6 +111,8 @@ export default function DestGeneralSection({
                 }
                 isOptionEqualToValue={(option, value) => option.memberId === value?.memberId}
                 onChange={(_, value) => {
+                    if (disabled) return;
+
                     methods.setValue('coordinatorId', value?.memberId ?? null, {
                         shouldValidate: true,
                         shouldDirty: true,
@@ -116,11 +123,13 @@ export default function DestGeneralSection({
             <DaysSelect
                 name="destMeetingDays"
                 label="Día de reunión"
+                disabled={disabled}
             />
 
             <TimeInput
                 name="destMeetingTimes"
                 label="Horarios de reunión"
+                disabled={disabled}
             />
 
 

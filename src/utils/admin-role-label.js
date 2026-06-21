@@ -13,6 +13,18 @@ export const ADMIN_ROLE_IDS = [
   ROLES.ADMINISTRADOR_TIENDA,
 ];
 
+export const isDestacamentoAdminRole = (user = {}) => {
+  const rawRole = String(user?.rol || user?.role || '').trim();
+  const roleId =
+    user?.rolId ||
+    user?.roleId ||
+    user?.rolCodigo ||
+    user?.roleCodigo ||
+    (ROLES_POR_CODIGO[rawRole] ? rawRole : '');
+
+  return roleId === ROLES.USUARIO_DESTACAMENTO;
+};
+
 export const getAdminRoleName = (user = {}) => {
   const rawRole = String(user?.rol || user?.role || '').trim();
   const roleId =

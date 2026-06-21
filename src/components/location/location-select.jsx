@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Field } from 'src/components/hook-form';
+import { useState, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+
+import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 
 // 🔥 BUILDER
@@ -26,7 +27,7 @@ const buildSectores = (distritos, secciones, barrios) => {
     return sectores;
 };
 
-export default function LocationSelect() {
+export default function LocationSelect({ disabled = false }) {
     const { watch, setValue } = useFormContext();
 
     const [provinces, setProvinces] = useState([]);
@@ -64,11 +65,14 @@ export default function LocationSelect() {
             <Field.Autocomplete
                 name="provinceId"
                 label="Provincia"
+                disabled={disabled}
                 options={provinces}
                 getOptionLabel={(option) => option?.nombre || ''}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                 value={provinces.find(p => String(p.id) === watch('provinceId')) || null}
                 onChange={(e, option) => {
+                    if (disabled) return;
+
                     setValue('provinceId', option?.id ? String(option.id) : '');
                     setValue('municipioId', '');
                     setValue('sectorId', '');
@@ -79,6 +83,7 @@ export default function LocationSelect() {
             <Field.Autocomplete
                 name="municipioId"
                 label="Municipio"
+                disabled={disabled}
                 options={municipios.filter(m => String(m.provinciaId) === watch('provinceId'))}
                 getOptionLabel={(option) => option?.nombre || ''}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
@@ -91,6 +96,8 @@ export default function LocationSelect() {
                         : 'Primero elegir Provincia'
                 }
                 onChange={(e, option) => {
+                    if (disabled) return;
+
                     setValue('municipioId', option?.id ? String(option.id) : '');
                     setValue('sectorId', '');
                 }}
@@ -100,6 +107,7 @@ export default function LocationSelect() {
             <Field.Autocomplete
                 name="sectorId"
                 label="Sector"
+                disabled={disabled}
                 options={sectores.filter(
                     s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
                 )}
@@ -113,6 +121,8 @@ export default function LocationSelect() {
                         : 'Primero elegir Municipio'
                 }
                 onChange={(e, option) => {
+                    if (disabled) return;
+
                     setValue('sectorId', option?.id ? String(option.id) : '');
                 }}
             />
@@ -123,6 +133,7 @@ export default function LocationSelect() {
                 allowNumbers
                 allowSpecialChars
                 maxLength={20}
+                disabled={disabled}
             />
         </>
     );
