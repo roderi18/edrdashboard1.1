@@ -413,9 +413,7 @@ export function RegionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && (
-          <RegionalCardList regionals={dataFiltered} canManage={canManage} />
-        )}
+        {displayMode !== 'panel' && <RegionalCardList regionals={dataFiltered} />}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

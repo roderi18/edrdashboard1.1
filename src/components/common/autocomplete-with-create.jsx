@@ -13,9 +13,11 @@ export default function AutocompleteWithCreate({
     label = 'Seleccionar',
     createLabel = 'Crear',
     createLink = '/',
+    disabled = false,
 }) {
     return (
         <Autocomplete
+            disabled={disabled}
             options={options}
             value={value}
             onChange={onChange}

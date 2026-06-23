@@ -15,6 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { AUTH } from 'src/lib/firebase';
@@ -41,6 +42,9 @@ const DEFAULT_VALUES = {
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
   const { user } = useAuthContext();
+  // Solo administrador global/funcional puede editar; el resto navega y consulta
+  // la region en modo de solo lectura.
+  const canEdit = canManageOrgLevels(user);
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -109,6 +113,10 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!canEdit) {
+        return;
+      }
+
       const payload = {
         idRegion: currentRegional?.id || 0,
         nombre: data.name,
@@ -162,7 +170,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !canEdit}
                 onDrop={handleUploadRegionalPhoto}
                 optimizationToast={false}
                 helperText={
@@ -193,6 +201,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
                     render={({ field }) => (
                       <Switch
                         {...field}
+                        disabled={!canEdit}
                         checked={field.value !== 'active'}
                         onChange={(event) =>
                           field.onChange(event.target.checked ? 'banned' : 'active')
@@ -276,15 +285,18 @@ export function RegionalCreateEditForm({ currentRegional }) {
             >
               <RegionalGeneralSection
                 isCreateView={!isEditView}
+                disabled={!canEdit}
               />
 
             </Box>
 
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
-              </Button>
-            </Stack>
+            {canEdit && (
+              <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+                <Button type="submit" variant="contained" loading={isSubmitting}>
+                  {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
+                </Button>
+              </Stack>
+            )}
           </Card>
         </Grid>
       </Grid>

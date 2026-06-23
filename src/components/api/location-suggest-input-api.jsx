@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useFormContext, Controller } from 'react-hook-form';
-import TextField from '@mui/material/TextField';
+import { useState, useEffect } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 
 export default function LocationSuggestInput({
@@ -13,6 +14,7 @@ export default function LocationSuggestInput({
     allowNumbers = false,
     allowSpecialChars = false,
     allowDash = false,
+    disabled = false,
 }) {
     const { control, setValue, watch } = useFormContext();
 
@@ -129,6 +131,7 @@ export default function LocationSuggestInput({
                         {...field}
                         label={label}
                         fullWidth
+                        disabled={disabled}
                         error={!!error}
                         helperText={error?.message}
                         inputProps={{ maxLength }}

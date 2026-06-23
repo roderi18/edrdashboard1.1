@@ -518,9 +518,7 @@ export function SectionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && (
-          <SectionalCardList sectionals={dataFiltered} canManage={canManage} />
-        )}
+        {displayMode !== 'panel' && <SectionalCardList sectionals={dataFiltered} />}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

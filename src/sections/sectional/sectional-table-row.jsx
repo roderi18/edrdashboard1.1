@@ -46,7 +46,7 @@ export function SectionalTableRow({
 
       <CompactEntityTableCell
         title={row.sectionalName || '-'}
-        href={canDelete ? editHref : ''}
+        href={editHref}
         subtitle={row.email}
         avatarUrl={row.avatarUrl}
       />

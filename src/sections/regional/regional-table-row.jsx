@@ -56,7 +56,7 @@ export function RegionalTableRow({
 
       <CompactEntityTableCell
         title={row.regionalName}
-        href={canManage ? editHref : ''}
+        href={editHref}
         subtitle={row.email}
         avatarUrl={row.avatarUrl}
         avatarChildren={!row.avatarUrl && row.regionalName?.[0]}

@@ -489,6 +489,12 @@ export const filterSectionalsByMemberScope = (
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 
+  // El administrador de destacamento puede consultar todas las secciones
+  // (solo lectura); el alcance seccional aplica al administrador de seccion.
+  if (getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO) {
+    return sectionals;
+  }
+
   if (!scopeMode || scope?.nacional || scopeMode === ALCANCES.NACIONAL || scopeMode === ALCANCES.GLOBAL) {
     return sectionals;
   }
