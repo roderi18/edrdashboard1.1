@@ -278,6 +278,10 @@ export function DestCreateEditForm({ currentDest }) {
   const canEditMeetingSchedule =
     isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
   const canSaveDest = canEditDest || canEditMeetingSchedule;
+  // El admin de destacamento solo puede descargar la informacion de miembros de
+  // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
+  const canDownloadMembersInfo =
+    !isDestacamentoAdmin || estaDentroDelAlcance(user, currentDestResource);
 
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
@@ -634,11 +638,15 @@ export function DestCreateEditForm({ currentDest }) {
                       label: 'Iglesia',
                       rows: [{ label: 'Iglesia', value: values.churchName || values.churchId }],
                     },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.memberCount }],
-                    },
+                    ...(canDownloadMembersInfo
+                      ? [
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [{ label: 'Cantidad', value: values.memberCount }],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>
