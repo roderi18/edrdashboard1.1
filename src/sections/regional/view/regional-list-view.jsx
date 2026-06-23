@@ -77,6 +77,38 @@ const mapRegionalToBaseRow = (regional) => ({
   regionalXSectionalMemberCount: 0,
 });
 
+const normalizeId = (value) => String(value ?? '').trim();
+
+const idMatches = (left, right) => {
+  const leftId = normalizeId(left);
+  const rightId = normalizeId(right);
+
+  return Boolean(leftId && rightId && leftId === rightId);
+};
+
+const getRegionalId = (regional = {}) => regional?.id ?? regional?.idRegion ?? regional?.regionId;
+
+const getSectionalRegionalId = (sectional = {}) =>
+  sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId;
+
+const getSectionalId = (sectional = {}) =>
+  sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId;
+
+const getChurchIdCandidates = (church = {}) =>
+  [church?.id, church?.idIglesia, church?.churchId]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map(normalizeId);
+
+const getChurchSectionId = (church = {}) =>
+  church?.idSeccion ?? church?.seccionId ?? church?.sectionId ?? church?.sectionalId;
+
+const getDestId = (dest = {}) => dest?.id ?? dest?.idDestacamento ?? dest?.destId;
+
+const getDestChurchId = (dest = {}) => dest?.churchId ?? dest?.idIglesia ?? dest?.church?.id;
+
+const getMemberDestId = (member = {}) =>
+  member?.idDestacamento ?? member?.destId ?? member?.destacamentoId;
+
 // ----------------------------------------------------------------------
 
 export function RegionalListView() {
@@ -144,25 +176,29 @@ export function RegionalListView() {
             director?.fullName ||
             [director?.firstName, director?.lastName].filter(Boolean).join(' ').trim() ||
             'Desconocido';
-          const seccionesDeRegion = sectionals.filter(
-            (s) => Number(s.regionalId) === Number(regional.id)
+          const seccionesDeRegion = sectionals.filter((s) =>
+            idMatches(getSectionalRegionalId(s), getRegionalId(regional))
           );
 
-          const iglesiasDeRegion = churches.filter((c) =>
-            seccionesDeRegion.some((s) => Number(s.idSeccion) === Number(c.idSeccion))
+          const sectionIdsDeRegion = new Set(
+            seccionesDeRegion.map((s) => normalizeId(getSectionalId(s)))
           );
 
-          const destCount = dests.filter((d) =>
-            iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-          ).length;
-          const miembrosDeRegion = members.filter(
-            (m) =>
-              m.idDestacamento !== null &&
-              dests.some(
-                (d) =>
-                  Number(d.idDestacamento) === Number(m.idDestacamento) &&
-                  iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-              )
+          const churchIdsDeRegion = new Set(
+            churches
+              .filter((c) => sectionIdsDeRegion.has(normalizeId(getChurchSectionId(c))))
+              .flatMap((c) => getChurchIdCandidates(c))
+          );
+
+          const destsDeRegion = dests.filter((d) =>
+            churchIdsDeRegion.has(normalizeId(getDestChurchId(d)))
+          );
+
+          const destIdsDeRegion = new Set(destsDeRegion.map((d) => normalizeId(getDestId(d))));
+
+          const destCount = destsDeRegion.length;
+          const miembrosDeRegion = members.filter((m) =>
+            destIdsDeRegion.has(normalizeId(getMemberDestId(m)))
           ).length;
           return {
             ...regional,
