@@ -20,6 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
@@ -702,6 +703,7 @@ export function MemberListView() {
             sectionals={sectionals}
             members={visibleMembers}
             canManageMembers={memberCanManage}
+            showScopeFilters={!isDestacamentoAdminRole(user)}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,

@@ -349,6 +349,7 @@ export function MemberTableToolbar({
   options,
   members = [],
   canManageMembers = true,
+  showScopeFilters = true,
 }) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
@@ -726,13 +727,14 @@ export function MemberTableToolbar({
         {/* boton de filtro para desktop */}
         {!isMobile && (
           <>
-            {renderFilterSelect(
-              'destName',
-              'Destacamento',
-              options.destName,
-              currentFilters.destName,
-              handleFilterdestName
-            )}
+            {showScopeFilters &&
+              renderFilterSelect(
+                'destName',
+                'Destacamento',
+                options.destName,
+                currentFilters.destName,
+                handleFilterdestName
+              )}
 
             {renderFilterSelect(
               'memberPosition',
@@ -742,13 +744,14 @@ export function MemberTableToolbar({
               handleFilterMemberPosition
             )}
 
-            {renderFilterSelect(
-              'sectionalId',
-              'Sección',
-              options.sectionalId,
-              currentFilters.sectionalId,
-              handleFilterSectionalId
-            )}
+            {showScopeFilters &&
+              renderFilterSelect(
+                'sectionalId',
+                'Sección',
+                options.sectionalId,
+                currentFilters.sectionalId,
+                handleFilterSectionalId
+              )}
           </>
         )}
 
@@ -784,18 +787,22 @@ export function MemberTableToolbar({
             {/* 🔽 Filter */}
             <TableToolbarMobileFilter
               hasActiveFilters={
-                currentFilters.destName.length ||
+                (showScopeFilters && currentFilters.destName.length) ||
                 currentFilters.memberPosition.length ||
-                currentFilters.sectionalId.length
+                (showScopeFilters && currentFilters.sectionalId.length)
               }
               filtersConfig={[
-                {
-                  key: 'destName',
-                  label: 'Destacamento',
-                  value: currentFilters.destName,
-                  onChange: handleFilterdestName,
-                  options: options.destName,
-                },
+                ...(showScopeFilters
+                  ? [
+                      {
+                        key: 'destName',
+                        label: 'Destacamento',
+                        value: currentFilters.destName,
+                        onChange: handleFilterdestName,
+                        options: options.destName,
+                      },
+                    ]
+                  : []),
                 {
                   key: 'memberPosition',
                   label: 'Posición',
@@ -803,13 +810,17 @@ export function MemberTableToolbar({
                   onChange: handleFilterMemberPosition,
                   options: options.memberPosition,
                 },
-                {
-                  key: 'sectionalId',
-                  label: 'Sección',
-                  value: currentFilters.sectionalId,
-                  onChange: handleFilterSectionalId,
-                  options: options.sectionalId,
-                },
+                ...(showScopeFilters
+                  ? [
+                      {
+                        key: 'sectionalId',
+                        label: 'Sección',
+                        value: currentFilters.sectionalId,
+                        onChange: handleFilterSectionalId,
+                        options: options.sectionalId,
+                      },
+                    ]
+                  : []),
               ]}
             />
 

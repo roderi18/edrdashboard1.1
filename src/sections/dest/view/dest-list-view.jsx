@@ -540,6 +540,7 @@ export function DestListView() {
             setDisplayMode={setDisplayMode}
             rows={tableData}
             options={{ sectionalName: distinctSectionalFullName }}
+            showSectionFilter={!isDestacamentoAdminRole(user)}
           />
 
           {canReset && (
