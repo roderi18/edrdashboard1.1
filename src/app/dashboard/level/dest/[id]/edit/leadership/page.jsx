@@ -33,6 +33,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 
 import {
@@ -59,6 +60,8 @@ import {
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
@@ -485,6 +488,7 @@ function LeadershipNode({
   onCambiarMiembro,
   onRemoverMiembro,
   onInformacionRol,
+  canManage = true,
 }) {
   const menuActions = usePopover();
   const displayName = miembroAsignado ? getMemberName(miembroAsignado) : name;
@@ -539,15 +543,19 @@ function LeadershipNode({
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
-        <MenuItem {...getMenuItemActionProps(handleCambiarMiembro)}>
-          <Iconify icon="solar:user-plus-bold" />
-          Cambiar miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem {...getMenuItemActionProps(handleCambiarMiembro)}>
+            <Iconify icon="solar:user-plus-bold" />
+            Cambiar miembro
+          </MenuItem>
+        )}
 
-        <MenuItem {...getMenuItemActionProps(handleRemoverMiembro)} sx={{ color: 'error.main' }}>
-          <Iconify icon="solar:user-cross-bold" />
-          Remover miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem {...getMenuItemActionProps(handleRemoverMiembro)} sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:user-cross-bold" />
+            Remover miembro
+          </MenuItem>
+        )}
 
         <MenuItem {...getMenuItemActionProps(handleInformacionRol)}>
           <Iconify icon="solar:info-circle-bold" />
@@ -732,6 +740,10 @@ const getLeadershipPdfChartData = async (getAssignedMember) => {
 
 export default function Page() {
   const params = useParams();
+  const { user } = useAuthContext();
+  // El administrador de destacamento consulta el organigrama en solo lectura:
+  // sin cambiar/remover miembros ni edicion visual del layout.
+  const canManageLeadership = !isDestacamentoAdminRole(user);
   const destId = params?.id;
   const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -1305,6 +1317,7 @@ export default function Page() {
                 sx={{}}
                 {...props}
                 layoutEditor={layoutEditor}
+                canManage={canManageLeadership}
                 miembroAsignado={getAssignedMember(props)}
                 onCambiarMiembro={handleOpenChangeMember}
                 onRemoverMiembro={handleOpenRemoveMember}
@@ -1337,6 +1350,7 @@ export default function Page() {
                       sx={{}}
                       {...props}
                       layoutEditor={layoutEditor}
+                      canManage={canManageLeadership}
                       miembroAsignado={getAssignedMember(props)}
                       onCambiarMiembro={handleOpenChangeMember}
                       onRemoverMiembro={handleOpenRemoveMember}
@@ -1359,14 +1373,16 @@ export default function Page() {
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
 
-        <LeadershipLayoutEditor
-          pan={pan}
-          zoom={zoom}
-          chartWidth={1080}
-          title={titleText}
-          editor={layoutEditor}
-          containerMinHeight={containerMinHeight}
-        />
+        {canManageLeadership && (
+          <LeadershipLayoutEditor
+            pan={pan}
+            zoom={zoom}
+            chartWidth={1080}
+            title={titleText}
+            editor={layoutEditor}
+            containerMinHeight={containerMinHeight}
+          />
+        )}
       </Box>
 
       <Dialog
