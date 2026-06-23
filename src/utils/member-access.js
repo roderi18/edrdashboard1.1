@@ -192,6 +192,12 @@ const getScopeUserRoleId = (user = {}) =>
 const isSectionWideRole = (user = {}) =>
   [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
 
+// Para el listado de miembros, el administrador de destacamento solo ve a los
+// miembros de su propio destacamento; el alcance seccional queda reservado al
+// administrador de seccion.
+const isSectionWideMemberRole = (user = {}) =>
+  getScopeUserRoleId(user) === ROLES.USUARIO_SECCION;
+
 const getScopeSectionIds = (scope = {}) =>
   normalizeScopeList(scope?.secciones, scope?.seccionId, scope?.idSeccion).map(normalizeScopeId);
 
@@ -392,7 +398,7 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
 
   const sectionIds = resolveSectionIdsForUser(user, context);
 
-  if (isSectionWideRole(user) && sectionIds?.size) {
+  if (isSectionWideMemberRole(user) && sectionIds?.size) {
     const allowedDestinations = getDestIdsInSections(context.dests, context.churches, sectionIds);
 
     return members.filter((member) => {
