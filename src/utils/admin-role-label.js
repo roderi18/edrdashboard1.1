@@ -13,6 +13,26 @@ export const ADMIN_ROLE_IDS = [
   ROLES.ADMINISTRADOR_TIENDA,
 ];
 
+const getRoleId = (user = {}) => {
+  const rawRole = String(user?.rol || user?.role || '').trim();
+
+  return String(
+    user?.rolId ||
+      user?.roleId ||
+      user?.rolCodigo ||
+      user?.roleCodigo ||
+      (ROLES_POR_CODIGO[rawRole] ? rawRole : '')
+  )
+    .trim()
+    .toLowerCase();
+};
+
+// Solo los administradores global y funcional pueden modificar los niveles
+// organizacionales superiores (secciones, regiones y consejo nacional). El resto
+// de los roles los consultan en modo de solo lectura.
+export const canManageOrgLevels = (user = {}) =>
+  [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL].includes(getRoleId(user));
+
 export const isDestacamentoAdminRole = (user = {}) => {
   const rawRole = String(user?.rol || user?.role || '').trim();
   const roleId =

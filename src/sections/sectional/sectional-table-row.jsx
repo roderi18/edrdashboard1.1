@@ -15,7 +15,14 @@ import { SectionalQuickEditForm } from './sectional-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function SectionalTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canDelete = true,
+}) {
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
   const directorPhoneNumber = row.directorPhoneNumber || '';
@@ -39,7 +46,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
 
       <CompactEntityTableCell
         title={row.sectionalName || '-'}
-        href={editHref}
+        href={canDelete ? editHref : ''}
         subtitle={row.email}
         avatarUrl={row.avatarUrl}
       />
@@ -57,7 +64,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
           <Link
             component={RouterLink}
-            href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.sectionalName)}`}
+            href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.id)}`}
             color="inherit"
             underline="always"
           >
@@ -97,6 +104,7 @@ export function SectionalTableRow({ row, selected, editHref, onSelectRow, onDele
       </TableCell>
 
       <CompactEntityRowActions
+        canManage={canDelete}
         editHref={editHref}
         onDelete={onDeleteRow}
         QuickEditForm={SectionalQuickEditForm}

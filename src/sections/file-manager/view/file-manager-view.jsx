@@ -13,14 +13,13 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
-import { isMemberSessionUser } from 'src/utils/member-access';
 
-import { _folders, FILE_TYPE_OPTIONS } from 'src/_mock';
+import { FILE_TYPE_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getFirebaseStorageUsageSummary } from 'src/services/firebase-storage-usage-service';
 import {
-  listarArchivosGestorFirestore,
   eliminarArchivoGestorFirestore,
+  renombrarArchivoGestorFirestore,
 } from 'src/services/file-manager-service';
 
 import { toast } from 'src/components/snackbar';
@@ -31,6 +30,7 @@ import { detectFileFormat } from 'src/components/file-thumbnail';
 import { useTable, rowInPage, getComparator } from 'src/components/table';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { ROLES } from 'src/auth/permissions/roles';
 
 import { FileManagerTable } from '../file-manager-table';
 import { FileManagerFilters } from '../file-manager-filters';
@@ -40,30 +40,14 @@ import { FileManagerFiltersResult } from '../file-manager-filters-result';
 
 // ----------------------------------------------------------------------
 
-const getFolderFiles = (files, folderId) => files.filter((file) => file.parentId === folderId);
-
-const getFilesSize = (files = []) =>
-  files.reduce((total, file) => total + Number(file?.size || file?.tamano || 0), 0);
-
-const buildFileManagerData = (files = []) => [
-  ..._folders.map((folder) => {
-    const folderFiles = getFolderFiles(files, folder.id);
-
-    return {
-      ...folder,
-      size: getFilesSize(folderFiles),
-      totalFiles: folderFiles.length,
-    };
-  }),
-  ...files,
-];
+const getUserRoleId = (user = {}) =>
+  String(user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.rol || user?.role || '').trim();
 
 export function FileManagerView() {
   const { user } = useAuthContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentFolderId = searchParams.get('folder');
-  const isStorageSource = searchParams.get('source') === 'storage';
   const table = useTable({ defaultRowsPerPage: 10 });
 
   const dateRange = useBoolean();
@@ -73,16 +57,12 @@ export function FileManagerView() {
   const [displayMode, setDisplayMode] = useState(
     searchParams.get('view') === 'grid' ? 'grid' : 'list'
   );
-  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [storageFileManagerItems, setStorageFileManagerItems] = useState([]);
   const [storageLoading, setStorageLoading] = useState(false);
 
-  const canDeleteFiles = Boolean(user) && !isMemberSessionUser(user);
+  const canManageFiles = getUserRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL;
 
-  const tableData = useMemo(
-    () => (isStorageSource ? storageFileManagerItems : buildFileManagerData(uploadedFiles)),
-    [isStorageSource, storageFileManagerItems, uploadedFiles]
-  );
+  const tableData = useMemo(() => storageFileManagerItems, [storageFileManagerItems]);
 
   const filters = useSetState({
     name: '',
@@ -115,57 +95,26 @@ export function FileManagerView() {
 
   const notFound = !storageLoading && ((!dataFiltered.length && canReset) || !dataFiltered.length);
 
-  useEffect(() => {
-    if (isStorageSource) return undefined;
-
-    let mounted = true;
-
-    listarArchivosGestorFirestore()
-      .then((files) => {
-        if (mounted) {
-          setUploadedFiles(files);
-        }
-      })
-      .catch((error) => {
-        console.error('No se pudieron cargar los archivos del gestor:', error);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [isStorageSource]);
-
-  useEffect(() => {
-    if (!isStorageSource) {
-      setStorageFileManagerItems([]);
-      return undefined;
-    }
-
-    let mounted = true;
-
+  const loadStorageFileManagerItems = useCallback(async ({ force = true } = {}) => {
     setStorageLoading(true);
-    getFirebaseStorageUsageSummary()
+    return getFirebaseStorageUsageSummary({ force })
       .then((summary) => {
-        if (mounted) {
-          setStorageFileManagerItems(summary.fileManagerItems || summary.folders || []);
-        }
+        setStorageFileManagerItems(summary.fileManagerItems || summary.folders || []);
+        return summary;
       })
       .catch((error) => {
         console.error('No se pudo cargar el resumen de Firebase Storage:', error);
-        if (mounted) {
-          setStorageFileManagerItems([]);
-        }
+        setStorageFileManagerItems([]);
+        return null;
       })
       .finally(() => {
-        if (mounted) {
-          setStorageLoading(false);
-        }
+        setStorageLoading(false);
       });
+  }, []);
 
-    return () => {
-      mounted = false;
-    };
-  }, [isStorageSource]);
+  useEffect(() => {
+    loadStorageFileManagerItems({ force: true });
+  }, [loadStorageFileManagerItems]);
 
   const handleChangeView = useCallback((event, newView) => {
     if (newView !== null) {
@@ -174,32 +123,36 @@ export function FileManagerView() {
   }, []);
 
   const handleDeleteItem = useCallback(
-    (id) => {
+    async (id) => {
       const itemToDelete = tableData.find((row) => row.id === id);
 
-      if (!canDeleteFiles) {
-        toast.error('Solo los administradores pueden eliminar archivos.');
+      if (!canManageFiles) {
+        toast.error('Solo el Administrador Global puede eliminar archivos.');
         return;
       }
 
       if (itemToDelete?.type !== 'folder') {
-        eliminarArchivoGestorFirestore(itemToDelete).catch((error) => {
-          console.error('No se pudo eliminar el archivo de Firestore:', error);
-        });
-
-        setUploadedFiles((currentFiles) => currentFiles.filter((row) => row.id !== id));
+        try {
+          await eliminarArchivoGestorFirestore(itemToDelete, user);
+          setStorageFileManagerItems((currentFiles) => currentFiles.filter((row) => row.id !== id));
+          await loadStorageFileManagerItems({ force: true });
+        } catch (error) {
+          console.error('No se pudo eliminar el archivo de Firebase Storage:', error);
+          toast.error(error?.message || 'No se pudo eliminar el archivo.');
+          return;
+        }
       }
 
       toast.success('Eliminado correctamente.');
 
       table.onUpdatePageDeleteRow(dataInPage.length);
     },
-    [canDeleteFiles, dataInPage.length, table, tableData]
+    [canManageFiles, dataInPage.length, loadStorageFileManagerItems, table, tableData, user]
   );
 
-  const handleDeleteItems = useCallback(() => {
-    if (!canDeleteFiles) {
-      toast.error('Solo los administradores pueden eliminar archivos.');
+  const handleDeleteItems = useCallback(async () => {
+    if (!canManageFiles) {
+      toast.error('Solo el Administrador Global puede eliminar archivos.');
       return;
     }
 
@@ -207,54 +160,101 @@ export function FileManagerView() {
       (row) => table.selected.includes(row.id) && row.type !== 'folder'
     );
 
-    selectedFiles.forEach((file) => {
-      eliminarArchivoGestorFirestore(file).catch((error) => {
-        console.error('No se pudo eliminar el archivo de Firestore:', error);
-      });
-    });
-
-    setUploadedFiles((currentFiles) =>
-      currentFiles.filter((row) => !table.selected.includes(row.id))
-    );
+    try {
+      await Promise.all(selectedFiles.map((file) => eliminarArchivoGestorFirestore(file, user)));
+      setStorageFileManagerItems((currentFiles) =>
+        currentFiles.filter((row) => !table.selected.includes(row.id))
+      );
+      await loadStorageFileManagerItems({ force: true });
+    } catch (error) {
+      console.error('No se pudieron eliminar los archivos de Firebase Storage:', error);
+      toast.error(error?.message || 'No se pudieron eliminar los archivos.');
+      return;
+    }
 
     toast.success('Eliminado correctamente.');
 
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [canDeleteFiles, dataFiltered.length, dataInPage.length, table, tableData]);
+  }, [
+    canManageFiles,
+    dataFiltered.length,
+    dataInPage.length,
+    loadStorageFileManagerItems,
+    table,
+    tableData,
+    user,
+  ]);
 
   const handleUploadStart = useCallback((files) => {
-    setUploadedFiles((currentFiles) => [...currentFiles, ...files]);
+    setStorageFileManagerItems((currentFiles) => [...currentFiles, ...files]);
   }, []);
 
   const handleUploadComplete = useCallback((files, pendingIds = []) => {
-    setUploadedFiles((currentFiles) => [
+    setStorageFileManagerItems((currentFiles) => [
       ...currentFiles.filter((file) => !pendingIds.includes(file.id)),
       ...files,
     ]);
-  }, []);
+    loadStorageFileManagerItems({ force: true });
+  }, [loadStorageFileManagerItems]);
 
   const handleUploadError = useCallback((pendingIds = []) => {
-    setUploadedFiles((currentFiles) =>
+    setStorageFileManagerItems((currentFiles) =>
       currentFiles.filter((file) => !pendingIds.includes(file.id))
     );
   }, []);
 
+  const handleRenameItem = useCallback(
+    async (itemToRename, newBaseName) => {
+      if (!canManageFiles) {
+        toast.error('Solo el Administrador Global puede renombrar archivos.');
+        return false;
+      }
+
+      if (!itemToRename || itemToRename.type === 'folder') {
+        toast.error('No se pudo encontrar el archivo para renombrar.');
+        return false;
+      }
+
+      try {
+        const renamedFile = await renombrarArchivoGestorFirestore(itemToRename, newBaseName, user);
+
+        if (renamedFile) {
+          setStorageFileManagerItems((currentFiles) =>
+            currentFiles.map((file) =>
+              file.id === itemToRename.id ? { ...file, ...renamedFile } : file
+            )
+          );
+          await loadStorageFileManagerItems({ force: true });
+        }
+
+        toast.success('Archivo renombrado correctamente.');
+        return true;
+      } catch (error) {
+        console.error('No se pudo renombrar el archivo:', error);
+        toast.error(error?.message || 'No se pudo renombrar el archivo.');
+        return false;
+      }
+    },
+    [canManageFiles, loadStorageFileManagerItems, user]
+  );
+
   const handleOpenUpload = useCallback(() => {
+    if (!canManageFiles) {
+      toast.error('Solo el Administrador Global puede subir archivos.');
+      return;
+    }
+
     if (!currentFolderId) {
       toast.info('Entra a una carpeta antes de subir archivos.');
       return;
     }
 
     newFilesDialog.onTrue();
-  }, [currentFolderId, newFilesDialog]);
+  }, [canManageFiles, currentFolderId, newFilesDialog]);
 
   const handleBackToRoot = useCallback(() => {
-    router.push(
-      isStorageSource
-        ? '/dashboard/file-manager/?source=storage&view=grid'
-        : '/dashboard/file-manager/'
-    );
-  }, [isStorageSource, router]);
+    router.push('/dashboard/file-manager/');
+  }, [router]);
 
   const renderFilters = () => (
     <Box
@@ -296,14 +296,17 @@ export function FileManagerView() {
   );
 
   const renderUploadFilesDialog = () => (
-    <FileManagerUploadDialog
-      open={newFilesDialog.value}
-      parentId={currentFolderId}
-      onClose={newFilesDialog.onFalse}
-      onUploadStart={handleUploadStart}
-      onUploadError={handleUploadError}
-      onUploadComplete={handleUploadComplete}
-    />
+    canManageFiles && (
+      <FileManagerUploadDialog
+        open={newFilesDialog.value}
+        parentId={currentFolderId}
+        user={user}
+        onClose={newFilesDialog.onFalse}
+        onUploadStart={handleUploadStart}
+        onUploadError={handleUploadError}
+        onUploadComplete={handleUploadComplete}
+      />
+    )
   );
 
   const renderConfirmDialog = () => (
@@ -337,7 +340,9 @@ export function FileManagerView() {
         table={table}
         dataFiltered={dataFiltered}
         onDeleteRow={handleDeleteItem}
-        canDelete={canDeleteFiles}
+        onRenameRow={handleRenameItem}
+        canDelete={canManageFiles}
+        canRename={canManageFiles}
         notFound={notFound}
         onOpenConfirm={confirmDialog.onTrue}
       />
@@ -346,7 +351,9 @@ export function FileManagerView() {
         table={table}
         dataFiltered={dataFiltered}
         onDeleteItem={handleDeleteItem}
-        canDelete={canDeleteFiles}
+        canDelete={canManageFiles}
+        canRename={canManageFiles}
+        canUpload={canManageFiles}
         onOpenConfirm={confirmDialog.onTrue}
       />
     );
@@ -372,13 +379,15 @@ export function FileManagerView() {
             </Typography>
           </Box>
 
-          <Button
-            variant="contained"
-            startIcon={<Iconify icon="eva:cloud-upload-fill" />}
-            onClick={handleOpenUpload}
-          >
-            Subir
-          </Button>
+          {canManageFiles && (
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="eva:cloud-upload-fill" />}
+              onClick={handleOpenUpload}
+            >
+              Subir
+            </Button>
+          )}
         </Box>
 
         <Stack spacing={2.5} sx={{ my: { xs: 3, md: 5 } }}>

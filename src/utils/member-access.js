@@ -5,7 +5,7 @@ import { paths } from 'src/routes/paths';
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
-import { ROLES } from 'src/auth/permissions/roles';
+import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 
 import { normalizeText } from './normalize-text';
@@ -182,6 +182,109 @@ const normalizeScopeList = (...values) =>
     .filter((value) => value !== null && value !== undefined && value !== '')
     .map((value) => (Number.isFinite(Number(value)) ? Number(value) : String(value)));
 
+const normalizeScopeId = (value) => String(value ?? '').trim();
+
+const getScopeUserRoleId = (user = {}) =>
+  String(user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.memberRole || '')
+    .trim()
+    .toLowerCase();
+
+const isSectionWideRole = (user = {}) =>
+  [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
+
+const getScopeSectionIds = (scope = {}) =>
+  normalizeScopeList(scope?.secciones, scope?.seccionId, scope?.idSeccion).map(normalizeScopeId);
+
+const getScopeDestIds = (scope = {}) =>
+  normalizeScopeList(scope?.destacamentos, scope?.destacamentoId, scope?.idDestacamento).map(
+    normalizeScopeId
+  );
+
+const getDestIdCandidates = (dest = {}) =>
+  [dest?.id, dest?.idDestacamento, dest?.destId, dest?.destamentoId]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map(normalizeScopeId);
+
+const getChurchIdCandidates = (entity = {}) =>
+  [entity?.idIglesia, entity?.churchId, entity?.id, entity?.church?.id]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map(normalizeScopeId);
+
+const getChurchSectionId = (church = {}) =>
+  normalizeScopeId(church?.idSeccion ?? church?.sectionId ?? church?.seccionId ?? church?.sectionalId);
+
+const getDestSectionId = (dest = {}, churches = []) => {
+  const directSectionId = normalizeScopeId(
+    dest?.sectionalId ?? dest?.idSeccion ?? dest?.seccionId ?? dest?.sectionId
+  );
+
+  if (directSectionId) return directSectionId;
+
+  const destChurchIds = getChurchIdCandidates(dest);
+  const church = churches.find((item) =>
+    getChurchIdCandidates(item).some((churchId) => destChurchIds.includes(churchId))
+  );
+
+  return getChurchSectionId(church);
+};
+
+const resolveSectionIdsForUser = (user = {}, { dests = [], churches = [] } = {}) => {
+  const scope = getMemberScope(user);
+  const scopeMode = getScopeMode(scope, user);
+  const roleId = getScopeUserRoleId(user);
+  const sectionIds = new Set(getScopeSectionIds(scope));
+
+  if (sectionIds.size) {
+    return sectionIds;
+  }
+
+  if (![ALCANCES.DESTACAMENTO, ALCANCES.SECCION].includes(scopeMode) && !isSectionWideRole(user)) {
+    return null;
+  }
+
+  if (roleId !== ROLES.USUARIO_DESTACAMENTO && scopeMode !== ALCANCES.DESTACAMENTO) {
+    return sectionIds;
+  }
+
+  const allowedDestIds = new Set(getScopeDestIds(scope));
+
+  if (!allowedDestIds.size || !dests.length || !churches.length) {
+    return sectionIds;
+  }
+
+  dests.forEach((dest) => {
+    const isAllowedDest = getDestIdCandidates(dest).some((destId) => allowedDestIds.has(destId));
+
+    if (!isAllowedDest) return;
+
+    const sectionId = getDestSectionId(dest, churches);
+
+    if (sectionId) {
+      sectionIds.add(sectionId);
+    }
+  });
+
+  return sectionIds;
+};
+
+const getDestIdsInSections = (dests = [], churches = [], sectionIds = new Set()) => {
+  if (!sectionIds?.size || !dests.length) {
+    return new Set();
+  }
+
+  const destIds = new Set();
+
+  dests.forEach((dest) => {
+    const sectionId = getDestSectionId(dest, churches);
+
+    if (!sectionIds.has(sectionId)) return;
+
+    getDestIdCandidates(dest).forEach((destId) => destIds.add(destId));
+  });
+
+  return destIds;
+};
+
 const hasDestScopeValues = (scope = {}) =>
   normalizeScopeList(scope?.destacamentos, scope?.destacamentoId, scope?.idDestacamento).length > 0;
 
@@ -279,7 +382,7 @@ export const canMemberManageMembers = (user) => {
   return Boolean(members.crear || members.editar || members.eliminar || members.subirFoto);
 };
 
-export const filterMembersByMemberScope = (members = [], user) => {
+export const filterMembersByMemberScope = (members = [], user, context = {}) => {
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 
@@ -287,13 +390,30 @@ export const filterMembersByMemberScope = (members = [], user) => {
     return members;
   }
 
-  if (scopeMode !== 'destacamento') {
+  const sectionIds = resolveSectionIdsForUser(user, context);
+
+  if (isSectionWideRole(user) && sectionIds?.size) {
+    const allowedDestinations = getDestIdsInSections(context.dests, context.churches, sectionIds);
+
+    return members.filter((member) => {
+      const memberSectionId = normalizeScopeId(
+        member?.sectionalId ?? member?.idSeccion ?? member?.seccionId ?? member?.sectionId
+      );
+      const memberDestId = normalizeScopeId(
+        member?.idDestacamento ?? member?.destId ?? member?.destamentoId
+      );
+
+      return sectionIds.has(memberSectionId) || allowedDestinations.has(memberDestId);
+    });
+  }
+
+  if (scopeMode !== ALCANCES.DESTACAMENTO) {
     return members;
   }
 
   const allowedDestinations = new Set(
-    normalizeScopeList(scope.destacamentos, scope.destacamentoId, scope.idDestacamento).map((id) =>
-      String(id)
+    normalizeScopeList(scope.destacamentos, scope.destacamentoId, scope.idDestacamento).map(
+      normalizeScopeId
     )
   );
 
@@ -304,11 +424,11 @@ export const filterMembersByMemberScope = (members = [], user) => {
   return members.filter((member) => {
     const memberDestId = member?.idDestacamento ?? member?.destId ?? member?.destamentoId ?? '';
 
-    return allowedDestinations.has(String(memberDestId));
+    return allowedDestinations.has(normalizeScopeId(memberDestId));
   });
 };
 
-export const getMemberAllowedDestIds = (user) => {
+export const getMemberAllowedDestIds = (user, context = {}) => {
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 
@@ -316,7 +436,13 @@ export const getMemberAllowedDestIds = (user) => {
     return null;
   }
 
-  if (scopeMode !== 'destacamento') {
+  const sectionIds = resolveSectionIdsForUser(user, context);
+
+  if (isSectionWideRole(user) && sectionIds?.size) {
+    return getDestIdsInSections(context.dests, context.churches, sectionIds);
+  }
+
+  if (scopeMode !== ALCANCES.DESTACAMENTO) {
     return null;
   }
 
@@ -333,8 +459,8 @@ export const getMemberAllowedDestIds = (user) => {
   return new Set(allowedDestinations);
 };
 
-export const filterDestsByMemberScope = (dests = [], user) => {
-  const allowedDestinations = getMemberAllowedDestIds(user);
+export const filterDestsByMemberScope = (dests = [], user, context = {}) => {
+  const allowedDestinations = getMemberAllowedDestIds(user, { ...context, dests });
 
   if (allowedDestinations === null) {
     return dests;
@@ -344,16 +470,32 @@ export const filterDestsByMemberScope = (dests = [], user) => {
     return [];
   }
 
-  return dests.filter((dest) => {
-    const destIdCandidates = [
-      dest?.id,
-      dest?.idDestacamento,
-      dest?.destId,
-      dest?.destamentoId,
-    ].filter((value) => value !== null && value !== undefined && value !== '');
+  return dests.filter((dest) =>
+    getDestIdCandidates(dest).some((candidate) => allowedDestinations.has(candidate))
+  );
+};
 
-    return destIdCandidates.some((candidate) => allowedDestinations.has(String(candidate)));
-  });
+export const filterSectionalsByMemberScope = (
+  sectionals = [],
+  user,
+  { dests = [], churches = [] } = {}
+) => {
+  const scope = getMemberScope(user);
+  const scopeMode = getScopeMode(scope, user);
+
+  if (!scopeMode || scope?.nacional || scopeMode === ALCANCES.NACIONAL || scopeMode === ALCANCES.GLOBAL) {
+    return sectionals;
+  }
+
+  const sectionIds = resolveSectionIdsForUser(user, { dests, churches });
+
+  if (!sectionIds?.size) {
+    return isSectionWideRole(user) ? [] : sectionals;
+  }
+
+  return sectionals.filter((sectional) =>
+    sectionIds.has(normalizeScopeId(sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId))
+  );
 };
 
 export const filterOrdersByMemberSession = (orders = [], user) => {

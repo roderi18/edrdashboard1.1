@@ -19,6 +19,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { filterSectionalsByMemberScope } from 'src/utils/member-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -48,6 +49,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { ROLES } from 'src/auth/permissions/roles';
 
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
@@ -79,6 +81,40 @@ const mapSectionalToBaseRow = (sectional) => ({
 
 // ----------------------------------------------------------------------
 
+const getUserRoleId = (user = {}) =>
+  String(user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.rol || user?.role || '')
+    .trim()
+    .toLowerCase();
+
+const canManageSectionals = (user = {}) =>
+  [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL].includes(getUserRoleId(user));
+
+const normalizeId = (value) => String(value ?? '').trim();
+
+const idMatches = (left, right) => {
+  const leftId = normalizeId(left);
+  const rightId = normalizeId(right);
+
+  return Boolean(leftId && rightId && leftId === rightId);
+};
+
+const getSectionalId = (sectional = {}) =>
+  sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId;
+
+const getRegionalId = (regional = {}) => regional?.id ?? regional?.idRegion ?? regional?.regionId;
+
+const getChurchId = (church = {}) => church?.id ?? church?.idIglesia ?? church?.churchId;
+
+const getChurchSectionId = (church = {}) =>
+  church?.idSeccion ?? church?.seccionId ?? church?.sectionId ?? church?.sectionalId;
+
+const getDestId = (dest = {}) => dest?.id ?? dest?.idDestacamento ?? dest?.destId;
+
+const getDestChurchId = (dest = {}) => dest?.churchId ?? dest?.idIglesia ?? dest?.church?.id;
+
+const getMemberDestId = (member = {}) =>
+  member?.idDestacamento ?? member?.destId ?? member?.destacamentoId;
+
 const getLeadershipBySectional = (sectionalId, role) => {
   const leaderships = getLeadershipAssignments();
   const members = getMembers();
@@ -98,10 +134,9 @@ const buildSectionalList = async () => {
   const dests = await getDestsApi({ includePhotos: false });
   const churches = await getChurches();
 
-  const leaderships = getLeadershipAssignments();
-
   return sectionals.map((sectional) => {
-    const regional = regionals.find((r) => r.id === sectional.regionalId);
+    const sectionalId = getSectionalId(sectional);
+    const regional = regionals.find((r) => idMatches(getRegionalId(r), sectional.regionalId));
 
     const director = members.find(
       (m) =>
@@ -110,19 +145,23 @@ const buildSectionalList = async () => {
     );
 
     const iglesiasDeSeccion = churches.filter(
-      (c) => c.idSeccion && Number(c.idSeccion) === Number(sectional.idSeccion)
+      (church) => idMatches(getChurchSectionId(church), sectionalId)
     );
 
+    const churchIdsDeSeccion = new Set(iglesiasDeSeccion.map(getChurchId).map(normalizeId));
+
     const destCount = dests.filter((d) =>
-      iglesiasDeSeccion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
+      churchIdsDeSeccion.has(normalizeId(getDestChurchId(d)))
     ).length;
 
     const destsBySectional = dests.filter((d) =>
-      iglesiasDeSeccion.some((ig) => Number(ig.idIglesia || ig.id) === Number(d.idIglesia))
+      churchIdsDeSeccion.has(normalizeId(getDestChurchId(d)))
     );
 
+    const destIdsDeSeccion = new Set(destsBySectional.map(getDestId).map(normalizeId));
+
     const membersCount = members.filter((member) =>
-      destsBySectional.some((dest) => Number(dest.idDestacamento) === Number(member.idDestacamento))
+      destIdsDeSeccion.has(normalizeId(getMemberDestId(member)))
     ).length;
 
     return {
@@ -153,6 +192,7 @@ const buildSectionalList = async () => {
 
 export function SectionalListView() {
   const { user } = useAuthContext();
+  const canManage = canManageSectionals(user);
   const getRegionalNameByDest = (sectional) => {
     const regionals = getRegionals();
     const regional =
@@ -237,15 +277,26 @@ export function SectionalListView() {
       }
 
       try {
-        const sectionalsData = await getSectionals();
-        setTableData(sectionalsData.map(mapSectionalToBaseRow));
+        const [sectionalsData, destsData, churchesData] = await Promise.all([
+          getSectionals(),
+          getDestsApi({ includePhotos: false }),
+          getChurches(),
+        ]);
+        const scopedSectionals = filterSectionalsByMemberScope(sectionalsData, user, {
+          dests: destsData,
+          churches: churchesData,
+        });
+
+        setTableData(scopedSectionals.map(mapSectionalToBaseRow));
         setTableLoading(false);
 
         const regionalsData = await getRegionals();
         setRegionals(regionalsData);
 
         const data = await buildSectionalList();
-        setTableData(data);
+        setTableData(
+          filterSectionalsByMemberScope(data, user, { dests: destsData, churches: churchesData })
+        );
       } catch (error) {
         console.error('Error loading sectionals:', error);
         setTableData([]);
@@ -254,7 +305,7 @@ export function SectionalListView() {
     }
 
     loadData();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (hasAppliedUrlFilter.current) return;
@@ -305,14 +356,16 @@ export function SectionalListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.sectional.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Crear nuevo
-            </Button>
+            canManage ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.sectional.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -386,24 +439,26 @@ export function SectionalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canManage && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -436,6 +491,7 @@ export function SectionalListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.sectional.edit(row.id)}
+                        canDelete={canManage}
                       />
                     )}
                     notFound={notFound}
@@ -462,7 +518,9 @@ export function SectionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <SectionalCardList sectionals={dataFiltered} />}
+        {displayMode !== 'panel' && (
+          <SectionalCardList sectionals={dataFiltered} canManage={canManage} />
+        )}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

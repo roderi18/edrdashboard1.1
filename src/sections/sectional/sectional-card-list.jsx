@@ -4,11 +4,13 @@ import { SectionalCard } from './sectional-card';
 
 // ----------------------------------------------------------------------
 
-export function SectionalCardList({ sectionals }) {
+export function SectionalCardList({ sectionals, canManage = true }) {
   return (
     <CompactEntityCardList
       items={sectionals}
-      renderCard={(sectional) => <SectionalCard key={sectional.id} sectional={sectional} />}
+      renderCard={(sectional) => (
+        <SectionalCard key={sectional.id} sectional={sectional} canManage={canManage} />
+      )}
     />
   );
 }

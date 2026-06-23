@@ -20,10 +20,10 @@ const getDirectorName = (regional) =>
 
 // ----------------------------------------------------------------------
 
-export function RegionalCard({ regional, sx, ...other }) {
+export function RegionalCard({ regional, canManage = true, sx, ...other }) {
   const regionalId = getRegionalId(regional);
   const directorId = getDirectorId(regional);
-  const editHref = regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '#';
+  const editHref = canManage && regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '';
   const regionalName = getRegionalName(regional);
   const directorName = getDirectorName(regional);
   const directorLine =

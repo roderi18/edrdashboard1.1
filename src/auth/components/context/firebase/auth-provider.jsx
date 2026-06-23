@@ -128,6 +128,14 @@ const mergeDestScopeWithMemberAccess = (scope = {}, memberAccess = {}, fallbackS
     memberScope?.idDestacamento,
     memberAccess?.member?.idDestacamento
   );
+  const secciones = uniqueScopeList(
+    scope?.secciones,
+    scope?.seccionId,
+    scope?.idSeccion,
+    memberScope?.secciones,
+    memberScope?.seccionId,
+    memberScope?.idSeccion
+  );
   const primaryDestId =
     scope?.destacamentoId ??
     scope?.idDestacamento ??
@@ -144,6 +152,9 @@ const mergeDestScopeWithMemberAccess = (scope = {}, memberAccess = {}, fallbackS
     destacamentoId: primaryDestId,
     idDestacamento: scope?.idDestacamento ?? scope?.destacamentoId ?? primaryDestId,
     destacamentos,
+    seccionId: scope?.seccionId ?? scope?.idSeccion ?? memberScope?.seccionId ?? memberScope?.idSeccion ?? secciones[0] ?? '',
+    idSeccion: scope?.idSeccion ?? scope?.seccionId ?? memberScope?.idSeccion ?? memberScope?.seccionId ?? secciones[0] ?? '',
+    secciones,
   };
 };
 

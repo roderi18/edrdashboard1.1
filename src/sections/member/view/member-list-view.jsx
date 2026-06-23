@@ -32,8 +32,8 @@ import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
-import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
 import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
+import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
 import {
   obtenerCargosDirectiva,
   obtenerAsignacionesDirectivaMiembros,
@@ -303,8 +303,8 @@ export function MemberListView() {
   }, [membersLoading]);
 
   const visibleMembers = useMemo(
-    () => filterMembersByMemberScope(tableData, user),
-    [tableData, user]
+    () => filterMembersByMemberScope(tableData, user, { dests, churches }),
+    [churches, dests, tableData, user]
   );
   const memberCanManage = isMemberSessionUser(user) ? canMemberManageMembers(user) : true;
   const memberDestLabel = useMemo(() => {
@@ -350,9 +350,28 @@ export function MemberListView() {
 
         hydrateMemberPositions(mappedMembers)
           .then((membersWithPositions) => {
-            if (!cancelled) {
-              setTableData(membersWithPositions);
-            }
+            if (cancelled) return;
+
+            // Mezclar solo los campos de posición sobre los miembros actuales, para no
+            // pisar destacamento/iglesia/sección que resuelve el useEffect de metadata
+            // (ambas resoluciones son asíncronas y compiten por setTableData).
+            const positionsById = new Map(
+              membersWithPositions.map((member) => [
+                String(member.id),
+                {
+                  memberPosition: member.memberPosition,
+                  destLeadershipPosition: member.destLeadershipPosition,
+                  directivaLeadershipPosition: member.directivaLeadershipPosition,
+                },
+              ])
+            );
+
+            setTableData((currentMembers) =>
+              currentMembers.map((member) => {
+                const positions = positionsById.get(String(member.id));
+                return positions ? { ...member, ...positions } : member;
+              })
+            );
           })
           .catch(() => {});
 

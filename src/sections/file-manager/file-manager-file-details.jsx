@@ -29,6 +29,7 @@ export function FileManagerFileDetails({
   open,
   onClose,
   onDelete,
+  canDelete = false,
   favorited,
   onFavorite,
   onCopyLink,
@@ -236,18 +237,20 @@ export function FileManagerFileDetails({
           {renderShared()}
         </Scrollbar>
 
-        <Box sx={{ p: 2.5 }}>
-          <Button
-            fullWidth
-            variant="soft"
-            color="error"
-            size="large"
-            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={onDelete}
-          >
-            Eliminar
-          </Button>
-        </Box>
+        {canDelete && (
+          <Box sx={{ p: 2.5 }}>
+            <Button
+              fullWidth
+              variant="soft"
+              color="error"
+              size="large"
+              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+              onClick={onDelete}
+            >
+              Eliminar
+            </Button>
+          </Box>
+        )}
       </Drawer>
 
       <FileManagerShareDialog

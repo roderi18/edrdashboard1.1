@@ -31,10 +31,11 @@ const getRegionalName = (sectional) => {
 
 // ----------------------------------------------------------------------
 
-export function SectionalCard({ sectional, sx, ...other }) {
+export function SectionalCard({ sectional, canManage = true, sx, ...other }) {
   const sectionalId = getSectionalId(sectional);
   const directorId = getDirectorId(sectional);
-  const editHref = sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '#';
+  const editHref =
+    canManage && sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '';
   const sectionalName = getSectionalName(sectional);
   const directorName = getDirectorName(sectional);
   const regionalName = getRegionalName(sectional);

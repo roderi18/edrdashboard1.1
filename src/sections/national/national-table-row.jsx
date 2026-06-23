@@ -27,7 +27,14 @@ const NATIONAL_STRUCTURES = {
 
 // ----------------------------------------------------------------------
 
-export function NationalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function NationalTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canManage = true,
+}) {
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const storedMembers = getStorageCollection('members') || [];
   const allMembers = [...MEMBERS, ...storedMembers];
@@ -51,16 +58,18 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
       <TableCell padding="checkbox">
-        <Checkbox
-          checked={selected}
-          onClick={onSelectRow}
-          slotProps={{
-            input: {
-              id: `${row.id}-checkbox`,
-              'aria-label': `${row.id} checkbox`,
-            },
-          }}
-        />
+        {canManage && (
+          <Checkbox
+            checked={selected}
+            onClick={onSelectRow}
+            slotProps={{
+              input: {
+                id: `${row.id}-checkbox`,
+                'aria-label': `${row.id} checkbox`,
+              },
+            }}
+          />
+        )}
       </TableCell>
 
       <CompactEntityTableCell
@@ -87,6 +96,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{structureLabel}</TableCell>
 
       <CompactEntityRowActions
+        canManage={canManage}
         allowDelete={!row.isLocalhostTest}
         editHref={editHref}
         onDelete={onDeleteRow}

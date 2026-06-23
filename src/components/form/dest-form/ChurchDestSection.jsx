@@ -114,7 +114,7 @@ export default function ChurchDestSection({
                             : option?.sectionalName || ''
                     }
                     isOptionEqualToValue={(option, value) =>
-                        option.id === value?.id
+                        String(option.id) === String(value?.id)
                     }
                     value={
                         sectionals.find(

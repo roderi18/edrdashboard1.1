@@ -7,7 +7,7 @@ export async function PUT(req) {
         const res = await fetch(
             'https://systexploradores.somee.com/api/Iglesias/UpdateIglesia',
             {
-                method: 'PUT',
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
@@ -15,11 +15,11 @@ export async function PUT(req) {
                 body: JSON.stringify({
                     obj: {
                         idIglesia: body.id,
-                        nombre: body.name,
+                        nombre: body.name || body.churchName,
                         pastor: body.pastor || '',
                         direccion: body.address || '',
                         correo: body.correo || '',
-                        idSeccion: body.sectionId || null,
+                        idSeccion: body.sectionId || body.idSeccion || null,
                     },
                 }),
             }
@@ -27,18 +27,22 @@ export async function PUT(req) {
 
         const text = await res.text();
 
-        let data;
+        let data = null;
         try {
-            data = JSON.parse(text);
-        } catch (e) {
+            data = text ? JSON.parse(text) : null;
+        } catch {
             return Response.json(
                 { error: 'Respuesta no es JSON', raw: text },
-                { status: 500 }
+                { status: res.ok ? 500 : res.status }
             );
         }
 
-        return Response.json(normalizeApiResponse(data));
-    } catch (error) {
+        if (!res.ok || data?.success === false) {
+            return Response.json(normalizeApiResponse(data), { status: res.status || 500 });
+        }
+
+        return Response.json(normalizeApiResponse(data), { status: 200 });
+    } catch {
         return Response.json(
             { error: 'Error actualizando iglesia' },
             { status: 500 }

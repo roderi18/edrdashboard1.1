@@ -39,9 +39,12 @@ const getStructureHref = (national) => {
 
 // ----------------------------------------------------------------------
 
-export function NationalCard({ national, sx, ...other }) {
+export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
-  const nationalHref = getNationalHref(national);
+  // El enlace de edición del nivel nacional solo se ofrece a quien puede gestionarlo;
+  // los enlaces hacia el miembro siguen disponibles en modo de solo lectura.
+  const nationalHref =
+    !canManage && isLocalhostNationalTestId(national?.id) ? '' : getNationalHref(national);
   const structureHref = getStructureHref(national);
   const position =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';

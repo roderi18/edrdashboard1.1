@@ -66,7 +66,7 @@ export const navData = [
     subheader: 'Principal',
     items: [
       { title: 'Principal', path: paths.dashboard.principal, icon: ICONS.dashboard },
-      { title: 'Principal 2', path: paths.dashboard.principal2, icon: ICONS.dashboard },
+      // { title: 'Principal 2', path: paths.dashboard.principal2, icon: ICONS.dashboard },
       { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
       { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
       { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },

@@ -19,6 +19,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canManageOrgLevels } from 'src/utils/admin-role-label';
 
 import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
@@ -80,6 +81,7 @@ const mapRegionalToBaseRow = (regional) => ({
 
 export function RegionalListView() {
   const { user } = useAuthContext();
+  const canManage = canManageOrgLevels(user);
   const table = useTable();
 
   const confirmDialog = useBoolean();
@@ -280,14 +282,16 @@ export function RegionalListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.regional.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Crear nuevo
-            </Button>
+            canManage ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.regional.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -330,24 +334,26 @@ export function RegionalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canManage && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -380,6 +386,7 @@ export function RegionalListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.regional.edit(row.id)}
+                        canManage={canManage}
                       />
                     )}
                     notFound={notFound}
@@ -406,7 +413,9 @@ export function RegionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <RegionalCardList regionals={dataFiltered} />}
+        {displayMode !== 'panel' && (
+          <RegionalCardList regionals={dataFiltered} canManage={canManage} />
+        )}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

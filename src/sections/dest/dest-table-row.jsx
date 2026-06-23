@@ -41,18 +41,16 @@ export function DestTableRow({
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
       <TableCell padding="checkbox">
-        {canDelete ? (
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            slotProps={{
-              input: {
-                id: `${id}-checkbox`,
-                'aria-label': `${id} checkbox`,
-              },
-            }}
-          />
-        ) : null}
+        <Checkbox
+          checked={selected}
+          onClick={onSelectRow}
+          slotProps={{
+            input: {
+              id: `${id}-checkbox`,
+              'aria-label': `${id} checkbox`,
+            },
+          }}
+        />
       </TableCell>
 
       <CompactEntityTableCell

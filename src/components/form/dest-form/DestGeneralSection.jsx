@@ -18,6 +18,7 @@ export default function DestGeneralSection({
     methods,
     watch,
     disabled = false,
+    scheduleDisabled = disabled,
 }) {
     const params = useParams();
     const destId = params?.id;
@@ -123,13 +124,13 @@ export default function DestGeneralSection({
             <DaysSelect
                 name="destMeetingDays"
                 label="Día de reunión"
-                disabled={disabled}
+                disabled={scheduleDisabled}
             />
 
             <TimeInput
                 name="destMeetingTimes"
                 label="Horarios de reunión"
-                disabled={disabled}
+                disabled={scheduleDisabled}
             />
 
 

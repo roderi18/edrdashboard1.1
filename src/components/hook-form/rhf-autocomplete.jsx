@@ -21,6 +21,7 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
 
   const { textField, ...otherSlotProps } = slotProps ?? {};
   const { renderOption, ...autocompleteProps } = other;
+  const hidePopupIcon = autocompleteProps.disabled && autocompleteProps.forcePopupIcon === undefined;
 
   return (
     <Controller
@@ -37,7 +38,7 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
               const { key, ...optionProps } = props;
 
               return (
-                <li key={`${name}-${getDefaultOptionKey(option, state.index)}`} {...optionProps}>
+                <li key={key ?? `${name}-${getDefaultOptionKey(option, state.index)}`} {...optionProps}>
                   {autocompleteProps.getOptionLabel?.(option) ?? option?.label ?? option?.name ?? option}
                 </li>
               );
@@ -70,6 +71,7 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
             },
           }}
           {...autocompleteProps}
+          forcePopupIcon={hidePopupIcon ? false : autocompleteProps.forcePopupIcon}
         />
       )}
     />

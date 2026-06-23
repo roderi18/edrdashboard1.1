@@ -25,6 +25,8 @@ export const PERMISOS = {
   DESTACAMENTOS_ELIMINAR: 'destacamentos.eliminar',
   DESTACAMENTOS_ASIGNAR_NUMERO_OFICIAL: 'destacamentos.asignar_numero_oficial',
 
+  SECCIONES_VER: 'secciones.ver',
+
   DOCUMENTOS_VER: 'documentos.ver',
   DOCUMENTOS_SUBIR: 'documentos.subir',
   DOCUMENTOS_SOLICITAR_ELIMINACION: 'documentos.solicitar_eliminacion',
@@ -148,6 +150,13 @@ export const PERMISOS_CATALOGO = [
     accion: 'asignar_numero_oficial',
     nombre: 'Asignar numero oficial',
     descripcion: 'Permite asignar o cambiar el numero oficial del destacamento.',
+  },
+  {
+    codigo: PERMISOS.SECCIONES_VER,
+    modulo: 'secciones',
+    accion: 'ver',
+    nombre: 'Ver secciones',
+    descripcion: 'Permite consultar secciones autorizadas por alcance.',
   },
   {
     codigo: PERMISOS.DOCUMENTOS_VER,

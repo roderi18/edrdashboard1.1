@@ -158,6 +158,7 @@ export function FileManagerFileItem({
       onCopyLink={handleCopy}
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
+      canDelete={canDelete}
       onDelete={() => {
         detailsDrawer.onFalse();
         onDelete();

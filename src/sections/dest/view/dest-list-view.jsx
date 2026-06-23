@@ -234,7 +234,7 @@ export function DestListView() {
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
         sectionalId: sectional?.idSeccion || sectional?.id || null,
-        sectionalName: sectional?.nombre || sectional?.name || null,
+        sectionalName: sectional?.sectionalName || sectional?.nombre || sectional?.name || null,
         regionalId: regional?.idRegion || regional?.id || null,
 
         debugChurchIdSeccion: church?.idSeccion,
@@ -262,7 +262,7 @@ export function DestListView() {
 
     async function loadBaseDests() {
       const cachedDests = getDests();
-      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user);
+      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user, { churches });
 
       if (cachedScopedDests.length) {
         setTableData(cachedScopedDests.map(mapDestToBaseRow));
@@ -275,7 +275,7 @@ export function DestListView() {
         const data = await getDestsApi({ includePhotos: false });
         if (cancelled) return;
 
-        const scopedDests = filterDestsByMemberScope(data || [], user);
+        const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
 
         setTableData(scopedDests.map(mapDestToBaseRow));
       } catch (error) {
@@ -293,7 +293,7 @@ export function DestListView() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [churches, user]);
 
   useEffect(() => {
     if (tableLoading) return;
@@ -304,7 +304,7 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-      const scopedDests = filterDestsByMemberScope(data || [], user);
+      const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
 
       const built = buildDestList(scopedDests);
 
@@ -603,7 +603,7 @@ export function DestListView() {
                         key={`${row.id || row.idDestacamento}-${row.destName}`}
                         row={row}
                         selected={table.selected.includes(row.id)}
-                        onSelectRow={() => canDeleteDest && table.onSelectRow(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.dest.edit(row.id)}
                         canDelete={canDeleteDest}

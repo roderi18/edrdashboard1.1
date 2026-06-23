@@ -42,6 +42,7 @@ const mapPendingFile = ({ file, parentId, batchId, index }) => ({
 export function FileManagerUploadDialog({
   open,
   parentId,
+  user,
   onClose,
   onUploadStart,
   onUploadError,
@@ -108,6 +109,7 @@ export function FileManagerUploadDialog({
       const uploadedFiles = await subirArchivosGestorFirestore({
         files: uploadFiles,
         parentId: parentId || null,
+        user,
       });
 
       onUploadComplete?.(uploadedFiles, pendingIds);
@@ -123,7 +125,7 @@ export function FileManagerUploadDialog({
     } finally {
       setLoading(false);
     }
-  }, [files, onClose, onUploadComplete, onUploadError, onUploadStart, parentId, resetDialog]);
+  }, [files, onClose, onUploadComplete, onUploadError, onUploadStart, parentId, resetDialog, user]);
 
   return (
     <Dialog fullWidth maxWidth="sm" open={open} onClose={handleClose}>

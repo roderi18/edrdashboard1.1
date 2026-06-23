@@ -18,6 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { resolveRegionalFromMember } from 'src/utils/resolve-regional-from-member';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
@@ -41,6 +42,8 @@ import {
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
@@ -93,6 +96,9 @@ function withLocalhostNationalTestUser({ members, assignments }) {
 
 export function NationalListView() {
   const [hydrated, setHydrated] = useState(false);
+
+  const { user } = useAuthContext();
+  const canManage = canManageOrgLevels(user);
 
   const table = useTable();
 
@@ -298,24 +304,26 @@ export function NationalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canManage && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -345,9 +353,10 @@ export function NationalListView() {
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onSelectRow={() => canManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.national.edit(row.id)}
+                        canManage={canManage}
                       />
                     )}
                     notFound={notFound}
@@ -374,7 +383,9 @@ export function NationalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <NationalCardList nationals={dataFiltered} />}
+        {displayMode !== 'panel' && (
+          <NationalCardList nationals={dataFiltered} canManage={canManage} />
+        )}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

@@ -1,21 +1,24 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
-import Button, { buttonClasses } from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
+
+import { useAuthContext } from 'src/auth/hooks';
+import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
 
 // ----------------------------------------------------------------------
 
@@ -24,14 +27,50 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
 
   const { open, anchorEl, onClose, onOpen } = usePopover();
 
-  const [workspace, setWorkspace] = useState(data[0]);
+  const { user } = useAuthContext();
+  const [loadingRoleId, setLoadingRoleId] = useState('');
+
+  const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
+  const selectedWorkspace = useMemo(
+    () => data.find((option) => option.id === currentRoleId) || data[0],
+    [currentRoleId, data]
+  );
+  const [workspace, setWorkspace] = useState(selectedWorkspace);
+
+  useEffect(() => {
+    setWorkspace(selectedWorkspace);
+  }, [selectedWorkspace]);
 
   const handleChangeWorkspace = useCallback(
-    (newValue) => {
+    async (newValue) => {
+      if (!user?.uid) {
+        toast.error('No se pudo identificar el usuario actual.');
+        return;
+      }
+
       setWorkspace(newValue);
       onClose();
+
+      try {
+        setLoadingRoleId(newValue.id);
+        await guardarAsignacionRolUsuario({
+          uidUsuario: user.uid,
+          correo: user.email || user.correo || '',
+          nombre: user.displayName || [user.nombres, user.apellidos].filter(Boolean).join(' '),
+          rolId: newValue.id,
+          rolNombre: newValue.name,
+          alcance: newValue.plan ? { tipo: newValue.plan, modo: newValue.plan } : {},
+          usuario: user,
+        });
+
+        window.location.reload();
+      } catch (error) {
+        console.error('[admin-role-switcher] no se pudo asignar el rol', error);
+        setLoadingRoleId('');
+        toast.error(error?.message || 'No se pudo asignar el tipo de administrador.');
+      }
     },
-    [onClose]
+    [onClose, user]
   );
 
   const buttonBg = {
@@ -55,6 +94,30 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     }),
   };
 
+  const renderWorkspaceIcon = (option, iconSx) =>
+    option?.icon ? (
+      <Box
+        sx={[
+          {
+            width: 24,
+            height: 24,
+            flexShrink: 0,
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'action.selected',
+            color: 'text.secondary',
+          },
+          ...(Array.isArray(iconSx) ? iconSx : [iconSx]),
+        ]}
+      >
+        <Iconify width={16} icon={option.icon} />
+      </Box>
+    ) : (
+      <Avatar alt={option?.name} src={option?.logo} sx={{ width: 24, height: 24 }} />
+    );
+
   const renderButton = () => (
     <ButtonBase
       disableRipple
@@ -69,12 +132,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       ]}
       {...other}
     >
-      <Box
-        component="img"
-        alt={workspace?.name}
-        src={workspace?.logo}
-        sx={{ width: 24, height: 24, borderRadius: '50%' }}
-      />
+      {renderWorkspaceIcon(workspace, { bgcolor: 'transparent', color: 'primary.main' })}
 
       <Box
         component="span"
@@ -91,7 +149,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
           display: { xs: 'none', [mediaQuery]: 'inline-flex' },
         }}
       >
-        {workspace?.plan}
+        {workspace?.badge || workspace?.plan || 'admin'}
       </Label>
 
       <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
@@ -105,59 +163,49 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       onClose={onClose}
       slotProps={{
         arrow: { placement: 'top-left' },
-        paper: { sx: { mt: 0.5, ml: -1.55, width: 240 } },
+        paper: { sx: { mt: 0.5, ml: -1.55, width: 360, maxWidth: 'calc(100vw - 32px)' } },
       }}
     >
-      <Scrollbar sx={{ maxHeight: 240 }}>
+      <Scrollbar sx={{ maxHeight: 320 }}>
         <MenuList>
-          {data.map((option) => (
-            <MenuItem
-              key={option.id}
-              selected={option.id === workspace?.id}
-              onClick={() => handleChangeWorkspace(option)}
-              sx={{ height: 48 }}
-            >
-              <Avatar alt={option.name} src={option.logo} sx={{ width: 24, height: 24 }} />
+          {data.map((option) => {
+            const selected = option.id === workspace?.id;
+            const loading = option.id === loadingRoleId;
 
-              <Typography
-                noWrap
-                component="span"
-                variant="body2"
-                sx={{ flexGrow: 1, fontWeight: 'fontWeightMedium' }}
+            return (
+              <MenuItem
+                key={option.id}
+                selected={selected}
+                disabled={Boolean(loadingRoleId)}
+                onClick={() => handleChangeWorkspace(option)}
+                sx={{ height: 48 }}
               >
-                {option.name}
-              </Typography>
+                {loading ? (
+                  <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
+                ) : (
+                  renderWorkspaceIcon(option)
+                )}
 
-              <Label color={option.plan === 'Free' ? 'default' : 'info'}>{option.plan}</Label>
-            </MenuItem>
-          ))}
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    lineHeight: 1.3,
+                    whiteSpace: 'normal',
+                    fontWeight: 'fontWeightMedium',
+                  }}
+                >
+                  {option.name}
+                </Typography>
+
+                <Label color="info">{option.badge || option.plan}</Label>
+              </MenuItem>
+            );
+          })}
         </MenuList>
       </Scrollbar>
-
-      <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />
-
-      <Button
-        fullWidth
-        startIcon={<Iconify width={18} icon="mingcute:add-line" />}
-        onClick={() => {
-          onClose();
-        }}
-        sx={{
-          gap: 2,
-          justifyContent: 'flex-start',
-          fontWeight: 'fontWeightMedium',
-          [`& .${buttonClasses.startIcon}`]: {
-            m: 0,
-            width: 24,
-            height: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          },
-        }}
-      >
-        Crear grupo de trabajo
-      </Button>
     </CustomPopover>
   );
 

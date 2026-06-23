@@ -21,6 +21,8 @@ export function FileManagerGridView({
   table,
   allData,
   canDelete = false,
+  canRename = false,
+  canUpload = false,
   dataFiltered,
   onDeleteItem,
   onOpenConfirm,
@@ -83,7 +85,7 @@ export function FileManagerGridView({
       <FileManagerPanel
         title="Carpetas"
         subtitle={`${dataFiltered.filter((item) => item.type === 'folder').length} carpetas`}
-        onOpen={newFolderDialog.onTrue}
+        onOpen={canUpload ? newFolderDialog.onTrue : undefined}
         collapse={foldersCollapse.value}
         onCollapse={foldersCollapse.onToggle}
       />
@@ -115,6 +117,7 @@ export function FileManagerGridView({
                 onSelect={() => onSelectItem(folder.id)}
                 onDelete={() => onDeleteItem(folder.id)}
                 canDelete={false}
+                canRename={canRename}
               />
             ))}
         </Box>
@@ -127,7 +130,7 @@ export function FileManagerGridView({
       <FileManagerPanel
         title="Archivos"
         subtitle={`${dataFiltered.filter((item) => item.type !== 'folder').length} archivos`}
-        onOpen={newFilesDialog.onTrue}
+        onOpen={canUpload ? newFilesDialog.onTrue : undefined}
         collapse={filesCollapse.value}
         onCollapse={filesCollapse.onToggle}
       />
