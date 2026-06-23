@@ -58,18 +58,16 @@ export function NationalTableRow({
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
       <TableCell padding="checkbox">
-        {canManage && (
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
-              },
-            }}
-          />
-        )}
+        <Checkbox
+          checked={selected}
+          onClick={onSelectRow}
+          slotProps={{
+            input: {
+              id: `${row.id}-checkbox`,
+              'aria-label': `${row.id} checkbox`,
+            },
+          }}
+        />
       </TableCell>
 
       <CompactEntityTableCell

@@ -353,7 +353,7 @@ export function NationalListView() {
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
-                        onSelectRow={() => canManage && table.onSelectRow(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.national.edit(row.id)}
                         canManage={canManage}
