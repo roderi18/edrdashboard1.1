@@ -250,21 +250,30 @@ export function RegionalCreateEditForm({ currentRegional }) {
                         { label: 'Miembros', value: values.regionalXSectionalMemberCount },
                       ],
                     },
-                    {
-                      value: 'secciones',
-                      label: 'Secciones',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalCount }],
-                    },
-                    {
-                      value: 'destacamentos',
-                      label: 'Destacamentos',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalXDestCount }],
-                    },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalMemberCount }],
-                    },
+                    // El admin de destacamento solo puede descargar la informacion General.
+                    ...(canEdit
+                      ? [
+                          {
+                            value: 'secciones',
+                            label: 'Secciones',
+                            rows: [{ label: 'Cantidad', value: values.regionalXSectionalCount }],
+                          },
+                          {
+                            value: 'destacamentos',
+                            label: 'Destacamentos',
+                            rows: [
+                              { label: 'Cantidad', value: values.regionalXSectionalXDestCount },
+                            ],
+                          },
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [
+                              { label: 'Cantidad', value: values.regionalXSectionalMemberCount },
+                            ],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>

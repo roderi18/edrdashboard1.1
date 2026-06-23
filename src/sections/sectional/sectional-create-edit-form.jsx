@@ -249,16 +249,21 @@ export function SectionalCreateEditForm({ currentSectional }) {
                         { label: 'Miembros', value: values.sectionalXDestMemberCount },
                       ],
                     },
-                    {
-                      value: 'destacamentos',
-                      label: 'Destacamentos',
-                      rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
-                    },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
-                    },
+                    // El admin de destacamento solo puede descargar la informacion General.
+                    ...(canEdit
+                      ? [
+                          {
+                            value: 'destacamentos',
+                            label: 'Destacamentos',
+                            rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
+                          },
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>
