@@ -183,7 +183,6 @@ export function MemberListView() {
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
-  const metadataLoadedRef = useRef(false);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -270,11 +269,12 @@ export function MemberListView() {
 
   useEffect(() => {
     // Fase 1: la metadata se carga en paralelo con los miembros (antes esperaba
-    // a que terminara la carga de miembros).
-    if (metadataLoadedRef.current) return undefined;
-
+    // a que terminara la carga de miembros). No usamos un ref de "ya cargado":
+    // con StrictMode el doble montaje cancelaba la primera carga y el ref
+    // impedia la segunda, dejando la metadata vacia (destacamento/seccion
+    // "desconocido"). getMemberDirectoryMetadata ya cachea la promesa, asi que
+    // volver a llamarla es barato.
     let cancelled = false;
-    metadataLoadedRef.current = true;
 
     const loadMetadata = async () => {
       const metadataResult = await Promise.allSettled([
