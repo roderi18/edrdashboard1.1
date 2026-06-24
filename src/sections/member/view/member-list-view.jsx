@@ -476,7 +476,11 @@ export function MemberListView() {
 
       return changed ? nextMembers : currentMembers;
     });
-  }, [dests, churches, sectionals, tableData.length]);
+    // Depende de `tableData` (no de su largo) para resolver destacamento/seccion
+    // sin importar el orden en que lleguen miembros y metadata. El guard
+    // `changed` devuelve la misma referencia cuando no hay cambios, evitando
+    // re-renders en bucle.
+  }, [dests, churches, sectionals, tableData]);
 
   useEffect(() => {
     const regionalById = new Map(regionals.map((regional) => [String(regional.id), regional]));
