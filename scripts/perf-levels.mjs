@@ -114,12 +114,15 @@ const fase1 = {
   },
 };
 
-const VIEWS = MODE === 'fase1' ? fase1 : baseline;
-
 const time = async (fn) => {
   const t0 = performance.now();
   await fn();
   return performance.now() - t0;
+};
+
+const median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
 };
 
 const stats = (xs) => {
@@ -129,30 +132,54 @@ const stats = (xs) => {
     avg: Math.round(sum / s.length),
     min: Math.round(s[0]),
     max: Math.round(s[s.length - 1]),
-    median: Math.round(s[Math.floor(s.length / 2)]),
+    median: Math.round(median(s)),
   };
 };
 
-const run = async () => {
-  console.log(`Base: ${BASE} | modo: ${MODE} | iteraciones: ${ITERS} (+1 warmup)\n`);
-  const results = {};
-
-  for (const [name, fn] of Object.entries(VIEWS)) {
-    await time(fn).catch(() => {}); // warmup
-    const samples = [];
-    for (let i = 0; i < ITERS; i += 1) {
-      samples.push(await time(fn));
-    }
-    results[name] = stats(samples);
-  }
-
+const runSingle = async (views, label) => {
+  console.log(`Base: ${BASE} | modo: ${label} | iteraciones: ${ITERS} (+1 warmup)\n`);
   console.log('Vista          avg     median   min     max   (ms)');
   console.log('------------------------------------------------');
-  for (const [name, s] of Object.entries(results)) {
+  for (const [name, fn] of Object.entries(views)) {
+    await time(fn).catch(() => {});
+    const samples = [];
+    for (let i = 0; i < ITERS; i += 1) samples.push(await time(fn));
+    const s = stats(samples);
     console.log(
       `${name.padEnd(14)} ${String(s.avg).padStart(5)}   ${String(s.median).padStart(6)}  ${String(s.min).padStart(5)}  ${String(s.max).padStart(5)}`
     );
   }
+};
+
+// Intercala baseline y fase1 por iteracion para que ambos vivan la misma
+// ventana de latencia de somee; reporta la mediana de cada uno y la mejora.
+const runCompare = async () => {
+  console.log(`Base: ${BASE} | modo: compare (intercalado) | iteraciones: ${ITERS} (+1 warmup)\n`);
+  console.log('Vista          baseline  fase1   mejora   (ms, mediana)');
+  console.log('-------------------------------------------------------');
+
+  for (const name of Object.keys(baseline)) {
+    await time(baseline[name]).catch(() => {});
+    await time(fase1[name]).catch(() => {});
+
+    const b = [];
+    const f = [];
+    for (let i = 0; i < ITERS; i += 1) {
+      b.push(await time(baseline[name]));
+      f.push(await time(fase1[name]));
+    }
+    const bm = median(b);
+    const fm = median(f);
+    const pct = Math.round(((bm - fm) / bm) * 100);
+    console.log(
+      `${name.padEnd(14)} ${String(Math.round(bm)).padStart(7)}  ${String(Math.round(fm)).padStart(6)}   ${String(pct).padStart(4)}%`
+    );
+  }
+};
+
+const run = async () => {
+  if (MODE === 'compare') return runCompare();
+  return runSingle(MODE === 'fase1' ? fase1 : baseline, MODE);
 };
 
 run().catch((error) => {
