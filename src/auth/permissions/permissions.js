@@ -26,6 +26,11 @@ export const PERMISOS = {
   DESTACAMENTOS_ASIGNAR_NUMERO_OFICIAL: 'destacamentos.asignar_numero_oficial',
 
   SECCIONES_VER: 'secciones.ver',
+  SECCIONES_CREAR: 'secciones.crear',
+  SECCIONES_EDITAR: 'secciones.editar',
+
+  REGIONES_VER: 'regiones.ver',
+  REGIONES_EDITAR: 'regiones.editar',
 
   DOCUMENTOS_VER: 'documentos.ver',
   DOCUMENTOS_SUBIR: 'documentos.subir',
@@ -157,6 +162,34 @@ export const PERMISOS_CATALOGO = [
     accion: 'ver',
     nombre: 'Ver secciones',
     descripcion: 'Permite consultar secciones autorizadas por alcance.',
+  },
+  {
+    codigo: PERMISOS.SECCIONES_CREAR,
+    modulo: 'secciones',
+    accion: 'crear',
+    nombre: 'Crear secciones',
+    descripcion: 'Permite crear secciones dentro del alcance autorizado.',
+  },
+  {
+    codigo: PERMISOS.SECCIONES_EDITAR,
+    modulo: 'secciones',
+    accion: 'editar',
+    nombre: 'Editar secciones',
+    descripcion: 'Permite modificar datos de las secciones dentro del alcance autorizado.',
+  },
+  {
+    codigo: PERMISOS.REGIONES_VER,
+    modulo: 'regiones',
+    accion: 'ver',
+    nombre: 'Ver regiones',
+    descripcion: 'Permite consultar regiones autorizadas por alcance.',
+  },
+  {
+    codigo: PERMISOS.REGIONES_EDITAR,
+    modulo: 'regiones',
+    accion: 'editar',
+    nombre: 'Editar regiones',
+    descripcion: 'Permite modificar datos de las regiones dentro del alcance autorizado.',
   },
   {
     codigo: PERMISOS.DOCUMENTOS_VER,

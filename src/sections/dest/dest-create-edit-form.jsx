@@ -19,6 +19,7 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import barriosData from 'src/data/barrios.json';
@@ -140,9 +141,9 @@ export function DestCreateEditForm({ currentDest }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
   const isDestacamentoAdmin = isDestacamentoAdminRole(user);
-  const isLegacyAdmin = ['admin', 'administrador'].includes(
-    String(user?.role || user?.rol || '').trim().toLowerCase()
-  ) && !isDestacamentoAdmin;
+  // Administrador "pleno" (global/funcional/legado) sin restriccion de alcance.
+  // Los admin de seccion/region NO entran aqui: editan solo dentro de su alcance.
+  const isLegacyAdmin = isFullOrgManager(user);
 
 
   const defaultValues = {
@@ -265,16 +266,18 @@ export function DestCreateEditForm({ currentDest }) {
   };
   const canEditDest =
     !isDestacamentoAdmin &&
-    (isCreateView ||
-      isLegacyAdmin ||
-      (puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
-        estaDentroDelAlcance(user, currentDestResource)));
+    (isLegacyAdmin ||
+      (isCreateView
+        ? canCreateDestInSection(user)
+        : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
+          estaDentroDelAlcance(user, currentDestResource)));
   const canUploadDestPhoto =
     !isDestacamentoAdmin &&
-    (isCreateView ||
-      isLegacyAdmin ||
-      (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-        estaDentroDelAlcance(user, currentDestResource)));
+    (isLegacyAdmin ||
+      (isCreateView
+        ? canCreateDestInSection(user)
+        : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
+          estaDentroDelAlcance(user, currentDestResource)));
   const canEditMeetingSchedule =
     isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
   const canSaveDest = canEditDest || canEditMeetingSchedule;

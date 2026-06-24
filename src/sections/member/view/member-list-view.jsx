@@ -19,6 +19,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { isFullOrgManager } from 'src/utils/org-level-access';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -59,6 +60,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { can, PERMISOS } from 'src/auth/permissions';
 
 import { MemberTableRow } from '../member-table-row';
 import { MemberCardList } from '../member-card-list';
@@ -309,7 +311,17 @@ export function MemberListView() {
     () => filterMembersByMemberScope(tableData, user, { dests, churches }),
     [churches, dests, tableData, user]
   );
-  const memberCanManage = isMemberSessionUser(user) ? canMemberManageMembers(user) : true;
+  // Los administradores de seccion y region pueden VER la lista completa de
+  // miembros pero no editarlos (su rol no incluye permisos de edicion). Por eso
+  // no basta con "es admin": exigimos permiso real de gestion de miembros.
+  const adminCanManageMembers =
+    isFullOrgManager(user) ||
+    can(user, PERMISOS.MIEMBROS_EDITAR) ||
+    can(user, PERMISOS.MIEMBROS_CREAR) ||
+    can(user, PERMISOS.MIEMBROS_ELIMINAR);
+  const memberCanManage = isMemberSessionUser(user)
+    ? canMemberManageMembers(user)
+    : adminCanManageMembers;
   const memberDestLabel = useMemo(() => {
     if (!isMemberSessionUser(user)) {
       return '';

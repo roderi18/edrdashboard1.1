@@ -15,6 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { canEditRegional } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
@@ -42,9 +43,11 @@ const DEFAULT_VALUES = {
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
   const { user } = useAuthContext();
-  // Solo administrador global/funcional puede editar; el resto navega y consulta
-  // la region en modo de solo lectura.
-  const canEdit = canManageOrgLevels(user);
+  // Editar: admin de region (su region) o global/funcional. Crear: solo
+  // global/funcional. El resto navega y consulta en modo de solo lectura.
+  const canEdit = currentRegional
+    ? canEditRegional(user, currentRegional)
+    : canManageOrgLevels(user);
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);

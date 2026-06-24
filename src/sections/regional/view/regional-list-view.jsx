@@ -20,6 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { canEditRegional, canDeleteOrgLevel } from 'src/utils/org-level-access';
 
 import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
@@ -423,7 +424,8 @@ export function RegionalListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.regional.edit(row.id)}
-                        canManage={canManage}
+                        canManage={canEditRegional(user, row)}
+                        canDelete={canDeleteOrgLevel(user)}
                       />
                     )}
                     notFound={notFound}

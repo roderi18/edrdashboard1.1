@@ -1,7 +1,17 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { canEditRegional, canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
+// Verificacion de alcance del lado del cliente (defensa en profundidad). Solo se
+// aplica cuando el llamador pasa `usuario`; mitigacion parcial (la API externa
+// no valida permisos).
+const assertScope = (usuario, allowed, mensaje) => {
+  if (usuario && !allowed) {
+    throw new Error(mensaje);
+  }
+};
 
 const REGIONALS_STORAGE_KEY = 'regionals';
 
@@ -95,6 +105,9 @@ const registrarAuditoriaRegional = ({
 };
 
 export const saveRegional = async (payload, { usuario } = {}) => {
+    // Crear regiones queda reservado a los administradores global/funcional.
+    assertScope(usuario, canDeleteOrgLevel(usuario), 'No tienes permiso para crear regiones.');
+
     const res = await fetch('/api/regional/post', {
         method: 'POST',
         headers: {
@@ -127,6 +140,12 @@ export const saveRegional = async (payload, { usuario } = {}) => {
 };
 
 export const updateRegional = async (payload, { usuario, antes = null } = {}) => {
+    assertScope(
+        usuario,
+        canEditRegional(usuario, antes ?? payload),
+        'No tienes permiso para editar esta región.'
+    );
+
     const res = await fetch('/api/regional/put', {
         method: 'PUT',
         headers: {
@@ -161,6 +180,8 @@ export const updateRegional = async (payload, { usuario, antes = null } = {}) =>
 };
 
 export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
+    assertScope(usuario, canDeleteOrgLevel(usuario), 'No tienes permiso para eliminar regiones.');
+
     const res = await fetch(`/api/regional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });

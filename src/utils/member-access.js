@@ -192,6 +192,12 @@ const getScopeUserRoleId = (user = {}) =>
 const isSectionWideRole = (user = {}) =>
   [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
 
+// Los administradores de seccion y de region ven todos los niveles
+// organizacionales (regiones, secciones, destacamentos) y la lista completa de
+// miembros. El alcance solo limita lo que pueden EDITAR (ver org-level-access).
+const isOrgWideViewerRole = (user = {}) =>
+  [ROLES.USUARIO_SECCION, ROLES.USUARIO_REGION].includes(getScopeUserRoleId(user));
+
 // Para el listado de miembros, el administrador de destacamento solo ve a los
 // miembros de su propio destacamento; el alcance seccional queda reservado al
 // administrador de seccion.
@@ -389,6 +395,11 @@ export const canMemberManageMembers = (user) => {
 };
 
 export const filterMembersByMemberScope = (members = [], user, context = {}) => {
+  // Admin de seccion/region: ve la lista completa de miembros de todos los niveles.
+  if (isOrgWideViewerRole(user)) {
+    return members;
+  }
+
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 
@@ -435,6 +446,11 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
 };
 
 export const getMemberAllowedDestIds = (user, context = {}) => {
+  // Admin de seccion/region: ve todos los destacamentos (sin restriccion de alcance).
+  if (isOrgWideViewerRole(user)) {
+    return null;
+  }
+
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 
@@ -490,8 +506,11 @@ export const filterSectionalsByMemberScope = (
   const scopeMode = getScopeMode(scope, user);
 
   // El administrador de destacamento puede consultar todas las secciones
-  // (solo lectura); el alcance seccional aplica al administrador de seccion.
-  if (getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO) {
+  // (solo lectura); los administradores de seccion y region tambien ven todas.
+  if (
+    getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO ||
+    isOrgWideViewerRole(user)
+  ) {
     return sectionals;
   }
 

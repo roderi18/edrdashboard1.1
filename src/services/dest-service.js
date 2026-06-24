@@ -1,4 +1,5 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
 import {
     saveItem,
     getStorageCollection,
@@ -6,6 +7,15 @@ import {
 } from 'src/utils/storage-service';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
+// Verificacion de alcance del lado del cliente (defensa en profundidad), aplicada
+// solo cuando el llamador pasa `usuario`. La edicion fina por alcance vive en el
+// formulario (estaDentroDelAlcance); aqui se cubren crear y eliminar.
+const assertScope = (usuario, allowed, mensaje) => {
+    if (usuario && !allowed) {
+        throw new Error(mensaje);
+    }
+};
 
 const DESTS_STORAGE_KEY = 'dests';
 // ------------------------------------------------------------
@@ -193,6 +203,14 @@ const registrarAuditoriaDestacamento = ({ accion, descripcion, data, response, u
 };
 
 export const createDestApi = async (data, { usuario } = {}) => {
+    // Crear destacamentos: admin de seccion (su seccion) o admin pleno. El admin
+    // de region no crea destacamentos (solo los edita).
+    assertScope(
+        usuario,
+        isFullOrgManager(usuario) || canCreateDestInSection(usuario),
+        'No tienes permiso para crear destacamentos.'
+    );
+
     const payload = buildDestPayload(data);
 
     const res = await fetch('/api/dest/post', {
@@ -319,6 +337,13 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
 };
 
 export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
+    // Eliminar destacamentos queda reservado a los administradores plenos.
+    assertScope(
+        usuario,
+        isFullOrgManager(usuario),
+        'No tienes permiso para eliminar destacamentos.'
+    );
+
     const res = await fetch(`/api/dest?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });

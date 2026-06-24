@@ -20,6 +20,11 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { filterSectionalsByMemberScope } from 'src/utils/member-access';
+import {
+  canEditSectional,
+  canDeleteOrgLevel,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -49,7 +54,6 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { ROLES } from 'src/auth/permissions/roles';
 
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
@@ -80,14 +84,6 @@ const mapSectionalToBaseRow = (sectional) => ({
 });
 
 // ----------------------------------------------------------------------
-
-const getUserRoleId = (user = {}) =>
-  String(user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.rol || user?.role || '')
-    .trim()
-    .toLowerCase();
-
-const canManageSectionals = (user = {}) =>
-  [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL].includes(getUserRoleId(user));
 
 const normalizeId = (value) => String(value ?? '').trim();
 
@@ -190,7 +186,10 @@ const buildSectionalList = ({
 
 export function SectionalListView() {
   const { user } = useAuthContext();
-  const canManage = canManageSectionals(user);
+  // Crear secciones: administradores de region (en su region) y global/funcional.
+  const canCreate = canCreateSectionalInRegion(user);
+  // Eliminar: reservado a global/funcional.
+  const canDelete = canDeleteOrgLevel(user);
   const getRegionalNameByDest = (sectional) => {
     const regionals = getRegionals();
     const regional =
@@ -366,7 +365,7 @@ export function SectionalListView() {
             { name: 'Lista' },
           ]}
           action={
-            canManage ? (
+            canCreate ? (
               <Button
                 component={RouterLink}
                 href={paths.dashboard.level.sectional.new}
@@ -449,7 +448,7 @@ export function SectionalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              {canManage && (
+              {canDelete && (
                 <TableSelectedAction
                   dense={table.dense}
                   numSelected={table.selected.length}
@@ -501,7 +500,8 @@ export function SectionalListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.sectional.edit(row.id)}
-                        canDelete={canManage}
+                        canManage={canEditSectional(user, row)}
+                        canDelete={canDelete}
                       />
                     )}
                     notFound={notFound}

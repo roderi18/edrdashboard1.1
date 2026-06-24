@@ -22,6 +22,7 @@ export function DestTableRow({
   editHref,
   onSelectRow,
   onDeleteRow,
+  canManage = true,
   canDelete = true,
 }) {
   const id = row.id || row.idDestacamento;
@@ -115,6 +116,8 @@ export function DestTableRow({
       </TableCell>
 
       <CompactEntityRowActions
+        canManage={canManage}
+        allowDelete={canDelete}
         editHref={editHref || `/dashboard/level/dest/${id}/edit`}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={DestQuickEditForm}

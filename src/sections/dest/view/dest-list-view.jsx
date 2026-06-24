@@ -19,6 +19,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canEditDest } from 'src/utils/org-level-access';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { filterDestsByMemberScope } from 'src/utils/member-access';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
@@ -609,6 +610,7 @@ export function DestListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.dest.edit(row.id)}
+                        canManage={canEditDest(user, row)}
                         canDelete={canDeleteDest}
                       />
                     )}

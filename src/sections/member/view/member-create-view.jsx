@@ -4,6 +4,7 @@ import Alert from '@mui/material/Alert';
 
 import { paths } from 'src/routes/paths';
 
+import { isFullOrgManager } from 'src/utils/org-level-access';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -11,6 +12,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { can, PERMISOS } from 'src/auth/permissions';
 
 import { MemberCreateEditForm } from '../member-create-edit-form';
 
@@ -23,8 +25,11 @@ export function MemberCreateView() {
     return null;
   }
 
+  // Crear miembros exige permiso real: los admin de seccion/region no lo tienen.
   const canManage =
-    !user || !user.role || user.role !== 'member' ? true : canMemberManageMembers(user);
+    user?.role === 'member'
+      ? canMemberManageMembers(user)
+      : isFullOrgManager(user) || can(user, PERMISOS.MIEMBROS_CREAR);
 
   if (!canManage) {
     return (

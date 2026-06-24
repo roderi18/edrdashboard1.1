@@ -21,6 +21,7 @@ export function SectionalTableRow({
   editHref,
   onSelectRow,
   onDeleteRow,
+  canManage = true,
   canDelete = true,
 }) {
   const directorName = row.memberFullName || 'Desconocido';
@@ -104,9 +105,10 @@ export function SectionalTableRow({
       </TableCell>
 
       <CompactEntityRowActions
-        canManage={canDelete}
+        canManage={canManage}
+        allowDelete={canDelete}
         editHref={editHref}
-        onDelete={onDeleteRow}
+        onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={SectionalQuickEditForm}
         quickEditProps={{ currentSectional: row }}
         deleteContent="¿Seguro que deseas eliminar esta sección?"

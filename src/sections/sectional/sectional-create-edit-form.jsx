@@ -14,8 +14,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
-import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import {
+  canEditSectional,
+  canAssignSectionalToRegion,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
@@ -35,9 +39,12 @@ import { useAuthContext } from 'src/auth/hooks';
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
   const { user } = useAuthContext();
-  // Solo administrador global/funcional puede editar; el resto (p. ej. admin de
-  // destacamento) navega y consulta la seccion en modo de solo lectura.
-  const canEdit = canManageOrgLevels(user);
+  // Crear: admin de region (en su region) o global/funcional.
+  // Editar: admin de seccion (su seccion), admin de region (secciones de su
+  // region) o global/funcional. El resto consulta en modo de solo lectura.
+  const canEdit = currentSectional
+    ? canEditSectional(user, currentSectional)
+    : canCreateSectionalInRegion(user);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const methods = useForm({
@@ -118,6 +125,11 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
       if (!data.regionalId) {
         toast.error('Debe seleccionar una región');
+        return;
+      }
+
+      if (!canAssignSectionalToRegion(user, data.regionalId)) {
+        toast.error('No tienes permiso para asignar esta sección a esa región.');
         return;
       }
 
