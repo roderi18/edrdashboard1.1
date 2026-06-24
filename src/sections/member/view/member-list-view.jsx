@@ -269,7 +269,9 @@ export function MemberListView() {
   }, []);
 
   useEffect(() => {
-    if (membersLoading || metadataLoadedRef.current) return undefined;
+    // Fase 1: la metadata se carga en paralelo con los miembros (antes esperaba
+    // a que terminara la carga de miembros).
+    if (metadataLoadedRef.current) return undefined;
 
     let cancelled = false;
     metadataLoadedRef.current = true;
@@ -301,7 +303,7 @@ export function MemberListView() {
     return () => {
       cancelled = true;
     };
-  }, [membersLoading]);
+  }, []);
 
   const visibleMembers = useMemo(
     () => filterMembersByMemberScope(tableData, user, { dests, churches }),

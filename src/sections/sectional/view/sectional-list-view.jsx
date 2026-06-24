@@ -126,15 +126,14 @@ const getLeadershipBySectional = (sectionalId, role) => {
   return members.find((m) => m.id === assignment?.memberId) || null;
 };
 
-const buildSectionalList = async () => {
-  const sectionals = await getSectionals();
-  const regionals = await getRegionals();
-  const members = await getMembers();
-
-  const dests = await getDestsApi({ includePhotos: false });
-  const churches = await getChurches();
-
-  return sectionals.map((sectional) => {
+const buildSectionalList = ({
+  sectionals = [],
+  regionals = [],
+  members = [],
+  dests = [],
+  churches = [],
+}) =>
+  sectionals.map((sectional) => {
     const sectionalId = getSectionalId(sectional);
     const regional = regionals.find((r) => idMatches(getRegionalId(r), sectional.regionalId));
 
@@ -188,7 +187,6 @@ const buildSectionalList = async () => {
       directorPhoneNumber: director?.phoneNumber || '',
     };
   });
-};
 
 export function SectionalListView() {
   const { user } = useAuthContext();
@@ -277,11 +275,20 @@ export function SectionalListView() {
       }
 
       try {
-        const [sectionalsData, destsData, churchesData] = await Promise.all([
-          getSectionals(),
-          getDestsApi({ includePhotos: false }),
-          getChurches(),
-        ]);
+        // Fase 1: una sola tanda en paralelo, cada dataset una vez (antes se
+        // pedian secciones/regiones/iglesias/destacamentos hasta 3 veces y en
+        // serie dentro de buildSectionalList).
+        const [sectionalsData, destsData, churchesData, regionalsData, membersData] =
+          await Promise.all([
+            getSectionals(),
+            getDestsApi({ includePhotos: false }),
+            getChurches(),
+            getRegionals({ includePhotos: false }),
+            getMembers(),
+          ]);
+
+        setRegionals(regionalsData);
+
         const scopedSectionals = filterSectionalsByMemberScope(sectionalsData, user, {
           dests: destsData,
           churches: churchesData,
@@ -290,10 +297,13 @@ export function SectionalListView() {
         setTableData(scopedSectionals.map(mapSectionalToBaseRow));
         setTableLoading(false);
 
-        const regionalsData = await getRegionals();
-        setRegionals(regionalsData);
-
-        const data = await buildSectionalList();
+        const data = buildSectionalList({
+          sectionals: sectionalsData,
+          regionals: regionalsData,
+          members: membersData,
+          dests: destsData,
+          churches: churchesData,
+        });
         setTableData(
           filterSectionalsByMemberScope(data, user, { dests: destsData, churches: churchesData })
         );

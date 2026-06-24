@@ -315,14 +315,16 @@ export function DestListView() {
   }, [members, churches, sectionals, regionals, user, tableLoading]);
 
   useEffect(() => {
-    if (tableLoading) return undefined;
-
     let cancelled = false;
 
+    // Fase 1: la metadata (secciones/regiones/iglesias/miembros) se carga en
+    // paralelo desde el montaje, en vez de esperar a los destacamentos base.
+    // Solo iglesias necesita resolverse para el alcance; secciones/regiones se
+    // usan para nombres y conteos, sin fotos.
     async function load() {
       const [sectionalsData, regionalsData, churchesData, membersData] = await Promise.all([
-        getSectionals(),
-        getRegionals(),
+        getSectionals({ includePhotos: false }),
+        getRegionals({ includePhotos: false }),
         getChurches(),
         getMembers(),
       ]);
@@ -340,7 +342,7 @@ export function DestListView() {
     return () => {
       cancelled = true;
     };
-  }, [tableLoading]);
+  }, []);
 
   const filters = useSetState({ name: '', sectionalName: [], regionalName: 'all' });
   const searchParams = useSearchParams();

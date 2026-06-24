@@ -145,16 +145,17 @@ export function RegionalListView() {
       }
 
       try {
-        const regionals = await getRegionals();
-        setTableData(regionals.map(mapRegionalToBaseRow));
-        setTableLoading(false);
-
-        const [sectionals, churches, dests, members] = await Promise.all([
-          getSectionals(),
+        // Fase 1: una sola tanda en paralelo (antes getRegionals se resolvia
+        // en serie antes del resto, sumando su latencia al total).
+        const [regionals, sectionals, churches, dests, members] = await Promise.all([
+          getRegionals(),
+          getSectionals({ includePhotos: false }),
           getChurches(),
           getDestsApi({ includePhotos: false }),
           getMembers(),
         ]);
+        setTableData(regionals.map(mapRegionalToBaseRow));
+        setTableLoading(false);
         const memberById = new Map(
           [...MEMBERS, ...members].flatMap((member) =>
             [member?.id, member?.memberId].filter(Boolean).map((id) => [String(id), member])
