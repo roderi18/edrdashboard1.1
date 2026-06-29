@@ -11,6 +11,7 @@ import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { listarAuditoriaSistema } from 'src/services/audit-log-service';
+import { crearNotificacionSaludSistemaAlerta } from 'src/services/notification-service';
 import { ADMIN_BACKUP_COLLECTIONS, obtenerUltimoRespaldoAdmin } from 'src/services/admin-maintenance-service';
 import {
   FIREBASE_STORAGE_LIMIT_BYTES,
@@ -208,6 +209,53 @@ const buildBackupCheck = async () => {
   };
 };
 
+const buildExternalApiCheck = async () => {
+  const startedAt = now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch('https://systexploradores.somee.com/api/Miembros/GetAllMiembros', {
+      signal: controller.signal,
+    });
+    const elapsedMs = now() - startedAt;
+
+    if (!res.ok) {
+      return {
+        id: 'api_externa_miembros',
+        area: 'API externa',
+        name: 'API de Miembros (somee.com)',
+        status: 'critico',
+        value: `HTTP ${res.status}`,
+        detail: 'La API externa de Miembros respondió con un error.',
+      };
+    }
+
+    return {
+      id: 'api_externa_miembros',
+      area: 'API externa',
+      name: 'API de Miembros (somee.com)',
+      status: elapsedMs > 5000 ? 'advertencia' : 'correcto',
+      value: `${elapsedMs} ms`,
+      detail:
+        elapsedMs > 5000
+          ? 'La API externa respondió correctamente pero con demora.'
+          : 'La API externa de Miembros respondió correctamente.',
+    };
+  } catch (error) {
+    return {
+      id: 'api_externa_miembros',
+      area: 'API externa',
+      name: 'API de Miembros (somee.com)',
+      status: 'critico',
+      value: 'Sin conexión',
+      detail: `No se pudo conectar con la API externa de Miembros: ${error?.message || 'error desconocido'}.`,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const buildStorageCheck = () => {
   const storage = getCachedFirebaseStorageUsageSummary({ allowStale: true });
   const percentUsed = Number(storage?.percentUsed || 0);
@@ -266,12 +314,14 @@ export async function obtenerSaludSistemaAdmin() {
     };
   }
 
-  const [collectionChecks, notificationChecks, auditResult, backupResult] = await Promise.all([
-    buildCollectionChecks(),
-    buildNotificationChecks(),
-    buildAuditChecks(),
-    buildBackupCheck(),
-  ]);
+  const [collectionChecks, notificationChecks, auditResult, backupResult, externalApiCheck] =
+    await Promise.all([
+      buildCollectionChecks(),
+      buildNotificationChecks(),
+      buildAuditChecks(),
+      buildBackupCheck(),
+      buildExternalApiCheck(),
+    ]);
   const storageResult = buildStorageCheck();
   const firebaseCheck = {
     id: 'firebase_configuracion',
@@ -283,6 +333,7 @@ export async function obtenerSaludSistemaAdmin() {
   };
   const checks = [
     firebaseCheck,
+    externalApiCheck,
     storageResult.check,
     backupResult.check,
     ...notificationChecks,
@@ -291,6 +342,12 @@ export async function obtenerSaludSistemaAdmin() {
   ];
   const unreadNotifications =
     notificationChecks.find((item) => item.id === 'notificaciones_no_leidas')?.value || 0;
+
+  await Promise.all(
+    checks
+      .filter((item) => item.status === 'advertencia' || item.status === 'critico')
+      .map((item) => crearNotificacionSaludSistemaAlerta({ chequeo: item }).catch(() => null))
+  );
 
   return {
     generatedAt: new Date().toISOString(),
@@ -307,3 +364,56 @@ export async function obtenerSaludSistemaAdmin() {
     },
   };
 }
+
+const formatLogLine = (label, value) => `${label}: ${value ?? '-'}`;
+
+export async function generarLogDetalladoSaludAdmin(health) {
+  const logs = isFirebaseConfigured && FIRESTORE ? await listarAuditoriaSistema({ maxRegistros: 500 }) : [];
+  const lines = [];
+
+  lines.push('=== LOG DETALLADO DE SALUD DEL SISTEMA ===');
+  lines.push(formatLogLine('Generado', new Date().toISOString()));
+  lines.push(
+    formatLogLine('Estado general', `${health?.summary?.label || 'Sin datos'} - ${health?.summary?.detail || ''}`)
+  );
+  lines.push('');
+
+  lines.push('--- CHEQUEOS ---');
+  (health?.checks || []).forEach((item) => {
+    lines.push('');
+    lines.push(formatLogLine('Área', item.area));
+    lines.push(formatLogLine('Chequeo', item.name));
+    lines.push(formatLogLine('Estado', STATUS_LABELS_TXT[item.status] || item.status));
+    lines.push(formatLogLine('Valor', item.value));
+    lines.push(formatLogLine('Detalle', item.detail));
+  });
+
+  lines.push('');
+  lines.push('--- AUDITORÍA (últimos 500 registros) ---');
+
+  if (!logs.length) {
+    lines.push('Sin registros de auditoría disponibles.');
+  } else {
+    logs.forEach((item) => {
+      lines.push('');
+      lines.push(formatLogLine('Fecha', item.fecha));
+      lines.push(formatLogLine('Módulo', item.modulo));
+      lines.push(formatLogLine('Acción', item.accion));
+      lines.push(formatLogLine('Resultado', item.resultado));
+      lines.push(formatLogLine('Severidad', item.severidad));
+      lines.push(formatLogLine('Descripción', item.descripcion));
+      lines.push(formatLogLine('Realizado por', item.realizadoPor?.nombre || item.realizadoPor?.correo));
+      if (item.metadatos && Object.keys(item.metadatos).length) {
+        lines.push(formatLogLine('Metadatos', JSON.stringify(item.metadatos)));
+      }
+    });
+  }
+
+  return lines.join('\n');
+}
+
+const STATUS_LABELS_TXT = {
+  correcto: 'CORRECTO',
+  advertencia: 'ADVERTENCIA',
+  critico: 'CRITICO',
+};

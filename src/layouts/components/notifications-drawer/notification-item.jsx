@@ -11,6 +11,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fToNow } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 
 import { notificationIcons } from './icons';
@@ -140,9 +141,22 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     </ListItemAvatar>
   );
 
+  const isCritical = notification.prioridad === 'critica';
+
   const renderText = () => (
     <ListItemText
-      primary={readerContent(notification.title)}
+      primary={
+        <Box sx={{ gap: 0.75, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          {readerContent(notification.title)}
+          {isCritical && (
+            <Iconify
+              icon="solar:danger-triangle-bold"
+              width={18}
+              sx={{ mt: 0.25, color: 'warning.main', flexShrink: 0 }}
+            />
+          )}
+        </Box>
+      }
       secondary={
         <>
           {fToNow(notification.createdAt)}

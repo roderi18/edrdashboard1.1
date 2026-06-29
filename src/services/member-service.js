@@ -139,7 +139,10 @@ export async function getMembers() {
   try {
     const res = await fetch('/api/members');
 
-    if (!res.ok) throw new Error('Error al obtener miembros');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Error al obtener miembros (${res.status}): ${body || res.statusText}`);
+    }
 
     const response = await res.json();
 

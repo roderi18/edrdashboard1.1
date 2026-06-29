@@ -1601,6 +1601,38 @@ export async function crearNotificacionErrorSubidaArchivoImagen({
   });
 }
 
+export async function crearNotificacionSaludSistemaAlerta({
+  chequeo = {},
+  usuario = {},
+}) {
+  const nombreChequeo = chequeo?.name || 'Chequeo de salud';
+  const detalle = chequeo?.detail || '';
+  const entidadId = chequeo?.id || sanitizeNotificationIdPart(nombreChequeo);
+
+  return crearNotificacionAdmin({
+    tipoNotificacion: 'salud_sistema_alerta',
+    modulo: 'salud_sistema',
+    titulo: `Alerta de salud del sistema: ${nombreChequeo}`,
+    tituloHtml: `<p>Alerta en <strong>${escapeHtml(nombreChequeo)}</strong></p>`,
+    mensaje: `${nombreChequeo}: ${detalle}`,
+    prioridad: chequeo?.status === 'critico' ? 'critica' : 'importante',
+    actorTipo: 'sistema',
+    entidadTipo: 'chequeo_salud',
+    entidadId,
+    ruta: '/dashboard/admin/health',
+    etiquetaAccion: 'Ver salud del sistema',
+    metadatos: {
+      area: chequeo?.area || null,
+      nombreChequeo,
+      detalle,
+      valor: chequeo?.value ?? null,
+      estado: chequeo?.status || null,
+    },
+    usuario,
+    notificationId: `salud_sistema_alerta_${sanitizeNotificationIdPart(entidadId)}_${new Date().toISOString().slice(0, 10)}`,
+  });
+}
+
 export async function crearNotificacionReportePublicacion({
   publicacion = {},
   razon = '',
@@ -2226,6 +2258,7 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
     type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
     tipoNotificacion: notificacion.tipoNotificacion || '',
     category: obtenerCategoriaNotificacion(notificacion.modulo),
+    prioridad: notificacion.prioridad || 'informativa',
     estado,
     isUnRead: estado === 'no_leida',
     createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,

@@ -5,22 +5,76 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
+import Popover from '@mui/material/Popover';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { ROLES } from 'src/auth/permissions/roles';
 import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
 
 // ----------------------------------------------------------------------
+
+// Cargos organizacionales que se muestran dentro del submenu de cada rol
+// administrador. Permanecen deshabilitados hasta que se definan los permisos
+// que debe tener cada uno.
+const SUBROLES_POR_ROL = {
+  [ROLES.USUARIO_DESTACAMENTO]: [
+    'Pastor',
+    'Coordinador de Destacamento',
+    'Coordinador Asistente de Destacamento',
+    'Consejo Destacamento',
+    'Capellán',
+    'Líder de Grupo',
+    'Líder Asistente de Grupo',
+  ],
+  [ROLES.USUARIO_SECCION]: [
+    'Coordinador Seccional',
+    'Capellán Seccional',
+    'Sub-Coordinador Seccional',
+    'Coordinador de Adiestramiento',
+    'Coordinador de Promoción',
+    'Coordinador de Producción',
+    'Coordinador de Programa',
+    'Secretario Regional',
+    'Zonas',
+    'Grupos Locales',
+  ],
+  [ROLES.USUARIO_REGION]: [
+    'Director Regional',
+    'Capellán Regional',
+    'Sub-Director Regional',
+    'Coordinador de Adiestramiento',
+    'Coordinador de Promoción',
+    'Coordinador de Producción',
+    'Coordinador de Programa',
+    'Secretario Regional',
+  ],
+  [ROLES.CONSEJO_NACIONAL]: [
+    'Ministerios Infantiles',
+    'Director Nacional',
+    'Capellán Nacional',
+    'Coordinador Nacional de Adiestramiento',
+    'Sub-Director Nacional',
+    'Coordinador Nacional de Promoción',
+    'Coordinador Nacional de Producción',
+    'Coordinador Nacional de Programa',
+    'Comités Especiales',
+    'Oficiales de Adiestramientos Especiales',
+  ],
+};
+
+// Roles que solo funcionan como agrupador: su submenu muestra unicamente los
+// cargos (deshabilitados) y NO incluye el item que cambia de sesion.
+const ROLES_SOLO_AGRUPADOR = new Set([ROLES.CONSEJO_NACIONAL]);
 
 export function WorkspacesPopover({ data = [], sx, ...other }) {
   const mediaQuery = 'sm';
@@ -29,6 +83,18 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
 
   const { user } = useAuthContext();
   const [loadingRoleId, setLoadingRoleId] = useState('');
+  const [submenuAnchor, setSubmenuAnchor] = useState(null);
+  const [submenuOption, setSubmenuOption] = useState(null);
+
+  const openSubmenu = useCallback((anchor, option) => {
+    setSubmenuAnchor(anchor);
+    setSubmenuOption(option);
+  }, []);
+
+  const closeSubmenu = useCallback(() => {
+    setSubmenuAnchor(null);
+    setSubmenuOption(null);
+  }, []);
 
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
   const selectedWorkspace = useMemo(
@@ -49,6 +115,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       }
 
       setWorkspace(newValue);
+      closeSubmenu();
       onClose();
 
       try {
@@ -70,7 +137,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
         toast.error(error?.message || 'No se pudo asignar el tipo de administrador.');
       }
     },
-    [onClose, user]
+    [closeSubmenu, onClose, user]
   );
 
   const buttonBg = {
@@ -141,72 +208,153 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
         {workspace?.name}
       </Box>
 
-      <Label
-        color={workspace?.plan === 'Free' ? 'default' : 'info'}
-        sx={{
-          height: 22,
-          cursor: 'inherit',
-          display: { xs: 'none', [mediaQuery]: 'inline-flex' },
-        }}
-      >
-        {workspace?.badge || workspace?.plan || 'admin'}
-      </Label>
-
       <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
     </ButtonBase>
   );
+
+  const handleCloseAll = useCallback(() => {
+    closeSubmenu();
+    onClose();
+  }, [closeSubmenu, onClose]);
+
+  const renderSubmenu = () => {
+    const subRoles = submenuOption ? SUBROLES_POR_ROL[submenuOption.id] || [] : [];
+    const soloAgrupador = submenuOption ? ROLES_SOLO_AGRUPADOR.has(submenuOption.id) : false;
+
+    return (
+      <Popover
+        open={Boolean(submenuAnchor && submenuOption)}
+        anchorEl={submenuAnchor}
+        onClose={closeSubmenu}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        sx={{ pointerEvents: 'none' }}
+        slotProps={{
+          paper: {
+            onMouseLeave: closeSubmenu,
+            sx: { pointerEvents: 'auto', ml: 0.5, width: 320, maxWidth: 'calc(100vw - 32px)' },
+          },
+        }}
+      >
+        <MenuList>
+          {!soloAgrupador && (
+            <MenuItem
+              selected={submenuOption?.id === workspace?.id}
+              disabled={Boolean(loadingRoleId)}
+              onClick={() => handleChangeWorkspace(submenuOption)}
+              sx={{ height: 48 }}
+            >
+              {submenuOption?.id === loadingRoleId ? (
+                <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
+              ) : (
+                renderWorkspaceIcon(submenuOption)
+              )}
+
+              <Typography
+                component="span"
+                variant="body2"
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 0,
+                  lineHeight: 1.3,
+                  whiteSpace: 'normal',
+                  fontWeight: 'fontWeightMedium',
+                }}
+              >
+                {submenuOption?.name}
+              </Typography>
+            </MenuItem>
+          )}
+
+          {subRoles.map((nombre) => (
+            <MenuItem key={nombre} disabled sx={{ height: 48 }}>
+              <Typography
+                component="span"
+                variant="body2"
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 0,
+                  lineHeight: 1.3,
+                  whiteSpace: 'normal',
+                  fontWeight: 'fontWeightMedium',
+                }}
+              >
+                {nombre}
+              </Typography>
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Popover>
+    );
+  };
 
   const renderMenuList = () => (
     <CustomPopover
       open={open}
       anchorEl={anchorEl}
-      onClose={onClose}
+      onClose={handleCloseAll}
       slotProps={{
         arrow: { placement: 'top-left' },
         paper: { sx: { mt: 0.5, ml: -1.55, width: 360, maxWidth: 'calc(100vw - 32px)' } },
       }}
     >
-      <Scrollbar sx={{ maxHeight: 320 }}>
+      <Scrollbar sx={{ maxHeight: 'calc(100vh - 96px)' }}>
         <MenuList>
           {data.map((option) => {
             const selected = option.id === workspace?.id;
             const loading = option.id === loadingRoleId;
+            const hasSubmenu = Boolean(SUBROLES_POR_ROL[option.id]);
 
             return (
               <MenuItem
                 key={option.id}
                 selected={selected}
                 disabled={Boolean(loadingRoleId)}
-                onClick={() => handleChangeWorkspace(option)}
+                onClick={(event) =>
+                  hasSubmenu
+                    ? openSubmenu(event.currentTarget, option)
+                    : handleChangeWorkspace(option)
+                }
+                onMouseEnter={(event) =>
+                  hasSubmenu ? openSubmenu(event.currentTarget, option) : closeSubmenu()
+                }
                 sx={{ height: 48 }}
               >
-                {loading ? (
-                  <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
-                ) : (
-                  renderWorkspaceIcon(option)
-                )}
+                  {loading ? (
+                    <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
+                  ) : (
+                    renderWorkspaceIcon(option)
+                  )}
 
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{
-                    flexGrow: 1,
-                    minWidth: 0,
-                    lineHeight: 1.3,
-                    whiteSpace: 'normal',
-                    fontWeight: 'fontWeightMedium',
-                  }}
-                >
-                  {option.name}
-                </Typography>
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    sx={{
+                      flexGrow: 1,
+                      minWidth: 0,
+                      lineHeight: 1.3,
+                      whiteSpace: 'normal',
+                      fontWeight: 'fontWeightMedium',
+                    }}
+                  >
+                    {option.name}
+                  </Typography>
 
-                <Label color="info">{option.badge || option.plan}</Label>
-              </MenuItem>
-            );
-          })}
-        </MenuList>
-      </Scrollbar>
-    </CustomPopover>
+                  {hasSubmenu && (
+                    <Iconify
+                      width={16}
+                      icon="eva:arrow-ios-forward-fill"
+                      sx={{ color: 'text.disabled', ml: 0.5 }}
+                    />
+                  )}
+                </MenuItem>
+              );
+            })}
+          </MenuList>
+        </Scrollbar>
+
+        {renderSubmenu()}
+      </CustomPopover>
   );
 
   return (

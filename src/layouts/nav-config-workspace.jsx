@@ -5,7 +5,10 @@ import { ROLES, ROLES_CATALOGO } from 'src/auth/permissions/roles';
 // ----------------------------------------------------------------------
 
 const workspaceRoles = ROLES_CATALOGO.filter(
-  (rol) => rol.codigo === ROLES.USUARIO_COMUN || rol.nombre.toLowerCase().includes('administrador')
+  (rol) =>
+    rol.codigo === ROLES.USUARIO_COMUN ||
+    rol.codigo === ROLES.CONSEJO_NACIONAL ||
+    rol.nombre.toLowerCase().includes('administrador')
 );
 
 export const _workspaces = workspaceRoles.map((rol, index) => ({
