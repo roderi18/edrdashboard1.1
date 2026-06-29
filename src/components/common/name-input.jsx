@@ -1,6 +1,8 @@
 import { useFormContext } from 'react-hook-form';
-import { Field } from 'src/components/hook-form';
+
 import InputAdornment from '@mui/material/InputAdornment';
+
+import { Field } from 'src/components/hook-form';
 
 export default function NameInput({
     name = 'name',
@@ -9,6 +11,7 @@ export default function NameInput({
     allowNumbers = false,
     allowSpecialChars = false,
     allowDash = false,
+    disabled = false,
     InputProps: externalInputProps = {},
 }) {
     const { setValue, watch } = useFormContext();
@@ -20,6 +23,7 @@ export default function NameInput({
         <Field.Text
             name={name}
             label={label}
+            disabled={disabled}
 
             // 📌 Limita caracteres desde el input
             inputProps={{ maxLength }}
@@ -39,6 +43,8 @@ export default function NameInput({
             }}
 
             onChange={(e) => {
+                if (disabled) return;
+
                 let value = e.target.value;
 
                 // ❌ Quitar números y símbolos

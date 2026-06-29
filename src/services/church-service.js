@@ -85,6 +85,43 @@ export const createChurchApi = async (data) => {
     return parsed ?? { raw: text };
 };
 
+export const updateChurchApi = async (data) => {
+    const payload = buildChurchPayload(data);
+    const res = await fetch('/api/churches/put', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/plain, */*',
+        },
+        body: JSON.stringify({
+            id: data?.id || data?.churchId,
+            name: data?.churchName,
+            pastor: data?.pastor,
+            address: payload.direccion,
+            correo: data?.correo,
+            sectionId: data?.sectionId || data?.idSeccion,
+        }),
+        cache: 'no-store',
+    });
+
+    const text = await res.text();
+    let parsed = null;
+
+    try {
+        parsed = text ? JSON.parse(text) : null;
+    } catch {
+        parsed = null;
+    }
+
+    if (!res.ok || parsed?.success === false) {
+        throw new Error(
+            parsed?.error || parsed?.Message || text || `Error actualizando iglesia (${res.status})`
+        );
+    }
+
+    return parsed ?? { raw: text };
+};
+
 export const getChurches = async () => {
     try {
         const res = await fetch('/api/churches', {

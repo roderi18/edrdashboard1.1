@@ -12,7 +12,7 @@ import { AnimateLogoZoom } from '../animate';
 // ----------------------------------------------------------------------
 
 export function SplashScreen({
-  portal = true,
+  portal = false,
   title,
   description,
   slots,

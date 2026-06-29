@@ -19,6 +19,8 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { canEditRegional, canDeleteOrgLevel } from 'src/utils/org-level-access';
 
 import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
@@ -76,10 +78,43 @@ const mapRegionalToBaseRow = (regional) => ({
   regionalXSectionalMemberCount: 0,
 });
 
+const normalizeId = (value) => String(value ?? '').trim();
+
+const idMatches = (left, right) => {
+  const leftId = normalizeId(left);
+  const rightId = normalizeId(right);
+
+  return Boolean(leftId && rightId && leftId === rightId);
+};
+
+const getRegionalId = (regional = {}) => regional?.id ?? regional?.idRegion ?? regional?.regionId;
+
+const getSectionalRegionalId = (sectional = {}) =>
+  sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId;
+
+const getSectionalId = (sectional = {}) =>
+  sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId;
+
+const getChurchIdCandidates = (church = {}) =>
+  [church?.id, church?.idIglesia, church?.churchId]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map(normalizeId);
+
+const getChurchSectionId = (church = {}) =>
+  church?.idSeccion ?? church?.seccionId ?? church?.sectionId ?? church?.sectionalId;
+
+const getDestId = (dest = {}) => dest?.id ?? dest?.idDestacamento ?? dest?.destId;
+
+const getDestChurchId = (dest = {}) => dest?.churchId ?? dest?.idIglesia ?? dest?.church?.id;
+
+const getMemberDestId = (member = {}) =>
+  member?.idDestacamento ?? member?.destId ?? member?.destacamentoId;
+
 // ----------------------------------------------------------------------
 
 export function RegionalListView() {
   const { user } = useAuthContext();
+  const canManage = canManageOrgLevels(user);
   const table = useTable();
 
   const confirmDialog = useBoolean();
@@ -111,16 +146,17 @@ export function RegionalListView() {
       }
 
       try {
-        const regionals = await getRegionals();
-        setTableData(regionals.map(mapRegionalToBaseRow));
-        setTableLoading(false);
-
-        const [sectionals, churches, dests, members] = await Promise.all([
-          getSectionals(),
+        // Fase 1: una sola tanda en paralelo (antes getRegionals se resolvia
+        // en serie antes del resto, sumando su latencia al total).
+        const [regionals, sectionals, churches, dests, members] = await Promise.all([
+          getRegionals(),
+          getSectionals({ includePhotos: false }),
           getChurches(),
           getDestsApi({ includePhotos: false }),
           getMembers(),
         ]);
+        setTableData(regionals.map(mapRegionalToBaseRow));
+        setTableLoading(false);
         const memberById = new Map(
           [...MEMBERS, ...members].flatMap((member) =>
             [member?.id, member?.memberId].filter(Boolean).map((id) => [String(id), member])
@@ -142,25 +178,29 @@ export function RegionalListView() {
             director?.fullName ||
             [director?.firstName, director?.lastName].filter(Boolean).join(' ').trim() ||
             'Desconocido';
-          const seccionesDeRegion = sectionals.filter(
-            (s) => Number(s.regionalId) === Number(regional.id)
+          const seccionesDeRegion = sectionals.filter((s) =>
+            idMatches(getSectionalRegionalId(s), getRegionalId(regional))
           );
 
-          const iglesiasDeRegion = churches.filter((c) =>
-            seccionesDeRegion.some((s) => Number(s.idSeccion) === Number(c.idSeccion))
+          const sectionIdsDeRegion = new Set(
+            seccionesDeRegion.map((s) => normalizeId(getSectionalId(s)))
           );
 
-          const destCount = dests.filter((d) =>
-            iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-          ).length;
-          const miembrosDeRegion = members.filter(
-            (m) =>
-              m.idDestacamento !== null &&
-              dests.some(
-                (d) =>
-                  Number(d.idDestacamento) === Number(m.idDestacamento) &&
-                  iglesiasDeRegion.some((ig) => Number(ig.idIglesia) === Number(d.idIglesia))
-              )
+          const churchIdsDeRegion = new Set(
+            churches
+              .filter((c) => sectionIdsDeRegion.has(normalizeId(getChurchSectionId(c))))
+              .flatMap((c) => getChurchIdCandidates(c))
+          );
+
+          const destsDeRegion = dests.filter((d) =>
+            churchIdsDeRegion.has(normalizeId(getDestChurchId(d)))
+          );
+
+          const destIdsDeRegion = new Set(destsDeRegion.map((d) => normalizeId(getDestId(d))));
+
+          const destCount = destsDeRegion.length;
+          const miembrosDeRegion = members.filter((m) =>
+            destIdsDeRegion.has(normalizeId(getMemberDestId(m)))
           ).length;
           return {
             ...regional,
@@ -280,14 +320,16 @@ export function RegionalListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.regional.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Crear nuevo
-            </Button>
+            canManage ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.regional.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -330,24 +372,26 @@ export function RegionalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canManage && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -380,6 +424,8 @@ export function RegionalListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.regional.edit(row.id)}
+                        canManage={canEditRegional(user, row)}
+                        canDelete={canDeleteOrgLevel(user)}
                       />
                     )}
                     notFound={notFound}

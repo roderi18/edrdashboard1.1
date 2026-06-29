@@ -1,3 +1,5 @@
+import { getAdminRoleLabel } from 'src/utils/admin-role-label';
+
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
@@ -61,6 +63,7 @@ export function AdminCard({ admin, sx, ...other }) {
   const adminEditId = getAdminEditId(admin);
   const editHref = adminEditId ? `/dashboard/level/member/${adminEditId}/edit` : '#';
   const adminName = admin?.name || admin?.displayName || admin?.email || 'Administrador';
+  const roleLabel = getAdminRoleLabel(admin);
 
   return (
     <CompactEntityCard
@@ -69,7 +72,7 @@ export function AdminCard({ admin, sx, ...other }) {
       avatarUrl={getAdminAvatar(admin)}
       fallbackText={adminName}
       lines={[
-        { icon: 'solar:shield-user-bold', text: admin?.rol || admin?.role || 'Administrador' },
+        { icon: 'solar:shield-user-bold', text: roleLabel },
         { icon: 'mingcute:location-fill', text: getDestLabel(admin), href: getDestHref(admin) },
         { icon: 'solar:map-point-bold', text: getSectionalLabel(admin), href: getSectionalHref(admin) },
       ]}

@@ -12,7 +12,7 @@ import { Field } from 'src/components/hook-form';
 import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
 // ----------------------------------------------------------------------
 
-export default function SectionalGeneralSection({ methods, watch, isCreateView }) {
+export default function SectionalGeneralSection({ methods, watch, isCreateView, disabled = false }) {
     const [regionals, setRegionals] = useState([]);
     const regionalId = watch('regionalId');
 
@@ -70,6 +70,7 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView }
                 label="Nombre de la Sección"
                 allowNumbers
                 allowDash
+                disabled={disabled}
             />
 
             {/* ID de la Sección */}
@@ -103,6 +104,7 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView }
             <Field.Autocomplete
                 name="regionalId"
                 label="Región"
+                disabled={disabled}
                 options={regionals}
                 getOptionLabel={(option) =>
                     typeof option === 'string' ? option : option?.name || ''

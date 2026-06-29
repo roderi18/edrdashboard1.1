@@ -19,8 +19,10 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canEditDest } from 'src/utils/org-level-access';
 import { countMembersByDestId } from 'src/utils/member-count';
-import { isMemberSessionUser, filterDestsByMemberScope } from 'src/utils/member-access';
+import { filterDestsByMemberScope } from 'src/utils/member-access';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -49,6 +51,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 import { DestTableRow } from '../dest-table-row';
 import { DestCardList } from '../dest-card-list';
@@ -83,6 +86,31 @@ const mapDestToBaseRow = (dest) => ({
   regionalId: null,
   regionalName: '-',
 });
+
+const hasAdminRole = (user) =>
+  ['admin', 'administrador'].includes(String(user?.role || user?.rol || '').trim().toLowerCase());
+
+const canModifyDest = (user, permissionCode, actionKey) => {
+  if (isDestacamentoAdminRole(user)) {
+    return false;
+  }
+
+  const modulePermissions = user?.permisos?.destacamentos || user?.permissions?.destacamentos;
+
+  if (modulePermissions && typeof modulePermissions === 'object') {
+    return Boolean(modulePermissions[actionKey]);
+  }
+
+  if (user?.rolId || user?.roleId) {
+    return puedeModificar(user, permissionCode);
+  }
+
+  if (hasAdminRole(user)) {
+    return true;
+  }
+
+  return puedeModificar(user, permissionCode);
+};
 
 // ----------------------------------------------------------------------
 export function DestListView() {
@@ -207,7 +235,7 @@ export function DestListView() {
         destMemberCount: countMembersByDestId(allMembers, dest.id),
 
         sectionalId: sectional?.idSeccion || sectional?.id || null,
-        sectionalName: sectional?.nombre || sectional?.name || null,
+        sectionalName: sectional?.sectionalName || sectional?.nombre || sectional?.name || null,
         regionalId: regional?.idRegion || regional?.id || null,
 
         debugChurchIdSeccion: church?.idSeccion,
@@ -219,6 +247,8 @@ export function DestListView() {
   };
 
   const [tableData, setTableData] = useState([]);
+  const canCreateDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
+  const canDeleteDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_ELIMINAR, 'eliminar');
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
@@ -233,9 +263,7 @@ export function DestListView() {
 
     async function loadBaseDests() {
       const cachedDests = getDests();
-      const cachedScopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(cachedDests, user)
-        : cachedDests;
+      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user, { churches });
 
       if (cachedScopedDests.length) {
         setTableData(cachedScopedDests.map(mapDestToBaseRow));
@@ -248,9 +276,7 @@ export function DestListView() {
         const data = await getDestsApi({ includePhotos: false });
         if (cancelled) return;
 
-        const scopedDests = isMemberSessionUser(user)
-          ? filterDestsByMemberScope(data || [], user)
-          : data || [];
+        const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
 
         setTableData(scopedDests.map(mapDestToBaseRow));
       } catch (error) {
@@ -268,7 +294,7 @@ export function DestListView() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [churches, user]);
 
   useEffect(() => {
     if (tableLoading) return;
@@ -279,9 +305,7 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-      const scopedDests = isMemberSessionUser(user)
-        ? filterDestsByMemberScope(data || [], user)
-        : data || [];
+      const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
 
       const built = buildDestList(scopedDests);
 
@@ -292,14 +316,16 @@ export function DestListView() {
   }, [members, churches, sectionals, regionals, user, tableLoading]);
 
   useEffect(() => {
-    if (tableLoading) return undefined;
-
     let cancelled = false;
 
+    // Fase 1: la metadata (secciones/regiones/iglesias/miembros) se carga en
+    // paralelo desde el montaje, en vez de esperar a los destacamentos base.
+    // Solo iglesias necesita resolverse para el alcance; secciones/regiones se
+    // usan para nombres y conteos, sin fotos.
     async function load() {
       const [sectionalsData, regionalsData, churchesData, membersData] = await Promise.all([
-        getSectionals(),
-        getRegionals(),
+        getSectionals({ includePhotos: false }),
+        getRegionals({ includePhotos: false }),
         getChurches(),
         getMembers(),
       ]);
@@ -317,7 +343,7 @@ export function DestListView() {
     return () => {
       cancelled = true;
     };
-  }, [tableLoading]);
+  }, []);
 
   const filters = useSetState({ name: '', sectionalName: [], regionalName: 'all' });
   const searchParams = useSearchParams();
@@ -450,7 +476,7 @@ export function DestListView() {
             { name: 'Lista' },
           ]}
           action={
-            !isMemberSessionUser(user) ? (
+            canCreateDest ? (
               <Button
                 component={RouterLink}
                 href={paths.dashboard.level.dest.new}
@@ -517,6 +543,7 @@ export function DestListView() {
             setDisplayMode={setDisplayMode}
             rows={tableData}
             options={{ sectionalName: distinctSectionalFullName }}
+            showSectionFilter={!isDestacamentoAdminRole(user)}
           />
 
           {canReset && (
@@ -531,24 +558,26 @@ export function DestListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Eliminar">
-                    <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
+              {canDeleteDest && (
+                <TableSelectedAction
+                  dense={table.dense}
+                  numSelected={table.selected.length}
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) =>
+                    table.onSelectAllRows(
+                      checked,
+                      dataFiltered.map((row) => row.id)
+                    )
+                  }
+                  action={
+                    <Tooltip title="Eliminar">
+                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                        <Iconify icon="solar:trash-bin-trash-bold" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                />
+              )}
 
               <Scrollbar>
                 <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -581,6 +610,8 @@ export function DestListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.dest.edit(row.id)}
+                        canManage={canEditDest(user, row)}
+                        canDelete={canDeleteDest}
                       />
                     )}
                     notFound={notFound}

@@ -35,9 +35,11 @@ export function FileManagerTable({
   table,
   notFound,
   onDeleteRow,
+  onRenameRow,
   dataFiltered,
   onOpenConfirm,
   canDelete = false,
+  canRename = false,
   ...other
 }) {
   const {
@@ -140,7 +142,9 @@ export function FileManagerTable({
                     selected={selected.includes(row.id)}
                     onSelectRow={() => onSelectRow(row.id)}
                     onDeleteRow={() => onDeleteRow(row.id)}
+                    onRename={onRenameRow}
                     canDelete={canDelete}
+                    canRename={canRename}
                   />
                 ))}
 

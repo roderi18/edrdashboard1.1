@@ -16,7 +16,15 @@ import { DestQuickEditForm } from './dest-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function DestTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canManage = true,
+  canDelete = true,
+}) {
   const id = row.id || row.idDestacamento;
   const sectionalName = String(row.sectionalName || '').trim();
   const sectionalLabel = sectionalName || 'Sección desconocida';
@@ -108,8 +116,10 @@ export function DestTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       </TableCell>
 
       <CompactEntityRowActions
+        canManage={canManage}
+        allowDelete={canDelete}
         editHref={editHref || `/dashboard/level/dest/${id}/edit`}
-        onDelete={onDeleteRow}
+        onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={DestQuickEditForm}
         quickEditProps={{ currentDest: row }}
         deleteContent="¿Seguro que deseas eliminar este destacamento?"

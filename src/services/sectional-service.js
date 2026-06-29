@@ -1,7 +1,22 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import {
+  canEditSectional,
+  canDeleteOrgLevel,
+  canAssignSectionalToRegion,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
+// Verificacion de alcance del lado del cliente (defensa en profundidad). Solo se
+// aplica cuando el llamador pasa `usuario`; es una mitigacion parcial: la API
+// externa no valida permisos, asi que el control real debe vivir en el backend.
+const assertScope = (usuario, allowed, mensaje) => {
+  if (usuario && !allowed) {
+    throw new Error(mensaje);
+  }
+};
 
 const SECTIONALS_STORAGE_KEY = 'sectionals';
 
@@ -106,6 +121,12 @@ const registrarAuditoriaSeccion = ({
 };
 
 export const saveSectional = async (payload, { usuario } = {}) => {
+    assertScope(
+        usuario,
+        canCreateSectionalInRegion(usuario, payload?.idRegion ?? payload?.regionalId),
+        'No tienes permiso para crear secciones en esa región.'
+    );
+
     const res = await fetch('/api/sectional/post', {
         method: 'POST',
         headers: {
@@ -127,6 +148,13 @@ export const saveSectional = async (payload, { usuario } = {}) => {
 };
 
 export const updateSectional = async (sectional, { usuario, antes = null } = {}) => {
+    assertScope(
+        usuario,
+        canEditSectional(usuario, antes ?? sectional) &&
+            canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId),
+        'No tienes permiso para editar esta sección.'
+    );
+
     try {
         const res = await fetch('/api/sectional/put', {
             method: 'PUT',
@@ -177,6 +205,12 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
 };
 
 export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
+    assertScope(
+        usuario,
+        canDeleteOrgLevel(usuario),
+        'No tienes permiso para eliminar secciones.'
+    );
+
     const res = await fetch(`/api/sectional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     });

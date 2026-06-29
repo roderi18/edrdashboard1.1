@@ -24,13 +24,16 @@ import { RouterLink } from 'src/routes/components';
 import { fData } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
 
-import { obtenerSaludSistemaAdmin } from 'src/services/admin-system-health-service';
+import {
+  obtenerSaludSistemaAdmin,
+  generarLogDetalladoSaludAdmin,
+} from 'src/services/admin-system-health-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom } from 'src/components/table';
+import { useTable, rowInPage, TableHeadCustom, TablePaginationCustom } from 'src/components/table';
 
 // ----------------------------------------------------------------------
 
@@ -63,6 +66,8 @@ const STATUS_ICONS = {
 export function AdminSystemHealthView() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingLog, setDownloadingLog] = useState(false);
+  const table = useTable({ defaultRowsPerPage: 10 });
 
   const loadHealth = useCallback(async () => {
     setLoading(true);
@@ -70,22 +75,48 @@ export function AdminSystemHealthView() {
     try {
       const result = await obtenerSaludSistemaAdmin();
       setHealth(result);
+      table.onResetPage();
     } catch (error) {
       console.error(error);
       toast.error(error.message || 'No se pudo cargar la salud del sistema.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [table.onResetPage]);
 
   useEffect(() => {
     loadHealth();
   }, [loadHealth]);
 
+  const handleDownloadDetailedLog = useCallback(async () => {
+    setDownloadingLog(true);
+
+    try {
+      const contenido = await generarLogDetalladoSaludAdmin(health);
+      const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = `salud-sistema-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo generar el log detallado.');
+    } finally {
+      setDownloadingLog(false);
+    }
+  }, [health]);
+
   const summary = health?.summary;
   const storagePercent = Number(health?.metrics?.storagePercent || 0);
-  const totalWarnings = health?.checks?.filter((item) => item.status === 'advertencia').length || 0;
-  const totalCritical = health?.checks?.filter((item) => item.status === 'critico').length || 0;
+  const checks = health?.checks || [];
+  const totalWarnings = checks.filter((item) => item.status === 'advertencia').length;
+  const totalCritical = checks.filter((item) => item.status === 'critico').length;
+  const checksInPage = rowInPage(checks, table.page, table.rowsPerPage);
 
   if (loading && !health) {
     return <SystemHealthSkeleton />;
@@ -133,7 +164,7 @@ export function AdminSystemHealthView() {
               display: 'grid',
               gridTemplateColumns: {
                 xs: 'minmax(0, 1fr) minmax(0, 1fr)',
-                md: 'auto auto',
+                md: 'auto auto auto',
               },
               '& .MuiButton-root': {
                 minWidth: 0,
@@ -163,6 +194,16 @@ export function AdminSystemHealthView() {
               startIcon={<Iconify icon="solar:refresh-bold" />}
             >
               Actualizar salud
+            </Button>
+            <Button
+              color="inherit"
+              variant="outlined"
+              loading={downloadingLog}
+              disabled={!health}
+              onClick={handleDownloadDetailedLog}
+              startIcon={<Iconify icon="solar:download-minimalistic-bold" />}
+            >
+              Descargar log
             </Button>
           </Box>
         </Stack>
@@ -292,10 +333,10 @@ export function AdminSystemHealthView() {
 
         <TableContainer sx={{ mt: 2 }}>
           <Scrollbar>
-            <Table sx={{ minWidth: 860 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 860 }}>
               <TableHeadCustom headCells={TABLE_HEAD} />
               <TableBody>
-                {health?.checks?.map((item) => (
+                {checksInPage.map((item) => (
                   <TableRow key={item.id} hover>
                     <TableCell>{item.area}</TableCell>
                     <TableCell>
@@ -310,10 +351,28 @@ export function AdminSystemHealthView() {
                     <TableCell sx={{ color: 'text.secondary' }}>{item.detail}</TableCell>
                   </TableRow>
                 ))}
+
+                {!checks.length && (
+                  <TableRow>
+                    <TableCell colSpan={TABLE_HEAD.length} sx={{ color: 'text.secondary' }}>
+                      Sin chequeos disponibles.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
         </TableContainer>
+
+        <TablePaginationCustom
+          page={table.page}
+          dense={table.dense}
+          count={checks.length}
+          rowsPerPage={table.rowsPerPage}
+          onPageChange={table.onChangePage}
+          onChangeDense={table.onChangeDense}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+        />
       </Card>
     </Stack>
   );

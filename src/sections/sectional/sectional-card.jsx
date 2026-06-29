@@ -34,7 +34,8 @@ const getRegionalName = (sectional) => {
 export function SectionalCard({ sectional, sx, ...other }) {
   const sectionalId = getSectionalId(sectional);
   const directorId = getDirectorId(sectional);
-  const editHref = sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '#';
+  // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
+  const editHref = sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '';
   const sectionalName = getSectionalName(sectional);
   const directorName = getDirectorName(sectional);
   const regionalName = getRegionalName(sectional);

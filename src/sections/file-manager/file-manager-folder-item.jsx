@@ -36,6 +36,7 @@ export function FileManagerFolderItem({
   onSelect,
   onDelete,
   canDelete = false,
+  canRename = false,
   disableDetails = false,
   ...other
 }) {
@@ -110,15 +111,17 @@ export function FileManagerFolderItem({
           Compartir
         </MenuItem>
 
-        <MenuItem
-          onClick={() => {
-            menuActions.onClose();
-            editFolderDialog.onTrue();
-          }}
-        >
-          <Iconify icon="solar:pen-bold" />
-          Editar
-        </MenuItem>
+        {canRename && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              editFolderDialog.onTrue();
+            }}
+          >
+            <Iconify icon="solar:pen-bold" />
+            Editar
+          </MenuItem>
+        )}
 
         {canDelete && <Divider sx={{ borderStyle: 'dashed' }} />}
 
@@ -194,6 +197,7 @@ export function FileManagerFolderItem({
       onCopyLink={handleCopy}
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
+      canDelete={canDelete}
       onDelete={() => {
         detailsDrawer.onFalse();
         onDelete();

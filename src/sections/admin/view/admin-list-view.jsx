@@ -39,9 +39,25 @@ const TABLE_HEAD = [
 
 const resolveAdminMember = (admin, members) => {
   const idMiembros = admin.idMiembros || admin.memberId;
+  const codigoMiembro = String(admin.codigoMiembro || admin.codigoUsuario || admin.memberCode || '')
+    .trim()
+    .toLowerCase();
 
   if (idMiembros) {
-    return members.find((member) => String(member.id) === String(idMiembros));
+    const byId = members.find((member) => String(member.id) === String(idMiembros));
+
+    if (byId) return byId;
+  }
+
+  if (codigoMiembro) {
+    const byCode = members.find((member) =>
+      [member.memberId, member.codigoMiembro]
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase())
+        .includes(codigoMiembro)
+    );
+
+    if (byCode) return byCode;
   }
 
   const adminEmail = String(admin.correo || admin.email || '').toLowerCase();
@@ -54,6 +70,8 @@ const resolveAdminMember = (admin, members) => {
 const mapAdminRow = ({ admin, member, photo }) => {
   const name =
     getMemberFullName(member || {}) ||
+    admin.name ||
+    admin.nombre ||
     [admin.nombres, admin.apellidos].filter(Boolean).join(' ').trim() ||
     admin.displayName ||
     admin.correo ||
@@ -70,6 +88,7 @@ const mapAdminRow = ({ admin, member, photo }) => {
     name,
     email: member?.email || admin.correo || admin.email || '',
     avatarUrl: photo?.urlFoto || member?.avatarUrl || admin.photoURL || '',
+    idDestacamento: admin.idDestacamento || member?.idDestacamento || member?.destId || '',
   };
 };
 
@@ -144,6 +163,24 @@ export function AdminListView() {
     );
   }, []);
 
+  const handleRoleSaved = useCallback((adminRow, assignment) => {
+    setAdmins((currentAdmins) =>
+      currentAdmins.map((admin) =>
+        String(admin.adminId || admin.id) === String(adminRow?.adminId || adminRow?.id)
+          ? {
+              ...admin,
+              rol: assignment.rolNombre || assignment.rolId,
+              role: assignment.rolId,
+              rolId: assignment.rolId,
+              rolNombre: assignment.rolNombre,
+              alcance: assignment.alcance,
+              permisosRol: assignment.permisos,
+            }
+          : admin
+      )
+    );
+  }, []);
+
   const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
   const notFound = !dataFiltered.length;
 
@@ -183,6 +220,7 @@ export function AdminListView() {
                   onSelectRow={() => table.onSelectRow(row.id)}
                   onRemoveAdmin={setRemoveAdminRow}
                   onPermissionsSaved={handlePermissionsSaved}
+                  onRoleSaved={handleRoleSaved}
                 />
               ))}
 

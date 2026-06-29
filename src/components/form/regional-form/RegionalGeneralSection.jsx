@@ -12,6 +12,7 @@ import AutocompleteWithCreate from 'src/components/common/autocomplete-with-crea
 
 export default function RegionalGeneralSection({
     isCreateView,
+    disabled = false,
 }) {
     const { setValue, watch } = useFormContext();
     const [members, setMembers] = useState([]);
@@ -59,6 +60,7 @@ export default function RegionalGeneralSection({
             <NameInput
                 name="name"
                 label="Nombre de la Región"
+                disabled={disabled}
             />
 
             {!isCreateView && (
@@ -66,6 +68,7 @@ export default function RegionalGeneralSection({
             )}
 
             <AutocompleteWithCreate
+                disabled={disabled}
                 options={members}
                 value={
                     members.find(
@@ -88,7 +91,7 @@ export default function RegionalGeneralSection({
                 createLabel="Crear Director"
                 createLink="/dashboard/level/member/new"
             />
-            <CountrySelectApi name="countryId" label="País" />
+            <CountrySelectApi name="countryId" label="País" disabled={disabled} />
 
             {!isCreateView && (
                 <Field.Text

@@ -1,17 +1,20 @@
+import { useState, useEffect } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
-import { Field } from 'src/components/hook-form';
-import { useEffect, useState } from 'react';
-import { getSectionals } from 'src/services/sectional-service';
-import { useFormContext } from 'react-hook-form';
-import NameInput from 'src/components/common/name-input';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-import { Controller } from 'react-hook-form';
+
+import { getSectionals } from 'src/services/sectional-service';
+
+import { Field } from 'src/components/hook-form';
+import NameInput from 'src/components/common/name-input';
 import LocationSelect from 'src/components/location/location-select';
 
 export default function ChurchDestSection({
     isCreateView,
     methods,
+    disabled = false,
 }) {
     const [sectionals, setSectionals] = useState([]);
     const { watch, setValue, control } = useFormContext();
@@ -66,12 +69,14 @@ export default function ChurchDestSection({
                     label="Nombre de Iglesia"
                     maxLength={100}
                     allowNumbers
+                    disabled={disabled}
                 />
 
                 <NameInput
                     name="pastor"
                     label="Pastor"
                     maxLength={100}
+                    disabled={disabled}
                 />
 
                 <Controller
@@ -82,23 +87,26 @@ export default function ChurchDestSection({
                             {...field}
                             label="Teléfono"
                             defaultCountry="DO"
+                            disabled={disabled}
                             inputProps={{ maxLength: 14 }}
                         />
                     )}
                 />
 
-                <LocationSelect />
+                <LocationSelect disabled={disabled} />
 
                 <Field.Text
                     name="correo"
                     label="Correo"
                     type="email"
+                    disabled={disabled}
                 />
 
 
                 <Field.Autocomplete
                     name="sectionId"
                     label="Sección"
+                    disabled={disabled}
                     options={sectionals}
                     getOptionLabel={(option) =>
                         typeof option === 'string'
@@ -106,7 +114,7 @@ export default function ChurchDestSection({
                             : option?.sectionalName || ''
                     }
                     isOptionEqualToValue={(option, value) =>
-                        option.id === value?.id
+                        String(option.id) === String(value?.id)
                     }
                     value={
                         sectionals.find(
@@ -114,6 +122,8 @@ export default function ChurchDestSection({
                         ) || null
                     }
                     onChange={(event, option) => {
+                        if (disabled) return;
+
                         setValue(
                             'sectionId',
                             option?.id ? String(option.id) : '',

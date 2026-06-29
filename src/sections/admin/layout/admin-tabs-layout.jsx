@@ -30,9 +30,9 @@ const NAV_ITEMS = [
     href: paths.dashboard.admin.logs,
   },
   {
-    label: 'Permisos a usuarios',
-    icon: <Iconify width={24} icon="solar:shield-user-bold" />,
-    href: paths.dashboard.admin.userPermissions,
+    label: 'Roles base',
+    icon: <Iconify width={24} icon="solar:users-group-two-rounded-bold" />,
+    href: paths.dashboard.admin.roles,
   },
   {
     label: 'Notificaciones',
@@ -99,14 +99,32 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
         ref={tabsRef}
         value={tabValue}
         variant="scrollable"
+        visibleScrollbar
         scrollButtons={false}
         sx={{
           mb: { xs: 3, md: 5 },
+          maxWidth: 1,
           '& .MuiTabs-flexContainer': {
             gap: { xs: '28px', md: '42px' },
           },
           '& .MuiTabs-scroller': {
+            pb: 1,
+            overflowX: 'auto !important',
             scrollBehavior: 'smooth',
+            scrollbarWidth: 'thin',
+            scrollbarColor: (theme) =>
+              `${theme.vars.palette.text.disabled} ${theme.vars.palette.background.neutral}`,
+            '&::-webkit-scrollbar': {
+              height: 8,
+            },
+            '&::-webkit-scrollbar-track': {
+              borderRadius: 8,
+              backgroundColor: 'background.neutral',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              borderRadius: 8,
+              backgroundColor: 'text.disabled',
+            },
           },
           '& .MuiTab-root': {
             minHeight: 48,

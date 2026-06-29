@@ -4,6 +4,7 @@ import Alert from '@mui/material/Alert';
 
 import { paths } from 'src/routes/paths';
 
+import { isFullOrgManager } from 'src/utils/org-level-access';
 import { canMemberManageMembers } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -13,6 +14,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { can, PERMISOS } from 'src/auth/permissions';
 
 import { MemberCreateEditForm } from '../member-create-edit-form';
 
@@ -25,9 +27,15 @@ export function MemberEditView({ member: currentMember }) {
     return null;
   }
 
-  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
+  const isMemberSession = user?.role === 'member';
+  // Admin de seccion/region: pueden VER el miembro pero no editarlo (su rol no
+  // incluye permiso de edicion) -> formulario en solo lectura.
+  const canEditMembers = isMemberSession
+    ? canMemberManageMembers(user)
+    : isFullOrgManager(user) || can(user, PERMISOS.MIEMBROS_EDITAR);
 
-  if (!canManage) {
+  // Los miembros sin permiso de gestion no acceden a la edicion.
+  if (isMemberSession && !canEditMembers) {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
@@ -47,7 +55,7 @@ export function MemberEditView({ member: currentMember }) {
 
   return (
     <MemberEditLayout member={currentMember}>
-      <MemberCreateEditForm currentMember={currentMember} />
+      <MemberCreateEditForm currentMember={currentMember} readOnly={!canEditMembers} />
     </MemberEditLayout>
   );
 }

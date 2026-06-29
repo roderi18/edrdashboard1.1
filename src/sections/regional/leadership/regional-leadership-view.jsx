@@ -15,6 +15,8 @@ import Typography from '@mui/material/Typography';
 
 import { useParams } from 'src/routes/hooks';
 
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+
 import { _mock } from 'src/_mock';
 import { getRegionals } from 'src/services/regional-service';
 
@@ -33,6 +35,8 @@ import {
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -72,7 +76,7 @@ const REGIONAL_LEADERSHIP_DATA = createNode(1, 'consejo-ejecutivo', 'Consejo Eje
 
 // ----------------------------------------------------------------------
 
-function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor }) {
+function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor, canManage = true }) {
   const menuActions = usePopover();
   const editProps = layoutEditor.getNodeEditProps({ id, name, role });
   const isRootNode = depth === undefined;
@@ -85,15 +89,19 @@ function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
-        <MenuItem onClick={menuActions.onClose}>
-          <Iconify icon="solar:user-plus-bold" />
-          Cambiar miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem onClick={menuActions.onClose}>
+            <Iconify icon="solar:user-plus-bold" />
+            Cambiar miembro
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
-          <Iconify icon="solar:user-cross-bold" />
-          Remover miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:user-cross-bold" />
+            Remover miembro
+          </MenuItem>
+        )}
 
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="solar:info-circle-bold" />
@@ -164,6 +172,10 @@ function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor
 
 export function RegionalLeadershipView() {
   const params = useParams();
+  const { user } = useAuthContext();
+  // El administrador de destacamento consulta el organigrama en solo lectura:
+  // sin cambiar/remover miembros ni edicion visual del layout.
+  const canManageLeadership = !isDestacamentoAdminRole(user);
   const regionalId = params?.id;
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -540,7 +552,11 @@ export function RegionalLeadershipView() {
           data={REGIONAL_LEADERSHIP_DATA}
           nodeClassName={layoutEditor.getNodeTreeClassName}
           nodeItem={(props) => (
-            <RegionalLeadershipNode {...props} layoutEditor={layoutEditor} />
+            <RegionalLeadershipNode
+              {...props}
+              layoutEditor={layoutEditor}
+              canManage={canManageLeadership}
+            />
           )}
         />
       </Box>
@@ -555,14 +571,16 @@ export function RegionalLeadershipView() {
 
       <LeadershipLayoutOffsetStyles editor={layoutEditor} />
 
-      <LeadershipLayoutEditor
-        pan={pan}
-        zoom={zoom}
-        chartWidth={1180}
-        editor={layoutEditor}
-        title={structureTitle}
-        containerMinHeight={containerMinHeight}
-      />
+      {canManageLeadership && (
+        <LeadershipLayoutEditor
+          pan={pan}
+          zoom={zoom}
+          chartWidth={1180}
+          editor={layoutEditor}
+          title={structureTitle}
+          containerMinHeight={containerMinHeight}
+        />
+      )}
     </Box>
   );
 }

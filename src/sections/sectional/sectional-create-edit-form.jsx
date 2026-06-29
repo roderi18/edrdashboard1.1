@@ -15,6 +15,11 @@ import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import {
+  canEditSectional,
+  canAssignSectionalToRegion,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
@@ -34,6 +39,12 @@ import { useAuthContext } from 'src/auth/hooks';
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
   const { user } = useAuthContext();
+  // Crear: admin de region (en su region) o global/funcional.
+  // Editar: admin de seccion (su seccion), admin de region (secciones de su
+  // region) o global/funcional. El resto consulta en modo de solo lectura.
+  const canEdit = currentSectional
+    ? canEditSectional(user, currentSectional)
+    : canCreateSectionalInRegion(user);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const methods = useForm({
@@ -108,8 +119,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!canEdit) {
+        return;
+      }
+
       if (!data.regionalId) {
         toast.error('Debe seleccionar una región');
+        return;
+      }
+
+      if (!canAssignSectionalToRegion(user, data.regionalId)) {
+        toast.error('No tienes permiso para asignar esta sección a esa región.');
         return;
       }
 
@@ -162,7 +182,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !canEdit}
                 onDrop={handleUploadSectionalPhoto}
                 optimizationToast={false}
                 helperText={
@@ -193,6 +213,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                     render={({ field }) => (
                       <Switch
                         {...field}
+                        disabled={!canEdit}
                         checked={field.value !== 'active'}
                         onChange={(event) =>
                           field.onChange(event.target.checked ? 'banned' : 'active')
@@ -240,16 +261,21 @@ export function SectionalCreateEditForm({ currentSectional }) {
                         { label: 'Miembros', value: values.sectionalXDestMemberCount },
                       ],
                     },
-                    {
-                      value: 'destacamentos',
-                      label: 'Destacamentos',
-                      rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
-                    },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
-                    },
+                    // El admin de destacamento solo puede descargar la informacion General.
+                    ...(canEdit
+                      ? [
+                          {
+                            value: 'destacamentos',
+                            label: 'Destacamentos',
+                            rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
+                          },
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>
@@ -272,14 +298,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 methods={methods}
                 watch={watch}
                 isCreateView={!currentSectional}
+                disabled={!canEdit}
               />
             </Box>
 
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentSectional ? 'Crear seccional' : 'Guardar cambios'}
-              </Button>
-            </Stack>
+            {canEdit && (
+              <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+                <Button type="submit" variant="contained" loading={isSubmitting}>
+                  {!currentSectional ? 'Crear seccional' : 'Guardar cambios'}
+                </Button>
+              </Stack>
+            )}
           </Card>
         </Grid>
       </Grid>

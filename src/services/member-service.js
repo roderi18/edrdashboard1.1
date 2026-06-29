@@ -39,6 +39,18 @@ const getDivisionIdByBirthdate = (birthDate) => {
   return null;
 };
 
+const normalizeMemberStatus = (status) => {
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toLowerCase();
+
+  if (['banned', 'inactivo', 'inactive', 'suspendido', 'bloqueado'].includes(normalizedStatus)) {
+    return 'banned';
+  }
+
+  return 'active';
+};
+
 const normalizeCachedMember = (member) => {
   if (!member) return null;
 
@@ -55,6 +67,7 @@ const normalizeCachedMember = (member) => {
     id: String(id),
     memberId: member.memberId ?? member.codigoMiembro ?? member.idMiembros ?? String(id),
     destId: String(member.destId ?? member.idDestacamento ?? ''),
+    status: normalizeMemberStatus(member.status ?? member.estatusMiembro),
   };
 };
 
@@ -98,7 +111,7 @@ export function mapApiMemberToUI(member) {
     memberAddress: member.direccion || '',
     email: member.correo || '',
 
-    status: member.estatusMiembro || 'active',
+    status: normalizeMemberStatus(member.estatusMiembro),
     province: member.provincia || member.province || '',
     region: member.region || '',
     createdAt: member.createdAt || member.fechaCreacion || null,
@@ -126,7 +139,10 @@ export async function getMembers() {
   try {
     const res = await fetch('/api/members');
 
-    if (!res.ok) throw new Error('Error al obtener miembros');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Error al obtener miembros (${res.status}): ${body || res.statusText}`);
+    }
 
     const response = await res.json();
 

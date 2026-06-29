@@ -23,7 +23,8 @@ const getDirectorName = (regional) =>
 export function RegionalCard({ regional, sx, ...other }) {
   const regionalId = getRegionalId(regional);
   const directorId = getDirectorId(regional);
-  const editHref = regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '#';
+  // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
+  const editHref = regionalId ? `/dashboard/level/regional/${regionalId}/edit` : '';
   const regionalName = getRegionalName(regional);
   const directorName = getDirectorName(regional);
   const directorLine =

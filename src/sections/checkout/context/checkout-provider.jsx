@@ -1,10 +1,10 @@
 'use client';
 
 import { union, isEqual } from 'es-toolkit';
-import { useMemo, useState, Suspense, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { paths } from 'src/routes/paths';
-import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
+import { useRouter, usePathname } from 'src/routes/hooks';
 
 import {
   crearOrdenFirestore,
@@ -14,8 +14,6 @@ import {
   limpiarCarritoUsuario,
   obtenerCarritoUsuario,
 } from 'src/services/cart-service';
-
-import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -40,11 +38,7 @@ const initialState = {
 // ----------------------------------------------------------------------
 
 export function CheckoutProvider({ children }) {
-  return (
-    <Suspense fallback={<SplashScreen />}>
-      <CheckoutContainer>{children}</CheckoutContainer>
-    </Suspense>
-  );
+  return <CheckoutContainer>{children}</CheckoutContainer>;
 }
 
 // ----------------------------------------------------------------------
@@ -53,15 +47,14 @@ function CheckoutContainer({ children }) {
   const { user } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [checkoutStep, setCheckoutStep] = useState(null);
   const checkoutPath = pathname.includes(paths.dashboard.checkout)
     ? paths.dashboard.checkout
     : paths.product.checkout;
-  const activeStep = [paths.product.checkout, paths.dashboard.checkout].some((path) =>
+  const isCheckoutPath = [paths.product.checkout, paths.dashboard.checkout].some((path) =>
     pathname.includes(path)
-  )
-    ? Number(searchParams.get('step') ?? 0)
-    : null;
+  );
+  const activeStep = isCheckoutPath ? checkoutStep : null;
 
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState(initialState);
@@ -136,6 +129,25 @@ function CheckoutContainer({ children }) {
     initializeCheckout();
   }, [normalizeCheckoutState, user]);
 
+  useEffect(() => {
+    if (!isCheckoutPath || typeof window === 'undefined') {
+      setCheckoutStep(null);
+      return undefined;
+    }
+
+    const syncCheckoutStep = () => {
+      const params = new URLSearchParams(window.location.search);
+      setCheckoutStep(Number(params.get('step') ?? 0));
+    };
+
+    syncCheckoutStep();
+    window.addEventListener('popstate', syncCheckoutStep);
+
+    return () => {
+      window.removeEventListener('popstate', syncCheckoutStep);
+    };
+  }, [isCheckoutPath, pathname]);
+
   const onChangeStep = useCallback(
     (type, step) => {
       const stepNumbers = {
@@ -148,6 +160,7 @@ function CheckoutContainer({ children }) {
       const queryString = new URLSearchParams({ step: `${targetStep}` }).toString();
       const redirectPath = targetStep === 0 ? checkoutPath : `${checkoutPath}?${queryString}`;
 
+      setCheckoutStep(targetStep);
       router.push(redirectPath);
     },
     [activeStep, checkoutPath, router]

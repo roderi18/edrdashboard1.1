@@ -4,11 +4,13 @@ import { NationalCard } from './national-card';
 
 // ----------------------------------------------------------------------
 
-export function NationalCardList({ nationals }) {
+export function NationalCardList({ nationals, canManage = true }) {
   return (
     <CompactEntityCardList
       items={nationals}
-      renderCard={(national) => <NationalCard key={national.id} national={national} />}
+      renderCard={(national) => (
+        <NationalCard key={national.id} national={national} canManage={canManage} />
+      )}
     />
   );
 }

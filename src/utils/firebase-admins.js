@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE } from 'src/lib/firebase';
@@ -20,13 +21,96 @@ import { resolverNotificacionConConfiguracion } from 'src/services/notification-
 
 // ----------------------------------------------------------------------
 
-export const obtenerAdministradores = async () => {
-  const snapshot = await getDocs(collection(FIRESTORE, 'admins'));
+const ADMIN_ROLE_VALUES = ['admin', 'administrador'];
 
-  return snapshot.docs.map((adminDoc) => ({
-    id: adminDoc.id,
-    ...adminDoc.data(),
-  }));
+const getProfileKeys = (profile = {}, fallbackId = '') =>
+  [
+    profile.uid,
+    profile.idUsuario,
+    profile.uidUsuario,
+    profile.idMiembros,
+    profile.memberId,
+    profile.codigoMiembro,
+    profile.codigoUsuario,
+    profile.email,
+    profile.correo,
+    fallbackId,
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== '')
+    .map((value) => String(value).trim().toLowerCase());
+
+const mergeAdminProfile = (profilesByKey, profile = {}, fallbackId = '', source = 'admins') => {
+  const keys = getProfileKeys(profile, fallbackId);
+  const key = keys.find((candidate) => profilesByKey.has(candidate)) || keys[0] || '';
+
+  if (!key) return;
+
+  const current = profilesByKey.get(key) || {};
+  const mergedProfile = {
+    ...current,
+    ...profile,
+    id: current.id || fallbackId || profile.id,
+    adminId: current.adminId || (source === 'admins' ? fallbackId : profile.adminId),
+    adminSource: current.adminSource || source,
+  };
+
+  profilesByKey.forEach((value, candidate) => {
+    if (value === current) {
+      profilesByKey.set(candidate, mergedProfile);
+    }
+  });
+
+  keys.forEach((candidate) => {
+    profilesByKey.set(candidate, mergedProfile);
+  });
+};
+
+export const obtenerAdministradores = async () => {
+  const [
+    adminSnapshot,
+    userAdminSnapshot,
+    roleAdminSnapshot,
+    roleIdAdminSnapshot,
+    roleCodeAdminSnapshot,
+  ] =
+    await Promise.all([
+      getDocs(collection(FIRESTORE, 'admins')),
+      getDocs(query(collection(FIRESTORE, 'users'), where('rol', 'in', ADMIN_ROLE_VALUES))).catch(
+        () => ({ docs: [] })
+      ),
+      getDocs(
+        query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ADMIN_ROLE_VALUES))
+      ).catch(() => ({ docs: [] })),
+      getDocs(
+        query(collection(FIRESTORE, 'usuarios_roles'), where('rolId', 'in', ADMIN_ROLE_IDS))
+      ).catch(() => ({ docs: [] })),
+      getDocs(
+        query(collection(FIRESTORE, 'usuarios_roles'), where('roleId', 'in', ADMIN_ROLE_IDS))
+      ).catch(() => ({ docs: [] })),
+    ]);
+  const profilesByKey = new Map();
+
+  roleCodeAdminSnapshot.docs.forEach((adminDoc) => {
+    mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'usuarios_roles');
+  });
+
+  roleIdAdminSnapshot.docs.forEach((adminDoc) => {
+    mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'usuarios_roles');
+  });
+
+  roleAdminSnapshot.docs.forEach((adminDoc) => {
+    mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'usuarios_roles');
+  });
+
+  userAdminSnapshot.docs.forEach((adminDoc) => {
+    mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'users');
+  });
+
+  adminSnapshot.docs.forEach((adminDoc) => {
+    mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'admins');
+  });
+
+  return Array.from(new Set(profilesByKey.values()));
 };
 
 const getMemberRoleProfile = async (member) => {

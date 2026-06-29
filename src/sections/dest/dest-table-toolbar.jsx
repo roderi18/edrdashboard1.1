@@ -37,6 +37,7 @@ export function DestTableToolbar({
   displayMode,
   setDisplayMode,
   rows = [],
+  showSectionFilter = true,
 }) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
@@ -260,7 +261,7 @@ export function DestTableToolbar({
           </Box>
         )}
 
-        {!isMobile && (
+        {!isMobile && showSectionFilter && (
           <Box
             sx={{
               display: 'flex',
@@ -307,18 +308,20 @@ export function DestTableToolbar({
               }}
             />
 
-            <TableToolbarMobileFilter
-              hasActiveFilters={currentFilters.sectionalName.length}
-              filtersConfig={[
-                {
-                  key: 'sectionalName',
-                  label: 'Sección',
-                  value: currentFilters.sectionalName,
-                  onChange: handleFilterSectionalFullName,
-                  options: options.sectionalName,
-                },
-              ]}
-            />
+            {showSectionFilter && (
+              <TableToolbarMobileFilter
+                hasActiveFilters={currentFilters.sectionalName.length}
+                filtersConfig={[
+                  {
+                    key: 'sectionalName',
+                    label: 'Sección',
+                    value: currentFilters.sectionalName,
+                    onChange: handleFilterSectionalFullName,
+                    options: options.sectionalName,
+                  },
+                ]}
+              />
+            )}
 
             <IconButton onClick={menuActions.onOpen}>
               <Iconify icon="eva:more-vertical-fill" />

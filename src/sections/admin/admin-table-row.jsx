@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import MenuList from '@mui/material/MenuList';
@@ -11,11 +12,16 @@ import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 
+import { RouterLink } from 'src/routes/components';
+
+import { ADMIN_ROLE_IDS, getAdminRoleLabel } from 'src/utils/admin-role-label';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { AdminPermissionsDialog } from './admin-permissions-dialog';
+import { AdminRoleAssignmentDialog } from './admin-role-assignment-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -26,13 +32,19 @@ export function AdminTableRow({
   onAssignAdmin,
   onRemoveAdmin,
   onPermissionsSaved,
+  onRoleSaved,
 }) {
   const menuActions = usePopover();
   const [openPermissionsDialog, setOpenPermissionsDialog] = useState(false);
+  const [openRoleDialog, setOpenRoleDialog] = useState(false);
+  const memberProfileHref =
+    row.idMiembros || row.memberId ? `/dashboard/level/member/${row.idMiembros || row.memberId}/edit` : '';
 
   const isAdminActive =
     Boolean(row.adminId || row.esAdministrador) ||
-    ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase());
+    ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase()) ||
+    ADMIN_ROLE_IDS.includes(row.rolId || row.roleId || row.role);
+  const roleLabel = getAdminRoleLabel(row);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -55,6 +67,19 @@ export function AdminTableRow({
         >
           <Iconify icon={isAdminActive ? 'solar:user-minus-bold' : 'solar:user-plus-bold'} />
           {isAdminActive ? 'Quitar administrador' : 'Asignar administrador'}
+        </MenuItem>
+
+        <MenuItem
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            setOpenRoleDialog(true);
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon="solar:user-id-bold" />
+          Asignar rol
         </MenuItem>
 
         <MenuItem
@@ -95,11 +120,28 @@ export function AdminTableRow({
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+          <Box
+            component={memberProfileHref ? RouterLink : 'div'}
+            href={memberProfileHref || undefined}
+            sx={{
+              gap: 2,
+              display: 'flex',
+              alignItems: 'center',
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
+          >
             <Avatar alt={row.name} src={row.avatarUrl} />
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              <Box component="span">{row.name}</Box>
+              <Link
+                component="span"
+                color="inherit"
+                underline={memberProfileHref ? 'hover' : 'none'}
+                sx={{ fontWeight: 500 }}
+              >
+                {row.name}
+              </Link>
               <Box component="span" sx={{ color: 'text.disabled' }}>
                 {row.email || row.correo || '-'}
               </Box>
@@ -119,7 +161,7 @@ export function AdminTableRow({
           </Label>
         </TableCell>
 
-        <TableCell>{row.rol || row.role || 'admin'}</TableCell>
+        <TableCell>{roleLabel}</TableCell>
 
         <TableCell align="right">
           <IconButton color="default" onClick={menuActions.onOpen}>
@@ -135,6 +177,13 @@ export function AdminTableRow({
         admin={row}
         onClose={() => setOpenPermissionsDialog(false)}
         onSaved={(permissions) => onPermissionsSaved?.(row, permissions)}
+      />
+
+      <AdminRoleAssignmentDialog
+        open={openRoleDialog}
+        admin={row}
+        onClose={() => setOpenRoleDialog(false)}
+        onSaved={(assignment) => onRoleSaved?.(row, assignment)}
       />
     </>
   );

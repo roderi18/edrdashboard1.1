@@ -35,3 +35,9 @@ build
 .vscode
 tsconfig.tsbuildinfo
 .ncurc.js
+
+# QA-only downloaded assets
+qa_vehicle_images/
+
+# Local script execution logs
+scripts/**/*.log

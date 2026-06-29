@@ -76,8 +76,22 @@ export async function GET() {
     }
 
     return Response.json(normalized);
-  } catch {
-    return Response.json({ error: 'Error fetching members' }, { status: 500 });
+  } catch (error) {
+    const cause = error?.cause;
+    const details = {
+      message: error?.message || 'Error fetching members',
+      code: cause?.code || error?.code || null,
+    };
+
+    console.error('[api/members] Error fetching members', details);
+
+    return Response.json(
+      {
+        error: 'Error fetching members',
+        ...(process.env.NODE_ENV === 'development' ? { details } : {}),
+      },
+      { status: 500 }
+    );
   }
 }
 

@@ -57,6 +57,7 @@ export function FileManagerTableRow({
   onUpload,
   onRename,
   canDelete = false,
+  canRename = false,
 
   showType = true,
   showAvatar = true,
@@ -167,16 +168,18 @@ export function FileManagerTableRow({
           </MenuItem>
         )}
 
-        <MenuItem
-          onClick={() => {
-            setNewName(baseName);
-            setRenameOpen(true);
-            menuActions.onClose();
-          }}
-        >
-          <Iconify icon="solar:pen-bold" />
-          Renombrar
-        </MenuItem>
+        {canRename && (
+          <MenuItem
+            onClick={() => {
+              setNewName(baseName);
+              setRenameOpen(true);
+              menuActions.onClose();
+            }}
+          >
+            <Iconify icon="solar:pen-bold" />
+            Renombrar
+          </MenuItem>
+        )}
 
         <MenuItem
           onClick={() => {
@@ -215,6 +218,7 @@ export function FileManagerTableRow({
       open={detailsDrawer.value}
       onClose={detailsDrawer.onFalse}
       onDelete={onDeleteRow}
+      canDelete={canDelete && row.type !== 'folder'}
     />
   );
 
@@ -401,10 +405,15 @@ export function FileManagerTableRow({
 
           <Button
             variant="contained"
-            onClick={() => {
+            onClick={async () => {
               if (!newName.trim()) return;
 
-              const success = onRename?.(row.id, newName.trim());
+              if (!onRename) {
+                toast.error('No se pudo conectar la acción de renombrar.');
+                return;
+              }
+
+              const success = await onRename?.(row, newName.trim());
 
               if (success) {
                 setRenameOpen(false);

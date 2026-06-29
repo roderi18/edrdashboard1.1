@@ -41,20 +41,22 @@ export function FileManagerPanel({
         >
           {title}
 
-          <IconButton
-            size="small"
-            color="primary"
-            onClick={onOpen}
-            sx={{
-              width: 24,
-              height: 24,
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              '&:hover': { bgcolor: 'primary.dark' },
-            }}
-          >
-            <Iconify width={16} icon="mingcute:add-line" />
-          </IconButton>
+          {onOpen && (
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={onOpen}
+              sx={{
+                width: 24,
+                height: 24,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                '&:hover': { bgcolor: 'primary.dark' },
+              }}
+            >
+              <Iconify width={16} icon="mingcute:add-line" />
+            </IconButton>
+          )}
         </Box>
 
         {subtitle && (

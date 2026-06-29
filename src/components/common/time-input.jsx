@@ -1,12 +1,14 @@
-import { useFormContext } from 'react-hook-form';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
+import { useFormContext } from 'react-hook-form';
+
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
 export default function TimeInput({
     name = 'destMeetingTimes',
     label = 'Horario de reunión',
+    disabled = false,
 }) {
     const { setValue, watch } = useFormContext();
 
@@ -17,7 +19,10 @@ export default function TimeInput({
             <TimePicker
                 label={label}
                 value={value ? dayjs(value, 'HH:mm:ss') : null}
+                disabled={disabled}
                 onChange={(newValue) => {
+                    if (disabled) return;
+
                     const formatted = newValue
                         ? newValue.format('HH:mm:ss')
                         : null;
@@ -27,7 +32,7 @@ export default function TimeInput({
                         shouldDirty: true,
                     });
                 }}
-                ampm // ESTO ACTIVA AM/PM
+                ampm
                 slotProps={{
                     textField: {
                         fullWidth: true,

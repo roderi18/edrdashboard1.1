@@ -15,6 +15,8 @@ import Typography from '@mui/material/Typography';
 
 import { useParams } from 'src/routes/hooks';
 
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+
 import { _mock } from 'src/_mock';
 import { getSectionalById } from 'src/services/sectional-service';
 
@@ -33,6 +35,8 @@ import {
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -73,7 +77,7 @@ const SECTIONAL_LEADERSHIP_DATA = createNode(1, 'directiva-regional', 'Directiva
 
 // ----------------------------------------------------------------------
 
-function SectionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor }) {
+function SectionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor, canManage = true }) {
   const menuActions = usePopover();
   const editProps = layoutEditor.getNodeEditProps({ id, name, role });
   const isRootNode = depth === undefined;
@@ -86,15 +90,19 @@ function SectionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEdito
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
-        <MenuItem onClick={menuActions.onClose}>
-          <Iconify icon="solar:user-plus-bold" />
-          Cambiar miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem onClick={menuActions.onClose}>
+            <Iconify icon="solar:user-plus-bold" />
+            Cambiar miembro
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
-          <Iconify icon="solar:user-cross-bold" />
-          Remover miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:user-cross-bold" />
+            Remover miembro
+          </MenuItem>
+        )}
 
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="solar:info-circle-bold" />
@@ -166,6 +174,10 @@ function SectionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEdito
 
 export function SectionalLeadershipView() {
   const params = useParams();
+  const { user } = useAuthContext();
+  // El administrador de destacamento consulta el organigrama en solo lectura:
+  // sin cambiar/remover miembros ni edicion visual del layout.
+  const canManageLeadership = !isDestacamentoAdminRole(user);
   const sectionalId = params?.id;
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -540,7 +552,11 @@ export function SectionalLeadershipView() {
           data={SECTIONAL_LEADERSHIP_DATA}
           nodeClassName={layoutEditor.getNodeTreeClassName}
           nodeItem={(props) => (
-            <SectionalLeadershipNode {...props} layoutEditor={layoutEditor} />
+            <SectionalLeadershipNode
+              {...props}
+              layoutEditor={layoutEditor}
+              canManage={canManageLeadership}
+            />
           )}
         />
       </Box>
@@ -555,14 +571,16 @@ export function SectionalLeadershipView() {
 
       <LeadershipLayoutOffsetStyles editor={layoutEditor} />
 
-      <LeadershipLayoutEditor
-        pan={pan}
-        zoom={zoom}
-        chartWidth={1360}
-        editor={layoutEditor}
-        title={structureTitle}
-        containerMinHeight={containerMinHeight}
-      />
+      {canManageLeadership && (
+        <LeadershipLayoutEditor
+          pan={pan}
+          zoom={zoom}
+          chartWidth={1360}
+          editor={layoutEditor}
+          title={structureTitle}
+          containerMinHeight={containerMinHeight}
+        />
+      )}
     </Box>
   );
 }

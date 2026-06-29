@@ -35,6 +35,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'publicacion_reportada',
   'recordatorio_publicacion',
   'chat_reportado',
+  'salud_sistema_alerta',
 ];
 
 export const TIPOS_NOTIFICACIONES_USUARIO = [
@@ -205,6 +206,17 @@ const DEFINICIONES_NOTIFICACIONES = {
     prioridadPorDefecto: 'importante',
     entidadTipo: 'archivo',
     etiquetaAccion: 'Revisar',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
+  },
+  salud_sistema_alerta: {
+    modulo: 'salud_sistema',
+    titulo: 'Alerta de salud del sistema',
+    mensajePlantilla: '{{nombreChequeo}}: {{detalle}}',
+    rolesDisponibles: ['admin'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'chequeo_salud',
+    etiquetaAccion: 'Ver salud del sistema',
     tipoAccion: 'ver',
     requiereFotoPersona: false,
   },

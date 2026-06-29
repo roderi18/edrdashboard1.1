@@ -27,7 +27,14 @@ const NATIONAL_STRUCTURES = {
 
 // ----------------------------------------------------------------------
 
-export function NationalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function NationalTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canManage = true,
+}) {
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const storedMembers = getStorageCollection('members') || [];
   const allMembers = [...MEMBERS, ...storedMembers];
@@ -87,6 +94,7 @@ export function NationalTableRow({ row, selected, editHref, onSelectRow, onDelet
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{structureLabel}</TableCell>
 
       <CompactEntityRowActions
+        canManage={canManage}
         allowDelete={!row.isLocalhostTest}
         editHref={editHref}
         onDelete={onDeleteRow}

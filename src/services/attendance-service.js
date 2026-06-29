@@ -105,6 +105,59 @@ export const obtenerUltimasPresenciasMiembros = async (idMiembros = []) => {
   return Object.fromEntries(entries);
 };
 
+export const limpiarAsistenciaDestacamento = async ({
+  fecha,
+  idDestacamento,
+  usuario = null,
+} = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !fecha || !idDestacamento) {
+    throw new Error('Firebase no esta configurado para limpiar asistencia.');
+  }
+
+  const idDest = String(idDestacamento);
+  const idAsistencia = getAttendanceDocId(fecha, idDest);
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_REGISTROS_ASISTENCIA),
+      where('fecha', '==', String(fecha)),
+      where('idDestacamento', '==', idDest)
+    )
+  );
+  const batch = writeBatch(FIRESTORE);
+
+  snapshot.docs.forEach((item) => {
+    batch.delete(item.ref);
+  });
+
+  batch.delete(doc(FIRESTORE, COLECCION_ASISTENCIAS, idAsistencia));
+
+  await batch.commit();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'asistencia_limpiada',
+    descripcion: `Se limpio la asistencia del destacamento ${idDest} para ${fecha}.`,
+    entidad: {
+      tipo: 'asistencia',
+      id: idAsistencia,
+      nombre: idDest,
+      ruta: '/dashboard/attendance',
+    },
+    despues: {
+      fecha: String(fecha),
+      idDestacamento: idDest,
+      registrosEliminados: snapshot.docs.length,
+    },
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
+
+  return {
+    idAsistencia,
+    registrosEliminados: snapshot.docs.length,
+  };
+};
+
 export const guardarAsistenciaDestacamento = async ({
   fecha,
   destacamento = {},

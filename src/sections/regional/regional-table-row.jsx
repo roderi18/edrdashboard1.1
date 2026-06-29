@@ -17,7 +17,15 @@ import { RegionalQuickEditForm } from './regional-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }) {
+export function RegionalTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  canManage = true,
+  canDelete = true,
+}) {
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
       l.level === 'regional' &&
@@ -105,8 +113,10 @@ export function RegionalTableRow({ row, selected, editHref, onSelectRow, onDelet
       </TableCell>
 
       <CompactEntityRowActions
+        canManage={canManage}
+        allowDelete={canDelete}
         editHref={editHref}
-        onDelete={onDeleteRow}
+        onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={RegionalQuickEditForm}
         quickEditProps={{ currentRegional: row }}
         deleteContent="¿Seguro que deseas eliminar esta regional?"

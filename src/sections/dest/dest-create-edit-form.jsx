@@ -17,7 +17,9 @@ import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import barriosData from 'src/data/barrios.json';
@@ -28,7 +30,7 @@ import { ChurchSchema } from 'src/models/church-schema';
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
-import { getChurches, createChurchApi } from 'src/services/church-service';
+import { getChurches, createChurchApi, updateChurchApi } from 'src/services/church-service';
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
@@ -51,6 +53,7 @@ import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar, estaDentroDelAlcance } from 'src/auth/permissions';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -61,6 +64,12 @@ const municipios = municipiosData.map((m, index) => ({
 }));
 
 const sectores = barriosData;
+
+const disabledReadableFieldSx = {
+  '& .MuiAutocomplete-popupIndicator.Mui-disabled, & .MuiSelect-icon.Mui-disabled': {
+    display: 'none',
+  },
+};
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
   const church = churches.find((c) => String(c.id) === String(dest.churchId)) || {};
@@ -112,7 +121,8 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     street: street ?? '',
     countryId: church.countryId ?? '',
 
-    sectionId: church.sectionId ?? '',
+    // el church mapeado expone idSeccion (no sectionId); leer ambos por compatibilidad
+    sectionId: church.sectionId ?? church.idSeccion ?? '',
     sectionalName: church.sectionalName ?? '',
   };
 };
@@ -130,6 +140,10 @@ export function DestCreateEditForm({ currentDest }) {
   const [allMembers, setAllMembers] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+  const isDestacamentoAdmin = isDestacamentoAdminRole(user);
+  // Administrador "pleno" (global/funcional/legado) sin restriccion de alcance.
+  // Los admin de seccion/region NO entran aqui: editan solo dentro de su alcance.
+  const isLegacyAdmin = isFullOrgManager(user);
 
 
   const defaultValues = {
@@ -240,6 +254,37 @@ export function DestCreateEditForm({ currentDest }) {
   const regional = sectional
     ? regionals.find((r) => String(r.id) === String(sectional.regionalId))
     : null;
+  const currentDestResource = {
+    ...currentDest,
+    id: currentDest?.id,
+    idDestacamento: currentDest?.id || currentDest?.idDestacamento,
+    destacamentoId: currentDest?.id || currentDest?.idDestacamento,
+    seccionId: selectedSectionId || currentDest?.sectionId || currentDest?.idSeccion,
+    idSeccion: selectedSectionId || currentDest?.sectionId || currentDest?.idSeccion,
+    regionId: regional?.id || currentDest?.regionId || currentDest?.idRegion,
+    idRegion: regional?.id || currentDest?.regionId || currentDest?.idRegion,
+  };
+  const canEditDest =
+    !isDestacamentoAdmin &&
+    (isLegacyAdmin ||
+      (isCreateView
+        ? canCreateDestInSection(user)
+        : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
+          estaDentroDelAlcance(user, currentDestResource)));
+  const canUploadDestPhoto =
+    !isDestacamentoAdmin &&
+    (isLegacyAdmin ||
+      (isCreateView
+        ? canCreateDestInSection(user)
+        : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
+          estaDentroDelAlcance(user, currentDestResource)));
+  const canEditMeetingSchedule =
+    isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
+  const canSaveDest = canEditDest || canEditMeetingSchedule;
+  // El admin de destacamento solo puede descargar la informacion de miembros de
+  // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
+  const canDownloadMembersInfo =
+    !isDestacamentoAdmin || estaDentroDelAlcance(user, currentDestResource);
 
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
@@ -260,6 +305,11 @@ export function DestCreateEditForm({ currentDest }) {
 
     if (!currentDest || !destId) {
       toast.error('Primero guarda el destacamento antes de subir una foto.');
+      return null;
+    }
+
+    if (!canUploadDestPhoto) {
+      toast.error('No tienes permiso para subir fotos de este destacamento.');
       return null;
     }
 
@@ -286,9 +336,12 @@ export function DestCreateEditForm({ currentDest }) {
     }
   };
 
-
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (currentDest && !canSaveDest) {
+        toast.error('No tienes permiso para editar este destacamento.');
+        return;
+      }
 
       const destPayloadData = {
         ...data,
@@ -304,7 +357,23 @@ export function DestCreateEditForm({ currentDest }) {
         fechaInicio: data.fechaInicio || new Date().toISOString(),
       };
 
+      let churchUpdateFailed = false;
+
       if (currentDest) {
+        try {
+          await updateChurchApi({
+            ...data,
+            id: data.churchId,
+            churchId: data.churchId,
+            sectionId: data.sectionId,
+          });
+        } catch (churchUpdateError) {
+          // El backend de Iglesias puede fallar (p. ej. 500 de Somee). No creamos
+          // una iglesia de reemplazo —generaría duplicados—: avisamos y seguimos
+          // guardando el resto del destacamento, conservando la iglesia actual.
+          churchUpdateFailed = true;
+          console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
+        }
         await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
       } else {
         await createDestApi(destPayloadData, { usuario: user });
@@ -319,13 +388,21 @@ export function DestCreateEditForm({ currentDest }) {
           id: String(resolvedDestId),
           coordinatorId: data.coordinatorId ?? null,
           churchId: data.churchId ? String(data.churchId) : null,
+          sectionId: data.sectionId ? String(data.sectionId) : '',
+          idSeccion: data.sectionId ? String(data.sectionId) : '',
           avatarUrl: data.avatarUrl ?? currentDest?.avatarUrl ?? null,
         });
       }
 
-      toast.success(
-        currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
-      );
+      if (churchUpdateFailed) {
+        toast.warning(
+          'Destacamento guardado, pero no se pudo actualizar la información de la iglesia. Intenta de nuevo más tarde.'
+        );
+      } else {
+        toast.success(
+          currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
+        );
+      }
 
       if (currentDest) {
         router.refresh();
@@ -343,7 +420,7 @@ export function DestCreateEditForm({ currentDest }) {
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={disabledReadableFieldSx}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
             {/* {currentDest && (
@@ -363,7 +440,7 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !canUploadDestPhoto}
                 onDrop={handleUploadDestPhoto}
                 optimizationToast={false}
                 helperText={
@@ -417,11 +494,13 @@ export function DestCreateEditForm({ currentDest }) {
                 control={
                   <Switch
                     checked={watch('registradoOfnc') ?? true}
+                    disabled={!canEditDest}
                     onChange={(event) =>
+                      canEditDest &&
                       methods.setValue('registradoOfnc', event.target.checked, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
                     }
                   />
                 }
@@ -448,11 +527,13 @@ export function DestCreateEditForm({ currentDest }) {
                 control={
                   <Switch
                     checked={watch('rritrackActivo') ?? false}
+                    disabled={!canEditDest}
                     onChange={(event) =>
+                      canEditDest &&
                       methods.setValue('rritrackActivo', event.target.checked, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
                     }
                   />
                 }
@@ -560,11 +641,15 @@ export function DestCreateEditForm({ currentDest }) {
                       label: 'Iglesia',
                       rows: [{ label: 'Iglesia', value: values.churchName || values.churchId }],
                     },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.memberCount }],
-                    },
+                    ...(canDownloadMembersInfo
+                      ? [
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [{ label: 'Cantidad', value: values.memberCount }],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>
@@ -587,7 +672,7 @@ export function DestCreateEditForm({ currentDest }) {
                 <>
                   {step === 1 && (
                     <Box sx={{ gridColumn: '1 / -1' }}>
-                      <ChurchDestSection isCreateView />
+                      <ChurchDestSection isCreateView disabled={!canEditDest} />
                     </Box>
                   )}
 
@@ -598,6 +683,8 @@ export function DestCreateEditForm({ currentDest }) {
                       churches={churches}
                       methods={methods}
                       watch={watch}
+                      disabled={!canEditDest}
+                      scheduleDisabled={!canSaveDest}
                     />
                   )}
                 </>
@@ -608,11 +695,13 @@ export function DestCreateEditForm({ currentDest }) {
                     churches={churches}
                     methods={methods}
                     watch={watch}
+                    disabled={!canEditDest}
+                    scheduleDisabled={!canSaveDest}
                   />
 
                   <Box sx={{ gridColumn: '1 / -1' }}>
                     <DashedAccordion title="Información de la iglesia">
-                      <ChurchDestSection />
+                      <ChurchDestSection disabled={!canEditDest} />
                     </DashedAccordion>
                   </Box>
                 </>
@@ -684,7 +773,12 @@ export function DestCreateEditForm({ currentDest }) {
                   )}
                 </>
               ) : (
-                <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  loading={isSubmitting}
+                  disabled={!canSaveDest}
+                >
                   Guardar cambios
                 </LoadingButton>
               )}

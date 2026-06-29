@@ -15,6 +15,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { canEditRegional } from 'src/utils/org-level-access';
+import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { AUTH } from 'src/lib/firebase';
@@ -41,6 +43,11 @@ const DEFAULT_VALUES = {
 export function RegionalCreateEditForm({ currentRegional }) {
   const router = useRouter();
   const { user } = useAuthContext();
+  // Editar: admin de region (su region) o global/funcional. Crear: solo
+  // global/funcional. El resto navega y consulta en modo de solo lectura.
+  const canEdit = currentRegional
+    ? canEditRegional(user, currentRegional)
+    : canManageOrgLevels(user);
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -109,6 +116,10 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!canEdit) {
+        return;
+      }
+
       const payload = {
         idRegion: currentRegional?.id || 0,
         nombre: data.name,
@@ -162,7 +173,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !canEdit}
                 onDrop={handleUploadRegionalPhoto}
                 optimizationToast={false}
                 helperText={
@@ -193,6 +204,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
                     render={({ field }) => (
                       <Switch
                         {...field}
+                        disabled={!canEdit}
                         checked={field.value !== 'active'}
                         onChange={(event) =>
                           field.onChange(event.target.checked ? 'banned' : 'active')
@@ -241,21 +253,30 @@ export function RegionalCreateEditForm({ currentRegional }) {
                         { label: 'Miembros', value: values.regionalXSectionalMemberCount },
                       ],
                     },
-                    {
-                      value: 'secciones',
-                      label: 'Secciones',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalCount }],
-                    },
-                    {
-                      value: 'destacamentos',
-                      label: 'Destacamentos',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalXDestCount }],
-                    },
-                    {
-                      value: 'miembros',
-                      label: 'Miembros',
-                      rows: [{ label: 'Cantidad', value: values.regionalXSectionalMemberCount }],
-                    },
+                    // El admin de destacamento solo puede descargar la informacion General.
+                    ...(canEdit
+                      ? [
+                          {
+                            value: 'secciones',
+                            label: 'Secciones',
+                            rows: [{ label: 'Cantidad', value: values.regionalXSectionalCount }],
+                          },
+                          {
+                            value: 'destacamentos',
+                            label: 'Destacamentos',
+                            rows: [
+                              { label: 'Cantidad', value: values.regionalXSectionalXDestCount },
+                            ],
+                          },
+                          {
+                            value: 'miembros',
+                            label: 'Miembros',
+                            rows: [
+                              { label: 'Cantidad', value: values.regionalXSectionalMemberCount },
+                            ],
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </Stack>
@@ -276,15 +297,18 @@ export function RegionalCreateEditForm({ currentRegional }) {
             >
               <RegionalGeneralSection
                 isCreateView={!isEditView}
+                disabled={!canEdit}
               />
 
             </Box>
 
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
-              </Button>
-            </Stack>
+            {canEdit && (
+              <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+                <Button type="submit" variant="contained" loading={isSubmitting}>
+                  {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
+                </Button>
+              </Stack>
+            )}
           </Card>
         </Grid>
       </Grid>

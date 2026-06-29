@@ -19,7 +19,9 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { isFullOrgManager } from 'src/utils/org-level-access';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
@@ -32,8 +34,8 @@ import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
-import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
 import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
+import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
 import {
   obtenerCargosDirectiva,
   obtenerAsignacionesDirectivaMiembros,
@@ -58,6 +60,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { can, PERMISOS } from 'src/auth/permissions';
 
 import { MemberTableRow } from '../member-table-row';
 import { MemberCardList } from '../member-card-list';
@@ -182,7 +185,6 @@ export function MemberListView() {
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
-  const metadataLoadedRef = useRef(false);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -268,10 +270,13 @@ export function MemberListView() {
   }, []);
 
   useEffect(() => {
-    if (membersLoading || metadataLoadedRef.current) return undefined;
-
+    // Fase 1: la metadata se carga en paralelo con los miembros (antes esperaba
+    // a que terminara la carga de miembros). No usamos un ref de "ya cargado":
+    // con StrictMode el doble montaje cancelaba la primera carga y el ref
+    // impedia la segunda, dejando la metadata vacia (destacamento/seccion
+    // "desconocido"). getMemberDirectoryMetadata ya cachea la promesa, asi que
+    // volver a llamarla es barato.
     let cancelled = false;
-    metadataLoadedRef.current = true;
 
     const loadMetadata = async () => {
       const metadataResult = await Promise.allSettled([
@@ -300,13 +305,23 @@ export function MemberListView() {
     return () => {
       cancelled = true;
     };
-  }, [membersLoading]);
+  }, []);
 
   const visibleMembers = useMemo(
-    () => filterMembersByMemberScope(tableData, user),
-    [tableData, user]
+    () => filterMembersByMemberScope(tableData, user, { dests, churches }),
+    [churches, dests, tableData, user]
   );
-  const memberCanManage = isMemberSessionUser(user) ? canMemberManageMembers(user) : true;
+  // Los administradores de seccion y region pueden VER la lista completa de
+  // miembros pero no editarlos (su rol no incluye permisos de edicion). Por eso
+  // no basta con "es admin": exigimos permiso real de gestion de miembros.
+  const adminCanManageMembers =
+    isFullOrgManager(user) ||
+    can(user, PERMISOS.MIEMBROS_EDITAR) ||
+    can(user, PERMISOS.MIEMBROS_CREAR) ||
+    can(user, PERMISOS.MIEMBROS_ELIMINAR);
+  const memberCanManage = isMemberSessionUser(user)
+    ? canMemberManageMembers(user)
+    : adminCanManageMembers;
   const memberDestLabel = useMemo(() => {
     if (!isMemberSessionUser(user)) {
       return '';
@@ -350,9 +365,28 @@ export function MemberListView() {
 
         hydrateMemberPositions(mappedMembers)
           .then((membersWithPositions) => {
-            if (!cancelled) {
-              setTableData(membersWithPositions);
-            }
+            if (cancelled) return;
+
+            // Mezclar solo los campos de posición sobre los miembros actuales, para no
+            // pisar destacamento/iglesia/sección que resuelve el useEffect de metadata
+            // (ambas resoluciones son asíncronas y compiten por setTableData).
+            const positionsById = new Map(
+              membersWithPositions.map((member) => [
+                String(member.id),
+                {
+                  memberPosition: member.memberPosition,
+                  destLeadershipPosition: member.destLeadershipPosition,
+                  directivaLeadershipPosition: member.directivaLeadershipPosition,
+                },
+              ])
+            );
+
+            setTableData((currentMembers) =>
+              currentMembers.map((member) => {
+                const positions = positionsById.get(String(member.id));
+                return positions ? { ...member, ...positions } : member;
+              })
+            );
           })
           .catch(() => {});
 
@@ -454,7 +488,11 @@ export function MemberListView() {
 
       return changed ? nextMembers : currentMembers;
     });
-  }, [dests, churches, sectionals, tableData.length]);
+    // Depende de `tableData` (no de su largo) para resolver destacamento/seccion
+    // sin importar el orden en que lleguen miembros y metadata. El guard
+    // `changed` devuelve la misma referencia cuando no hay cambios, evitando
+    // re-renders en bucle.
+  }, [dests, churches, sectionals, tableData]);
 
   useEffect(() => {
     const regionalById = new Map(regionals.map((regional) => [String(regional.id), regional]));
@@ -683,6 +721,7 @@ export function MemberListView() {
             sectionals={sectionals}
             members={visibleMembers}
             canManageMembers={memberCanManage}
+            showScopeFilters={!isDestacamentoAdminRole(user)}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,
