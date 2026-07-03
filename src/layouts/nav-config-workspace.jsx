@@ -4,10 +4,20 @@ import { ROLES, ROLES_CATALOGO } from 'src/auth/permissions/roles';
 
 // ----------------------------------------------------------------------
 
+// Roles de nivel organizacional que se muestran en el switcher. Se listan por
+// codigo (no por nombre) para que sigan apareciendo aunque su nombre ya no
+// contenga "administrador".
+const CODIGOS_NIVEL_ORG = [
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_REGION,
+];
+
 const workspaceRoles = ROLES_CATALOGO.filter(
   (rol) =>
     rol.codigo === ROLES.USUARIO_COMUN ||
     rol.codigo === ROLES.CONSEJO_NACIONAL ||
+    CODIGOS_NIVEL_ORG.includes(rol.codigo) ||
     rol.nombre.toLowerCase().includes('administrador')
 );
 

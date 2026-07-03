@@ -27,17 +27,18 @@ import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
 // administrador. Permanecen deshabilitados hasta que se definan los permisos
 // que debe tener cada uno.
 const SUBROLES_POR_ROL = {
+  // "Coordinador de Destacamento" es ahora el rol en si (primer item), por eso
+  // no se repite aqui como cargo.
   [ROLES.USUARIO_DESTACAMENTO]: [
     'Pastor',
-    'Coordinador de Destacamento',
     'Coordinador Asistente de Destacamento',
     'Consejo Destacamento',
     'Capellán',
     'Líder de Grupo',
     'Líder Asistente de Grupo',
   ],
+  // "Coordinador Seccional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_SECCION]: [
-    'Coordinador Seccional',
     'Capellán Seccional',
     'Sub-Coordinador Seccional',
     'Coordinador de Adiestramiento',
@@ -48,8 +49,8 @@ const SUBROLES_POR_ROL = {
     'Zonas',
     'Grupos Locales',
   ],
+  // "Director Regional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_REGION]: [
-    'Director Regional',
     'Capellán Regional',
     'Sub-Director Regional',
     'Coordinador de Adiestramiento',
