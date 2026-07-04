@@ -18,58 +18,71 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { ROLES } from 'src/auth/permissions/roles';
 import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
+import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
 // ----------------------------------------------------------------------
 
-// Cargos organizacionales que se muestran dentro del submenu de cada rol
-// administrador. Permanecen deshabilitados hasta que se definan los permisos
-// que debe tener cada uno.
+// Cargos organizacionales que se muestran dentro del submenu de cada rol.
+// Cada entrada es un objeto: si trae `rolCodigo` es un rol real y seleccionable
+// (cambia de sesion); si no, es un cargo aun sin permisos y se muestra
+// deshabilitado hasta que se definan.
 const SUBROLES_POR_ROL = {
   // "Coordinador de Destacamento" es ahora el rol en si (primer item), por eso
   // no se repite aqui como cargo.
   [ROLES.USUARIO_DESTACAMENTO]: [
-    'Pastor',
-    'Coordinador Asistente de Destacamento',
-    'Consejo Destacamento',
-    'Capellán',
-    'Líder de Grupo',
-    'Líder Asistente de Grupo',
+    { label: 'Pastor' },
+    {
+      label: 'Coordinador Asistente de Destacamento',
+      rolCodigo: ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+    },
+    { label: 'Consejo Destacamento' },
+    { label: 'Capellán' },
+    { label: 'Líder de Grupo' },
+    { label: 'Líder Asistente de Grupo' },
   ],
   // "Coordinador Seccional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_SECCION]: [
-    'Capellán Seccional',
-    'Sub-Coordinador Seccional',
-    'Coordinador de Adiestramiento',
-    'Coordinador de Promoción',
-    'Coordinador de Producción',
-    'Coordinador de Programa',
-    'Secretario Regional',
-    'Zonas',
-    'Grupos Locales',
+    { label: 'Capellán Seccional' },
+    { label: 'Sub-Coordinador Seccional', rolCodigo: ROLES.USUARIO_SECCION_ASISTENTE },
+    { label: 'Coordinador de Adiestramiento', rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION },
+    { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_SECCION },
+    { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_SECCION },
+    { label: 'Coordinador de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_SECCION },
+    { label: 'Secretario Regional' },
+    { label: 'Zonas' },
+    { label: 'Grupos Locales' },
   ],
-  // "Director Regional" es ahora el rol en si (primer item).
+  // "Coordinador Regional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_REGION]: [
-    'Capellán Regional',
-    'Sub-Director Regional',
-    'Coordinador de Adiestramiento',
-    'Coordinador de Promoción',
-    'Coordinador de Producción',
-    'Coordinador de Programa',
-    'Secretario Regional',
+    { label: 'Capellán Regional' },
+    { label: 'Sub-Director Regional', rolCodigo: ROLES.USUARIO_REGION_ASISTENTE },
+    { label: 'Coordinador de Adiestramiento', rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_REGION },
+    { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_REGION },
+    { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_REGION },
+    { label: 'Coordinador de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_REGION },
+    { label: 'Secretario Regional' },
   ],
   [ROLES.CONSEJO_NACIONAL]: [
-    'Ministerios Infantiles',
-    'Director Nacional',
-    'Capellán Nacional',
-    'Coordinador Nacional de Adiestramiento',
-    'Sub-Director Nacional',
-    'Coordinador Nacional de Promoción',
-    'Coordinador Nacional de Producción',
-    'Coordinador Nacional de Programa',
-    'Comités Especiales',
-    'Oficiales de Adiestramientos Especiales',
+    { label: 'Ministerios Infantiles', rolCodigo: ROLES.MINISTERIOS_INFANTILES_NACIONAL },
+    { label: 'Director Nacional', rolCodigo: ROLES.DIRECTOR_NACIONAL },
+    { label: 'Capellán Nacional', rolCodigo: ROLES.CAPELLAN_NACIONAL },
+    {
+      label: 'Coordinador Nacional de Adiestramiento',
+      rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
+    },
+    { label: 'Sub-Director Nacional', rolCodigo: ROLES.SUBDIRECTOR_NACIONAL },
+    { label: 'Coordinador Nacional de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_NACIONAL },
+    {
+      label: 'Coordinador Nacional de Producción',
+      rolCodigo: ROLES.COORDINADOR_PRODUCCION_NACIONAL,
+    },
+    { label: 'Coordinador Nacional de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL },
+    { label: 'Comités Especiales', rolCodigo: ROLES.COMITES_ESPECIALES_NACIONAL },
+    {
+      label: 'Oficiales de Adiestramientos Especiales',
+      rolCodigo: ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
+    },
   ],
 };
 
@@ -218,6 +231,38 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     onClose();
   }, [closeSubmenu, onClose]);
 
+  // Item seleccionable del submenu (cambia de sesion). Se usa tanto para el
+  // titular como para los sub-roles que ya tienen codigo/permisos.
+  const renderSwitchMenuItem = (option) => (
+    <MenuItem
+      key={option.id}
+      selected={option.id === workspace?.id}
+      disabled={Boolean(loadingRoleId)}
+      onClick={() => handleChangeWorkspace(option)}
+      sx={{ height: 48 }}
+    >
+      {option.id === loadingRoleId ? (
+        <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
+      ) : (
+        renderWorkspaceIcon(option)
+      )}
+
+      <Typography
+        component="span"
+        variant="body2"
+        sx={{
+          flexGrow: 1,
+          minWidth: 0,
+          lineHeight: 1.3,
+          whiteSpace: 'normal',
+          fontWeight: 'fontWeightMedium',
+        }}
+      >
+        {option.name}
+      </Typography>
+    </MenuItem>
+  );
+
   const renderSubmenu = () => {
     const subRoles = submenuOption ? SUBROLES_POR_ROL[submenuOption.id] || [] : [];
     const soloAgrupador = submenuOption ? ROLES_SOLO_AGRUPADOR.has(submenuOption.id) : false;
@@ -238,52 +283,39 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
         }}
       >
         <MenuList>
-          {!soloAgrupador && (
-            <MenuItem
-              selected={submenuOption?.id === workspace?.id}
-              disabled={Boolean(loadingRoleId)}
-              onClick={() => handleChangeWorkspace(submenuOption)}
-              sx={{ height: 48 }}
-            >
-              {submenuOption?.id === loadingRoleId ? (
-                <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
-              ) : (
-                renderWorkspaceIcon(submenuOption)
-              )}
+          {!soloAgrupador && submenuOption && renderSwitchMenuItem(submenuOption)}
 
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 0,
-                  lineHeight: 1.3,
-                  whiteSpace: 'normal',
-                  fontWeight: 'fontWeightMedium',
-                }}
-              >
-                {submenuOption?.name}
-              </Typography>
-            </MenuItem>
-          )}
+          {subRoles.map((sub) => {
+            const rol = sub.rolCodigo ? ROLES_POR_CODIGO[sub.rolCodigo] : null;
 
-          {subRoles.map((nombre) => (
-            <MenuItem key={nombre} disabled sx={{ height: 48 }}>
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 0,
-                  lineHeight: 1.3,
-                  whiteSpace: 'normal',
-                  fontWeight: 'fontWeightMedium',
-                }}
-              >
-                {nombre}
-              </Typography>
-            </MenuItem>
-          ))}
+            // Sub-rol con codigo/permisos: seleccionable (cambia de sesion).
+            if (rol) {
+              return renderSwitchMenuItem({
+                id: sub.rolCodigo,
+                name: sub.label,
+                plan: rol.alcancePredeterminado,
+              });
+            }
+
+            // Cargo aun sin permisos: deshabilitado.
+            return (
+              <MenuItem key={sub.label} disabled sx={{ height: 48 }}>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    lineHeight: 1.3,
+                    whiteSpace: 'normal',
+                    fontWeight: 'fontWeightMedium',
+                  }}
+                >
+                  {sub.label}
+                </Typography>
+              </MenuItem>
+            );
+          })}
         </MenuList>
       </Popover>
     );

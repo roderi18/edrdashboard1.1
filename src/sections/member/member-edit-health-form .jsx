@@ -226,6 +226,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     const {
         medicalDocuments,
+        canDeleteDocuments,
         deleteOne,
         deleteSelected,
         openUploadDialog,
@@ -300,6 +301,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     onRename={renameDocument}
                     onDeleteOne={deleteOne}
                     onDeleteSelected={handleConfirmDeleteSelected}
+                    canDelete={canDeleteDocuments}
                     onUpload={openUploadDialog}
                     onDropUpload={uploadDroppedFiles}
                 />

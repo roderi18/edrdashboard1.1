@@ -148,6 +148,7 @@ export function HealthDocumentsSection({
     medicalDocuments,
     onDeleteOne,
     onDeleteSelected,
+    canDelete = false,
     onUpload,
     onDropUpload,
     onRename,
@@ -195,11 +196,13 @@ export function HealthDocumentsSection({
                                     </IconButton>
                                 </Tooltip>
 
-                                <Tooltip title="Eliminar">
-                                    <IconButton color="primary" onClick={onDeleteSelected}>
-                                        <Iconify icon="solar:trash-bin-trash-bold" />
-                                    </IconButton>
-                                </Tooltip>
+                                {canDelete && (
+                                    <Tooltip title="Eliminar">
+                                        <IconButton color="primary" onClick={onDeleteSelected}>
+                                            <Iconify icon="solar:trash-bin-trash-bold" />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
                             </>
                         }
                         sx={{
@@ -255,7 +258,7 @@ export function HealthDocumentsSection({
                                                     onSelectRow={() => table.onSelectRow(file.id)}
                                                     onDeleteRow={() => onDeleteOne(file.id)}
                                                     onRename={onRename}
-                                                    canDelete
+                                                    canDelete={canDelete}
                                                     showType={false}
                                                     showAvatar={false}
                                                     showThumbnail

@@ -28,6 +28,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import {
   PERMISOS,
   ROLES_POR_CODIGO,
+  PERMISOS_POR_ROL,
   PERMISOS_CATALOGO,
   PERMISOS_POR_CODIGO,
   obtenerAccesoUsuario,
@@ -262,7 +263,16 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const userDocId = getUserDocId(admin);
 
-  const rolePermissions = uniqueList(access?.rol?.permisos || admin?.permisosRol || []);
+  // Los permisos base del rol se toman del catalogo del CODIGO (`PERMISOS_POR_ROL`),
+  // la misma fuente que usa el runtime en `normalizarAccesoUsuario`. Es la fuente
+  // de verdad: Administrador Global, por ejemplo, siempre tiene TODOS los
+  // permisos (Object.values(PERMISOS)) sin importar si el doc de rol en Firebase
+  // fue sincronizado despues de agregar permisos nuevos al catalogo. El doc de
+  // Firebase solo se usa como respaldo si el rol no existe en el codigo.
+  const roleId = String(access?.rolId || admin?.rolId || admin?.role || '').trim();
+  const rolePermissions = uniqueList(
+    PERMISOS_POR_ROL[roleId] || access?.rol?.permisos || admin?.permisosRol || []
+  );
   const activePermissions = uniqueList([...rolePermissions, ...directPermissions]).filter(
     (permission) => !excludedPermissions.includes(permission)
   );

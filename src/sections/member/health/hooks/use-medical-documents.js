@@ -10,9 +10,15 @@ import {
 import { toast } from 'src/components/snackbar';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { can, PERMISOS } from 'src/auth/permissions';
 
 export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
   const { user } = useAuthContext();
+  // Eliminar documentos del perfil de salud requiere el permiso explicito
+  // "documentos.eliminar". Los roles de nivel (Coordinador de Destacamento,
+  // Coordinador Seccional, Director Regional) NO lo tienen, por lo que no
+  // pueden borrar estos documentos sensibles.
+  const canDeleteDocuments = can(user, PERMISOS.DOCUMENTOS_ELIMINAR);
   const [medicalDocuments, setMedicalDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -190,6 +196,11 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
 
   const deleteOne = useCallback(
     async (id) => {
+      if (!canDeleteDocuments) {
+        toast.error('No tienes permiso para eliminar documentos del perfil de salud.');
+        return;
+      }
+
       const document = medicalDocuments.find((item) => item.id === id);
 
       setMedicalDocuments((prev) => prev.filter((item) => item.id !== id));
@@ -203,10 +214,15 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         toast.error('No se pudo eliminar el documento.');
       }
     },
-    [medicalDocuments, user]
+    [canDeleteDocuments, medicalDocuments, user]
   );
 
   const deleteSelected = useCallback(async () => {
+    if (!canDeleteDocuments) {
+      toast.error('No tienes permiso para eliminar documentos del perfil de salud.');
+      return;
+    }
+
     if (!table.selected.length) return;
 
     const selectedIds = new Set(table.selected);
@@ -226,7 +242,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
       setMedicalDocuments((prev) => [...selectedDocuments, ...prev]);
       toast.error('No se pudieron eliminar todos los documentos.');
     }
-  }, [medicalDocuments, table, user]);
+  }, [canDeleteDocuments, medicalDocuments, table, user]);
 
   const removeAll = useCallback(() => {
     setMedicalDocuments([]);
@@ -293,6 +309,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
   return {
     loading,
     medicalDocuments,
+    canDeleteDocuments,
     openUploadDialog,
     uploadDroppedFiles: uploadFilesForCategory,
     FileInput,

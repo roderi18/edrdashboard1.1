@@ -34,12 +34,31 @@ export const getOrgRoleId = (user = {}) => {
 
 export const isGlobalOrgManager = (user = {}) => GLOBAL_MANAGER_ROLES.includes(getOrgRoleId(user));
 
-// Roles cuyo alcance limita lo que pueden editar.
+// Roles cuyo alcance limita lo que pueden editar. Incluye a los coordinadores de
+// area (solo consulta) para que nunca se traten como administradores plenos.
 const SCOPED_ORG_ROLES = [
   ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
   ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_SECCION_ASISTENTE,
   ROLES.USUARIO_REGION,
+  ROLES.USUARIO_REGION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
+  ROLES.COORDINADOR_PROMOCION_SECCION,
+  ROLES.COORDINADOR_PRODUCCION_SECCION,
+  ROLES.COORDINADOR_PROGRAMA_SECCION,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_REGION,
+  ROLES.COORDINADOR_PROMOCION_REGION,
+  ROLES.COORDINADOR_PRODUCCION_REGION,
+  ROLES.COORDINADOR_PROGRAMA_REGION,
 ];
+
+// Alias de alcance: cada asistente comparte el alcance de su titular. Los
+// permisos concretos (que difieren) se controlan en PERMISOS_POR_ROL; aqui solo
+// se decide el "propio vs ajeno" segun el nivel.
+const REGION_SCOPED_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENTE];
+const SECTION_SCOPED_ROLES = [ROLES.USUARIO_SECCION, ROLES.USUARIO_SECCION_ASISTENTE];
+const DEST_SCOPED_ROLES = [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_DESTACAMENTO_ASISTENTE];
 
 const isAdminSession = (user = {}) =>
   ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
@@ -139,11 +158,13 @@ export const canEditSectional = (user = {}, sectional = {}) => {
 
   const roleId = getOrgRoleId(user);
 
-  if (roleId === ROLES.USUARIO_REGION) {
+  // Director Regional y su Sub-Director editan secciones de su region.
+  if (REGION_SCOPED_ROLES.includes(roleId)) {
     const regionId = getSectionalRegionId(sectional);
     return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
   }
 
+  // Solo el Coordinador Seccional titular edita su seccion (el Sub-Coordinador no).
   if (roleId === ROLES.USUARIO_SECCION) {
     const sectionId = getSectionalOwnId(sectional);
     return Boolean(sectionId) && getSectionScopeIds(user).has(sectionId);
@@ -157,17 +178,17 @@ export const canEditDest = (user = {}, dest = {}) => {
 
   const roleId = getOrgRoleId(user);
 
-  if (roleId === ROLES.USUARIO_REGION) {
+  if (REGION_SCOPED_ROLES.includes(roleId)) {
     const regionId = getDestRegionId(dest);
     return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
   }
 
-  if (roleId === ROLES.USUARIO_SECCION) {
+  if (SECTION_SCOPED_ROLES.includes(roleId)) {
     const sectionId = getDestSectionId(dest);
     return Boolean(sectionId) && getSectionScopeIds(user).has(sectionId);
   }
 
-  if (roleId === ROLES.USUARIO_DESTACAMENTO) {
+  if (DEST_SCOPED_ROLES.includes(roleId)) {
     const destId = getDestOwnId(dest);
     return Boolean(destId) && getDestScopeIds(user).has(destId);
   }
@@ -184,7 +205,7 @@ export const canEditDest = (user = {}, dest = {}) => {
 export const canCreateSectionalInRegion = (user = {}, regionId = null) => {
   if (isGlobalOrgManager(user)) return true;
 
-  if (getOrgRoleId(user) === ROLES.USUARIO_REGION) {
+  if (REGION_SCOPED_ROLES.includes(getOrgRoleId(user))) {
     const scope = getRegionScopeIds(user);
     return regionId === null ? scope.size > 0 : scope.has(normalizeId(regionId));
   }
@@ -197,7 +218,7 @@ export const canCreateSectionalInRegion = (user = {}, regionId = null) => {
 export const canCreateDestInSection = (user = {}, sectionId = null) => {
   if (isGlobalOrgManager(user)) return true;
 
-  if (getOrgRoleId(user) === ROLES.USUARIO_SECCION) {
+  if (SECTION_SCOPED_ROLES.includes(getOrgRoleId(user))) {
     const scope = getSectionScopeIds(user);
     return sectionId === null ? scope.size > 0 : scope.has(normalizeId(sectionId));
   }
@@ -213,7 +234,7 @@ export const canAssignSectionalToRegion = (user = {}, regionId = null) => {
 
   const roleId = getOrgRoleId(user);
 
-  if (roleId === ROLES.USUARIO_REGION) {
+  if (REGION_SCOPED_ROLES.includes(roleId)) {
     return getRegionScopeIds(user).has(normalizeId(regionId));
   }
 
