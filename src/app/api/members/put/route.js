@@ -1,4 +1,5 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
 const MEMBERS_ENDPOINT = 'https://systexploradores.somee.com/api/Miembros';
 const UPDATE_ENDPOINT = `${MEMBERS_ENDPOINT}/UpdateMiembros`;
@@ -76,6 +77,8 @@ export async function PUT(req) {
             },
             body: JSON.stringify(payload),
         });
+
+        invalidateUpstream(UPSTREAM_KEYS.miembros);
 
         const upstreamText = await upstreamRes.text();
         const upstreamParsed = parseResponseText(upstreamText);

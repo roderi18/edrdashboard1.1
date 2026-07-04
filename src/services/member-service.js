@@ -135,7 +135,22 @@ export function mapApiMemberToUI(member) {
 // MEMBERS
 // ------------------------------------------------------------
 
-export async function getMembers() {
+// Caché en memoria con TTL corto + dedup de llamadas en vuelo: muchas vistas y
+// formularios llaman getMembers() casi a la vez y cada llamada re-descargaba la
+// lista completa. Las mutaciones (create/update/delete/import) invalidan para
+// que los flujos que releen justo despues de escribir sigan viendo datos
+// frescos.
+const MEMBERS_CACHE_TTL_MS = 30_000;
+
+let membersCachePromise = null;
+let membersCacheExpiresAt = 0;
+
+export function invalidateMembersCache() {
+  membersCachePromise = null;
+  membersCacheExpiresAt = 0;
+}
+
+async function fetchMembersFresh() {
   try {
     const res = await fetch('/api/members');
 
@@ -155,8 +170,25 @@ export async function getMembers() {
     return mergedMembers;
   } catch (error) {
     console.error('ERROR FETCH ERROR:', error);
+    // No dejar cacheado el fallback: la proxima llamada reintenta el fetch.
+    invalidateMembersCache();
     return getStorageCollection(MEMBERS_KEY) || [];
   }
+}
+
+export async function getMembers() {
+  const now = Date.now();
+
+  if (!membersCachePromise || membersCacheExpiresAt <= now) {
+    membersCachePromise = fetchMembersFresh();
+    membersCacheExpiresAt = now + MEMBERS_CACHE_TTL_MS;
+  }
+
+  const members = await membersCachePromise;
+
+  // Copia superficial: los callers pueden ordenar/filtrar in place sin
+  // contaminar la lista cacheada.
+  return members.slice();
 }
 
 export async function getMemberById(id) {
@@ -182,6 +214,8 @@ export async function createMemberApi(payload, { usuario } = {}) {
   });
 
   const text = await res.text();
+
+  invalidateMembersCache();
 
   if (!res.ok) {
     throw new Error(text || 'Error creando miembro');
@@ -219,6 +253,8 @@ export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
   const text = await res.text();
   const response = text ? JSON.parse(text) : {};
 
+  invalidateMembersCache();
+
   if (!res.ok) {
     throw new Error(
       response?.message ||
@@ -253,6 +289,8 @@ export async function deleteMember(memberId, { usuario, antes = null } = {}) {
     method: 'DELETE',
   });
   const text = await res.text();
+
+  invalidateMembersCache();
 
   if (!res.ok) {
     throw new Error(text || `Error eliminando miembro (${res.status})`);

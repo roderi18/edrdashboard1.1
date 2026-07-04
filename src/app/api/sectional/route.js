@@ -1,12 +1,19 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 export async function GET() {
     try {
-        const res = await fetch(
-            'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
-        );
-
-        const text = await res.text();
+        // Secciones e iglesias en paralelo (antes iban en serie) y cacheadas.
+        const [{ text }, { text: textChurches }] = await Promise.all([
+            fetchUpstreamText(
+                UPSTREAM_KEYS.secciones,
+                'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
+            ),
+            fetchUpstreamText(
+                UPSTREAM_KEYS.iglesias,
+                'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'
+            ),
+        ]);
 
         let data;
 
@@ -18,12 +25,6 @@ export async function GET() {
                 { status: 500 }
             );
         }
-
-        const resChurches = await fetch(
-            'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'
-        );
-
-        const textChurches = await resChurches.text();
 
         let churchesData = [];
 
@@ -74,6 +75,9 @@ export async function DELETE(req) {
                 headers: { Accept: 'application/json, text/plain, */*' },
             }
         );
+
+        invalidateUpstream(UPSTREAM_KEYS.secciones);
+
         const text = await res.text();
         let data = null;
 

@@ -1,4 +1,5 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
 export async function PUT(req) {
     try {
@@ -24,6 +25,8 @@ export async function PUT(req) {
                 }),
             }
         );
+
+        invalidateUpstream(UPSTREAM_KEYS.iglesias);
 
         const text = await res.text();
 

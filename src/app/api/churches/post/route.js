@@ -1,3 +1,5 @@
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
+
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -20,6 +22,8 @@ export async function POST(req) {
             body: JSON.stringify(payload),
             cache: 'no-store',
         });
+
+        invalidateUpstream(UPSTREAM_KEYS.iglesias);
 
         const raw = await res.text();
 

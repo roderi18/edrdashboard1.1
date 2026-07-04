@@ -1,3 +1,5 @@
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
+
 const CARGOS_ENDPOINT = 'https://systexploradores.somee.com/api/Cargos';
 
 const jsonResponse = (payload, status = 200) =>
@@ -56,8 +58,42 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
-    return proxyCargoRequest({
-      endpoint: id ? `GetCargosById?id=${encodeURIComponent(id)}` : 'GetAllCargos',
+    if (id) {
+      return proxyCargoRequest({
+        endpoint: `GetCargosById?id=${encodeURIComponent(id)}`,
+      });
+    }
+
+    // GetAllCargos cacheado (misma respuesta que el proxy directo).
+    const upstream = await fetchUpstreamText(
+      UPSTREAM_KEYS.cargos,
+      `${CARGOS_ENDPOINT}/GetAllCargos`,
+      { init: { headers: { Accept: 'application/json' } } }
+    );
+
+    if (!upstream.ok) {
+      let data = null;
+
+      try {
+        data = upstream.text ? JSON.parse(upstream.text) : null;
+      } catch {
+        data = null;
+      }
+
+      return jsonResponse(
+        {
+          Success: false,
+          Message: `Error en API de cargos (${upstream.status})`,
+          data,
+          raw: upstream.text,
+        },
+        502
+      );
+    }
+
+    return new Response(upstream.text || '{}', {
+      status: upstream.status,
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     return jsonResponse(
@@ -74,6 +110,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
+
+    invalidateUpstream(UPSTREAM_KEYS.cargos);
 
     return proxyCargoRequest({
       endpoint: 'SetCargos',
@@ -99,6 +137,8 @@ export async function PUT(req) {
   try {
     const body = await req.json();
 
+    invalidateUpstream(UPSTREAM_KEYS.cargos);
+
     return proxyCargoRequest({
       endpoint: 'UpdateCargos',
       method: 'POST',
@@ -123,6 +163,8 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+
+    invalidateUpstream(UPSTREAM_KEYS.cargos);
 
     return proxyCargoRequest({
       endpoint: `DeleteCargos?id=${encodeURIComponent(id || '')}`,

@@ -1,4 +1,5 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
 export async function POST(req) {
     try {
@@ -51,6 +52,8 @@ export async function POST(req) {
                 cache: 'no-store',
             }
         );
+
+        invalidateUpstream(UPSTREAM_KEYS.destacamentos);
 
         const raw = await res.text();
 

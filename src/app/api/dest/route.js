@@ -1,12 +1,12 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 export async function GET() {
     try {
-        const res = await fetch(
+        const { text } = await fetchUpstreamText(
+            UPSTREAM_KEYS.destacamentos,
             'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos'
         );
-
-        const text = await res.text();
 
         if (!text || text.startsWith('<')) {
             return Response.json(
@@ -42,6 +42,9 @@ export async function DELETE(req) {
                 headers: { Accept: 'application/json, text/plain, */*' },
             }
         );
+
+        invalidateUpstream(UPSTREAM_KEYS.destacamentos);
+
         const text = await res.text();
         let data = null;
 

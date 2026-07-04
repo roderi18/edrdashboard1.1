@@ -1,12 +1,19 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 export async function GET() {
     try {
-        const res = await fetch(
-            'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
-        );
-
-        const text = await res.text();
+        // Regiones y secciones en paralelo (antes iban en serie) y cacheadas.
+        const [{ text }, { text: textSections }] = await Promise.all([
+            fetchUpstreamText(
+                UPSTREAM_KEYS.regiones,
+                'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
+            ),
+            fetchUpstreamText(
+                UPSTREAM_KEYS.secciones,
+                'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
+            ),
+        ]);
 
         let data;
 
@@ -18,12 +25,6 @@ export async function GET() {
                 { status: 500 }
             );
         }
-
-        const resSections = await fetch(
-            'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
-        );
-
-        const textSections = await resSections.text();
 
         let sectionsData = [];
 
@@ -72,13 +73,14 @@ export async function POST(req) {
             }
         );
 
+        invalidateUpstream(UPSTREAM_KEYS.regiones);
+
         const text = await res.text();
 
-        const resSections = await fetch(
+        const { text: textSections } = await fetchUpstreamText(
+            UPSTREAM_KEYS.secciones,
             'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
         );
-
-        const textSections = await resSections.text();
 
         let sectionsData = [];
 
@@ -138,6 +140,9 @@ export async function DELETE(req) {
                 headers: { Accept: 'application/json, text/plain, */*' },
             }
         );
+
+        invalidateUpstream(UPSTREAM_KEYS.regiones);
+
         const text = await res.text();
         let data = null;
 

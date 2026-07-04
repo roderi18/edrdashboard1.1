@@ -1,12 +1,13 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, fetchUpstreamText } from 'src/utils/upstream-cache';
 
 export async function GET() {
     try {
-        const res = await fetch(
+        const { text } = await fetchUpstreamText(
+            UPSTREAM_KEYS.iglesias,
             'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'
         );
 
-        const text = await res.text();
         let data;
 
         try {

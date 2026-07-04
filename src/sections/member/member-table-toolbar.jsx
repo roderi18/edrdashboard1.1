@@ -27,6 +27,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
+import { invalidateMembersCache } from 'src/services/member-service';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ExportTableButton } from 'src/components/export-table-button';
@@ -623,6 +625,7 @@ export function MemberTableToolbar({
       },
     });
 
+    invalidateMembersCache();
     setUploadResult(result);
     menuActions.onClose();
   };

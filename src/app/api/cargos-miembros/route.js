@@ -1,3 +1,5 @@
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
+
 const CARGOS_MIEMBROS_ENDPOINT = 'https://systexploradores.somee.com/api/CargosMiembros';
 
 const jsonResponse = (payload, status = 200) =>
@@ -63,10 +65,42 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const idMiembro = searchParams.get('idMiembro') || searchParams.get('id');
 
-    return proxyCargoMiembroRequest({
-      endpoint: idMiembro
-        ? `GetAllCargosByIdMiembro?id=${encodeURIComponent(idMiembro)}`
-        : 'GetAllCargosMiembros',
+    if (idMiembro) {
+      return proxyCargoMiembroRequest({
+        endpoint: `GetAllCargosByIdMiembro?id=${encodeURIComponent(idMiembro)}`,
+      });
+    }
+
+    // GetAllCargosMiembros cacheado (misma respuesta que el proxy directo).
+    const upstream = await fetchUpstreamText(
+      UPSTREAM_KEYS.cargosMiembros,
+      `${CARGOS_MIEMBROS_ENDPOINT}/GetAllCargosMiembros`,
+      { init: { headers: { Accept: 'application/json' } } }
+    );
+
+    if (!upstream.ok) {
+      let data = null;
+
+      try {
+        data = upstream.text ? JSON.parse(upstream.text) : null;
+      } catch {
+        data = null;
+      }
+
+      return jsonResponse(
+        {
+          Success: false,
+          Message: `Error en API de cargos de miembros (${upstream.status})`,
+          data,
+          raw: upstream.text,
+        },
+        502
+      );
+    }
+
+    return new Response(upstream.text || '{}', {
+      status: upstream.status,
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     return jsonResponse(
@@ -83,6 +117,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
+
+    invalidateUpstream(UPSTREAM_KEYS.cargosMiembros);
 
     return proxyCargoMiembroRequest({
       endpoint: 'SetCargosMiembro',
@@ -104,6 +140,8 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     const body = await req.json();
+
+    invalidateUpstream(UPSTREAM_KEYS.cargosMiembros);
 
     return proxyCargoMiembroRequest({
       endpoint: 'DeleteCargosMiembro',

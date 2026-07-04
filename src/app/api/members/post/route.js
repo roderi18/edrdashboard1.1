@@ -1,3 +1,5 @@
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
+
 import { getDivisions } from 'src/services/division-service';
 
 const MEMBERS_ENDPOINT = 'https://systexploradores.somee.com/api/Miembros';
@@ -200,6 +202,8 @@ export async function POST(req) {
     if (res.ok) {
       await ensureCreatedMemberDivision({ responsePayload, memberPayload });
     }
+
+    invalidateUpstream(UPSTREAM_KEYS.miembros);
 
     return new Response(text, {
       status: res.status,

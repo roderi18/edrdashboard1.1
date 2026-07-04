@@ -1,4 +1,5 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 import { getDivisions } from 'src/services/division-service';
 
@@ -59,12 +60,15 @@ const withCalculatedDivision = (member, divisions) => {
 
 export async function GET() {
   try {
-    const [res, divisions] = await Promise.all([
-      fetch('https://systexploradores.somee.com/api/Miembros/GetAllMiembros'),
+    const [upstream, divisions] = await Promise.all([
+      fetchUpstreamText(
+        UPSTREAM_KEYS.miembros,
+        'https://systexploradores.somee.com/api/Miembros/GetAllMiembros'
+      ),
       getDivisions(),
     ]);
 
-    const data = await res.json();
+    const data = JSON.parse(upstream.text);
     const normalized = normalizeApiResponse(data);
     const rows = getRowsFromNormalizedResponse(normalized);
 
@@ -111,6 +115,9 @@ export async function DELETE(req) {
         headers: { Accept: 'application/json, text/plain, */*' },
       }
     );
+
+    invalidateUpstream(UPSTREAM_KEYS.miembros);
+
     const text = await res.text();
     let data = null;
 

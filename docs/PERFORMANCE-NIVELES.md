@@ -43,21 +43,37 @@ La ganancia correlaciona con **reducir el número de llamadas / etapas**, no con
 paralelizar (somee serializa la concurrencia). Regiones ya no tenía redundancia
 que quitar, por eso queda plano: lo resuelve la Fase 2.
 
-## Fase 2 — pendiente (mayor impacto)
+## Fase 2 — implementada (caché TTL server-side)
 
-**Agregar el conteo en un route handler de Next** (`/api/<nivel>/summary`) para
-que el navegador haga **una sola** llamada con los números ya calculados.
+En lugar de endpoints `summary` nuevos, se agregó un **caché en memoria con TTL
+de 60s + dedup de peticiones en vuelo** (`src/utils/upstream-cache.js`) delante
+de todos los `GetAll` de somee en los route handlers (`/api/members`, `/api/dest`,
+`/api/churches`, `/api/sectional`, `/api/regional`, `/api/cargos`,
+`/api/cargos-miembros`). Además:
 
-- [ ] `/api/regional/summary`: `Promise.all` server-side de regiones, secciones,
-      iglesias, destacamentos y miembros; calcular `secciones`, `destacamentos` y
-      `miembros` por región; devolver regiones con los conteos.
-- [ ] Igual para `/api/sectional/summary` (cuenta destacamentos y miembros).
-- [ ] `export const revalidate = 60` (o caché con TTL) en esos routes → respuestas
-      siguientes ~50–150 ms.
-- [ ] Conectar las vistas de Regiones y Secciones a la llamada única; eliminar el
-      cruce de conteos en el cliente.
-- [ ] Quitar la duplicación upstream: `/api/regional` y `/api/sectional` piden
-      `Secciones`/`Iglesias` dos veces cada recarga.
+- `/api/sectional` y `/api/regional` piden sus dos datasets upstream **en
+  paralelo** (antes en serie) y comparten la entrada de caché de `Secciones`/
+  `Iglesias` (elimina la duplicación upstream por recarga).
+- Las rutas de mutación (post/put/delete de cada nivel) **invalidan** la clave
+  correspondiente, así los flujos que releen tras crear/editar ven datos frescos.
+- Cliente: `getMembers()` tiene caché en memoria (TTL 30s + dedup) invalidada
+  por `createMemberApi`/`updateMemberApi`/`deleteMember`/import de Excel, y
+  `storage-service` mantiene un espejo en memoria (adiós `JSON.parse` de la
+  colección completa por fila renderizada).
+
+### Resultado medido (mediana, modo `fase1`, 7 iteraciones, mismo día)
+
+| Vista          | Antes   | Después | Mejora |
+| -------------- | ------- | ------- | ------ |
+| Regiones       | 245 ms  | 44 ms   | −82%   |
+| Secciones      | 241 ms  | 40 ms   | −83%   |
+| Destacamentos  | 360 ms  | 45 ms   | −88%   |
+| Miembros       | 266 ms  | 48 ms   | −82%   |
+
+Nota: la medición "antes" se tomó en una ventana **rápida** de somee (~0.3s por
+peticion directa). En las ventanas lentas documentadas (2–17s por `GetAll`), el
+"antes" escala a segundos mientras el "después" se mantiene en ~40–50 ms con
+caché caliente, porque ya no se viaja al upstream en cada vista.
 
 Esperado: Regiones y Secciones a **~0.1–0.5 s** en caché caliente; se elimina el
 parpadeo `0 → número` porque los conteos llegan en la primera (y única) respuesta.
