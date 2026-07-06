@@ -14,7 +14,19 @@ const NAV_WIDTH = 280;
 
 const NAV_DRAWER_WIDTH = 320;
 
-export function ChatRoom({ collapseNav, participants, messages, loading, sx, ...other }) {
+export function ChatRoom({
+  collapseNav,
+  participants,
+  messages,
+  loading,
+  sx,
+  contacts,
+  currentContact,
+  creatorIdMiembros,
+  onAddParticipants,
+  onRemoveParticipant,
+  ...other
+}) {
   const { collapseDesktop, openMobile, onCloseMobile } = collapseNav;
 
   const isGroup = participants.length > 1;
@@ -28,7 +40,14 @@ export function ChatRoom({ collapseNav, participants, messages, loading, sx, ...
       <Scrollbar>
         <div>
           {isGroup ? (
-            <ChatRoomGroup participants={participants} />
+            <ChatRoomGroup
+              participants={participants}
+              contacts={contacts}
+              currentContact={currentContact}
+              creatorIdMiembros={creatorIdMiembros}
+              onAddParticipants={onAddParticipants}
+              onRemoveParticipant={onRemoveParticipant}
+            />
           ) : (
             <ChatRoomSingle participant={participants[0]} />
           )}

@@ -11,11 +11,9 @@ export function getNavItem({ currentUserId, conversation }) {
 
   const group = participantsInConversation.length > 1;
 
-  const displayName = participantsInConversation.map((participant) => participant.name).join(', ');
-
-  const hasOnlineInGroup = group
-    ? participantsInConversation.map((item) => item.status).includes('online')
-    : false;
+  const displayName =
+    (group && conversation.groupName) ||
+    participantsInConversation.map((participant) => participant.name).join(', ');
 
   let displayText = '';
 
@@ -33,6 +31,5 @@ export function getNavItem({ currentUserId, conversation }) {
     displayText,
     participants: participantsInConversation,
     lastActivity: lastMessage.createdAt,
-    hasOnlineInGroup,
   };
 }

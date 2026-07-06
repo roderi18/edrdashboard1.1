@@ -1,5 +1,6 @@
 import {
   doc,
+  limit,
   query,
   where,
   setDoc,
@@ -290,6 +291,8 @@ const conversationToUi = async (conversation = {}, messages = null, viewerIdMiem
       conversation.tipoConversacion === 'GRUPAL' || conversation.type === 'GROUP'
         ? 'GROUP'
         : 'ONE_TO_ONE',
+    groupName: conversation.nombreGrupo || null,
+    creatorIdMiembros: conversation.creadoPorIdMiembros ?? null,
     participants: await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto)),
     messages: loadedMessages,
     muted:
@@ -521,16 +524,26 @@ async function getAdminNotificationProfiles() {
   });
 }
 
-async function getMessages(idConversacion) {
+const DEFAULT_MESSAGES_PAGE_SIZE = 30;
+
+async function getMessages(idConversacion, { pageLimit, beforeEnviadoEn } = {}) {
   if (!idConversacion) return [];
+
+  const constraints = [orderBy('enviadoEn', 'desc')];
+
+  if (beforeEnviadoEn) {
+    constraints.push(where('enviadoEn', '<', beforeEnviadoEn));
+  }
+
+  constraints.push(limit(pageLimit || DEFAULT_MESSAGES_PAGE_SIZE));
 
   const messagesQuery = query(
     collection(FIRESTORE, COLECCION_CONVERSACIONES, String(idConversacion), SUBCOLECCION_MENSAJES),
-    orderBy('enviadoEn', 'asc')
+    ...constraints
   );
   const snapshot = await getDocs(messagesQuery);
 
-  return snapshot.docs.map((item) => item.data());
+  return snapshot.docs.map((item) => item.data()).reverse();
 }
 
 function buildConversationId({ tipoConversacion, participantesIds, providedId }) {
@@ -612,6 +625,7 @@ async function createConversation(conversationData = {}) {
   const conversationDoc = {
     idConversacion,
     tipoConversacion,
+    nombreGrupo: tipoConversacion === 'GRUPAL' ? conversationData.groupName || null : null,
     participantesIds,
     participantes,
     creadoPorIdMiembros: primerMensaje.remitenteIdMiembros ?? participantesIds[0],
@@ -861,6 +875,8 @@ async function updateConversationAction({
   action,
   viewerIdMiembros = null,
   comment = '',
+  newParticipants = [],
+  targetIdMiembros = null,
 }) {
   const existingConversation = await getConversationDoc(conversationId);
 
@@ -870,6 +886,20 @@ async function updateConversationAction({
 
   const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
   const viewerId = toNumberOrNull(viewerIdMiembros);
+
+  if (action === 'typing') {
+    if (!viewerId) {
+      throw new Error('No se pudo identificar el miembro que está escribiendo.');
+    }
+
+    await setDoc(
+      conversationRef,
+      { escribiendoPorIdMiembros: { [String(viewerId)]: nowIso() } },
+      { merge: true }
+    );
+
+    return null;
+  }
 
   if (action === 'toggle-mute') {
     if (!viewerId) {
@@ -987,6 +1017,93 @@ async function updateConversationAction({
     );
   }
 
+  if (action === 'add-participants') {
+    const candidatos = asArray(newParticipants);
+    const [members, firestoreProfiles] = await Promise.all([
+      getMembersFromApi().catch(() => []),
+      getMembersFromFirestoreProfiles().catch(() => []),
+    ]);
+    const contacts = getAllContacts([...members, ...firestoreProfiles]);
+
+    const nuevosParticipantes = candidatos
+      .map((candidato) => resolveParticipantFromContacts(candidato, contacts))
+      .filter(
+        (member) =>
+          member.idMiembros &&
+          !asArray(existingConversation.participantesIds).includes(member.idMiembros)
+      );
+
+    if (!nuevosParticipantes.length) {
+      return conversationToUi(
+        existingConversation,
+        (await getMessages(conversationId)).map(messageToUi),
+        viewerId
+      );
+    }
+
+    const participantes = [...asArray(existingConversation.participantes), ...nuevosParticipantes];
+    const participantesIds = [
+      ...new Set([
+        ...asArray(existingConversation.participantesIds),
+        ...nuevosParticipantes.map((member) => member.idMiembros),
+      ]),
+    ];
+    const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
+
+    nuevosParticipantes.forEach((member) => {
+      noLeidosPorIdMiembros[String(member.idMiembros)] = 0;
+    });
+
+    await setDoc(
+      conversationRef,
+      { participantes, participantesIds, noLeidosPorIdMiembros, tipoConversacion: 'GRUPAL' },
+      { merge: true }
+    );
+
+    return conversationToUi(
+      { ...existingConversation, participantes, participantesIds, noLeidosPorIdMiembros },
+      (await getMessages(conversationId)).map(messageToUi),
+      viewerId
+    );
+  }
+
+  if (action === 'remove-participant') {
+    if (!targetIdMiembros) {
+      throw new Error('Falta indicar el participante a quitar.');
+    }
+
+    const isCreator = Number(existingConversation.creadoPorIdMiembros) === Number(viewerId);
+    const isSelf = Number(targetIdMiembros) === Number(viewerId);
+
+    if (!isCreator && !isSelf) {
+      throw new Error('Solo el creador del grupo o el propio participante pueden salir del grupo.');
+    }
+
+    const participantesIds = asArray(existingConversation.participantesIds).filter(
+      (idMiembros) => Number(idMiembros) !== Number(targetIdMiembros)
+    );
+    const participantes = asArray(existingConversation.participantes).filter(
+      (member) => Number(member.idMiembros) !== Number(targetIdMiembros)
+    );
+    const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
+    const silenciadoPorIdMiembros = { ...(existingConversation.silenciadoPorIdMiembros ?? {}) };
+
+    delete noLeidosPorIdMiembros[String(targetIdMiembros)];
+    delete silenciadoPorIdMiembros[String(targetIdMiembros)];
+
+    await setDoc(
+      conversationRef,
+      { participantes, participantesIds, noLeidosPorIdMiembros, silenciadoPorIdMiembros },
+      { merge: true }
+    );
+
+    return conversationToUi(
+      { ...existingConversation, participantes, participantesIds, noLeidosPorIdMiembros, silenciadoPorIdMiembros },
+      (await getMessages(conversationId)).map(messageToUi),
+      viewerId
+    );
+  }
+
   throw new Error('Accion de conversacion invalida.');
 }
 
@@ -1036,6 +1153,34 @@ export async function GET(req) {
       return Response.json({
         conversation: await conversationToUi(conversation, null, viewerIdMiembros),
       });
+    }
+
+    if (endpoint === 'older-messages') {
+      const conversation = await getConversationDoc(conversationId);
+
+      if (!conversation) {
+        return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
+      }
+
+      if (
+        viewerIdMiembros &&
+        !asArray(conversation.participantesIds).some(
+          (idMiembros) => Number(idMiembros) === Number(viewerIdMiembros)
+        )
+      ) {
+        return Response.json(
+          { message: 'No tienes acceso a esta conversación.' },
+          { status: 403 }
+        );
+      }
+
+      const before = searchParams.get('before');
+      const olderMessages = await getMessages(conversationId, {
+        pageLimit: DEFAULT_MESSAGES_PAGE_SIZE,
+        beforeEnviadoEn: before,
+      });
+
+      return Response.json({ messages: olderMessages.map(messageToUi) });
     }
 
     if (endpoint === 'mark-as-seen') {
@@ -1090,12 +1235,23 @@ export async function PATCH(req) {
     ensureFirestore();
 
     const body = await req.json();
-    const conversation = ['toggle-mute', 'report', 'clear'].includes(body.action)
+    const conversationActions = [
+      'toggle-mute',
+      'report',
+      'clear',
+      'typing',
+      'add-participants',
+      'remove-participant',
+    ];
+
+    const conversation = conversationActions.includes(body.action)
       ? await updateConversationAction({
           conversationId: body.conversationId,
           action: body.action,
           viewerIdMiembros: toNumberOrNull(body.idMiembros),
           comment: body.comment,
+          newParticipants: body.newParticipants,
+          targetIdMiembros: toNumberOrNull(body.targetIdMiembros),
         })
       : await updateMessageAction({
           conversationId: body.conversationId,

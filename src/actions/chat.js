@@ -18,18 +18,20 @@ const swrOptions = {
 };
 
 const CHAT_CONTACTS_REFRESH_INTERVAL = 0;
-const CHAT_CONVERSATIONS_REFRESH_INTERVAL = 10000;
-const CHAT_CONVERSATION_REFRESH_INTERVAL = 5000;
+// El polling ahora es solo una red de seguridad: el push en tiempo real
+// (useChatRealtimeSync) es quien dispara la revalidación real vía mutate().
+const CHAT_CONVERSATIONS_REFRESH_INTERVAL = 45000;
+const CHAT_CONVERSATION_REFRESH_INTERVAL = 45000;
 
 // ----------------------------------------------------------------------
 
 const isChatKey = (key, endpoint) =>
   Array.isArray(key) && key[0] === CHAT_ENDPOINT && key[1]?.params?.endpoint === endpoint;
 
-const isConversationKey = (key, conversationId) =>
+export const isConversationKey = (key, conversationId) =>
   isChatKey(key, 'conversation') && String(key[1]?.params?.conversationId) === String(conversationId);
 
-const isConversationsKey = (key) => isChatKey(key, 'conversations');
+export const isConversationsKey = (key) => isChatKey(key, 'conversations');
 
 export function useGetContacts(enabled = true) {
   const url = enabled ? [CHAT_ENDPOINT, { params: { endpoint: 'contacts' } }] : '';
@@ -628,6 +630,106 @@ export async function reportConversation(conversationId, idMiembros, comment) {
       }),
   });
 }
+
+export async function setTyping(conversationId, idMiembros) {
+  try {
+    await axios.patch(CHAT_ENDPOINT, {
+      action: 'typing',
+      conversationId,
+      idMiembros,
+    });
+  } catch (error) {
+    // Best-effort: un fallo al anunciar "escribiendo" no debe interrumpir al usuario.
+    console.error('[chat] no se pudo anunciar el estado de escritura', error);
+  }
+}
+
+// ----------------------------------------------------------------------
+
+export async function loadOlderMessages(conversationId, oldestTimestamp, idMiembros) {
+  const res = await axios.get(CHAT_ENDPOINT, {
+    params: {
+      endpoint: 'older-messages',
+      conversationId,
+      before: oldestTimestamp,
+      idMiembros,
+    },
+  });
+
+  const olderMessages = res.data?.messages ?? [];
+
+  const prependMessages = (messages = []) => {
+    const existingIds = new Set(messages.map((message) => message.id));
+    const uniqueOlder = olderMessages.filter((message) => !existingIds.has(message.id));
+
+    return [...uniqueOlder, ...messages];
+  };
+
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) => {
+      if (!currentData?.conversation) return currentData;
+
+      return {
+        ...currentData,
+        conversation: {
+          ...currentData.conversation,
+          messages: prependMessages(currentData.conversation.messages),
+        },
+      };
+    },
+    { revalidate: false }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => {
+      if (!currentData?.conversations) return currentData;
+
+      return {
+        ...currentData,
+        conversations: currentData.conversations.map((conversation) =>
+          String(conversation.id) === String(conversationId)
+            ? { ...conversation, messages: prependMessages(conversation.messages) }
+            : conversation
+        ),
+      };
+    },
+    { revalidate: false }
+  );
+
+  return { hasMore: olderMessages.length >= 30 };
+}
+
+// ----------------------------------------------------------------------
+
+export async function addParticipants(conversationId, idMiembros, newParticipants) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'add-participants',
+        conversationId,
+        idMiembros,
+        newParticipants,
+      }),
+  });
+}
+
+export async function removeParticipant(conversationId, idMiembros, targetIdMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'remove-participant',
+        conversationId,
+        idMiembros,
+        targetIdMiembros,
+      }),
+  });
+}
+
+// ----------------------------------------------------------------------
 
 export async function clearConversation(conversationId, idMiembros) {
   await mutateConversation({

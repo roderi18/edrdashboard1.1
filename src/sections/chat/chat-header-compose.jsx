@@ -12,12 +12,14 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function ChatHeaderCompose({ contacts, onAddRecipients }) {
+export function ChatHeaderCompose({ contacts, onAddRecipients, groupName, onChangeGroupName }) {
   const [searchRecipients, setSearchRecipients] = useState('');
+  const [selectedRecipients, setSelectedRecipients] = useState([]);
 
   const handleAddRecipients = useCallback(
     (selected) => {
       setSearchRecipients('');
+      setSelectedRecipients(selected);
       onAddRecipients(selected);
     },
     [onAddRecipients]
@@ -100,6 +102,16 @@ export function ChatHeaderCompose({ contacts, onAddRecipients }) {
           ))
         }
       />
+
+      {selectedRecipients.length > 1 && (
+        <TextField
+          size="small"
+          value={groupName}
+          onChange={(event) => onChangeGroupName?.(event.target.value)}
+          placeholder="Nombre del grupo (opcional)"
+          sx={{ ml: 2, minWidth: { md: 220 } }}
+        />
+      )}
     </>
   );
 }

@@ -4,7 +4,13 @@ import { fSub } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
 
-export function initialConversation({ message = '', recipients, me, replyMessage = null }) {
+export function initialConversation({
+  message = '',
+  recipients,
+  me,
+  replyMessage = null,
+  groupName = '',
+}) {
   const isGroup = recipients.length > 1;
 
   const messageData = {
@@ -28,6 +34,7 @@ export function initialConversation({ message = '', recipients, me, replyMessage
     messages: [messageData],
     participants: [...recipients, me],
     type: isGroup ? 'GROUP' : 'ONE_TO_ONE',
+    groupName: isGroup ? groupName || null : null,
     unreadCount: 0,
   };
 

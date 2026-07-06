@@ -22,6 +22,8 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { ChatHeaderSkeleton } from './chat-skeleton';
+import { PRESENCE_LABELS } from './utils/presence-labels';
+import { usePresenceStatus } from './hooks/use-presence-status';
 
 // ----------------------------------------------------------------------
 
@@ -110,38 +112,58 @@ export function ChatHeaderDetails({
     }
   }, [onClear]);
 
+  const groupDisplayName =
+    conversation?.groupName || participants.map((participant) => participant.name).join(', ');
+
   const renderGroup = () => (
-    <AvatarGroup
-      max={3}
-      sx={{
-        [`& .${avatarGroupClasses.avatar}`]: {
-          width: 32,
-          height: 32,
-        },
-      }}
-    >
-      {participants.map((participant, index) => (
-        <Avatar
-          key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
-          alt={participant.name}
-          src={participant.avatarUrl}
-        />
-      ))}
-    </AvatarGroup>
+    <Box sx={{ gap: 2, display: 'flex', alignItems: 'center', minWidth: 0 }}>
+      <AvatarGroup
+        max={3}
+        sx={{
+          [`& .${avatarGroupClasses.avatar}`]: {
+            width: 32,
+            height: 32,
+          },
+        }}
+      >
+        {participants.map((participant, index) => (
+          <Avatar
+            key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
+            alt={participant.name}
+            src={participant.avatarUrl}
+          />
+        ))}
+      </AvatarGroup>
+
+      <ListItemText
+        primary={groupDisplayName}
+        secondary={`${participants.length} participantes`}
+        slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }}
+      />
+    </Box>
+  );
+
+  const singleParticipantPresence = usePresenceStatus(
+    singleParticipant?.idMiembros ?? singleParticipant?.id
   );
 
   const renderSingle = () => (
     <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-      <Badge variant={singleParticipant?.status} badgeContent=" ">
+      <Badge
+        variant={singleParticipantPresence.status}
+        badgeContent=" "
+        overlap="circular"
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
         <Avatar src={singleParticipant?.avatarUrl} alt={singleParticipant?.name} />
       </Badge>
 
       <ListItemText
         primary={singleParticipant?.name}
         secondary={
-          singleParticipant?.status === 'offline'
-            ? fToNow(singleParticipant?.lastActivity)
-            : singleParticipant?.status
+          singleParticipantPresence.status === 'offline'
+            ? fToNow(singleParticipantPresence.lastActivity)
+            : PRESENCE_LABELS[singleParticipantPresence.status]
         }
       />
     </Box>

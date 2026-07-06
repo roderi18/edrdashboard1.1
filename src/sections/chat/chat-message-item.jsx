@@ -89,12 +89,40 @@ const formatChatTime = (input) => {
   return value.toLowerCase().startsWith('hace ') ? value : `hace ${value}`;
 };
 
-const renderMessageTextWithOrderLinks = (text = '', metadata = {}) =>
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightMentions = (text, participants = []) => {
+  const names = participants.map((participant) => participant.name).filter(Boolean);
+
+  if (!names.length || !String(text).includes('@')) {
+    return text;
+  }
+
+  const mentionRegex = new RegExp(`(@(?:${names.map(escapeRegExp).join('|')}))`, 'g');
+
+  return String(text)
+    .split(mentionRegex)
+    .map((part, index) =>
+      names.some((name) => part === `@${name}`) ? (
+        <Box
+          key={`mention-${part}-${index}`}
+          component="span"
+          sx={{ color: 'primary.main', fontWeight: 700 }}
+        >
+          {part}
+        </Box>
+      ) : (
+        part
+      )
+    );
+};
+
+const renderMessageTextWithOrderLinks = (text = '', metadata = {}, participants = []) =>
   String(text)
     .split(ORDER_NUMBER_REGEX)
     .map((part, index) => {
       if (!ORDER_NUMBER_EXACT_REGEX.test(part)) {
-        return part;
+        return highlightMentions(part, participants);
       }
 
       const orderHref = metadata?.ordenId
@@ -112,7 +140,7 @@ const renderMessageTextWithOrderLinks = (text = '', metadata = {}) =>
       );
     });
 
-const renderSharedFileLink = (text = '', metadata = {}) => {
+const renderSharedFileLink = (text = '', metadata = {}, participants = []) => {
   const sharedFile = metadata?.sharedFile;
   const label = String(sharedFile?.name || '').trim();
   const href = sharedFile?.url;
@@ -134,15 +162,15 @@ const renderSharedFileLink = (text = '', metadata = {}) => {
 
       {!!sharedFile.message && (
         <Box component="span" sx={{ display: 'block', mt: 0.75 }}>
-          {renderMessageTextWithOrderLinks(sharedFile.message, metadata)}
+          {renderMessageTextWithOrderLinks(sharedFile.message, metadata, participants)}
         </Box>
       )}
     </>
   );
 };
 
-const renderMessageBodyText = (text = '', metadata = {}) => {
-  const sharedFileLink = renderSharedFileLink(text, metadata);
+const renderMessageBodyText = (text = '', metadata = {}, participants = []) => {
+  const sharedFileLink = renderSharedFileLink(text, metadata, participants);
 
   if (sharedFileLink) {
     return sharedFileLink;
@@ -152,7 +180,7 @@ const renderMessageBodyText = (text = '', metadata = {}) => {
     .split(MISSING_FILE_INSTRUCTION)
     .map((part, index, parts) => (
       <Box component="span" key={`message-part-${index}`} sx={{ display: 'contents' }}>
-        {renderMessageTextWithOrderLinks(part, metadata)}
+        {renderMessageTextWithOrderLinks(part, metadata, participants)}
         {index < parts.length - 1 && (
           <Typography
             component="span"
@@ -393,7 +421,7 @@ export function ChatMessageItem({
           )}
 
           <Typography component="span" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-            {renderMessageBodyText(body, message.metadata)}
+            {renderMessageBodyText(body, message.metadata, participants)}
           </Typography>
         </>
       )}

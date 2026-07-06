@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
@@ -20,14 +20,13 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { usePresenceStatus } from './hooks/use-presence-status';
+import { PRESENCE_STATUS_OPTIONS } from './utils/presence-labels';
+import { usePresenceHeartbeat } from './hooks/use-presence-heartbeat';
+
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [
-  { value: 'online', label: 'En línea' },
-  { value: 'always', label: 'Siempre disponible' },
-  { value: 'busy', label: 'Ocupado' },
-  { value: 'offline', label: 'Desconectado' },
-];
+const STATUS_OPTIONS = PRESENCE_STATUS_OPTIONS;
 
 export function ChatNavAccount({ currentContact }) {
   const { user } = useAuthContext();
@@ -35,11 +34,23 @@ export function ChatNavAccount({ currentContact }) {
 
   const menuActions = usePopover();
 
+  const idMiembros = currentContact?.idMiembros;
+  const { setManualOverride } = usePresenceHeartbeat(idMiembros);
+  const ownPresence = usePresenceStatus(idMiembros);
   const [status, setStatus] = useState('online');
 
-  const handleChangeStatus = useCallback((event) => {
-    setStatus(event.target.value);
-  }, []);
+  useEffect(() => {
+    if (ownPresence.status) setStatus(ownPresence.status);
+  }, [ownPresence.status]);
+
+  const handleChangeStatus = useCallback(
+    (event) => {
+      const nextStatus = event.target.value;
+      setStatus(nextStatus);
+      setManualOverride(nextStatus);
+    },
+    [setManualOverride]
+  );
 
   const renderMenuActions = () => (
     <CustomPopover

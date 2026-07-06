@@ -12,7 +12,13 @@ import { useRouter } from 'src/routes/hooks';
 
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
-import { sendMessage, editMessage, addLocalMessage, createConversation } from 'src/actions/chat';
+import {
+  setTyping,
+  sendMessage,
+  editMessage,
+  addLocalMessage,
+  createConversation,
+} from 'src/actions/chat';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -126,6 +132,8 @@ const buildAttachmentMessage = ({ upload, senderId, contentType }) => ({
 export function ChatMessageInput({
   disabled,
   recipients,
+  groupName,
+  participants = [],
   currentContact,
   onAddRecipients,
   replyMessage,
@@ -140,16 +148,26 @@ export function ChatMessageInput({
 
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastTypingSentAtRef = useRef(0);
+  const inputRef = useRef(null);
 
   const [message, setMessage] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState(CHAT_EMOJI_CATEGORIES[0].label);
+  const [mentionQuery, setMentionQuery] = useState(null);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const currentEmojiCategory =
     CHAT_EMOJI_CATEGORIES.find((category) => category.label === emojiCategory) ||
     CHAT_EMOJI_CATEGORIES[0];
+
+  const mentionCandidates =
+    mentionQuery !== null
+      ? participants.filter((participant) =>
+          participant.name?.toLowerCase().includes(mentionQuery.toLowerCase())
+        )
+      : [];
 
   useEffect(() => {
     if (editingMessage) {
@@ -181,6 +199,7 @@ export function ChatMessageInput({
     recipients,
     me: currentContact,
     replyMessage,
+    groupName,
   });
 
   const handleOpenImages = useCallback(() => {
@@ -191,12 +210,33 @@ export function ChatMessageInput({
     fileInputRef.current?.click();
   }, []);
 
-  const handleChangeMessage = useCallback((event) => {
-    setMessage(event.target.value);
-  }, []);
+  const handleChangeMessage = useCallback(
+    (event) => {
+      const value = event.target.value;
+      setMessage(value);
+
+      const mentionMatch = value.match(/(?:^|\s)@(\w*)$/);
+      setMentionQuery(mentionMatch ? mentionMatch[1] : null);
+
+      if (selectedConversationId && currentContact.idMiembros) {
+        const now = Date.now();
+        if (now - lastTypingSentAtRef.current > 2000) {
+          lastTypingSentAtRef.current = now;
+          setTyping(selectedConversationId, currentContact.idMiembros);
+        }
+      }
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
 
   const handleInsertEmoji = useCallback((emoji) => {
     setMessage((currentMessage) => `${currentMessage}${emoji}`);
+  }, []);
+
+  const handleSelectMention = useCallback((participant) => {
+    setMessage((currentMessage) => currentMessage.replace(/@(\w*)$/, `@${participant.name} `));
+    setMentionQuery(null);
+    inputRef.current?.focus();
   }, []);
 
   const sendAttachmentMessages = useCallback(
@@ -624,6 +664,7 @@ export function ChatMessageInput({
       </Popover>
 
       <InputBase
+        inputRef={inputRef}
         name="chat-message"
         id="chat-message-input"
         value={message}
@@ -665,6 +706,41 @@ export function ChatMessageInput({
           }),
         ]}
       />
+
+      <Popover
+        open={!!mentionCandidates.length}
+        anchorEl={inputRef.current}
+        onClose={() => setMentionQuery(null)}
+        disableAutoFocus
+        disableEnforceFocus
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { width: 240, maxHeight: 240 } } }}
+      >
+        {mentionCandidates.map((participant) => (
+          <Box
+            key={participant.idMiembros ?? participant.id}
+            component="button"
+            type="button"
+            onClick={() => handleSelectMention(participant)}
+            sx={{
+              p: 1,
+              gap: 1,
+              width: 1,
+              border: 0,
+              display: 'flex',
+              cursor: 'pointer',
+              textAlign: 'left',
+              alignItems: 'center',
+              bgcolor: 'transparent',
+              typography: 'body2',
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            {participant.name}
+          </Box>
+        ))}
+      </Popover>
 
       <Popover
         open={emojiPickerOpen}

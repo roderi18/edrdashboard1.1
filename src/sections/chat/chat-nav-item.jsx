@@ -19,6 +19,7 @@ import { clickConversation } from 'src/actions/chat';
 import { Iconify } from 'src/components/iconify';
 
 import { getNavItem } from './utils/get-nav-item';
+import { usePresenceStatuses } from './hooks/use-presence-status';
 
 // ----------------------------------------------------------------------
 
@@ -27,10 +28,22 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
-  const { group, displayName, displayText, participants, lastActivity, hasOnlineInGroup } =
-    getNavItem({ conversation, currentUserId: currentContact.id });
+  const { group, displayName, displayText, participants, lastActivity } = getNavItem({
+    conversation,
+    currentUserId: currentContact.id,
+  });
 
   const singleParticipant = participants[0];
+
+  const presenceStatuses = usePresenceStatuses(
+    participants.map((participant) => participant.idMiembros ?? participant.id)
+  );
+  const singleParticipantStatus =
+    presenceStatuses[String(singleParticipant?.idMiembros ?? singleParticipant?.id)]?.status ??
+    'offline';
+  const hasOnlineInGroup = Object.values(presenceStatuses).some(
+    (presence) => presence.status && presence.status !== 'offline'
+  );
 
   const handleClickConversation = useCallback(() => {
     if (!mdUp) {
@@ -63,7 +76,12 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
   );
 
   const renderSingle = () => (
-    <Badge variant={singleParticipant?.status} badgeContent=" ">
+    <Badge
+      variant={singleParticipantStatus}
+      badgeContent=" "
+      overlap="circular"
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
       <Avatar
         alt={singleParticipant?.name}
         src={singleParticipant?.avatarUrl}

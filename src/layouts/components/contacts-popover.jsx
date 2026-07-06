@@ -18,10 +18,14 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
 import { varTap, varHover, transitionTap } from 'src/components/animate';
 
+import { usePresenceStatuses } from 'src/sections/chat/hooks/use-presence-status';
+
 // ----------------------------------------------------------------------
 
 export function ContactsPopover({ data = [], sx, ...other }) {
   const { open, anchorEl, onClose, onOpen } = usePopover();
+
+  const presenceStatuses = usePresenceStatuses(data.map((contact) => contact.idMiembros ?? contact.id));
 
   const renderMenuList = () => (
     <CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
@@ -31,23 +35,35 @@ export function ContactsPopover({ data = [], sx, ...other }) {
 
       <Scrollbar sx={{ height: 320, width: 320 }}>
         <MenuList>
-          {data.map((contact) => (
-            <MenuItem key={contact.id} sx={{ p: 1 }}>
-              <Badge variant={contact.status} badgeContent=" ">
-                <Avatar alt={contact.name} src={contact.avatarUrl} />
-              </Badge>
+          {data.map((contact) => {
+            const presence = presenceStatuses[String(contact.idMiembros ?? contact.id)] ?? {
+              status: 'offline',
+              lastActivity: null,
+            };
 
-              <ListItemText
-                primary={contact.name}
-                secondary={contact.status === 'offline' ? fToNow(contact.lastActivity) : ''}
-                slotProps={{
-                  secondary: {
-                    sx: { typography: 'caption', color: 'text.disabled' },
-                  },
-                }}
-              />
-            </MenuItem>
-          ))}
+            return (
+              <MenuItem key={contact.id} sx={{ p: 1 }}>
+                <Badge
+                  variant={presence.status}
+                  badgeContent=" "
+                  overlap="circular"
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                >
+                  <Avatar alt={contact.name} src={contact.avatarUrl} />
+                </Badge>
+
+                <ListItemText
+                  primary={contact.name}
+                  secondary={presence.status === 'offline' ? fToNow(presence.lastActivity) : ''}
+                  slotProps={{
+                    secondary: {
+                      sx: { typography: 'caption', color: 'text.disabled' },
+                    },
+                  }}
+                />
+              </MenuItem>
+            );
+          })}
         </MenuList>
       </Scrollbar>
     </CustomPopover>
