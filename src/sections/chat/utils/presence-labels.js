@@ -11,9 +11,10 @@ export const PRESENCE_LABELS = {
   offline: 'Desconectado',
 };
 
+// Opciones que el usuario puede elegir manualmente. "Desconectado" (offline) NO
+// se incluye: ese estado solo se asigna automáticamente por inactividad/staleness.
 export const PRESENCE_STATUS_OPTIONS = [
   { value: 'online', label: PRESENCE_LABELS.online },
   { value: 'always', label: PRESENCE_LABELS.always },
   { value: 'busy', label: PRESENCE_LABELS.busy },
-  { value: 'offline', label: PRESENCE_LABELS.offline },
 ];
