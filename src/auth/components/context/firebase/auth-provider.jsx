@@ -32,6 +32,57 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
     }),
   ]);
 
+// ----------------------------------------------------------------------
+// Caché de sesión (por pestaña) para que las recargas pinten el dashboard al
+// instante mientras onAuthStateChanged revalida en segundo plano. No se
+// persiste el accessToken: se refresca al revalidar.
+
+const SESSION_CACHE_KEY = 'edr-auth-session';
+const SESSION_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+
+const readCachedSession = () => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_CACHE_KEY);
+
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!parsed?.user || !parsed?.cachedAt || Date.now() - parsed.cachedAt > SESSION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(SESSION_CACHE_KEY);
+      return null;
+    }
+
+    return parsed.user;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedSession = (user) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (!user) {
+      window.sessionStorage.removeItem(SESSION_CACHE_KEY);
+      return;
+    }
+
+    // Se descarta el token a propósito: no se persiste en almacenamiento.
+    // eslint-disable-next-line no-unused-vars
+    const { accessToken, ...safeUser } = user;
+
+    window.sessionStorage.setItem(
+      SESSION_CACHE_KEY,
+      JSON.stringify({ user: safeUser, cachedAt: Date.now() })
+    );
+  } catch {
+    // Almacenamiento no disponible (modo privado, cuota, etc.): se ignora.
+  }
+};
+
 const isAdminRole = (role) =>
   ['admin', 'administrador'].includes(String(role ?? '').trim().toLowerCase());
 
@@ -229,6 +280,7 @@ export function AuthProvider({ children }) {
       try {
         if (!isFirebaseConfigured || !AUTH) {
           setState({ user: null, loading: false });
+          writeCachedSession(null);
           delete axios.defaults.headers.common.Authorization;
           return;
         }
@@ -296,6 +348,7 @@ export function AuthProvider({ children }) {
           } else if (isSocialAuthUser(authUser)) {
             await _signOut(AUTH).catch(() => {});
             setState({ user: null, loading: false });
+            writeCachedSession(null);
             delete axios.defaults.headers.common.Authorization;
             return;
           } else {
@@ -305,7 +358,9 @@ export function AuthProvider({ children }) {
             );
           }
 
-          setState({ user: { ...sessionUser, accessToken }, loading: false });
+          const resolvedUser = { ...sessionUser, accessToken };
+          setState({ user: resolvedUser, loading: false });
+          writeCachedSession(resolvedUser);
 
           if (accessToken) {
             axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -315,18 +370,35 @@ export function AuthProvider({ children }) {
         }
 
         setState({ user: null, loading: false });
+        writeCachedSession(null);
         delete axios.defaults.headers.common.Authorization;
       } catch (error) {
         console.error(error);
         setState({ user: null, loading: false });
+        writeCachedSession(null);
       }
     },
     [setState]
   );
 
+  // Hidratación instantánea desde el caché (una sola vez, en cliente): evita el
+  // splash "Verificando tu acceso" en las recargas. onAuthStateChanged revalida
+  // enseguida y corrige/renueva el token o cierra la sesión si ya no es válida.
+  useEffect(() => {
+    if (!isFirebaseConfigured || !AUTH) return;
+
+    const cachedUser = readCachedSession();
+
+    if (cachedUser) {
+      setState({ user: cachedUser, loading: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!isFirebaseConfigured || !AUTH) {
       setState({ user: null, loading: false });
+      writeCachedSession(null);
       delete axios.defaults.headers.common.Authorization;
       return undefined;
     }
@@ -341,6 +413,7 @@ export function AuthProvider({ children }) {
   const checkUserSession = useCallback(async () => {
     if (!isFirebaseConfigured || !AUTH) {
       setState({ user: null, loading: false });
+      writeCachedSession(null);
       delete axios.defaults.headers.common.Authorization;
       return;
     }
