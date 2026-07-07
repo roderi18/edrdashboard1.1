@@ -6,9 +6,12 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { esES } from '@mui/x-data-grid/locales';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -29,11 +32,14 @@ import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
+import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { ProductMobileCard } from '../product-mobile-card';
 import { useCheckoutContext } from '../../checkout/context';
 import { ProductTableToolbar } from '../product-table-toolbar';
+import { ProductTableFiltersResult } from '../product-table-filters-result';
 import {
   RenderCellStock,
   RenderCellPrice,
@@ -68,11 +74,14 @@ const renderTwoLineHeader = (firstLine, secondLine) => (
 // ----------------------------------------------------------------------
 
 export function ProductListView() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
   const { products, productsLoading } = useGetProducts();
   const { user } = useAuthContext();
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
+  const [mobileSearch, setMobileSearch] = useState('');
 
   const [tableData, setTableData] = useState(products);
   const [selectedRows, setSelectedRows] = useState({
@@ -104,6 +113,14 @@ export function ProductListView() {
     inputData: tableData,
     filters: filters.state,
   });
+
+  const mobileData = mobileSearch.trim()
+    ? dataFiltered.filter((product) =>
+        String(product.name || '')
+          .toLowerCase()
+          .includes(mobileSearch.trim().toLowerCase())
+      )
+    : dataFiltered;
 
   const handleDeleteRow = useCallback(async (id) => {
     await eliminarProductoFirestore(id, user);
@@ -217,6 +234,94 @@ export function ProductListView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
+        {isMobile ? (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={mobileSearch}
+                onChange={(event) => setMobileSearch(event.target.value)}
+                placeholder="Buscar producto..."
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+
+              <TableToolbarMobileFilter
+                hasActiveFilters={canReset}
+                filtersConfig={[
+                  {
+                    key: 'stock',
+                    label: 'Existencias',
+                    value: filters.state.stock,
+                    onChange: (event) => filters.setState({ stock: event.target.value }),
+                    options: PRODUCT_STOCK_OPTIONS,
+                  },
+                  ...(!isMemberUser
+                    ? [
+                        {
+                          key: 'renglon',
+                          label: 'Renglón',
+                          value: filters.state.renglon,
+                          onChange: (event) => filters.setState({ renglon: event.target.value }),
+                          options: PRODUCT_RENGLON_OPTIONS,
+                        },
+                        {
+                          key: 'publish',
+                          label: 'Publicación',
+                          value: filters.state.publish,
+                          onChange: (event) => filters.setState({ publish: event.target.value }),
+                          options: PUBLISH_OPTIONS,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </Box>
+
+            {canReset && (
+              <ProductTableFiltersResult
+                filters={filters}
+                totalResults={dataFiltered.length}
+                sx={{ mb: 2 }}
+              />
+            )}
+
+            {productsLoading ? (
+              <EmptyContent title="Cargando productos..." />
+            ) : !mobileData.length ? (
+              <EmptyContent title="No se encontraron resultados" />
+            ) : (
+              <Box
+                sx={{
+                  gap: 1.5,
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                }}
+              >
+                {mobileData.map((product) => (
+                  <ProductMobileCard
+                    key={product.id}
+                    product={product}
+                    isMemberUser={isMemberUser}
+                    detailsHref={paths.dashboard.product.details(product.id)}
+                    onEdit={(id) => paths.dashboard.product.edit(id)}
+                    onPublish={handlePublishRow}
+                    onDelete={handleDeleteRow}
+                    onAddToCart={handleAddProductToCart}
+                  />
+                ))}
+              </Box>
+            )}
+          </>
+        ) : (
         <Card
           sx={{
             minHeight: 640,
@@ -278,6 +383,7 @@ export function ProductListView() {
             }}
           />
         </Card>
+        )}
       </DashboardContent>
 
       {renderConfirmDialog()}
