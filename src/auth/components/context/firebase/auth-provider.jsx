@@ -244,9 +244,15 @@ export function AuthProvider({ children }) {
             .trim()
             .toLowerCase();
           const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
-          const memberAccess = (await withTimeout(loadMemberAccessProfile(authUser), null)) ?? {};
+
+          // Lookups independientes en paralelo para no apilar timeouts secuenciales.
+          const [memberAccessResult, adminProfileByUid] = await Promise.all([
+            withTimeout(loadMemberAccessProfile(authUser), null),
+            withTimeout(loadAdminProfile(authUser.uid), null),
+          ]);
+          const memberAccess = memberAccessResult ?? {};
           const adminProfile =
-            (await withTimeout(loadAdminProfile(authUser.uid), null)) ??
+            adminProfileByUid ??
             (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
             null;
           const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;

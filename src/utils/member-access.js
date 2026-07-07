@@ -1043,6 +1043,41 @@ export const loadMemberAccessProfile = async (authUser) => {
     return null;
   }
 
+  // Ruta rápida: si el perfil de Firestore ya trae idMiembros, resolvemos la
+  // sesión sin descargar TODA la lista de miembros desde la API externa
+  // (systexploradores.somee.com), que es el mayor cuello de botella del login.
+  // La lista solo hace falta para emparejar a un usuario que aún no tiene perfil.
+  if (profileByUid?.idMiembros) {
+    const idMiembros = Number(profileByUid.idMiembros);
+    const minimalMember = {
+      id: idMiembros,
+      idDestacamento:
+        profileByUid?.alcance?.destacamentos?.[0] ?? profileByUid?.idDestacamento ?? null,
+      email: profileByUid?.correo ?? email,
+      name: profileByUid?.nombre ?? '',
+      memberId: profileByUid?.codigoMiembro ?? '',
+    };
+    const profile = normalizeMemberProfile(profileByUid, minimalMember, authUser);
+    const photoURL = await getActiveMemberPhotoUrl(idMiembros);
+
+    // Sincronización de usuarios_roles fuera de la ruta crítica (no se espera).
+    void syncRoleProfileByAuthUid({
+      authUser,
+      sourceProfile: profileByUid,
+      profile,
+      member: minimalMember,
+    });
+
+    return {
+      member: minimalMember,
+      profile: {
+        ...profile,
+        photoURL: photoURL || profile.photoURL,
+      },
+      accessToken: authUser?.accessToken ?? null,
+    };
+  }
+
   const loginValue = email.split('@')[0];
   const normalizedLogin = normalizeMemberUsername(
     isMemberAuth
@@ -1120,7 +1155,8 @@ export const loadMemberAccessProfile = async (authUser) => {
   const profile = normalizeMemberProfile(sourceProfile, member, authUser);
   const photoURL = await getActiveMemberPhotoUrl(profile.idMiembros ?? member.id);
 
-  await syncRoleProfileByAuthUid({ authUser, sourceProfile, profile, member });
+  // Sincronización fuera de la ruta crítica (no se espera): no debe retrasar el login.
+  void syncRoleProfileByAuthUid({ authUser, sourceProfile, profile, member });
 
   return {
     member,
