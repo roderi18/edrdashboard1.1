@@ -710,7 +710,12 @@ const getAuthorizationPermissionCodes = (user = {}) =>
       .filter((permission) => !excludedPermissions.has(permission));
   })();
 
-const hasStoreAdminAccess = (user = {}) => STORE_ADMIN_ROLE_IDS.has(getUserRoleId(user));
+// Solo el administrador de gestión de la tienda puede administrar productos
+// (crear/editar/publicar/eliminar). Por auditoría y por tratarse de dinero,
+// ningún otro administrador —ni el global— tiene acceso a esa gestión.
+export const hasStoreAdminAccess = (user = {}) => STORE_ADMIN_ROLE_IDS.has(getUserRoleId(user));
+
+export const canManageStoreProducts = (user = {}) => hasStoreAdminAccess(user);
 
 const hasExplicitAdminPermissions = (permissions = {}) =>
   hasExplicitPermissions(permissions) &&

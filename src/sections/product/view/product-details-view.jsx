@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { useSearchParams } from 'src/routes/hooks';
 
-import { isMemberSessionUser } from 'src/utils/member-access';
+import { canManageStoreProducts } from 'src/utils/member-access';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -71,7 +71,7 @@ export function ProductDetailsView({ product, productId }) {
   const [publish, setPublish] = useState('');
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
   const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
-  const isMemberUser = isMemberSessionUser(user);
+  const canManageStore = canManageStoreProducts(user);
 
   useEffect(() => {
     setTabValue(selectedTab);
@@ -143,7 +143,7 @@ export function ProductDetailsView({ product, productId }) {
             publish={publish}
             onChangePublish={handleChangePublish}
             publishOptions={PRODUCT_PUBLISH_OPTIONS}
-            isMemberUser={isMemberUser}
+            canManageStore={canManageStore}
           />
 
           <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>

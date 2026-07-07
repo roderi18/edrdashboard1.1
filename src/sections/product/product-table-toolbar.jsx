@@ -36,6 +36,7 @@ export function ProductTableToolbar({
   selectedRowCount,
   onOpenConfirmDeleteRows,
   isMemberUser = false,
+  canManageStore = false,
   /********/
   settings,
   onChangeSettings,
@@ -138,7 +139,7 @@ export function ProductTableToolbar({
 
   const renderRightPanel = () => (
     <>
-      {!isMemberUser && !!selectedRowCount && (
+      {canManageStore && !!selectedRowCount && (
         <Button
           size="small"
           color="error"

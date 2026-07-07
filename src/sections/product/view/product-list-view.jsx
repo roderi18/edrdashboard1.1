@@ -16,7 +16,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { isMemberSessionUser } from 'src/utils/member-access';
+import { isMemberSessionUser, canManageStoreProducts } from 'src/utils/member-access';
 
 import { PRODUCT_STOCK_OPTIONS } from 'src/_mock';
 import { useGetProducts } from 'src/actions/product';
@@ -31,6 +31,7 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
@@ -83,6 +84,12 @@ export function ProductListView() {
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
   const [mobileSearch, setMobileSearch] = useState('');
 
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
+  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const setDisplayMode = useCallback((nextMode) => {
+    setSelectedDisplayMode(nextMode);
+  }, []);
+
   const [tableData, setTableData] = useState(products);
   const [selectedRows, setSelectedRows] = useState({
     type: 'include',
@@ -97,6 +104,8 @@ export function ProductListView() {
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const isMemberUser = isMemberSessionUser(user);
+  // Solo el gestor de la tienda administra productos (auditoría / dinero).
+  const canManageStore = canManageStoreProducts(user);
 
   useEffect(() => {
     setTableData(
@@ -182,6 +191,7 @@ export function ProductListView() {
     onPublishRow: handlePublishRow,
     onAddProductToCart: handleAddProductToCart,
     isMemberUser,
+    canManageStore,
   });
 
   const renderConfirmDialog = () => (
@@ -220,21 +230,29 @@ export function ProductListView() {
             { name: 'Lista' },
           ]}
           action={
-            !isMemberUser ? (
-              <Button
-                component={RouterLink}
-                href={paths.dashboard.product.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Agregar producto
-              </Button>
-            ) : null
+            <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center' }}>
+              <ViewModeToggle
+                value={displayMode}
+                onChange={setDisplayMode}
+                storageKey="global-display-mode"
+              />
+
+              {canManageStore && (
+                <Button
+                  component={RouterLink}
+                  href={paths.dashboard.product.new}
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Agregar producto
+                </Button>
+              )}
+            </Box>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
-        {isMobile ? (
+        {displayMode === 'grid' ? (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <TextField
@@ -303,7 +321,12 @@ export function ProductListView() {
                 sx={{
                   gap: 1.5,
                   display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                    lg: 'repeat(4, 1fr)',
+                  },
                 }}
               >
                 {mobileData.map((product) => (
@@ -311,6 +334,7 @@ export function ProductListView() {
                     key={product.id}
                     product={product}
                     isMemberUser={isMemberUser}
+                    canManageStore={canManageStore}
                     detailsHref={paths.dashboard.product.details(product.id)}
                     onEdit={(id) => paths.dashboard.product.edit(id)}
                     onPublish={handlePublishRow}
@@ -361,6 +385,7 @@ export function ProductListView() {
                     renglones: PRODUCT_RENGLON_OPTIONS,
                   }}
                   isMemberUser={isMemberUser}
+                  canManageStore={canManageStore}
                   /********/
                   settings={toolbarOptions.settings}
                   onChangeSettings={toolbarOptions.onChangeSettings}
@@ -393,7 +418,13 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMemberUser }) => {
+const useGetColumns = ({
+  onDeleteRow,
+  onPublishRow,
+  onAddProductToCart,
+  isMemberUser,
+  canManageStore,
+}) => {
   const theme = useTheme();
 
   const columns = useMemo(
@@ -424,7 +455,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         field: 'precioRegistrado',
         headerName: 'Precio Dests. Registrados',
         width: 145,
-        editable: true,
+        editable: canManageStore,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
@@ -432,7 +463,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         field: 'precioNoRegistrado',
         headerName: 'Precio Dests. NO Registrados',
         width: 155,
-        editable: true,
+        editable: canManageStore,
         renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
@@ -466,7 +497,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         type: 'actions',
         field: 'actions',
         headerName: ' ',
-        width: isMemberUser ? 96 : 64,
+        width: isMemberUser || canManageStore ? 96 : 64,
         align: 'right',
         headerAlign: 'right',
         sortable: false,
@@ -492,7 +523,7 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
             />,
           ];
 
-          if (!isMemberUser) {
+          if (canManageStore) {
             if (params.row.publish !== 'published') {
               actions.push(
                 <CustomGridActionsCellItem
@@ -525,7 +556,14 @@ const useGetColumns = ({ onDeleteRow, onPublishRow, onAddProductToCart, isMember
         },
       },
     ],
-    [onDeleteRow, onPublishRow, onAddProductToCart, isMemberUser, theme.vars.palette.error.main]
+    [
+      onDeleteRow,
+      onPublishRow,
+      onAddProductToCart,
+      isMemberUser,
+      canManageStore,
+      theme.vars.palette.error.main,
+    ]
   );
 
   return columns;

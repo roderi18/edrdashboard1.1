@@ -25,6 +25,7 @@ export function ProductMobileCard({
   product,
   detailsHref,
   isMemberUser = false,
+  canManageStore = false,
   onView,
   onEdit,
   onPublish,
@@ -142,21 +143,21 @@ export function ProductMobileCard({
             </MenuItem>
           )}
 
-          {!isMemberUser && !isPublished && (
+          {canManageStore && !isPublished && (
             <MenuItem onClick={handleAction(() => onPublish?.(product.id))}>
               <Iconify icon="solar:check-circle-bold" />
               Publicar
             </MenuItem>
           )}
 
-          {!isMemberUser && (
+          {canManageStore && (
             <MenuItem component={RouterLink} href={onEdit?.(product.id)} onClick={menu.onClose}>
               <Iconify icon="solar:pen-bold" />
               Editar
             </MenuItem>
           )}
 
-          {!isMemberUser && [
+          {canManageStore && [
             <Divider key="divider" sx={{ borderStyle: 'dashed' }} />,
             <MenuItem
               key="delete"

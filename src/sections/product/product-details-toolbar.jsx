@@ -22,7 +22,7 @@ export function ProductDetailsToolbar({
   liveHref,
   publishOptions,
   onChangePublish,
-  isMemberUser = false,
+  canManageStore = false,
   ...other
 }) {
   const menuActions = usePopover();
@@ -76,7 +76,7 @@ export function ProductDetailsToolbar({
 
         <Box sx={{ flexGrow: 1 }} />
 
-        {!isMemberUser && publish === 'published' && (
+        {canManageStore && publish === 'published' && (
           <Tooltip title="Ir en vivo">
             <IconButton component={RouterLink} href={liveHref}>
               <Iconify icon="eva:external-link-fill" />
@@ -84,7 +84,7 @@ export function ProductDetailsToolbar({
           </Tooltip>
         )}
 
-        {!isMemberUser && (
+        {canManageStore && (
           <>
             <Tooltip title="Editar">
               <IconButton component={RouterLink} href={editHref}>
@@ -107,7 +107,7 @@ export function ProductDetailsToolbar({
         )}
       </Box>
 
-      {!isMemberUser && renderMenuActions()}
+      {canManageStore && renderMenuActions()}
     </>
   );
 }
