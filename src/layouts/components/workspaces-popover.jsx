@@ -31,15 +31,15 @@ const SUBROLES_POR_ROL = {
   // "Coordinador de Destacamento" es ahora el rol en si (primer item), por eso
   // no se repite aqui como cargo.
   [ROLES.USUARIO_DESTACAMENTO]: [
-    { label: 'Pastor' },
+    { label: 'Pastor', rolCodigo: ROLES.PASTOR_DESTACAMENTO },
     {
       label: 'Coordinador Asistente de Destacamento',
       rolCodigo: ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
     },
-    { label: 'Consejo Destacamento' },
-    { label: 'Capellán' },
-    { label: 'Líder de Grupo' },
-    { label: 'Líder Asistente de Grupo' },
+    { label: 'Consejo Destacamento', rolCodigo: ROLES.CONSEJO_DESTACAMENTO },
+    { label: 'Capellán', rolCodigo: ROLES.CAPELLAN_DESTACAMENTO },
+    { label: 'Líder de Grupo', rolCodigo: ROLES.LIDER_GRUPO },
+    { label: 'Líder Asistente de Grupo', rolCodigo: ROLES.LIDER_ASISTENTE_GRUPO },
   ],
   // "Coordinador Seccional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_SECCION]: [
