@@ -20,7 +20,7 @@ const getDirectorName = (regional) =>
 
 // ----------------------------------------------------------------------
 
-export function RegionalCard({ regional, sx, ...other }) {
+export function RegionalCard({ regional, disabledCounts = false, sx, ...other }) {
   const regionalId = getRegionalId(regional);
   const directorId = getDirectorId(regional);
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
@@ -49,7 +49,9 @@ export function RegionalCard({ regional, sx, ...other }) {
               {
                 icon: 'mingcute:location-fill',
                 text: `${sectionalCount} secci\u00f3n${Number(sectionalCount) === 1 ? '' : 'es'}`,
-                href: `/dashboard/level/sectional?region=${encodeURIComponent(regionalName)}`,
+                href: disabledCounts
+                  ? ''
+                  : `/dashboard/level/sectional?region=${encodeURIComponent(regionalName)}`,
               },
             ]
           : []),
@@ -58,7 +60,7 @@ export function RegionalCard({ regional, sx, ...other }) {
               {
                 icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
-                href: regionalId ? `/dashboard/level/dest?region=${regionalId}` : '',
+                href: disabledCounts || !regionalId ? '' : `/dashboard/level/dest?region=${regionalId}`,
               },
             ]
           : []),

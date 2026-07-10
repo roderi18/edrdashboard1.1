@@ -20,6 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { isRegionWideSectionViewer } from 'src/utils/member-access';
 import { canEditRegional, canDeleteOrgLevel } from 'src/utils/org-level-access';
 
 import { _roles } from 'src/_mock';
@@ -115,6 +116,9 @@ const getMemberDestId = (member = {}) =>
 export function RegionalListView() {
   const { user } = useAuthContext();
   const canManage = canManageOrgLevels(user);
+  // Cargos de solo lectura (p. ej. Lider de Grupo): los contadores de las
+  // regionales se muestran deshabilitados (sin enlace y atenuados).
+  const disabledCounts = isRegionWideSectionViewer(user);
   const table = useTable();
 
   const confirmDialog = useBoolean();
@@ -426,6 +430,7 @@ export function RegionalListView() {
                         editHref={paths.dashboard.level.regional.edit(row.id)}
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
+                        disabledCounts={disabledCounts}
                       />
                     )}
                     notFound={notFound}
@@ -452,7 +457,9 @@ export function RegionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <RegionalCardList regionals={dataFiltered} />}
+        {displayMode !== 'panel' && (
+          <RegionalCardList regionals={dataFiltered} disabledCounts={disabledCounts} />
+        )}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

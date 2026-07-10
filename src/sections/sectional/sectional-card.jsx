@@ -31,7 +31,7 @@ const getRegionalName = (sectional) => {
 
 // ----------------------------------------------------------------------
 
-export function SectionalCard({ sectional, sx, ...other }) {
+export function SectionalCard({ sectional, disabled = false, sx, ...other }) {
   const sectionalId = getSectionalId(sectional);
   const directorId = getDirectorId(sectional);
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
@@ -47,6 +47,7 @@ export function SectionalCard({ sectional, sx, ...other }) {
     <CompactEntityCard
       title={sectionalName}
       href={editHref}
+      disabled={disabled}
       avatarUrl={getSectionalAvatar(sectional)}
       fallbackText={sectionalName}
       lines={[

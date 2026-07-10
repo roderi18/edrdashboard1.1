@@ -4,9 +4,9 @@ import dayjs from 'dayjs';
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { doc, setDoc, collection } from 'firebase/firestore';
 import { getApp, deleteApp, initializeApp } from 'firebase/app';
 import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, where, query, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 
 // mui
 import Box from '@mui/material/Box';
@@ -30,8 +30,8 @@ import { useRouter } from 'src/routes/hooks';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
-import { buildDefaultMemberPermissions } from 'src/utils/member-access';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { isGroupLeaderRole, buildDefaultMemberPermissions } from 'src/utils/member-access';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
@@ -66,12 +66,17 @@ import {
   obtenerCargosMiembroApi,
 } from 'src/services/cargos-api-service';
 import {
+  CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO,
+  obtenerAsignacionesOrganigramaPorDestacamento,
+} from 'src/services/organigrama-directiva-destacamentos-service';
+import {
   DIVISIONES_DIRECTIVA,
-  obtenerCargosDirectivaCached,
   guardarAsignacionDirectiva,
+  obtenerCargosDirectivaCached,
   obtenerAsignacionesDirectivaPorMiembro,
 } from 'src/services/directivas-organizacionales-service';
 import {
+  crearNotificacionAdmin,
   crearNotificacionCuentaCreada,
   crearNotificacionMiembroCreado,
   crearNotificacionMiembroActualizado,
@@ -196,7 +201,7 @@ const createFirebaseAuthForMember = async ({
     return { uid: credential.user.uid, emailFake, username, password };
   } finally {
     if (secondaryAuth?.app) {
-      deleteApp(secondaryAuth.app).catch(() => {});
+      deleteApp(secondaryAuth.app).catch(() => { });
     }
   }
 };
@@ -369,6 +374,140 @@ const mapMemberToForm = (member) => {
 
 export function MemberCreateEditForm({ currentMember, readOnly = false, availableDests = [] }) {
   const { user } = useAuthContext();
+  // Lider de Grupo / Lider Asistente: no pueden editar destacamento, posicion en
+  // el destacamento, sexo ni Instructor CI (se muestran deshabilitados).
+  const lockGroupLeaderFields = isGroupLeaderRole(user);
+  // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
+  // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
+  const [approvalRequested, setApprovalRequested] = useState(false);
+  const [sendingApproval, setSendingApproval] = useState(false);
+
+  // Resuelve los ids con los que se puede direccionar a un miembro (por su
+  // idMiembros): uid de su cuenta, idUsuario, id del documento y codigoMiembro.
+  // El panel de notificaciones filtra por `uid` del usuario, por eso hay que
+  // incluir el uid real del coordinador y no solo su idMiembros.
+  const resolverDestinatariosPorIdMiembros = async (idMiembros) => {
+    const ids = new Set();
+    const agregarDesdeData = (documento) => {
+      const data = documento.data() || {};
+      [data.uid, data.idUsuario, documento.id, data.codigoMiembro]
+        .filter(Boolean)
+        .forEach((valor) => ids.add(String(valor)));
+    };
+
+    await Promise.all([
+      // Busqueda por campo idMiembros (numero) en ambas colecciones.
+      ...['usuarios_roles', 'users'].map(async (coleccion) => {
+        const snapshot = await getDocs(
+          query(collection(FIRESTORE, coleccion), where('idMiembros', '==', Number(idMiembros)))
+        ).catch(() => null);
+
+        snapshot?.docs?.forEach(agregarDesdeData);
+      }),
+      // Los docs de usuarios_roles suelen llavearse por el idMiembros: lectura
+      // directa como respaldo si el campo se guardo como texto.
+      (async () => {
+        const directo = await getDoc(
+          doc(FIRESTORE, 'usuarios_roles', String(idMiembros))
+        ).catch(() => null);
+
+        if (directo?.exists()) {
+          agregarDesdeData(directo);
+        }
+      })(),
+    ]);
+
+    return [...ids];
+  };
+
+  const notificarCoordinadoresDestacamento = async () => {
+    const destacamentoId = Number(currentMember?.destId || currentMember?.idDestacamento) || null;
+
+    if (!destacamentoId) {
+      toast.info('No se pudo identificar el destacamento del miembro.');
+      return;
+    }
+
+    const asignaciones = await obtenerAsignacionesOrganigramaPorDestacamento(destacamentoId);
+    const cargosCoordinacion = [
+      CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento,
+      CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorAsistenteDestacamento,
+    ];
+    const destinatarios = asignaciones.filter((asignacion) =>
+      cargosCoordinacion.includes(asignacion.cargo)
+    );
+
+    if (!destinatarios.length) {
+      toast.info('Este destacamento aún no tiene coordinador asignado en la directiva.');
+      return;
+    }
+
+    const nombreMiembro =
+      `${watch('firstName') || ''} ${watch('lastName') || ''}`.trim() ||
+      currentMember?.memberId ||
+      'un miembro';
+    const nombreSolicitante =
+      user?.displayName ||
+      [user?.nombres, user?.apellidos].filter(Boolean).join(' ') ||
+      'Un líder de grupo';
+
+    let enviadas = 0;
+
+    await Promise.all(
+      destinatarios.map(async (asignacion) => {
+        const idsDestinatarios = await resolverDestinatariosPorIdMiembros(asignacion.idMiembros);
+
+        if (!idsDestinatarios.length) {
+          console.warn(
+            '[member form] coordinador sin cuenta de usuario para notificar',
+            asignacion.idMiembros
+          );
+          return;
+        }
+
+        // El coordinador de destacamento es una sesion de administrador, por lo
+        // que la notificacion debe crearse como "admin" (una notificacion de tipo
+        // "usuario" se le oculta a los administradores en el panel).
+        const resultado = await crearNotificacionAdmin({
+          tipoNotificacion: 'solicitud_cambio_miembro',
+          modulo: 'miembros',
+          titulo: 'Solicitud de cambio de miembro',
+          mensaje: `${nombreSolicitante} solicita aprobar cambios en ${nombreMiembro}.`,
+          prioridad: 'informativa',
+          entidadTipo: 'miembro',
+          entidadId: String(currentMember?.id || ''),
+          ruta: currentMember?.id
+            ? `/dashboard/level/member/${currentMember.id}/edit`
+            : '/dashboard',
+          etiquetaAccion: 'Revisar',
+          actorId: user?.uid || user?.id || 'sistema',
+          actorNombre: nombreSolicitante,
+          idsDestinatariosPrecalculados: idsDestinatarios,
+        });
+
+        if (resultado) enviadas += 1;
+      })
+    );
+
+    if (!enviadas) {
+      throw new Error('No se pudo entregar la notificación a ningún coordinador.');
+    }
+  };
+
+  const handleRequestApproval = async () => {
+    setSendingApproval(true);
+
+    try {
+      await notificarCoordinadoresDestacamento();
+      setApprovalRequested(true);
+      toast.success('Se envió una notificación a tus Coordinadores.');
+    } catch (approvalError) {
+      console.error('[member form] no se pudo enviar la solicitud de aprobacion', approvalError);
+      toast.error('No se pudo enviar la solicitud a tus Coordinadores.');
+    } finally {
+      setSendingApproval(false);
+    }
+  };
   const LEADERSHIP_ASSIGNMENTS = getLeadershipAssignments();
   const [dests, setDests] = useState([]);
   const [divisions, setDivisions] = useState([]);
@@ -541,7 +680,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     watch,
     control,
     handleSubmit,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting, errors, isDirty },
   } = methods;
 
   const birthdate = watch('birthdate');
@@ -1104,10 +1243,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         if (!res.ok) {
           throw new Error(
             responseData?.message ||
-              responseData?.Message ||
-              responseData?.error ||
-              text ||
-              `Error de red o servidor (${res.status})`
+            responseData?.Message ||
+            responseData?.error ||
+            text ||
+            `Error de red o servidor (${res.status})`
           );
         }
 
@@ -1570,19 +1709,24 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                       </>
                     )}
 
-                     <MemberLeadershipAndOtherSection
-                        watch={watch}
-                        methods={methods}
-                        isCreateView={false}
-                        isEdit
-                        dests={dests}
-                     />
-
-                    <MemberInstructorCISection
-                      instructorCI={instructorCI}
-                      diasRestantesCI={diasRestantesCI}
+                    <MemberLeadershipAndOtherSection
+                      watch={watch}
+                      methods={methods}
+                      isCreateView={false}
                       isEdit
+                      dests={dests}
+                      lockCoreFields={lockGroupLeaderFields}
                     />
+
+                    {/* Instructor CI: oculto por completo para Lider de Grupo /
+                        Lider Asistente de Grupo. */}
+                    {!lockGroupLeaderFields && (
+                      <MemberInstructorCISection
+                        instructorCI={instructorCI}
+                        diasRestantesCI={diasRestantesCI}
+                        isEdit
+                      />
+                    )}
                   </>
                 )}
 
@@ -1641,86 +1785,91 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                       methods={methods}
                       isCreateView
                       dests={dests}
+                      lockCoreFields={lockGroupLeaderFields}
                     />
-                    <Box
-                      sx={{
-                        gridColumn: '1 / -1',
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        my: 1,
-                      }}
-                    >
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-                      <Typography
-                        sx={{
-                          mx: 2,
-                          typography: 'subtitle2',
-                          color: 'text.secondary',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Instructor CI
-                      </Typography>
-
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                    </Box>
-
-                    <Field.Select
-                      name="InstructorCertificadoCI"
-                      label="?Instructor Certificado?"
-                    >
-                      <MenuItem value={1}>S?</MenuItem>
-                      <MenuItem value={0}>No</MenuItem>
-                    </Field.Select>
-
-                    {instructorCI === 1 && (
+                    {/* Instructor CI: oculto por completo para Lider de Grupo /
+                        Lider Asistente de Grupo. */}
+                    {!lockGroupLeaderFields && (
                       <>
-                        <Field.Select
-                          name="EstatusVigenciaCI"
-                          label="Estatus vigencia CI"
-                          defaultValue="na"
+                        <Box
                           sx={{
-                            '& .MuiSelect-icon': {
-                              display: 'none',
-                            },
+                            gridColumn: '1 / -1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            my: 1,
                           }}
-                          disabled
                         >
-                          <MenuItem value={1}>Activo</MenuItem>
-                          <MenuItem value={0}>Inactivo</MenuItem>
-                          <MenuItem value="na">N/A</MenuItem>
+                          <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+
+                          <Typography
+                            sx={{
+                              mx: 2,
+                              typography: 'subtitle2',
+                              color: 'text.secondary',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Instructor CI
+                          </Typography>
+
+                          <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
+                        </Box>
+
+                        <Field.Select
+                          name="InstructorCertificadoCI"
+                          label="?Instructor Certificado?"
+                        >
+                          <MenuItem value={1}>S?</MenuItem>
+                          <MenuItem value={0}>No</MenuItem>
                         </Field.Select>
 
-                        <Field.DatePicker
-                          name="FechaInicioCI"
-                          label="Fecha inicio CI"
-                          format="DD/MM/YYYY"
-                          views={['year', 'month', 'day']}
-                          minDate={dayjs().subtract(5, 'year').add(1, 'day')}
-                          maxDate={dayjs()}
-                        />
-                        <Field.DatePicker
-                          name="FechaVencimientoCI"
-                          label={`Fecha vencimiento CI${
-                            diasRestantesCI !== null && diasRestantesCI <= 365
-                              ? ` (${
-                                  diasRestantesCI >= 0
-                                    ? `${diasRestantesCI} d?as restantes`
-                                    : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
+                        {instructorCI === 1 && (
+                          <>
+                            <Field.Select
+                              name="EstatusVigenciaCI"
+                              label="Estatus vigencia CI"
+                              defaultValue="na"
+                              sx={{
+                                '& .MuiSelect-icon': {
+                                  display: 'none',
+                                },
+                              }}
+                              disabled
+                            >
+                              <MenuItem value={1}>Activo</MenuItem>
+                              <MenuItem value={0}>Inactivo</MenuItem>
+                              <MenuItem value="na">N/A</MenuItem>
+                            </Field.Select>
+
+                            <Field.DatePicker
+                              name="FechaInicioCI"
+                              label="Fecha inicio CI"
+                              format="DD/MM/YYYY"
+                              views={['year', 'month', 'day']}
+                              minDate={dayjs().subtract(5, 'year').add(1, 'day')}
+                              maxDate={dayjs()}
+                            />
+                            <Field.DatePicker
+                              name="FechaVencimientoCI"
+                              label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
+                                ? ` (${diasRestantesCI >= 0
+                                  ? `${diasRestantesCI} d?as restantes`
+                                  : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
                                 })`
-                              : ''
-                          }`}
-                          format="DD/MM/YYYY"
-                          views={['year', 'month', 'day']}
-                          disabled
-                          sx={{
-                            '& .MuiInputAdornment-root': {
-                              display: 'none',
-                            },
-                          }}
-                        />
+                                : ''
+                                }`}
+                              format="DD/MM/YYYY"
+                              views={['year', 'month', 'day']}
+                              disabled
+                              sx={{
+                                '& .MuiInputAdornment-root': {
+                                  display: 'none',
+                                },
+                              }}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </>
@@ -1758,11 +1907,22 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                   )}
 
                   {/* SOLO EDIT */}
-                  {!isCreateView && (
-                    <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                      Guardar cambios
-                    </LoadingButton>
-                  )}
+                  {!isCreateView &&
+                    (lockGroupLeaderFields ? (
+                      <LoadingButton
+                        type="button"
+                        variant="contained"
+                        loading={sendingApproval}
+                        disabled={approvalRequested || !isDirty}
+                        onClick={handleRequestApproval}
+                      >
+                        {approvalRequested ? 'Pendiente aprobación' : 'Enviar cambios a aprobación'}
+                      </LoadingButton>
+                    ) : (
+                      <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                        Guardar cambios
+                      </LoadingButton>
+                    ))}
                 </Stack>
               )}
               {!readOnly && formErrorMessage && (

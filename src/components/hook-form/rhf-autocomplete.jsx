@@ -35,10 +35,14 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
           renderOption={
             renderOption ||
             ((props, option, state) => {
-              const { key, ...optionProps } = props;
+              // Se ignora `props.key` de MUI (por defecto es la etiqueta, que se
+              // duplica cuando dos opciones tienen el mismo nombre). Se usa una
+              // key propia que incluye el indice para garantizar unicidad.
+              const optionProps = { ...props };
+              delete optionProps.key;
 
               return (
-                <li key={key ?? `${name}-${getDefaultOptionKey(option, state.index)}`} {...optionProps}>
+                <li key={`${name}-${getDefaultOptionKey(option, state.index)}`} {...optionProps}>
                   {autocompleteProps.getOptionLabel?.(option) ?? option?.label ?? option?.name ?? option}
                 </li>
               );

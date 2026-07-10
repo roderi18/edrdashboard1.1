@@ -7,10 +7,11 @@ import Avatar from '@mui/material/Avatar';
 import Skeleton from '@mui/material/Skeleton';
 import ListItemText from '@mui/material/ListItemText';
 
+import { RouterLink } from 'src/routes/components';
+
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 
 import { Iconify } from 'src/components/iconify';
-import { RouterLink } from 'src/routes/components';
 
 // ----------------------------------------------------------------------
 
@@ -37,6 +38,7 @@ export function CompactEntityCardSkeleton() {
 export const CompactEntityCard = memo(function CompactEntityCard({
   title,
   href = '#',
+  disabled = false,
   avatarUrl = '',
   fallbackText = '?',
   lines = [],
@@ -46,13 +48,15 @@ export const CompactEntityCard = memo(function CompactEntityCard({
 }) {
   const [avatarLoaded, setAvatarLoaded] = useState(false);
   const initial = String(fallbackText || title || '?').charAt(0);
-  const titleColor = isUnknownLabel(title) ? 'text.disabled' : 'inherit';
+  const titleColor = disabled || isUnknownLabel(title) ? 'text.disabled' : 'inherit';
 
   useEffect(() => {
     setAvatarLoaded(false);
   }, [avatarUrl]);
 
   const canUseHref = (hrefValue, textValue) => {
+    if (disabled) return false;
+
     const normalizedText = String(textValue ?? '')
       .trim()
       .toLowerCase();
@@ -81,6 +85,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
           alignItems: 'center',
           minHeight: 88,
           p: theme.spacing(3, rightImage ? 8 : 2, 3, 3),
+          ...(disabled && { opacity: 0.72, cursor: 'default' }),
         }),
         ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
       ]}

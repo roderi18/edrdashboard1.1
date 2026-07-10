@@ -5,9 +5,30 @@ import { normalizeText } from './normalize-text';
 // ----------------------------------------------------------------------
 
 export const ADMIN_ROLE_IDS = [
+  // Nivel destacamento: titular y todos los cargos que comparten su perfil
+  // (asistente, pastor, consejo, capellan, lideres de grupo).
   ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
+  // Nivel seccion: titular, asistente y coordinadores de area.
   ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_SECCION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
+  ROLES.COORDINADOR_PROMOCION_SECCION,
+  ROLES.COORDINADOR_PRODUCCION_SECCION,
+  ROLES.COORDINADOR_PROGRAMA_SECCION,
+  // Nivel region: titular, asistente y coordinadores de area.
   ROLES.USUARIO_REGION,
+  ROLES.USUARIO_REGION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_REGION,
+  ROLES.COORDINADOR_PROMOCION_REGION,
+  ROLES.COORDINADOR_PRODUCCION_REGION,
+  ROLES.COORDINADOR_PROGRAMA_REGION,
+  // Administradores.
   ROLES.ADMINISTRADOR_GLOBAL,
   ROLES.ADMINISTRADOR_FUNCIONAL,
   ROLES.ADMINISTRADOR_TIENDA,
@@ -42,7 +63,8 @@ export const isDestacamentoAdminRole = (user = {}) => {
     user?.roleCodigo ||
     (ROLES_POR_CODIGO[rawRole] ? rawRole : '');
 
-  return roleId === ROLES.USUARIO_DESTACAMENTO;
+  // El Coordinador Asistente de Destacamento se comporta al 100% como el titular.
+  return roleId === ROLES.USUARIO_DESTACAMENTO || roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE;
 };
 
 export const getAdminRoleName = (user = {}) => {

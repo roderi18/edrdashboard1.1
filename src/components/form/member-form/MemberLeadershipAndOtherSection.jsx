@@ -41,6 +41,9 @@ export default function MemberLeadershipAndOtherSection({
     isCreateView,
     isEdit,
     dests: initialDests = [],
+    // Bloquea destacamento, posicion en el destacamento y sexo (p. ej. para
+    // Lider de Grupo / Lider Asistente de Grupo).
+    lockCoreFields = false,
 }) {
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
@@ -93,12 +96,14 @@ export default function MemberLeadershipAndOtherSection({
                     NIVELES_DIRECTIVA.seccional,
                 ]}
                 groupByLevel
+                disabled={lockCoreFields}
             />
 
             {/* Destacamento */}
             <Field.Autocomplete
                 name="destId"
                 label="Tu Destacamento"
+                disabled={lockCoreFields}
                 options={dests}
                 freeSolo={false}
                 value={dests.find((d) => String(d.id) === String(watch('destId'))) || null}
@@ -120,12 +125,14 @@ export default function MemberLeadershipAndOtherSection({
                 niveles={[NIVELES_DIRECTIVA.destacamento]}
                 groupByDivision
                 includeNone
+                disabled={lockCoreFields}
             />
 
             {/* Sexo */}
             <Field.Autocomplete
                 name="gender"
                 label="Sexo"
+                disabled={lockCoreFields}
                 options={MEMBER_GENDERS}
                 getOptionLabel={(option) =>
                     typeof option === 'string' ? option : option?.label || ''

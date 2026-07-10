@@ -184,10 +184,22 @@ const normalizeScopeList = (...values) =>
 
 const normalizeScopeId = (value) => String(value ?? '').trim();
 
-const getScopeUserRoleId = (user = {}) =>
-  String(user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.memberRole || '')
+const getScopeUserRoleId = (user = {}) => {
+  const roleId = String(
+    user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.memberRole || ''
+  )
     .trim()
     .toLowerCase();
+
+  // El Coordinador Asistente de Destacamento comparte alcance y visibilidad al
+  // 100% con el Coordinador de Destacamento (titular). Se normaliza aqui para
+  // que todas las reglas de acceso a miembros lo traten exactamente igual.
+  if (roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE) {
+    return ROLES.USUARIO_DESTACAMENTO;
+  }
+
+  return roleId;
+};
 
 const isSectionWideRole = (user = {}) =>
   [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
@@ -497,6 +509,36 @@ export const filterDestsByMemberScope = (dests = [], user, context = {}) => {
   );
 };
 
+// Cargos que ven todas las secciones de SU region (no del pais), pero solo
+// pueden interactuar con su propia seccion; el resto se muestra deshabilitado.
+const REGION_WIDE_SECTION_VIEWER_ROLE_IDS = [
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
+  ROLES.CONSEJO_DESTACAMENTO,
+];
+
+const getSectionalOwnId = (sectional = {}) =>
+  normalizeScopeId(sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId);
+
+const getSectionalRegionId = (sectional = {}) =>
+  normalizeScopeId(sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId);
+
+export const isRegionWideSectionViewer = (user = {}) =>
+  REGION_WIDE_SECTION_VIEWER_ROLE_IDS.includes(getScopeUserRoleId(user));
+
+// Lider de Grupo y Lider Asistente de Grupo: editan miembros de su destacamento
+// pero con campos estructurales/sensibles bloqueados (destacamento, posicion en
+// el destacamento, sexo e Instructor CI).
+const GROUP_LEADER_ROLE_IDS = [ROLES.LIDER_GRUPO, ROLES.LIDER_ASISTENTE_GRUPO];
+
+export const isGroupLeaderRole = (user = {}) =>
+  GROUP_LEADER_ROLE_IDS.includes(getScopeUserRoleId(user));
+
+// Ids de la(s) seccion(es) propias del usuario (a las que esta asignado). Para
+// los cargos de destacamento se resuelven a partir de su destacamento.
+export const getOwnSectionIdsForUser = (user = {}, { dests = [], churches = [] } = {}) =>
+  resolveSectionIdsForUser(user, { dests, churches }) || new Set();
+
 export const filterSectionalsByMemberScope = (
   sectionals = [],
   user,
@@ -504,6 +546,31 @@ export const filterSectionalsByMemberScope = (
 ) => {
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
+
+  // Cargos con visibilidad de toda su region: se listan unicamente las secciones
+  // de la region a la que pertenece su propia seccion. Las demas regiones se
+  // ocultan por completo; el marcado de "propia vs ajena" (para deshabilitar la
+  // interaccion) lo aplica la vista con isRegionWideSectionViewer/own ids.
+  if (isRegionWideSectionViewer(user)) {
+    const ownSectionIds = getOwnSectionIdsForUser(user, { dests, churches });
+
+    if (!ownSectionIds.size) {
+      return [];
+    }
+
+    const ownRegionIds = new Set(
+      sectionals
+        .filter((sectional) => ownSectionIds.has(getSectionalOwnId(sectional)))
+        .map(getSectionalRegionId)
+        .filter(Boolean)
+    );
+
+    if (!ownRegionIds.size) {
+      return sectionals.filter((sectional) => ownSectionIds.has(getSectionalOwnId(sectional)));
+    }
+
+    return sectionals.filter((sectional) => ownRegionIds.has(getSectionalRegionId(sectional)));
+  }
 
   // El administrador de destacamento puede consultar todas las secciones
   // (solo lectura); los administradores de seccion y region tambien ven todas.

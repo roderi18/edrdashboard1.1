@@ -23,6 +23,33 @@ import { resolverNotificacionConConfiguracion } from 'src/services/notification-
 
 const ADMIN_ROLE_VALUES = ['admin', 'administrador'];
 
+const chunkArray = (array = [], size = 30) => {
+  const chunks = [];
+
+  for (let index = 0; index < array.length; index += size) {
+    chunks.push(array.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+// Firestore limita el operador `in` a 30 valores. ADMIN_ROLE_IDS incluye todos
+// los roles/cargos organizacionales y puede superar ese limite, por lo que la
+// consulta se divide en lotes y se combinan los documentos resultantes.
+const getDocsByFieldIn = async (collectionName, field, values = []) => {
+  const batches = chunkArray(values, 30);
+
+  const snapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(FIRESTORE, collectionName), where(field, 'in', batch))).catch(() => ({
+        docs: [],
+      }))
+    )
+  );
+
+  return { docs: snapshots.flatMap((snapshot) => snapshot.docs) };
+};
+
 const getProfileKeys = (profile = {}, fallbackId = '') =>
   [
     profile.uid,
@@ -81,12 +108,8 @@ export const obtenerAdministradores = async () => {
       getDocs(
         query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ADMIN_ROLE_VALUES))
       ).catch(() => ({ docs: [] })),
-      getDocs(
-        query(collection(FIRESTORE, 'usuarios_roles'), where('rolId', 'in', ADMIN_ROLE_IDS))
-      ).catch(() => ({ docs: [] })),
-      getDocs(
-        query(collection(FIRESTORE, 'usuarios_roles'), where('roleId', 'in', ADMIN_ROLE_IDS))
-      ).catch(() => ({ docs: [] })),
+      getDocsByFieldIn('usuarios_roles', 'rolId', ADMIN_ROLE_IDS),
+      getDocsByFieldIn('usuarios_roles', 'roleId', ADMIN_ROLE_IDS),
     ]);
   const profilesByKey = new Map();
 

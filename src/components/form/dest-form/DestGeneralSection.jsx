@@ -22,9 +22,18 @@ export default function DestGeneralSection({
 }) {
     const params = useParams();
     const destId = params?.id;
-    const membersCount = members?.filter(
-        (m) => m.destId === destId
-    )?.length || 0;
+
+    // Un miembro pertenece a este destacamento si su id de destacamento coincide
+    // (se contemplan las distintas variantes del campo). En la vista de creacion
+    // aun no hay destacamento, por lo que no se filtra.
+    const normalizeId = (value) => String(value ?? '').trim();
+    const belongsToDest = (member) =>
+        [member?.destId, member?.idDestacamento, member?.destacamentoId].some(
+            (value) => value !== undefined && value !== null && normalizeId(value) === normalizeId(destId)
+        );
+    const destMembers =
+        destId && Array.isArray(members) ? members.filter(belongsToDest) : members || [];
+    const membersCount = destMembers.length;
     return (
         <>
             <Box
@@ -101,7 +110,7 @@ export default function DestGeneralSection({
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
                 disabled={disabled}
-                options={Array.isArray(members) ? members : []}
+                options={destMembers}
                 value={
                     watch('coordinatorId')
                         ? members.find((m) => m.memberId === watch('coordinatorId')) || null

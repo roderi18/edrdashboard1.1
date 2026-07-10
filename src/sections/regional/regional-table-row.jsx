@@ -25,6 +25,7 @@ export function RegionalTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  disabledCounts = false,
 }) {
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
@@ -39,6 +40,20 @@ export function RegionalTableRow({
   const directorAvatarUrl = row.directorAvatarUrl;
   const directorPhoneNumber = row.directorPhoneNumber || '';
   const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);
+
+  // Para cargos con visibilidad de solo lectura (p. ej. Lider de Grupo) los
+  // contadores de secciones/destacamentos/miembros se muestran atenuados y sin
+  // enlace.
+  const renderCount = (value, href) =>
+    disabledCounts ? (
+      <Box component="span" sx={{ color: 'text.disabled' }}>
+        {value}
+      </Box>
+    ) : (
+      <Link component={RouterLink} href={href} color="inherit" underline="always">
+        {value}
+      </Link>
+    );
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -75,40 +90,22 @@ export function RegionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/sectional?region=${encodeURIComponent(row.regionalName)}`}
-            color="inherit"
-            underline="always"
-          >
-            {row.regionalXSectionalCount}
-          </Link>
+          {renderCount(
+            row.regionalXSectionalCount,
+            `/dashboard/level/sectional?region=${encodeURIComponent(row.regionalName)}`
+          )}
         </Box>
       </TableCell>
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/dest?region=${row.id}`}
-            color="inherit"
-            underline="always"
-          >
-            {row.regionalXSectionalXDestCount}
-          </Link>
+          {renderCount(row.regionalXSectionalXDestCount, `/dashboard/level/dest?region=${row.id}`)}
         </Box>
       </TableCell>
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/member?region=${row.id}`}
-            color="inherit"
-            underline="always"
-          >
-            {row.regionalXSectionalMemberCount}
-          </Link>
+          {renderCount(row.regionalXSectionalMemberCount, `/dashboard/level/member?region=${row.id}`)}
         </Box>
       </TableCell>
 

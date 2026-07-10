@@ -42,6 +42,12 @@ import {
   updateDestApi,
   mapApiDestToUI,
 } from 'src/services/dest-service';
+import {
+  CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO,
+  obtenerAsignacionesOrganigramaPorDestacamento,
+  guardarAsignacionOrganigramaDirectivaDestacamento,
+  eliminarAsignacionOrganigramaDirectivaDestacamento,
+} from 'src/services/organigrama-directiva-destacamentos-service';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -138,6 +144,9 @@ export function DestCreateEditForm({ currentDest }) {
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
+  // Coordinador guardado en la base de datos (Firestore). `undefined` mientras no
+  // se resuelve; `null` cuando el destacamento no tiene coordinador asignado.
+  const [coordinatorFromDb, setCoordinatorFromDb] = useState(undefined);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
   const isDestacamentoAdmin = isDestacamentoAdminRole(user);
@@ -197,20 +206,48 @@ export function DestCreateEditForm({ currentDest }) {
     if (churches.length === 0) return undefined;
 
     if (isMounted) {
-      methods.reset(
-        mapDestToForm(currentDest, sectionals, regionals, churches, allMembers)
-      );
+      methods.reset({
+        ...mapDestToForm(currentDest, sectionals, regionals, churches, allMembers),
+        // El coordinador es la fuente de verdad de la base de datos (Firestore).
+        // Cuando ya se resolvio, sobreescribe el valor del cache local.
+        ...(coordinatorFromDb !== undefined ? { coordinatorId: coordinatorFromDb } : {}),
+      });
     }
 
     return () => {
       isMounted = false;
     };
-  }, [currentDest, churches, sectionals, regionals, allMembers]);
+  }, [currentDest, churches, sectionals, regionals, allMembers, coordinatorFromDb]);
 
   useEffect(() => {
     const loadData = async () => {
       const membersData = await getMembers();
-      setAllMembers(Array.isArray(membersData) ? membersData : []);
+      const normalizedMembers = Array.isArray(membersData) ? membersData : [];
+      setAllMembers(normalizedMembers);
+
+      // Coordinador de destacamento desde la base de datos (Firestore). Se mapea
+      // el idMiembros numerico guardado al `memberId` (codigo) que usa el form.
+      if (currentDest?.id) {
+        try {
+          const asignaciones = await obtenerAsignacionesOrganigramaPorDestacamento(
+            Number(currentDest.id)
+          );
+          const coordinador = asignaciones.find(
+            (asignacion) =>
+              asignacion.cargo ===
+              CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento
+          );
+          const coordinatorMember = coordinador
+            ? normalizedMembers.find(
+                (member) => String(member.id) === String(coordinador.idMiembros)
+              )
+            : null;
+
+          setCoordinatorFromDb(coordinatorMember?.memberId ?? null);
+        } catch (coordError) {
+          console.warn('[dest form] no se pudo cargar el coordinador del destacamento', coordError);
+        }
+      }
 
       const res = await fetch('/api/dest');
       const data = await res.json();
@@ -380,6 +417,44 @@ export function DestCreateEditForm({ currentDest }) {
       }
 
       const resolvedDestId = await resolveDestId(data.name, data.destNumber);
+
+      // Persistir el coordinador de destacamento en la base de datos (Firestore),
+      // en la coleccion de directiva del destacamento. El form guarda el codigo
+      // de miembro (`memberId`); Firestore requiere el `idMiembros` numerico.
+      const destIdForCoordinator = Number(resolvedDestId || currentDest?.id) || null;
+
+      if (destIdForCoordinator) {
+        try {
+          const asignacionesActuales =
+            await obtenerAsignacionesOrganigramaPorDestacamento(destIdForCoordinator);
+          const coordinadorActual = asignacionesActuales.find(
+            (asignacion) =>
+              asignacion.cargo ===
+              CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento
+          );
+          const miembroSeleccionado = data.coordinatorId
+            ? allMembers.find((member) => member.memberId === data.coordinatorId)
+            : null;
+
+          if (miembroSeleccionado?.id) {
+            await guardarAsignacionOrganigramaDirectivaDestacamento({
+              id: coordinadorActual?.id,
+              idDestacamento: destIdForCoordinator,
+              cargo: CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento,
+              idMiembros: Number(miembroSeleccionado.id),
+              orden: 1,
+            });
+            setCoordinatorFromDb(miembroSeleccionado.memberId);
+          } else if (coordinadorActual) {
+            // Se limpio el coordinador: eliminar la asignacion existente.
+            await eliminarAsignacionOrganigramaDirectivaDestacamento(coordinadorActual.id);
+            setCoordinatorFromDb(null);
+          }
+        } catch (coordError) {
+          console.warn('[dest form] no se pudo guardar el coordinador del destacamento', coordError);
+          toast.warning('El destacamento se guardó, pero no se pudo guardar el coordinador.');
+        }
+      }
 
       if (resolvedDestId) {
         saveDest({

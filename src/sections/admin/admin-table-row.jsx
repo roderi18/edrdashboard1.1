@@ -92,7 +92,7 @@ export function AdminTableRow({
           }}
         >
           <Iconify icon="solar:shield-keyhole-bold" />
-          Ver permisos
+          Administrar permisos
         </MenuItem>
 
         <MenuItem onClick={menuActions.onClose}>

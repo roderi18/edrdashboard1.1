@@ -39,6 +39,13 @@ export const isGlobalOrgManager = (user = {}) => GLOBAL_MANAGER_ROLES.includes(g
 const SCOPED_ORG_ROLES = [
   ROLES.USUARIO_DESTACAMENTO,
   ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+  // Cargos de destacamento: mismo perfil acotado que el Coordinador (nunca son
+  // administradores plenos, solo gestionan/consultan dentro de su destacamento).
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
   ROLES.USUARIO_SECCION,
   ROLES.USUARIO_SECCION_ASISTENTE,
   ROLES.USUARIO_REGION,

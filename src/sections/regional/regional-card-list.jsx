@@ -4,11 +4,13 @@ import { RegionalCard } from './regional-card';
 
 // ----------------------------------------------------------------------
 
-export function RegionalCardList({ regionals }) {
+export function RegionalCardList({ regionals, disabledCounts = false }) {
   return (
     <CompactEntityCardList
       items={regionals}
-      renderCard={(regional) => <RegionalCard key={regional.id} regional={regional} />}
+      renderCard={(regional) => (
+        <RegionalCard key={regional.id} regional={regional} disabledCounts={disabledCounts} />
+      )}
     />
   );
 }

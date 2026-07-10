@@ -5,9 +5,11 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import Popover from '@mui/material/Popover';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -20,6 +22,8 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { useAuthContext } from 'src/auth/hooks';
 import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
 import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+
+import { RolePermissionsDialog } from './role-permissions-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -99,6 +103,15 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
   const [loadingRoleId, setLoadingRoleId] = useState('');
   const [submenuAnchor, setSubmenuAnchor] = useState(null);
   const [submenuOption, setSubmenuOption] = useState(null);
+  const [permisosRol, setPermisosRol] = useState(null);
+
+  const openPermisos = useCallback((event, rolCodigo, rolNombre) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setPermisosRol({ rolCodigo, rolNombre });
+  }, []);
+
+  const closePermisos = useCallback(() => setPermisosRol(null), []);
 
   const openSubmenu = useCallback((anchor, option) => {
     setSubmenuAnchor(anchor);
@@ -111,10 +124,25 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
   }, []);
 
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
-  const selectedWorkspace = useMemo(
-    () => data.find((option) => option.id === currentRoleId) || data[0],
-    [currentRoleId, data]
-  );
+  const selectedWorkspace = useMemo(() => {
+    const match = data.find((option) => option.id === currentRoleId);
+    if (match) return match;
+
+    // El rol activo puede ser un sub-rol/cargo que no aparece en el switcher
+    // (p. ej. "Coordinador Asistente de Destacamento"). En ese caso construimos
+    // la opcion desde el catalogo para mostrar su nombre real en el boton, en
+    // lugar de caer en data[0] ("Usuario Comun").
+    const rolCatalogo = currentRoleId ? ROLES_POR_CODIGO[currentRoleId] : null;
+    if (rolCatalogo) {
+      return {
+        id: rolCatalogo.codigo,
+        name: rolCatalogo.nombre,
+        plan: rolCatalogo.alcancePredeterminado,
+      };
+    }
+
+    return data[0];
+  }, [currentRoleId, data]);
   const [workspace, setWorkspace] = useState(selectedWorkspace);
 
   useEffect(() => {
@@ -231,6 +259,21 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     onClose();
   }, [closeSubmenu, onClose]);
 
+  // Boton "i" que abre el detalle de permisos del rol. Detiene la propagacion
+  // para que no dispare el cambio de sesion del MenuItem que lo contiene.
+  const renderInfoButton = (rolCodigo, rolNombre) => (
+    <Tooltip title="Ver permisos" arrow>
+      <IconButton
+        size="small"
+        onClick={(event) => openPermisos(event, rolCodigo, rolNombre)}
+        onMouseDown={(event) => event.stopPropagation()}
+        sx={{ flexShrink: 0, ml: 0.5, color: 'text.secondary' }}
+      >
+        <Iconify width={18} icon="solar:info-circle-bold" />
+      </IconButton>
+    </Tooltip>
+  );
+
   // Item seleccionable del submenu (cambia de sesion). Se usa tanto para el
   // titular como para los sub-roles que ya tienen codigo/permisos.
   const renderSwitchMenuItem = (option) => (
@@ -239,7 +282,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       selected={option.id === workspace?.id}
       disabled={Boolean(loadingRoleId)}
       onClick={() => handleChangeWorkspace(option)}
-      sx={{ height: 48 }}
+      sx={{ height: 48, gap: 1 }}
     >
       {option.id === loadingRoleId ? (
         <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
@@ -260,6 +303,8 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       >
         {option.name}
       </Typography>
+
+      {renderInfoButton(option.id, option.name)}
     </MenuItem>
   );
 
@@ -299,7 +344,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
 
             // Cargo aun sin permisos: deshabilitado.
             return (
-              <MenuItem key={sub.label} disabled sx={{ height: 48 }}>
+              <MenuItem key={sub.label} disabled sx={{ height: 48, gap: 1 }}>
                 <Typography
                   component="span"
                   variant="body2"
@@ -351,7 +396,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
                 onMouseEnter={(event) =>
                   hasSubmenu ? openSubmenu(event.currentTarget, option) : closeSubmenu()
                 }
-                sx={{ height: 48 }}
+                sx={{ height: 48, gap: 1 }}
               >
                   {loading ? (
                     <CircularProgress size={20} sx={{ m: 0.25, flexShrink: 0 }} />
@@ -373,12 +418,14 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
                     {option.name}
                   </Typography>
 
-                  {hasSubmenu && (
+                  {hasSubmenu ? (
                     <Iconify
                       width={16}
                       icon="eva:arrow-ios-forward-fill"
                       sx={{ color: 'text.disabled', ml: 0.5 }}
                     />
+                  ) : (
+                    renderInfoButton(option.id, option.name)
                   )}
                 </MenuItem>
               );
@@ -394,6 +441,13 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     <>
       {renderButton()}
       {renderMenuList()}
+
+      <RolePermissionsDialog
+        open={Boolean(permisosRol)}
+        rolCodigo={permisosRol?.rolCodigo}
+        rolNombre={permisosRol?.rolNombre}
+        onClose={closePermisos}
+      />
     </>
   );
 }

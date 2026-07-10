@@ -23,6 +23,7 @@ export function SectionalTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  disabled = false,
 }) {
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
@@ -33,11 +34,26 @@ export function SectionalTableRow({
   const regionalName = String(row.regionalName || '').trim();
   const regionalLabel = regionalName || 'Región desconocida';
 
+  // Cuando la seccion no es la propia del usuario (cargos con visibilidad de
+  // toda la region), se muestra en modo consulta: sin enlaces y con el texto
+  // atenuado en todas las celdas.
+  const renderCount = (value, href) =>
+    disabled ? (
+      <Box component="span" sx={{ color: 'text.disabled' }}>
+        {value}
+      </Box>
+    ) : (
+      <Link component={RouterLink} href={href} color="inherit" underline="always">
+        {value}
+      </Link>
+    );
+
   return (
     <TableRow selected={selected}>
       <TableCell padding="checkbox">
         <Checkbox
           checked={selected}
+          disabled={disabled}
           onChange={onSelectRow}
           slotProps={{
             input: { id: `checkbox-${row.id}` },
@@ -47,49 +63,38 @@ export function SectionalTableRow({
 
       <CompactEntityTableCell
         title={row.sectionalName || '-'}
-        href={editHref}
+        href={disabled ? '' : editHref}
         subtitle={row.email}
         avatarUrl={row.avatarUrl}
+        linkSx={disabled ? { color: 'text.disabled' } : undefined}
       />
 
       <CompactEntityTableCell
         title={row.directorId ? directorName : 'Desconocido'}
-        href={row.directorId ? `/dashboard/level/member/${row.directorId}/edit` : ''}
+        href={disabled || !row.directorId ? '' : `/dashboard/level/member/${row.directorId}/edit`}
         subtitle={directorPhoneLabel}
-        subtitleHref={getPhoneHref(directorPhoneNumber)}
+        subtitleHref={disabled ? undefined : getPhoneHref(directorPhoneNumber)}
         avatarUrl={directorAvatarUrl}
-        linkSx={{ cursor: row.directorId ? 'pointer' : 'default' }}
+        linkSx={
+          disabled ? { color: 'text.disabled' } : { cursor: row.directorId ? 'pointer' : 'default' }
+        }
       />
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/dest?sectional=${encodeURIComponent(row.id)}`}
-            color="inherit"
-            underline="always"
-          >
-            {totalDests}
-          </Link>
+          {renderCount(totalDests, `/dashboard/level/dest?sectional=${encodeURIComponent(row.id)}`)}
         </Box>
       </TableCell>
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/member?sectional=${row.id}`}
-            color="inherit"
-            underline="always"
-          >
-            {totalMembers}
-          </Link>
+          {renderCount(totalMembers, `/dashboard/level/member?sectional=${row.id}`)}
         </Box>
       </TableCell>
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {regionalName ? (
+          {regionalName && !disabled ? (
             <Link
               component={RouterLink}
               href={`/dashboard/level/regional?sectional=${encodeURIComponent(regionalName)}`}
@@ -99,7 +104,9 @@ export function SectionalTableRow({
               {regionalLabel}
             </Link>
           ) : (
-            <Box component="span">{regionalLabel}</Box>
+            <Box component="span" sx={disabled ? { color: 'text.disabled' } : undefined}>
+              {regionalLabel}
+            </Box>
           )}
         </Box>
       </TableCell>

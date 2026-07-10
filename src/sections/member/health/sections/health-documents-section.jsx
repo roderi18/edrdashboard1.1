@@ -164,7 +164,7 @@ export function HealthDocumentsSection({
         <Card>
             <CardHeader
                 title="📁 Documentos"
-                subheader="Seguro médico y cédula de identidad del miembro"
+                subheader="Seguro médico, actas de nacimiento, cédula de identidad del miembro"
                 action={renderCollapseButton(open, onToggle)}
                 sx={{ mb: 3 }}
             />

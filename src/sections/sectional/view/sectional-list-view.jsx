@@ -19,12 +19,16 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
-import { filterSectionalsByMemberScope } from 'src/utils/member-access';
 import {
   canEditSectional,
   canDeleteOrgLevel,
   canCreateSectionalInRegion,
 } from 'src/utils/org-level-access';
+import {
+  getOwnSectionIdsForUser,
+  isRegionWideSectionViewer,
+  filterSectionalsByMemberScope,
+} from 'src/utils/member-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -208,6 +212,9 @@ export function SectionalListView() {
   const [isClient, setIsClient] = useState(false);
 
   const [regionals, setRegionals] = useState([]);
+  // Cargos que ven toda su region pero solo interactuan con su propia seccion.
+  const restrictSections = isRegionWideSectionViewer(user);
+  const [ownSectionIds, setOwnSectionIds] = useState(() => new Set());
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
@@ -288,6 +295,12 @@ export function SectionalListView() {
 
         setRegionals(regionalsData);
 
+        if (restrictSections) {
+          setOwnSectionIds(
+            getOwnSectionIdsForUser(user, { dests: destsData, churches: churchesData })
+          );
+        }
+
         const scopedSectionals = filterSectionalsByMemberScope(sectionalsData, user, {
           dests: destsData,
           churches: churchesData,
@@ -314,7 +327,7 @@ export function SectionalListView() {
     }
 
     loadData();
-  }, [user]);
+  }, [user, restrictSections]);
 
   useEffect(() => {
     if (hasAppliedUrlFilter.current) return;
@@ -353,6 +366,13 @@ export function SectionalListView() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Una seccion se muestra deshabilitada (no clickable + texto atenuado) cuando
+  // el usuario ve toda su region pero la seccion no es la suya asignada.
+  const isRowDisabled = useCallback(
+    (row) => restrictSections && !ownSectionIds.has(normalizeId(getSectionalId(row))),
+    [restrictSections, ownSectionIds]
+  );
 
   return (
     <>
@@ -496,12 +516,13 @@ export function SectionalListView() {
                       <SectionalTableRow
                         key={row.id}
                         row={row}
+                        disabled={isRowDisabled(row)}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.sectional.edit(row.id)}
-                        canManage={canEditSectional(user, row)}
-                        canDelete={canDelete}
+                        canManage={canEditSectional(user, row) && !isRowDisabled(row)}
+                        canDelete={canDelete && !isRowDisabled(row)}
                       />
                     )}
                     notFound={notFound}
@@ -528,7 +549,11 @@ export function SectionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <SectionalCardList sectionals={dataFiltered} />}
+        {displayMode !== 'panel' && (
+          <SectionalCardList
+            sectionals={dataFiltered.map((row) => ({ ...row, disabled: isRowDisabled(row) }))}
+          />
+        )}
       </DashboardContent>
 
       <CompactEntityDeleteDialog

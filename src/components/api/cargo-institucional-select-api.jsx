@@ -70,6 +70,7 @@ export default function CargoSelectApi({
   groupByDivision = false,
   includeNone = false,
   helperText,
+  disabled = false,
 }) {
   const { setValue, watch } = useFormContext();
 
@@ -164,6 +165,8 @@ export default function CargoSelectApi({
       options={options}
       value={value}
       loading={loading}
+      disabled={disabled}
+      forcePopupIcon={disabled ? false : undefined}
       onOpen={() => {
         if (hasCollapsibleGroups) {
           setOpenGroups({});

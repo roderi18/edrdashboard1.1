@@ -1,12 +1,14 @@
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
-import DashedAccordion from 'src/components/expandable/DashedAccordion';
+
 import { Field } from 'src/components/hook-form';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
 
 export default function MemberInstructorCISection({
     instructorCI,
     diasRestantesCI,
     isEdit = false,
+    disabled = false,
 }) {
 
     const Content = (
@@ -22,6 +24,8 @@ export default function MemberInstructorCISection({
             <Field.Select
                 name="InstructorCertificadoCI"
                 label="¿Instructor Certificado?"
+                disabled={disabled}
+                sx={disabled ? { '& .MuiSelect-icon': { display: 'none' } } : undefined}
             >
                 <MenuItem value={1}>Sí</MenuItem>
                 <MenuItem value={0}>No</MenuItem>
@@ -49,6 +53,7 @@ export default function MemberInstructorCISection({
                         label="Fecha inicio CI"
                         format="DD/MM/YYYY"
                         views={['year', 'month', 'day']}
+                        disabled={disabled}
                     />
 
                     <Field.DatePicker
