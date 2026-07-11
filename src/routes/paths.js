@@ -167,6 +167,7 @@ export const paths = {
         root: `${ROOTS.DASHBOARD}/level/member/`, //anteriormente /list
         profile: `${ROOTS.DASHBOARD}/level/member/profile`,
         list: `${ROOTS.DASHBOARD}/level/member`,
+        changeRequests: `${ROOTS.DASHBOARD}/level/member/solicitudes`,
         new: `${ROOTS.DASHBOARD}/level/member/new`,
         // new: `${ROOTS.DASHBOARD}/level/member/new`,
         edit: (id) => `${ROOTS.DASHBOARD}/level/member/${id}/edit`,

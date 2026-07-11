@@ -139,6 +139,11 @@ export const navData = [
             path: paths.dashboard.level.member.root,
             deepMatch: true,
           },
+          {
+            title: 'Solicitudes de cambio',
+            path: paths.dashboard.level.member.changeRequests,
+            deepMatch: true,
+          },
         ],
       },
       {

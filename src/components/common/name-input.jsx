@@ -88,8 +88,11 @@ export default function NameInput({
                 // 👉 corregir "de" solo si está entre espacios
                 value = value.replace(/\bDe\b/g, 'de');
                 // 📌 Actualiza valor en react-hook-form
-                // Solo valida si hay texto real
+                // shouldDirty marca el campo como modificado al instante (para
+                // que el boton de guardar/enviar se habilite sin esperar al blur).
+                // Solo valida si hay texto real.
                 setValue(name, value, {
+                    shouldDirty: true,
                     shouldValidate: value.trim().length > 0,
                 });
             }}

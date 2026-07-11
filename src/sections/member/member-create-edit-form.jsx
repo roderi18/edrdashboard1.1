@@ -1,5 +1,6 @@
 // third-party
 import dayjs from 'dayjs';
+import { useSearchParams } from 'next/navigation';
 // react
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -76,6 +77,13 @@ import {
   obtenerAsignacionesDirectivaPorMiembro,
 } from 'src/services/directivas-organizacionales-service';
 import {
+  ESTADOS_SOLICITUD_CAMBIO,
+  crearSolicitudCambioMiembro,
+  obtenerSolicitudCambioPorId,
+  resolverSolicitudCambioMiembro,
+  obtenerSolicitudPendientePorMiembro,
+} from 'src/services/solicitudes-cambio-miembro-service';
+import {
   crearNotificacionAdmin,
   crearNotificacionCuentaCreada,
   crearNotificacionMiembroCreado,
@@ -86,6 +94,7 @@ import {
 // components
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { ContextInfo } from 'src/components/info/context-info';
 import { UnderlineLink } from 'src/components/link/underline-link';
@@ -98,7 +107,18 @@ import MemberLeadershipAndOtherSection from 'src/components/form/member-form/Mem
 import { useAuthContext } from 'src/auth/hooks';
 
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
+import { MemberChangeRequestDialog } from './member-change-request-dialog';
 // ----------------------------------------------------------------------
+
+// Campos (de texto) que el Lider de Grupo puede proponer cambiar; el diff de la
+// solicitud de aprobacion se calcula solo sobre estos.
+const CAMPOS_SOLICITUD_CAMBIO = [
+  { name: 'firstName', label: 'Nombres' },
+  { name: 'lastName', label: 'Apellidos' },
+  { name: 'phoneNumber', label: 'Teléfono' },
+  { name: 'email', label: 'Correo' },
+  { name: 'street', label: 'Dirección' },
+];
 
 const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
 const MEMBER_PHOTO_OPTIMIZE_OPTIONS = {
@@ -382,6 +402,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const [approvalRequested, setApprovalRequested] = useState(false);
   const [sendingApproval, setSendingApproval] = useState(false);
 
+  // Solicitud de cambio abierta desde la notificacion (?solicitud=<id>). Solo se
+  // muestra a los coordinadores (no a los propios lideres de grupo).
+  const searchParams = useSearchParams();
+  const solicitudIdFromUrl = searchParams?.get('solicitud') || '';
+  const [changeRequest, setChangeRequest] = useState(null);
+  const [changeRequestOpen, setChangeRequestOpen] = useState(false);
+  const [resolvingChangeRequest, setResolvingChangeRequest] = useState(false);
+
   // Resuelve los ids con los que se puede direccionar a un miembro (por su
   // idMiembros): uid de su cuenta, idUsuario, id del documento y codigoMiembro.
   // El panel de notificaciones filtra por `uid` del usuario, por eso hay que
@@ -420,12 +448,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return [...ids];
   };
 
-  const notificarCoordinadoresDestacamento = async () => {
+  const notificarCoordinadoresDestacamento = async ({ ruta } = {}) => {
     const destacamentoId = Number(currentMember?.destId || currentMember?.idDestacamento) || null;
 
     if (!destacamentoId) {
       toast.info('No se pudo identificar el destacamento del miembro.');
-      return;
+      return 0;
     }
 
     const asignaciones = await obtenerAsignacionesOrganigramaPorDestacamento(destacamentoId);
@@ -439,7 +467,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
     if (!destinatarios.length) {
       toast.info('Este destacamento aún no tiene coordinador asignado en la directiva.');
-      return;
+      return 0;
     }
 
     const nombreMiembro =
@@ -476,9 +504,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           prioridad: 'informativa',
           entidadTipo: 'miembro',
           entidadId: String(currentMember?.id || ''),
-          ruta: currentMember?.id
-            ? `/dashboard/level/member/${currentMember.id}/edit`
-            : '/dashboard',
+          ruta:
+            ruta ||
+            (currentMember?.id ? `/dashboard/level/member/${currentMember.id}/edit` : '/dashboard'),
           etiquetaAccion: 'Revisar',
           actorId: user?.uid || user?.id || 'sistema',
           actorNombre: nombreSolicitante,
@@ -489,18 +517,66 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       })
     );
 
-    if (!enviadas) {
-      throw new Error('No se pudo entregar la notificación a ningún coordinador.');
-    }
+    return enviadas;
+  };
+
+  // Calcula el diff (antes/despues) de los campos de texto editables. `antes`
+  // sale de los valores con los que se cargo el formulario (defaultValues).
+  const construirCambiosSolicitud = () => {
+    const antes = methods.formState.defaultValues || {};
+    const ahora = methods.getValues();
+
+    return CAMPOS_SOLICITUD_CAMBIO.map(({ name, label }) => ({
+      campo: name,
+      label,
+      antes: String(antes[name] ?? ''),
+      despues: String(ahora[name] ?? ''),
+    })).filter((cambio) => cambio.antes !== cambio.despues);
   };
 
   const handleRequestApproval = async () => {
+    const cambios = construirCambiosSolicitud();
+
+    if (!cambios.length) {
+      toast.info('No hay cambios para enviar a aprobación.');
+      return;
+    }
+
     setSendingApproval(true);
 
     try {
-      await notificarCoordinadoresDestacamento();
+      const nombreMiembro =
+        `${watch('firstName') || ''} ${watch('lastName') || ''}`.trim() ||
+        currentMember?.memberId ||
+        'Miembro';
+
+      const solicitud = await crearSolicitudCambioMiembro({
+        idMiembros: currentMember?.id ? Number(currentMember.id) : null,
+        codigoMiembro: currentMember?.memberId || '',
+        nombreMiembro,
+        idDestacamento: Number(currentMember?.destId || currentMember?.idDestacamento) || null,
+        solicitadoPorUid: user?.uid || user?.id || '',
+        solicitadoPorNombre:
+          user?.displayName ||
+          [user?.nombres, user?.apellidos].filter(Boolean).join(' ') ||
+          'Líder de Grupo',
+        solicitadoPorRol: 'lider_grupo',
+        cambios,
+      });
+
+      const enviadas = await notificarCoordinadoresDestacamento({
+        ruta: currentMember?.id
+          ? `/dashboard/level/member/${currentMember.id}/edit?solicitud=${solicitud.id}`
+          : '/dashboard',
+      });
+
+      if (!enviadas) {
+        toast.warning('Se registró la solicitud, pero no se pudo notificar a un coordinador.');
+      } else {
+        toast.success('Se envió una notificación a tus Coordinadores.');
+      }
+
       setApprovalRequested(true);
-      toast.success('Se envió una notificación a tus Coordinadores.');
     } catch (approvalError) {
       console.error('[member form] no se pudo enviar la solicitud de aprobacion', approvalError);
       toast.error('No se pudo enviar la solicitud a tus Coordinadores.');
@@ -1465,6 +1541,125 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     }
   );
 
+  // Carga la solicitud de cambio pendiente del miembro (si existe). El modal se
+  // abre automaticamente cuando se llega desde la notificacion (?solicitud=<id>);
+  // en cualquier otro caso queda disponible el boton "Cambios solicitados
+  // pendientes". No aplica a los lideres de grupo (son quienes las envian).
+  useEffect(() => {
+    let activo = true;
+
+    if (lockGroupLeaderFields || !currentMember?.id) {
+      return undefined;
+    }
+
+    (async () => {
+      try {
+        const solicitud = solicitudIdFromUrl
+          ? await obtenerSolicitudCambioPorId(solicitudIdFromUrl)
+          : await obtenerSolicitudPendientePorMiembro(Number(currentMember.id));
+
+        if (!activo) return;
+
+        if (solicitud && solicitud.estado === ESTADOS_SOLICITUD_CAMBIO.pendiente) {
+          setChangeRequest(solicitud);
+          setChangeRequestOpen(Boolean(solicitudIdFromUrl));
+        }
+      } catch (error) {
+        console.error('[member form] no se pudo cargar la solicitud de cambio', error);
+      }
+    })();
+
+    return () => {
+      activo = false;
+    };
+  }, [solicitudIdFromUrl, lockGroupLeaderFields, currentMember?.id]);
+
+  const cerrarSolicitud = () => {
+    setChangeRequestOpen(false);
+
+    if (currentMember?.id) {
+      router.replace(`/dashboard/level/member/${currentMember.id}/edit`);
+    }
+  };
+
+  const notificarResultadoAlSolicitante = async (solicitud, estado, decision) => {
+    if (!solicitud?.solicitadoPorUid) return;
+
+    const aprobados = decision.filter((item) => item.aprobado).length;
+    const total = decision.length;
+    const resumen =
+      estado === ESTADOS_SOLICITUD_CAMBIO.rechazada
+        ? 'rechazó tus cambios'
+        : estado === ESTADOS_SOLICITUD_CAMBIO.parcial
+          ? `aprobó ${aprobados} de ${total} cambios`
+          : 'aprobó tus cambios';
+
+    // El lider de grupo tambien es sesion admin: se notifica como admin.
+    await crearNotificacionAdmin({
+      tipoNotificacion: 'resultado_cambio_miembro',
+      modulo: 'miembros',
+      titulo: 'Resultado de tu solicitud',
+      mensaje: `El coordinador ${resumen} en ${solicitud.nombreMiembro || 'un miembro'}.`,
+      prioridad: 'informativa',
+      entidadTipo: 'miembro',
+      entidadId: String(solicitud.idMiembros || ''),
+      ruta: solicitud.idMiembros
+        ? `/dashboard/level/member/${solicitud.idMiembros}/edit`
+        : '/dashboard',
+      etiquetaAccion: 'Ver',
+      actorId: user?.uid || user?.id || 'sistema',
+      actorNombre: user?.displayName || 'Coordinador de Destacamento',
+      idsDestinatariosPrecalculados: [String(solicitud.solicitadoPorUid)],
+    }).catch((error) => console.warn('[member form] no se pudo notificar al solicitante', error));
+  };
+
+  const handleResolveChangeRequest = async (decision = []) => {
+    if (!changeRequest) return;
+
+    const aprobados = decision.filter((item) => item.aprobado);
+    setResolvingChangeRequest(true);
+
+    try {
+      if (aprobados.length) {
+        aprobados.forEach((item) => {
+          methods.setValue(item.campo, item.valorFinal, { shouldDirty: true, shouldValidate: true });
+        });
+
+        // Reutiliza el guardado normal del formulario para persistir los cambios.
+        await onSubmit();
+      }
+
+      const estado = !aprobados.length
+        ? ESTADOS_SOLICITUD_CAMBIO.rechazada
+        : aprobados.length === decision.length
+          ? ESTADOS_SOLICITUD_CAMBIO.aprobada
+          : ESTADOS_SOLICITUD_CAMBIO.parcial;
+
+      await resolverSolicitudCambioMiembro(changeRequest.id, {
+        estado,
+        resultadoCampos: decision,
+        resueltoPorUid: user?.uid || user?.id || '',
+        resueltoPorNombre: user?.displayName || 'Coordinador de Destacamento',
+      });
+
+      await notificarResultadoAlSolicitante(changeRequest, estado, decision);
+
+      toast.success(
+        estado === ESTADOS_SOLICITUD_CAMBIO.rechazada
+          ? 'Solicitud rechazada.'
+          : 'Cambios aplicados.'
+      );
+
+      setChangeRequest(null);
+      cerrarSolicitud();
+    } catch (error) {
+      console.error('[member form] no se pudo resolver la solicitud', error);
+      toast.error('No se pudo procesar la solicitud.');
+    } finally {
+      setResolvingChangeRequest(false);
+    }
+  };
+
   return (
     <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
       <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
@@ -1919,9 +2114,22 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                         {approvalRequested ? 'Pendiente aprobación' : 'Enviar cambios a aprobación'}
                       </LoadingButton>
                     ) : (
-                      <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                        Guardar cambios
-                      </LoadingButton>
+                      <>
+                        {changeRequest && !changeRequestOpen && (
+                          <Button
+                            type="button"
+                            color="warning"
+                            variant="outlined"
+                            startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                            onClick={() => setChangeRequestOpen(true)}
+                          >
+                            Cambios solicitados pendientes
+                          </Button>
+                        )}
+                        <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+                          Guardar cambios
+                        </LoadingButton>
+                      </>
                     ))}
                 </Stack>
               )}
@@ -1941,6 +2149,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           </Grid>
         </Grid>
       </Box>
+
+      <MemberChangeRequestDialog
+        open={changeRequestOpen}
+        solicitud={changeRequest}
+        saving={resolvingChangeRequest}
+        onClose={cerrarSolicitud}
+        onResolve={handleResolveChangeRequest}
+      />
     </Form>
   );
 }
