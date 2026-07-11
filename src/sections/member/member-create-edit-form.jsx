@@ -77,19 +77,21 @@ import {
   obtenerAsignacionesDirectivaPorMiembro,
 } from 'src/services/directivas-organizacionales-service';
 import {
-  ESTADOS_SOLICITUD_CAMBIO,
-  crearSolicitudCambioMiembro,
-  obtenerSolicitudCambioPorId,
-  resolverSolicitudCambioMiembro,
-  obtenerSolicitudPendientePorMiembro,
-} from 'src/services/solicitudes-cambio-miembro-service';
-import {
   crearNotificacionAdmin,
   crearNotificacionCuentaCreada,
   crearNotificacionMiembroCreado,
   crearNotificacionMiembroActualizado,
   crearNotificacionErrorSubidaArchivoImagen,
 } from 'src/services/notification-service';
+import {
+  ESTADOS_SOLICITUD_CAMBIO,
+  RESULTADO_SOLICITUD_LABEL,
+  crearSolicitudCambioMiembro,
+  obtenerSolicitudCambioPorId,
+  clasificarResultadoSolicitud,
+  resolverSolicitudCambioMiembro,
+  obtenerSolicitudPendientePorMiembro,
+} from 'src/services/solicitudes-cambio-miembro-service';
 
 // components
 import { Label } from 'src/components/label';
@@ -107,6 +109,7 @@ import MemberLeadershipAndOtherSection from 'src/components/form/member-form/Mem
 import { useAuthContext } from 'src/auth/hooks';
 
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
+import { MemberChangeResultDialog } from './member-change-result-dialog';
 import { MemberChangeRequestDialog } from './member-change-request-dialog';
 // ----------------------------------------------------------------------
 
@@ -406,9 +409,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // muestra a los coordinadores (no a los propios lideres de grupo).
   const searchParams = useSearchParams();
   const solicitudIdFromUrl = searchParams?.get('solicitud') || '';
+  const resultadoIdFromUrl = searchParams?.get('resultado') || '';
   const [changeRequest, setChangeRequest] = useState(null);
   const [changeRequestOpen, setChangeRequestOpen] = useState(false);
   const [resolvingChangeRequest, setResolvingChangeRequest] = useState(false);
+  // Modal de resultado que ve el solicitante al pulsar "Ver" en la notificacion.
+  const [changeResult, setChangeResult] = useState(null);
+  const [changeResultOpen, setChangeResultOpen] = useState(false);
 
   // Resuelve los ids con los que se puede direccionar a un miembro (por su
   // idMiembros): uid de su cuenta, idUsuario, id del documento y codigoMiembro.
@@ -1582,29 +1589,59 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     }
   };
 
-  const notificarResultadoAlSolicitante = async (solicitud, estado, decision) => {
+  // Al pulsar "Ver" en la notificacion de resultado (?resultado=<id>), el
+  // solicitante ve el detalle de que campos se aprobaron, editaron o rechazaron.
+  useEffect(() => {
+    let activo = true;
+
+    if (!resultadoIdFromUrl) {
+      return undefined;
+    }
+
+    (async () => {
+      try {
+        const solicitud = await obtenerSolicitudCambioPorId(resultadoIdFromUrl);
+
+        if (!activo || !solicitud) return;
+
+        setChangeResult(solicitud);
+        setChangeResultOpen(true);
+      } catch (error) {
+        console.error('[member form] no se pudo cargar el resultado de la solicitud', error);
+      }
+    })();
+
+    return () => {
+      activo = false;
+    };
+  }, [resultadoIdFromUrl]);
+
+  const cerrarResultado = () => {
+    setChangeResultOpen(false);
+
+    if (currentMember?.id) {
+      router.replace(`/dashboard/level/member/${currentMember.id}/edit`);
+    }
+  };
+
+  const notificarResultadoAlSolicitante = async (solicitud, decision) => {
     if (!solicitud?.solicitadoPorUid) return;
 
-    const aprobados = decision.filter((item) => item.aprobado).length;
-    const total = decision.length;
-    const resumen =
-      estado === ESTADOS_SOLICITUD_CAMBIO.rechazada
-        ? 'rechazó tus cambios'
-        : estado === ESTADOS_SOLICITUD_CAMBIO.parcial
-          ? `aprobó ${aprobados} de ${total} cambios`
-          : 'aprobó tus cambios';
+    const resultado = clasificarResultadoSolicitud({ resultadoCampos: decision });
+    const etiqueta = RESULTADO_SOLICITUD_LABEL[resultado] || 'Resuelto';
 
-    // El lider de grupo tambien es sesion admin: se notifica como admin.
+    // El lider de grupo tambien es sesion admin: se notifica como admin. La ruta
+    // lleva ?resultado=<id> para que al pulsar "Ver" se abra el modal de detalle.
     await crearNotificacionAdmin({
       tipoNotificacion: 'resultado_cambio_miembro',
       modulo: 'miembros',
       titulo: 'Resultado de tu solicitud',
-      mensaje: `El coordinador ${resumen} en ${solicitud.nombreMiembro || 'un miembro'}.`,
+      mensaje: `Tu solicitud de cambios en ${solicitud.nombreMiembro || 'un miembro'}: ${etiqueta.toLowerCase()}.`,
       prioridad: 'informativa',
       entidadTipo: 'miembro',
       entidadId: String(solicitud.idMiembros || ''),
       ruta: solicitud.idMiembros
-        ? `/dashboard/level/member/${solicitud.idMiembros}/edit`
+        ? `/dashboard/level/member/${solicitud.idMiembros}/edit?resultado=${solicitud.id}`
         : '/dashboard',
       etiquetaAccion: 'Ver',
       actorId: user?.uid || user?.id || 'sistema',
@@ -1642,7 +1679,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         resueltoPorNombre: user?.displayName || 'Coordinador de Destacamento',
       });
 
-      await notificarResultadoAlSolicitante(changeRequest, estado, decision);
+      await notificarResultadoAlSolicitante(changeRequest, decision);
 
       toast.success(
         estado === ESTADOS_SOLICITUD_CAMBIO.rechazada
@@ -2156,6 +2193,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         saving={resolvingChangeRequest}
         onClose={cerrarSolicitud}
         onResolve={handleResolveChangeRequest}
+      />
+
+      <MemberChangeResultDialog
+        open={changeResultOpen}
+        solicitud={changeResult}
+        onClose={cerrarResultado}
       />
     </Form>
   );

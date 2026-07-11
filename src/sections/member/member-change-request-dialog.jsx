@@ -158,13 +158,6 @@ export function MemberChangeRequestDialog({ open, solicitud, saving = false, onC
                     {row.rechazado ? ' · se mantiene el actual' : null}
                   </Box>
                 }
-                sx={{
-                  '& .MuiInputBase-root': {
-                    ...(!row.rechazado && {
-                      '& fieldset': { borderColor: 'success.main' },
-                    }),
-                  },
-                }}
               />
 
               <Tooltip title={row.rechazado ? 'Restaurar cambio' : 'Rechazar este campo'}>
@@ -182,7 +175,7 @@ export function MemberChangeRequestDialog({ open, solicitud, saving = false, onC
       </DialogContent>
 
       <DialogActions sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-        <Button color="error" variant="text" disabled={saving} onClick={rechazarTodo}>
+        <Button color="error" variant="outlined" disabled={saving} onClick={rechazarTodo}>
           Rechazar todo
         </Button>
 
@@ -197,7 +190,6 @@ export function MemberChangeRequestDialog({ open, solicitud, saving = false, onC
             Aprobar seleccionados
           </LoadingButton>
           <LoadingButton
-            color="success"
             variant="contained"
             loading={saving}
             startIcon={<Iconify icon="solar:check-read-linear" />}

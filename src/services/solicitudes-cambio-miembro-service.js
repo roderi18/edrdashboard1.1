@@ -37,6 +37,26 @@ const asegurarFirebase = () => {
   }
 };
 
+// Etiquetas de resultado que ve el solicitante.
+export const RESULTADO_SOLICITUD_LABEL = {
+  rechazado: 'Rechazado',
+  parcial: 'Parcialmente aprobado',
+  aprobado_con_cambios: 'Aprobado con cambios',
+  aprobado: 'Aprobado',
+};
+
+// Clasifica el resultado de una solicitud resuelta a partir de sus campos.
+export function clasificarResultadoSolicitud(solicitud = {}) {
+  const campos = solicitud.resultadoCampos || [];
+  const aprobados = campos.filter((campo) => campo.aprobado);
+  const editados = aprobados.filter((campo) => campo.editado);
+
+  if (!aprobados.length) return 'rechazado';
+  if (aprobados.length < campos.length) return 'parcial';
+
+  return editados.length ? 'aprobado_con_cambios' : 'aprobado';
+}
+
 const mapSolicitud = (documentSnapshot) => ({
   id: documentSnapshot.id,
   ...documentSnapshot.data(),
