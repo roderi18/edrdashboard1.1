@@ -42,7 +42,11 @@ export function MemberEditLayout({ children, member = null, ...other }) {
     if (!memberCode || String(memberCode) === String(memberId)) return;
 
     if (pathname.includes(currentMemberSegment)) {
-      router.replace(pathname.replace(currentMemberSegment, nextMemberSegment));
+      // Preservar el query string (p. ej. ?solicitud= / ?resultado=): usePathname
+      // no lo incluye, y sin el se perderia al normalizar el id a codigo.
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+
+      router.replace(`${pathname.replace(currentMemberSegment, nextMemberSegment)}${search}`);
     }
   }, [currentMemberSegment, memberCode, memberId, nextMemberSegment, pathname, router]);
 

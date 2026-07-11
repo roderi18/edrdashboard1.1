@@ -571,9 +571,15 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         cambios,
       });
 
+      // Se usa el codigo del miembro (segmento canonico) para que el layout no
+      // redirija y no se pierda el query ?solicitud=.
+      const segmentoMiembro = currentMember?.memberId
+        ? encodeURIComponent(currentMember.memberId)
+        : currentMember?.id;
+
       const enviadas = await notificarCoordinadoresDestacamento({
-        ruta: currentMember?.id
-          ? `/dashboard/level/member/${currentMember.id}/edit?solicitud=${solicitud.id}`
+        ruta: segmentoMiembro
+          ? `/dashboard/level/member/${segmentoMiembro}/edit?solicitud=${solicitud.id}`
           : '/dashboard',
       });
 
@@ -1584,8 +1590,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const cerrarSolicitud = () => {
     setChangeRequestOpen(false);
 
-    if (currentMember?.id) {
-      router.replace(`/dashboard/level/member/${currentMember.id}/edit`);
+    const segmento = currentMember?.memberId
+      ? encodeURIComponent(currentMember.memberId)
+      : currentMember?.id;
+
+    if (segmento) {
+      router.replace(`/dashboard/level/member/${segmento}/edit`);
     }
   };
 
@@ -1619,8 +1629,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const cerrarResultado = () => {
     setChangeResultOpen(false);
 
-    if (currentMember?.id) {
-      router.replace(`/dashboard/level/member/${currentMember.id}/edit`);
+    const segmento = currentMember?.memberId
+      ? encodeURIComponent(currentMember.memberId)
+      : currentMember?.id;
+
+    if (segmento) {
+      router.replace(`/dashboard/level/member/${segmento}/edit`);
     }
   };
 
@@ -1640,9 +1654,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       prioridad: 'informativa',
       entidadTipo: 'miembro',
       entidadId: String(solicitud.idMiembros || ''),
-      ruta: solicitud.idMiembros
-        ? `/dashboard/level/member/${solicitud.idMiembros}/edit?resultado=${solicitud.id}`
-        : '/dashboard',
+      // Se usa el codigo del miembro (segmento canonico) para que el layout no
+      // tenga que redirigir y no se pierda el query ?resultado=.
+      ruta: solicitud.codigoMiembro
+        ? `/dashboard/level/member/${encodeURIComponent(solicitud.codigoMiembro)}/edit?resultado=${solicitud.id}`
+        : solicitud.idMiembros
+          ? `/dashboard/level/member/${solicitud.idMiembros}/edit?resultado=${solicitud.id}`
+          : '/dashboard',
       etiquetaAccion: 'Ver',
       actorId: user?.uid || user?.id || 'sistema',
       actorNombre: user?.displayName || 'Coordinador de Destacamento',

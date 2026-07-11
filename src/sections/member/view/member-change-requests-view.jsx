@@ -82,9 +82,13 @@ export function MemberChangeRequestsView() {
   }, [cargar]);
 
   const revisar = (solicitud) => {
-    if (!solicitud?.idMiembros) return;
+    const segmento = solicitud?.codigoMiembro || solicitud?.idMiembros;
 
-    router.push(`${paths.dashboard.level.member.edit(solicitud.idMiembros)}?solicitud=${solicitud.id}`);
+    if (!segmento) return;
+
+    router.push(
+      `${paths.dashboard.level.member.edit(encodeURIComponent(segmento))}?solicitud=${solicitud.id}`
+    );
   };
 
   const renderList = () => (
