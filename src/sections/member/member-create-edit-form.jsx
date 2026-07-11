@@ -402,8 +402,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const lockGroupLeaderFields = isGroupLeaderRole(user);
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
   // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
-  const [approvalRequested, setApprovalRequested] = useState(false);
   const [sendingApproval, setSendingApproval] = useState(false);
+  // Solicitud pendiente enviada por el propio lider de grupo (para el boton
+  // "Ver cambios pendientes" y su modal de solo lectura).
+  const [leaderPendingRequest, setLeaderPendingRequest] = useState(null);
 
   // Solicitud de cambio abierta desde la notificacion (?solicitud=<id>). Solo se
   // muestra a los coordinadores (no a los propios lideres de grupo).
@@ -589,7 +591,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         toast.success('Se envió una notificación a tus Coordinadores.');
       }
 
-      setApprovalRequested(true);
+      setLeaderPendingRequest(solicitud);
     } catch (approvalError) {
       console.error('[member form] no se pudo enviar la solicitud de aprobacion', approvalError);
       toast.error('No se pudo enviar la solicitud a tus Coordinadores.');
@@ -1561,7 +1563,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   useEffect(() => {
     let activo = true;
 
-    if (lockGroupLeaderFields || !currentMember?.id) {
+    if (!currentMember?.id) {
       return undefined;
     }
 
@@ -1573,7 +1575,15 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
         if (!activo) return;
 
-        if (solicitud && solicitud.estado === ESTADOS_SOLICITUD_CAMBIO.pendiente) {
+        if (!solicitud || solicitud.estado !== ESTADOS_SOLICITUD_CAMBIO.pendiente) {
+          return;
+        }
+
+        // El lider de grupo solo puede verla (solo lectura); el coordinador la
+        // revisa/edita y, si llega desde la notificacion, se abre el modal.
+        if (lockGroupLeaderFields) {
+          setLeaderPendingRequest(solicitud);
+        } else {
           setChangeRequest(solicitud);
           setChangeRequestOpen(Boolean(solicitudIdFromUrl));
         }
@@ -2159,15 +2169,30 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                   {/* SOLO EDIT */}
                   {!isCreateView &&
                     (lockGroupLeaderFields ? (
-                      <LoadingButton
-                        type="button"
-                        variant="contained"
-                        loading={sendingApproval}
-                        disabled={approvalRequested || !isDirty}
-                        onClick={handleRequestApproval}
-                      >
-                        {approvalRequested ? 'Pendiente aprobación' : 'Enviar cambios a aprobación'}
-                      </LoadingButton>
+                      leaderPendingRequest ? (
+                        <Button
+                          type="button"
+                          color="warning"
+                          variant="outlined"
+                          startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                          onClick={() => {
+                            setChangeResult(leaderPendingRequest);
+                            setChangeResultOpen(true);
+                          }}
+                        >
+                          Ver cambios pendientes
+                        </Button>
+                      ) : (
+                        <LoadingButton
+                          type="button"
+                          variant="contained"
+                          loading={sendingApproval}
+                          disabled={!isDirty}
+                          onClick={handleRequestApproval}
+                        >
+                          Enviar cambios a aprobación
+                        </LoadingButton>
+                      )
                     ) : (
                       <>
                         {changeRequest && !changeRequestOpen && (

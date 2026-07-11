@@ -13,6 +13,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import {
+  ESTADOS_SOLICITUD_CAMBIO,
   RESULTADO_SOLICITUD_LABEL,
   clasificarResultadoSolicitud,
 } from 'src/services/solicitudes-cambio-miembro-service';
@@ -48,17 +49,27 @@ const formatFecha = (value) => {
 };
 
 // Estado por campo (para el detalle).
-const getEstadoCampo = (campo = {}) => {
+const getEstadoCampo = (campo = {}, esPendiente = false) => {
+  if (esPendiente)
+    return { label: 'Pendiente', color: 'warning.main', icon: 'solar:clock-circle-bold' };
   if (!campo.aprobado) return { label: 'Rechazado', color: 'error.main', icon: 'mingcute:close-line' };
   if (campo.editado)
     return { label: 'Aprobado con cambios', color: 'info.main', icon: 'solar:pen-bold' };
   return { label: 'Aprobado', color: 'success.main', icon: 'eva:checkmark-fill' };
 };
 
-// Muestra al solicitante que campos fueron aprobados, editados o rechazados.
+// Muestra al solicitante el estado de su solicitud: si esta pendiente, los
+// cambios que envio; si ya se resolvio, cuales fueron aprobados, editados o
+// rechazados, con fecha y hora.
 export function MemberChangeResultDialog({ open, solicitud, onClose }) {
+  const esPendiente = solicitud?.estado === ESTADOS_SOLICITUD_CAMBIO.pendiente;
   const resultado = solicitud ? clasificarResultadoSolicitud(solicitud) : 'aprobado';
-  const campos = solicitud?.resultadoCampos || [];
+  const campos = esPendiente ? solicitud?.cambios || [] : solicitud?.resultadoCampos || [];
+
+  const chipColor = esPendiente ? 'warning' : RESULTADO_CHIP_COLOR[resultado] || 'default';
+  const chipLabel = esPendiente
+    ? 'Pendiente de aprobación'
+    : RESULTADO_SOLICITUD_LABEL[resultado] || 'Resuelto';
 
   return (
     <Dialog fullWidth maxWidth="sm" open={open} onClose={onClose}>
@@ -95,8 +106,13 @@ export function MemberChangeResultDialog({ open, solicitud, onClose }) {
                 {solicitud?.codigoMiembro || '—'}
               </Box>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Revisado por {solicitud?.resueltoPorNombre || 'el coordinador'}
-                {solicitud?.fechaResolucion ? ` · ${formatFecha(solicitud.fechaResolucion)}` : ''}
+                {esPendiente
+                  ? `Enviado por ${solicitud?.solicitadoPorNombre || 'ti'}${
+                      solicitud?.fechaCreacion ? ` · ${formatFecha(solicitud.fechaCreacion)}` : ''
+                    }`
+                  : `Revisado por ${solicitud?.resueltoPorNombre || 'el coordinador'}${
+                      solicitud?.fechaResolucion ? ` · ${formatFecha(solicitud.fechaResolucion)}` : ''
+                    }`}
               </Typography>
             </Stack>
           </Box>
@@ -106,19 +122,19 @@ export function MemberChangeResultDialog({ open, solicitud, onClose }) {
       <DialogContent dividers>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Resultado de tu solicitud:
+            {esPendiente ? 'Estado de tu solicitud:' : 'Resultado de tu solicitud:'}
           </Typography>
-          <Chip
-            size="small"
-            variant="soft"
-            color={RESULTADO_CHIP_COLOR[resultado] || 'default'}
-            label={RESULTADO_SOLICITUD_LABEL[resultado] || 'Resuelto'}
-          />
+          <Chip size="small" variant="soft" color={chipColor} label={chipLabel} />
         </Stack>
 
         <Stack spacing={1.5}>
           {campos.map((campo) => {
-            const estado = getEstadoCampo(campo);
+            const estado = getEstadoCampo(campo, esPendiente);
+            const valorDespues = esPendiente
+              ? campo.despues
+              : campo.aprobado
+                ? campo.valorFinal
+                : campo.antes;
 
             return (
               <Box
@@ -151,10 +167,10 @@ export function MemberChangeResultDialog({ open, solicitud, onClose }) {
                   <Iconify width={16} icon="eva:arrow-forward-fill" sx={{ color: 'text.disabled' }} />
                   <Typography
                     variant="body2"
-                    sx={{ color: campo.aprobado ? 'text.primary' : 'text.disabled' }}
+                    sx={{ color: esPendiente || campo.aprobado ? 'text.primary' : 'text.disabled' }}
                   >
-                    {campo.aprobado ? campo.valorFinal || '(vacío)' : campo.antes || '(vacío)'}
-                    {!campo.aprobado ? ' (sin cambios)' : ''}
+                    {valorDespues || '(vacío)'}
+                    {!esPendiente && !campo.aprobado ? ' (sin cambios)' : ''}
                   </Typography>
                 </Stack>
               </Box>
