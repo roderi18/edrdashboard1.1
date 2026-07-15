@@ -58,6 +58,7 @@ export function AwardsManagerTable({
   isSistemaAscensoDeepSubFolder,
   isSistemaAscenso,
   isSistemaAscensoRootFolder,
+  readOnly = false,
 
   ...other
 }) {
@@ -191,11 +192,13 @@ export function AwardsManagerTable({
           }
           action={
             <>
-              <Tooltip title="Marcar como completados">
-                <IconButton color="primary" onClick={handleMarkCompleted}>
-                  <Iconify icon="mdi:check-all" />
-                </IconButton>
-              </Tooltip>
+              {!readOnly && (
+                <Tooltip title="Marcar como completados">
+                  <IconButton color="primary" onClick={handleMarkCompleted}>
+                    <Iconify icon="mdi:check-all" />
+                  </IconButton>
+                </Tooltip>
+              )}
 
               <Tooltip title="Share">
                 <IconButton color="primary">
@@ -265,6 +268,7 @@ export function AwardsManagerTable({
                     selected={selected.includes(row.id)}
                     onSelectRow={() => onSelectRow(row.id)}
                     onDeleteRow={() => onDeleteRow(row.id)}
+                    readOnly={readOnly}
                   />
                 ))}
 

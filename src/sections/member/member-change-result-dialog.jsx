@@ -130,11 +130,18 @@ export function MemberChangeResultDialog({ open, solicitud, onClose }) {
         <Stack spacing={1.5}>
           {campos.map((campo) => {
             const estado = getEstadoCampo(campo, esPendiente);
+            const antesTexto = campo.antesTexto ?? campo.antes;
+            // Siempre se muestra el texto legible (nombre de ubicacion, etiqueta
+            // de catalogo, fecha formateada, etc.), nunca el valor crudo/ID.
+            const despuesTexto = campo.despuesTexto ?? campo.despues;
+            const valorFinalTexto = campo.valorFinalTexto ?? campo.valorFinal;
             const valorDespues = esPendiente
-              ? campo.despues
+              ? despuesTexto
               : campo.aprobado
-                ? campo.valorFinal
-                : campo.antes;
+                ? campo.editado
+                  ? valorFinalTexto
+                  : despuesTexto
+                : antesTexto;
 
             return (
               <Box
@@ -162,7 +169,7 @@ export function MemberChangeResultDialog({ open, solicitud, onClose }) {
                     variant="body2"
                     sx={{ color: 'text.disabled', textDecoration: 'line-through' }}
                   >
-                    {campo.antes || '(vacío)'}
+                    {antesTexto || '(vacío)'}
                   </Typography>
                   <Iconify width={16} icon="eva:arrow-forward-fill" sx={{ color: 'text.disabled' }} />
                   <Typography

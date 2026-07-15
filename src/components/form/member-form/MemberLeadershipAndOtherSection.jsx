@@ -114,7 +114,7 @@ export default function MemberLeadershipAndOtherSection({
                 }
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                 onChange={(event, option) => {
-                    methods.setValue('destId', option?.id || '');
+                    methods.setValue('destId', option?.id || '', { shouldDirty: true });
                 }}
             />
 

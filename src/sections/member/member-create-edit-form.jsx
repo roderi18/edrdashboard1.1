@@ -32,7 +32,6 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { isGroupLeaderRole, buildDefaultMemberPermissions } from 'src/utils/member-access';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
@@ -43,6 +42,11 @@ import {
   buildMemberAuthPassword,
   normalizeMemberUsername,
 } from 'src/utils/member-auth-credentials';
+import {
+  isDestacamentoApprovalRole,
+  buildDefaultMemberPermissions,
+  isCoordinadorDestacamentoRole,
+} from 'src/utils/member-access';
 
 import { CONFIG } from 'src/global-config';
 import { FIRESTORE } from 'src/lib/firebase';
@@ -61,6 +65,7 @@ import { getMembers, getLeadershipAssignments } from 'src/services/member-servic
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   asegurarCargoApi,
   guardarCargoMiembroApi,
@@ -84,7 +89,9 @@ import {
   crearNotificacionErrorSubidaArchivoImagen,
 } from 'src/services/notification-service';
 import {
+  getModuloSolicitud,
   ESTADOS_SOLICITUD_CAMBIO,
+  MODULOS_SOLICITUD_CAMBIO,
   RESULTADO_SOLICITUD_LABEL,
   crearSolicitudCambioMiembro,
   obtenerSolicitudCambioPorId,
@@ -111,17 +118,11 @@ import { useAuthContext } from 'src/auth/hooks';
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
 import { MemberChangeResultDialog } from './member-change-result-dialog';
 import { MemberChangeRequestDialog } from './member-change-request-dialog';
+import {
+  formatMemberFieldValue,
+  MEMBER_CHANGE_REQUEST_FIELDS,
+} from './member-change-request-fields';
 // ----------------------------------------------------------------------
-
-// Campos (de texto) que el Lider de Grupo puede proponer cambiar; el diff de la
-// solicitud de aprobacion se calcula solo sobre estos.
-const CAMPOS_SOLICITUD_CAMBIO = [
-  { name: 'firstName', label: 'Nombres' },
-  { name: 'lastName', label: 'Apellidos' },
-  { name: 'phoneNumber', label: 'Teléfono' },
-  { name: 'email', label: 'Correo' },
-  { name: 'street', label: 'Dirección' },
-];
 
 const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
 const MEMBER_PHOTO_OPTIMIZE_OPTIONS = {
@@ -397,9 +398,12 @@ const mapMemberToForm = (member) => {
 
 export function MemberCreateEditForm({ currentMember, readOnly = false, availableDests = [] }) {
   const { user } = useAuthContext();
-  // Lider de Grupo / Lider Asistente: no pueden editar destacamento, posicion en
-  // el destacamento, sexo ni Instructor CI (se muestran deshabilitados).
-  const lockGroupLeaderFields = isGroupLeaderRole(user);
+  // Cargos del destacamento que no son coordinadores (líder de grupo/asistente,
+  // pastor, consejo, capellán): no pueden editar destacamento, posición en el
+  // destacamento, sexo ni Instructor CI (se muestran deshabilitados) y sus cambios
+  // van a aprobación del Coordinador de Destacamento.
+  const lockGroupLeaderFields = isDestacamentoApprovalRole(user);
+  const isCoordinador = isCoordinadorDestacamentoRole(user);
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
   // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
   const [sendingApproval, setSendingApproval] = useState(false);
@@ -529,18 +533,36 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return enviadas;
   };
 
-  // Calcula el diff (antes/despues) de los campos de texto editables. `antes`
-  // sale de los valores con los que se cargo el formulario (defaultValues).
+  // Calcula el diff (antes/despues) sobre todos los campos del formulario de
+  // miembro. `antes` sale de los valores con los que se cargo el formulario
+  // (defaultValues). Se guarda el valor crudo aplicable (`antes`/`despues`) y su
+  // texto legible (`antesTexto`/`despuesTexto`) que ve el coordinador. El cambio
+  // se detecta comparando el texto legible (robusto para fechas y selects).
+  // dayjs -> ISO (Firestore no acepta objetos dayjs); undefined -> '' (Firestore
+  // no acepta undefined). Objetos (p. ej. ocupacion {value,label}), numeros y
+  // strings se conservan tal cual para poder reaplicarlos al aprobar.
+  const normalizarValorCrudo = (valor) => {
+    if (dayjs.isDayjs(valor)) return valor.format();
+    return valor === null || valor === undefined ? '' : valor;
+  };
+
   const construirCambiosSolicitud = () => {
     const antes = methods.formState.defaultValues || {};
     const ahora = methods.getValues();
 
-    return CAMPOS_SOLICITUD_CAMBIO.map(({ name, label }) => ({
-      campo: name,
-      label,
-      antes: String(antes[name] ?? ''),
-      despues: String(ahora[name] ?? ''),
-    })).filter((cambio) => cambio.antes !== cambio.despues);
+    return MEMBER_CHANGE_REQUEST_FIELDS.map(({ name, label }) => {
+      const antesRaw = normalizarValorCrudo(antes[name]);
+      const despuesRaw = normalizarValorCrudo(ahora[name]);
+
+      return {
+        campo: name,
+        label,
+        antes: antesRaw,
+        despues: despuesRaw,
+        antesTexto: formatMemberFieldValue(name, antesRaw, { dests }),
+        despuesTexto: formatMemberFieldValue(name, despuesRaw, { dests }),
+      };
+    }).filter((cambio) => cambio.antesTexto !== cambio.despuesTexto);
   };
 
   const handleRequestApproval = async () => {
@@ -559,6 +581,18 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         currentMember?.memberId ||
         'Miembro';
 
+      // Snapshot completo de los valores propuestos (todos los campos, no solo
+      // los que cambiaron) para que el dialogo del coordinador tenga el contexto
+      // que necesitan los inputs en cascada (p. ej. LocationSelect requiere
+      // provincia/municipio aunque solo haya cambiado el sector).
+      const valoresAhora = methods.getValues();
+      const valoresPropuestos = Object.fromEntries(
+        MEMBER_CHANGE_REQUEST_FIELDS.map(({ name }) => [
+          name,
+          normalizarValorCrudo(valoresAhora[name]),
+        ])
+      );
+
       const solicitud = await crearSolicitudCambioMiembro({
         idMiembros: currentMember?.id ? Number(currentMember.id) : null,
         codigoMiembro: currentMember?.memberId || '',
@@ -571,6 +605,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           'Líder de Grupo',
         solicitadoPorRol: 'lider_grupo',
         cambios,
+        valoresPropuestos,
       });
 
       // Se usa el codigo del miembro (segmento canonico) para que el layout no
@@ -1460,6 +1495,25 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           } catch (notificationError) {
             console.error('[member form] member update notification failed', notificationError);
           }
+
+          // Guardado directo de un coordinador: avisar al OTRO coordinador
+          // (nunca a sí mismo).
+          if (isCoordinador) {
+            const segmentoCoord = currentMember?.memberId
+              ? encodeURIComponent(currentMember.memberId)
+              : currentMember?.id;
+
+            notificarCoordinadoresActualizacionDirecta({
+              member: currentMember,
+              actorId: user?.uid || user?.id || 'sistema',
+              actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+              actorNombre: user?.displayName || 'Un coordinador',
+              moduloTexto: 'la información general',
+              ruta: segmentoCoord
+                ? `/dashboard/level/member/${segmentoCoord}/edit`
+                : '/dashboard',
+            }).catch(() => null);
+          }
         }
 
         const historyMemberId =
@@ -1575,7 +1629,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
         if (!activo) return;
 
-        if (!solicitud || solicitud.estado !== ESTADOS_SOLICITUD_CAMBIO.pendiente) {
+        if (
+          !solicitud ||
+          solicitud.estado !== ESTADOS_SOLICITUD_CAMBIO.pendiente ||
+          getModuloSolicitud(solicitud) !== MODULOS_SOLICITUD_CAMBIO.general
+        ) {
           return;
         }
 
@@ -2234,6 +2292,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         open={changeRequestOpen}
         solicitud={changeRequest}
         saving={resolvingChangeRequest}
+        dests={dests}
         onClose={cerrarSolicitud}
         onResolve={handleResolveChangeRequest}
       />

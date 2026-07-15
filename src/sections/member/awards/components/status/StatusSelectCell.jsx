@@ -8,12 +8,14 @@ export function StatusSelectCell({
     hasCertificate = false,
     onRequireDeleteCertificate,
     isAwardsManagerFileDetails = false, // Recibe el prop adicional
+    disabled = false,
 }) {
     if (isAwardsManagerFileDetails) {
         return (
             <Select
                 size="small"
                 value={value}
+                disabled={disabled}
                 onChange={(e) => {
                     const next = e.target.value;
 
@@ -41,6 +43,7 @@ export function StatusSelectCell({
             <Select
                 size="small"
                 value={value}
+                disabled={disabled}
                 onChange={(e) => {
                     const next = e.target.value;
 

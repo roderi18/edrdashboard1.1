@@ -24,6 +24,7 @@ export function SistemaAscensoDeepRow({
 
   onCertificateUploaded,
   onCertificateDeleted,
+  readOnly = false,
 }) {
   const { user } = useAuthContext();
   const [status, setLocalStatus] = useState('no_iniciado');
@@ -100,6 +101,7 @@ export function SistemaAscensoDeepRow({
         fileInputId={fileInputId}
         pdfViewer={pdfViewer}
         certificateFile={certificateFile}
+        readOnly={readOnly}
         onRequireDeleteCertificate={(nextStatus) => {
           setPendingStatus(nextStatus);
           confirmDeleteForStatus.onTrue();

@@ -67,6 +67,7 @@ export function AwardsManagerTableRow({
   showType = true,
   showAvatar = true,
   showThumbnail = true,
+  readOnly = false,
 }) {
   const folderIcon = getFolderIcon({ id: row.id });
 
@@ -572,6 +573,7 @@ export function AwardsManagerTableRow({
             setCompletedDate={setCompletedDate}
             onCertificateUploaded={(cert) => setAscensoCertificate(cert)}
             onCertificateDeleted={() => setAscensoCertificate(null)}
+            readOnly={readOnly}
           />
         )}
 
@@ -596,6 +598,7 @@ export function AwardsManagerTableRow({
             onCertificateDeleted={() => {
               setAcademiaCertificate(null);
             }}
+            readOnly={readOnly}
           />
         )}
 

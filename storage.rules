@@ -118,6 +118,73 @@ service firebase.storage {
       return archivo.matches('perfil\\.(jpg|jpeg|png|webp)');
     }
 
+    // Documentos de la Dispensa Médica (PDF/imagen, hasta 15 MB).
+    function esArchivoSaludPermitido() {
+      return request.resource != null
+        && request.resource.size < 15 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/.*')
+        );
+    }
+
+    function rolDeUsuario() {
+      return documentoUsuario('usuarios_roles').data.rolId;
+    }
+
+    // Cargos que pueden SUBIR documentos de salud: coordinadores de destacamento y
+    // el resto de cargos del destacamento (pastor, consejo, capellán, líderes),
+    // más seccion/region.
+    function puedeSubirDocumentoSalud() {
+      return tieneDocumento('usuarios_roles')
+        && rolDeUsuario() in [
+          'usuario_destacamento',
+          'usuario_destacamento_asistente',
+          'pastor_destacamento',
+          'consejo_destacamento',
+          'capellan_destacamento',
+          'lider_grupo',
+          'lider_asistente_grupo',
+          'usuario_seccion',
+          'usuario_seccion_asistente',
+          'usuario_region',
+          'usuario_region_asistente'
+        ];
+    }
+
+    // Cargos que pueden ELIMINAR documentos de salud: coordinadores de destacamento
+    // y niveles superiores (los cargos en flujo de aprobación solo pueden subir).
+    function puedeEliminarDocumentoSalud() {
+      return tieneDocumento('usuarios_roles')
+        && rolDeUsuario() in [
+          'usuario_destacamento',
+          'usuario_destacamento_asistente',
+          'usuario_seccion',
+          'usuario_seccion_asistente',
+          'usuario_region',
+          'usuario_region_asistente'
+        ];
+    }
+
+    // Cualquier usuario autenticado con una identidad registrada (admin, users o
+    // usuarios_roles). Sirve de respaldo para no depender del campo rolId exacto,
+    // que puede faltar en algunos documentos. El control fino de "quién puede
+    // subir/eliminar" lo aplica la app.
+    function esUsuarioRegistrado() {
+      return tieneDocumento('admins')
+        || tieneDocumento('users')
+        || tieneDocumento('usuarios_roles');
+    }
+
+    match /documentos-salud-miembros/{idMiembro}/{archivo} {
+      allow read: if estaAutenticado();
+      allow create, update: if estaAutenticado()
+        && esArchivoSaludPermitido()
+        && (esAdminRegistrado() || puedeSubirDocumentoSalud() || esUsuarioRegistrado());
+      allow delete: if estaAutenticado()
+        && (esAdminRegistrado() || puedeEliminarDocumentoSalud() || esUsuarioRegistrado());
+    }
+
     match /miembros/{idMiembro}/{archivo} {
       allow read: if estaAutenticado();
       allow write: if esArchivoPerfil(archivo)

@@ -1,29 +1,30 @@
 'use client';
 
+import { AsYouType } from 'libphonenumber-js';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
-import CardHeader from '@mui/material/CardHeader';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
-
-import { AsYouType } from 'libphonenumber-js';
-
-import { Field } from 'src/components/hook-form';
-import RestrictedText from 'src/components/restricted/RestrictedText';
-import RestrictedSelect from 'src/components/restricted/RestrictedSelect';
-import HeightInput from 'src/components/form/HeightInput';
-import WeightInput from 'src/components/form/WeightInput';
+import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
 
 import {
+    BLOOD_TYPE_OPTIONS,
     HEALTH_INSURANCE_OPTIONS,
     HEALTH_INSURANCE_COMPANIES,
-    BLOOD_TYPE_OPTIONS,
     MEDICAL_RELATIONSHIP_OPTIONS,
 } from 'src/_mock/health';
+
+import { Field } from 'src/components/hook-form';
+import HeightInput from 'src/components/form/HeightInput';
+import WeightInput from 'src/components/form/WeightInput';
+import RestrictedText from 'src/components/restricted/RestrictedText';
+import RestrictedSelect from 'src/components/restricted/RestrictedSelect';
+
+import { HealthSectionSubmit } from 'src/sections/member/health/componentes/HealthSectionSubmit';
 
 export function HealthBasicSection({
     open,
@@ -34,6 +35,9 @@ export function HealthBasicSection({
     setError,
     clearErrors,
     isSubmitting,
+    isGroupLeader = false,
+    sendingApproval = false,
+    onRequestApproval,
 }) {
     const healthInsurance = watch('healthInsurance');
 
@@ -208,15 +212,12 @@ export function HealthBasicSection({
                         rows={3}
                     />
 
-                    <Stack alignItems="flex-end">
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            loading={isSubmitting}
-                        >
-                            Guardar cambios
-                        </Button>
-                    </Stack>
+                    <HealthSectionSubmit
+                        isSubmitting={isSubmitting}
+                        isGroupLeader={isGroupLeader}
+                        sendingApproval={sendingApproval}
+                        onRequestApproval={onRequestApproval}
+                    />
                 </Stack>
             </Collapse>
         </Card>

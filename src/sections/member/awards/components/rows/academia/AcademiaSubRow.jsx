@@ -23,6 +23,7 @@ export function AcademiaSubRow({
 
   onCertificateUploaded,
   onCertificateDeleted,
+  readOnly = false,
 }) {
   const { user } = useAuthContext();
   const [localStatus, setLocalStatus] = useState('no_iniciado');
@@ -100,6 +101,7 @@ export function AcademiaSubRow({
         pdfViewer={pdfViewer}
         certificateFile={certificateFile}
         showTimesCompleted={false}
+        readOnly={readOnly}
         onRequireDeleteCertificate={(nextStatus) => {
           setPendingStatus(nextStatus);
           confirmDeleteForStatus.onTrue();

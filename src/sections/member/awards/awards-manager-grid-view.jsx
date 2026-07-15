@@ -25,7 +25,7 @@ import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-
 
 // ----------------------------------------------------------------------
 
-export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteItem, onOpenConfirm, onOpenFolder }) {
+export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteItem, onOpenConfirm, onOpenFolder, readOnly = false }) {
   const { user } = useAuthContext();
   const { selected, onSelectRow: onSelectItem, onSelectAllRows: onSelectAllItems } = table;
   const memberId = table?.memberId;
@@ -38,7 +38,7 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
 
 
   const handleMarkCompleted = () => {
-    if (!memberId) return;
+    if (readOnly || !memberId) return;
 
     const now = new Date().toISOString();
     const today = dayjs().toISOString();

@@ -14,7 +14,11 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { obtenerSolicitudesPendientesParaCoordinador } from 'src/services/solicitudes-cambio-miembro-service';
+import {
+  getModuloSolicitud,
+  MODULOS_SOLICITUD_CAMBIO,
+  obtenerSolicitudesPendientesParaCoordinador,
+} from 'src/services/solicitudes-cambio-miembro-service';
 
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -86,9 +90,14 @@ export function MemberChangeRequestsView() {
 
     if (!segmento) return;
 
-    router.push(
-      `${paths.dashboard.level.member.edit(encodeURIComponent(segmento))}?solicitud=${solicitud.id}`
-    );
+    // Cada solicitud lleva a la pestaña del miembro correspondiente: General o
+    // Dispensa Médica, según su `modulo`.
+    const esSalud = getModuloSolicitud(solicitud) === MODULOS_SOLICITUD_CAMBIO.salud;
+    const rutaBase = esSalud
+      ? paths.dashboard.level.member.editHealth(encodeURIComponent(segmento))
+      : paths.dashboard.level.member.edit(encodeURIComponent(segmento));
+
+    router.push(`${rutaBase}?solicitud=${solicitud.id}`);
   };
 
   const renderList = () => (
@@ -126,6 +135,10 @@ export function MemberChangeRequestsView() {
                 </Stack>
 
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {getModuloSolicitud(solicitud) === MODULOS_SOLICITUD_CAMBIO.salud
+                    ? 'Dispensa Médica'
+                    : 'General'}
+                  {' · '}
                   {(solicitud.cambios?.length || 0)} cambio
                   {(solicitud.cambios?.length || 0) === 1 ? '' : 's'} · enviado por{' '}
                   {solicitud.solicitadoPorNombre || 'Líder de Grupo'}

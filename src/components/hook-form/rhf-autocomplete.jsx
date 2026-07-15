@@ -31,7 +31,9 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
         <Autocomplete
           {...field}
           id={`${name}-rhf-autocomplete`}
-          onChange={(event, newValue) => setValue(name, newValue, { shouldValidate: true })}
+          onChange={(event, newValue) =>
+            setValue(name, newValue, { shouldDirty: true, shouldValidate: true })
+          }
           renderOption={
             renderOption ||
             ((props, option, state) => {

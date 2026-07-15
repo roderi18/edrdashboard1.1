@@ -3,7 +3,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
 import Typography from '@mui/material/Typography';
@@ -14,6 +13,8 @@ import { MEDICAL_CONDITIONS_OPTIONS } from 'src/_mock/health';
 import { Field } from 'src/components/hook-form';
 import RestrictedText from 'src/components/restricted/RestrictedText';
 
+import { HealthSectionSubmit } from 'src/sections/member/health/componentes/HealthSectionSubmit';
+
 export function HealthConditionsSection({
     open,
     onToggle,
@@ -21,6 +22,9 @@ export function HealthConditionsSection({
     watch,
     setValue,
     isSubmitting,
+    isGroupLeader = false,
+    sendingApproval = false,
+    onRequestApproval,
 }) {
     return (
         <Card>
@@ -104,15 +108,12 @@ export function HealthConditionsSection({
                         </>
                     )}
 
-                    <Stack alignItems="flex-end">
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            loading={isSubmitting}
-                        >
-                            Guardar cambios
-                        </Button>
-                    </Stack>
+                    <HealthSectionSubmit
+                        isSubmitting={isSubmitting}
+                        isGroupLeader={isGroupLeader}
+                        sendingApproval={sendingApproval}
+                        onRequestApproval={onRequestApproval}
+                    />
                 </Stack>
             </Collapse>
         </Card>

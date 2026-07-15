@@ -5,19 +5,21 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
-import CardHeader from '@mui/material/CardHeader';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
-
-import { Iconify } from 'src/components/iconify';
-import { Field } from 'src/components/hook-form';
-import RestrictedText from 'src/components/restricted/RestrictedText';
+import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
 
 import {
     MEDICATION_OPTIONS,
     MEDICATION_SCHEDULE_OPTIONS,
 } from 'src/_mock/health';
+
+import { Iconify } from 'src/components/iconify';
+import { Field } from 'src/components/hook-form';
+import RestrictedText from 'src/components/restricted/RestrictedText';
+
+import { HealthSectionSubmit } from 'src/sections/member/health/componentes/HealthSectionSubmit';
 
 export function HealthMedicationSection({
     open,
@@ -29,6 +31,9 @@ export function HealthMedicationSection({
     onAdd,
     onRemove,
     isSubmitting,
+    isGroupLeader = false,
+    sendingApproval = false,
+    onRequestApproval,
 }) {
     return (
         <Card>
@@ -133,11 +138,12 @@ export function HealthMedicationSection({
                         </>
                     )}
 
-                    <Stack alignItems="flex-end">
-                        <Button type="submit" variant="contained" loading={isSubmitting}>
-                            Guardar cambios
-                        </Button>
-                    </Stack>
+                    <HealthSectionSubmit
+                        isSubmitting={isSubmitting}
+                        isGroupLeader={isGroupLeader}
+                        sendingApproval={sendingApproval}
+                        onRequestApproval={onRequestApproval}
+                    />
                 </Stack>
             </Collapse>
         </Card>

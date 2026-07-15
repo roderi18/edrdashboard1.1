@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { canMemberManageMembers } from 'src/utils/member-access';
+import { isUsuarioComunRole, canMemberManageMembers } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
 
@@ -19,7 +20,11 @@ export default function Page() {
 
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
+  // El Usuario Común solo tiene lectura en Sistema de Ascenso; el resto de cargos
+  // del destacamento con acceso pueden agregar.
+  const canManage =
+    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) &&
+    !isUsuarioComunRole(user);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,8 +1,9 @@
 'use client';
 
-import TableCell from '@mui/material/TableCell';
-import Button from '@mui/material/Button';
 import dayjs from 'dayjs';
+
+import Button from '@mui/material/Button';
+import TableCell from '@mui/material/TableCell';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
@@ -17,6 +18,7 @@ export function AwardsActionCells({
   certificateFile,
   showTimesCompleted = true,
   onRequireDeleteCertificate,
+  readOnly = false, // Usuario Común: solo lectura (no puede agregar/cambiar).
 }) {
   const isCompleted = state.status === 'completado';
 
@@ -27,6 +29,7 @@ export function AwardsActionCells({
          ========================= */}
       <StatusSelectCell
         value={state.status}
+        disabled={readOnly}
         hasCertificate={state.hasCertificate}
         onRequireDeleteCertificate={onRequireDeleteCertificate}
         onChange={(value) => {
@@ -78,7 +81,7 @@ export function AwardsActionCells({
           <Button
             size="small"
             variant="outlined"
-            disabled={!isCompleted || state.timesCompleted <= 0}
+            disabled={!isCompleted || readOnly || state.timesCompleted <= 0}
             onClick={() => {
               const next = state.timesCompleted - 1;
               actions.updateTimesCompleted(next);
@@ -101,7 +104,7 @@ export function AwardsActionCells({
           <Button
             size="small"
             variant="outlined"
-            disabled={!isCompleted || state.timesCompleted >= 10}
+            disabled={!isCompleted || readOnly || state.timesCompleted >= 10}
             onClick={() => {
               const next = state.timesCompleted + 1;
               actions.updateTimesCompleted(next);
@@ -122,6 +125,7 @@ export function AwardsActionCells({
           type="file"
           accept="application/pdf"
           hidden
+          disabled={readOnly}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;

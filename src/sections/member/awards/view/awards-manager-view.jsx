@@ -462,6 +462,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
             onDeleteRow={handleDeleteItem}
             notFound={notFound}
             onOpenConfirm={confirmDialog.onTrue}
+            readOnly={readOnly}
           />
         </Box>
 
@@ -492,6 +493,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
             onDeleteItem={handleDeleteItem}
             onOpenConfirm={confirmDialog.onTrue}
             onOpenFolder={openFolder}
+            readOnly={readOnly}
           />
         </Box>
       </Box>

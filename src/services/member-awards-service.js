@@ -9,9 +9,12 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { paths } from 'src/routes/paths';
+
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import { notificarAgregadoSistemaAscenso } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
@@ -320,6 +323,44 @@ export const guardarProgresoAscensoMiembro = async ({
       sistema: vinculo.sistema,
     },
   }).catch(() => null);
+
+  // Aviso informativo al Coordinador y Coordinador Asistente de Destacamento: se
+  // notifica solo cuando se AGREGA algo (el item pasa a completado por primera
+  // vez o se adjunta un nuevo certificado), indicando quién, qué y a quién.
+  const seCompletoAhora = estado === 'completado' && previous.estado !== 'completado';
+  const seAgregoCertificado = Boolean(
+    certificateForProgress?.id && !(previous.idsCertificados || []).includes(certificateForProgress.id)
+  );
+
+  if (seCompletoAhora || seAgregoCertificado) {
+    const segmento = encodeURIComponent(finalCodigoMiembro || finalIdMiembro);
+    const contexto = [vinculo.nombreDivision, vinculo.nombreGrupo].filter(Boolean).join(' · ');
+    const actor = getCreator(user);
+    // Enlace directo a la carpeta (grupo) donde se agregó el item, no a la raiz
+    // de premios. La navegacion de premios usa ?folder=<idGrupo>.
+    const rutaBaseAwards = paths.dashboard.level.member.editAwards(segmento);
+    const ruta = vinculo.idGrupo
+      ? `${rutaBaseAwards}?folder=${encodeURIComponent(vinculo.idGrupo)}`
+      : rutaBaseAwards;
+
+    notificarAgregadoSistemaAscenso({
+      member: {
+        ...(resolvedMember || {}),
+        id: finalIdMiembro,
+        idMiembros: finalIdMiembro,
+        memberId: finalCodigoMiembro,
+        nombreMiembro: finalNombreMiembro,
+      },
+      actorId: actor.uid || 'sistema',
+      actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+      actorNombre: actor.nombre,
+      itemNombre: seAgregoCertificado
+        ? `Certificado: ${vinculo.nombreItemAscenso}`
+        : vinculo.nombreItemAscenso,
+      itemContexto: contexto,
+      ruta,
+    }).catch(() => null);
+  }
 
   return document;
 };

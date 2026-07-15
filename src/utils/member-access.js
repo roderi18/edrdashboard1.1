@@ -534,6 +534,31 @@ const GROUP_LEADER_ROLE_IDS = [ROLES.LIDER_GRUPO, ROLES.LIDER_ASISTENTE_GRUPO];
 export const isGroupLeaderRole = (user = {}) =>
   GROUP_LEADER_ROLE_IDS.includes(getScopeUserRoleId(user));
 
+// Cargos del destacamento que NO son coordinadores: editan a sus miembros pero
+// sus cambios (General y Dispensa Médica) van a APROBACION del Coordinador de
+// Destacamento (mismo flujo/bloqueos que el Lider de Grupo). En Documentos de
+// salud pueden subir pero no eliminar.
+const DESTACAMENTO_APPROVAL_ROLE_IDS = [
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
+];
+
+export const isDestacamentoApprovalRole = (user = {}) =>
+  DESTACAMENTO_APPROVAL_ROLE_IDS.includes(getScopeUserRoleId(user));
+
+// Coordinador de Destacamento (titular y asistente comparten alcance; el
+// asistente se normaliza a titular en getScopeUserRoleId). Tienen acceso total.
+export const isCoordinadorDestacamentoRole = (user = {}) =>
+  getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO;
+
+// Puede ELIMINAR documentos de la Dispensa Médica: todos menos los cargos de
+// destacamento en flujo de aprobacion (ellos solo pueden subir). Es decir,
+// coordinadores de destacamento y administradores de mayor nivel.
+export const canDeleteHealthDocuments = (user = {}) => !isDestacamentoApprovalRole(user);
+
 // Ids de la(s) seccion(es) propias del usuario (a las que esta asignado). Para
 // los cargos de destacamento se resuelven a partir de su destacamento.
 export const getOwnSectionIdsForUser = (user = {}, { dests = [], churches = [] } = {}) =>
@@ -751,6 +776,11 @@ const getUserRoleId = (user = {}) => {
 
   return '';
 };
+
+// El Usuario Común solo tiene acceso de lectura al Sistema de Ascenso: no puede
+// agregar ni cambiar nada (los demas cargos del destacamento con acceso si).
+export const isUsuarioComunRole = (user = {}) =>
+  getUserRoleId(user) === ROLES.USUARIO_COMUN;
 
 const getExcludedPermissionCodes = (user = {}) =>
   [user?.permisosExcluidos, user?.excludedPermissions]
@@ -1057,13 +1087,66 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
     })
     .filter(Boolean);
 
+// Es el Administrador Global (control total). Es el unico rol que ve las
+// pestanas de demostracion/desarrollo del template (Aplicacion, Ecommerce,
+// Analytics, Banking, File, Course, Usuario - desarrollo, Job, Tour).
+const isGlobalAdminUser = (user = {}) =>
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL || isLegacyFullDashboardAdmin(user);
+
+// Pestanas de demo/desarrollo del template que solo debe ver el Administrador
+// Global. Para el resto de usuarios (miembros y demas administradores) se ocultan
+// del sidebar por completo y quedan inaccesibles desde la navegacion.
+const isDevDemoNavItem = (item = {}) => {
+  const title = normalizeText(item.title || '');
+  const path = String(item.path || '');
+
+  const devDemoPaths = [
+    paths.dashboard.root,
+    paths.dashboard.general.ecommerce,
+    paths.dashboard.general.analytics,
+    paths.dashboard.general.banking,
+    paths.dashboard.general.file,
+    paths.dashboard.general.course,
+    paths.dashboard.user.root,
+    paths.dashboard.job.root,
+    paths.dashboard.tour.root,
+  ];
+
+  if (devDemoPaths.includes(path)) {
+    return true;
+  }
+
+  return (
+    title === 'aplicacion' ||
+    title === 'ecommerce' ||
+    title === 'analytics' ||
+    title === 'banking' ||
+    title === 'file' ||
+    title === 'course' ||
+    title === 'usuario - desarrollo' ||
+    title === 'job' ||
+    title === 'tour'
+  );
+};
+
+const stripDevDemoNavItems = (navData = []) =>
+  navData
+    .map((section) => {
+      const items = (section.items ?? []).filter((item) => !isDevDemoNavItem(item));
+
+      return items.length ? { ...section, items } : null;
+    })
+    .filter(Boolean);
+
 export const filterDashboardNavDataByUser = (navData = [], user) => {
+  const baseNavData = isGlobalAdminUser(user) ? navData : stripDevDemoNavItems(navData);
+
   if (isMemberSessionUser(user)) {
-    return filterDashboardNavDataForMember(navData, user);
+    return filterDashboardNavDataForMember(baseNavData, user);
   }
 
   if (!isAdminSessionUser(user)) {
-    return navData;
+    return baseNavData;
   }
 
   const filterItems = (items = []) =>
@@ -1091,7 +1174,7 @@ export const filterDashboardNavDataByUser = (navData = [], user) => {
       })
       .filter(Boolean);
 
-  return navData
+  return baseNavData
     .map((section) => {
       const items = filterItems(section.items);
 

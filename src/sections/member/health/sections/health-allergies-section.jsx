@@ -1,27 +1,28 @@
 'use client';
 
+import { Controller } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
-import CardHeader from '@mui/material/CardHeader';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
+import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { Controller } from 'react-hook-form';
+import {
+    FOOD_ALLERGY_OPTIONS,
+    ALLERGY_REACTION_OPTIONS,
+    ENVIRONMENTAL_ALLERGY_OPTIONS,
+} from 'src/_mock/health';
 
 import { Field } from 'src/components/hook-form';
 import RestrictedText from 'src/components/restricted/RestrictedText';
 
-import {
-    FOOD_ALLERGY_OPTIONS,
-    ENVIRONMENTAL_ALLERGY_OPTIONS,
-    ALLERGY_REACTION_OPTIONS,
-} from 'src/_mock/health';
+import { HealthSectionSubmit } from 'src/sections/member/health/componentes/HealthSectionSubmit';
 
 export function HealthAllergiesSection({
     open,
@@ -31,6 +32,9 @@ export function HealthAllergiesSection({
     watch,
     setValue,
     isSubmitting,
+    isGroupLeader = false,
+    sendingApproval = false,
+    onRequestApproval,
 }) {
     return (
         <Card>
@@ -257,15 +261,12 @@ export function HealthAllergiesSection({
                         </>
                     )}
 
-                    <Stack alignItems="flex-end">
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            loading={isSubmitting}
-                        >
-                            Guardar cambios
-                        </Button>
-                    </Stack>
+                    <HealthSectionSubmit
+                        isSubmitting={isSubmitting}
+                        isGroupLeader={isGroupLeader}
+                        sendingApproval={sendingApproval}
+                        onRequestApproval={onRequestApproval}
+                    />
                 </Stack>
             </Collapse>
         </Card>

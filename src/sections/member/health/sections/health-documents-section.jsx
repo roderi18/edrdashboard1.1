@@ -52,7 +52,7 @@ const TABLE_HEAD = [
     { id: '', width: 100 },
 ];
 
-function HealthDocumentSectionRow({ section, onUpload }) {
+function HealthDocumentSectionRow({ section, onUpload, puedeGestionar = true }) {
     return (
         <TableRow
             sx={{
@@ -73,14 +73,16 @@ function HealthDocumentSectionRow({ section, onUpload }) {
             <TableCell />
 
             <TableCell align="right" sx={{ pr: 3, pl: 1 }}>
-                <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Iconify icon="eva:cloud-upload-fill" />}
-                    onClick={() => onUpload(section.id)}
-                >
-                    Subir
-                </Button>
+                {puedeGestionar && (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<Iconify icon="eva:cloud-upload-fill" />}
+                        onClick={() => onUpload(section.id)}
+                    >
+                        Subir
+                    </Button>
+                )}
             </TableCell>
         </TableRow>
     );
@@ -152,7 +154,13 @@ export function HealthDocumentsSection({
     onUpload,
     onDropUpload,
     onRename,
+    readOnly = false,
 }) {
+    // El Líder de Grupo / Líder Asistente no gestiona documentos (subir/eliminar);
+    // solo los ve. Las operaciones sobre archivos no entran en el flujo de
+    // aprobación por ser irreversibles.
+    const puedeGestionar = !readOnly;
+    const canDeleteDocuments = canDelete && puedeGestionar;
     const displayedDocuments = medicalDocuments.filter((file) =>
         HEALTH_DOCUMENT_SECTIONS.some((section) => section.id === file.documentCategory)
     );
@@ -196,7 +204,7 @@ export function HealthDocumentsSection({
                                     </IconButton>
                                 </Tooltip>
 
-                                {canDelete && (
+                                {canDeleteDocuments && (
                                     <Tooltip title="Eliminar">
                                         <IconButton color="primary" onClick={onDeleteSelected}>
                                             <Iconify icon="solar:trash-bin-trash-bold" />
@@ -248,6 +256,7 @@ export function HealthDocumentsSection({
                                             <HealthDocumentSectionRow
                                                 section={section}
                                                 onUpload={onUpload}
+                                                puedeGestionar={puedeGestionar}
                                             />
 
                                             {sectionDocuments.map((file) => (
@@ -257,8 +266,8 @@ export function HealthDocumentsSection({
                                                     selected={table.selected.includes(file.id)}
                                                     onSelectRow={() => table.onSelectRow(file.id)}
                                                     onDeleteRow={() => onDeleteOne(file.id)}
-                                                    onRename={onRename}
-                                                    canDelete={canDelete}
+                                                    onRename={puedeGestionar ? onRename : undefined}
+                                                    canDelete={canDeleteDocuments}
                                                     showType={false}
                                                     showAvatar={false}
                                                     showThumbnail
@@ -267,7 +276,7 @@ export function HealthDocumentsSection({
                                                 />
                                             ))}
 
-                                            {!sectionDocuments.length && (
+                                            {!sectionDocuments.length && puedeGestionar && (
                                                 <EmptyDocumentDropZone
                                                     section={section}
                                                     onUpload={onUpload}

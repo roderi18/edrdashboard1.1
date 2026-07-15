@@ -31,10 +31,44 @@ export const ESTADOS_SOLICITUD_CAMBIO = {
   rechazada: 'rechazada',
 };
 
+// Modulo/pestaña del miembro a la que pertenece la solicitud. Sirve para llevar
+// al coordinador a la pestaña correcta (General vs Dispensa Médica) y para
+// aplicar el guardado adecuado al aprobar. Las solicitudes antiguas sin este
+// campo se tratan como 'general'.
+export const MODULOS_SOLICITUD_CAMBIO = {
+  general: 'general',
+  salud: 'salud',
+};
+
+export const getModuloSolicitud = (solicitud = {}) =>
+  solicitud?.modulo === MODULOS_SOLICITUD_CAMBIO.salud
+    ? MODULOS_SOLICITUD_CAMBIO.salud
+    : MODULOS_SOLICITUD_CAMBIO.general;
+
 const asegurarFirebase = () => {
   if (!isFirebaseConfigured || !FIRESTORE) {
     throw new Error('Firebase no esta configurado para las solicitudes de cambio.');
   }
+};
+
+// Firestore no acepta `undefined`. Se limpia en profundidad (arreglos y objetos)
+// lo que se envia en cambios / valoresPropuestos / valoresAnteriores.
+const removeUndefined = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(removeUndefined);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).reduce((acc, [key, item]) => {
+      if (item !== undefined) {
+        acc[key] = removeUndefined(item);
+      }
+
+      return acc;
+    }, {});
+  }
+
+  return value === undefined ? '' : value;
 };
 
 // Etiquetas de resultado que ve el solicitante.
@@ -78,11 +112,22 @@ export async function crearSolicitudCambioMiembro(solicitud = {}) {
     codigoMiembro: solicitud.codigoMiembro ?? '',
     nombreMiembro: solicitud.nombreMiembro ?? '',
     idDestacamento: solicitud.idDestacamento ?? null,
+    // 'general' (por defecto) o 'salud'. Ver MODULOS_SOLICITUD_CAMBIO.
+    modulo:
+      solicitud.modulo === MODULOS_SOLICITUD_CAMBIO.salud
+        ? MODULOS_SOLICITUD_CAMBIO.salud
+        : MODULOS_SOLICITUD_CAMBIO.general,
     solicitadoPorUid: solicitud.solicitadoPorUid ?? '',
     solicitadoPorNombre: solicitud.solicitadoPorNombre ?? '',
     solicitadoPorRol: solicitud.solicitadoPorRol ?? '',
     estado: ESTADOS_SOLICITUD_CAMBIO.pendiente,
-    cambios,
+    cambios: removeUndefined(cambios),
+    // Snapshot de todos los campos propuestos (contexto de cascada para el
+    // dialogo de revision). Ver member-create-edit-form / member-change-request-fields.
+    valoresPropuestos: removeUndefined(solicitud.valoresPropuestos ?? {}),
+    // Snapshot de los valores anteriores (para reaplicar el "antes" al rechazar
+    // un campo, incluso si abarca varias claves, p. ej. estatura + unidad).
+    valoresAnteriores: removeUndefined(solicitud.valoresAnteriores ?? {}),
     fechaCreacion: new Date().toISOString(),
     creadoEnServidor: serverTimestamp(),
     actualizadoEnServidor: serverTimestamp(),

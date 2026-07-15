@@ -73,9 +73,9 @@ export default function LocationSelect({ disabled = false }) {
                 onChange={(e, option) => {
                     if (disabled) return;
 
-                    setValue('provinceId', option?.id ? String(option.id) : '');
-                    setValue('municipioId', '');
-                    setValue('sectorId', '');
+                    setValue('provinceId', option?.id ? String(option.id) : '', { shouldDirty: true });
+                    setValue('municipioId', '', { shouldDirty: true });
+                    setValue('sectorId', '', { shouldDirty: true });
                 }}
             />
 
@@ -98,8 +98,8 @@ export default function LocationSelect({ disabled = false }) {
                 onChange={(e, option) => {
                     if (disabled) return;
 
-                    setValue('municipioId', option?.id ? String(option.id) : '');
-                    setValue('sectorId', '');
+                    setValue('municipioId', option?.id ? String(option.id) : '', { shouldDirty: true });
+                    setValue('sectorId', '', { shouldDirty: true });
                 }}
             />
 
@@ -123,7 +123,7 @@ export default function LocationSelect({ disabled = false }) {
                 onChange={(e, option) => {
                     if (disabled) return;
 
-                    setValue('sectorId', option?.id ? String(option.id) : '');
+                    setValue('sectorId', option?.id ? String(option.id) : '', { shouldDirty: true });
                 }}
             />
 
