@@ -878,7 +878,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                                 </Stack>
                             </Stack>
 
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                            <Stack direction="column" spacing={1}>
                                 {requiresTemporaryAccess && !accessPermission && (
                                     <Button
                                         variant="contained"
