@@ -18,7 +18,11 @@ import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { getAdminRoleLabel } from 'src/utils/admin-role-label';
-import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
+import {
+  getRealMemberEmail,
+  isMemberSessionUser,
+  getMemberCodeForDisplay,
+} from 'src/utils/member-access';
 
 import { _mock } from 'src/_mock';
 
@@ -39,7 +43,8 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
-  const memberCode = getMemberCodeLabel(user);
+  const memberCode = getMemberCodeForDisplay(user);
+  const realEmail = getRealMemberEmail(user);
   const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
   const accountPhotoURL = user?.photoURL || '';
@@ -169,9 +174,23 @@ export function AccountDrawer({ data = [], sx, ...other }) {
               </Typography>
             )}
 
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              {memberCode || user?.email}
-            </Typography>
+            {memberCode && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+                {memberCode}
+              </Typography>
+            )}
+
+            {realEmail && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+                {realEmail}
+              </Typography>
+            )}
+
+            {!memberCode && !realEmail && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+                {user?.email}
+              </Typography>
+            )}
           </Box>
 
           <Box

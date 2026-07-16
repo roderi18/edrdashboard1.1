@@ -866,6 +866,23 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
   const age = birthdate ? dayjs().diff(dayjs(birthdate), 'year') : null;
 
+  // Menores de edad: por defecto su ocupación es "Estudiante" (solo si aún no
+  // tienen una ocupación asignada).
+  useEffect(() => {
+    if (age === null || age >= 18) return;
+
+    const current = methods.getValues('ocupation');
+    const hasOcupation = current && (typeof current === 'object' ? current.value : current);
+
+    if (hasOcupation) return;
+
+    const estudiante = MEMBER_OCUPATIONS_SORTED.find((option) => option.value === 'student');
+
+    if (estudiante) {
+      methods.setValue('ocupation', estudiante, { shouldDirty: false });
+    }
+  }, [age, methods]);
+
   useEffect(() => {
     if (division && watch('memberDivision') !== division) {
       methods.setValue('memberDivision', division);

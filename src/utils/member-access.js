@@ -29,6 +29,35 @@ export const getMemberCodeLabel = (user) =>
     .trim()
     .toUpperCase();
 
+// El correo de autenticación de los miembros es generado (usuario@exploradores.app)
+// y NO es un correo real. Este helper detecta ese caso.
+const isMemberAuthEmail = (email) =>
+  String(email || '')
+    .trim()
+    .toLowerCase()
+    .endsWith(`@${MEMBER_AUTH_DOMAIN}`);
+
+// Correo real del usuario (vacío si solo tiene el correo de autenticación falso).
+export const getRealMemberEmail = (user = {}) => {
+  const email = String(user?.email ?? '').trim();
+  return isMemberAuthEmail(email) ? '' : email;
+};
+
+// Código del miembro para mostrar. Usa codigoMiembro/memberId; si faltan pero el
+// correo es el de autenticación (usuario@exploradores.app), lo deriva del usuario
+// del correo (p. ej. do-sd-111111041 -> DO-SD-111111041).
+export const getMemberCodeForDisplay = (user = {}) => {
+  const code = getMemberCodeLabel(user);
+  if (code) return code;
+
+  const email = String(user?.email ?? '').trim();
+  if (isMemberAuthEmail(email)) {
+    return email.split('@')[0].toUpperCase();
+  }
+
+  return '';
+};
+
 const getActiveMemberPhotoUrl = async (idMiembros) => {
   const memberId = Number(idMiembros);
 

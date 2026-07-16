@@ -87,7 +87,12 @@ export default function MemberGeneralSection({
                 )}
             />
 
-            <Field.Text name="email" label="Correo electrónico" />
+            <Field.Text
+                name="email"
+                label="Correo electrónico"
+                placeholder="No registrado"
+                slotProps={{ inputLabel: { shrink: true } }}
+            />
         </>
     );
 }

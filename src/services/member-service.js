@@ -39,6 +39,21 @@ const getDivisionIdByBirthdate = (birthDate) => {
   return null;
 };
 
+// Nombre canonico de la division por id (coincide con las claves de iconos y con
+// la division que muestran las vistas de miembro).
+const DIVISION_NAME_BY_ID = {
+  1: 'Navegantes',
+  2: 'Pioneros',
+  3: 'Seguidores',
+  4: 'Exploradores',
+  5: 'Liderazgo',
+};
+
+const getDivisionNameById = (idDivision) => DIVISION_NAME_BY_ID[Number(idDivision)] || '';
+
+const getDivisionNameByBirthdate = (birthDate) =>
+  getDivisionNameById(getDivisionIdByBirthdate(birthDate));
+
 const normalizeMemberStatus = (status) => {
   const normalizedStatus = String(status || '')
     .trim()
@@ -62,11 +77,20 @@ const normalizeCachedMember = (member) => {
 
   if (id === null || id === undefined || id === '') return null;
 
+  const birthDate = member.birthDate ?? member.fechaNacimiento ?? null;
+  const idDivision = member.idDivision ?? getDivisionIdByBirthdate(birthDate);
+
   return {
     ...member,
     id: String(id),
     memberId: member.memberId ?? member.codigoMiembro ?? member.idMiembros ?? String(id),
     destId: String(member.destId ?? member.idDestacamento ?? ''),
+    idDivision,
+    memberDivision:
+      member.memberDivision ||
+      member.division ||
+      getDivisionNameById(idDivision) ||
+      getDivisionNameByBirthdate(birthDate),
     status: normalizeMemberStatus(member.status ?? member.estatusMiembro),
   };
 };
@@ -102,6 +126,11 @@ export function mapApiMemberToUI(member) {
     gender: member.genero || '',
     birthDate: member.fechaNacimiento || null,
     idDivision: member.idDivision ?? getDivisionIdByBirthdate(member.fechaNacimiento),
+    memberDivision:
+      member.memberDivision ||
+      member.division ||
+      getDivisionNameById(member.idDivision) ||
+      getDivisionNameByBirthdate(member.fechaNacimiento),
     shirtSize: member.sizeCamisas || '',
     ocupation: member.ocupacion || '',
 

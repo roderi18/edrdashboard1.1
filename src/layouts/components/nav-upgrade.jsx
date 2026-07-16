@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { getMemberCodeLabel, isMemberSessionUser } from 'src/utils/member-access';
+import { getRealMemberEmail, getMemberCodeForDisplay } from 'src/utils/member-access';
 
 import { CONFIG } from 'src/global-config';
 
@@ -20,7 +20,10 @@ import { useAuthContext } from 'src/auth/hooks';
 
 export function NavUpgrade({ sx, ...other }) {
   const { user } = useAuthContext();
-  const memberCode = isMemberSessionUser(user) ? getMemberCodeLabel(user) : '';
+  // Siempre se muestra el código; si además hay un correo real (no el de
+  // autenticación @exploradores.app), se muestra debajo.
+  const memberCode = getMemberCodeForDisplay(user);
+  const realEmail = getRealMemberEmail(user);
 
   return (
     <Box
@@ -58,7 +61,7 @@ export function NavUpgrade({ sx, ...other }) {
             {user?.displayName}
           </Typography>
 
-          {memberCode ? (
+          {memberCode && (
             <Typography
               variant="body2"
               noWrap
@@ -66,7 +69,19 @@ export function NavUpgrade({ sx, ...other }) {
             >
               {memberCode}
             </Typography>
-          ) : (
+          )}
+
+          {realEmail && (
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
+            >
+              {realEmail}
+            </Typography>
+          )}
+
+          {!memberCode && !realEmail && (
             <Typography
               variant="body2"
               noWrap

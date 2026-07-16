@@ -96,6 +96,8 @@ export default function MemberLeadershipAndOtherSection({
                     NIVELES_DIRECTIVA.seccional,
                 ]}
                 groupByLevel
+                includeNone
+                noneLabel="Ninguno"
                 disabled={lockCoreFields}
             />
 

@@ -69,6 +69,7 @@ export default function CargoSelectApi({
   groupByLevel = false,
   groupByDivision = false,
   includeNone = false,
+  noneLabel = 'Ninguna',
   helperText,
   disabled = false,
 }) {
@@ -131,13 +132,13 @@ export default function CargoSelectApi({
         : NIVEL_LABELS[cargo.nivel] || cargo.nivel || 'Otros',
     }));
 
-    return includeNone ? [NONE_OPTION, ...cargoOptions] : cargoOptions;
-  }, [cargos, includeNone, groupByDivision]);
+    return includeNone ? [{ ...NONE_OPTION, label: noneLabel }, ...cargoOptions] : cargoOptions;
+  }, [cargos, includeNone, groupByDivision, noneLabel]);
 
   const currentValue = watch(name);
   const value =
     options.find((cargo) => String(cargo.value) === String(currentValue || '')) ||
-    (includeNone && !currentValue ? NONE_OPTION : null);
+    (includeNone && !currentValue ? { ...NONE_OPTION, label: noneLabel } : null);
   const hasCollapsibleGroups = groupByLevel || groupByDivision;
   const getGroupLabel = (option) => {
     if (groupByDivision) {
