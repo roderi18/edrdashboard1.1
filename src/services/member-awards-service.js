@@ -14,12 +14,15 @@ import { paths } from 'src/routes/paths';
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
-import { notificarAgregadoSistemaAscenso } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
   notifyAwardsProgressChanged,
 } from 'src/services/awards-progress-cache';
+import {
+  notificarAgregadoSistemaAscenso,
+  notificarCambioEstadoSistemaAscenso,
+} from 'src/services/solicitudes-cambio-notificaciones-service';
 
 export const COLECCION_ITEMS_ASCENSO = 'itemsAscenso';
 export const COLECCION_PROGRESO_ASCENSO_MIEMBROS = 'progresoAscensoMiembros';
@@ -327,12 +330,12 @@ export const guardarProgresoAscensoMiembro = async ({
   // Aviso informativo al Coordinador y Coordinador Asistente de Destacamento: se
   // notifica solo cuando se AGREGA algo (el item pasa a completado por primera
   // vez o se adjunta un nuevo certificado), indicando quién, qué y a quién.
-  const seCompletoAhora = estado === 'completado' && previous.estado !== 'completado';
+  const cambioEstado = previous.estado !== estado;
   const seAgregoCertificado = Boolean(
     certificateForProgress?.id && !(previous.idsCertificados || []).includes(certificateForProgress.id)
   );
 
-  if (seCompletoAhora || seAgregoCertificado) {
+  if (cambioEstado || seAgregoCertificado) {
     const segmento = encodeURIComponent(finalCodigoMiembro || finalIdMiembro);
     const contexto = [vinculo.nombreDivision, vinculo.nombreGrupo].filter(Boolean).join(' · ');
     const actor = getCreator(user);
@@ -343,23 +346,36 @@ export const guardarProgresoAscensoMiembro = async ({
       ? `${rutaBaseAwards}?folder=${encodeURIComponent(vinculo.idGrupo)}`
       : rutaBaseAwards;
 
-    notificarAgregadoSistemaAscenso({
-      member: {
-        ...(resolvedMember || {}),
-        id: finalIdMiembro,
-        idMiembros: finalIdMiembro,
-        memberId: finalCodigoMiembro,
-        nombreMiembro: finalNombreMiembro,
-      },
-      actorId: actor.uid || 'sistema',
-      actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
-      actorNombre: actor.nombre,
-      itemNombre: seAgregoCertificado
-        ? `Certificado: ${vinculo.nombreItemAscenso}`
-        : vinculo.nombreItemAscenso,
-      itemContexto: contexto,
-      ruta,
-    }).catch(() => null);
+    const notificationMember = {
+      ...(resolvedMember || {}),
+      id: finalIdMiembro,
+      idMiembros: finalIdMiembro,
+      memberId: finalCodigoMiembro,
+      nombreMiembro: finalNombreMiembro,
+    };
+
+    if (cambioEstado && vinculo.sistema === 'sistemaAscenso') {
+      notificarCambioEstadoSistemaAscenso({
+        member: notificationMember,
+        actorId: actor.uid || 'sistema',
+        actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+        actorNombre: actor.nombre,
+        itemNombre: vinculo.nombreItemAscenso,
+        estadoAnterior: previous.estado,
+        estadoNuevo: estado,
+        ruta,
+      }).catch(() => null);
+    } else if (seAgregoCertificado) {
+      notificarAgregadoSistemaAscenso({
+        member: notificationMember,
+        actorId: actor.uid || 'sistema',
+        actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+        actorNombre: actor.nombre,
+        itemNombre: `Certificado: ${vinculo.nombreItemAscenso}`,
+        itemContexto: contexto,
+        ruta,
+      }).catch(() => null);
+    }
   }
 
   return document;

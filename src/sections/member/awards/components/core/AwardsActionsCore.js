@@ -1,5 +1,6 @@
 import { guardarCertificadoAscensoManual } from 'src/services/certificate-service';
 import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
+import { crearSolicitudCambioEstadoAscenso } from 'src/services/award-status-change-request-service';
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
@@ -12,6 +13,7 @@ export function createAwardsActions({
   context, // { sectionId?, parentId, rowId }
   metadata = {},
   user,
+  onRequireStatusChangeApproval,
 }) {
   if (
     !system ||
@@ -25,6 +27,7 @@ export function createAwardsActions({
       uploadCertificate: () => {},
       deleteCertificate: () => {},
       updateTimesCompleted: () => {},
+      requestStatusChange: () => Promise.resolve(null),
     };
   }
 
@@ -103,6 +106,19 @@ export function createAwardsActions({
     const status = readStatus();
     const data = readData();
     const existing = getNode(data);
+
+    if (
+      system === 'sistemaAscenso' &&
+      existing.status === 'completado' &&
+      nextStatus !== 'completado'
+    ) {
+      onRequireStatusChangeApproval?.({
+        nextStatus,
+        nextTimesCompleted: 0,
+        hasCertificate: Boolean(existing.certificate),
+      });
+      return;
+    }
     const nextNode = {
       ...existing,
       status: nextStatus,
@@ -248,6 +264,15 @@ export function createAwardsActions({
     const now = new Date().toISOString();
     const safe = Math.min(10, Math.max(0, value));
     const existing = getNode(data);
+
+    if (existing.status === 'completado' && safe === 0) {
+      onRequireStatusChangeApproval?.({
+        nextStatus: 'no_iniciado',
+        nextTimesCompleted: 0,
+        hasCertificate: Boolean(existing.certificate),
+      });
+      return;
+    }
     const nextStatus = safe > 0 ? 'completado' : 'no_iniciado';
     const nextNode = {
       ...existing,
@@ -282,6 +307,16 @@ export function createAwardsActions({
     };
   };
 
+  const requestStatusChange = ({ nextStatus, nextTimesCompleted = 0 } = {}) =>
+    crearSolicitudCambioEstadoAscenso({
+      memberId,
+      context,
+      metadata,
+      nextStatus,
+      nextTimesCompleted,
+      user,
+    });
+
   return {
     setStatus,
     setCompletedDate,
@@ -289,5 +324,6 @@ export function createAwardsActions({
     deleteCertificate,
     updateTimesCompleted,
     requireCertificateDeletion,
+    requestStatusChange,
   };
 }

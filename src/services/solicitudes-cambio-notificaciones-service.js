@@ -205,6 +205,64 @@ export const notificarCoordinadoresActualizacionDirecta = async ({
   return enviadas;
 };
 
+// Notifica todo cambio efectivo de estado en el Sistema de Ascenso a ambos
+// Coordinadores de Destacamento, incluido el actor cuando sea uno de ellos.
+export const notificarCambioEstadoSistemaAscenso = async ({
+  member,
+  actorId,
+  actorNombre,
+  itemNombre,
+  estadoAnterior,
+  estadoNuevo,
+  ruta,
+} = {}) => {
+  const destacamentoId = Number(member?.destId || member?.idDestacamento) || null;
+  if (!destacamentoId) return 0;
+
+  const coordinadores = await obtenerCoordinadoresDestacamento(destacamentoId);
+  const nombreMiembro =
+    member?.nombreMiembro ||
+    [member?.firstName || member?.nombres, member?.lastName || member?.apellidos]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    member?.memberId ||
+    'un miembro';
+  const nombreActor = actorNombre || 'Un usuario';
+  const estados = {
+    no_iniciado: 'No iniciado',
+    en_progreso: 'En progreso',
+    completado: 'Completado',
+  };
+  let enviadas = 0;
+
+  await Promise.all(
+    coordinadores.map(async (coordinador) => {
+      const ids = await resolverDestinatariosPorIdMiembros(coordinador.idMiembros);
+      if (!ids.length) return;
+
+      const resultado = await crearNotificacionAdmin({
+        tipoNotificacion: 'cambio_estado_sistema_ascenso',
+        modulo: 'miembros',
+        titulo: 'Estado actualizado en Sistema de Ascenso',
+        mensaje: `${nombreActor} cambió "${itemNombre || 'un elemento'}" de ${estados[estadoAnterior] || estadoAnterior || 'Sin estado'} a ${estados[estadoNuevo] || estadoNuevo} para ${nombreMiembro}.`,
+        prioridad: 'informativa',
+        entidadTipo: 'miembro',
+        entidadId: String(member?.id || member?.idMiembros || ''),
+        ruta: ruta || '/dashboard',
+        etiquetaAccion: 'Ver Sistema de Ascenso',
+        actorId: actorId || 'sistema',
+        actorNombre: nombreActor,
+        idsDestinatariosPrecalculados: ids,
+      });
+
+      if (resultado) enviadas += 1;
+    })
+  );
+
+  return enviadas;
+};
+
 // Notifica —de forma informativa— a los Coordinadores (titular y asistente) del
 // destacamento del miembro que alguien AGREGÓ algo en el Sistema de Ascenso:
 // quién lo agregó, qué ítem, y a qué miembro. No es un flujo de aprobación, solo

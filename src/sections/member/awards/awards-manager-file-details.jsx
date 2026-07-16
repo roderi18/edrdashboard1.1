@@ -14,6 +14,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -45,12 +46,10 @@ export function FileManagerFileDetails({
 }) {
   const { user } = useAuthContext();
   const shareDialog = useBoolean();
-  const showTags = useBoolean(false); //desplegable cerrado por default
   const showDescription = useBoolean(true);
   const showAwardsStatus = useBoolean(true);
 
   const [inviteEmail, setInviteEmail] = useState('');
-  const [tags, setTags] = useState(file?.tags?.slice(0, 3) || []);
   const [localStatus, setLocalStatus] = useState('no_iniciado');
   const [completedDate, setCompletedDate] = useState(null);
   const [timesCompleted, setTimesCompleted] = useState(0);
@@ -61,6 +60,7 @@ export function FileManagerFileDetails({
   const confirmDelete = useBoolean();
   const confirmDeleteForStatus = useBoolean();
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [sendingStatusRequest, setSendingStatusRequest] = useState(false);
 
   const resolvedMemberId = memberId || file?.memberId;
   const resolvedSystem = system;
@@ -90,6 +90,13 @@ export function FileManagerFileDetails({
       idDivision: file?.sectionId || '',
     },
     user,
+    onRequireStatusChangeApproval:
+      resolvedSystem === 'sistemaAscenso'
+        ? (change) => {
+            setPendingStatus(change);
+            confirmDeleteForStatus.onTrue();
+          }
+        : undefined,
   });
 
   useEffect(() => {
@@ -153,10 +160,6 @@ export function FileManagerFileDetails({
 
   const handleChangeInvite = useCallback((event) => {
     setInviteEmail(event.target.value);
-  }, []);
-
-  const handleChangeTags = useCallback((newValue) => {
-    setTags(newValue);
   }, []);
 
   const handleUploadCertificate = (event) => {
@@ -291,8 +294,30 @@ export function FileManagerFileDetails({
               <StatusSelectCell
                 value={localStatus}
                 hasCertificate={hasCertificate}
+                onRequireDeleteCertificate={(nextStatus) => {
+                  setPendingStatus(
+                    resolvedSystem === 'sistemaAscenso'
+                      ? { nextStatus, nextTimesCompleted: 0, hasCertificate }
+                      : nextStatus
+                  );
+                  confirmDeleteForStatus.onTrue();
+                }}
                 onChange={(next) => {
-                  if (hasCertificate && localStatus === 'completado' && next !== 'completado') {
+                  if (
+                    resolvedSystem === 'sistemaAscenso' &&
+                    localStatus === 'completado' &&
+                    next !== 'completado'
+                  ) {
+                    actions?.setStatus(next);
+                    return;
+                  }
+
+                  if (
+                    resolvedSystem !== 'sistemaAscenso' &&
+                    hasCertificate &&
+                    localStatus === 'completado' &&
+                    next !== 'completado'
+                  ) {
                     setPendingStatus(next);
                     confirmDeleteForStatus.onTrue();
                     return;
@@ -347,7 +372,7 @@ export function FileManagerFileDetails({
                     disabled={localStatus !== 'completado' || timesCompleted <= 0}
                     onClick={() => {
                       const next = timesCompleted - 1;
-                      setTimesCompleted(next);
+                      if (next > 0) setTimesCompleted(next);
                       actions?.updateTimesCompleted(next);
                     }}
                   >
@@ -570,13 +595,38 @@ export function FileManagerFileDetails({
           confirmDeleteForStatus.onFalse();
           setPendingStatus(null);
         }}
-        title="Eliminar certificado"
-        content="Has cargado un certificado. Para cambiar el estado debes eliminarlo primero. ¿Deseas eliminarlo?"
+        title={
+          resolvedSystem === 'sistemaAscenso'
+            ? 'Solicitar cambio de estado'
+            : 'Eliminar certificado'
+        }
+        content={
+          resolvedSystem === 'sistemaAscenso'
+            ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? Si existe un documento anexo, se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
+            : 'Has cargado un certificado. Para cambiar el estado debes eliminarlo primero. ¿Deseas eliminarlo?'
+        }
         action={
           <Button
             variant="contained"
-            color="error"
-            onClick={() => {
+            color={resolvedSystem === 'sistemaAscenso' ? 'primary' : 'error'}
+            loading={sendingStatusRequest}
+            onClick={async () => {
+              if (resolvedSystem === 'sistemaAscenso') {
+                if (!pendingStatus?.nextStatus) return;
+                setSendingStatusRequest(true);
+                try {
+                  await actions.requestStatusChange(pendingStatus);
+                  toast.success('Solicitud enviada a los Coordinadores de Destacamento.');
+                  setPendingStatus(null);
+                  confirmDeleteForStatus.onFalse();
+                } catch (error) {
+                  toast.error(error.message || 'No se pudo enviar la solicitud.');
+                } finally {
+                  setSendingStatusRequest(false);
+                }
+                return;
+              }
+
               actions.deleteCertificate();
 
               if (pendingStatus) {
@@ -588,7 +638,7 @@ export function FileManagerFileDetails({
               confirmDeleteForStatus.onFalse();
             }}
           >
-            Sí, eliminar
+            {resolvedSystem === 'sistemaAscenso' ? 'Enviar solicitud' : 'Sí, eliminar'}
           </Button>
         }
       />
