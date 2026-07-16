@@ -13,15 +13,19 @@ import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { isDestacamentoApprovalRole } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 export function MemberEditLayout({ children, member = null, ...other }) {
+  const { user } = useAuthContext();
   const pathname = usePathname();
   const router = useRouter();
   const params = useParams();
@@ -76,11 +80,15 @@ export function MemberEditLayout({ children, member = null, ...other }) {
       icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
       href: paths.dashboard.level.member.editParents(canonicalMemberSegment),
     },
-    {
-      label: 'Historial',
-      icon: <Iconify width={24} icon="solar:history-bold" />,
-      href: paths.dashboard.level.member.editHistory(canonicalMemberSegment),
-    },
+    ...(!isDestacamentoApprovalRole(user)
+      ? [
+          {
+            label: 'Historial',
+            icon: <Iconify width={24} icon="solar:history-bold" />,
+            href: paths.dashboard.level.member.editHistory(canonicalMemberSegment),
+          },
+        ]
+      : []),
   ];
 
   return (
