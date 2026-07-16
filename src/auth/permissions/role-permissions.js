@@ -117,6 +117,14 @@ const CARGOS_DESTACAMENTO = [
   ROLES.LIDER_ASISTENTE_GRUPO,
 ];
 
+// Cargo de apoyo del destacamento (Consejo): perfil operativo base, sin crear
+// miembros ni permisos ampliados.
+const CARGOS_DESTACAMENTO_APOYO = [ROLES.CONSEJO_DESTACAMENTO];
+
+// Lider de Grupo y Lider Asistente de Grupo: perfil operativo base + crear
+// miembros, ver regiones, reportes seccionales y enviar correos.
+const LIDERES_GRUPO = [ROLES.LIDER_GRUPO, ROLES.LIDER_ASISTENTE_GRUPO];
+
 const PERMISOS_CARGO_DESTACAMENTO = [
   PERMISOS.DESTACAMENTOS_VER,
   PERMISOS.SECCIONES_VER,
@@ -138,6 +146,44 @@ const PERMISOS_CARGO_DESTACAMENTO = [
   PERMISOS.TIENDA_VER,
 ];
 
+// Lider de Grupo / Asistente: base + crear miembros, ver regiones, reportes
+// seccionales y enviar correos. (Sus ediciones siguen yendo a aprobacion del
+// Coordinador; eso lo controla la app por rol, no el catalogo de permisos.)
+const PERMISOS_LIDER_GRUPO = [
+  ...PERMISOS_CARGO_DESTACAMENTO,
+  PERMISOS.MIEMBROS_CREAR,
+  PERMISOS.REGIONES_VER,
+  PERMISOS.REPORTES_VER_SECCIONALES,
+  PERMISOS.CORREOS_ENVIAR,
+];
+
+// Capellan de Destacamento: edita y crea miembros (via aprobacion, igual que el
+// Lider de Grupo), ve regiones, reportes seccionales y envia correos; pero NO ve
+// menores ni datos sensibles.
+const PERMISOS_CAPELLAN_DESTACAMENTO = [
+  PERMISOS.DESTACAMENTOS_VER,
+  PERMISOS.SECCIONES_VER,
+  PERMISOS.REGIONES_VER,
+  PERMISOS.MIEMBROS_VER,
+  PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.MIEMBROS_VER_MENORES,
+  PERMISOS.MIEMBROS_CREAR,
+  PERMISOS.MIEMBROS_EDITAR,
+  PERMISOS.MIEMBROS_SUBIR_FOTO,
+  PERMISOS.DOCUMENTOS_VER,
+  PERMISOS.DOCUMENTOS_SUBIR,
+  PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
+  PERMISOS.ASISTENCIA_VER,
+  PERMISOS.ASISTENCIA_CREAR,
+  PERMISOS.ASISTENCIA_EDITAR,
+  PERMISOS.REPORTES_VER_LOCALES,
+  PERMISOS.REPORTES_VER_SECCIONALES,
+  PERMISOS.REPORTES_VER_REGIONALES,
+  PERMISOS.REPORTES_VER_NACIONALES,
+  PERMISOS.TIENDA_VER,
+  PERMISOS.CORREOS_ENVIAR,
+];
+
 const RESTRICCIONES_CARGO_DESTACAMENTO = {
   ...RESTRICCIONES_BASE,
   requierePermisoParaMenores: true,
@@ -152,12 +198,13 @@ export const RESTRICCIONES_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
-    eliminarDocumentosRequiereAprobacion: true,
+    // El coordinador elimina documentos de sus miembros directamente.
+    eliminarDocumentosRequiereAprobacion: false,
   },
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
-    eliminarDocumentosRequiereAprobacion: true,
+    eliminarDocumentosRequiereAprobacion: false,
   },
   ...fromCodes(CARGOS_DESTACAMENTO, RESTRICCIONES_CARGO_DESTACAMENTO),
   [ROLES.USUARIO_SECCION]: {
@@ -229,54 +276,75 @@ export const PERMISOS_POR_ROL = {
   [ROLES.USUARIO_COMUN]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
+    PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.REPORTES_VER_LOCALES,
     PERMISOS.TIENDA_VER,
   ],
+  // Coordinador de Destacamento: gestiona a los miembros de su destacamento
+  // (crear, editar), sus documentos (subir/eliminar) y asistencia; ve regiones y
+  // reportes de todos los niveles; puede enviar correos. No elimina miembros.
   [ROLES.USUARIO_DESTACAMENTO]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.SECCIONES_VER,
+    PERMISOS.REGIONES_VER,
     PERMISOS.MIEMBROS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+    PERMISOS.MIEMBROS_CREAR,
     PERMISOS.MIEMBROS_EDITAR,
     PERMISOS.MIEMBROS_SUBIR_FOTO,
     PERMISOS.DOCUMENTOS_VER,
     PERMISOS.DOCUMENTOS_SUBIR,
     PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
+    PERMISOS.DOCUMENTOS_ELIMINAR,
     PERMISOS.ASISTENCIA_VER,
     PERMISOS.ASISTENCIA_CREAR,
     PERMISOS.ASISTENCIA_EDITAR,
     PERMISOS.REPORTES_VER_LOCALES,
-    // Acceso de solo lectura a los niveles superiores (regiones y consejo nacional).
+    PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.REPORTES_VER_NACIONALES,
     PERMISOS.TIENDA_VER,
+    PERMISOS.CORREOS_ENVIAR,
   ],
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.SECCIONES_VER,
+    PERMISOS.REGIONES_VER,
     PERMISOS.MIEMBROS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+    PERMISOS.MIEMBROS_CREAR,
     PERMISOS.MIEMBROS_EDITAR,
     PERMISOS.MIEMBROS_SUBIR_FOTO,
     PERMISOS.DOCUMENTOS_VER,
     PERMISOS.DOCUMENTOS_SUBIR,
     PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
+    PERMISOS.DOCUMENTOS_ELIMINAR,
     PERMISOS.ASISTENCIA_VER,
     PERMISOS.ASISTENCIA_CREAR,
     PERMISOS.ASISTENCIA_EDITAR,
     PERMISOS.REPORTES_VER_LOCALES,
+    PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.REPORTES_VER_NACIONALES,
     PERMISOS.TIENDA_VER,
+    PERMISOS.CORREOS_ENVIAR,
   ],
-  // Pastor, Consejo Destacamento, Capellán, Líder de Grupo y Líder Asistente de
-  // Grupo: mismo perfil operativo que el Coordinador de Destacamento.
-  ...fromCodes(CARGOS_DESTACAMENTO, PERMISOS_CARGO_DESTACAMENTO),
+  // Consejo Destacamento: perfil operativo base.
+  ...fromCodes(CARGOS_DESTACAMENTO_APOYO, PERMISOS_CARGO_DESTACAMENTO),
+  // Pastor de Destacamento: idéntico al Líder de Grupo (crea miembros, ve menores
+  // y datos sensibles, regiones, reportes seccionales y envía correos).
+  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_LIDER_GRUPO,
+  // Capellán de Destacamento: como el Líder de Grupo pero SIN ver menores ni
+  // datos sensibles.
+  [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CAPELLAN_DESTACAMENTO,
+  // Líder de Grupo y Líder Asistente: base + crear miembros, ver regiones,
+  // reportes seccionales y enviar correos.
+  ...fromCodes(LIDERES_GRUPO, PERMISOS_LIDER_GRUPO),
   [ROLES.USUARIO_SECCION]: [
     // Ve todos los niveles organizacionales (el alcance propio-vs-ajeno para
     // editar lo aplican los predicados de org-level-access).
