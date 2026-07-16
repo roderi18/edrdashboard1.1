@@ -367,7 +367,6 @@ export async function resolverSolicitudAccesoSalud({
   const seccionesTexto = seccionesFinales
     .map((item) => ETIQUETAS_SECCIONES_ACCESO_SALUD[item])
     .join(', ');
-  const permitidoTexto = fechaResolucion.toLocaleString('es-DO');
   const hastaTexto = fechaExpiracion
     ? new Date(fechaExpiracion).toLocaleString('es-DO')
     : 'completar una única visualización';
@@ -376,7 +375,7 @@ export async function resolverSolicitudAccesoSalud({
     modulo: 'miembros',
     titulo: aprobada ? 'Acceso a Dispensa Médica aprobado' : 'Acceso a Dispensa Médica rechazado',
     mensaje: aprobada
-      ? `Tu acceso fue aprobado el ${permitidoTexto} y es válido hasta ${hastaTexto}. Secciones: ${seccionesTexto}.`
+      ? `Tu acceso es válido hasta ${hastaTexto}. Secciones: ${seccionesTexto}.`
       : 'Tu solicitud de acceso a la Dispensa Médica fue rechazada.',
     prioridad: 'informativa',
     entidadTipo: 'miembro',

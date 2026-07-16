@@ -857,7 +857,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                                     {requiresTemporaryAccess && accessPermission && (
                                         <Typography variant="caption" color="success.main">
                                             Acceso disponible por {formatearTiempoRestanteAccesoSalud(accessPermission, accessNow)}.
-                                            {' '}Permitido el {formatAccessDateTime(accessPermission.fechaResolucion)}.
                                             {' '}Válido hasta {accessPermission.duracion === DURACIONES_ACCESO_SALUD.unaVez
                                                 ? 'completar esta visualización'
                                                 : formatAccessDateTime(accessPermission.fechaExpiracion)}.
@@ -906,7 +905,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                 {accessResult && (
                     <Alert severity={accessResult.estado === 'aprobada' ? 'success' : 'error'}>
                         {accessResult.estado === 'aprobada'
-                            ? `Acceso aprobado el ${formatAccessDateTime(accessResult.fechaResolucion)} y válido hasta ${
+                            ? `Acceso válido hasta ${
                                 accessResult.duracion === DURACIONES_ACCESO_SALUD.unaVez
                                     ? 'completar una única visualización'
                                     : formatAccessDateTime(accessResult.fechaExpiracion)
