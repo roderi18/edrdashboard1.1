@@ -54,7 +54,6 @@ import {
   estaPermisoAccesoSaludVigente,
   obtenerSolicitudAccesoSaludPorId,
   consumirPermisoAccesoSaludUnaVez,
-  ETIQUETAS_SECCIONES_ACCESO_SALUD,
   formatearTiempoRestanteAccesoSalud,
 } from 'src/services/member-health-access-service';
 
@@ -811,6 +810,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         }).format(date);
     };
 
+    const formatApproverName = (value) => {
+        const parts = String(value || 'Coordinador de Destacamento').trim().split(/\s+/).filter(Boolean);
+        return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+    };
+
     // Props comunes del flujo de aprobacion que reciben las secciones editables.
     // (El prop se llama isGroupLeader por compatibilidad con las secciones, pero
     // aplica a todos los cargos de destacamento en flujo de aprobación.)
@@ -857,12 +861,12 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                                     {requiresTemporaryAccess && accessPermission && (
                                         <Typography variant="caption" color="success.main">
                                             Acceso disponible por {formatearTiempoRestanteAccesoSalud(accessPermission, accessNow)}.
+                                            {' '}Autorizado por {formatApproverName(
+                                                accessPermission.resueltoPorNombreCorto || accessPermission.resueltoPorNombre
+                                            )}.
                                             {' '}Válido hasta {accessPermission.duracion === DURACIONES_ACCESO_SALUD.unaVez
                                                 ? 'completar esta visualización'
                                                 : formatAccessDateTime(accessPermission.fechaExpiracion)}.
-                                            {' '}Secciones: {(accessPermission.secciones || [])
-                                                .map((section) => ETIQUETAS_SECCIONES_ACCESO_SALUD[section])
-                                                .join(', ')}.
                                         </Typography>
                                     )}
                                     {requiresTemporaryAccess && !accessLoading && !accessPermission && (
@@ -909,9 +913,9 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                                 accessResult.duracion === DURACIONES_ACCESO_SALUD.unaVez
                                     ? 'completar una única visualización'
                                     : formatAccessDateTime(accessResult.fechaExpiracion)
-                            }. Secciones: ${(accessResult.secciones || [])
-                                .map((section) => ETIQUETAS_SECCIONES_ACCESO_SALUD[section])
-                                .join(', ')}.`
+                            }. Autorizado por ${formatApproverName(
+                                accessResult.resueltoPorNombreCorto || accessResult.resueltoPorNombre
+                            )}.`
                             : 'La solicitud de acceso fue rechazada.'}
                     </Alert>
                 )}

@@ -76,6 +76,25 @@ const getNombreUsuario = (usuario = {}) =>
 
 const getUsuarioId = (usuario = {}) => String(usuario.uid || usuario.id || '').trim();
 
+const getNombreCorto = (value = '') => {
+  const parts = String(value || 'Coordinador de Destacamento').trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+};
+
+const getNombreCortoUsuario = (usuario = {}) => {
+  const nombreCompleto = getNombreUsuario(usuario);
+  const primerNombre = String(usuario.nombres || usuario.firstName || nombreCompleto)
+    .trim()
+    .split(/\s+/)[0];
+  const apellidoEstructurado = String(usuario.apellidos || usuario.lastName || '')
+    .trim()
+    .split(/\s+/)[0];
+
+  return apellidoEstructurado
+    ? `${primerNombre} ${apellidoEstructurado}`
+    : getNombreCorto(nombreCompleto);
+};
+
 const getMemberName = (member = {}) =>
   [member.firstName || member.nombres, member.lastName || member.apellidos]
     .filter(Boolean)
@@ -337,6 +356,7 @@ export async function resolverSolicitudAccesoSalud({
     resueltoPorUid: getUsuarioId(usuario),
     resueltoPorIdMiembros: Number(usuario.idMiembros || usuario.memberId) || null,
     resueltoPorNombre: getNombreUsuario(usuario),
+    resueltoPorNombreCorto: getNombreCortoUsuario(usuario),
     actualizadoEnServidor: serverTimestamp(),
   };
 
@@ -364,9 +384,6 @@ export async function resolverSolicitudAccesoSalud({
   const segmento = encodeURIComponent(
     String(solicitud.codigoMiembro || solicitud.idMiembros || '')
   );
-  const seccionesTexto = seccionesFinales
-    .map((item) => ETIQUETAS_SECCIONES_ACCESO_SALUD[item])
-    .join(', ');
   const hastaTexto = fechaExpiracion
     ? new Date(fechaExpiracion).toLocaleString('es-DO')
     : 'completar una única visualización';
@@ -375,7 +392,7 @@ export async function resolverSolicitudAccesoSalud({
     modulo: 'miembros',
     titulo: aprobada ? 'Acceso a Dispensa Médica aprobado' : 'Acceso a Dispensa Médica rechazado',
     mensaje: aprobada
-      ? `Tu acceso es válido hasta ${hastaTexto}. Secciones: ${seccionesTexto}.`
+      ? `Tu acceso fue autorizado por ${payload.resueltoPorNombreCorto} y es válido hasta ${hastaTexto}.`
       : 'Tu solicitud de acceso a la Dispensa Médica fue rechazada.',
     prioridad: 'informativa',
     entidadTipo: 'miembro',
@@ -394,6 +411,7 @@ export async function resolverSolicitudAccesoSalud({
       fechaResolucion: payload.fechaResolucion,
       fechaExpiracion: payload.fechaExpiracion,
       resueltoPorNombre: payload.resueltoPorNombre,
+      resueltoPorNombreCorto: payload.resueltoPorNombreCorto,
     },
   });
 
