@@ -235,10 +235,13 @@ const mapMedicamentosToForm = (documents = []) => {
   };
 };
 
-export const obtenerSaludMiembro = async (idMiembros) => {
+export const obtenerSaludMiembro = async (idMiembros, { secciones = null } = {}) => {
   const normalizedId = normalizeIdMiembros(idMiembros);
 
   if (!isFirebaseConfigured || !FIRESTORE || !normalizedId) return {};
+
+  const seccionesPermitidas = Array.isArray(secciones) ? new Set(secciones) : null;
+  const puedeLeer = (seccion) => !seccionesPermitidas || seccionesPermitidas.has(seccion);
 
   const [
     informacionBasicaSnapshot,
@@ -246,32 +249,46 @@ export const obtenerSaludMiembro = async (idMiembros) => {
     condicionesSnapshot,
     medicamentosSnapshot,
   ] = await Promise.all([
-    getDoc(
-      doc(
-        FIRESTORE,
-        COLECCION_INFORMACION_MEDICA_BASICA,
-        getDocumentoMiembroId(normalizedId)
-      )
-    ),
-    getDoc(doc(FIRESTORE, COLECCION_ALERGIAS_MIEMBROS, getDocumentoMiembroId(normalizedId))),
-    getDoc(
-      doc(FIRESTORE, COLECCION_CONDICIONES_MEDICAS_MIEMBROS, getDocumentoMiembroId(normalizedId))
-    ),
-    getDocs(
-      query(
-        collection(FIRESTORE, COLECCION_MEDICAMENTOS_MIEMBROS),
-        where('idMiembros', '==', normalizedId)
-      )
-    ),
+    puedeLeer('general')
+      ? getDoc(
+          doc(
+            FIRESTORE,
+            COLECCION_INFORMACION_MEDICA_BASICA,
+            getDocumentoMiembroId(normalizedId)
+          )
+        )
+      : null,
+    puedeLeer('alergias')
+      ? getDoc(doc(FIRESTORE, COLECCION_ALERGIAS_MIEMBROS, getDocumentoMiembroId(normalizedId)))
+      : null,
+    puedeLeer('condiciones')
+      ? getDoc(
+          doc(
+            FIRESTORE,
+            COLECCION_CONDICIONES_MEDICAS_MIEMBROS,
+            getDocumentoMiembroId(normalizedId)
+          )
+        )
+      : null,
+    puedeLeer('medicacion')
+      ? getDocs(
+          query(
+            collection(FIRESTORE, COLECCION_MEDICAMENTOS_MIEMBROS),
+            where('idMiembros', '==', normalizedId)
+          )
+        )
+      : null,
   ]);
 
   return {
-    ...(informacionBasicaSnapshot.exists()
+    ...(informacionBasicaSnapshot?.exists()
       ? mapInformacionBasicaToForm(informacionBasicaSnapshot.data())
       : {}),
-    ...(alergiasSnapshot.exists() ? mapAlergiasToForm(alergiasSnapshot.data()) : {}),
-    ...(condicionesSnapshot.exists() ? mapCondicionesToForm(condicionesSnapshot.data()) : {}),
-    ...mapMedicamentosToForm(medicamentosSnapshot.docs.map((item) => item.data())),
+    ...(alergiasSnapshot?.exists() ? mapAlergiasToForm(alergiasSnapshot.data()) : {}),
+    ...(condicionesSnapshot?.exists() ? mapCondicionesToForm(condicionesSnapshot.data()) : {}),
+    ...(medicamentosSnapshot
+      ? mapMedicamentosToForm(medicamentosSnapshot.docs.map((item) => item.data()))
+      : {}),
   };
 };
 

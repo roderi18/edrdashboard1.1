@@ -12,6 +12,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 // MUI components
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -43,6 +44,19 @@ import {
   resolverSolicitudCambioMiembro,
   obtenerSolicitudPendientePorMiembro,
 } from 'src/services/solicitudes-cambio-miembro-service';
+import {
+  esMiembroMenorDeEdad,
+  DURACIONES_ACCESO_SALUD,
+  obtenerEstadoAccesoSalud,
+  crearSolicitudAccesoSalud,
+  resolverSolicitudAccesoSalud,
+  TODAS_SECCIONES_ACCESO_SALUD,
+  estaPermisoAccesoSaludVigente,
+  obtenerSolicitudAccesoSaludPorId,
+  consumirPermisoAccesoSaludUnaVez,
+  ETIQUETAS_SECCIONES_ACCESO_SALUD,
+  formatearTiempoRestanteAccesoSalud,
+} from 'src/services/member-health-access-service';
 
 // Hook form components
 import { Form } from 'src/components/hook-form';
@@ -71,6 +85,10 @@ import {
   pickHealthValues,
   construirCambiosSalud,
 } from './member-health-change-request-fields';
+import {
+  MemberHealthAccessReviewDialog,
+  MemberHealthAccessRequestDialog,
+} from './member-health-access-dialogs';
 
 const DEFAULT_MEDICAL_CONDITIONS = {
     asthma: false,
@@ -84,6 +102,8 @@ const DEFAULT_MEDICAL_CONDITIONS = {
     other: false,
 };
 
+const EMPTY_HEALTH_SECTIONS = [];
+
 export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const { user } = useAuthContext();
     const memberId = currentMember?.id;
@@ -96,10 +116,15 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero no eliminarlos.
     const isApprovalUser = isDestacamentoApprovalRole(user);
     const isCoordinador = isCoordinadorDestacamentoRole(user);
+    const isMinor = esMiembroMenorDeEdad(currentMember);
+    const requiresTemporaryAccess = isMinor && !isCoordinador;
+    const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
 
     const solicitudIdFromUrl = searchParams?.get('solicitud') || '';
     const resultadoIdFromUrl = searchParams?.get('resultado') || '';
+    const accessRequestIdFromUrl = searchParams?.get('accesoSolicitud') || '';
+    const accessResultIdFromUrl = searchParams?.get('accesoResultado') || '';
 
     // Snapshot de los valores de salud con los que se cargo el formulario (el
     // "antes" para calcular el diff de la solicitud).
@@ -112,6 +137,21 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const [resolvingChangeRequest, setResolvingChangeRequest] = useState(false);
     const [changeResult, setChangeResult] = useState(null);
     const [changeResultOpen, setChangeResultOpen] = useState(false);
+    const [accessLoading, setAccessLoading] = useState(requiresTemporaryAccess);
+    const [accessPermission, setAccessPermission] = useState(null);
+    const [pendingAccessRequest, setPendingAccessRequest] = useState(null);
+    const [accessRequestOpen, setAccessRequestOpen] = useState(false);
+    const [sendingAccessRequest, setSendingAccessRequest] = useState(false);
+    const [accessReview, setAccessReview] = useState(null);
+    const [accessReviewOpen, setAccessReviewOpen] = useState(false);
+    const [resolvingAccess, setResolvingAccess] = useState(false);
+    const [accessResult, setAccessResult] = useState(null);
+    const [accessNow, setAccessNow] = useState(Date.now());
+
+    const allowedHealthSections = requiresTemporaryAccess
+        ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
+        : TODAS_SECCIONES_ACCESO_SALUD;
+    const canAccessSection = (section) => allowedHealthSections.includes(section);
 
     const normalizedMember = {
         ...currentMember,
@@ -220,13 +260,73 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     }, [healthInsurance, setValue]);
 
     useEffect(() => {
+        if (!accessPermission || accessPermission.duracion === DURACIONES_ACCESO_SALUD.unaVez) {
+            return undefined;
+        }
+
+        const interval = window.setInterval(() => setAccessNow(Date.now()), 60 * 1000);
+        return () => window.clearInterval(interval);
+    }, [accessPermission]);
+
+    useEffect(() => {
+        if (
+            accessPermission &&
+            accessPermission.duracion !== DURACIONES_ACCESO_SALUD.unaVez &&
+            !estaPermisoAccesoSaludVigente(accessPermission, accessNow)
+        ) {
+            setAccessPermission(null);
+        }
+    }, [accessNow, accessPermission]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadAccess = async () => {
+            if (!requiresTemporaryAccess) {
+                setAccessPermission(null);
+                setPendingAccessRequest(null);
+                setAccessLoading(false);
+                return;
+            }
+
+            setAccessLoading(true);
+            try {
+                const state = await obtenerEstadoAccesoSalud({ member: currentMember, usuario: user });
+                if (!active) return;
+
+                if (state.permiso?.duracion === DURACIONES_ACCESO_SALUD.unaVez) {
+                    const consumed = await consumirPermisoAccesoSaludUnaVez(state.permiso.id, user);
+                    if (!active) return;
+                    setAccessPermission(consumed ? state.permiso : null);
+                } else {
+                    setAccessPermission(state.permiso);
+                }
+                setPendingAccessRequest(state.solicitudPendiente);
+                setAccessNow(Date.now());
+            } catch (error) {
+                console.error('[member health] no se pudo verificar el acceso temporal', error);
+                if (active) toast.error('No se pudo verificar el permiso de acceso médico.');
+            } finally {
+                if (active) setAccessLoading(false);
+            }
+        };
+
+        loadAccess();
+        return () => {
+            active = false;
+        };
+    }, [currentMember, requiresTemporaryAccess, user]);
+
+    useEffect(() => {
         let active = true;
 
         const loadHealthData = async () => {
-            if (!memberId) return;
+            if (!memberId || accessLoading || (requiresTemporaryAccess && !accessPermission)) return;
 
             try {
-                const healthData = await obtenerSaludMiembro(memberId);
+                const healthData = await obtenerSaludMiembro(memberId, {
+                    secciones: allowedHealthSections,
+                });
 
                 if (!active) return;
 
@@ -255,7 +355,15 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         return () => {
             active = false;
         };
-    }, [getValues, memberId, reset]);
+    }, [
+        accessLoading,
+        accessPermission,
+        allowedHealthSections,
+        getValues,
+        memberId,
+        reset,
+        requiresTemporaryAccess,
+    ]);
 
     const onSubmit = handleSubmit(
         async (data) => {
@@ -331,7 +439,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     user?.displayName ||
                     [user?.nombres, user?.apellidos].filter(Boolean).join(' ') ||
                     'Líder de Grupo',
-                solicitadoPorRol: 'lider_grupo',
+                solicitadoPorRol: user?.rolId || user?.roleId || user?.rol || user?.role || '',
                 cambios,
                 valoresPropuestos: ahora,
                 valoresAnteriores: antes,
@@ -394,7 +502,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     return;
                 }
 
-                if (isApprovalUser) {
+                if (mustRequestApproval) {
                     setLeaderPendingRequest(solicitud);
                 } else {
                     setChangeRequest(solicitud);
@@ -408,7 +516,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         return () => {
             activo = false;
         };
-    }, [solicitudIdFromUrl, isApprovalUser, currentMember?.id]);
+    }, [solicitudIdFromUrl, mustRequestApproval, currentMember?.id]);
 
     const irARutaSalud = (query = '') => {
         const segmento = currentMember?.memberId
@@ -423,6 +531,89 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const cerrarSolicitud = () => {
         setChangeRequestOpen(false);
         irARutaSalud();
+    };
+
+    const handleSendAccessRequest = async (justificacion) => {
+        setSendingAccessRequest(true);
+        try {
+            const solicitud = await crearSolicitudAccesoSalud({
+                member: currentMember,
+                usuario: user,
+                justificacion,
+            });
+            setPendingAccessRequest(solicitud);
+            setAccessRequestOpen(false);
+            toast.success('Solicitud enviada a los Coordinadores de Destacamento.');
+        } catch (error) {
+            console.error('[member health] no se pudo solicitar acceso', error);
+            toast.error(error.message || 'No se pudo enviar la solicitud de acceso.');
+        } finally {
+            setSendingAccessRequest(false);
+        }
+    };
+
+    useEffect(() => {
+        let active = true;
+        if (!accessRequestIdFromUrl || !isCoordinador) return undefined;
+
+        obtenerSolicitudAccesoSaludPorId(accessRequestIdFromUrl)
+            .then((solicitud) => {
+                if (!active || !solicitud) return;
+                setAccessReview(solicitud);
+                setAccessReviewOpen(true);
+            })
+            .catch((error) => {
+                console.error('[member health] no se pudo cargar la solicitud de acceso', error);
+                toast.error('No se pudo cargar la solicitud de acceso.');
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [accessRequestIdFromUrl, isCoordinador]);
+
+    useEffect(() => {
+        let active = true;
+        if (!accessResultIdFromUrl) return undefined;
+
+        obtenerSolicitudAccesoSaludPorId(accessResultIdFromUrl)
+            .then((solicitud) => {
+                if (active && solicitud?.solicitadoPorUid === String(user?.uid || user?.id || '')) {
+                    setAccessResult(solicitud);
+                }
+            })
+            .catch(() => null);
+
+        return () => {
+            active = false;
+        };
+    }, [accessResultIdFromUrl, user?.id, user?.uid]);
+
+    const closeAccessReview = () => {
+        setAccessReviewOpen(false);
+        setAccessReview(null);
+        irARutaSalud();
+    };
+
+    const handleResolveAccess = async ({ decision, duracion, secciones }) => {
+        if (!accessReview?.id) return;
+        setResolvingAccess(true);
+        try {
+            await resolverSolicitudAccesoSalud({
+                idSolicitud: accessReview.id,
+                decision,
+                duracion,
+                secciones,
+                usuario: user,
+            });
+            toast.success(decision === 'aprobar' ? 'Permiso concedido.' : 'Solicitud rechazada.');
+            closeAccessReview();
+        } catch (error) {
+            console.error('[member health] no se pudo resolver el acceso', error);
+            toast.error(error.message || 'No se pudo resolver la solicitud.');
+        } finally {
+            setResolvingAccess(false);
+        }
     };
 
     // --- Solicitante: ver resultado (?resultado=<id>) --------------------------
@@ -556,6 +747,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         memberId,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
         table,
+        enabled: !accessLoading && canAccessSection('documentos'),
     });
 
 
@@ -590,11 +782,23 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         </IconButton>
     );
 
+    const renderSectionCollapseButton = (section, value, onToggle) =>
+        canAccessSection(section) ? renderCollapseButton(value, onToggle) : null;
+
+    const formatAccessDateTime = (value) => {
+        const date = new Date(value || 0);
+        if (Number.isNaN(date.getTime())) return 'sin fecha';
+        return new Intl.DateTimeFormat('es-DO', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }).format(date);
+    };
+
     // Props comunes del flujo de aprobacion que reciben las secciones editables.
     // (El prop se llama isGroupLeader por compatibilidad con las secciones, pero
     // aplica a todos los cargos de destacamento en flujo de aprobación.)
     const approvalProps = {
-        isGroupLeader: isApprovalUser,
+        isGroupLeader: mustRequestApproval,
         sendingApproval,
         onRequestApproval: handleRequestApproval,
     };
@@ -605,8 +809,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     };
 
     return (
-        <Form methods={methods} onSubmit={readOnly || isApprovalUser ? undefined : onSubmit}>
-            <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+        <Form methods={methods} onSubmit={readOnly || mustRequestApproval ? undefined : onSubmit}>
             <Stack
                 spacing={3}
                 sx={{
@@ -614,7 +817,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     maxWidth: { xs: 720, xl: 880 },
                 }}
             >
-                {isApprovalUser && (
+                {mustRequestApproval && (
                     <Card sx={{ p: 2.5 }}>
                         <Stack
                             direction={{ xs: 'column', sm: 'row' }}
@@ -622,92 +825,163 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                             alignItems={{ sm: 'center' }}
                             justifyContent="space-between"
                         >
-                            <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Stack direction="row" spacing={1.5} alignItems="flex-start">
                                 <Iconify icon="solar:shield-keyhole-bold" width={24} />
-                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                    Tus cambios en la Dispensa Médica se envían a tu Coordinador de
-                                    Destacamento para aprobación.
-                                </Typography>
+                                <Stack spacing={0.5}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                        Tus cambios en la Dispensa Médica se envían a tu Coordinador de
+                                        Destacamento para aprobación.
+                                    </Typography>
+                                    {requiresTemporaryAccess && accessLoading && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            Verificando permiso de acceso a la información del menor...
+                                        </Typography>
+                                    )}
+                                    {requiresTemporaryAccess && accessPermission && (
+                                        <Typography variant="caption" color="success.main">
+                                            Acceso disponible por {formatearTiempoRestanteAccesoSalud(accessPermission, accessNow)}.
+                                            {' '}Permitido el {formatAccessDateTime(accessPermission.fechaResolucion)}.
+                                            {' '}Válido hasta {accessPermission.duracion === DURACIONES_ACCESO_SALUD.unaVez
+                                                ? 'completar esta visualización'
+                                                : formatAccessDateTime(accessPermission.fechaExpiracion)}.
+                                            {' '}Secciones: {(accessPermission.secciones || [])
+                                                .map((section) => ETIQUETAS_SECCIONES_ACCESO_SALUD[section])
+                                                .join(', ')}.
+                                        </Typography>
+                                    )}
+                                    {requiresTemporaryAccess && !accessLoading && !accessPermission && (
+                                        <Typography variant="caption" color="warning.main">
+                                            La información médica de este menor está protegida y los desplegables
+                                            permanecerán deshabilitados hasta recibir autorización.
+                                        </Typography>
+                                    )}
+                                </Stack>
                             </Stack>
 
-                            {leaderPendingRequest && (
-                                <Button
-                                    color="warning"
-                                    variant="outlined"
-                                    startIcon={<Iconify icon="solar:clock-circle-bold" />}
-                                    onClick={verCambiosPendientes}
-                                    sx={{ flexShrink: 0 }}
-                                >
-                                    Ver cambios pendientes
-                                </Button>
-                            )}
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                                {requiresTemporaryAccess && !accessPermission && (
+                                    <Button
+                                        variant="contained"
+                                        disabled={accessLoading || Boolean(pendingAccessRequest)}
+                                        startIcon={<Iconify icon="solar:key-bold" />}
+                                        onClick={() => setAccessRequestOpen(true)}
+                                        sx={{ flexShrink: 0 }}
+                                    >
+                                        {pendingAccessRequest ? 'Solicitud pendiente' : 'Solicitar acceso'}
+                                    </Button>
+                                )}
+                                {leaderPendingRequest && (
+                                    <Button
+                                        color="warning"
+                                        variant="outlined"
+                                        startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                                        onClick={verCambiosPendientes}
+                                        sx={{ flexShrink: 0 }}
+                                    >
+                                        Ver cambios pendientes
+                                    </Button>
+                                )}
+                            </Stack>
                         </Stack>
                     </Card>
                 )}
 
-                <HealthBasicSection
-                    open={openBasic.value}
-                    onToggle={openBasic.onToggle}
-                    renderCollapseButton={renderCollapseButton}
-                    watch={watch}
-                    setValue={setValue}
-                    setError={setError}
-                    clearErrors={clearErrors}
-                    isSubmitting={isSubmitting}
-                    {...approvalProps}
-                />
+                {accessResult && (
+                    <Alert severity={accessResult.estado === 'aprobada' ? 'success' : 'error'}>
+                        {accessResult.estado === 'aprobada'
+                            ? `Acceso aprobado el ${formatAccessDateTime(accessResult.fechaResolucion)} y válido hasta ${
+                                accessResult.duracion === DURACIONES_ACCESO_SALUD.unaVez
+                                    ? 'completar una única visualización'
+                                    : formatAccessDateTime(accessResult.fechaExpiracion)
+                            }. Secciones: ${(accessResult.secciones || [])
+                                .map((section) => ETIQUETAS_SECCIONES_ACCESO_SALUD[section])
+                                .join(', ')}.`
+                            : 'La solicitud de acceso fue rechazada.'}
+                    </Alert>
+                )}
 
-                <HealthDocumentsSection
-                    open={openDocument.value}
-                    onToggle={openDocument.onToggle}
-                    renderCollapseButton={renderCollapseButton}
-                    table={table}
-                    medicalDocuments={medicalDocuments}
-                    onRename={renameDocument}
-                    onDeleteOne={deleteOne}
-                    onDeleteSelected={handleConfirmDeleteSelected}
-                    canDelete={canDeleteDocuments && puedeEliminarDocumentos}
-                    onUpload={openUploadDialog}
-                    onDropUpload={uploadDroppedFiles}
-                    readOnly={readOnly}
-                />
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('general')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                    <HealthBasicSection
+                        open={canAccessSection('general') && openBasic.value}
+                        onToggle={openBasic.onToggle}
+                        renderCollapseButton={(value, onToggle) =>
+                            renderSectionCollapseButton('general', value, onToggle)
+                        }
+                        watch={watch}
+                        setValue={setValue}
+                        setError={setError}
+                        clearErrors={clearErrors}
+                        isSubmitting={isSubmitting}
+                        {...approvalProps}
+                    />
+                </Box>
 
-                <HealthMedicationSection
-                    open={openMedication.value}
-                    onToggle={openMedication.onToggle}
-                    renderCollapseButton={renderCollapseButton}
-                    fields={fields}
-                    watch={watch}
-                    setValue={setValue}
-                    onAdd={handleAddMedication}
-                    onRemove={handleRemoveLastMedication}
-                    isSubmitting={isSubmitting}
-                    {...approvalProps}
-                />
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('documentos')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                    <HealthDocumentsSection
+                        open={canAccessSection('documentos') && openDocument.value}
+                        onToggle={openDocument.onToggle}
+                        renderCollapseButton={(value, onToggle) =>
+                            renderSectionCollapseButton('documentos', value, onToggle)
+                        }
+                        table={table}
+                        medicalDocuments={medicalDocuments}
+                        onRename={renameDocument}
+                        onDeleteOne={deleteOne}
+                        onDeleteSelected={handleConfirmDeleteSelected}
+                        canDelete={canDeleteDocuments && puedeEliminarDocumentos}
+                        onUpload={openUploadDialog}
+                        onDropUpload={uploadDroppedFiles}
+                        readOnly={readOnly || !canAccessSection('documentos')}
+                    />
+                </Box>
 
-                <HealthAllergiesSection
-                    open={openAllergies.value}
-                    onToggle={openAllergies.onToggle}
-                    renderCollapseButton={renderCollapseButton}
-                    methods={methods}
-                    watch={watch}
-                    setValue={setValue}
-                    isSubmitting={isSubmitting}
-                    {...approvalProps}
-                />
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('medicacion')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                    <HealthMedicationSection
+                        open={canAccessSection('medicacion') && openMedication.value}
+                        onToggle={openMedication.onToggle}
+                        renderCollapseButton={(value, onToggle) =>
+                            renderSectionCollapseButton('medicacion', value, onToggle)
+                        }
+                        fields={fields}
+                        watch={watch}
+                        setValue={setValue}
+                        onAdd={handleAddMedication}
+                        onRemove={handleRemoveLastMedication}
+                        isSubmitting={isSubmitting}
+                        {...approvalProps}
+                    />
+                </Box>
 
-                <HealthConditionsSection
-                    open={openConditions.value}
-                    onToggle={openConditions.onToggle}
-                    renderCollapseButton={renderCollapseButton}
-                    watch={watch}
-                    setValue={setValue}
-                    isSubmitting={isSubmitting}
-                    {...approvalProps}
-                />
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('alergias')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                    <HealthAllergiesSection
+                        open={canAccessSection('alergias') && openAllergies.value}
+                        onToggle={openAllergies.onToggle}
+                        renderCollapseButton={(value, onToggle) =>
+                            renderSectionCollapseButton('alergias', value, onToggle)
+                        }
+                        methods={methods}
+                        watch={watch}
+                        setValue={setValue}
+                        isSubmitting={isSubmitting}
+                        {...approvalProps}
+                    />
+                </Box>
+
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('condiciones')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                    <HealthConditionsSection
+                        open={canAccessSection('condiciones') && openConditions.value}
+                        onToggle={openConditions.onToggle}
+                        renderCollapseButton={(value, onToggle) =>
+                            renderSectionCollapseButton('condiciones', value, onToggle)
+                        }
+                        watch={watch}
+                        setValue={setValue}
+                        isSubmitting={isSubmitting}
+                        {...approvalProps}
+                    />
+                </Box>
 
             </Stack>
-            </Box>
             <FileManagerCreateFolderDialog
                 open={newFilesDialog.value}
                 onClose={newFilesDialog.onFalse}
@@ -746,6 +1020,21 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                 open={changeResultOpen}
                 solicitud={changeResult}
                 onClose={cerrarResultado}
+            />
+
+            <MemberHealthAccessRequestDialog
+                open={accessRequestOpen}
+                saving={sendingAccessRequest}
+                onClose={() => setAccessRequestOpen(false)}
+                onSubmit={handleSendAccessRequest}
+            />
+
+            <MemberHealthAccessReviewDialog
+                open={accessReviewOpen}
+                solicitud={accessReview}
+                saving={resolvingAccess}
+                onClose={closeAccessReview}
+                onResolve={handleResolveAccess}
             />
 
         </Form>

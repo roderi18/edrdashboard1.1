@@ -12,7 +12,7 @@ import { toast } from 'src/components/snackbar';
 import { useAuthContext } from 'src/auth/hooks';
 import { can, PERMISOS } from 'src/auth/permissions';
 
-export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
+export function useMedicalDocuments({ memberId, codigoMiembro = '', table, enabled = true }) {
   const { user } = useAuthContext();
   // Eliminar documentos del perfil de salud requiere el permiso explicito
   // "documentos.eliminar". Los roles de nivel (Coordinador de Destacamento,
@@ -34,7 +34,10 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     let active = true;
 
     const loadDocuments = async () => {
-      if (!memberId) return;
+      if (!memberId || !enabled) {
+        setMedicalDocuments([]);
+        return;
+      }
 
       setLoading(true);
 
@@ -59,12 +62,13 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
     return () => {
       active = false;
     };
-  }, [memberId]);
+  }, [enabled, memberId]);
 
   const openUploadDialog = useCallback((documentCategory = 'otros_documentos') => {
+    if (!enabled) return;
     uploadCategoryRef.current = documentCategory;
     fileInputRef.current?.click();
-  }, []);
+  }, [enabled]);
 
   const validateFiles = useCallback(
     (files = []) => {
@@ -119,6 +123,12 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
 
   const uploadFilesForCategory = useCallback(
     async (inputFiles, documentCategory = 'otros_documentos', onFinish) => {
+      if (!enabled) {
+        toast.error('No tienes acceso a los documentos médicos de este miembro.');
+        onFinish?.();
+        return;
+      }
+
       const files = Array.from(inputFiles || []);
 
       if (!files.length) return;
@@ -178,7 +188,7 @@ export function useMedicalDocuments({ memberId, codigoMiembro = '', table }) {
         onFinish?.();
       }
     },
-    [codigoMiembro, memberId, user, validateFiles]
+    [codigoMiembro, enabled, memberId, user, validateFiles]
   );
 
   const handleUploadFiles = useCallback(

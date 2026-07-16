@@ -60,7 +60,9 @@ const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
   name: data.nombreArchivo || data.nombre || '',
   title: data.nombreArchivo || data.nombre || '',
   type: getHealthFileType(data.nombreArchivo || data.nombre),
-  url: data.urlArchivo || data.url || '',
+  // La Dispensa Médica no expone URLs descargables/reenviables en la capa de UI.
+  // La referencia se conserva únicamente en Firestore para gestión interna.
+  url: '',
   storagePath: data.rutaStorage || data.storagePath || '',
   size: Number(data.tamanoBytes ?? data.tamano ?? data.size ?? 0),
   contentType: data.tipoArchivo || data.tipoMime || '',

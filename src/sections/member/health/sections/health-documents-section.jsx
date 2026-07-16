@@ -198,12 +198,6 @@ export function HealthDocumentsSection({
                         }
                         action={
                             <>
-                                <Tooltip title="Compartir">
-                                    <IconButton color="primary">
-                                        <Iconify icon="solar:share-bold" />
-                                    </IconButton>
-                                </Tooltip>
-
                                 {canDeleteDocuments && (
                                     <Tooltip title="Eliminar">
                                         <IconButton color="primary" onClick={onDeleteSelected}>
@@ -273,6 +267,10 @@ export function HealthDocumentsSection({
                                                     showThumbnail
                                                     showRowOutline={false}
                                                     showFavorite={false}
+                                                    canDownload={false}
+                                                    canShare={false}
+                                                    canCopyLink={false}
+                                                    canOpenDetails={false}
                                                 />
                                             ))}
 

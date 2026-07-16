@@ -58,6 +58,10 @@ export function FileManagerTableRow({
   onRename,
   canDelete = false,
   canRename = false,
+  canDownload = true,
+  canShare = true,
+  canCopyLink = true,
+  canOpenDetails = true,
 
   showType = true,
   showAvatar = true,
@@ -92,7 +96,7 @@ export function FileManagerTableRow({
         return;
       }
 
-      detailsDrawer.onTrue();
+      if (canOpenDetails) detailsDrawer.onTrue();
     },
     doubleClick: () => console.info('DOUBLE CLICK'),
   });
@@ -146,17 +150,19 @@ export function FileManagerTableRow({
 
         {onUpload && <Divider sx={{ borderStyle: 'dashed' }} />}
 
-        <MenuItem
-          onClick={() => {
-            menuActions.onClose();
-            handleCopy();
-          }}
-        >
-          <Iconify icon="eva:link-2-fill" />
-          Copiar enlace
-        </MenuItem>
+        {canCopyLink && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              handleCopy();
+            }}
+          >
+            <Iconify icon="eva:link-2-fill" />
+            Copiar enlace
+          </MenuItem>
+        )}
 
-        {row.type !== 'folder' && (
+        {canDownload && row.type !== 'folder' && (
           <MenuItem
             onClick={() => {
               menuActions.onClose();
@@ -181,15 +187,17 @@ export function FileManagerTableRow({
           </MenuItem>
         )}
 
-        <MenuItem
-          onClick={() => {
-            menuActions.onClose();
-            shareDialog.onTrue();
-          }}
-        >
-          <Iconify icon="solar:share-bold" />
-          Compartir
-        </MenuItem>
+        {canShare && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              shareDialog.onTrue();
+            }}
+          >
+            <Iconify icon="solar:share-bold" />
+            Compartir
+          </MenuItem>
+        )}
 
         {canDelete && row.type !== 'folder' && <Divider sx={{ borderStyle: 'dashed' }} />}
 
@@ -372,8 +380,8 @@ export function FileManagerTableRow({
         </TableCell>
       </TableRow>
 
-      {renderFileDetailsDrawer()}
-      {renderShareDialog()}
+      {canOpenDetails && renderFileDetailsDrawer()}
+      {canShare && renderShareDialog()}
 
       {renderMenuActions()}
       {renderConfirmDialog()}
