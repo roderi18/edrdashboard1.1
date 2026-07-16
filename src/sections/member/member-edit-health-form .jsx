@@ -785,6 +785,23 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const renderSectionCollapseButton = (section, value, onToggle) =>
         canAccessSection(section) ? renderCollapseButton(value, onToggle) : null;
 
+    const getSectionFieldsetSx = (section) => ({
+        border: 0,
+        p: 0,
+        m: 0,
+        minWidth: 0,
+        ...(!canAccessSection(section) && {
+            '& .MuiCardHeader-root': {
+                opacity: 0.45,
+                filter: 'grayscale(1)',
+                color: 'text.disabled',
+            },
+            '& .MuiCardHeader-title, & .MuiCardHeader-subheader': {
+                color: 'text.disabled',
+            },
+        }),
+    });
+
     const formatAccessDateTime = (value) => {
         const date = new Date(value || 0);
         if (Number.isNaN(date.getTime())) return 'sin fecha';
@@ -900,7 +917,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     </Alert>
                 )}
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('general')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('general')} sx={getSectionFieldsetSx('general')}>
                     <HealthBasicSection
                         open={canAccessSection('general') && openBasic.value}
                         onToggle={openBasic.onToggle}
@@ -916,7 +933,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('documentos')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('documentos')} sx={getSectionFieldsetSx('documentos')}>
                     <HealthDocumentsSection
                         open={canAccessSection('documentos') && openDocument.value}
                         onToggle={openDocument.onToggle}
@@ -935,7 +952,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('medicacion')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('medicacion')} sx={getSectionFieldsetSx('medicacion')}>
                     <HealthMedicationSection
                         open={canAccessSection('medicacion') && openMedication.value}
                         onToggle={openMedication.onToggle}
@@ -952,7 +969,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('alergias')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('alergias')} sx={getSectionFieldsetSx('alergias')}>
                     <HealthAllergiesSection
                         open={canAccessSection('alergias') && openAllergies.value}
                         onToggle={openAllergies.onToggle}
@@ -967,7 +984,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('condiciones')} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                <Box component="fieldset" disabled={readOnly || !canAccessSection('condiciones')} sx={getSectionFieldsetSx('condiciones')}>
                     <HealthConditionsSection
                         open={canAccessSection('condiciones') && openConditions.value}
                         onToggle={openConditions.onToggle}
