@@ -5,6 +5,8 @@ import { paths } from 'src/routes/paths';
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { can } from 'src/auth/permissions/can';
+import { PERMISOS } from 'src/auth/permissions/permissions';
 import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 
@@ -583,10 +585,36 @@ export const isDestacamentoApprovalRole = (user = {}) =>
 export const isCoordinadorDestacamentoRole = (user = {}) =>
   getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO;
 
-// Puede ELIMINAR documentos de la Dispensa Médica: todos menos los cargos de
-// destacamento en flujo de aprobacion (ellos solo pueden subir). Es decir,
-// coordinadores de destacamento y administradores de mayor nivel.
-export const canDeleteHealthDocuments = (user = {}) => !isDestacamentoApprovalRole(user);
+// --- Capacidades de Dispensa Médica, Ascenso y Padres --------------------------
+// Se resuelven contra el CATALOGO de permisos (`can`), no contra listas de roles,
+// para que el panel de "Administrar permisos" mande de verdad. El flujo (guardar
+// directo vs enviar a aprobacion) lo sigue decidiendo `isDestacamentoApprovalRole`,
+// porque es un asunto de proceso, no de capacidad.
+// El Administrador Global (y las sesiones admin legadas sin rolId, que `can` no
+// puede resolver) conservan acceso total: sin este resguardo perderian permisos
+// al pasar el control al catalogo.
+const puedePorCatalogo = (user = {}, permiso) =>
+  isLegacyFullDashboardAdmin(user) || can(user, permiso);
+
+export const canViewHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_VER);
+
+export const canEditHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_EDITAR);
+
+export const canUploadHealthDocuments = (user = {}) =>
+  puedePorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
+
+export const canDeleteHealthDocuments = (user = {}) =>
+  puedePorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
+
+export const canAuthorizeMinorHealthAccess = (user = {}) =>
+  puedePorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
+
+export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_VER);
+
+export const canEditAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
+
+export const canApproveMemberChanges = (user = {}) =>
+  puedePorCatalogo(user, PERMISOS.MIEMBROS_APROBAR_CAMBIOS);
 
 // Ids de la(s) seccion(es) propias del usuario (a las que esta asignado). Para
 // los cargos de destacamento se resuelven a partir de su destacamento.

@@ -43,6 +43,7 @@ import {
   normalizeMemberUsername,
 } from 'src/utils/member-auth-credentials';
 import {
+  canApproveMemberChanges,
   isDestacamentoApprovalRole,
   buildDefaultMemberPermissions,
   isCoordinadorDestacamentoRole,
@@ -404,6 +405,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // van a aprobación del Coordinador de Destacamento.
   const lockGroupLeaderFields = isDestacamentoApprovalRole(user);
   const isCoordinador = isCoordinadorDestacamentoRole(user);
+  const puedeAprobarCambios = canApproveMemberChanges(user);
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
   // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
   const [sendingApproval, setSendingApproval] = useState(false);
@@ -1654,11 +1656,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           return;
         }
 
-        // El lider de grupo solo puede verla (solo lectura); el coordinador la
-        // revisa/edita y, si llega desde la notificacion, se abre el modal.
+        // El cargo solicitante solo puede verla (solo lectura); quien tenga el
+        // permiso `miembros.aprobar_cambios` la revisa/edita y, si llega desde la
+        // notificacion, se abre el modal.
         if (lockGroupLeaderFields) {
           setLeaderPendingRequest(solicitud);
-        } else {
+        } else if (puedeAprobarCambios) {
           setChangeRequest(solicitud);
           setChangeRequestOpen(Boolean(solicitudIdFromUrl));
         }
@@ -1670,7 +1673,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return () => {
       activo = false;
     };
-  }, [solicitudIdFromUrl, lockGroupLeaderFields, currentMember?.id]);
+  }, [solicitudIdFromUrl, lockGroupLeaderFields, puedeAprobarCambios, currentMember?.id]);
 
   const cerrarSolicitud = () => {
     setChangeRequestOpen(false);

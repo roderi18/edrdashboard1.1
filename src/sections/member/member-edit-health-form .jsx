@@ -22,9 +22,12 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import {
+  canApproveMemberChanges,
   canDeleteHealthDocuments,
+  canUploadHealthDocuments,
   isDestacamentoApprovalRole,
   isCoordinadorDestacamentoRole,
+  canAuthorizeMinorHealthAccess,
 } from 'src/utils/member-access';
 
 import { crearNotificacionAdmin } from 'src/services/notification-service';
@@ -116,9 +119,14 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const isApprovalUser = isDestacamentoApprovalRole(user);
     const isCoordinador = isCoordinadorDestacamentoRole(user);
     const isMinor = esMiembroMenorDeEdad(currentMember);
-    const requiresTemporaryAccess = isMinor && !isCoordinador;
+    // Quien puede AUTORIZAR el acceso a la salud de menores no necesita pedirlo
+    // (coordinadores y Administrador Global, según el catálogo de permisos).
+    const puedeAutorizarAccesoMenores = canAuthorizeMinorHealthAccess(user);
+    const requiresTemporaryAccess = isMinor && !puedeAutorizarAccesoMenores;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
+    const puedeSubirDocumentos = canUploadHealthDocuments(user);
+    const puedeAprobarCambios = canApproveMemberChanges(user);
 
     const solicitudIdFromUrl = searchParams?.get('solicitud') || '';
     const resultadoIdFromUrl = searchParams?.get('resultado') || '';
@@ -503,7 +511,8 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
                 if (mustRequestApproval) {
                     setLeaderPendingRequest(solicitud);
-                } else {
+                } else if (puedeAprobarCambios) {
+                    // Revisar/aprobar exige el permiso `miembros.aprobar_cambios`.
                     setChangeRequest(solicitud);
                     setChangeRequestOpen(Boolean(solicitudIdFromUrl));
                 }
@@ -515,7 +524,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         return () => {
             activo = false;
         };
-    }, [solicitudIdFromUrl, mustRequestApproval, currentMember?.id]);
+    }, [solicitudIdFromUrl, mustRequestApproval, puedeAprobarCambios, currentMember?.id]);
 
     const irARutaSalud = (query = '') => {
         const segmento = currentMember?.memberId
@@ -553,7 +562,10 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     useEffect(() => {
         let active = true;
-        if (!accessRequestIdFromUrl || !isCoordinador) return undefined;
+        // El servicio exige además ser coordinador DE ESE destacamento al resolver.
+        if (!accessRequestIdFromUrl || !isCoordinador || !puedeAutorizarAccesoMenores) {
+            return undefined;
+        }
 
         obtenerSolicitudAccesoSaludPorId(accessRequestIdFromUrl)
             .then((solicitud) => {
@@ -569,7 +581,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         return () => {
             active = false;
         };
-    }, [accessRequestIdFromUrl, isCoordinador]);
+    }, [accessRequestIdFromUrl, isCoordinador, puedeAutorizarAccesoMenores]);
 
     useEffect(() => {
         let active = true;
@@ -951,7 +963,9 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         canDelete={canDeleteDocuments && puedeEliminarDocumentos}
                         onUpload={openUploadDialog}
                         onDropUpload={uploadDroppedFiles}
-                        readOnly={readOnly || !canAccessSection('documentos')}
+                        readOnly={
+                            readOnly || !canAccessSection('documentos') || !puedeSubirDocumentos
+                        }
                     />
                 </Box>
 

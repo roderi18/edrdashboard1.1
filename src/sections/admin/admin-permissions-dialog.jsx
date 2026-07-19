@@ -57,12 +57,17 @@ const getPermissionModule = (permissionCode) => PERMISOS_POR_CODIGO[permissionCo
 
 const MODULE_LABELS = {
   administracion: 'Administracion',
+  ascenso: 'Sistema de Ascenso',
   asistencia: 'Asistencia',
   correos: 'Correos',
   destacamentos: 'Destacamentos',
   documentos: 'Documentos',
   miembros: 'Miembros',
+  padres: 'Padres / tutores',
+  regiones: 'Regiones',
   reportes: 'Reportes',
+  salud: 'Dispensa Médica',
+  secciones: 'Secciones',
   tienda: 'Tienda',
   otros: 'Otros',
 };
@@ -438,10 +443,13 @@ export function AdminPermissionsDialog({ open, admin, onClose, onSaved }) {
         permisos: payload.permisos,
         permisosExcluidos: payload.permisosExcluidos,
       });
+
+      toast.success('Permisos guardados correctamente.');
       onClose?.();
     } catch (saveError) {
       console.error(saveError);
       setError(saveError.message || 'No se pudieron guardar los permisos.');
+      toast.error(saveError.message || 'No se pudieron guardar los permisos.');
     } finally {
       setSaving(false);
     }

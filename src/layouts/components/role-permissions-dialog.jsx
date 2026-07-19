@@ -29,13 +29,16 @@ import {
 
 const MODULE_LABELS = {
   administracion: 'Administración',
+  ascenso: 'Sistema de Ascenso',
   asistencia: 'Asistencia',
   correos: 'Correos',
   destacamentos: 'Destacamentos',
   documentos: 'Documentos',
   miembros: 'Miembros',
+  padres: 'Padres / tutores',
   regiones: 'Regiones',
   reportes: 'Reportes',
+  salud: 'Dispensa Médica',
   secciones: 'Secciones',
   tienda: 'Tienda',
   otros: 'Otros',

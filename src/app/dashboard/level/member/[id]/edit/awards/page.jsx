@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { isUsuarioComunRole, canMemberManageMembers } from 'src/utils/member-access';
+import { canEditAwards, canMemberManageMembers } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
@@ -20,11 +20,11 @@ export default function Page() {
 
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  // El Usuario Común solo tiene lectura en Sistema de Ascenso; el resto de cargos
-  // del destacamento con acceso pueden agregar.
+  // Editar el Sistema de Ascenso exige el permiso `ascenso.editar` del catálogo
+  // (el Usuario Común solo tiene `ascenso.ver`, por eso queda en solo lectura).
   const canManage =
     (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) &&
-    !isUsuarioComunRole(user);
+    canEditAwards(user);
 
   useEffect(() => {
     let cancelled = false;

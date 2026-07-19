@@ -88,6 +88,10 @@ const PERMISOS_VER_TODO_NACIONAL = [
   PERMISOS.REPORTES_VER_REGIONALES,
   PERMISOS.REPORTES_VER_NACIONALES,
   PERMISOS.TIENDA_VER,
+  // Lectura de Dispensa Médica, Sistema de Ascenso y Padres.
+  PERMISOS.SALUD_VER,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.PADRES_VER,
 ];
 
 // Director Nacional: lo mismo, mas ver menores de todos los destacamentos.
@@ -106,6 +110,35 @@ const RESTRICCIONES_DIRECTOR_NACIONAL = {
 };
 
 const fromCodes = (codes, value) => Object.fromEntries(codes.map((code) => [code, value]));
+
+// Grupos de permisos de Dispensa Médica, Sistema de Ascenso y Padres. El "editar"
+// de salud/ascenso está separado del "ver" para poder concederlos por separado.
+// (El que estos cargos editen por aprobación o directo lo sigue decidiendo la app
+// por rol; el catálogo solo declara la capacidad.)
+const PERMISOS_SALUD_APROBACION = [
+  PERMISOS.SALUD_VER,
+  PERMISOS.SALUD_EDITAR,
+  PERMISOS.SALUD_SUBIR_DOCUMENTOS,
+];
+const PERMISOS_SALUD_COMPLETO = [
+  ...PERMISOS_SALUD_APROBACION,
+  PERMISOS.SALUD_ELIMINAR_DOCUMENTOS,
+  PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES,
+];
+const PERMISOS_ASCENSO_EDITOR = [PERMISOS.ASCENSO_VER, PERMISOS.ASCENSO_EDITAR];
+const PERMISOS_PADRES_EDITOR = [PERMISOS.PADRES_VER, PERMISOS.PADRES_EDITAR];
+// Supervisión de Seccion/Region: ven y gestionan salud, ascenso y padres de los
+// miembros bajo su alcance (no son cargos en flujo de aprobacion).
+const PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION = [
+  PERMISOS.SALUD_VER,
+  PERMISOS.SALUD_EDITAR,
+  PERMISOS.SALUD_SUBIR_DOCUMENTOS,
+  PERMISOS.SALUD_ELIMINAR_DOCUMENTOS,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.ASCENSO_EDITAR,
+  PERMISOS.PADRES_VER,
+  PERMISOS.PADRES_EDITAR,
+];
 
 // Cargos de nivel destacamento que comparten el perfil del Coordinador de
 // Destacamento (mismos permisos, alcance y restricciones).
@@ -144,6 +177,10 @@ const PERMISOS_CARGO_DESTACAMENTO = [
   PERMISOS.REPORTES_VER_REGIONALES,
   PERMISOS.REPORTES_VER_NACIONALES,
   PERMISOS.TIENDA_VER,
+  // Salud (editan vía aprobación, suben documentos, no eliminan), ascenso y padres.
+  ...PERMISOS_SALUD_APROBACION,
+  ...PERMISOS_ASCENSO_EDITOR,
+  ...PERMISOS_PADRES_EDITOR,
 ];
 
 // Lider de Grupo / Asistente: base + crear miembros, ver regiones, reportes
@@ -182,6 +219,9 @@ const PERMISOS_CAPELLAN_DESTACAMENTO = [
   PERMISOS.REPORTES_VER_NACIONALES,
   PERMISOS.TIENDA_VER,
   PERMISOS.CORREOS_ENVIAR,
+  ...PERMISOS_SALUD_APROBACION,
+  ...PERMISOS_ASCENSO_EDITOR,
+  ...PERMISOS_PADRES_EDITOR,
 ];
 
 const RESTRICCIONES_CARGO_DESTACAMENTO = {
@@ -279,6 +319,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.REPORTES_VER_LOCALES,
     PERMISOS.TIENDA_VER,
+    // Sistema de Ascenso: solo lectura.
+    PERMISOS.ASCENSO_VER,
   ],
   // Coordinador de Destacamento: gestiona a los miembros de su destacamento
   // (crear, editar), sus documentos (subir/eliminar) y asistencia; ve regiones y
@@ -307,6 +349,12 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_NACIONALES,
     PERMISOS.TIENDA_VER,
     PERMISOS.CORREOS_ENVIAR,
+    // Dispensa Médica completa (ver/editar, subir y eliminar documentos, autorizar
+    // acceso a menores), Sistema de Ascenso, aprobar cambios de otros cargos y padres.
+    ...PERMISOS_SALUD_COMPLETO,
+    ...PERMISOS_ASCENSO_EDITOR,
+    PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
+    ...PERMISOS_PADRES_EDITOR,
   ],
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: [
@@ -333,6 +381,12 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_NACIONALES,
     PERMISOS.TIENDA_VER,
     PERMISOS.CORREOS_ENVIAR,
+    // Dispensa Médica completa (ver/editar, subir y eliminar documentos, autorizar
+    // acceso a menores), Sistema de Ascenso, aprobar cambios de otros cargos y padres.
+    ...PERMISOS_SALUD_COMPLETO,
+    ...PERMISOS_ASCENSO_EDITOR,
+    PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
+    ...PERMISOS_PADRES_EDITOR,
   ],
   // Consejo Destacamento: perfil operativo base.
   ...fromCodes(CARGOS_DESTACAMENTO_APOYO, PERMISOS_CARGO_DESTACAMENTO),
@@ -363,6 +417,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
+    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
   ],
   // Sub-Coordinador Seccional: apoyo del titular. Crea/edita destacamentos de su
   // seccion, pero NO edita la seccion misma (eso queda para el Coordinador).
@@ -380,6 +436,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
+    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
   ],
   [ROLES.USUARIO_REGION]: [
     PERMISOS.REGIONES_VER,
@@ -398,6 +456,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
+    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
   ],
   // Sub-Director Regional: apoyo del titular. Crea/edita secciones y edita
   // destacamentos de su region, pero NO edita la region misma.
@@ -416,6 +476,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
+    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
   ],
   ...fromCodes(COORDINADORES_AREA_SECCION, PERMISOS_COORDINADOR_AREA_SECCION),
   ...fromCodes(COORDINADORES_AREA_REGION, PERMISOS_COORDINADOR_AREA_REGION),

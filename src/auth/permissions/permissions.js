@@ -17,6 +17,22 @@ export const PERMISOS = {
   MIEMBROS_EDITAR: 'miembros.editar',
   MIEMBROS_SUBIR_FOTO: 'miembros.subir_foto',
   MIEMBROS_ELIMINAR: 'miembros.eliminar',
+  MIEMBROS_APROBAR_CAMBIOS: 'miembros.aprobar_cambios',
+
+  // Dispensa Médica (salud del miembro): ver vs editar separados.
+  SALUD_VER: 'salud.ver',
+  SALUD_EDITAR: 'salud.editar',
+  SALUD_SUBIR_DOCUMENTOS: 'salud.subir_documentos',
+  SALUD_ELIMINAR_DOCUMENTOS: 'salud.eliminar_documentos',
+  SALUD_AUTORIZAR_ACCESO_MENORES: 'salud.autorizar_acceso_menores',
+
+  // Sistema de Ascenso: ver vs editar separados.
+  ASCENSO_VER: 'ascenso.ver',
+  ASCENSO_EDITAR: 'ascenso.editar',
+
+  // Padres / tutores del miembro.
+  PADRES_VER: 'padres.ver',
+  PADRES_EDITAR: 'padres.editar',
 
   DESTACAMENTOS_VER: 'destacamentos.ver',
   DESTACAMENTOS_CREAR: 'destacamentos.crear',
@@ -113,6 +129,76 @@ export const PERMISOS_CATALOGO = [
     accion: 'eliminar',
     nombre: 'Eliminar miembros',
     descripcion: 'Permite eliminar registros de miembros.',
+  },
+  {
+    codigo: PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
+    modulo: 'miembros',
+    accion: 'aprobar_cambios',
+    nombre: 'Aprobar cambios de miembros',
+    descripcion: 'Permite revisar y aprobar/rechazar las solicitudes de cambio enviadas por otros cargos.',
+  },
+  {
+    codigo: PERMISOS.SALUD_VER,
+    modulo: 'salud',
+    accion: 'ver',
+    nombre: 'Ver Dispensa Médica',
+    descripcion: 'Permite consultar la información médica del miembro.',
+  },
+  {
+    codigo: PERMISOS.SALUD_EDITAR,
+    modulo: 'salud',
+    accion: 'editar',
+    nombre: 'Editar Dispensa Médica',
+    descripcion: 'Permite modificar la información médica del miembro (según el rol, directo o por aprobación).',
+  },
+  {
+    codigo: PERMISOS.SALUD_SUBIR_DOCUMENTOS,
+    modulo: 'salud',
+    accion: 'subir_documentos',
+    nombre: 'Subir documentos médicos',
+    descripcion: 'Permite cargar documentos a la Dispensa Médica del miembro.',
+  },
+  {
+    codigo: PERMISOS.SALUD_ELIMINAR_DOCUMENTOS,
+    modulo: 'salud',
+    accion: 'eliminar_documentos',
+    nombre: 'Eliminar documentos médicos',
+    descripcion: 'Permite eliminar documentos de la Dispensa Médica del miembro.',
+  },
+  {
+    codigo: PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES,
+    modulo: 'salud',
+    accion: 'autorizar_acceso_menores',
+    nombre: 'Autorizar acceso a salud de menores',
+    descripcion: 'Permite aprobar o rechazar las solicitudes de acceso a la Dispensa Médica de menores.',
+  },
+  {
+    codigo: PERMISOS.ASCENSO_VER,
+    modulo: 'ascenso',
+    accion: 'ver',
+    nombre: 'Ver Sistema de Ascenso',
+    descripcion: 'Permite consultar el progreso del Sistema de Ascenso del miembro.',
+  },
+  {
+    codigo: PERMISOS.ASCENSO_EDITAR,
+    modulo: 'ascenso',
+    accion: 'editar',
+    nombre: 'Editar Sistema de Ascenso',
+    descripcion: 'Permite marcar avances, agregar certificados y modificar el progreso del Sistema de Ascenso.',
+  },
+  {
+    codigo: PERMISOS.PADRES_VER,
+    modulo: 'padres',
+    accion: 'ver',
+    nombre: 'Ver padres / tutores',
+    descripcion: 'Permite consultar la información de padres o tutores del miembro.',
+  },
+  {
+    codigo: PERMISOS.PADRES_EDITAR,
+    modulo: 'padres',
+    accion: 'editar',
+    nombre: 'Editar padres / tutores',
+    descripcion: 'Permite modificar la información de padres o tutores del miembro.',
   },
   {
     codigo: PERMISOS.DESTACAMENTOS_VER,
