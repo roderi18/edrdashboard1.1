@@ -139,6 +139,13 @@ const PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION = [
   PERMISOS.PADRES_VER,
   PERMISOS.PADRES_EDITAR,
 ];
+// Coordinador/Sub-Coordinador Seccional: consultan salud, ascenso y padres de su
+// alcance pero NO editan (solo lectura).
+const PERMISOS_SALUD_ASCENSO_PADRES_LECTURA = [
+  PERMISOS.SALUD_VER,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.PADRES_VER,
+];
 
 // Cargos de nivel destacamento que comparten el perfil del Coordinador de
 // Destacamento (mismos permisos, alcance y restricciones).
@@ -417,8 +424,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
-    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
-    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
+    // Dispensa Médica, Sistema de Ascenso y Padres: solo lectura (no editan).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_LECTURA,
   ],
   // Sub-Coordinador Seccional: apoyo del titular. Crea/edita destacamentos de su
   // seccion, pero NO edita la seccion misma (eso queda para el Coordinador).
@@ -436,8 +443,8 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.TIENDA_VER,
-    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
-    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
+    // Dispensa Médica, Sistema de Ascenso y Padres: solo lectura (no editan).
+    ...PERMISOS_SALUD_ASCENSO_PADRES_LECTURA,
   ],
   [ROLES.USUARIO_REGION]: [
     PERMISOS.REGIONES_VER,
