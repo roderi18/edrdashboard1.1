@@ -67,6 +67,11 @@ const REGION_SCOPED_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENT
 const SECTION_SCOPED_ROLES = [ROLES.USUARIO_SECCION, ROLES.USUARIO_SECCION_ASISTENTE];
 const DEST_SCOPED_ROLES = [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_DESTACAMENTO_ASISTENTE];
 
+// Coordinador / Sub-Coordinador Seccional: su alcance de edición está acotado a
+// su propia sección (no crean/editan en otras).
+export const isSectionScopedManager = (user = {}) =>
+  SECTION_SCOPED_ROLES.includes(getOrgRoleId(user));
+
 const isAdminSession = (user = {}) =>
   ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
 

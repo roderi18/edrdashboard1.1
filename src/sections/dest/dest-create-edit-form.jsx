@@ -19,7 +19,12 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
+import {
+  isFullOrgManager,
+  getSectionScopeIds,
+  canCreateDestInSection,
+  isSectionScopedManager,
+} from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import barriosData from 'src/data/barrios.json';
@@ -251,11 +256,15 @@ export function DestCreateEditForm({ currentDest }) {
 
       const res = await fetch('/api/dest');
       const data = await res.json();
-      setDests(
-        Array.isArray(data?.Data)
-          ? data.Data.map(mapApiDestToUI)
-          : []
-      );
+      // La API responde { data: [...] } (minúscula). Antes se leía data.Data y
+      // el listado quedaba vacío, rompiendo la resolución de la sección del
+      // coordinador (dest → iglesia → sección).
+      const destArray = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.Data)
+          ? data.Data
+          : [];
+      setDests(destArray.map(mapApiDestToUI));
 
       const sectionalsData = await getSectionals();
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
@@ -328,6 +337,76 @@ export function DestCreateEditForm({ currentDest }) {
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
   const canDownloadMembersInfo =
     !isDestacamentoAdmin || estaDentroDelAlcance(user, currentDestResource);
+
+  // Sección con la que está registrado el usuario que crea el destacamento
+  // (coordinador/sub-coordinador seccional). Se resuelve, en orden: sección
+  // directa en la sesión/miembro, por director de la sección, por alcance de la
+  // sesión, y por su membresía (destacamento → iglesia → sección). Con ella se
+  // bloquea el campo "Sección".
+  const ownSectionalForCreation = (() => {
+    if (!isCreateView || !isSectionScopedManager(user) || !sectionals.length) return null;
+
+    const userKeys = [user?.idMiembros, user?.id, user?.memberId, user?.codigoMiembro]
+      .filter((value) => value !== null && value !== undefined && value !== '')
+      .map((value) => String(value));
+
+    // Registro completo del propio usuario en el directorio (trae destId, etc.,
+    // que la sesión puede no exponer).
+    const selfMember = allMembers.find((m) =>
+      [m?.id, m?.memberId, m?.idMiembros, m?.codigoMiembro].some((value) =>
+        userKeys.includes(String(value))
+      )
+    );
+
+    const findSectional = (sectionId) =>
+      sectionId !== null && sectionId !== undefined && sectionId !== ''
+        ? sectionals.find(
+            (s) => String(s.idSeccion) === String(sectionId) || String(s.id) === String(sectionId)
+          )
+        : null;
+
+    // a) Sección directa en la sesión o en el registro del miembro.
+    const byDirect = findSectional(
+      user?.sectionalId ??
+        user?.idSeccion ??
+        user?.seccionId ??
+        selfMember?.sectionalId ??
+        selfMember?.idSeccion ??
+        selfMember?.seccionId
+    );
+    if (byDirect) return byDirect;
+
+    // b) La sección cuyo director es este usuario.
+    const byDirector = sectionals.find(
+      (s) => s.directorId && userKeys.includes(String(s.directorId))
+    );
+    if (byDirector) return byDirector;
+
+    // c) Por alcance de la sesión.
+    const scopeIds = getSectionScopeIds(user);
+    const byScope = sectionals.find(
+      (s) => scopeIds.has(String(s.id)) || scopeIds.has(String(s.idSeccion))
+    );
+    if (byScope) return byScope;
+
+    // d) Por membresía: destacamento → iglesia → sección.
+    const userDestId =
+      user?.destId ?? user?.idDestacamento ?? selfMember?.destId ?? selfMember?.idDestacamento;
+    const userDest = userDestId
+      ? dests.find((d) =>
+          [d?.id, d?.idDestacamento].some((value) => String(value) === String(userDestId))
+        )
+      : null;
+    const userChurchId = userDest?.idIglesia ?? userDest?.churchId;
+    const userChurch =
+      userChurchId != null
+        ? churches.find((c) =>
+            [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
+          )
+        : null;
+
+    return findSectional(userChurch?.idSeccion ?? userChurch?.sectionId);
+  })();
 
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
@@ -753,7 +832,11 @@ export function DestCreateEditForm({ currentDest }) {
                 <>
                   {step === 1 && (
                     <Box sx={{ gridColumn: '1 / -1' }}>
-                      <ChurchDestSection isCreateView disabled={!canEditDest} />
+                      <ChurchDestSection
+                        isCreateView
+                        disabled={!canEditDest}
+                        lockedSectional={ownSectionalForCreation}
+                      />
                     </Box>
                   )}
 

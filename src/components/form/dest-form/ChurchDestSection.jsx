@@ -3,7 +3,10 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+
+import { getSectionScopeIds, isSectionScopedManager } from 'src/utils/org-level-access';
 
 import { getSectionals } from 'src/services/sectional-service';
 
@@ -11,13 +14,49 @@ import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import LocationSelect from 'src/components/location/location-select';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 export default function ChurchDestSection({
     isCreateView,
     methods,
     disabled = false,
+    lockedSectional = null,
 }) {
     const [sectionals, setSectionals] = useState([]);
     const { watch, setValue, control } = useFormContext();
+    const { user } = useAuthContext();
+
+    // Coordinador/Sub-Coordinador Seccional: solo puede crear en su propia
+    // sección, así que en vez de un desplegable se muestra su sección como texto
+    // deshabilitado y se fija `sectionId` a ella.
+    const lockToOwnSection = isSectionScopedManager(user);
+    const ownSectionId = lockToOwnSection ? [...getSectionScopeIds(user)][0] : null;
+
+    // Identificadores del propio usuario, para resolver su sección cuando el
+    // alcance de la sesión no la trae (se deriva de la sección cuyo director es
+    // este coordinador).
+    const userMemberKeys = [user?.idMiembros, user?.id, user?.memberId, user?.codigoMiembro]
+        .filter((value) => value !== null && value !== undefined && value !== '')
+        .map((value) => String(value));
+
+    // 1) Por alcance (secciones/seccionId de la sesión).
+    const sectionalByScope =
+        ownSectionId != null
+            ? sectionals.find(
+                (s) =>
+                    String(s.id) === String(ownSectionId) ||
+                    String(s.idSeccion) === String(ownSectionId)
+            )
+            : null;
+
+    // 2) Fallback: la sección cuyo director es este coordinador.
+    const sectionalByDirector = lockToOwnSection
+        ? sectionals.find((s) => s.directorId && userMemberKeys.includes(String(s.directorId)))
+        : null;
+
+    // Prioridad: sección resuelta por el formulario padre (deriva de la membresía
+    // del usuario), luego por alcance, luego por director.
+    const ownSectional = lockedSectional || sectionalByScope || sectionalByDirector || null;
 
     useEffect(() => {
         const loadSectionals = async () => {
@@ -27,6 +66,16 @@ export default function ChurchDestSection({
 
         loadSectionals();
     }, []);
+
+    // Fija la sección propia en el formulario cuando el rol está acotado.
+    useEffect(() => {
+        if (lockToOwnSection && ownSectional?.id) {
+            setValue('sectionId', String(ownSectional.id), {
+                shouldValidate: true,
+                shouldDirty: true,
+            });
+        }
+    }, [lockToOwnSection, ownSectional?.id, setValue]);
 
     return (
         <Box>
@@ -103,37 +152,46 @@ export default function ChurchDestSection({
                 />
 
 
-                <Field.Autocomplete
-                    name="sectionId"
-                    label="Sección"
-                    disabled={disabled}
-                    options={sectionals}
-                    getOptionLabel={(option) =>
-                        typeof option === 'string'
-                            ? option
-                            : option?.sectionalName || ''
-                    }
-                    isOptionEqualToValue={(option, value) =>
-                        String(option.id) === String(value?.id)
-                    }
-                    value={
-                        sectionals.find(
-                            (s) => String(s.id) === watch('sectionId')
-                        ) || null
-                    }
-                    onChange={(event, option) => {
-                        if (disabled) return;
+                {lockToOwnSection ? (
+                    <TextField
+                        label="Sección"
+                        value={ownSectional?.sectionalName || ''}
+                        disabled
+                        fullWidth
+                    />
+                ) : (
+                    <Field.Autocomplete
+                        name="sectionId"
+                        label="Sección"
+                        disabled={disabled}
+                        options={sectionals}
+                        getOptionLabel={(option) =>
+                            typeof option === 'string'
+                                ? option
+                                : option?.sectionalName || ''
+                        }
+                        isOptionEqualToValue={(option, value) =>
+                            String(option.id) === String(value?.id)
+                        }
+                        value={
+                            sectionals.find(
+                                (s) => String(s.id) === watch('sectionId')
+                            ) || null
+                        }
+                        onChange={(event, option) => {
+                            if (disabled) return;
 
-                        setValue(
-                            'sectionId',
-                            option?.id ? String(option.id) : '',
-                            {
-                                shouldValidate: true,
-                                shouldDirty: true,
-                            }
-                        );
-                    }}
-                />
+                            setValue(
+                                'sectionId',
+                                option?.id ? String(option.id) : '',
+                                {
+                                    shouldValidate: true,
+                                    shouldDirty: true,
+                                }
+                            );
+                        }}
+                    />
+                )}
             </Box>
         </Box>
     );
