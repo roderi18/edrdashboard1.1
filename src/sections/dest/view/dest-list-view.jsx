@@ -95,14 +95,18 @@ const canModifyDest = (user, permissionCode, actionKey) => {
     return false;
   }
 
+  // Las sesiones con rolId (coordinadores de sección/región y afines) se rigen
+  // por el catálogo de permisos del rol, NO por el objeto user.permisos: este
+  // puede traer los valores por defecto de miembro (destacamentos.crear=false) y
+  // ocultaría el botón de crear aunque el rol sí tenga el permiso.
+  if (user?.rolId || user?.roleId) {
+    return puedeModificar(user, permissionCode);
+  }
+
   const modulePermissions = user?.permisos?.destacamentos || user?.permissions?.destacamentos;
 
   if (modulePermissions && typeof modulePermissions === 'object') {
     return Boolean(modulePermissions[actionKey]);
-  }
-
-  if (user?.rolId || user?.roleId) {
-    return puedeModificar(user, permissionCode);
   }
 
   if (hasAdminRole(user)) {

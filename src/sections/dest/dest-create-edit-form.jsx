@@ -301,18 +301,24 @@ export function DestCreateEditForm({ currentDest }) {
     regionId: regional?.id || currentDest?.regionId || currentDest?.idRegion,
     idRegion: regional?.id || currentDest?.regionId || currentDest?.idRegion,
   };
+  // En creación, habilitar el formulario para cualquier rol con el permiso
+  // `destacamentos.crear` del catálogo (coordinador/sub-coordinador seccional),
+  // de forma coherente con el botón "Crear nuevo" de la lista. El acotado por
+  // sección (canCreateDestInSection) sigue vigente para las sesiones que ya
+  // traen su alcance; el catálogo cubre las que aún no lo tienen resuelto.
+  const canCreateDestByRole = puedeModificar(user, PERMISOS.DESTACAMENTOS_CREAR);
   const canEditDest =
     !isDestacamentoAdmin &&
     (isLegacyAdmin ||
       (isCreateView
-        ? canCreateDestInSection(user)
+        ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
           estaDentroDelAlcance(user, currentDestResource)));
   const canUploadDestPhoto =
     !isDestacamentoAdmin &&
     (isLegacyAdmin ||
       (isCreateView
-        ? canCreateDestInSection(user)
+        ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
           estaDentroDelAlcance(user, currentDestResource)));
   const canEditMeetingSchedule =
@@ -858,6 +864,16 @@ export function DestCreateEditForm({ currentDest }) {
                 </LoadingButton>
               )}
             </Stack>
+
+            {isCreateView && step === 1 && (
+              <Typography
+                variant="caption"
+                sx={{ mt: 1.5, display: 'block', textAlign: 'right', color: 'text.secondary' }}
+              >
+                Primero se registra la iglesia; al completar este paso continuarás con la creación
+                del destacamento.
+              </Typography>
+            )}
           </Card>
         </Grid>
       </Grid>

@@ -839,6 +839,48 @@ const getUserRoleId = (user = {}) => {
 export const isUsuarioComunRole = (user = {}) =>
   getUserRoleId(user) === ROLES.USUARIO_COMUN;
 
+// Posiciones del desplegable de Sección (Coordinador Seccional y afines) que ven
+// la lista de miembros pero NO pueden acceder a la ficha de los menores: estos
+// aparecen en la lista pero DESHABILITADOS. Por ahora la regla aplica solo a
+// nivel sección; los niveles región/nacional se agregarán después.
+const SECCION_MINOR_RESTRICTED_ROLE_IDS = [
+  ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_SECCION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
+  ROLES.COORDINADOR_PROMOCION_SECCION,
+  ROLES.COORDINADOR_PRODUCCION_SECCION,
+  ROLES.COORDINADOR_PROGRAMA_SECCION,
+];
+
+// Puede acceder a la ficha/datos de un menor (catálogo: `miembros.ver_menores`).
+export const canAccessMinorMembers = (user = {}) =>
+  puedePorCatalogo(user, PERMISOS.MIEMBROS_VER_MENORES);
+
+// True si al usuario se le deben mostrar los menores DESHABILITADOS en las listas
+// de miembros (ve la fila/tarjeta pero no puede abrirla).
+export const shouldDisableMinorMembers = (user = {}) =>
+  SECCION_MINOR_RESTRICTED_ROLE_IDS.includes(getUserRoleId(user)) &&
+  !canAccessMinorMembers(user);
+
+// Determina si un miembro es menor de edad a partir de su fecha de nacimiento.
+// (Misma lógica que `esMiembroMenorDeEdad` del servicio de salud, replicada aquí
+// para no acoplar utils a services.)
+export const isMinorMember = (member = {}) => {
+  const raw =
+    member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento || '';
+  if (!raw) return false;
+
+  const birth = new Date(raw);
+  if (Number.isNaN(birth.getTime())) return false;
+
+  const now = new Date();
+  let edad = now.getFullYear() - birth.getFullYear();
+  const mes = now.getMonth() - birth.getMonth();
+  if (mes < 0 || (mes === 0 && now.getDate() < birth.getDate())) edad -= 1;
+
+  return edad >= 0 && edad < 18;
+};
+
 const getExcludedPermissionCodes = (user = {}) =>
   [user?.permisosExcluidos, user?.excludedPermissions]
     .flat()

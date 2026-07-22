@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { canMemberManageMembers } from 'src/utils/member-access';
+import { canEditHealth, canMemberManageMembers } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
@@ -19,7 +19,11 @@ export default function Page() {
 
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
+  // Editar la Dispensa Médica exige el permiso `salud.editar` del catálogo
+  // (igual que Ascenso con `ascenso.editar`), para que el panel de "Administrar
+  // permisos" pueda dejarla en solo lectura.
+  const canManage =
+    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) && canEditHealth(user);
 
   useEffect(() => {
     let cancelled = false;

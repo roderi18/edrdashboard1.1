@@ -25,9 +25,11 @@ import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
+  isMinorMember,
   isMemberSessionUser,
   canMemberManageMembers,
   filterMembersByMemberScope,
+  shouldDisableMinorMembers,
 } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
@@ -322,6 +324,9 @@ export function MemberListView() {
   const memberCanManage = isMemberSessionUser(user)
     ? canMemberManageMembers(user)
     : adminCanManageMembers;
+  // Posiciones de Sección sin acceso a menores: ven la fila/tarjeta del menor
+  // pero deshabilitada (no pueden abrirla).
+  const disableMinors = shouldDisableMinorMembers(user);
   const memberDestLabel = useMemo(() => {
     if (!isMemberSessionUser(user)) {
       return '';
@@ -800,6 +805,7 @@ export function MemberListView() {
                         }}
                         selected={table.selected.includes(row.id)}
                         canManage={memberCanManage}
+                        restricted={disableMinors && isMinorMember(row)}
                         onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.member.edit(
@@ -835,6 +841,7 @@ export function MemberListView() {
           <MemberCardList
             members={dataFiltered}
             canManage={memberCanManage}
+            restrictMinors={disableMinors}
             dests={dests}
             loading={membersLoading}
             memberPhotoUrls={memberPhotoUrls}
