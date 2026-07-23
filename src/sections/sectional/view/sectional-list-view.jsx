@@ -58,6 +58,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 import { SectionalTableRow } from '../sectional-table-row';
 import { SectionalCardList } from '../sectional-card-list';
@@ -191,7 +192,12 @@ const buildSectionalList = ({
 export function SectionalListView() {
   const { user } = useAuthContext();
   // Crear secciones: administradores de region (en su region) y global/funcional.
-  const canCreate = canCreateSectionalInRegion(user);
+  // Se muestra el boton si el alcance ya lo permite O si el rol tiene el permiso
+  // `secciones.crear` en el catalogo (coordinador regional y su asistente), de
+  // forma coherente con el boton de crear destacamento del coordinador seccional.
+  // La region concreta se acota luego en el formulario/guardado.
+  const canCreate =
+    canCreateSectionalInRegion(user) || puedeModificar(user, PERMISOS.SECCIONES_CREAR);
   // Eliminar: reservado a global/funcional.
   const canDelete = canDeleteOrgLevel(user);
   const getRegionalNameByDest = (sectional) => {

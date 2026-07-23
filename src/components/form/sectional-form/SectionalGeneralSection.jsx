@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { getRegionals } from 'src/services/regional-service';
@@ -12,7 +13,13 @@ import { Field } from 'src/components/hook-form';
 import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
 // ----------------------------------------------------------------------
 
-export default function SectionalGeneralSection({ methods, watch, isCreateView, disabled = false }) {
+export default function SectionalGeneralSection({
+    methods,
+    watch,
+    isCreateView,
+    disabled = false,
+    lockedRegional = null,
+}) {
     const [regionals, setRegionals] = useState([]);
     const regionalId = watch('regionalId');
 
@@ -100,7 +107,15 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView, 
                 />
             )}
 
-            {/* Región (Autocomplete dinámico) */}
+            {/* Región: bloqueada a la región propia del coordinador regional */}
+            {lockedRegional ? (
+                <TextField
+                    label="Región"
+                    value={lockedRegional?.name || lockedRegional?.regionalName || ''}
+                    disabled
+                    fullWidth
+                />
+            ) : (
             <Field.Autocomplete
                 name="regionalId"
                 label="Región"
@@ -127,6 +142,7 @@ export default function SectionalGeneralSection({ methods, watch, isCreateView, 
                     });
                 }}
             />
+            )}
         </>
     );
 }

@@ -33,6 +33,7 @@ const COORDINADORES_AREA_REGION = [
 
 // Coordinadores de area: solo consulta dentro de su alcance. No editan/crean/
 // eliminan niveles, no editan miembros, no ven datos sensibles ni menores.
+// Pueden ver (nunca editar) el Sistema de Ascenso y Padres.
 const PERMISOS_COORDINADOR_AREA_SECCION = [
   PERMISOS.SECCIONES_VER,
   PERMISOS.DESTACAMENTOS_VER,
@@ -42,6 +43,8 @@ const PERMISOS_COORDINADOR_AREA_SECCION = [
   PERMISOS.REPORTES_VER_LOCALES,
   PERMISOS.REPORTES_VER_SECCIONALES,
   PERMISOS.TIENDA_VER,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.PADRES_VER,
 ];
 
 const PERMISOS_COORDINADOR_AREA_REGION = [
@@ -55,6 +58,8 @@ const PERMISOS_COORDINADOR_AREA_REGION = [
   PERMISOS.REPORTES_VER_SECCIONALES,
   PERMISOS.REPORTES_VER_REGIONALES,
   PERMISOS.TIENDA_VER,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.PADRES_VER,
 ];
 
 // Cargos del Consejo Nacional que ven todo a nivel nacional EXCEPTO menores.

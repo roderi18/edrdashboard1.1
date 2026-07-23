@@ -244,8 +244,8 @@ export function DestCreateEditForm({ currentDest }) {
           );
           const coordinatorMember = coordinador
             ? normalizedMembers.find(
-                (member) => String(member.id) === String(coordinador.idMiembros)
-              )
+              (member) => String(member.id) === String(coordinador.idMiembros)
+            )
             : null;
 
           setCoordinatorFromDb(coordinatorMember?.memberId ?? null);
@@ -322,14 +322,14 @@ export function DestCreateEditForm({ currentDest }) {
       (isCreateView
         ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
-          estaDentroDelAlcance(user, currentDestResource)));
+        estaDentroDelAlcance(user, currentDestResource)));
   const canUploadDestPhoto =
     !isDestacamentoAdmin &&
     (isLegacyAdmin ||
       (isCreateView
         ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-          estaDentroDelAlcance(user, currentDestResource)));
+        estaDentroDelAlcance(user, currentDestResource)));
   const canEditMeetingSchedule =
     isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
   const canSaveDest = canEditDest || canEditMeetingSchedule;
@@ -361,18 +361,18 @@ export function DestCreateEditForm({ currentDest }) {
     const findSectional = (sectionId) =>
       sectionId !== null && sectionId !== undefined && sectionId !== ''
         ? sectionals.find(
-            (s) => String(s.idSeccion) === String(sectionId) || String(s.id) === String(sectionId)
-          )
+          (s) => String(s.idSeccion) === String(sectionId) || String(s.id) === String(sectionId)
+        )
         : null;
 
     // a) Sección directa en la sesión o en el registro del miembro.
     const byDirect = findSectional(
       user?.sectionalId ??
-        user?.idSeccion ??
-        user?.seccionId ??
-        selfMember?.sectionalId ??
-        selfMember?.idSeccion ??
-        selfMember?.seccionId
+      user?.idSeccion ??
+      user?.seccionId ??
+      selfMember?.sectionalId ??
+      selfMember?.idSeccion ??
+      selfMember?.seccionId
     );
     if (byDirect) return byDirect;
 
@@ -394,15 +394,15 @@ export function DestCreateEditForm({ currentDest }) {
       user?.destId ?? user?.idDestacamento ?? selfMember?.destId ?? selfMember?.idDestacamento;
     const userDest = userDestId
       ? dests.find((d) =>
-          [d?.id, d?.idDestacamento].some((value) => String(value) === String(userDestId))
-        )
+        [d?.id, d?.idDestacamento].some((value) => String(value) === String(userDestId))
+      )
       : null;
     const userChurchId = userDest?.idIglesia ?? userDest?.churchId;
     const userChurch =
       userChurchId != null
         ? churches.find((c) =>
-            [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
-          )
+          [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
+        )
         : null;
 
     return findSectional(userChurch?.idSeccion ?? userChurch?.sectionId);
@@ -658,9 +658,9 @@ export function DestCreateEditForm({ currentDest }) {
                     onChange={(event) =>
                       canEditDest &&
                       methods.setValue('registradoOfnc', event.target.checked, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        })
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
                     }
                   />
                 }
@@ -691,9 +691,9 @@ export function DestCreateEditForm({ currentDest }) {
                     onChange={(event) =>
                       canEditDest &&
                       methods.setValue('rritrackActivo', event.target.checked, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        })
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
                     }
                   />
                 }
@@ -728,7 +728,7 @@ export function DestCreateEditForm({ currentDest }) {
                 },
                 {
                   show: !currentDest && !!sectional?.sectionalName,
-                  text: `pertenecerá a la Sección ${sectional?.sectionalName}`,
+                  text: `Pertenecerá a la Sección ${sectional?.sectionalName}`,
                 },
                 {
                   show: !currentDest && !!regional?.name,
@@ -803,12 +803,12 @@ export function DestCreateEditForm({ currentDest }) {
                     },
                     ...(canDownloadMembersInfo
                       ? [
-                          {
-                            value: 'miembros',
-                            label: 'Miembros',
-                            rows: [{ label: 'Cantidad', value: values.memberCount }],
-                          },
-                        ]
+                        {
+                          value: 'miembros',
+                          label: 'Miembros',
+                          rows: [{ label: 'Cantidad', value: values.memberCount }],
+                        },
+                      ]
                       : []),
                   ]}
                 />

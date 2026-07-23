@@ -17,12 +17,16 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   canEditSectional,
+  getRegionScopeIds,
+  isRegionScopedManager,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
 } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
+import { getChurches } from 'src/services/church-service';
+import { getRegionals } from 'src/services/regional-service';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
 import { getSectionals, saveSectional, updateSectional } from 'src/services/sectional-service';
 
@@ -33,19 +37,118 @@ import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 // ----------------------------------------------------------------------
 
 export function SectionalCreateEditForm({ currentSectional }) {
   const router = useRouter();
   const { user } = useAuthContext();
-  // Crear: admin de region (en su region) o global/funcional.
+  // Crear: admin de region (en su region) o global/funcional. Se habilita tambien
+  // por el permiso `secciones.crear` del catalogo (coordinador regional y su
+  // asistente), coherente con el formulario de crear destacamento; la region se
+  // acota en el propio formulario/guardado.
   // Editar: admin de seccion (su seccion), admin de region (secciones de su
   // region) o global/funcional. El resto consulta en modo de solo lectura.
   const canEdit = currentSectional
     ? canEditSectional(user, currentSectional)
-    : canCreateSectionalInRegion(user);
+    : canCreateSectionalInRegion(user) || puedeModificar(user, PERMISOS.SECCIONES_CREAR);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [dests, setDests] = useState([]);
+  const [churches, setChurches] = useState([]);
+  const [sectionals, setSectionals] = useState([]);
+  const [regionals, setRegionals] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCatalogs = async () => {
+      const [regionalsData, sectionalsData, churchesData] = await Promise.all([
+        getRegionals(),
+        getSectionals(),
+        getChurches(),
+      ]);
+      let destsData = [];
+      try {
+        const res = await fetch('/api/dest');
+        const json = await res.json();
+        destsData = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
+      } catch {
+        destsData = [];
+      }
+
+      if (cancelled) return;
+      setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
+      setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
+      setDests(destsData);
+    };
+
+    loadCatalogs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Región a la que pertenece el coordinador regional que crea la sección. Se
+  // resuelve, en orden: por director, por alcance, y por su membresía
+  // (destacamento → iglesia → sección → región). Con ella se bloquea el campo.
+  const ownRegional = (() => {
+    if (currentSectional || !isRegionScopedManager(user) || !regionals.length) return null;
+
+    const findRegional = (regionId) =>
+      regionId !== null && regionId !== undefined && regionId !== ''
+        ? regionals.find(
+            (r) => String(r.regionId) === String(regionId) || String(r.id) === String(regionId)
+          )
+        : null;
+
+    const userKeys = [user?.idMiembros, user?.id, user?.memberId, user?.codigoMiembro]
+      .filter((value) => value !== null && value !== undefined && value !== '')
+      .map((value) => String(value));
+
+    const byDirector = regionals.find(
+      (r) => r.directorId && userKeys.includes(String(r.directorId))
+    );
+    if (byDirector) return byDirector;
+
+    const scopeIds = getRegionScopeIds(user);
+    const byScope = regionals.find(
+      (r) => scopeIds.has(String(r.regionId)) || scopeIds.has(String(r.id))
+    );
+    if (byScope) return byScope;
+
+    const userDestId = user?.destId ?? user?.idDestacamento;
+    const userDest = userDestId
+      ? dests.find((d) => String(d?.idDestacamento ?? d?.id) === String(userDestId))
+      : null;
+    const userChurchId = userDest?.idIglesia ?? userDest?.churchId;
+    const userChurch =
+      userChurchId != null
+        ? churches.find((c) =>
+            [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
+          )
+        : null;
+    const userSectionId = userChurch?.idSeccion ?? userChurch?.sectionId;
+    const userSectional =
+      userSectionId != null
+        ? sectionals.find(
+            (s) => String(s.idSeccion) === String(userSectionId) || String(s.id) === String(userSectionId)
+          )
+        : null;
+
+    return findRegional(userSectional?.regionalId);
+  })();
+
+  useEffect(() => {
+    if (ownRegional?.regionId != null) {
+      methods.setValue('regionalId', String(ownRegional.regionId), {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownRegional?.regionId]);
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -128,7 +231,13 @@ export function SectionalCreateEditForm({ currentSectional }) {
         return;
       }
 
-      if (!canAssignSectionalToRegion(user, data.regionalId)) {
+      // Un coordinador regional acotado puede asignar la sección a SU región
+      // resuelta (ownRegional), aunque el alcance de la sesión no la traiga.
+      const esRegionPropia =
+        ownRegional?.regionId != null &&
+        String(data.regionalId) === String(ownRegional.regionId);
+
+      if (!esRegionPropia && !canAssignSectionalToRegion(user, data.regionalId)) {
         toast.error('No tienes permiso para asignar esta sección a esa región.');
         return;
       }
@@ -299,6 +408,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 watch={watch}
                 isCreateView={!currentSectional}
                 disabled={!canEdit}
+                lockedRegional={ownRegional}
               />
             </Box>
 
