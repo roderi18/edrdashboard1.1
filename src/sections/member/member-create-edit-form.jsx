@@ -46,6 +46,7 @@ import {
   canApproveMemberChanges,
   isDestacamentoApprovalRole,
   buildDefaultMemberPermissions,
+  canViewMemberSensitiveData,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
 
@@ -406,6 +407,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const lockGroupLeaderFields = isDestacamentoApprovalRole(user);
   const isCoordinador = isCoordinadorDestacamentoRole(user);
   const puedeAprobarCambios = canApproveMemberChanges(user);
+  // Usuarios sin acceso a los datos sensibles (sección, región, consejo nacional,
+  // etc.): la información personal se muestra enmascarada y el formulario queda en
+  // solo lectura. La dirección, teléfono, correo y fecha se ocultan; el resto de
+  // los campos se ven deshabilitados.
+  const maskSensitive = Boolean(currentMember) && !canViewMemberSensitiveData(user);
+  const readOnlyEffective = readOnly || maskSensitive;
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
   // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
   const [sendingApproval, setSendingApproval] = useState(false);
@@ -1804,8 +1811,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   };
 
   return (
-    <Form methods={methods} onSubmit={readOnly ? undefined : onSubmit}>
-      <Box component="fieldset" disabled={readOnly} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+    <Form methods={methods} onSubmit={readOnlyEffective ? undefined : onSubmit}>
+      <Box component="fieldset" disabled={readOnlyEffective} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -2011,13 +2018,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     control={control}
                     minBirthdate={minBirthdate}
                     maxBirthdate={maxBirthdate}
+                    masked={maskSensitive}
                   />
                 )}
 
                 {/* SOLO EDIT: mantener comportamiento "Ver m?s" */}
                 {!isCreateView && (!isMobile || showMore) && (
                   <>
-                    <MemberAddressSection isEdit />
+                    <MemberAddressSection isEdit masked={maskSensitive} />
 
                     {isCreateView && (
                       <>
@@ -2223,7 +2231,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                 </Box>
               )}
 
-              {!readOnly && (
+              {!readOnlyEffective && (
                 <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
                   {/* SOLO /new */}
                   {isCreateView && step === 2 && (
@@ -2291,7 +2299,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     ))}
                 </Stack>
               )}
-              {!readOnly && formErrorMessage && (
+              {!readOnlyEffective && formErrorMessage && (
                 <Typography
                   sx={{
                     mt: 1,

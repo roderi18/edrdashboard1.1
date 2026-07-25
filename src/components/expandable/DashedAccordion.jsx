@@ -1,7 +1,7 @@
 import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
 import Typography from '@mui/material/Typography';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -9,10 +9,13 @@ export default function DashedAccordion({
     title,
     children,
     defaultExpanded = false,
+    disabled = false,
 }) {
     return (
         <Accordion
-            defaultExpanded={defaultExpanded}
+            defaultExpanded={disabled ? false : defaultExpanded}
+            disabled={disabled}
+            expanded={disabled ? false : undefined}
             sx={{
                 gridColumn: '1 / -1',
                 border: '1px dashed',
@@ -20,10 +23,14 @@ export default function DashedAccordion({
                 borderRadius: 1.5,
                 boxShadow: 'none',
                 '&:before': { display: 'none' },
+                // Mantener legible el título aunque el acordeón esté deshabilitado.
+                '&.Mui-disabled': { bgcolor: 'transparent', opacity: 1 },
             }}
         >
             <AccordionSummary
-                expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+                // Sin flechita cuando está deshabilitado (no se puede expandir).
+                expandIcon={disabled ? null : <Iconify icon="eva:arrow-ios-downward-fill" />}
+                sx={{ cursor: disabled ? 'default' : undefined }}
             >
                 <Typography
                     sx={{
@@ -35,7 +42,7 @@ export default function DashedAccordion({
                 </Typography>
             </AccordionSummary>
 
-            <AccordionDetails>{children}</AccordionDetails>
+            {!disabled && <AccordionDetails>{children}</AccordionDetails>}
         </Accordion>
     );
 }

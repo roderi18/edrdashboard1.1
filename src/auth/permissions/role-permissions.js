@@ -99,8 +99,25 @@ const PERMISOS_VER_TODO_NACIONAL = [
   PERMISOS.PADRES_VER,
 ];
 
-// Director Nacional: lo mismo, mas ver menores de todos los destacamentos.
-const PERMISOS_DIRECTOR_NACIONAL = [...PERMISOS_VER_TODO_NACIONAL, PERMISOS.MIEMBROS_VER_MENORES];
+// Director Nacional: ve toda la estructura del pais (regiones, secciones,
+// destacamentos) y la lista de miembros ADULTOS, todo en solo lectura. NO ve
+// menores, NO ve Dispensa Médica ni Padres: el único tab de la ficha del miembro
+// habilitado es el Sistema de Ascenso (solo lectura). Los demás tabs se muestran
+// deshabilitados (ver member-edit-layout).
+const PERMISOS_DIRECTOR_NACIONAL = [
+  PERMISOS.REGIONES_VER,
+  PERMISOS.SECCIONES_VER,
+  PERMISOS.DESTACAMENTOS_VER,
+  PERMISOS.MIEMBROS_VER,
+  PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.REPORTES_VER_LOCALES,
+  PERMISOS.REPORTES_VER_SECCIONALES,
+  PERMISOS.REPORTES_VER_REGIONALES,
+  PERMISOS.REPORTES_VER_NACIONALES,
+  PERMISOS.TIENDA_VER,
+  // Único módulo de la ficha del miembro habilitado (solo lectura).
+  PERMISOS.ASCENSO_VER,
+];
 
 const RESTRICCIONES_CONSEJO_NACIONAL_SIN_MENORES = {
   ...RESTRICCIONES_BASE,
@@ -111,7 +128,8 @@ const RESTRICCIONES_CONSEJO_NACIONAL_SIN_MENORES = {
 const RESTRICCIONES_DIRECTOR_NACIONAL = {
   ...RESTRICCIONES_BASE,
   soloLectura: true,
-  requierePermisoParaMenores: false,
+  // No puede ver menores (necesitaría autorización expresa, que no tiene).
+  requierePermisoParaMenores: true,
 };
 
 const fromCodes = (codes, value) => Object.fromEntries(codes.map((code) => [code, value]));
@@ -503,7 +521,8 @@ export const PERMISOS_POR_ROL = {
   ],
   // Cargos del Consejo Nacional: ven todo a nivel nacional salvo menores.
   ...fromCodes(CONSEJO_NACIONAL_SIN_MENORES, PERMISOS_VER_TODO_NACIONAL),
-  // Director Nacional: ademas ve menores de todos los destacamentos.
+  // Director Nacional: consulta global (solo lectura), sin menores y solo con
+  // acceso al Sistema de Ascenso en la ficha del miembro.
   [ROLES.DIRECTOR_NACIONAL]: PERMISOS_DIRECTOR_NACIONAL,
   [ROLES.CONSEJO_EJECUTIVO]: [
     PERMISOS.DESTACAMENTOS_VER,

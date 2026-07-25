@@ -3,13 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
+import Alert from '@mui/material/Alert';
+
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { canViewMemberHistoryTab } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberHistoryLog } from 'src/sections/member/history/member-history-log';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 const LOCAL_DEMO_MEMBER_CODE = 'DO-SD-111111017';
 
@@ -132,6 +138,7 @@ const getLocalDemoHistoryLogs = (memberName) => {
 
 export default function Page() {
   const { id } = useParams();
+  const { user } = useAuthContext();
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
 
@@ -168,6 +175,16 @@ export default function Page() {
 
   const memberName = getMemberFullName(currentMember);
   const memberId = currentMember?.id || id;
+
+  // Sin acceso al Historial (p. ej. el Director Nacional): tabs visibles pero
+  // contenido bloqueado.
+  if (!canViewMemberHistoryTab(user)) {
+    return (
+      <MemberEditLayout member={currentMember}>
+        <Alert severity="info">No tienes acceso al historial de este miembro.</Alert>
+      </MemberEditLayout>
+    );
+  }
 
   return (
     <MemberEditLayout member={currentMember}>

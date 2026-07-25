@@ -1,8 +1,9 @@
 import Box from '@mui/material/Box';
-import DashedAccordion from 'src/components/expandable/DashedAccordion';
-import LocationSelect from 'src/components/location/location-select';
 
-export default function MemberAddressSection({ isEdit = false }) {
+import LocationSelect from 'src/components/location/location-select';
+import DashedAccordion from 'src/components/expandable/DashedAccordion';
+
+export default function MemberAddressSection({ isEdit = false, masked = false }) {
 
     const Content = (
         <Box
@@ -23,12 +24,12 @@ export default function MemberAddressSection({ isEdit = false }) {
         return Content;
     }
 
-    // EDIT → con accordion dashed
+    // EDIT → con accordion dashed. Cuando la información está enmascarada (usuario
+    // sin permiso a datos sensibles), el desplegable sale deshabilitado y sin la
+    // flechita: no puede abrirse ni mostrar la dirección.
     return (
-        <DashedAccordion title="Dirección">
+        <DashedAccordion title="Dirección" disabled={masked}>
             {Content}
         </DashedAccordion>
-
-
     );
 }

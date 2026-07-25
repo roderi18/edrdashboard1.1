@@ -28,8 +28,8 @@ import {
   isMinorMember,
   isMemberSessionUser,
   canMemberManageMembers,
-  filterMembersByMemberScope,
   shouldDisableMinorMembers,
+  filterMembersByMemberScope,
 } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';

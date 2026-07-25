@@ -2,10 +2,24 @@ import { Controller } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
+
+// Campo de solo lectura con el valor oculto (para usuarios sin permiso a los
+// datos personales del miembro). El teléfono se muestra con asteriscos; el resto
+// con puntos. Nunca recibe el valor real, así no se filtra la información.
+const MaskedField = ({ label, mask }) => (
+    <TextField
+        fullWidth
+        disabled
+        label={label}
+        value={mask}
+        slotProps={{ inputLabel: { shrink: true } }}
+    />
+);
 
 export default function MemberGeneralSection({
     age,
@@ -14,6 +28,7 @@ export default function MemberGeneralSection({
     control,
     minBirthdate,
     maxBirthdate,
+    masked = false,
 }) {
     return (
 
@@ -57,15 +72,19 @@ export default function MemberGeneralSection({
                 maxLength={60}
             />
 
-            <Field.DatePicker
-                name="birthdate"
-                label={`Fecha de nacimiento${age !== null ? ` (${age} años)` : ''
-                    }`}
-                format="DD/MM/YYYY"
-                views={['year', 'month', 'day']}
-                minDate={minBirthdate}
-                maxDate={maxBirthdate}
-            />
+            {masked ? (
+                <MaskedField label="Fecha de nacimiento" mask="••/••/••••" />
+            ) : (
+                <Field.DatePicker
+                    name="birthdate"
+                    label={`Fecha de nacimiento${age !== null ? ` (${age} años)` : ''
+                        }`}
+                    format="DD/MM/YYYY"
+                    views={['year', 'month', 'day']}
+                    minDate={minBirthdate}
+                    maxDate={maxBirthdate}
+                />
+            )}
 
             <Field.Text
                 name="memberDivision"
@@ -74,25 +93,33 @@ export default function MemberGeneralSection({
                 disabled
             />
 
-            <Controller
-                name="phoneNumber"
-                control={control}
-                render={({ field }) => (
-                    <Field.Phone
-                        {...field}
-                        label="Núm. Teléfono"
-                        defaultCountry="DO"
-                        inputProps={{ maxLength: 14 }}
-                    />
-                )}
-            />
+            {masked ? (
+                <MaskedField label="Núm. Teléfono" mask="**********" />
+            ) : (
+                <Controller
+                    name="phoneNumber"
+                    control={control}
+                    render={({ field }) => (
+                        <Field.Phone
+                            {...field}
+                            label="Núm. Teléfono"
+                            defaultCountry="DO"
+                            inputProps={{ maxLength: 14 }}
+                        />
+                    )}
+                />
+            )}
 
-            <Field.Text
-                name="email"
-                label="Correo electrónico"
-                placeholder="No registrado"
-                slotProps={{ inputLabel: { shrink: true } }}
-            />
+            {masked ? (
+                <MaskedField label="Correo electrónico" mask="••••••••••" />
+            ) : (
+                <Field.Text
+                    name="email"
+                    label="Correo electrónico"
+                    placeholder="No registrado"
+                    slotProps={{ inputLabel: { shrink: true } }}
+                />
+            )}
         </>
     );
 }

@@ -21,8 +21,9 @@ export const ROLES = {
   COORDINADOR_PRODUCCION_REGION: 'coordinador_produccion_region',
   COORDINADOR_PROGRAMA_REGION: 'coordinador_programa_region',
   CONSEJO_NACIONAL: 'consejo_nacional',
-  // Cargos del Consejo Nacional (alcance nacional, solo lectura). Todos ven todo
-  // excepto menores; Director Nacional ademas ve menores.
+  // Cargos del Consejo Nacional (alcance nacional, solo lectura). Ven la
+  // estructura nacional pero no a los menores. El Director Nacional, además,
+  // solo accede al Sistema de Ascenso dentro de la ficha del miembro.
   MINISTERIOS_INFANTILES_NACIONAL: 'ministerios_infantiles_nacional',
   DIRECTOR_NACIONAL: 'director_nacional',
   CAPELLAN_NACIONAL: 'capellan_nacional',
@@ -228,7 +229,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.DIRECTOR_NACIONAL,
     nombre: 'Director Nacional',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional, incluyendo miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: consulta global de regiones, secciones y destacamentos (solo lectura). No ve menores; en la ficha del miembro solo accede al Sistema de Ascenso.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,

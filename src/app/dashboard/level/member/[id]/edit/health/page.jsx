@@ -3,11 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { canEditHealth, canMemberManageMembers } from 'src/utils/member-access';
+import Alert from '@mui/material/Alert';
+
+import {
+  canEditHealth,
+  canMemberManageMembers,
+  canViewMemberHealthTab,
+} from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
 
@@ -62,6 +69,16 @@ export default function Page() {
 
   if (!currentMember) {
     return <div>Miembro no encontrado</div>;
+  }
+
+  // Sin permiso de lectura de Dispensa Médica (p. ej. el Director Nacional): se
+  // conservan los tabs pero se bloquea el contenido.
+  if (!canViewMemberHealthTab(user)) {
+    return (
+      <MemberEditLayout member={currentMember}>
+        <Alert severity="info">No tienes acceso a la Dispensa Médica de este miembro.</Alert>
+      </MemberEditLayout>
+    );
   }
 
   return (

@@ -613,6 +613,52 @@ export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCE
 
 export const canEditAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
+export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PADRES_VER);
+
+// Roles de administración que ven SIEMPRE la información personal completa del
+// miembro, aunque el catálogo no les otorgue `miembros.ver_datos_sensibles`.
+const FULL_MEMBER_TEXT_ROLE_IDS = new Set([
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+]);
+
+// Puede ver la información personal/sensible del miembro en texto plano
+// (dirección, teléfono, correo, etc.). Quien NO lo tenga verá esos datos
+// enmascarados en la ficha y podrá solicitar acceso al Coordinador de
+// Destacamento. Full: administradores global/funcional y los cargos con
+// `miembros.ver_datos_sensibles` (coordinador de destacamento y su asistente,
+// pastor, consejo de destacamento, consejo ejecutivo, etc.).
+export const canViewMemberSensitiveData = (user = {}) =>
+  FULL_MEMBER_TEXT_ROLE_IDS.has(getUserRoleId(user)) ||
+  puedePorCatalogo(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
+
+// "Visor completo" de la ficha del miembro: puede editar miembros o ver sus
+// datos sensibles. Estos cargos ven habilitados todos los tabs de la ficha.
+export const isFullMemberViewer = (user = {}) =>
+  isLegacyFullDashboardAdmin(user) ||
+  can(user, PERMISOS.MIEMBROS_EDITAR) ||
+  can(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
+
+// Gating de los tabs de la ficha del miembro. El tab General se decide en la
+// vista (disponible para quien puede ver miembros). Aquí se resuelven los
+// módulos con permiso puntual: un visor completo los ve todos; el resto solo los
+// que su permiso autorice. Ej.: el Director Nacional solo suma el Sistema de
+// Ascenso, así que Dispensa Médica, Padres e Historial quedan deshabilitados.
+export const canViewMemberHealthTab = (user = {}) =>
+  isFullMemberViewer(user) || canViewHealth(user);
+
+export const canViewMemberAwardsTab = (user = {}) =>
+  isFullMemberViewer(user) || canViewAwards(user);
+
+export const canViewMemberParentsTab = (user = {}) =>
+  isFullMemberViewer(user) || canViewParents(user);
+
+// El Historial expone cambios de datos generales, salud y ascenso: se habilita a
+// los visores completos y a quienes pueden ver salud o padres (no basta con
+// ascenso solo, para no exponer el resto de módulos).
+export const canViewMemberHistoryTab = (user = {}) =>
+  isFullMemberViewer(user) || canViewHealth(user) || canViewParents(user);
+
 export const canApproveMemberChanges = (user = {}) =>
   puedePorCatalogo(user, PERMISOS.MIEMBROS_APROBAR_CAMBIOS);
 
@@ -744,9 +790,19 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('asistencia') || path.includes('/dashboard/level/attendance')) {
     return canViewAdminModule(permissions, 'asistencia', user);
   }
-  if (title.includes('seccion')) return Boolean(permissions.secciones?.ver);
+  // Los niveles organizacionales superiores (sección, región y consejo nacional)
+  // no viven en el objeto `permisos` del miembro, así que además del objeto se
+  // consulta el catálogo por rol (`can`). Esto permite que cargos de consulta
+  // nacional —p. ej. el Director Nacional— vean todos los niveles en el menú.
+  if (title.includes('seccion')) {
+    return Boolean(permissions.secciones?.ver) || can(user, PERMISOS.SECCIONES_VER);
+  }
   if (title.includes('region') || title.includes('consejo nacional')) {
-    return Boolean(permissions.regiones?.ver || permissions.nacional?.ver);
+    return (
+      Boolean(permissions.regiones?.ver || permissions.nacional?.ver) ||
+      can(user, PERMISOS.REGIONES_VER) ||
+      can(user, PERMISOS.REPORTES_VER_NACIONALES)
+    );
   }
   if (title.includes('compra') || path.includes('checkout'))
     return Boolean(permissions.tienda?.ver);
@@ -839,17 +895,18 @@ const getUserRoleId = (user = {}) => {
 export const isUsuarioComunRole = (user = {}) =>
   getUserRoleId(user) === ROLES.USUARIO_COMUN;
 
-// Posiciones del desplegable de Sección (Coordinador Seccional y afines) que ven
-// la lista de miembros pero NO pueden acceder a la ficha de los menores: estos
-// aparecen en la lista pero DESHABILITADOS. Por ahora la regla aplica solo a
-// nivel sección; los niveles región/nacional se agregarán después.
-const SECCION_MINOR_RESTRICTED_ROLE_IDS = [
+// Posiciones que ven la lista de miembros pero NO pueden acceder a la ficha de
+// los menores: estos aparecen en la lista pero DESHABILITADOS. Aplica a los
+// cargos de Sección (Coordinador Seccional y afines) y, a nivel nacional, al
+// Director Nacional (consulta global sin acceso a menores).
+const MINOR_RESTRICTED_ROLE_IDS = [
   ROLES.USUARIO_SECCION,
   ROLES.USUARIO_SECCION_ASISTENTE,
   ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
   ROLES.COORDINADOR_PROMOCION_SECCION,
   ROLES.COORDINADOR_PRODUCCION_SECCION,
   ROLES.COORDINADOR_PROGRAMA_SECCION,
+  ROLES.DIRECTOR_NACIONAL,
 ];
 
 // Puede acceder a la ficha/datos de un menor (catálogo: `miembros.ver_menores`).
@@ -859,7 +916,7 @@ export const canAccessMinorMembers = (user = {}) =>
 // True si al usuario se le deben mostrar los menores DESHABILITADOS en las listas
 // de miembros (ve la fila/tarjeta pero no puede abrirla).
 export const shouldDisableMinorMembers = (user = {}) =>
-  SECCION_MINOR_RESTRICTED_ROLE_IDS.includes(getUserRoleId(user)) &&
+  MINOR_RESTRICTED_ROLE_IDS.includes(getUserRoleId(user)) &&
   !canAccessMinorMembers(user);
 
 // Determina si un miembro es menor de edad a partir de su fecha de nacimiento.
