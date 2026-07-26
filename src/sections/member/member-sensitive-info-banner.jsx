@@ -39,7 +39,7 @@ import { useAuthContext } from 'src/auth/hooks';
 // si el usuario puede verlo (p. ej. el Director Nacional), NO aparece.
 // ----------------------------------------------------------------------
 
-const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta por motivos de seguridad.';
+const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta por motivos de seguridad, ya que es menor de edad.';
 
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
@@ -121,7 +121,7 @@ export function MemberSensitiveInfoBanner({ member }) {
       .then((info) => {
         if (!cancelled) setCoordinador(info);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;

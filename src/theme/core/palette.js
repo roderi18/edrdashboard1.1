@@ -25,8 +25,20 @@ export const grey = createPaletteChannel(themeConfig.palette.grey);
  * ➤
  */
 export const text = {
-  light: createPaletteChannel({ primary: grey[800], secondary: grey[600], disabled: grey[500] }),
-  dark: createPaletteChannel({ primary: '#FFFFFF', secondary: grey[500], disabled: grey[600] }),
+  // `disabled2`: gris para el texto de campos deshabilitados legibles. Es un poco
+  // más oscuro/contrastado que `disabled` (en oscuro, más claro para contraste).
+  light: createPaletteChannel({
+    primary: grey[800],
+    secondary: grey[600],
+    disabled: grey[500],
+    disabled2: '#2E363E',
+  }),
+  dark: createPaletteChannel({
+    primary: '#FFFFFF',
+    secondary: grey[500],
+    disabled: grey[600],
+    disabled2: grey[400],
+  }),
 };
 
 export const background = {

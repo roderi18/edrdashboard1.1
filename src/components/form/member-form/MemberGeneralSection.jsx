@@ -16,6 +16,7 @@ export default function MemberGeneralSection({
     minBirthdate,
     maxBirthdate,
     masked = false,
+    readOnly = false,
 }) {
     return (
 
@@ -51,12 +52,14 @@ export default function MemberGeneralSection({
                 name="firstName"
                 label="Nombres"
                 maxLength={60}
+                disabled={readOnly}
             />
 
             <NameInput
                 name="lastName"
                 label="Apellidos"
                 maxLength={60}
+                disabled={readOnly}
             />
 
             {masked ? (

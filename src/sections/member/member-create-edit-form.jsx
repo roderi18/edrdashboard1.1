@@ -1836,7 +1836,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                 <Field.UploadAvatar
                   name="avatarUrl"
                   loading={uploadingPhoto}
-                  disabled={uploadingPhoto || readOnlyEffective}
+                  disabled={uploadingPhoto}
                   onDrop={handleUploadMemberPhoto}
                   optimizationToast={false}
                   onDropRejected={handlePhotoDropRejected}
@@ -2022,13 +2022,18 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     minBirthdate={minBirthdate}
                     maxBirthdate={maxBirthdate}
                     masked={maskSensitive}
+                    readOnly={readOnlyEffective}
                   />
                 )}
 
                 {/* SOLO EDIT: mantener comportamiento "Ver m?s" */}
                 {!isCreateView && (!isMobile || showMore) && (
                   <>
-                    <MemberAddressSection isEdit masked={maskSensitive} />
+                    <MemberAddressSection
+                      isEdit
+                      readOnly={readOnlyEffective}
+                      masked={maskSensitive}
+                    />
 
                     {isCreateView && (
                       <>
@@ -2065,6 +2070,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                       isEdit
                       dests={dests}
                       lockCoreFields={lockGroupLeaderFields}
+                      readOnly={readOnlyEffective}
                     />
 
                     {/* Instructor CI: oculto por completo para Lider de Grupo /
@@ -2074,6 +2080,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                         instructorCI={instructorCI}
                         diasRestantesCI={diasRestantesCI}
                         isEdit
+                        disabled={readOnlyEffective}
                       />
                     )}
                   </>

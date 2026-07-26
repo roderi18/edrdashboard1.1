@@ -11,8 +11,12 @@ import {
 } from 'src/catalogs/member-catalogs';
 
 import { Field } from 'src/components/hook-form';
+import { MaskedField } from 'src/components/masked-field';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
+
+// Texto para campos sin dato registrado (en solo lectura).
+const NO_REGISTRADO = 'No registrado';
 
 const getRowsFromApi = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -44,7 +48,12 @@ export default function MemberLeadershipAndOtherSection({
     // Bloquea destacamento, posicion en el destacamento y sexo (p. ej. para
     // Lider de Grupo / Lider Asistente de Grupo).
     lockCoreFields = false,
+    // Solo lectura (p. ej. Director Nacional): deshabilita todos los selects.
+    readOnly = false,
 }) {
+    const disabledCore = lockCoreFields || readOnly;
+    // En solo lectura, un campo sin valor se muestra como "No registrado".
+    const emptyInReadOnly = (value) => readOnly && !value;
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
 
@@ -75,16 +84,21 @@ export default function MemberLeadershipAndOtherSection({
             }}
         >
             {/* Ocupación */}
-            <Field.Autocomplete
-                name="ocupation"
-                label="Ocupación"
-                options={MEMBER_OCUPATIONS_SORTED}
-                getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option?.label || ''
-                }
-                isOptionEqualToValue={(option, value) => option.value === value?.value}
-                ListboxProps={{ sx: { maxHeight: 260 } }}
-            />
+            {emptyInReadOnly(watch('ocupation')) ? (
+                <MaskedField label="Ocupación" mask={NO_REGISTRADO} />
+            ) : (
+                <Field.Autocomplete
+                    name="ocupation"
+                    label="Ocupación"
+                    disabled={readOnly}
+                    options={MEMBER_OCUPATIONS_SORTED}
+                    getOptionLabel={(option) =>
+                        typeof option === 'string' ? option : option?.label || ''
+                    }
+                    isOptionEqualToValue={(option, value) => option.value === value?.value}
+                    ListboxProps={{ sx: { maxHeight: 260 } }}
+                />
+            )}
 
             {/* Liderazgo Nacional */}
             <CargoSelectApi
@@ -98,27 +112,31 @@ export default function MemberLeadershipAndOtherSection({
                 groupByLevel
                 includeNone
                 noneLabel="Ninguno"
-                disabled={lockCoreFields}
+                disabled={disabledCore}
             />
 
             {/* Destacamento */}
-            <Field.Autocomplete
-                name="destId"
-                label="Tu Destacamento"
-                disabled={lockCoreFields}
-                options={dests}
-                freeSolo={false}
-                value={dests.find((d) => String(d.id) === String(watch('destId'))) || null}
-                getOptionLabel={(option) =>
-                    typeof option === 'string'
-                        ? option
-                        : `${option?.name || ''} ${option?.destNumber || ''}`.trim()
-                }
-                isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
-                onChange={(event, option) => {
-                    methods.setValue('destId', option?.id || '', { shouldDirty: true });
-                }}
-            />
+            {emptyInReadOnly(watch('destId')) ? (
+                <MaskedField label="Tu Destacamento" mask={NO_REGISTRADO} />
+            ) : (
+                <Field.Autocomplete
+                    name="destId"
+                    label="Tu Destacamento"
+                    disabled={disabledCore}
+                    options={dests}
+                    freeSolo={false}
+                    value={dests.find((d) => String(d.id) === String(watch('destId'))) || null}
+                    getOptionLabel={(option) =>
+                        typeof option === 'string'
+                            ? option
+                            : `${option?.name || ''} ${option?.destNumber || ''}`.trim()
+                    }
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
+                    onChange={(event, option) => {
+                        methods.setValue('destId', option?.id || '', { shouldDirty: true });
+                    }}
+                />
+            )}
 
             {/* Posición en destacamento */}
             <CargoSelectApi
@@ -127,31 +145,39 @@ export default function MemberLeadershipAndOtherSection({
                 niveles={[NIVELES_DIRECTIVA.destacamento]}
                 groupByDivision
                 includeNone
-                disabled={lockCoreFields}
+                disabled={disabledCore}
             />
 
             {/* Sexo */}
-            <Field.Autocomplete
-                name="gender"
-                label="Sexo"
-                disabled={lockCoreFields}
-                options={MEMBER_GENDERS}
-                getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option?.label || ''
-                }
-                isOptionEqualToValue={(option, value) =>
-                    option.value === value?.value
-                }
-            />
+            {emptyInReadOnly(watch('gender')) ? (
+                <MaskedField label="Sexo" mask={NO_REGISTRADO} />
+            ) : (
+                <Field.Autocomplete
+                    name="gender"
+                    label="Sexo"
+                    disabled={disabledCore}
+                    options={MEMBER_GENDERS}
+                    getOptionLabel={(option) =>
+                        typeof option === 'string' ? option : option?.label || ''
+                    }
+                    isOptionEqualToValue={(option, value) =>
+                        option.value === value?.value
+                    }
+                />
+            )}
 
             {/* T-shirt */}
-            <Field.Select name="shirtSize" label="Size T-Shirt">
-                {MEMBER_SHIRT_SIZES.map((size) => (
-                    <MenuItem key={size.value} value={size.value}>
-                        {size.label}
-                    </MenuItem>
-                ))}
-            </Field.Select>
+            {emptyInReadOnly(watch('shirtSize')) ? (
+                <MaskedField label="Size T-Shirt" mask={NO_REGISTRADO} />
+            ) : (
+                <Field.Select name="shirtSize" label="Size T-Shirt" disabled={readOnly}>
+                    {MEMBER_SHIRT_SIZES.map((size) => (
+                        <MenuItem key={size.value} value={size.value}>
+                            {size.label}
+                        </MenuItem>
+                    ))}
+                </Field.Select>
+            )}
         </Box>
     );
 

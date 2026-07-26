@@ -34,6 +34,9 @@ const MuiSelect = {
   styleOverrides: {
     icon: {
       ...arrowStyles,
+      // Un select deshabilitado no puede abrirse: se oculta la flechita para
+      // dejarlo claramente como de solo lectura.
+      '&.Mui-disabled': { display: 'none' },
     },
   },
 };
@@ -47,6 +50,9 @@ const MuiNativeSelect = {
   styleOverrides: {
     icon: {
       ...arrowStyles,
+      // Un select deshabilitado no puede abrirse: se oculta la flechita para
+      // dejarlo claramente como de solo lectura.
+      '&.Mui-disabled': { display: 'none' },
     },
   },
 };

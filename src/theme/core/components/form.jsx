@@ -1,7 +1,7 @@
 import { formLabelClasses } from '@mui/material/FormLabel';
 import { inputLabelClasses } from '@mui/material/InputLabel';
 
-import { getInputTypography } from './text-field';
+import { getInputTypography, READABLE_DISABLED_FIELDS } from './text-field';
 
 // ----------------------------------------------------------------------
 
@@ -19,6 +19,13 @@ const MuiInputLabel = {
   // ▼▼▼▼▼▼▼▼ 🎨 STYLE ▼▼▼▼▼▼▼▼
   styleOverrides: {
     root: ({ theme }) => ({
+      // La etiqueta (nombre del input) conserva su color normal aunque el campo
+      // esté deshabilitado (no se atenúa). Se revierte con READABLE_DISABLED_FIELDS.
+      ...(READABLE_DISABLED_FIELDS && {
+        [`&.${inputLabelClasses.disabled}`]: {
+          color: theme.vars.palette.text.secondary,
+        },
+      }),
       variants: [
         {
           props: (props) => !props.shrink,

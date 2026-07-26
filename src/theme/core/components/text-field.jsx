@@ -7,6 +7,27 @@ import { inputAdornmentClasses } from '@mui/material/InputAdornment';
 
 // ----------------------------------------------------------------------
 
+// Texto de los campos DESHABILITADOS en todo el proyecto: usa el color propio
+// `text.disabled2` (gris medio-oscuro legible = #454F5B en claro), en vez del
+// gris tenue por defecto de MUI (text.disabled = #919EAB). El tono se ajusta en
+// la paleta (src/theme/core/palette.js -> text.disabled2).
+//
+// ⚠️ PARA REVERTIR: pon READABLE_DISABLED_FIELDS en false y todo vuelve al
+// comportamiento original de MUI (sin tocar nada más).
+export const READABLE_DISABLED_FIELDS = true;
+
+const readableDisabledInputStyle = (theme) =>
+  READABLE_DISABLED_FIELDS
+    ? {
+        [`&.${inputBaseClasses.disabled}`]: {
+          WebkitTextFillColor: theme.vars.palette.text.disabled2,
+          color: theme.vars.palette.text.disabled2,
+        },
+      }
+    : {};
+
+// ----------------------------------------------------------------------
+
 export const INPUT_TYPOGRAPHY = {
   fontSize: { base: 15, responsive: 16 },
   lineHeight: 24,
@@ -118,6 +139,7 @@ const MuiInputBase = {
     }),
     input: ({ theme }) => ({
       ...inputBaseStyles.input('standard', theme),
+      ...readableDisabledInputStyle(theme),
       variants: [...inputBaseVariants.input, ...multilineInputVariants],
     }),
   },

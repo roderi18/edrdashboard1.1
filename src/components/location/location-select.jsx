@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form';
 
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
+import { MaskedField } from 'src/components/masked-field';
 
 // 🔥 BUILDER
 const buildSectores = (distritos, secciones, barrios) => {
@@ -27,7 +28,7 @@ const buildSectores = (distritos, secciones, barrios) => {
     return sectores;
 };
 
-export default function LocationSelect({ disabled = false }) {
+export default function LocationSelect({ disabled = false, masked = false }) {
     const { watch, setValue } = useFormContext();
 
     const [provinces, setProvinces] = useState([]);
@@ -104,37 +105,45 @@ export default function LocationSelect({ disabled = false }) {
             />
 
             {/* SECTOR */}
-            <Field.Autocomplete
-                name="sectorId"
-                label="Sector"
-                disabled={disabled}
-                options={sectores.filter(
-                    s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
-                )}
-                getOptionLabel={(option) => option?.nombre || ''}
-                getOptionKey={(option) => option.id}
-                isOptionEqualToValue={(option, value) => option.id === value?.id}
-                value={sectores.find(s => String(s.id) === watch('sectorId')) || null}
-                noOptionsText={
-                    watch('municipioId')
-                        ? 'Sin opciones'
-                        : 'Primero elegir Municipio'
-                }
-                onChange={(e, option) => {
-                    if (disabled) return;
+            {masked ? (
+                <MaskedField label="Sector" preset="text" />
+            ) : (
+                <Field.Autocomplete
+                    name="sectorId"
+                    label="Sector"
+                    disabled={disabled}
+                    options={sectores.filter(
+                        s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
+                    )}
+                    getOptionLabel={(option) => option?.nombre || ''}
+                    getOptionKey={(option) => option.id}
+                    isOptionEqualToValue={(option, value) => option.id === value?.id}
+                    value={sectores.find(s => String(s.id) === watch('sectorId')) || null}
+                    noOptionsText={
+                        watch('municipioId')
+                            ? 'Sin opciones'
+                            : 'Primero elegir Municipio'
+                    }
+                    onChange={(e, option) => {
+                        if (disabled) return;
 
-                    setValue('sectorId', option?.id ? String(option.id) : '', { shouldDirty: true });
-                }}
-            />
+                        setValue('sectorId', option?.id ? String(option.id) : '', { shouldDirty: true });
+                    }}
+                />
+            )}
 
-            <NameInput
-                name="street"
-                label="Calle / Número"
-                allowNumbers
-                allowSpecialChars
-                maxLength={20}
-                disabled={disabled}
-            />
+            {masked ? (
+                <MaskedField label="Calle / Número" preset="text" />
+            ) : (
+                <NameInput
+                    name="street"
+                    label="Calle / Número"
+                    allowNumbers
+                    allowSpecialChars
+                    maxLength={20}
+                    disabled={disabled}
+                />
+            )}
         </>
     );
 }
