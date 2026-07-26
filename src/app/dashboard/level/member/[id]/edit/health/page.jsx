@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import Alert from '@mui/material/Alert';
-
 import {
   canEditHealth,
   canMemberManageMembers,
@@ -72,13 +70,10 @@ export default function Page() {
   }
 
   // Sin permiso de lectura de Dispensa Médica (p. ej. el Director Nacional): se
-  // conservan los tabs pero se bloquea el contenido.
+  // conservan los tabs y el aviso de "información oculta" (con solicitud de
+  // acceso), pero no se muestra el contenido médico.
   if (!canViewMemberHealthTab(user)) {
-    return (
-      <MemberEditLayout member={currentMember}>
-        <Alert severity="info">No tienes acceso a la Dispensa Médica de este miembro.</Alert>
-      </MemberEditLayout>
-    );
+    return <MemberEditLayout member={currentMember} />;
   }
 
   return (

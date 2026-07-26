@@ -13,14 +13,7 @@ import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
-import {
-  isGroupLeaderRole,
-  canViewMemberHealthTab,
-  canViewMemberAwardsTab,
-  canViewMemberParentsTab,
-  canViewMemberHistoryTab,
-  isDestacamentoApprovalRole,
-} from 'src/utils/member-access';
+import { isGroupLeaderRole, isDestacamentoApprovalRole } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -63,10 +56,10 @@ export function MemberEditLayout({ children, member = null, ...other }) {
     }
   }, [currentMemberSegment, memberCode, memberId, nextMemberSegment, pathname, router]);
 
-  // El tab General siempre está disponible para quien puede ver miembros. Los
-  // demás módulos (Dispensa Médica, Padres, Historial) se habilitan según el
-  // permiso puntual del usuario; p. ej. el Director Nacional solo suma el Sistema
-  // de Ascenso y ve el resto DESHABILITADO.
+  // Todos los tabs quedan habilitados. El control de acceso al CONTENIDO de cada
+  // módulo se maneja dentro de cada vista y con el aviso de "información oculta"
+  // (MemberSensitiveInfoBanner), que se muestra en las pestañas donde el usuario
+  // no tiene acceso pleno.
   const NAV_ITEMS = [
     {
       label: 'General',
@@ -82,19 +75,16 @@ export function MemberEditLayout({ children, member = null, ...other }) {
       label: 'Dispensa Médica',
       icon: <Iconify width={24} icon="solar:heart-pulse-bold" />,
       href: paths.dashboard.level.member.editHealth(canonicalMemberSegment),
-      disabled: !canViewMemberHealthTab(user),
     },
     {
       label: 'Sistema de Ascenso',
       icon: <Iconify width={24} icon="solar:medal-ribbon-star-bold" />,
       href: paths.dashboard.level.member.editAwards(canonicalMemberSegment),
-      disabled: !canViewMemberAwardsTab(user),
     },
     {
       label: 'Padres',
       icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
       href: paths.dashboard.level.member.editParents(canonicalMemberSegment),
-      disabled: !canViewMemberParentsTab(user),
     },
     // Historial: oculto para los cargos de destacamento en flujo de aprobacion
     // (pastor, consejo, capellan), EXCEPTO el Lider de Grupo y Lider Asistente de
@@ -105,7 +95,6 @@ export function MemberEditLayout({ children, member = null, ...other }) {
             label: 'Historial',
             icon: <Iconify width={24} icon="solar:history-bold" />,
             href: paths.dashboard.level.member.editHistory(canonicalMemberSegment),
-            disabled: !canViewMemberHistoryTab(user),
           },
         ]
       : []),
@@ -133,20 +122,16 @@ export function MemberEditLayout({ children, member = null, ...other }) {
       />
 
       <Tabs value={removeLastSlash(canonicalPathname)} sx={{ mb: { xs: 3, md: 5 } }}>
-        {NAV_ITEMS.map((tab) =>
-          tab.disabled ? (
-            <Tab key={tab.href} label={tab.label} icon={tab.icon} value={tab.href} disabled />
-          ) : (
-            <Tab
-              component={RouterLink}
-              key={tab.href}
-              label={tab.label}
-              icon={tab.icon}
-              value={tab.href}
-              href={tab.href}
-            />
-          )
-        )}
+        {NAV_ITEMS.map((tab) => (
+          <Tab
+            component={RouterLink}
+            key={tab.href}
+            label={tab.label}
+            icon={tab.icon}
+            value={tab.href}
+            href={tab.href}
+          />
+        ))}
       </Tabs>
 
       <MemberSensitiveInfoBanner member={member} />

@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import Alert from '@mui/material/Alert';
-
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { canViewMemberHistoryTab } from 'src/utils/member-access';
 
@@ -176,14 +174,10 @@ export default function Page() {
   const memberName = getMemberFullName(currentMember);
   const memberId = currentMember?.id || id;
 
-  // Sin acceso al Historial (p. ej. el Director Nacional): tabs visibles pero
-  // contenido bloqueado.
+  // Sin acceso al Historial (p. ej. el Director Nacional): tabs y aviso de
+  // "información oculta" (con solicitud de acceso) visibles, pero sin el contenido.
   if (!canViewMemberHistoryTab(user)) {
-    return (
-      <MemberEditLayout member={currentMember}>
-        <Alert severity="info">No tienes acceso al historial de este miembro.</Alert>
-      </MemberEditLayout>
-    );
+    return <MemberEditLayout member={currentMember} />;
   }
 
   return (

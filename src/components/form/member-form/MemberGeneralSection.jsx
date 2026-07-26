@@ -2,24 +2,11 @@ import { Controller } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
-
-// Campo de solo lectura con el valor oculto (para usuarios sin permiso a los
-// datos personales del miembro). El teléfono se muestra con asteriscos; el resto
-// con puntos. Nunca recibe el valor real, así no se filtra la información.
-const MaskedField = ({ label, mask }) => (
-    <TextField
-        fullWidth
-        disabled
-        label={label}
-        value={mask}
-        slotProps={{ inputLabel: { shrink: true } }}
-    />
-);
+import { MaskedField } from 'src/components/masked-field';
 
 export default function MemberGeneralSection({
     age,
@@ -73,7 +60,7 @@ export default function MemberGeneralSection({
             />
 
             {masked ? (
-                <MaskedField label="Fecha de nacimiento" mask="••/••/••••" />
+                <MaskedField label="Fecha de nacimiento" preset="date" />
             ) : (
                 <Field.DatePicker
                     name="birthdate"
@@ -94,7 +81,7 @@ export default function MemberGeneralSection({
             />
 
             {masked ? (
-                <MaskedField label="Núm. Teléfono" mask="**********" />
+                <MaskedField label="Núm. Teléfono" preset="phone" />
             ) : (
                 <Controller
                     name="phoneNumber"
@@ -111,7 +98,7 @@ export default function MemberGeneralSection({
             )}
 
             {masked ? (
-                <MaskedField label="Correo electrónico" mask="••••••••••" />
+                <MaskedField label="Correo electrónico" preset="text" />
             ) : (
                 <Field.Text
                     name="email"

@@ -714,6 +714,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     resolver: zodResolver(MemberValidationSchema),
     mode: 'onSubmit',
     defaultValues: currentMember ? mapMemberToForm(currentMember) : defaultValues,
+    // Deshabilita SOLO los campos del formulario (no los desplegables ni el botón
+    // de descarga) para los usuarios en solo lectura / con datos enmascarados.
+    disabled: readOnlyEffective,
   });
 
   useEffect(() => {
@@ -1812,7 +1815,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
   return (
     <Form methods={methods} onSubmit={readOnlyEffective ? undefined : onSubmit}>
-      <Box component="fieldset" disabled={readOnlyEffective} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+      <Box component="fieldset" sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -1833,7 +1836,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                 <Field.UploadAvatar
                   name="avatarUrl"
                   loading={uploadingPhoto}
-                  disabled={uploadingPhoto}
+                  disabled={uploadingPhoto || readOnlyEffective}
                   onDrop={handleUploadMemberPhoto}
                   optimizationToast={false}
                   onDropRejected={handlePhotoDropRejected}
