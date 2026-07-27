@@ -155,6 +155,7 @@ export function HealthDocumentsSection({
     onDropUpload,
     onRename,
     readOnly = false,
+    compactEmptyState = false,
 }) {
     // El Líder de Grupo / Líder Asistente no gestiona documentos (subir/eliminar);
     // solo los ve. Las operaciones sobre archivos no entran en el flujo de
@@ -167,6 +168,7 @@ export function HealthDocumentsSection({
     const selectedDisplayedDocuments = displayedDocuments.filter((row) =>
         table.selected.includes(row.id)
     );
+    const showCompactEmptyState = compactEmptyState && displayedDocuments.length === 0;
 
     return (
         <Card>
@@ -180,12 +182,19 @@ export function HealthDocumentsSection({
             <Collapse in={open}>
                 <Divider />
 
-                <Box
-                    sx={(theme) => ({
-                        position: 'relative',
-                        m: { md: theme.spacing(-2, -3, 0, -3) },
-                    })}
-                >
+                {showCompactEmptyState ? (
+                    <Box sx={{ p: 3 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Sin documentos cargados.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <Box
+                        sx={(theme) => ({
+                            position: 'relative',
+                            m: { md: theme.spacing(-2, -3, 0, -3) },
+                        })}
+                    >
                     <TableSelectedAction
                         dense
                         numSelected={selectedDisplayedDocuments.length}
@@ -287,9 +296,10 @@ export function HealthDocumentsSection({
                             </TableBody>
                         </Table>
                     </TableContainer>
-                </Box>
+                    </Box>
+                )}
 
-                <Box sx={{ height: 8 }} />
+                {!showCompactEmptyState && <Box sx={{ height: 8 }} />}
             </Collapse>
         </Card>
     );

@@ -63,7 +63,10 @@ export default function MemberGeneralSection({
             />
 
             {masked ? (
-                <MaskedField label="Fecha de nacimiento" preset="date" />
+                <MaskedField
+                    label={`Fecha de nacimiento${age !== null ? ` (${age} años)` : ''}`}
+                    preset="date"
+                />
             ) : (
                 <Field.DatePicker
                     name="birthdate"
@@ -106,7 +109,7 @@ export default function MemberGeneralSection({
                 <Field.Text
                     name="email"
                     label="Correo electrónico"
-                    placeholder="No registrado"
+                    placeholder="Sin registros"
                     slotProps={{ inputLabel: { shrink: true } }}
                 />
             )}

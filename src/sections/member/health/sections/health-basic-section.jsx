@@ -19,6 +19,7 @@ import {
 } from 'src/_mock/health';
 
 import { Field } from 'src/components/hook-form';
+import { MaskedField } from 'src/components/masked-field';
 import HeightInput from 'src/components/form/HeightInput';
 import WeightInput from 'src/components/form/WeightInput';
 import RestrictedText from 'src/components/restricted/RestrictedText';
@@ -38,8 +39,23 @@ export function HealthBasicSection({
     isGroupLeader = false,
     sendingApproval = false,
     onRequestApproval,
+    // Vista limitada para roles sin `salud.ver`: se muestran tipo de sangre,
+    // estatura, peso, responsable médico, teléfonos e información adicional; el
+    // resto se enmascara con asteriscos.
+    masked = false,
+    maskInsurance = masked,
+    readOnly = false,
 }) {
     const healthInsurance = watch('healthInsurance');
+    const bloodType = watch('bloodType');
+    const bloodTypeLabel =
+        BLOOD_TYPE_OPTIONS.find((option) => option.value === bloodType)?.label ||
+        'Sin información registrada';
+    const medicalRelationship = watch('medicalRelationship');
+    const medicalRelationshipLabel =
+        MEDICAL_RELATIONSHIP_OPTIONS.find((option) => option.value === medicalRelationship)?.label ||
+        medicalRelationship ||
+        'Sin información registrada';
 
     return (
         <Card>
@@ -65,59 +81,75 @@ export function HealthBasicSection({
                             },
                         }}
                     >
-                        <Field.Select
-                            name="healthInsurance"
-                            label="¿Tiene seguro médico?"
-                        >
-                            {HEALTH_INSURANCE_OPTIONS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
+                        {maskInsurance ? (
+                            <MaskedField label="¿Tiene seguro médico?" preset="text" />
+                        ) : (
+                            <Field.Select
+                                name="healthInsurance"
+                                label="¿Tiene seguro médico?"
+                            >
+                                {HEALTH_INSURANCE_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Field.Select>
+                        )}
 
-                        <Field.Select
-                            name="bloodType"
-                            label="Tipo de sangre"
-                            defaultValue="unknown"
-                        >
-                            {BLOOD_TYPE_OPTIONS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
+                        {readOnly ? (
+                            <MaskedField label="Tipo de sangre" mask={bloodTypeLabel} />
+                        ) : (
+                            <Field.Select
+                                name="bloodType"
+                                label="Tipo de sangre"
+                                defaultValue="unknown"
+                            >
+                                {BLOOD_TYPE_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Field.Select>
+                        )}
 
-                        <RestrictedSelect
-                            name="insuranceName"
-                            label="Nombre del Seguro (opcional)"
-                            conditions={[
-                                { value: healthInsurance, allowed: 'yes' },
-                            ]}
-                            errorText="Disponible solo si tiene seguro médico."
-                        >
-                            {HEALTH_INSURANCE_COMPANIES.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </RestrictedSelect>
+                        {maskInsurance ? (
+                            <MaskedField label="Nombre del Seguro (opcional)" preset="text" />
+                        ) : (
+                            <RestrictedSelect
+                                name="insuranceName"
+                                label="Nombre del Seguro (opcional)"
+                                conditions={[
+                                    { value: healthInsurance, allowed: 'yes' },
+                                ]}
+                                errorText="Disponible solo si tiene seguro médico."
+                            >
+                                {HEALTH_INSURANCE_COMPANIES.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </RestrictedSelect>
+                        )}
 
-                        <HeightInput watch={watch} setValue={setValue} />
+                        <HeightInput watch={watch} setValue={setValue} readOnly={readOnly} />
 
-                        <RestrictedText
-                            label="Número de póliza (opcional)"
-                            value={watch('policyNumber') || ''}
-                            onChange={(val) => setValue('policyNumber', val)}
-                            maxLength={12}
-                            allow="numbers"
-                            message="Solo se permiten números."
-                            readOnly={healthInsurance !== 'yes'}
-                            useTouched
-                            blockedErrorText="Disponible solo si tiene seguro médico."
-                        />
+                        {maskInsurance ? (
+                            <MaskedField label="Número de póliza (opcional)" preset="text" />
+                        ) : (
+                            <RestrictedText
+                                label="Número de póliza (opcional)"
+                                value={watch('policyNumber') || ''}
+                                onChange={(val) => setValue('policyNumber', val)}
+                                maxLength={12}
+                                allow="numbers"
+                                message="Solo se permiten números."
+                                readOnly={healthInsurance !== 'yes'}
+                                useTouched
+                                blockedErrorText="Disponible solo si tiene seguro médico."
+                            />
+                        )}
 
-                        <WeightInput watch={watch} setValue={setValue} />
+                        <WeightInput watch={watch} setValue={setValue} readOnly={readOnly} />
 
                         <Divider sx={{ gridColumn: '1 / -1', my: 0.5 }}>
                             <Typography
@@ -166,16 +198,25 @@ export function HealthBasicSection({
                             }}
                         />
 
-                        <Field.Select
-                            name="medicalRelationship"
-                            label="Relación con el miembro"
-                        >
-                            {MEDICAL_RELATIONSHIP_OPTIONS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
+                        {masked ? (
+                            <MaskedField label="Relación con el miembro" preset="text" />
+                        ) : readOnly ? (
+                            <MaskedField
+                                label="Relación con el miembro"
+                                mask={medicalRelationshipLabel}
+                            />
+                        ) : (
+                            <Field.Select
+                                name="medicalRelationship"
+                                label="Relación con el miembro"
+                            >
+                                {MEDICAL_RELATIONSHIP_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Field.Select>
+                        )}
 
                         <Field.Text
                             name="medicalSecondaryPhone"
@@ -212,12 +253,14 @@ export function HealthBasicSection({
                         rows={3}
                     />
 
-                    <HealthSectionSubmit
-                        isSubmitting={isSubmitting}
-                        isGroupLeader={isGroupLeader}
-                        sendingApproval={sendingApproval}
-                        onRequestApproval={onRequestApproval}
-                    />
+                    {!masked && !readOnly && (
+                        <HealthSectionSubmit
+                            isSubmitting={isSubmitting}
+                            isGroupLeader={isGroupLeader}
+                            sendingApproval={sendingApproval}
+                            onRequestApproval={onRequestApproval}
+                        />
+                    )}
                 </Stack>
             </Collapse>
         </Card>

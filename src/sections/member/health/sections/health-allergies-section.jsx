@@ -32,6 +32,7 @@ export function HealthAllergiesSection({
     watch,
     setValue,
     isSubmitting,
+    readOnly = false,
     isGroupLeader = false,
     sendingApproval = false,
     onRequestApproval,
@@ -51,38 +52,55 @@ export function HealthAllergiesSection({
                 <Stack spacing={3} sx={{ p: 3 }}>
                     {/* ¿TIENE ALERGIAS? */}
                     <Stack spacing={1}>
-                        <Typography variant="subtitle2">
-                            ¿Presenta alguna alergia?
-                        </Typography>
-
-                        <Field.RadioGroup
-                            row
-                            name="hasAllergies"
-                            options={[
-                                { label: 'No', value: 'no' },
-                                { label: 'Sí', value: 'yes' },
-                            ]}
-                            sx={{ gap: 4 }}
-                        />
-                    </Stack>
-
-                    {watch('hasAllergies') === 'yes' && (
-                        <>
-                            {/* 💊 ALERGIAS A MEDICAMENTOS */}
-                            <Divider />
+                        {!readOnly && (
                             <Typography variant="subtitle2">
-                                💊 Alergias a medicamentos
+                                ¿Presenta alguna alergia?
                             </Typography>
+                        )}
 
+                        {!readOnly && (
                             <Field.RadioGroup
                                 row
-                                name="drugAllergy"
+                                name="hasAllergies"
                                 options={[
                                     { label: 'No', value: 'no' },
                                     { label: 'Sí', value: 'yes' },
                                 ]}
                                 sx={{ gap: 4 }}
                             />
+                        )}
+                    </Stack>
+
+                    {readOnly && watch('hasAllergies') !== 'yes' && (
+                        <Typography variant="body2" color="text.secondary">
+                            Sin información registrada.
+                        </Typography>
+                    )}
+
+                    {watch('hasAllergies') === 'yes' && (
+                        <>
+                            {/* 💊 ALERGIAS A MEDICAMENTOS */}
+                            <Typography variant="subtitle2">
+                                💊 Alergias a medicamentos
+                            </Typography>
+
+                            {!readOnly && (
+                                <Field.RadioGroup
+                                    row
+                                    name="drugAllergy"
+                                    options={[
+                                        { label: 'No', value: 'no' },
+                                        { label: 'Sí', value: 'yes' },
+                                    ]}
+                                    sx={{ gap: 4 }}
+                                />
+                            )}
+
+                            {readOnly && watch('drugAllergy') !== 'yes' && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Sin información registrada.
+                                </Typography>
+                            )}
 
                             {watch('drugAllergy') === 'yes' && (
                                 <RestrictedText
@@ -91,6 +109,8 @@ export function HealthAllergiesSection({
                                     onChange={(val) => setValue('drugAllergyDetails', val)}
                                     allow="all"
                                     maxLength={50}
+                                    readOnly={readOnly}
+                                    disabled={readOnly}
                                 />
                             )}
 
@@ -100,57 +120,83 @@ export function HealthAllergiesSection({
                                 🥜 Alergias alimentarias
                             </Typography>
 
-                            <Field.RadioGroup
-                                row
-                                name="hasFoodAllergies"
-                                options={[
-                                    { label: 'No', value: 'no' },
-                                    { label: 'Sí', value: 'yes' },
-                                ]}
-                                sx={{ gap: 4 }}
-                            />
+                            {!readOnly && (
+                                <Field.RadioGroup
+                                    row
+                                    name="hasFoodAllergies"
+                                    options={[
+                                        { label: 'No', value: 'no' },
+                                        { label: 'Sí', value: 'yes' },
+                                    ]}
+                                    sx={{ gap: 4 }}
+                                />
+                            )}
+
+                            {readOnly && watch('hasFoodAllergies') !== 'yes' && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Sin información registrada.
+                                </Typography>
+                            )}
 
                             {watch('hasFoodAllergies') === 'yes' && (
                                 <>
-                                    <Controller
-                                        name="foodAllergies"
-                                        control={methods.control}
-                                        defaultValue={[]}
-                                        render={({ field }) => (
-                                            <Box
-                                                sx={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: {
-                                                        xs: '1fr 1fr',
-                                                        md: 'repeat(4, 1fr)',
-                                                    },
-                                                    columnGap: 4,
-                                                    rowGap: 1,
-                                                }}
-                                            >
-                                                {FOOD_ALLERGY_OPTIONS.map((option) => (
-                                                    <FormControlLabel
-                                                        key={option.value}
-                                                        label={option.label}
-                                                        control={
-                                                            <Checkbox
-                                                                checked={field.value.includes(option.value)}
-                                                                onChange={(e) => {
-                                                                    field.onChange(
-                                                                        e.target.checked
-                                                                            ? [...field.value, option.value]
-                                                                            : field.value.filter(
-                                                                                (v) => v !== option.value
-                                                                            )
-                                                                    );
-                                                                }}
-                                                            />
-                                                        }
-                                                    />
-                                                ))}
-                                            </Box>
-                                        )}
-                                    />
+                                    {readOnly ? (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {FOOD_ALLERGY_OPTIONS
+                                                .filter((option) =>
+                                                    watch('foodAllergies')?.includes(option.value)
+                                                )
+                                                .map((option) => option.label)
+                                                .join(', ') || 'Sin información registrada.'}
+                                        </Typography>
+                                    ) : (
+                                        <Controller
+                                            name="foodAllergies"
+                                            control={methods.control}
+                                            defaultValue={[]}
+                                            render={({ field }) => (
+                                                <Box
+                                                    sx={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: {
+                                                            xs: '1fr 1fr',
+                                                            md: 'repeat(4, 1fr)',
+                                                        },
+                                                        columnGap: 4,
+                                                        rowGap: 1,
+                                                    }}
+                                                >
+                                                    {FOOD_ALLERGY_OPTIONS.map((option) => (
+                                                        <FormControlLabel
+                                                            key={option.value}
+                                                            label={option.label}
+                                                            control={
+                                                                <Checkbox
+                                                                    checked={field.value.includes(
+                                                                        option.value
+                                                                    )}
+                                                                    onChange={(e) => {
+                                                                        field.onChange(
+                                                                            e.target.checked
+                                                                                ? [
+                                                                                      ...field.value,
+                                                                                      option.value,
+                                                                                  ]
+                                                                                : field.value.filter(
+                                                                                      (v) =>
+                                                                                          v !==
+                                                                                          option.value
+                                                                                  )
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            }
+                                                        />
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        />
+                                    )}
 
                                     {watch('foodAllergies')?.includes('other') && (
                                         <RestrictedText
@@ -163,6 +209,7 @@ export function HealthAllergiesSection({
                                             maxLength={100}
                                             multiline
                                             rows={2}
+                                            readOnly={readOnly}
                                         />
                                     )}
                                 </>
@@ -174,57 +221,85 @@ export function HealthAllergiesSection({
                                 🌿 Alergias ambientales
                             </Typography>
 
-                            <Field.RadioGroup
-                                row
-                                name="hasEnvironmentalAllergies"
-                                options={[
-                                    { label: 'No', value: 'no' },
-                                    { label: 'Sí', value: 'yes' },
-                                ]}
-                                sx={{ gap: 4 }}
-                            />
+                            {!readOnly && (
+                                <Field.RadioGroup
+                                    row
+                                    name="hasEnvironmentalAllergies"
+                                    options={[
+                                        { label: 'No', value: 'no' },
+                                        { label: 'Sí', value: 'yes' },
+                                    ]}
+                                    sx={{ gap: 4 }}
+                                />
+                            )}
+
+                            {readOnly && watch('hasEnvironmentalAllergies') !== 'yes' && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Sin información registrada.
+                                </Typography>
+                            )}
 
                             {watch('hasEnvironmentalAllergies') === 'yes' && (
                                 <>
-                                    <Controller
-                                        name="environmentalAllergies"
-                                        control={methods.control}
-                                        defaultValue={[]}
-                                        render={({ field }) => (
-                                            <Box
-                                                sx={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: {
-                                                        xs: '1fr 1fr',
-                                                        md: 'repeat(4, 1fr)',
-                                                    },
-                                                    columnGap: 4,
-                                                    rowGap: 1,
-                                                }}
-                                            >
-                                                {ENVIRONMENTAL_ALLERGY_OPTIONS.map((option) => (
-                                                    <FormControlLabel
-                                                        key={option.value}
-                                                        label={option.label}
-                                                        control={
-                                                            <Checkbox
-                                                                checked={field.value.includes(option.value)}
-                                                                onChange={(e) => {
-                                                                    field.onChange(
-                                                                        e.target.checked
-                                                                            ? [...field.value, option.value]
-                                                                            : field.value.filter(
-                                                                                (v) => v !== option.value
-                                                                            )
-                                                                    );
-                                                                }}
-                                                            />
-                                                        }
-                                                    />
-                                                ))}
-                                            </Box>
-                                        )}
-                                    />
+                                    {readOnly ? (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {ENVIRONMENTAL_ALLERGY_OPTIONS
+                                                .filter((option) =>
+                                                    watch('environmentalAllergies')?.includes(
+                                                        option.value
+                                                    )
+                                                )
+                                                .map((option) => option.label)
+                                                .join(', ') || 'Sin información registrada.'}
+                                        </Typography>
+                                    ) : (
+                                        <Controller
+                                            name="environmentalAllergies"
+                                            control={methods.control}
+                                            defaultValue={[]}
+                                            render={({ field }) => (
+                                                <Box
+                                                    sx={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: {
+                                                            xs: '1fr 1fr',
+                                                            md: 'repeat(4, 1fr)',
+                                                        },
+                                                        columnGap: 4,
+                                                        rowGap: 1,
+                                                    }}
+                                                >
+                                                    {ENVIRONMENTAL_ALLERGY_OPTIONS.map((option) => (
+                                                        <FormControlLabel
+                                                            key={option.value}
+                                                            label={option.label}
+                                                            control={
+                                                                <Checkbox
+                                                                    checked={field.value.includes(
+                                                                        option.value
+                                                                    )}
+                                                                    onChange={(e) => {
+                                                                        field.onChange(
+                                                                            e.target.checked
+                                                                                ? [
+                                                                                      ...field.value,
+                                                                                      option.value,
+                                                                                  ]
+                                                                                : field.value.filter(
+                                                                                      (v) =>
+                                                                                          v !==
+                                                                                          option.value
+                                                                                  )
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            }
+                                                        />
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        />
+                                    )}
 
                                     {watch('environmentalAllergies')?.includes('other') && (
                                         <RestrictedText
@@ -237,6 +312,7 @@ export function HealthAllergiesSection({
                                             maxLength={100}
                                             multiline
                                             rows={2}
+                                            readOnly={readOnly}
                                         />
                                     )}
                                 </>
@@ -248,6 +324,7 @@ export function HealthAllergiesSection({
                             <Field.Select
                                 name="allergyReaction"
                                 label="Tipo de reacción"
+                                disabled={readOnly}
                             >
                                 {ALLERGY_REACTION_OPTIONS.map((option) => (
                                     <MenuItem
@@ -261,12 +338,14 @@ export function HealthAllergiesSection({
                         </>
                     )}
 
-                    <HealthSectionSubmit
-                        isSubmitting={isSubmitting}
-                        isGroupLeader={isGroupLeader}
-                        sendingApproval={sendingApproval}
-                        onRequestApproval={onRequestApproval}
-                    />
+                    {!readOnly && (
+                        <HealthSectionSubmit
+                            isSubmitting={isSubmitting}
+                            isGroupLeader={isGroupLeader}
+                            sendingApproval={sendingApproval}
+                            onRequestApproval={onRequestApproval}
+                        />
+                    )}
                 </Stack>
             </Collapse>
         </Card>

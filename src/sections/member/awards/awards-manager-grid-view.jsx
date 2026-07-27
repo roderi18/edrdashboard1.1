@@ -298,6 +298,7 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
             ) : (
               <FileManagerFileItem
                 isGridView
+                readOnly={readOnly}
                 key={item.id}
                 file={{
                   ...item,

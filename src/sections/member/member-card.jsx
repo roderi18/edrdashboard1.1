@@ -103,8 +103,6 @@ export const MemberCard = memo(function MemberCard({
   member,
   sx,
   avatarUrl,
-  canManage = true,
-  restricted = false,
   dests: destsProp = [],
   ...other
 }) {
@@ -120,18 +118,13 @@ export const MemberCard = memo(function MemberCard({
   return (
     <CompactEntityCard
       title={member?.name}
-      href={!restricted && canManage && memberEditId ? editHref : '#'}
-      disabled={restricted}
+      href={memberEditId ? editHref : '#'}
       avatarUrl={resolvedAvatarUrl}
       fallbackText={member?.name || member?.firstName}
-      lines={
-        restricted
-          ? [{ icon: 'solar:lock-keyhole-bold', text: 'Menor · acceso restringido' }]
-          : [
-              { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
-              { icon: 'mingcute:location-fill', text: destLabel, href: destHref },
-            ]
-      }
+      lines={[
+        { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
+        { icon: 'mingcute:location-fill', text: destLabel, href: destHref },
+      ]}
       rightImage={divisionIcon}
       sx={sx}
       {...other}

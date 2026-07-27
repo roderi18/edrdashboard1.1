@@ -598,12 +598,46 @@ const puedePorCatalogo = (user = {}, permiso) =>
 
 export const canViewHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_VER);
 
-export const canEditHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_EDITAR);
+const CONSEJO_NACIONAL_HEALTH_VIEWER_ROLE_IDS = new Set([
+  ROLES.MINISTERIOS_INFANTILES_NACIONAL,
+  ROLES.DIRECTOR_NACIONAL,
+  ROLES.CAPELLAN_NACIONAL,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
+  ROLES.SUBDIRECTOR_NACIONAL,
+  ROLES.COORDINADOR_PROMOCION_NACIONAL,
+  ROLES.COORDINADOR_PRODUCCION_NACIONAL,
+  ROLES.COORDINADOR_PROGRAMA_NACIONAL,
+  ROLES.COMITES_ESPECIALES_NACIONAL,
+  ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
+]);
+
+export const isConsejoNacionalHealthViewer = (user = {}) =>
+  CONSEJO_NACIONAL_HEALTH_VIEWER_ROLE_IDS.has(
+    String(
+      user?.rolId ||
+        user?.roleId ||
+        user?.rolCodigo ||
+        user?.roleCodigo ||
+        user?.memberRole ||
+        user?.rol ||
+        user?.role ||
+        ''
+    )
+      .trim()
+      .toLowerCase()
+  );
+
+// Los cargos del Consejo Nacional tienen acceso completo de consulta a Salud,
+// pero nunca modifican el expediente ni gestionan sus documentos.
+export const canEditHealth = (user = {}) =>
+  !isConsejoNacionalHealthViewer(user) && puedePorCatalogo(user, PERMISOS.SALUD_EDITAR);
 
 export const canUploadHealthDocuments = (user = {}) =>
+  !isConsejoNacionalHealthViewer(user) &&
   puedePorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
 
 export const canDeleteHealthDocuments = (user = {}) =>
+  !isConsejoNacionalHealthViewer(user) &&
   puedePorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
 
 export const canAuthorizeMinorHealthAccess = (user = {}) =>
@@ -642,8 +676,7 @@ export const isFullMemberViewer = (user = {}) =>
 // Gating de los tabs de la ficha del miembro. El tab General se decide en la
 // vista (disponible para quien puede ver miembros). Aquí se resuelven los
 // módulos con permiso puntual: un visor completo los ve todos; el resto solo los
-// que su permiso autorice. Ej.: el Director Nacional solo suma el Sistema de
-// Ascenso, así que Dispensa Médica, Padres e Historial quedan deshabilitados.
+// que su permiso autorice.
 export const canViewMemberHealthTab = (user = {}) =>
   isFullMemberViewer(user) || canViewHealth(user);
 

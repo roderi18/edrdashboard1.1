@@ -30,12 +30,18 @@ const buildSectores = (distritos, secciones, barrios) => {
 
 export default function LocationSelect({ disabled = false, masked = false }) {
     const { watch, setValue } = useFormContext();
+    const provinceId = watch('provinceId');
+    const municipioId = watch('municipioId');
+    const sectorId = watch('sectorId');
+    const street = watch('street');
+    const hasRegisteredValue = (value) =>
+        value !== null && value !== undefined && String(value).trim() !== '';
 
     const [provinces, setProvinces] = useState([]);
     const [municipios, setMunicipios] = useState([]);
     const [sectores, setSectores] = useState([]);
     const selectedMunicipio = municipios.find(
-        m => String(m.id) === String(watch('municipioId'))
+        m => String(m.id) === String(municipioId)
     );
     useEffect(() => {
         Promise.all([
@@ -63,50 +69,62 @@ export default function LocationSelect({ disabled = false, masked = false }) {
     return (
         <>
             {/* PROVINCIA */}
-            <Field.Autocomplete
-                name="provinceId"
-                label="Provincia"
-                disabled={disabled}
-                options={provinces}
-                getOptionLabel={(option) => option?.nombre || ''}
-                isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
-                value={provinces.find(p => String(p.id) === watch('provinceId')) || null}
-                onChange={(e, option) => {
-                    if (disabled) return;
+            {masked && !hasRegisteredValue(provinceId) ? (
+                <MaskedField label="Provincia" mask="Sin registros" />
+            ) : (
+                <Field.Autocomplete
+                    name="provinceId"
+                    label="Provincia"
+                    disabled={disabled}
+                    options={provinces}
+                    getOptionLabel={(option) => option?.nombre || ''}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
+                    value={provinces.find(p => String(p.id) === String(provinceId)) || null}
+                    onChange={(e, option) => {
+                        if (disabled) return;
 
-                    setValue('provinceId', option?.id ? String(option.id) : '', { shouldDirty: true });
-                    setValue('municipioId', '', { shouldDirty: true });
-                    setValue('sectorId', '', { shouldDirty: true });
-                }}
-            />
+                        setValue('provinceId', option?.id ? String(option.id) : '', { shouldDirty: true });
+                        setValue('municipioId', '', { shouldDirty: true });
+                        setValue('sectorId', '', { shouldDirty: true });
+                    }}
+                />
+            )}
 
             {/* MUNICIPIO */}
-            <Field.Autocomplete
-                name="municipioId"
-                label="Municipio"
-                disabled={disabled}
-                options={municipios.filter(m => String(m.provinciaId) === watch('provinceId'))}
-                getOptionLabel={(option) => option?.nombre || ''}
-                isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
-                value={
-                    municipios.find(m => String(m.id) === String(watch('municipioId'))) || null
-                }
-                noOptionsText={
-                    watch('provinceId')
-                        ? 'Sin opciones'
-                        : 'Primero elegir Provincia'
-                }
-                onChange={(e, option) => {
-                    if (disabled) return;
+            {masked && !hasRegisteredValue(municipioId) ? (
+                <MaskedField label="Municipio" mask="Sin registros" />
+            ) : (
+                <Field.Autocomplete
+                    name="municipioId"
+                    label="Municipio"
+                    disabled={disabled}
+                    options={municipios.filter(m => String(m.provinciaId) === String(provinceId))}
+                    getOptionLabel={(option) => option?.nombre || ''}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
+                    value={
+                        municipios.find(m => String(m.id) === String(municipioId)) || null
+                    }
+                    noOptionsText={
+                        provinceId
+                            ? 'Sin opciones'
+                            : 'Primero elegir Provincia'
+                    }
+                    onChange={(e, option) => {
+                        if (disabled) return;
 
-                    setValue('municipioId', option?.id ? String(option.id) : '', { shouldDirty: true });
-                    setValue('sectorId', '', { shouldDirty: true });
-                }}
-            />
+                        setValue('municipioId', option?.id ? String(option.id) : '', { shouldDirty: true });
+                        setValue('sectorId', '', { shouldDirty: true });
+                    }}
+                />
+            )}
 
             {/* SECTOR */}
             {masked ? (
-                <MaskedField label="Sector" preset="text" />
+                <MaskedField
+                    label="Sector"
+                    mask={hasRegisteredValue(sectorId) ? undefined : 'Sin registros'}
+                    preset={hasRegisteredValue(sectorId) ? 'text' : undefined}
+                />
             ) : (
                 <Field.Autocomplete
                     name="sectorId"
@@ -133,7 +151,11 @@ export default function LocationSelect({ disabled = false, masked = false }) {
             )}
 
             {masked ? (
-                <MaskedField label="Calle / Número" preset="text" />
+                <MaskedField
+                    label="Calle / Número"
+                    mask={hasRegisteredValue(street) ? undefined : 'Sin registros'}
+                    preset={hasRegisteredValue(street) ? 'text' : undefined}
+                />
             ) : (
                 <NameInput
                     name="street"

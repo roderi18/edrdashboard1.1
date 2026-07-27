@@ -27,12 +27,21 @@ import { useTable, rowInPage, getComparator } from 'src/components/table';
 
 import { AwardsManagerTable } from '../awards-manager-table';
 import { AwardsManagerFilters } from '../awards-manager-filters';
+import { FileManagerFileItem } from '../awards-manager-file-item';
 import { AwardsManagerGridView } from '../awards-manager-grid-view';
+import { FileManagerFolderItem } from '../awards-manager-folder-item';
 import { AwardsManagerFiltersResult } from '../awards-manager-filters-result';
 import { useAwardsFolderNavigation } from '../hooks/use-awards-folder-navigation';
 import { AwardsManagerCreateFolderDialog } from '../awards-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
+
+const normalizeSearchText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 
 export function AwardsManagerView({ memberId, readOnly = false }) {
   const ROOT_TABLE_HEAD = [
@@ -270,6 +279,12 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     completed: item.completed ?? 0,
   }));
 
+  const searchTerm = normalizeSearchText(currentFilters.name);
+  const isGlobalSearch = Boolean(searchTerm);
+  const globalSearchResults = isGlobalSearch
+    ? tableData.filter((item) => normalizeSearchText(item.name).includes(searchTerm))
+    : [];
+
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
@@ -397,7 +412,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   const renderResults = () => (
     <AwardsManagerFiltersResult
       filters={filters}
-      totalResults={dataFiltered.length}
+      totalResults={isGlobalSearch ? globalSearchResults.length : dataFiltered.length}
       onResetPage={table.onResetPage}
       showStatusFilter={showStatusFilter}
     />
@@ -499,6 +514,73 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       </Box>
     );
 
+  const getSearchResultContext = (item) => {
+    let current = item;
+    let rootId = item.id;
+    let ascensoSectionId;
+
+    while (current?.parentId) {
+      const parent = tableData.find((candidate) => candidate.id === current.parentId);
+      if (!parent) break;
+
+      if (parent.parentId === SISTEMA_ASCENSO_ID) {
+        ascensoSectionId = parent.id;
+      }
+
+      current = parent;
+      rootId = parent.id;
+    }
+
+    return {
+      systemSent: rootId === SISTEMA_ASCENSO_ID ? 'sistemaAscenso' : 'academia',
+      sectionId: ascensoSectionId,
+    };
+  };
+
+  const renderGlobalSearchResults = () => (
+    <Box
+      sx={{
+        gap: 2.5,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: 'repeat(1, 1fr)',
+          sm: displayMode === 'list' ? 'repeat(1, 1fr)' : 'repeat(2, 1fr)',
+          md: displayMode === 'list' ? 'repeat(1, 1fr)' : 'repeat(3, 1fr)',
+          lg: displayMode === 'list' ? 'repeat(1, 1fr)' : 'repeat(4, 1fr)',
+        },
+      }}
+    >
+      {globalSearchResults.map((item, index) => {
+        const context = getSearchResultContext(item);
+        const resultKey = `${item.parentId || 'root'}:${item.id}:${index}`;
+
+        return item.type === 'folder' ? (
+          <FileManagerFolderItem
+            key={resultKey}
+            folder={{ ...item, memberId, allData: tableData }}
+            selected={false}
+            onSelect={() => {}}
+            onDelete={() => {}}
+            onOpen={() => {
+              filters.setState({ name: '' });
+              openFolder(item.id);
+            }}
+          />
+        ) : (
+          <FileManagerFileItem
+            isGridView={displayMode === 'grid'}
+            key={resultKey}
+            file={{ ...item, memberId, ...context }}
+            selected={false}
+            onSelect={() => {}}
+            onDelete={() => {}}
+            readOnly={readOnly}
+          />
+        );
+      })}
+    </Box>
+  );
+
   return (
     <>
       <DashboardContent>
@@ -513,7 +595,17 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
           {canReset && renderResults()}
         </Stack>
 
-        {notFound ? <EmptyContent filled sx={{ py: 10 }} /> : renderFolderContent()}
+        {isGlobalSearch ? (
+          globalSearchResults.length ? (
+            <Box key={`global-search:${searchTerm}`}>{renderGlobalSearchResults()}</Box>
+          ) : (
+            <EmptyContent key={`empty-search:${searchTerm}`} filled sx={{ py: 10 }} />
+          )
+        ) : notFound ? (
+          <EmptyContent key="empty-folder" filled sx={{ py: 10 }} />
+        ) : (
+          <Box key={`folder:${normalizedFolder || 'root'}`}>{renderFolderContent()}</Box>
+        )}
       </DashboardContent>
       {renderUploadAwardsDialog()}
       {renderConfirmDialog()}

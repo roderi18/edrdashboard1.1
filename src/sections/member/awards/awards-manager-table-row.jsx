@@ -328,6 +328,7 @@ export function AwardsManagerTableRow({
         open={detailsDrawer.value}
         onClose={detailsDrawer.onFalse}
         onDelete={onDeleteRow}
+        readOnly={readOnly}
       />
     ) : null;
 

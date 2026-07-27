@@ -32,7 +32,16 @@ import { getCompletionGridLabel } from './utils/get-completion-grid-label';
 const INSTRUCTOR_ID = 'instructor';
 // ----------------------------------------------------------------------
 
-export function FileManagerFileItem({ file, selected, onSelect, isGridView = false, onDelete, sx, ...other }) {
+export function FileManagerFileItem({
+  file,
+  selected,
+  onSelect,
+  isGridView = false,
+  onDelete,
+  readOnly = false,
+  sx,
+  ...other
+}) {
 
 
   const isAcademiaMinisterialFile =
@@ -154,6 +163,7 @@ export function FileManagerFileItem({ file, selected, onSelect, isGridView = fal
         onDelete();
       }}
       isGridView={isGridView}
+      readOnly={readOnly}
     />
 
   );

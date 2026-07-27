@@ -22,12 +22,14 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import {
+  canViewHealth,
   canApproveMemberChanges,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
   isDestacamentoApprovalRole,
   isCoordinadorDestacamentoRole,
   canAuthorizeMinorHealthAccess,
+  isConsejoNacionalHealthViewer,
 } from 'src/utils/member-access';
 
 import { crearNotificacionAdmin } from 'src/services/notification-service';
@@ -122,7 +124,18 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // Quien puede AUTORIZAR el acceso a la salud de menores no necesita pedirlo
     // (coordinadores y Administrador Global, según el catálogo de permisos).
     const puedeAutorizarAccesoMenores = canAuthorizeMinorHealthAccess(user);
-    const requiresTemporaryAccess = isMinor && !puedeAutorizarAccesoMenores;
+    // Vista limitada de salud: sin `salud.ver` solo ve
+    // los campos básicos permitidos; el resto (seguro, medicación, alergias,
+    // condiciones y documentos) se muestra ENMASCARADO con asteriscos.
+    const limitedHealth = !canViewHealth(user);
+    const isConsejoNacionalHealthViewerRole = isConsejoNacionalHealthViewer(user);
+    // Los cargos del Consejo Nacional ven las secciones médicas normalmente,
+    // pero los datos del seguro de un menor permanecen enmascarados hasta
+    // obtener autorización.
+    const requiresMaskedInsuranceAccess = isMinor && isConsejoNacionalHealthViewerRole;
+    const requiresTemporaryAccess =
+        isMinor && !puedeAutorizarAccesoMenores && !isConsejoNacionalHealthViewerRole;
+    const shouldCheckAccess = requiresTemporaryAccess || requiresMaskedInsuranceAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
     const puedeSubirDocumentos = canUploadHealthDocuments(user);
@@ -144,7 +157,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const [resolvingChangeRequest, setResolvingChangeRequest] = useState(false);
     const [changeResult, setChangeResult] = useState(null);
     const [changeResultOpen, setChangeResultOpen] = useState(false);
-    const [accessLoading, setAccessLoading] = useState(requiresTemporaryAccess);
+    const [accessLoading, setAccessLoading] = useState(shouldCheckAccess);
     const [accessPermission, setAccessPermission] = useState(null);
     const [pendingAccessRequest, setPendingAccessRequest] = useState(null);
     const [accessRequestOpen, setAccessRequestOpen] = useState(false);
@@ -155,6 +168,8 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const [accessResult, setAccessResult] = useState(null);
     const [accessNow, setAccessNow] = useState(Date.now());
 
+    const maskHealthInsurance =
+        limitedHealth || (requiresMaskedInsuranceAccess && !accessPermission);
     const allowedHealthSections = requiresTemporaryAccess
         ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
         : TODAS_SECCIONES_ACCESO_SALUD;
@@ -289,7 +304,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         let active = true;
 
         const loadAccess = async () => {
-            if (!requiresTemporaryAccess) {
+            if (!shouldCheckAccess) {
                 setAccessPermission(null);
                 setPendingAccessRequest(null);
                 setAccessLoading(false);
@@ -322,7 +337,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         return () => {
             active = false;
         };
-    }, [currentMember, requiresTemporaryAccess, user]);
+    }, [currentMember, shouldCheckAccess, user]);
 
     useEffect(() => {
         let active = true;
@@ -786,7 +801,18 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     };
 
     const renderCollapseButton = (value, onToggle) => (
-        <IconButton onClick={onToggle}>
+        <IconButton
+            component="span"
+            role="button"
+            tabIndex={0}
+            onClick={onToggle}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onToggle();
+                }
+            }}
+        >
             <Iconify
                 icon={value ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'}
             />
@@ -944,6 +970,9 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         setError={setError}
                         clearErrors={clearErrors}
                         isSubmitting={isSubmitting}
+                        masked={limitedHealth}
+                        maskInsurance={maskHealthInsurance}
+                        readOnly={readOnly && isConsejoNacionalHealthViewerRole}
                         {...approvalProps}
                     />
                 </Box>
@@ -966,6 +995,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         readOnly={
                             readOnly || !canAccessSection('documentos') || !puedeSubirDocumentos
                         }
+                        compactEmptyState={isConsejoNacionalHealthViewerRole}
                     />
                 </Box>
 
@@ -982,6 +1012,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         onAdd={handleAddMedication}
                         onRemove={handleRemoveLastMedication}
                         isSubmitting={isSubmitting}
+                        readOnly={readOnly}
                         {...approvalProps}
                     />
                 </Box>
@@ -997,6 +1028,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         watch={watch}
                         setValue={setValue}
                         isSubmitting={isSubmitting}
+                        readOnly={readOnly}
                         {...approvalProps}
                     />
                 </Box>
@@ -1011,6 +1043,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         watch={watch}
                         setValue={setValue}
                         isSubmitting={isSubmitting}
+                        readOnly={readOnly}
                         {...approvalProps}
                     />
                 </Box>

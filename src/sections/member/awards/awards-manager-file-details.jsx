@@ -42,6 +42,7 @@ export function FileManagerFileDetails({
   onFavorite,
   onCopyLink,
   isGridView = false,
+  readOnly = false,
   ...other
 }) {
   const { user } = useAuthContext();
@@ -293,6 +294,7 @@ export function FileManagerFileDetails({
 
               <StatusSelectCell
                 value={localStatus}
+                disabled={readOnly}
                 hasCertificate={hasCertificate}
                 onRequireDeleteCertificate={(nextStatus) => {
                   setPendingStatus(
@@ -340,7 +342,7 @@ export function FileManagerFileDetails({
               </Typography>
 
               <DatePicker
-                disabled={localStatus !== 'completado'}
+                disabled={readOnly || localStatus !== 'completado'}
                 value={completedDate}
                 onChange={(newValue) => {
                   setCompletedDate(newValue);
@@ -369,7 +371,7 @@ export function FileManagerFileDetails({
                   <Button
                     variant="outlined"
                     size="small"
-                    disabled={localStatus !== 'completado' || timesCompleted <= 0}
+                    disabled={readOnly || localStatus !== 'completado' || timesCompleted <= 0}
                     onClick={() => {
                       const next = timesCompleted - 1;
                       if (next > 0) setTimesCompleted(next);
@@ -386,7 +388,7 @@ export function FileManagerFileDetails({
                   <Button
                     variant="outlined"
                     size="small"
-                    disabled={localStatus !== 'completado'}
+                    disabled={readOnly || localStatus !== 'completado'}
                     onClick={() => {
                       const next = timesCompleted + 1;
                       setTimesCompleted(next);
@@ -524,7 +526,7 @@ export function FileManagerFileDetails({
         </Scrollbar>
 
         <Box sx={{ p: 2.5 }}>
-          {localStatus === 'completado' && !hasCertificate && (
+          {!readOnly && localStatus === 'completado' && !hasCertificate && (
             <>
               <input
                 id={fileInputId}
@@ -576,15 +578,17 @@ export function FileManagerFileDetails({
                 Descargar certificado
               </Button>
 
-              <Button
-                fullWidth
-                variant="soft"
-                color="error"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                onClick={confirmDelete.onTrue}
-              >
-                Eliminar certificado
-              </Button>
+              {!readOnly && (
+                <Button
+                  fullWidth
+                  variant="soft"
+                  color="error"
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={confirmDelete.onTrue}
+                >
+                  Eliminar certificado
+                </Button>
+              )}
             </>
           )}
         </Box>

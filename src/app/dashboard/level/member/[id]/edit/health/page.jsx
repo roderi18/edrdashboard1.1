@@ -3,11 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import {
-  canEditHealth,
-  canMemberManageMembers,
-  canViewMemberHealthTab,
-} from 'src/utils/member-access';
+import { canEditHealth } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
@@ -27,8 +23,7 @@ export default function Page() {
   // Editar la Dispensa Médica exige el permiso `salud.editar` del catálogo
   // (igual que Ascenso con `ascenso.editar`), para que el panel de "Administrar
   // permisos" pueda dejarla en solo lectura.
-  const canManage =
-    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) && canEditHealth(user);
+  const canManage = canEditHealth(user);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,13 +62,6 @@ export default function Page() {
 
   if (!currentMember) {
     return <div>Miembro no encontrado</div>;
-  }
-
-  // Sin permiso de lectura de Dispensa Médica (p. ej. el Director Nacional): se
-  // conservan los tabs y el aviso de "información oculta" (con solicitud de
-  // acceso), pero no se muestra el contenido médico.
-  if (!canViewMemberHealthTab(user)) {
-    return <MemberEditLayout member={currentMember} />;
   }
 
   return (

@@ -13,17 +13,22 @@ import Typography from '@mui/material/Typography';
 import { usePathname } from 'src/routes/hooks';
 
 import {
-  canViewMemberHealthTab,
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
   canViewMemberSensitiveData,
+  isConsejoNacionalHealthViewer,
 } from 'src/utils/member-access';
 
 import {
   solicitarAccesoInformacionMiembro,
   obtenerCoordinadorDestacamentoInfo,
 } from 'src/services/member-info-access-service';
+import {
+  esMiembroMenorDeEdad,
+  obtenerEstadoAccesoSalud,
+  crearSolicitudAccesoSalud,
+} from 'src/services/member-health-access-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -44,7 +49,9 @@ const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta 
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
 const isRestrictedForRoute = (user, pathname = '') => {
-  if (pathname.includes('/edit/health')) return !canViewMemberHealthTab(user);
+  // En Dispensa Médica, los cargos del Consejo Nacional solicitan acceso
+  // únicamente a los datos del seguro enmascarados para miembros menores.
+  if (pathname.includes('/edit/health')) return isConsejoNacionalHealthViewer(user);
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
   if (pathname.includes('/edit/history')) return !canViewMemberHistoryTab(user);
@@ -108,9 +115,56 @@ export function MemberSensitiveInfoBanner({ member }) {
   const open = useBoolean();
   const [sending, setSending] = useState(false);
   const [coordinador, setCoordinador] = useState(null);
+  const [healthAccessLoading, setHealthAccessLoading] = useState(false);
+  const [healthAccessState, setHealthAccessState] = useState({
+    permiso: null,
+    solicitudPendiente: null,
+  });
 
   const destId = member?.destId || member?.idDestacamento || null;
-  const shouldShow = Boolean(member) && isRestrictedForRoute(user, pathname);
+  const isHealthRoute = pathname.includes('/edit/health');
+  const isHealthAccessRequest =
+    isHealthRoute &&
+    isConsejoNacionalHealthViewer(user) &&
+    esMiembroMenorDeEdad(member);
+  const shouldShow =
+    Boolean(member) &&
+    isRestrictedForRoute(user, pathname) &&
+    (!isHealthRoute ||
+      (isHealthAccessRequest && !healthAccessLoading && !healthAccessState.permiso));
+
+  useEffect(() => {
+    if (!isHealthAccessRequest) {
+      setHealthAccessState({ permiso: null, solicitudPendiente: null });
+      setHealthAccessLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setHealthAccessLoading(true);
+
+    obtenerEstadoAccesoSalud({ member, usuario: user })
+      .then((state) => {
+        if (!cancelled) {
+          setHealthAccessState({
+            permiso: state?.permiso || null,
+            solicitudPendiente: state?.solicitudPendiente || null,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHealthAccessState({ permiso: null, solicitudPendiente: null });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHealthAccessLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHealthAccessRequest, member, user]);
 
   useEffect(() => {
     if (!shouldShow || !destId) return undefined;
@@ -133,6 +187,22 @@ export function MemberSensitiveInfoBanner({ member }) {
   const handleSend = async (justificacion) => {
     setSending(true);
     try {
+      if (isHealthAccessRequest) {
+        const solicitud = await crearSolicitudAccesoSalud({
+          member,
+          usuario: user,
+          justificacion,
+        });
+
+        setHealthAccessState((current) => ({
+          ...current,
+          solicitudPendiente: solicitud,
+        }));
+        toast.success('Solicitud enviada a los Coordinadores de Destacamento.');
+        open.onFalse();
+        return;
+      }
+
       const { nombreCoordinador } = await solicitarAccesoInformacionMiembro({
         member,
         usuario: user,
@@ -175,10 +245,11 @@ export function MemberSensitiveInfoBanner({ member }) {
           variant="outlined"
           color="inherit"
           startIcon={<Iconify icon="solar:key-bold" />}
+          disabled={Boolean(healthAccessState.solicitudPendiente)}
           onClick={open.onToggle}
           sx={{ flexShrink: 0 }}
         >
-          Solicitar acceso
+          {healthAccessState.solicitudPendiente ? 'Solicitud pendiente' : 'Solicitar acceso'}
         </Button>
       </Stack>
 

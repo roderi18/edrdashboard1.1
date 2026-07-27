@@ -31,6 +31,7 @@ export function HealthMedicationSection({
     onAdd,
     onRemove,
     isSubmitting,
+    readOnly = false,
     isGroupLeader = false,
     sendingApproval = false,
     onRequestApproval,
@@ -48,16 +49,26 @@ export function HealthMedicationSection({
                 <Divider />
 
                 <Stack spacing={3} sx={{ p: 3 }}>
-                    <Typography variant="subtitle2">
-                        ¿Toma algún medicamento actualmente?
-                    </Typography>
+                    {!readOnly && (
+                        <Typography variant="subtitle2">
+                            ¿Toma algún medicamento actualmente?
+                        </Typography>
+                    )}
 
-                    <Field.RadioGroup
-                        row
-                        name="hasMedication"
-                        options={MEDICATION_OPTIONS}
-                        sx={{ gap: 4 }}
-                    />
+                    {!readOnly && (
+                        <Field.RadioGroup
+                            row
+                            name="hasMedication"
+                            options={MEDICATION_OPTIONS}
+                            sx={{ gap: 4 }}
+                        />
+                    )}
+
+                    {readOnly && watch('hasMedication') !== 'yes' && (
+                        <Typography variant="body2" color="text.secondary">
+                            Sin información registrada.
+                        </Typography>
+                    )}
 
                     {watch('hasMedication') === 'yes' && (
                         <>
@@ -78,6 +89,7 @@ export function HealthMedicationSection({
                                         }
                                         allow="all"
                                         maxLength={30}
+                                        readOnly={readOnly}
                                     />
 
                                     <RestrictedText
@@ -88,12 +100,14 @@ export function HealthMedicationSection({
                                         }
                                         allow="all"
                                         maxLength={30}
+                                        readOnly={readOnly}
                                     />
 
                                     <Field.Select
                                         name={`medications.${index}.schedule`}
                                         label="Horario"
                                         multiple
+                                        disabled={readOnly}
                                     >
                                         {MEDICATION_SCHEDULE_OPTIONS.map((option) => (
                                             <MenuItem key={option.value} value={option.value}>
@@ -110,6 +124,7 @@ export function HealthMedicationSection({
                                     color="error"
                                     startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                                     onClick={onRemove}
+                                    disabled={readOnly}
                                 >
                                     Eliminar último medicamento
                                 </Button>
@@ -118,7 +133,7 @@ export function HealthMedicationSection({
                                     variant="contained"
                                     startIcon={<Iconify icon="mingcute:add-line" />}
                                     onClick={onAdd}
-                                    disabled={fields.length >= 5}
+                                    disabled={readOnly || fields.length >= 5}
                                     sx={{ display: 'flex', gap: 1 }}
                                 >
                                     <Box component="span">Agregar medicamento</Box>
@@ -138,12 +153,14 @@ export function HealthMedicationSection({
                         </>
                     )}
 
-                    <HealthSectionSubmit
-                        isSubmitting={isSubmitting}
-                        isGroupLeader={isGroupLeader}
-                        sendingApproval={sendingApproval}
-                        onRequestApproval={onRequestApproval}
-                    />
+                    {!readOnly && (
+                        <HealthSectionSubmit
+                            isSubmitting={isSubmitting}
+                            isGroupLeader={isGroupLeader}
+                            sendingApproval={sendingApproval}
+                            onRequestApproval={onRequestApproval}
+                        />
+                    )}
                 </Stack>
             </Collapse>
         </Card>

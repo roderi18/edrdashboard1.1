@@ -33,7 +33,6 @@ export function MemberTableRow({
   onSelectRow,
   onDeleteRow,
   canManage = true,
-  restricted = false,
 }) {
   const router = useRouter();
   const showMorePositions = useBoolean();
@@ -134,13 +133,12 @@ export function MemberTableRow({
       selected={selected}
       aria-checked={selected}
       tabIndex={-1}
-      sx={{ ...(restricted && { opacity: 0.72 }) }}
     >
       <TableCell padding="checkbox">
         <Checkbox
           checked={selected}
-          disabled={!canManage || restricted}
-          onClick={canManage && !restricted ? onSelectRow : undefined}
+          disabled={!canManage}
+          onClick={canManage ? onSelectRow : undefined}
           slotProps={{
             input: {
               id: `${row.memberId}-checkbox`,
@@ -152,23 +150,18 @@ export function MemberTableRow({
 
       <CompactEntityTableCell
         title={row.name}
-        href={restricted ? '' : editHref || `/dashboard/level/member/${memberEditId}/edit`}
-        subtitle={
-          restricted
-            ? 'Menor · acceso restringido'
-            : (() => {
-                try {
-                  return formatPhoneNumber(row.phoneNumber);
-                } catch {
-                  return row.phoneNumber;
-                }
-              })()
-        }
-        subtitleHref={restricted ? undefined : getPhoneHref(row.phoneNumber)}
+        href={editHref || `/dashboard/level/member/${memberEditId}/edit`}
+        subtitle={(() => {
+          try {
+            return formatPhoneNumber(row.phoneNumber);
+          } catch {
+            return row.phoneNumber;
+          }
+        })()}
+        subtitleHref={getPhoneHref(row.phoneNumber)}
         avatarUrl={row.avatarUrl}
-        onAvatarClick={restricted ? undefined : handleOpenMemberEdit}
+        onAvatarClick={handleOpenMemberEdit}
         linkUnderline="always"
-        linkSx={restricted ? { color: 'text.disabled' } : undefined}
       />
 
       <CompactEntityTableCell
@@ -294,7 +287,7 @@ export function MemberTableRow({
       </TableCell>
 
       <CompactEntityRowActions
-        canManage={canManage && !restricted}
+        canManage={canManage}
         editHref={editHref}
         onDelete={onDeleteRow}
         QuickEditForm={MemberQuickEditForm}

@@ -1,8 +1,9 @@
 'use client';
 
-import InputAdornment from '@mui/material/InputAdornment';
 import ToggleButton from '@mui/material/ToggleButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+
 import { Field } from 'src/components/hook-form';
 
 // ---------- FORMATTERS ----------
@@ -36,6 +37,7 @@ export default function WeightInput({
     label = 'Peso aproximado',
     watch,
     setValue,
+    readOnly = false,
 }) {
     const unit = watch(unitName);
     const value = watch(name);
@@ -85,8 +87,12 @@ export default function WeightInput({
                             value={unit}
                             onChange={handleUnitChange}
                         >
-                            <ToggleButton value="lbs">Lbs</ToggleButton>
-                            <ToggleButton value="kg">Kgs</ToggleButton>
+                            <ToggleButton value="lbs" component={readOnly ? 'span' : 'button'}>
+                                Lbs
+                            </ToggleButton>
+                            <ToggleButton value="kg" component={readOnly ? 'span' : 'button'}>
+                                Kgs
+                            </ToggleButton>
                         </ToggleButtonGroup>
                     </InputAdornment>
                 ),

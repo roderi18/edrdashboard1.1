@@ -1,8 +1,9 @@
 'use client';
 
-import InputAdornment from '@mui/material/InputAdornment';
 import ToggleButton from '@mui/material/ToggleButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+
 import { Field } from 'src/components/hook-form';
 
 
@@ -60,6 +61,7 @@ export default function HeightInput({
     label = 'Estatura aproximada',
     watch,
     setValue,
+    readOnly = false,
 }) {
     const unit = watch(unitName);
     const value = watch(name);
@@ -136,9 +138,15 @@ export default function HeightInput({
                             value={unit}
                             onChange={handleUnitChange}
                         >
-                            <ToggleButton value="meters">Metros</ToggleButton>
-                            <ToggleButton value="feet">Pies</ToggleButton>
-                            <ToggleButton value="cm">CM</ToggleButton>
+                            <ToggleButton value="meters" component={readOnly ? 'span' : 'button'}>
+                                Metros
+                            </ToggleButton>
+                            <ToggleButton value="feet" component={readOnly ? 'span' : 'button'}>
+                                Pies
+                            </ToggleButton>
+                            <ToggleButton value="cm" component={readOnly ? 'span' : 'button'}>
+                                CM
+                            </ToggleButton>
                         </ToggleButtonGroup>
                     </InputAdornment>
                 ),

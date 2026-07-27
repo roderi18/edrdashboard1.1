@@ -62,10 +62,11 @@ const PERMISOS_COORDINADOR_AREA_REGION = [
   PERMISOS.PADRES_VER,
 ];
 
-// Cargos del Consejo Nacional que ven todo a nivel nacional EXCEPTO menores.
-// (Director Nacional va aparte porque si ve menores.)
-const CONSEJO_NACIONAL_SIN_MENORES = [
+// Cargos mostrados en el desplegable de Consejo Nacional. Todos comparten el
+// mismo perfil de permisos y restricciones del Director Nacional.
+const CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR = [
   ROLES.MINISTERIOS_INFANTILES_NACIONAL,
+  ROLES.DIRECTOR_NACIONAL,
   ROLES.CAPELLAN_NACIONAL,
   ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
   ROLES.SUBDIRECTOR_NACIONAL,
@@ -76,60 +77,29 @@ const CONSEJO_NACIONAL_SIN_MENORES = [
   ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
 ];
 
-// "Ver todo" a nivel nacional (solo lectura): estructura completa, miembros
-// adultos con datos sensibles, documentos, asistencia, reportes de todos los
-// niveles y tienda. NO incluye ver menores.
-const PERMISOS_VER_TODO_NACIONAL = [
-  PERMISOS.REGIONES_VER,
-  PERMISOS.SECCIONES_VER,
-  PERMISOS.DESTACAMENTOS_VER,
-  PERMISOS.MIEMBROS_VER,
-  PERMISOS.MIEMBROS_VER_ADULTOS,
-  PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
-  PERMISOS.DOCUMENTOS_VER,
-  PERMISOS.ASISTENCIA_VER,
-  PERMISOS.REPORTES_VER_LOCALES,
-  PERMISOS.REPORTES_VER_SECCIONALES,
-  PERMISOS.REPORTES_VER_REGIONALES,
-  PERMISOS.REPORTES_VER_NACIONALES,
-  PERMISOS.TIENDA_VER,
-  // Lectura de Dispensa Médica, Sistema de Ascenso y Padres.
-  PERMISOS.SALUD_VER,
-  PERMISOS.ASCENSO_VER,
-  PERMISOS.PADRES_VER,
-];
-
-// Director Nacional: ve toda la estructura del pais (regiones, secciones,
-// destacamentos) y la lista de miembros ADULTOS, todo en solo lectura. NO ve
-// menores, NO ve Dispensa Médica ni Padres: el único tab de la ficha del miembro
-// habilitado es el Sistema de Ascenso (solo lectura). Los demás tabs se muestran
-// deshabilitados (ver member-edit-layout).
+// Perfil compartido del Consejo Nacional: consulta la estructura del país y ve
+// la Dispensa Médica de adultos y menores. Salud es estrictamente de solo
+// lectura: no edita ni gestiona documentos.
 const PERMISOS_DIRECTOR_NACIONAL = [
   PERMISOS.REGIONES_VER,
   PERMISOS.SECCIONES_VER,
   PERMISOS.DESTACAMENTOS_VER,
   PERMISOS.MIEMBROS_VER,
   PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.MIEMBROS_VER_MENORES,
   PERMISOS.REPORTES_VER_LOCALES,
   PERMISOS.REPORTES_VER_SECCIONALES,
   PERMISOS.REPORTES_VER_REGIONALES,
   PERMISOS.REPORTES_VER_NACIONALES,
   PERMISOS.TIENDA_VER,
-  // Único módulo de la ficha del miembro habilitado (solo lectura).
+  PERMISOS.SALUD_VER,
   PERMISOS.ASCENSO_VER,
 ];
-
-const RESTRICCIONES_CONSEJO_NACIONAL_SIN_MENORES = {
-  ...RESTRICCIONES_BASE,
-  soloLectura: true,
-  requierePermisoParaMenores: true,
-};
 
 const RESTRICCIONES_DIRECTOR_NACIONAL = {
   ...RESTRICCIONES_BASE,
   soloLectura: true,
-  // No puede ver menores (necesitaría autorización expresa, que no tiene).
-  requierePermisoParaMenores: true,
+  requierePermisoParaMenores: false,
 };
 
 const fromCodes = (codes, value) => Object.fromEntries(codes.map((code) => [code, value]));
@@ -302,8 +272,7 @@ export const RESTRICCIONES_ROL = {
     requierePermisoParaMenores: true,
     soloLectura: true,
   },
-  ...fromCodes(CONSEJO_NACIONAL_SIN_MENORES, RESTRICCIONES_CONSEJO_NACIONAL_SIN_MENORES),
-  [ROLES.DIRECTOR_NACIONAL]: RESTRICCIONES_DIRECTOR_NACIONAL,
+  ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, RESTRICCIONES_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: {
     ...RESTRICCIONES_BASE,
     soloLectura: true,
@@ -334,8 +303,7 @@ export const ALCANCE_PREDETERMINADO_ROL = {
   ...fromCodes(COORDINADORES_AREA_SECCION, ALCANCES.SECCION),
   ...fromCodes(COORDINADORES_AREA_REGION, ALCANCES.REGION),
   [ROLES.CONSEJO_NACIONAL]: ALCANCES.NACIONAL,
-  ...fromCodes(CONSEJO_NACIONAL_SIN_MENORES, ALCANCES.NACIONAL),
-  [ROLES.DIRECTOR_NACIONAL]: ALCANCES.NACIONAL,
+  ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, ALCANCES.NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: ALCANCES.NACIONAL,
   [ROLES.ADMINISTRADOR_GLOBAL]: ALCANCES.GLOBAL,
   [ROLES.ADMINISTRADOR_FUNCIONAL]: ALCANCES.GLOBAL,
@@ -519,11 +487,9 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.REPORTES_VER_REGIONALES,
     PERMISOS.REPORTES_VER_NACIONALES,
   ],
-  // Cargos del Consejo Nacional: ven todo a nivel nacional salvo menores.
-  ...fromCodes(CONSEJO_NACIONAL_SIN_MENORES, PERMISOS_VER_TODO_NACIONAL),
-  // Director Nacional: consulta global (solo lectura), sin menores y solo con
-  // acceso al Sistema de Ascenso en la ficha del miembro.
-  [ROLES.DIRECTOR_NACIONAL]: PERMISOS_DIRECTOR_NACIONAL,
+  // Todos los cargos del desplegable de Consejo Nacional comparten el perfil del
+  // Director Nacional.
+  ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, PERMISOS_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.MIEMBROS_VER,

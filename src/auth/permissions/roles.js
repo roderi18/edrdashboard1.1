@@ -21,9 +21,8 @@ export const ROLES = {
   COORDINADOR_PRODUCCION_REGION: 'coordinador_produccion_region',
   COORDINADOR_PROGRAMA_REGION: 'coordinador_programa_region',
   CONSEJO_NACIONAL: 'consejo_nacional',
-  // Cargos del Consejo Nacional (alcance nacional, solo lectura). Ven la
-  // estructura nacional pero no a los menores. El Director Nacional, además,
-  // solo accede al Sistema de Ascenso dentro de la ficha del miembro.
+  // Cargos del Consejo Nacional: comparten alcance, permisos y restricciones
+  // del perfil de Director Nacional.
   MINISTERIOS_INFANTILES_NACIONAL: 'ministerios_infantiles_nacional',
   DIRECTOR_NACIONAL: 'director_nacional',
   CAPELLAN_NACIONAL: 'capellan_nacional',
@@ -221,7 +220,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.MINISTERIOS_INFANTILES_NACIONAL,
     nombre: 'Ministerios Infantiles',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -230,7 +230,7 @@ export const ROLES_CATALOGO = [
     codigo: ROLES.DIRECTOR_NACIONAL,
     nombre: 'Director Nacional',
     descripcion:
-      'Consejo Nacional: consulta global de regiones, secciones y destacamentos (solo lectura). No ve menores; en la ficha del miembro solo accede al Sistema de Ascenso.',
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -238,7 +238,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.CAPELLAN_NACIONAL,
     nombre: 'Capellán Nacional',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -246,7 +247,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
     nombre: 'Coordinador Nacional de Adiestramiento',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -254,7 +256,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.SUBDIRECTOR_NACIONAL,
     nombre: 'Sub-Director Nacional',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -262,7 +265,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.COORDINADOR_PROMOCION_NACIONAL,
     nombre: 'Coordinador Nacional de Promoción',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -270,7 +274,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.COORDINADOR_PRODUCCION_NACIONAL,
     nombre: 'Coordinador Nacional de Producción',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -278,7 +283,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL,
     nombre: 'Coordinador Nacional de Programa',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -286,7 +292,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.COMITES_ESPECIALES_NACIONAL,
     nombre: 'Comités Especiales',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -294,7 +301,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
     nombre: 'Oficiales de Adiestramientos Especiales',
-    descripcion: 'Consejo Nacional: ve todo a nivel nacional excepto miembros menores de edad.',
+    descripcion:
+      'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,

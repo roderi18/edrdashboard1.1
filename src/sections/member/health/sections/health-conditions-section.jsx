@@ -22,6 +22,7 @@ export function HealthConditionsSection({
     watch,
     setValue,
     isSubmitting,
+    readOnly = false,
     isGroupLeader = false,
     sendingApproval = false,
     onRequestApproval,
@@ -40,20 +41,30 @@ export function HealthConditionsSection({
 
                 <Stack spacing={3} sx={{ p: 3 }}>
                     <Stack spacing={1}>
-                        <Typography variant="subtitle2">
-                            ¿Presenta alguna condición médica?
-                        </Typography>
+                        {!readOnly && (
+                            <Typography variant="subtitle2">
+                                ¿Presenta alguna condición médica?
+                            </Typography>
+                        )}
 
-                        <Field.RadioGroup
-                            row
-                            name="hasMedicalConditions"
-                            options={[
-                                { label: 'No', value: 'no' },
-                                { label: 'Sí', value: 'yes' },
-                            ]}
-                            sx={{ gap: 4 }}
-                        />
+                        {!readOnly && (
+                            <Field.RadioGroup
+                                row
+                                name="hasMedicalConditions"
+                                options={[
+                                    { label: 'No', value: 'no' },
+                                    { label: 'Sí', value: 'yes' },
+                                ]}
+                                sx={{ gap: 4 }}
+                            />
+                        )}
                     </Stack>
+
+                    {readOnly && watch('hasMedicalConditions') !== 'yes' && (
+                        <Typography variant="body2" color="text.secondary">
+                            Sin información registrada.
+                        </Typography>
+                    )}
 
                     {/* ✅ CONDICIONES (solo si aplica) */}
                     {watch('hasMedicalConditions') === 'yes' && (
@@ -69,13 +80,26 @@ export function HealthConditionsSection({
                                     },
                                 }}
                             >
-                                {MEDICAL_CONDITIONS_OPTIONS.map((item) => (
-                                    <Field.Checkbox
-                                        key={item.id}
-                                        name={`medicalConditions.${item.id}`}
-                                        label={item.label}
-                                    />
-                                ))}
+                                {readOnly ? (
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ gridColumn: '1 / -1' }}
+                                    >
+                                        {MEDICAL_CONDITIONS_OPTIONS
+                                            .filter((item) => watch(`medicalConditions.${item.id}`))
+                                            .map((item) => item.label)
+                                            .join(', ') || 'Sin información registrada.'}
+                                    </Typography>
+                                ) : (
+                                    MEDICAL_CONDITIONS_OPTIONS.map((item) => (
+                                        <Field.Checkbox
+                                            key={item.id}
+                                            name={`medicalConditions.${item.id}`}
+                                            label={item.label}
+                                        />
+                                    ))
+                                )}
                             </Box>
 
                             {watch('medicalConditions.other') && (
@@ -89,6 +113,7 @@ export function HealthConditionsSection({
                                     maxLength={100}
                                     multiline
                                     rows={2}
+                                    readOnly={readOnly}
                                 />
                             )}
 
@@ -103,17 +128,20 @@ export function HealthConditionsSection({
                                     maxLength={100}
                                     multiline
                                     rows={2}
+                                    readOnly={readOnly}
                                 />
                             )}
                         </>
                     )}
 
-                    <HealthSectionSubmit
-                        isSubmitting={isSubmitting}
-                        isGroupLeader={isGroupLeader}
-                        sendingApproval={sendingApproval}
-                        onRequestApproval={onRequestApproval}
-                    />
+                    {!readOnly && (
+                        <HealthSectionSubmit
+                            isSubmitting={isSubmitting}
+                            isGroupLeader={isGroupLeader}
+                            sendingApproval={sendingApproval}
+                            onRequestApproval={onRequestApproval}
+                        />
+                    )}
                 </Stack>
             </Collapse>
         </Card>
