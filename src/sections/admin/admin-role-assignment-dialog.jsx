@@ -30,6 +30,7 @@ import {
   obtenerRolesAutorizacion,
   obtenerAsignacionRolUsuario,
   guardarAsignacionRolUsuario,
+  actualizarClaimsAutorizacion,
 } from 'src/auth/permissions';
 
 // ----------------------------------------------------------------------
@@ -318,6 +319,18 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
         restricciones: {},
         usuario: user,
       });
+
+      // Sincronizar los custom claims de autorización (rol + alcance) del token.
+      // No debe romper la asignación si el servidor de claims aún no está listo.
+      try {
+        await actualizarClaimsAutorizacion({
+          uidUsuario: userDocId,
+          correo: admin?.email || admin?.correo || '',
+        });
+      } catch (claimsError) {
+        console.warn('[claims] no se pudieron actualizar los claims de autorización', claimsError);
+        toast.warning('Rol guardado, pero no se pudieron sincronizar los permisos de acceso.');
+      }
 
       toast.success('Rol asignado correctamente.');
       onSaved?.({

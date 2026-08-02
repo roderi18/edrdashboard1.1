@@ -7,11 +7,12 @@ import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
-import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
-import { getCustomFileIcon } from 'src/sections/member/awards/utils/get-file-icon';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+
+import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon';
+import { getCustomFileIcon } from 'src/sections/member/awards/utils/get-file-icon';
 
 // ----------------------------------------------------------------------
 
@@ -23,8 +24,7 @@ const Z_INDEXES = {
 export const FileItem = styled(Paper, {
   shouldForwardProp: (prop) =>
     !['selected', 'sx', 'parentId'].includes(prop),
-})
-  (({ selected, theme }) => {
+})(({ selected, theme }) => {
     const hoverStyles = {
       boxShadow: theme.vars.customShadows.z20,
       backgroundColor: theme.vars.palette.background.paper,
@@ -124,18 +124,24 @@ export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx })
 
 // ----------------------------------------------------------------------
 
-export function FileItemInfo({ type, title, values, sx, ...other }) {
+export function FileItemInfo({ type, title, values, inlineDetails = false, sx, ...other }) {
   const renderTitle = () => (
     <Typography
       variant={['file', 'recent-file'].includes(type) ? 'subtitle2' : 'subtitle1'}
       sx={[
-        (theme) => ({
-          wordBreak: 'break-all',
-          ...theme.mixins.maxLine({
-            line: type === 'file' ? 2 : 1,
-            persistent: type === 'file' ? theme.typography.subtitle2 : undefined,
-          }),
-        }),
+        (theme) =>
+          inlineDetails
+            ? {
+                wordBreak: 'normal',
+                overflowWrap: 'anywhere',
+              }
+            : {
+                wordBreak: 'break-all',
+                ...theme.mixins.maxLine({
+                  line: type === 'file' ? 2 : 1,
+                  persistent: type === 'file' ? theme.typography.subtitle2 : undefined,
+                }),
+              },
       ]}
     >
       {title}
@@ -157,6 +163,13 @@ export function FileItemInfo({ type, title, values, sx, ...other }) {
           alignItems: 'center',
           typography: 'caption',
           color: 'text.disabled',
+          ...(inlineDetails && {
+            '&::before': {
+              content: '"-"',
+              mx: 0.75,
+              color: 'text.secondary',
+            },
+          }),
           '& span': {
             '&:last-of-type': { ...theme.mixins.maxLine({ line: 1 }) },
             '&:not(:last-of-type)': { whiteSpace: 'nowrap' },
@@ -177,7 +190,9 @@ export function FileItemInfo({ type, title, values, sx, ...other }) {
           gap: 0.5,
           width: 1,
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: inlineDetails ? 'row' : 'column',
+          flexWrap: inlineDetails ? 'wrap' : 'nowrap',
+          alignItems: inlineDetails ? 'baseline' : 'stretch',
         },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}

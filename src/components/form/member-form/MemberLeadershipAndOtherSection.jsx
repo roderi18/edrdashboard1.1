@@ -5,9 +5,9 @@ import MenuItem from '@mui/material/MenuItem';
 
 import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
 import {
-  MEMBER_GENDERS,
-  MEMBER_SHIRT_SIZES,
-  MEMBER_OCUPATIONS_SORTED,
+    MEMBER_GENDERS,
+    MEMBER_SHIRT_SIZES,
+    MEMBER_OCUPATIONS_SORTED,
 } from 'src/catalogs/member-catalogs';
 
 import { Field } from 'src/components/hook-form';
@@ -16,7 +16,7 @@ import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
 
 // Texto para campos sin dato registrado (en solo lectura).
-const NO_REGISTRADO = 'No registrado';
+const NO_REGISTRADO = 'Sin registros';
 
 const getRowsFromApi = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -52,7 +52,7 @@ export default function MemberLeadershipAndOtherSection({
     readOnly = false,
 }) {
     const disabledCore = lockCoreFields || readOnly;
-    // En solo lectura, un campo sin valor se muestra como "No registrado".
+    // En solo lectura, un campo sin valor se muestra como "Sin registros".
     const emptyInReadOnly = (value) => readOnly && !value;
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);

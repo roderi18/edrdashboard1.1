@@ -19,9 +19,9 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
-import { isFullOrgManager } from 'src/utils/org-level-access';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { isAdminGlobal, isFullOrgManager } from 'src/utils/org-level-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
@@ -308,8 +308,8 @@ export function MemberListView() {
   }, []);
 
   const visibleMembers = useMemo(
-    () => filterMembersByMemberScope(tableData, user, { dests, churches }),
-    [churches, dests, tableData, user]
+    () => filterMembersByMemberScope(tableData, user, { dests, churches, sectionals }),
+    [churches, dests, sectionals, tableData, user]
   );
   // Los administradores de seccion y region pueden VER la lista completa de
   // miembros pero no editarlos (su rol no incluye permisos de edicion). Por eso
@@ -322,6 +322,8 @@ export function MemberListView() {
   const memberCanManage = isMemberSessionUser(user)
     ? canMemberManageMembers(user)
     : adminCanManageMembers;
+  // Eliminar miembros: solo el Administrador Global.
+  const memberCanDelete = isAdminGlobal(user);
   const memberDestLabel = useMemo(() => {
     if (!isMemberSessionUser(user)) {
       return '';
@@ -747,7 +749,7 @@ export function MemberListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              {memberCanManage && (
+              {memberCanDelete && (
                 <TableSelectedAction
                   dense={table.dense}
                   numSelected={table.selected.length}
@@ -800,6 +802,7 @@ export function MemberListView() {
                         }}
                         selected={table.selected.includes(row.id)}
                         canManage={memberCanManage}
+                        canDelete={memberCanDelete}
                         onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.member.edit(

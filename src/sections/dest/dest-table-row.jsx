@@ -24,6 +24,7 @@ export function DestTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  lockMemberCount = false,
 }) {
   const id = row.id || row.idDestacamento;
   const sectionalName = String(row.sectionalName || '').trim();
@@ -74,14 +75,20 @@ export function DestTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Link
-            component={RouterLink}
-            href={`/dashboard/level/member?dest=${id}`}
-            color="inherit"
-            underline="always"
-          >
-            {destMemberCount}
-          </Link>
+          {lockMemberCount ? (
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              {destMemberCount}
+            </Box>
+          ) : (
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/member?dest=${id}`}
+              color="inherit"
+              underline="always"
+            >
+              {destMemberCount}
+            </Link>
+          )}
         </Box>
       </TableCell>
 

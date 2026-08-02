@@ -26,6 +26,7 @@ export function RegionalTableRow({
   canManage = true,
   canDelete = true,
   disabledCounts = false,
+  lockMemberCount = false,
 }) {
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
@@ -105,7 +106,20 @@ export function RegionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {renderCount(row.regionalXSectionalMemberCount, `/dashboard/level/member?region=${row.id}`)}
+          {disabledCounts || lockMemberCount ? (
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              {row.regionalXSectionalMemberCount}
+            </Box>
+          ) : (
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/member?region=${row.id}`}
+              color="inherit"
+              underline="always"
+            >
+              {row.regionalXSectionalMemberCount}
+            </Link>
+          )}
         </Box>
       </TableCell>
 

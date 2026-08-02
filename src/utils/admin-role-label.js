@@ -28,6 +28,14 @@ export const ADMIN_ROLE_IDS = [
   ROLES.COORDINADOR_PROMOCION_REGION,
   ROLES.COORDINADOR_PRODUCCION_REGION,
   ROLES.COORDINADOR_PROGRAMA_REGION,
+  // Cargos de consulta (solo lectura): Capellán Regional es de nivel región; los
+  // demás de nivel sección. Comparten la construcción de sesión admin con sus
+  // hermanos de nivel.
+  ROLES.CAPELLAN_REGIONAL,
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.SECRETARIO_REGIONAL,
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
   // Administradores.
   ROLES.ADMINISTRADOR_GLOBAL,
   ROLES.ADMINISTRADOR_FUNCIONAL,

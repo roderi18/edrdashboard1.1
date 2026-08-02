@@ -201,7 +201,7 @@ export const ProductCreateSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['precioNoRegistrado'],
-        message: 'El precio a destacamentos no registrados no puede ser menor al registrado.',
+        message: 'El precio a destacamentos Sin registross no puede ser menor al registrado.',
       });
     }
   });
@@ -417,17 +417,17 @@ export function ProductCreateEditForm({ currentProduct }) {
       </Box>
 
       {[10, 50].map((amount) => (
-          <Button
-            key={amount}
-            type="button"
-            size="small"
-            variant="outlined"
-            onClick={() => handleAdjustPrice(fieldName, amount)}
-            sx={{ minWidth: 42, px: 0.75 }}
-          >
-            +{amount}
-          </Button>
-        ))}
+        <Button
+          key={amount}
+          type="button"
+          size="small"
+          variant="outlined"
+          onClick={() => handleAdjustPrice(fieldName, amount)}
+          sx={{ minWidth: 42, px: 0.75 }}
+        >
+          +{amount}
+        </Button>
+      ))}
     </InputAdornment>
   );
 
@@ -719,7 +719,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Box sx={{ position: 'relative' }}>
               <Field.Text
                 name="precioNoRegistrado"
-                label="Precio a Destacamentos NO registrados"
+                label="Precio a Destacamentos Sin registross"
                 placeholder="0.00"
                 type="number"
                 slotProps={{

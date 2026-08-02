@@ -19,10 +19,10 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
-import { canEditDest } from 'src/utils/org-level-access';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { filterDestsByMemberScope } from 'src/utils/member-access';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { canEditDest, isAdminGlobal, isForeignDestForMembers } from 'src/utils/org-level-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -252,7 +252,8 @@ export function DestListView() {
 
   const [tableData, setTableData] = useState([]);
   const canCreateDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
-  const canDeleteDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_ELIMINAR, 'eliminar');
+  // Eliminar destacamentos: solo el Administrador Global.
+  const canDeleteDest = isAdminGlobal(user);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
@@ -616,6 +617,11 @@ export function DestListView() {
                         editHref={paths.dashboard.level.dest.edit(row.id)}
                         canManage={canEditDest(user, row)}
                         canDelete={canDeleteDest}
+                        lockMemberCount={isForeignDestForMembers(user, {
+                          destId: row.id,
+                          sectionId: row.sectionalId,
+                          regionId: row.regionalId,
+                        })}
                       />
                     )}
                     notFound={notFound}

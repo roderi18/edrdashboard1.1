@@ -7,8 +7,8 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { can } from 'src/auth/permissions/can';
 import { PERMISOS } from 'src/auth/permissions/permissions';
-import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
+import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
@@ -216,15 +216,26 @@ const normalizeScopeList = (...values) =>
 const normalizeScopeId = (value) => String(value ?? '').trim();
 
 const getScopeUserRoleId = (user = {}) => {
+  // Se incluye `user.rol`/`user.role` (cuando traen un codigo de rol valido) igual
+  // que en getUserRoleId/getOrgRoleId: algunas sesiones exponen el rol ahi y no en
+  // rolId, y sin esto el asistente no se reconoceria y quedaria como generico.
+  const rawRole = String(user?.rol || user?.role || '').trim().toLowerCase();
   const roleId = String(
-    user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || user?.memberRole || ''
+    user?.rolId ||
+      user?.roleId ||
+      user?.rolCodigo ||
+      user?.roleCodigo ||
+      user?.memberRole ||
+      (ROLES_POR_CODIGO[rawRole] ? rawRole : '')
   )
     .trim()
     .toLowerCase();
 
-  // El Coordinador Asistente de Destacamento comparte alcance y visibilidad al
-  // 100% con el Coordinador de Destacamento (titular). Se normaliza aqui para
-  // que todas las reglas de acceso a miembros lo traten exactamente igual.
+  // El Coordinador Asistente de Destacamento comparte alcance, permisos y flujo al
+  // 100% con el Coordinador de Destacamento (titular): edita miembros de forma
+  // DIRECTA (nunca por aprobacion). Se normaliza aqui para que todas las reglas de
+  // acceso —incluida isDestacamentoApprovalRole/isCoordinadorDestacamentoRole— lo
+  // traten exactamente igual que al titular.
   if (roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE) {
     return ROLES.USUARIO_DESTACAMENTO;
   }
@@ -235,11 +246,46 @@ const getScopeUserRoleId = (user = {}) => {
 const isSectionWideRole = (user = {}) =>
   [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
 
-// Los administradores de seccion y de region ven todos los niveles
-// organizacionales (regiones, secciones, destacamentos) y la lista completa de
-// miembros. El alcance solo limita lo que pueden EDITAR (ver org-level-access).
-const isOrgWideViewerRole = (user = {}) =>
-  [ROLES.USUARIO_SECCION, ROLES.USUARIO_REGION].includes(getScopeUserRoleId(user));
+// Ya ningún cargo ve la lista COMPLETA por ser "de nivel": los regionales ven su
+// región (isRegionScopedMemberViewer) y los seccionales su sección
+// (isSectionScopedMemberViewer). Los cargos nacional/global ven todo por la vía
+// del fallthrough (sin modo de alcance acotado), no por esta función.
+const isOrgWideViewerRole = () => false;
+
+// Cargos regionales que consultan miembros SOLO dentro de su región: Coordinador
+// Regional, Sub-Director Regional y los 4 coordinadores de área regional.
+const REGION_SCOPED_MEMBER_VIEW_ROLE_IDS = [
+  ROLES.USUARIO_REGION,
+  ROLES.USUARIO_REGION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_REGION,
+  ROLES.COORDINADOR_PROMOCION_REGION,
+  ROLES.COORDINADOR_PRODUCCION_REGION,
+  ROLES.COORDINADOR_PROGRAMA_REGION,
+  ROLES.CAPELLAN_REGIONAL,
+];
+
+export const isRegionScopedMemberViewer = (user = {}) =>
+  REGION_SCOPED_MEMBER_VIEW_ROLE_IDS.includes(getScopeUserRoleId(user));
+
+// Cargos seccionales que consultan miembros y destacamentos SOLO dentro de su
+// sección: Coordinador Seccional, Sub-Coordinador y los 4 coordinadores de área
+// seccional. (Siguen editando su sección; esto solo acota su VISIBILIDAD.)
+const SECTION_SCOPED_MEMBER_VIEW_ROLE_IDS = [
+  ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_SECCION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
+  ROLES.COORDINADOR_PROMOCION_SECCION,
+  ROLES.COORDINADOR_PRODUCCION_SECCION,
+  ROLES.COORDINADOR_PROGRAMA_SECCION,
+  // Cargos de consulta de nivel sección.
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.SECRETARIO_REGIONAL,
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
+];
+
+export const isSectionScopedMemberViewer = (user = {}) =>
+  SECTION_SCOPED_MEMBER_VIEW_ROLE_IDS.includes(getScopeUserRoleId(user));
 
 // Para el listado de miembros, el administrador de destacamento solo ve a los
 // miembros de su propio destacamento; el alcance seccional queda reservado al
@@ -437,8 +483,166 @@ export const canMemberManageMembers = (user) => {
   return Boolean(members.crear || members.editar || members.eliminar || members.subirFoto);
 };
 
+// --- Alcance regional para la lista de miembros ---
+
+const getScopeRegionIds = (scope = {}) =>
+  normalizeScopeList(scope?.regiones, scope?.regionId, scope?.idRegion).map(normalizeScopeId);
+
+const getSectionalOwnScopeId = (sectional = {}) =>
+  normalizeScopeId(
+    sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId ?? sectional?.seccionId
+  );
+
+const getSectionalRegionScopeId = (sectional = {}) =>
+  normalizeScopeId(sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId);
+
+// Deriva la(s) región(es) del propio usuario cuando su alcance no trae una región
+// explícita: primero una región/sección directa en su perfil, luego su sección o
+// su destacamento propios mapeados a región. Así un Coordinador Regional ve su
+// región de origen aunque el rol se le haya asignado sin fijar la región.
+const deriveOwnRegionIds = (user = {}, { dests = [], churches = [], sectionals = [] } = {}) => {
+  const direct = getScopeRegionIds({
+    regiones: user?.regiones,
+    regionId: user?.regionId ?? user?.idRegion,
+    idRegion: user?.idRegion,
+  });
+  if (direct.length) return direct;
+
+  const regionIds = new Set();
+
+  const addRegionFromSection = (sectionId) => {
+    const normalized = normalizeScopeId(sectionId);
+    if (!normalized) return;
+    const sectional = sectionals.find((s) => getSectionalOwnScopeId(s) === normalized);
+    const regionId = sectional ? getSectionalRegionScopeId(sectional) : '';
+    if (regionId) regionIds.add(regionId);
+  };
+
+  addRegionFromSection(
+    user?.seccionId ?? user?.idSeccion ?? user?.sectionalId ?? user?.sectionId
+  );
+
+  if (!regionIds.size) {
+    const ownDestId = normalizeScopeId(
+      user?.idDestacamento ?? user?.destId ?? user?.destamentoId
+    );
+    if (ownDestId) {
+      const dest = dests.find((d) => getDestIdCandidates(d).includes(ownDestId));
+      if (dest) addRegionFromSection(getDestSectionId(dest, churches));
+    }
+  }
+
+  return Array.from(regionIds);
+};
+
+// Deriva la(s) sección(es) del propio usuario cuando su alcance no trae una
+// sección explícita: primero una sección directa en su perfil, luego su
+// destacamento propio mapeado a sección. Así un Coordinador Seccional ve su
+// sección de origen aunque el rol se le haya asignado sin fijarla.
+const deriveOwnSectionIds = (user = {}, { dests = [], churches = [] } = {}) => {
+  const direct = getScopeSectionIds({
+    secciones: user?.secciones,
+    seccionId: user?.seccionId ?? user?.idSeccion,
+    idSeccion: user?.idSeccion,
+  });
+  if (direct.length) return direct;
+
+  const ownDestId = normalizeScopeId(user?.idDestacamento ?? user?.destId ?? user?.destamentoId);
+  if (ownDestId) {
+    const dest = dests.find((d) => getDestIdCandidates(d).includes(ownDestId));
+    const sectionId = dest ? normalizeScopeId(getDestSectionId(dest, churches)) : '';
+    if (sectionId) return [sectionId];
+  }
+
+  return [];
+};
+
+// Ids de las secciones que pertenecen a alguna de las regiones del alcance.
+const getSectionIdsInRegions = (sectionals = [], regionIds = new Set()) => {
+  const sectionIds = new Set();
+
+  if (!regionIds.size || !sectionals.length) {
+    return sectionIds;
+  }
+
+  sectionals.forEach((sectional) => {
+    if (regionIds.has(getSectionalRegionScopeId(sectional))) {
+      const sectionId = getSectionalOwnScopeId(sectional);
+      if (sectionId) sectionIds.add(sectionId);
+    }
+  });
+
+  return sectionIds;
+};
+
 export const filterMembersByMemberScope = (members = [], user, context = {}) => {
-  // Admin de seccion/region: ve la lista completa de miembros de todos los niveles.
+  // Cargos regionales: consulta acotada a los miembros de SU región. Un miembro
+  // entra si su región coincide, o su sección/destacamento pertenece a la región.
+  if (isRegionScopedMemberViewer(user)) {
+    const { dests = [], churches = [], sectionals = [] } = context;
+
+    // Región del alcance explícito; si no hay, se deriva de la propia membresía.
+    let regionIds = new Set(getScopeRegionIds(getMemberScope(user)));
+    if (!regionIds.size) {
+      regionIds = new Set(deriveOwnRegionIds(user, { dests, churches, sectionals }));
+    }
+
+    if (!regionIds.size) {
+      return [];
+    }
+
+    const sectionIds = getSectionIdsInRegions(sectionals, regionIds);
+    const allowedDestIds = getDestIdsInSections(dests, churches, sectionIds);
+
+    return members.filter((member) => {
+      const memberRegionId = normalizeScopeId(
+        member?.regionalId ?? member?.idRegion ?? member?.regionId
+      );
+      if (memberRegionId && regionIds.has(memberRegionId)) return true;
+
+      const memberSectionId = normalizeScopeId(
+        member?.sectionalId ?? member?.idSeccion ?? member?.seccionId ?? member?.sectionId
+      );
+      if (memberSectionId && sectionIds.has(memberSectionId)) return true;
+
+      const memberDestId = normalizeScopeId(
+        member?.idDestacamento ?? member?.destId ?? member?.destamentoId
+      );
+      return Boolean(memberDestId) && allowedDestIds.has(memberDestId);
+    });
+  }
+
+  // Cargos seccionales: consulta acotada a los miembros de SU sección (por sección
+  // directa del miembro, o por su destacamento dentro de la sección).
+  if (isSectionScopedMemberViewer(user)) {
+    const { dests = [], churches = [] } = context;
+
+    // Sección del alcance explícito; si no hay, se deriva de la propia membresía.
+    let sectionIds = new Set(getScopeSectionIds(getMemberScope(user)));
+    if (!sectionIds.size) {
+      sectionIds = new Set(deriveOwnSectionIds(user, { dests, churches }));
+    }
+
+    if (!sectionIds.size) {
+      return [];
+    }
+
+    const allowedDestIds = getDestIdsInSections(dests, churches, sectionIds);
+
+    return members.filter((member) => {
+      const memberSectionId = normalizeScopeId(
+        member?.sectionalId ?? member?.idSeccion ?? member?.seccionId ?? member?.sectionId
+      );
+      if (memberSectionId && sectionIds.has(memberSectionId)) return true;
+
+      const memberDestId = normalizeScopeId(
+        member?.idDestacamento ?? member?.destId ?? member?.destamentoId
+      );
+      return Boolean(memberDestId) && allowedDestIds.has(memberDestId);
+    });
+  }
+
+  // Cargos nacionales/globales: ven la lista completa (vía fallthrough).
   if (isOrgWideViewerRole(user)) {
     return members;
   }
@@ -489,7 +693,25 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
 };
 
 export const getMemberAllowedDestIds = (user, context = {}) => {
-  // Admin de seccion/region: ve todos los destacamentos (sin restriccion de alcance).
+  // Cargos seccionales: la lista de destacamentos se acota a su sección.
+  if (isSectionScopedMemberViewer(user)) {
+    const { dests = [], churches = [] } = context;
+
+    // Sin lista de destacamentos en el contexto no podemos acotar; no sobre-restringir.
+    if (!dests.length) return null;
+
+    let sectionIds = new Set(getScopeSectionIds(getMemberScope(user)));
+    if (!sectionIds.size) {
+      sectionIds = new Set(deriveOwnSectionIds(user, { dests, churches }));
+    }
+
+    if (!sectionIds.size) return null;
+
+    return getDestIdsInSections(dests, churches, sectionIds);
+  }
+
+  // Cargos nacionales/globales (y regionales, que ven toda la estructura): sin
+  // restricción de destacamentos.
   if (isOrgWideViewerRole(user)) {
     return null;
   }
@@ -733,11 +955,15 @@ export const filterSectionalsByMemberScope = (
     return sectionals.filter((sectional) => ownRegionIds.has(getSectionalRegionId(sectional)));
   }
 
-  // El administrador de destacamento puede consultar todas las secciones
-  // (solo lectura); los administradores de seccion y region tambien ven todas.
+  // El administrador de destacamento puede consultar todas las secciones (solo
+  // lectura); los cargos seccionales y regionales TAMBIÉN ven todas las secciones
+  // (su acotamiento es solo sobre miembros/destacamentos, no sobre la lista de
+  // secciones).
   if (
     getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO ||
-    isOrgWideViewerRole(user)
+    isOrgWideViewerRole(user) ||
+    isSectionScopedMemberViewer(user) ||
+    isRegionScopedMemberViewer(user)
   ) {
     return sectionals;
   }

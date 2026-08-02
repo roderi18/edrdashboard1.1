@@ -230,7 +230,11 @@ export function createAwardsActions({
       user,
     })
       .then(mergeSavedCertificate)
-      .catch(() => null);
+      .catch((error) => {
+        // No silenciar: si el guardado en Firebase falla, el certificado se
+        // perdería al refrescar. Se registra para poder diagnosticarlo.
+        console.error('[awards] no se pudo guardar el certificado en Firebase', error);
+      });
   };
 
   const deleteCertificate = () => {

@@ -20,15 +20,16 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import {
-  canEditSectional,
-  canDeleteOrgLevel,
-  canCreateSectionalInRegion,
-} from 'src/utils/org-level-access';
-import {
   getOwnSectionIdsForUser,
   isRegionWideSectionViewer,
   filterSectionalsByMemberScope,
 } from 'src/utils/member-access';
+import {
+  canEditSectional,
+  canDeleteOrgLevel,
+  isForeignSectionForMembers,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -198,7 +199,7 @@ export function SectionalListView() {
   // La region concreta se acota luego en el formulario/guardado.
   const canCreate =
     canCreateSectionalInRegion(user) || puedeModificar(user, PERMISOS.SECCIONES_CREAR);
-  // Eliminar: reservado a global/funcional.
+  // Eliminar: reservado exclusivamente al Administrador Global.
   const canDelete = canDeleteOrgLevel(user);
   const getRegionalNameByDest = (sectional) => {
     const regionals = getRegionals();
@@ -529,6 +530,10 @@ export function SectionalListView() {
                         editHref={paths.dashboard.level.sectional.edit(row.id)}
                         canManage={canEditSectional(user, row) && !isRowDisabled(row)}
                         canDelete={canDelete && !isRowDisabled(row)}
+                        lockMemberCount={isForeignSectionForMembers(user, {
+                          sectionId: row.id,
+                          regionId: row.regionalId,
+                        })}
                       />
                     )}
                     notFound={notFound}

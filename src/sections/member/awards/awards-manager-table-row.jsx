@@ -271,7 +271,8 @@ export function AwardsManagerTableRow({
           <Divider sx={{ borderStyle: 'dashed' }} />
         )}
 
-        {((isAcademiaSubFolder && hasAcademiaCertificate) ||
+        {!readOnly &&
+          ((isAcademiaSubFolder && hasAcademiaCertificate) ||
           (isSistemaAscensoDeepSubFolder && hasAscensoCertificate)) && (
           <MenuItem
             key="delete-cert"

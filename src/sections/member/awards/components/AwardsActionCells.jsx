@@ -155,6 +155,7 @@ export function AwardsActionCells({
           certificateFile={certificateFile}
           onUpload={(cert) => actions.uploadCertificate(cert)}
           onDelete={actions.deleteCertificate}
+          readOnly={readOnly}
         />
       </TableCell>
     </>

@@ -39,6 +39,7 @@ export function FileManagerFileItem({
   isGridView = false,
   onDelete,
   readOnly = false,
+  inlineDetails = false,
   sx,
   ...other
 }) {
@@ -192,6 +193,7 @@ export function FileManagerFileItem({
         <FileItemInfo
           type="file"
           title={file.name}
+          inlineDetails={inlineDetails}
           values={
             getCompletionGridLabel(file)
               ? [getCompletionGridLabel(file)]
@@ -200,7 +202,11 @@ export function FileManagerFileItem({
 
 
 
-          sx={{
+          sx={inlineDetails ? {
+            gap: 0,
+            '& .MuiTypography-root': { lineHeight: 1.15 },
+            '& .MuiStack-root': { gap: 0, lineHeight: 1.1 },
+          } : {
             gap: 0, // ✅ permitido
 
             // TÍTULO

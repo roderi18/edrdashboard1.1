@@ -21,7 +21,11 @@ import { RouterLink } from 'src/routes/components';
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { isRegionWideSectionViewer } from 'src/utils/member-access';
-import { canEditRegional, canDeleteOrgLevel } from 'src/utils/org-level-access';
+import {
+  canEditRegional,
+  canDeleteOrgLevel,
+  isForeignRegionForMembers,
+} from 'src/utils/org-level-access';
 
 import { _roles } from 'src/_mock';
 import { MEMBERS, REGIONALS } from 'src/_mock/assets';
@@ -116,6 +120,8 @@ const getMemberDestId = (member = {}) =>
 export function RegionalListView() {
   const { user } = useAuthContext();
   const canManage = canManageOrgLevels(user);
+  // Eliminar regiones: solo el Administrador Global.
+  const canDelete = canDeleteOrgLevel(user);
   // Cargos de solo lectura (p. ej. Lider de Grupo): los contadores de las
   // regionales se muestran deshabilitados (sin enlace y atenuados).
   const disabledCounts = isRegionWideSectionViewer(user);
@@ -376,7 +382,7 @@ export function RegionalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              {canManage && (
+              {canDelete && (
                 <TableSelectedAction
                   dense={table.dense}
                   numSelected={table.selected.length}
@@ -431,6 +437,7 @@ export function RegionalListView() {
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
                         disabledCounts={disabledCounts}
+                        lockMemberCount={isForeignRegionForMembers(user, { regionId: row.id })}
                       />
                     )}
                     notFound={notFound}

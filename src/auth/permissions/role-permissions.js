@@ -31,6 +31,28 @@ const COORDINADORES_AREA_REGION = [
   ROLES.COORDINADOR_PROGRAMA_REGION,
 ];
 
+// Cargos de nivel región. Todos comparten el perfil de consulta de solo lectura
+// del Consejo Nacional (Director Nacional): ven la estructura y los miembros
+// (adultos y menores) pero no editan nada. Su alcance regional (ALCANCES.REGION)
+// solo acota QUÉ miembros ven (los de su región), no lo que pueden hacer.
+const CARGOS_REGIONALES_PERFIL_DIRECTOR = [
+  ROLES.USUARIO_REGION,
+  ROLES.USUARIO_REGION_ASISTENTE,
+  ...COORDINADORES_AREA_REGION,
+  // Capellán Regional: consulta de solo lectura de nivel región.
+  ROLES.CAPELLAN_REGIONAL,
+];
+
+// Cargos de consulta de solo lectura de nivel sección (Capellán Seccional,
+// Secretario Regional, Zonas, Grupos Locales): mismo perfil que los coordinadores
+// de área seccional (ven adultos, menores enmascarados/restringidos, sin editar).
+const CARGOS_SECCIONALES_CONSULTA = [
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.SECRETARIO_REGIONAL,
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
+];
+
 // Coordinadores de area: solo consulta dentro de su alcance. No editan/crean/
 // eliminan niveles, no editan miembros, no ven datos sensibles ni menores.
 // Pueden ver (nunca editar) el Sistema de Ascenso y Padres.
@@ -42,21 +64,6 @@ const PERMISOS_COORDINADOR_AREA_SECCION = [
   PERMISOS.DOCUMENTOS_VER,
   PERMISOS.REPORTES_VER_LOCALES,
   PERMISOS.REPORTES_VER_SECCIONALES,
-  PERMISOS.TIENDA_VER,
-  PERMISOS.ASCENSO_VER,
-  PERMISOS.PADRES_VER,
-];
-
-const PERMISOS_COORDINADOR_AREA_REGION = [
-  PERMISOS.REGIONES_VER,
-  PERMISOS.SECCIONES_VER,
-  PERMISOS.DESTACAMENTOS_VER,
-  PERMISOS.MIEMBROS_VER,
-  PERMISOS.MIEMBROS_VER_ADULTOS,
-  PERMISOS.DOCUMENTOS_VER,
-  PERMISOS.REPORTES_VER_LOCALES,
-  PERMISOS.REPORTES_VER_SECCIONALES,
-  PERMISOS.REPORTES_VER_REGIONALES,
   PERMISOS.TIENDA_VER,
   PERMISOS.ASCENSO_VER,
   PERMISOS.PADRES_VER,
@@ -99,7 +106,7 @@ const PERMISOS_DIRECTOR_NACIONAL = [
 const RESTRICCIONES_DIRECTOR_NACIONAL = {
   ...RESTRICCIONES_BASE,
   soloLectura: true,
-  requierePermisoParaMenores: false,
+  requierePermisoParaMenores: true,
 };
 
 const fromCodes = (codes, value) => Object.fromEntries(codes.map((code) => [code, value]));
@@ -120,18 +127,6 @@ const PERMISOS_SALUD_COMPLETO = [
 ];
 const PERMISOS_ASCENSO_EDITOR = [PERMISOS.ASCENSO_VER, PERMISOS.ASCENSO_EDITAR];
 const PERMISOS_PADRES_EDITOR = [PERMISOS.PADRES_VER, PERMISOS.PADRES_EDITAR];
-// Supervisión de Seccion/Region: ven y gestionan salud, ascenso y padres de los
-// miembros bajo su alcance (no son cargos en flujo de aprobacion).
-const PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION = [
-  PERMISOS.SALUD_VER,
-  PERMISOS.SALUD_EDITAR,
-  PERMISOS.SALUD_SUBIR_DOCUMENTOS,
-  PERMISOS.SALUD_ELIMINAR_DOCUMENTOS,
-  PERMISOS.ASCENSO_VER,
-  PERMISOS.ASCENSO_EDITAR,
-  PERMISOS.PADRES_VER,
-  PERMISOS.PADRES_EDITAR,
-];
 // Coordinador/Sub-Coordinador Seccional: consultan salud, ascenso y padres de su
 // alcance pero NO editan (solo lectura).
 const PERMISOS_SALUD_ASCENSO_PADRES_LECTURA = [
@@ -255,18 +250,15 @@ export const RESTRICCIONES_ROL = {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
   },
-  [ROLES.USUARIO_REGION]: {
-    ...RESTRICCIONES_BASE,
-    requierePermisoParaMenores: true,
-  },
-  [ROLES.USUARIO_REGION_ASISTENTE]: {
-    ...RESTRICCIONES_BASE,
-    requierePermisoParaMenores: true,
-  },
-  ...fromCodes(
-    [...COORDINADORES_AREA_SECCION, ...COORDINADORES_AREA_REGION],
-    RESTRICCIONES_COORDINADOR_AREA
-  ),
+  ...fromCodes(COORDINADORES_AREA_SECCION, RESTRICCIONES_COORDINADOR_AREA),
+  // Cargos seccionales de consulta: como el de área pero explícitamente solo
+  // lectura (el .NET rechaza sus escrituras vía el claim soloLectura).
+  ...fromCodes(CARGOS_SECCIONALES_CONSULTA, {
+    ...RESTRICCIONES_COORDINADOR_AREA,
+    soloLectura: true,
+  }),
+  // Cargos regionales: perfil de consulta de solo lectura del Consejo Nacional.
+  ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, RESTRICCIONES_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_NACIONAL]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
@@ -302,6 +294,8 @@ export const ALCANCE_PREDETERMINADO_ROL = {
   [ROLES.USUARIO_REGION_ASISTENTE]: ALCANCES.REGION,
   ...fromCodes(COORDINADORES_AREA_SECCION, ALCANCES.SECCION),
   ...fromCodes(COORDINADORES_AREA_REGION, ALCANCES.REGION),
+  ...fromCodes(CARGOS_SECCIONALES_CONSULTA, ALCANCES.SECCION),
+  [ROLES.CAPELLAN_REGIONAL]: ALCANCES.REGION,
   [ROLES.CONSEJO_NACIONAL]: ALCANCES.NACIONAL,
   ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, ALCANCES.NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: ALCANCES.NACIONAL,
@@ -437,48 +431,14 @@ export const PERMISOS_POR_ROL = {
     // Dispensa Médica, Sistema de Ascenso y Padres: solo lectura (no editan).
     ...PERMISOS_SALUD_ASCENSO_PADRES_LECTURA,
   ],
-  [ROLES.USUARIO_REGION]: [
-    PERMISOS.REGIONES_VER,
-    PERMISOS.REGIONES_EDITAR,
-    PERMISOS.SECCIONES_VER,
-    PERMISOS.SECCIONES_CREAR,
-    PERMISOS.SECCIONES_EDITAR,
-    PERMISOS.DESTACAMENTOS_VER,
-    PERMISOS.DESTACAMENTOS_EDITAR,
-    PERMISOS.DESTACAMENTOS_SUBIR_FOTO,
-    // Puede ver la lista completa de miembros de todos los niveles, sin editar.
-    PERMISOS.MIEMBROS_VER,
-    PERMISOS.MIEMBROS_VER_ADULTOS,
-    PERMISOS.DOCUMENTOS_VER,
-    PERMISOS.REPORTES_VER_LOCALES,
-    PERMISOS.REPORTES_VER_SECCIONALES,
-    PERMISOS.REPORTES_VER_REGIONALES,
-    PERMISOS.TIENDA_VER,
-    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
-    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
-  ],
-  // Sub-Director Regional: apoyo del titular. Crea/edita secciones y edita
-  // destacamentos de su region, pero NO edita la region misma.
-  [ROLES.USUARIO_REGION_ASISTENTE]: [
-    PERMISOS.REGIONES_VER,
-    PERMISOS.SECCIONES_VER,
-    PERMISOS.SECCIONES_CREAR,
-    PERMISOS.SECCIONES_EDITAR,
-    PERMISOS.DESTACAMENTOS_VER,
-    PERMISOS.DESTACAMENTOS_EDITAR,
-    PERMISOS.DESTACAMENTOS_SUBIR_FOTO,
-    PERMISOS.MIEMBROS_VER,
-    PERMISOS.MIEMBROS_VER_ADULTOS,
-    PERMISOS.DOCUMENTOS_VER,
-    PERMISOS.REPORTES_VER_LOCALES,
-    PERMISOS.REPORTES_VER_SECCIONALES,
-    PERMISOS.REPORTES_VER_REGIONALES,
-    PERMISOS.TIENDA_VER,
-    // Dispensa Médica, Sistema de Ascenso y Padres (supervisión de su alcance).
-    ...PERMISOS_SALUD_ASCENSO_PADRES_SUPERVISION,
-  ],
   ...fromCodes(COORDINADORES_AREA_SECCION, PERMISOS_COORDINADOR_AREA_SECCION),
-  ...fromCodes(COORDINADORES_AREA_REGION, PERMISOS_COORDINADOR_AREA_REGION),
+  ...fromCodes(CARGOS_SECCIONALES_CONSULTA, PERMISOS_COORDINADOR_AREA_SECCION),
+  // Cargos regionales (Coordinador/Sub-Director Regional y coordinadores de área
+  // regional): mismo perfil de consulta de solo lectura del Consejo Nacional
+  // (Director Nacional). Ven la estructura y los miembros (adultos y menores) pero
+  // no editan nada; su alcance regional solo acota qué miembros ven (los de su
+  // región), lo que aplican los filtros de lista en member-access.js.
+  ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, PERMISOS_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_NACIONAL]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,

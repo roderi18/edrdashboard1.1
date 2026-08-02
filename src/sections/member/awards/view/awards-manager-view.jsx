@@ -575,6 +575,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
             onSelect={() => {}}
             onDelete={() => {}}
             readOnly={readOnly}
+            inlineDetails={displayMode === 'list'}
           />
         );
       })}

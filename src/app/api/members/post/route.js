@@ -75,12 +75,13 @@ const getCreatedMemberId = (payload) =>
   payload?.member?.idMiembros ||
   payload?.miembro?.idMiembros;
 
-const findCreatedMember = async ({ codigoMiembro, createdMemberId }) => {
+const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = '' }) => {
   const membersRes = await fetch(`${GET_ALL_ENDPOINT}?t=${Date.now()}`, {
     cache: 'no-store',
     headers: {
       Accept: 'application/json',
       'Cache-Control': 'no-cache',
+      ...(authHeader ? { Authorization: authHeader } : {}),
     },
   });
 
@@ -96,7 +97,7 @@ const findCreatedMember = async ({ codigoMiembro, createdMemberId }) => {
   );
 };
 
-const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload }) => {
+const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload, authHeader = '' }) => {
   try {
     const divisionId = toPositiveNumberOrNull(memberPayload.idDivision);
 
@@ -105,6 +106,7 @@ const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload }) =
     const createdMember = await findCreatedMember({
       codigoMiembro: memberPayload.codigoMiembro,
       createdMemberId: getCreatedMemberId(responsePayload),
+      authHeader,
     });
 
     if (!createdMember?.idMiembros || toPositiveNumberOrNull(createdMember.idDivision)) return;
@@ -114,6 +116,7 @@ const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload }) =
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: JSON.stringify({
         idMiembros: Number(createdMember.idMiembros),
@@ -150,6 +153,7 @@ const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload }) =
 
 export async function POST(req) {
   try {
+    const authHeader = req.headers.get('authorization') || '';
     const body = await req.json();
     const divisions = await getDivisions();
     const divisionId = resolveDivisionId(body, divisions);
@@ -191,6 +195,7 @@ export async function POST(req) {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
 
       body: JSON.stringify(memberPayload),
@@ -200,7 +205,7 @@ export async function POST(req) {
     const responsePayload = parseResponseText(text);
 
     if (res.ok) {
-      await ensureCreatedMemberDivision({ responsePayload, memberPayload });
+      await ensureCreatedMemberDivision({ responsePayload, memberPayload, authHeader });
     }
 
     invalidateUpstream(UPSTREAM_KEYS.miembros);

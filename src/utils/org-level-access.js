@@ -34,6 +34,11 @@ export const getOrgRoleId = (user = {}) => {
 
 export const isGlobalOrgManager = (user = {}) => GLOBAL_MANAGER_ROLES.includes(getOrgRoleId(user));
 
+// Solo el Administrador Global. Es el unico rol autorizado a ELIMINAR entidades
+// (miembros, destacamentos, secciones, regiones y consejo nacional). Ningun otro
+// rol —ni siquiera el Administrador Funcional— puede eliminar.
+export const isAdminGlobal = (user = {}) => getOrgRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL;
+
 // Roles cuyo alcance limita lo que pueden editar. Incluye a los coordinadores de
 // area (solo consulta) para que nunca se traten como administradores plenos.
 const SCOPED_ORG_ROLES = [
@@ -58,12 +63,23 @@ const SCOPED_ORG_ROLES = [
   ROLES.COORDINADOR_PROMOCION_REGION,
   ROLES.COORDINADOR_PRODUCCION_REGION,
   ROLES.COORDINADOR_PROGRAMA_REGION,
+  // Cargos de consulta de solo lectura: nunca administradores plenos.
+  ROLES.CAPELLAN_REGIONAL,
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.SECRETARIO_REGIONAL,
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
 ];
 
 // Alias de alcance: cada asistente comparte el alcance de su titular. Los
 // permisos concretos (que difieren) se controlan en PERMISOS_POR_ROL; aqui solo
 // se decide el "propio vs ajeno" segun el nivel.
-const REGION_SCOPED_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENTE];
+//
+// Los cargos regionales pasaron a consulta de solo lectura (perfil del Consejo
+// Nacional): ya NO editan ni crean regiones/secciones/destacamentos. Se deja
+// vacio para que ningun predicado de edicion los trate como gestores; su alcance
+// regional solo acota que MIEMBROS ven (ver member-access.js).
+const REGION_SCOPED_ROLES = [];
 const SECTION_SCOPED_ROLES = [ROLES.USUARIO_SECCION, ROLES.USUARIO_SECCION_ASISTENTE];
 const DEST_SCOPED_ROLES = [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_DESTACAMENTO_ASISTENTE];
 
@@ -123,7 +139,7 @@ export const getSectionScopeIds = (user = {}) => {
   );
 };
 
-const getDestScopeIds = (user = {}) => {
+export const getDestScopeIds = (user = {}) => {
   const scope = getScope(user);
 
   return toIdSet(
@@ -136,9 +152,6 @@ const getDestScopeIds = (user = {}) => {
 };
 
 // --- Lectura de ids desde las filas/entidades ---
-
-const getRegionalOwnId = (regional = {}) =>
-  normalizeId(regional?.idRegion ?? regional?.id ?? regional?.regionId ?? regional?.regionalId);
 
 const getSectionalOwnId = (sectional = {}) =>
   normalizeId(sectional?.idSeccion ?? sectional?.id ?? sectional?.sectionalId);
@@ -159,13 +172,10 @@ const getDestOwnId = (dest = {}) =>
 // Edicion por entidad
 // ----------------------------------------------------------------------
 
-export const canEditRegional = (user = {}, regional = {}) => {
+export const canEditRegional = (user = {}) => {
+  // Editar regiones queda reservado a los administradores global/funcional. Los
+  // cargos regionales pasaron a consulta de solo lectura.
   if (isGlobalOrgManager(user)) return true;
-
-  if (getOrgRoleId(user) === ROLES.USUARIO_REGION) {
-    const regionId = getRegionalOwnId(regional);
-    return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
-  }
 
   return false;
 };
@@ -263,7 +273,38 @@ export const canAssignSectionalToRegion = (user = {}, regionId = null) => {
 };
 
 // ----------------------------------------------------------------------
-// Eliminacion: reservada a los administradores global/funcional.
+// Eliminacion: reservada EXCLUSIVAMENTE al Administrador Global. Ningun otro
+// rol puede eliminar niveles ni entidades.
 // ----------------------------------------------------------------------
 
-export const canDeleteOrgLevel = (user = {}) => isGlobalOrgManager(user);
+export const canDeleteOrgLevel = (user = {}) => isAdminGlobal(user);
+
+// ----------------------------------------------------------------------
+// Contadores de miembros en las listas de niveles (regiones/secciones/
+// destacamentos): un usuario ACOTADO no puede entrar a la lista de miembros de
+// entidades AJENAS a su alcance, por lo que su contador de miembros se muestra
+// como texto (sin enlace). La pertenencia cae en CASCADA hacia abajo: quien tiene
+// una region "posee" sus secciones y destacamentos; quien tiene una seccion
+// "posee" sus destacamentos. Los supervisores plenos (admin global/funcional,
+// consejo nacional y sesiones admin legadas) nunca tienen restriccion.
+// ----------------------------------------------------------------------
+
+export const isUnrestrictedOrgViewer = (user = {}) => isFullOrgManager(user);
+
+export const isForeignRegionForMembers = (user = {}, { regionId } = {}) => {
+  if (isUnrestrictedOrgViewer(user)) return false;
+  return !getRegionScopeIds(user).has(normalizeId(regionId));
+};
+
+export const isForeignSectionForMembers = (user = {}, { sectionId, regionId } = {}) => {
+  if (isUnrestrictedOrgViewer(user)) return false;
+  if (getRegionScopeIds(user).has(normalizeId(regionId))) return false;
+  return !getSectionScopeIds(user).has(normalizeId(sectionId));
+};
+
+export const isForeignDestForMembers = (user = {}, { destId, sectionId, regionId } = {}) => {
+  if (isUnrestrictedOrgViewer(user)) return false;
+  if (getRegionScopeIds(user).has(normalizeId(regionId))) return false;
+  if (getSectionScopeIds(user).has(normalizeId(sectionId))) return false;
+  return !getDestScopeIds(user).has(normalizeId(destId));
+};

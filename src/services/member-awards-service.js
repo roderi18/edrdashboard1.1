@@ -419,9 +419,12 @@ export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => 
   progressList.forEach((progress) => {
     const system = progress.sistema === 'sistemaAscenso' ? 'sistemaAscenso' : 'academia';
     const itemId = progress.idItemAscenso;
-    const groupId = progress.idGrupo;
+    // idGrupo/idDivision pueden faltar según cómo se resolvió el contexto al
+    // guardar; no descartamos el progreso por eso (se usa '' como clave estable y
+    // la lectura tiene un respaldo por idItemAscenso). Solo el itemId es obligatorio.
+    const groupId = progress.idGrupo || '';
 
-    if (!itemId || !groupId) return;
+    if (!itemId) return;
 
     const node = {
       status: progress.estado || 'no_iniciado',
@@ -432,8 +435,7 @@ export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => 
     };
 
     if (system === 'sistemaAscenso') {
-      const divisionId = progress.idDivision;
-      if (!divisionId) return;
+      const divisionId = progress.idDivision || '';
 
       status.sistemaAscenso ??= {};
       status.sistemaAscenso[divisionId] ??= {};

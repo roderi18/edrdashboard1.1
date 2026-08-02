@@ -62,6 +62,9 @@ export async function fetchUpstreamText(key, url, { ttlMs = DEFAULT_TTL_MS, init
   }
 }
 
+// Invalida por PREFIJO: `invalidateUpstream('somee:miembros')` borra tanto la
+// clave base como todas las variantes por usuario `somee:miembros:<hash>` (ver
+// buildScopedUpstreamKey). Así una mutación limpia el caché de todos los alcances.
 export function invalidateUpstream(...keys) {
   const store = getStore();
 
@@ -70,5 +73,31 @@ export function invalidateUpstream(...keys) {
     return;
   }
 
-  keys.forEach((key) => store.delete(key));
+  keys.forEach((prefix) => {
+    for (const key of store.keys()) {
+      if (key === prefix || key.startsWith(`${prefix}:`)) {
+        store.delete(key);
+      }
+    }
+  });
+}
+
+// Construye una clave de caché por-alcance a partir del token del llamante: el
+// mismo usuario reutiliza su entrada; usuarios distintos nunca comparten caché
+// (evita fugas de datos cuando el upstream filtra por identidad). Sin token usa
+// una partición 'anon' separada.
+export function buildScopedUpstreamKey(baseKey, authorizationHeader = '') {
+  const token = String(authorizationHeader || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+
+  if (!token) return `${baseKey}:anon`;
+
+  // Hash corto y estable del token (no se guarda el token en claro).
+  let hash = 0;
+  for (let i = 0; i < token.length; i += 1) {
+    hash = (hash * 31 + token.charCodeAt(i)) % 2147483647;
+  }
+
+  return `${baseKey}:${hash.toString(36)}`;
 }

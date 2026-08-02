@@ -125,10 +125,10 @@ export function ProductListView() {
 
   const mobileData = mobileSearch.trim()
     ? dataFiltered.filter((product) =>
-        String(product.name || '')
-          .toLowerCase()
-          .includes(mobileSearch.trim().toLowerCase())
-      )
+      String(product.name || '')
+        .toLowerCase()
+        .includes(mobileSearch.trim().toLowerCase())
+    )
     : dataFiltered;
 
   const handleDeleteRow = useCallback(async (id) => {
@@ -284,21 +284,21 @@ export function ProductListView() {
                   },
                   ...(!isMemberUser
                     ? [
-                        {
-                          key: 'renglon',
-                          label: 'Renglón',
-                          value: filters.state.renglon,
-                          onChange: (event) => filters.setState({ renglon: event.target.value }),
-                          options: PRODUCT_RENGLON_OPTIONS,
-                        },
-                        {
-                          key: 'publish',
-                          label: 'Publicación',
-                          value: filters.state.publish,
-                          onChange: (event) => filters.setState({ publish: event.target.value }),
-                          options: PUBLISH_OPTIONS,
-                        },
-                      ]
+                      {
+                        key: 'renglon',
+                        label: 'Renglón',
+                        value: filters.state.renglon,
+                        onChange: (event) => filters.setState({ renglon: event.target.value }),
+                        options: PRODUCT_RENGLON_OPTIONS,
+                      },
+                      {
+                        key: 'publish',
+                        label: 'Publicación',
+                        value: filters.state.publish,
+                        onChange: (event) => filters.setState({ publish: event.target.value }),
+                        options: PUBLISH_OPTIONS,
+                      },
+                    ]
                     : []),
                 ]}
               />
@@ -346,68 +346,68 @@ export function ProductListView() {
             )}
           </>
         ) : (
-        <Card
-          sx={{
-            minHeight: 640,
-            flexGrow: { md: 1 },
-            display: { md: 'flex' },
-            height: { xs: 800, md: '1px' },
-            flexDirection: { md: 'column' },
-          }}
-        >
-          <DataGrid
-            {...toolbarOptions.settings}
-            checkboxSelection
-            disableRowSelectionOnClick
-            rows={dataFiltered}
-            columns={columns}
-            loading={productsLoading}
-            localeText={esES.components.MuiDataGrid.defaultProps.localeText}
-            getRowHeight={() => 'auto'}
-            pageSizeOptions={[5, 10, 20, { value: -1, label: 'Todos' }]}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-            columnVisibilityModel={columnVisibilityModel}
-            onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
-            onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
-            slots={{
-              noRowsOverlay: () => <EmptyContent />,
-              noResultsOverlay: () => <EmptyContent title="No se encontraron resultados" />,
-              toolbar: () => (
-                <ProductTableToolbar
-                  filters={filters}
-                  canReset={canReset}
-                  filteredResults={dataFiltered.length}
-                  selectedRowCount={selectedRows.ids.size}
-                  onOpenConfirmDeleteRows={confirmDialog.onTrue}
-                  options={{
-                    stocks: PRODUCT_STOCK_OPTIONS,
-                    publishs: PUBLISH_OPTIONS,
-                    renglones: PRODUCT_RENGLON_OPTIONS,
-                  }}
-                  isMemberUser={isMemberUser}
-                  canManageStore={canManageStore}
-                  /********/
-                  settings={toolbarOptions.settings}
-                  onChangeSettings={toolbarOptions.onChangeSettings}
-                />
-              ),
-            }}
-            slotProps={{
-              columnsManagement: {
-                getTogglableColumns: () =>
-                  columns
-                    .filter((col) => !HIDE_COLUMNS_TOGGLABLE.includes(col.field))
-                    .map((col) => col.field),
-              },
-            }}
+          <Card
             sx={{
-              [`& .${gridClasses.cell}`]: {
-                display: 'flex',
-                alignItems: 'center',
-              },
+              minHeight: 640,
+              flexGrow: { md: 1 },
+              display: { md: 'flex' },
+              height: { xs: 800, md: '1px' },
+              flexDirection: { md: 'column' },
             }}
-          />
-        </Card>
+          >
+            <DataGrid
+              {...toolbarOptions.settings}
+              checkboxSelection
+              disableRowSelectionOnClick
+              rows={dataFiltered}
+              columns={columns}
+              loading={productsLoading}
+              localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+              getRowHeight={() => 'auto'}
+              pageSizeOptions={[5, 10, 20, { value: -1, label: 'Todos' }]}
+              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+              columnVisibilityModel={columnVisibilityModel}
+              onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
+              onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
+              slots={{
+                noRowsOverlay: () => <EmptyContent />,
+                noResultsOverlay: () => <EmptyContent title="No se encontraron resultados" />,
+                toolbar: () => (
+                  <ProductTableToolbar
+                    filters={filters}
+                    canReset={canReset}
+                    filteredResults={dataFiltered.length}
+                    selectedRowCount={selectedRows.ids.size}
+                    onOpenConfirmDeleteRows={confirmDialog.onTrue}
+                    options={{
+                      stocks: PRODUCT_STOCK_OPTIONS,
+                      publishs: PUBLISH_OPTIONS,
+                      renglones: PRODUCT_RENGLON_OPTIONS,
+                    }}
+                    isMemberUser={isMemberUser}
+                    canManageStore={canManageStore}
+                    /********/
+                    settings={toolbarOptions.settings}
+                    onChangeSettings={toolbarOptions.onChangeSettings}
+                  />
+                ),
+              }}
+              slotProps={{
+                columnsManagement: {
+                  getTogglableColumns: () =>
+                    columns
+                      .filter((col) => !HIDE_COLUMNS_TOGGLABLE.includes(col.field))
+                      .map((col) => col.field),
+                },
+              }}
+              sx={{
+                [`& .${gridClasses.cell}`]: {
+                  display: 'flex',
+                  alignItems: 'center',
+                },
+              }}
+            />
+          </Card>
         )}
       </DashboardContent>
 
@@ -461,10 +461,10 @@ const useGetColumns = ({
       },
       {
         field: 'precioNoRegistrado',
-        headerName: 'Precio Dests. NO Registrados',
+        headerName: 'Precio Dests. Sin registross',
         width: 155,
         editable: canManageStore,
-        renderHeader: () => renderTwoLineHeader('Precio Dests.', 'NO Registrados'),
+        renderHeader: () => renderTwoLineHeader('Precio Dests.', 'Sin registross'),
         renderCell: (params) => <RenderCellPrice params={params} />,
       },
       ...(isMemberUser

@@ -48,12 +48,13 @@ const parseResponseText = (text) => {
     }
 };
 
-const getMemberFromApi = async (memberId) => {
+const getMemberFromApi = async (memberId, authHeader = '') => {
     const membersRes = await fetch(`${GET_ALL_ENDPOINT}?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
             Accept: 'application/json',
             'Cache-Control': 'no-cache',
+            ...(authHeader ? { Authorization: authHeader } : {}),
         },
     });
 
@@ -66,6 +67,7 @@ const getMemberFromApi = async (memberId) => {
 
 export async function PUT(req) {
     try {
+        const authHeader = req.headers.get('authorization') || '';
         const body = await req.json();
         const payload = buildMemberPayload(body);
 
@@ -74,6 +76,7 @@ export async function PUT(req) {
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
+                ...(authHeader ? { Authorization: authHeader } : {}),
             },
             body: JSON.stringify(payload),
         });
@@ -101,7 +104,7 @@ export async function PUT(req) {
             );
         }
 
-        const updatedMember = await getMemberFromApi(payload.idMiembros);
+        const updatedMember = await getMemberFromApi(payload.idMiembros, authHeader);
         const persisted =
             !!updatedMember &&
             normalize(updatedMember.nombres) === normalize(payload.nombres) &&

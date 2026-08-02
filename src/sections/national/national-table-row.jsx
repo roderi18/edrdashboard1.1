@@ -34,6 +34,7 @@ export function NationalTableRow({
   onSelectRow,
   onDeleteRow,
   canManage = true,
+  canDelete = true,
 }) {
   const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const storedMembers = getStorageCollection('members') || [];
@@ -95,9 +96,9 @@ export function NationalTableRow({
 
       <CompactEntityRowActions
         canManage={canManage}
-        allowDelete={!row.isLocalhostTest}
+        allowDelete={canDelete && !row.isLocalhostTest}
         editHref={editHref}
-        onDelete={onDeleteRow}
+        onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={NationalQuickEditForm}
         quickEditProps={{ currentNational: row }}
         deleteContent="¿Seguro que deseas eliminar este registro?"

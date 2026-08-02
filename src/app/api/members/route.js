@@ -1,5 +1,10 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
-import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
+import {
+  UPSTREAM_KEYS,
+  fetchUpstreamText,
+  invalidateUpstream,
+  buildScopedUpstreamKey,
+} from 'src/utils/upstream-cache';
 
 import { getDivisions } from 'src/services/division-service';
 
@@ -58,12 +63,21 @@ const withCalculatedDivision = (member, divisions) => {
   };
 };
 
-export async function GET() {
+export async function GET(req) {
   try {
+    // Reenviar la identidad del llamante al upstream para que autorice/filtre por
+    // alcance (ver contrato en docs/seguridad-miembros-por-region.md). El caché se
+    // particiona por token para no compartir resultados filtrados entre usuarios.
+    const authHeader = req.headers.get('authorization') || '';
+    const cacheKey = buildScopedUpstreamKey(UPSTREAM_KEYS.miembros, authHeader);
+
     const [upstream, divisions] = await Promise.all([
       fetchUpstreamText(
-        UPSTREAM_KEYS.miembros,
-        'https://systexploradores.somee.com/api/Miembros/GetAllMiembros'
+        cacheKey,
+        'https://systexploradores.somee.com/api/Miembros/GetAllMiembros',
+        authHeader
+          ? { init: { headers: { Authorization: authHeader, Accept: 'application/json' } } }
+          : undefined
       ),
       getDivisions(),
     ]);
@@ -108,11 +122,15 @@ export async function DELETE(req) {
       return Response.json({ error: 'id es requerido' }, { status: 400 });
     }
 
+    const authHeader = req.headers.get('authorization') || '';
     const res = await fetch(
       `https://systexploradores.somee.com/api/Miembros/DeleteMiembro?id=${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
-        headers: { Accept: 'application/json, text/plain, */*' },
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
       }
     );
 

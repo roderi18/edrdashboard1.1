@@ -10,7 +10,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES_CATALOGO } from './roles';
 import { crearDefinicionRol } from './role-permissions';
@@ -167,6 +167,47 @@ export async function guardarAsignacionRolUsuario({
   });
 
   return payload;
+}
+
+// Actualiza los custom claims de autorización (rol + alcance) del usuario objetivo
+// llamando al endpoint server-side protegido. Debe invocarse después de guardar la
+// asignación de rol. Si el objetivo es el propio usuario, refresca su token para
+// que los nuevos claims tomen efecto de inmediato.
+export async function actualizarClaimsAutorizacion({ uidUsuario, correo = '' } = {}) {
+  if (!AUTH?.currentUser) {
+    return { ok: false, omitido: 'sin sesión activa' };
+  }
+
+  const token = await AUTH.currentUser.getIdToken();
+
+  const res = await fetch('/api/admin/set-user-claims', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ uidUsuario, correo }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  // Degradación silenciosa: mientras el backend de claims aún no está configurado
+  // (sin service account → 503), no es un error real que deba alertar al usuario.
+  // La asignación de rol ya se guardó; los claims se sincronizarán cuando el
+  // servidor esté listo (o vía el backfill).
+  if (res.status === 503) {
+    return { ok: false, omitido: 'backend de claims no configurado' };
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || 'No se pudieron actualizar los permisos de acceso.');
+  }
+
+  if (data?.uid && AUTH.currentUser && data.uid === AUTH.currentUser.uid) {
+    await AUTH.currentUser.getIdToken(true);
+  }
+
+  return data;
 }
 
 export async function guardarPermisosDirectosUsuario({

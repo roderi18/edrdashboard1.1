@@ -2,7 +2,21 @@ import dayjs from 'dayjs';
 
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
+import { AUTH } from 'src/lib/firebase';
+
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
+// Cabecera de identidad: adjunta el ID token de Firebase para que el proxy /api
+// lo reenvíe al backend, que autoriza/filtra por alcance. Sin sesión, no agrega
+// nada (el backend responderá 401 cuando exija identidad).
+async function authHeaders(extra = {}) {
+  try {
+    const token = AUTH?.currentUser ? await AUTH.currentUser.getIdToken() : '';
+    return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+  } catch {
+    return { ...extra };
+  }
+}
 
 // ------------------------------------------------------------
 // STORAGE KEYS
@@ -181,7 +195,7 @@ export function invalidateMembersCache() {
 
 async function fetchMembersFresh() {
   try {
-    const res = await fetch('/api/members');
+    const res = await fetch('/api/members', { headers: await authHeaders() });
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -192,11 +206,15 @@ async function fetchMembersFresh() {
 
     const data = response.data || response.Data || response.items || response;
     const apiMembers = Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
-    const mergedMembers = mergeMembersById(apiMembers, getCachedMembers());
+    // El servidor es autoritativo: puede filtrar por alcance del usuario, así que
+    // NO fusionamos con el localStorage previo (arrastraría miembros fuera de
+    // alcance de una sesión anterior). El espejo local queda acotado a lo que el
+    // servidor devolvió para este usuario.
+    const scopedMembers = mergeMembersById(apiMembers);
 
-    setStorageCollection(MEMBERS_KEY, mergedMembers);
+    setStorageCollection(MEMBERS_KEY, scopedMembers);
 
-    return mergedMembers;
+    return scopedMembers;
   } catch (error) {
     console.error('ERROR FETCH ERROR:', error);
     // No dejar cacheado el fallback: la proxima llamada reintenta el fetch.
@@ -236,9 +254,7 @@ const getMemberDisplayName = (member = {}) =>
 export async function createMemberApi(payload, { usuario } = {}) {
   const res = await fetch('/api/members/post', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
 
@@ -273,9 +289,7 @@ export async function createMemberApi(payload, { usuario } = {}) {
 export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
   const res = await fetch('/api/members/put', {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
 
@@ -316,6 +330,7 @@ export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
 export async function deleteMember(memberId, { usuario, antes = null } = {}) {
   const res = await fetch(`/api/members?id=${encodeURIComponent(memberId)}`, {
     method: 'DELETE',
+    headers: await authHeaders(),
   });
   const text = await res.text();
 

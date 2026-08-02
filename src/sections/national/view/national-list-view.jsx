@@ -18,6 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getStorageCollection } from 'src/utils/storage-service';
 import { resolveRegionalFromMember } from 'src/utils/resolve-regional-from-member';
@@ -99,6 +100,8 @@ export function NationalListView() {
 
   const { user } = useAuthContext();
   const canManage = canManageOrgLevels(user);
+  // Eliminar registros del consejo nacional: solo el Administrador Global.
+  const canDelete = canDeleteOrgLevel(user);
 
   const table = useTable();
 
@@ -304,7 +307,7 @@ export function NationalListView() {
 
           {displayMode === 'panel' && (
             <Box sx={{ position: 'relative' }}>
-              {canManage && (
+              {canDelete && (
                 <TableSelectedAction
                   dense={table.dense}
                   numSelected={table.selected.length}
@@ -357,6 +360,7 @@ export function NationalListView() {
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.national.edit(row.id)}
                         canManage={canManage}
+                        canDelete={canDelete}
                       />
                     )}
                     notFound={notFound}

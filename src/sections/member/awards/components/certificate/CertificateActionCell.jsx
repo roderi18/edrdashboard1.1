@@ -1,5 +1,6 @@
-import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+
 import { Iconify } from 'src/components/iconify';
 
 export function CertificateActionCell({
@@ -10,6 +11,7 @@ export function CertificateActionCell({
     onUpload,
     onView,
     inputId,
+    readOnly = false,
 }) {
     if (!isCompleted) {
         return (
@@ -17,6 +19,12 @@ export function CertificateActionCell({
                 N/A
             </Button>
         );
+    }
+
+    // Solo lectura (p. ej. Director Nacional / Consejo Nacional): puede VER el
+    // certificado si existe, pero no puede subirlo.
+    if (readOnly && !hasCertificate) {
+        return null;
     }
 
     if (isCompleted && !hasCertificate) {

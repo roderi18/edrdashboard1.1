@@ -24,6 +24,7 @@ export function SectionalTableRow({
   canManage = true,
   canDelete = true,
   disabled = false,
+  lockMemberCount = false,
 }) {
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
@@ -88,7 +89,20 @@ export function SectionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {renderCount(totalMembers, `/dashboard/level/member?sectional=${row.id}`)}
+          {disabled || lockMemberCount ? (
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              {totalMembers}
+            </Box>
+          ) : (
+            <Link
+              component={RouterLink}
+              href={`/dashboard/level/member?sectional=${row.id}`}
+              color="inherit"
+              underline="always"
+            >
+              {totalMembers}
+            </Link>
+          )}
         </Box>
       </TableCell>
 

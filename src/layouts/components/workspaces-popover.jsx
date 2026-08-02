@@ -20,8 +20,8 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { guardarAsignacionRolUsuario } from 'src/auth/permissions';
 import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+import { guardarAsignacionRolUsuario, actualizarClaimsAutorizacion } from 'src/auth/permissions';
 
 import { RolePermissionsDialog } from './role-permissions-dialog';
 
@@ -47,25 +47,25 @@ const SUBROLES_POR_ROL = {
   ],
   // "Coordinador Seccional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_SECCION]: [
-    { label: 'Capellán Seccional' },
+    { label: 'Capellán Seccional', rolCodigo: ROLES.CAPELLAN_SECCIONAL },
     { label: 'Sub-Coordinador Seccional', rolCodigo: ROLES.USUARIO_SECCION_ASISTENTE },
     { label: 'Coordinador de Adiestramiento', rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION },
     { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_SECCION },
     { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_SECCION },
     { label: 'Coordinador de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_SECCION },
-    { label: 'Secretario Regional' },
-    { label: 'Zonas' },
-    { label: 'Grupos Locales' },
+    { label: 'Secretario Regional', rolCodigo: ROLES.SECRETARIO_REGIONAL },
+    { label: 'Zonas', rolCodigo: ROLES.ZONAS },
+    { label: 'Grupos Locales', rolCodigo: ROLES.GRUPOS_LOCALES },
   ],
   // "Coordinador Regional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_REGION]: [
-    { label: 'Capellán Regional' },
+    { label: 'Capellán Regional', rolCodigo: ROLES.CAPELLAN_REGIONAL },
     { label: 'Sub-Director Regional', rolCodigo: ROLES.USUARIO_REGION_ASISTENTE },
     { label: 'Coordinador de Adiestramiento', rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_REGION },
     { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_REGION },
     { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_REGION },
     { label: 'Coordinador de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_REGION },
-    { label: 'Secretario Regional' },
+    { label: 'Secretario Regional', rolCodigo: ROLES.SECRETARIO_REGIONAL },
   ],
   [ROLES.CONSEJO_NACIONAL]: [
     { label: 'Ministerios Infantiles', rolCodigo: ROLES.MINISTERIOS_INFANTILES_NACIONAL },
@@ -171,6 +171,16 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
           alcance: newValue.plan ? { tipo: newValue.plan, modo: newValue.plan } : {},
           usuario: user,
         });
+
+        // Sincronizar claims del propio usuario (refresca el token) antes de recargar.
+        try {
+          await actualizarClaimsAutorizacion({
+            uidUsuario: user.uid,
+            correo: user.email || user.correo || '',
+          });
+        } catch (claimsError) {
+          console.warn('[claims] no se pudieron actualizar los claims de autorización', claimsError);
+        }
 
         window.location.reload();
       } catch (error) {
