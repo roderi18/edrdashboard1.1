@@ -20,16 +20,17 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import {
-  getOwnSectionIdsForUser,
-  isRegionWideSectionViewer,
-  filterSectionalsByMemberScope,
-} from 'src/utils/member-access';
-import {
   canEditSectional,
   canDeleteOrgLevel,
   isForeignSectionForMembers,
   canCreateSectionalInRegion,
 } from 'src/utils/org-level-access';
+import {
+  getOwnRegionIdsForUser,
+  getOwnSectionIdsForUser,
+  isRegionWideSectionViewer,
+  filterSectionalsByMemberScope,
+} from 'src/utils/member-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -222,6 +223,12 @@ export function SectionalListView() {
   // Cargos que ven toda su region pero solo interactuan con su propia seccion.
   const restrictSections = isRegionWideSectionViewer(user);
   const [ownSectionIds, setOwnSectionIds] = useState(() => new Set());
+  // Alcance propio (derivado) para bloquear el contador de miembros de secciones
+  // ajenas. Se calcula siempre, no solo para los cargos con vista de toda la region.
+  const [ownScope, setOwnScope] = useState(() => ({
+    regionIds: new Set(),
+    sectionIds: new Set(),
+  }));
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
@@ -302,11 +309,19 @@ export function SectionalListView() {
 
         setRegionals(regionalsData);
 
+        const ownSections = getOwnSectionIdsForUser(user, {
+          dests: destsData,
+          churches: churchesData,
+        });
+        const ownRegions = getOwnRegionIdsForUser(user, {
+          dests: destsData,
+          churches: churchesData,
+          sectionals: sectionalsData,
+        });
         if (restrictSections) {
-          setOwnSectionIds(
-            getOwnSectionIdsForUser(user, { dests: destsData, churches: churchesData })
-          );
+          setOwnSectionIds(ownSections);
         }
+        setOwnScope({ regionIds: ownRegions, sectionIds: ownSections });
 
         const scopedSectionals = filterSectionalsByMemberScope(sectionalsData, user, {
           dests: destsData,
@@ -533,6 +548,8 @@ export function SectionalListView() {
                         lockMemberCount={isForeignSectionForMembers(user, {
                           sectionId: row.id,
                           regionId: row.regionalId,
+                          ownRegionIds: ownScope.regionIds,
+                          ownSectionIds: ownScope.sectionIds,
                         })}
                       />
                     )}

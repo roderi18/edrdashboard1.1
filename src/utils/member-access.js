@@ -5,8 +5,8 @@ import { paths } from 'src/routes/paths';
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
-import { can } from 'src/auth/permissions/can';
 import { PERMISOS } from 'src/auth/permissions/permissions';
+import { can, isReadOnlyRole } from 'src/auth/permissions/can';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
@@ -235,7 +235,8 @@ const getScopeUserRoleId = (user = {}) => {
   // 100% con el Coordinador de Destacamento (titular): edita miembros de forma
   // DIRECTA (nunca por aprobacion). Se normaliza aqui para que todas las reglas de
   // acceso —incluida isDestacamentoApprovalRole/isCoordinadorDestacamentoRole— lo
-  // traten exactamente igual que al titular.
+  // traten exactamente igual que al titular. (El Pastor NO se normaliza: es un
+  // cargo de SOLO LECTURA, no un coordinador.)
   if (roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE) {
     return ROLES.USUARIO_DESTACAMENTO;
   }
@@ -791,10 +792,11 @@ export const isGroupLeaderRole = (user = {}) =>
 // sus cambios (General y Dispensa Médica) van a APROBACION del Coordinador de
 // Destacamento (mismo flujo/bloqueos que el Lider de Grupo). En Documentos de
 // salud pueden subir pero no eliminar.
+// El Pastor NO va aqui: comparte el perfil del Coordinador de Destacamento y
+// edita de forma directa (se normaliza a titular en getScopeUserRoleId).
 const DESTACAMENTO_APPROVAL_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
-  ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
   ROLES.CAPELLAN_DESTACAMENTO,
 ];
@@ -807,6 +809,22 @@ export const isDestacamentoApprovalRole = (user = {}) =>
 export const isCoordinadorDestacamentoRole = (user = {}) =>
   getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO;
 
+// Detecta específicamente al Pastor por su rol CRUDO (sin la normalización a
+// titular de getScopeUserRoleId). Se usa para la única excepción del Pastor: en
+// Dispensa Médica, la sección de Documentos se le oculta y solo puede solicitar
+// acceso al Coordinador de Destacamento.
+export const isPastorDestacamentoRole = (user = {}) =>
+  String(
+    user?.rolId ||
+      user?.roleId ||
+      user?.rolCodigo ||
+      user?.roleCodigo ||
+      user?.memberRole ||
+      ''
+  )
+    .trim()
+    .toLowerCase() === ROLES.PASTOR_DESTACAMENTO;
+
 // --- Capacidades de Dispensa Médica, Ascenso y Padres --------------------------
 // Se resuelven contra el CATALOGO de permisos (`can`), no contra listas de roles,
 // para que el panel de "Administrar permisos" mande de verdad. El flujo (guardar
@@ -817,6 +835,13 @@ export const isCoordinadorDestacamentoRole = (user = {}) =>
 // al pasar el control al catalogo.
 const puedePorCatalogo = (user = {}, permiso) =>
   isLegacyFullDashboardAdmin(user) || can(user, permiso);
+
+// Igual que puedePorCatalogo pero para acciones de EDICIÓN: un rol de solo lectura
+// (restricción soloLectura del catálogo, p. ej. el Pastor y los cargos de
+// consulta) nunca puede modificar, aunque el token traiga permisos de edición
+// heredados de una asignación anterior.
+const puedeEditarPorCatalogo = (user = {}, permiso) =>
+  !isReadOnlyRole(user) && puedePorCatalogo(user, permiso);
 
 export const canViewHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_VER);
 
@@ -852,22 +877,22 @@ export const isConsejoNacionalHealthViewer = (user = {}) =>
 // Los cargos del Consejo Nacional tienen acceso completo de consulta a Salud,
 // pero nunca modifican el expediente ni gestionan sus documentos.
 export const canEditHealth = (user = {}) =>
-  !isConsejoNacionalHealthViewer(user) && puedePorCatalogo(user, PERMISOS.SALUD_EDITAR);
+  !isConsejoNacionalHealthViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.SALUD_EDITAR);
 
 export const canUploadHealthDocuments = (user = {}) =>
   !isConsejoNacionalHealthViewer(user) &&
-  puedePorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
+  puedeEditarPorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
 
 export const canDeleteHealthDocuments = (user = {}) =>
   !isConsejoNacionalHealthViewer(user) &&
-  puedePorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
+  puedeEditarPorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
 
 export const canAuthorizeMinorHealthAccess = (user = {}) =>
-  puedePorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
+  puedeEditarPorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
 
 export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_VER);
 
-export const canEditAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
+export const canEditAwards = (user = {}) => puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
 export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PADRES_VER);
 
@@ -915,12 +940,52 @@ export const canViewMemberHistoryTab = (user = {}) =>
   isFullMemberViewer(user) || canViewHealth(user) || canViewParents(user);
 
 export const canApproveMemberChanges = (user = {}) =>
-  puedePorCatalogo(user, PERMISOS.MIEMBROS_APROBAR_CAMBIOS);
+  puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_APROBAR_CAMBIOS);
 
 // Ids de la(s) seccion(es) propias del usuario (a las que esta asignado). Para
 // los cargos de destacamento se resuelven a partir de su destacamento.
 export const getOwnSectionIdsForUser = (user = {}, { dests = [], churches = [] } = {}) =>
   resolveSectionIdsForUser(user, { dests, churches }) || new Set();
+
+// Ids de la(s) region(es) propias del usuario. Combina el alcance explicito de
+// region con la region DERIVADA de su seccion/destacamento (asi un cargo de
+// destacamento —p. ej. Coordinador Asistente— identifica su propia region a
+// partir de su destacamento -> iglesia -> seccion -> region).
+export const getOwnRegionIdsForUser = (
+  user = {},
+  { dests = [], churches = [], sectionals = [] } = {}
+) => {
+  const ids = new Set(getScopeRegionIds(getMemberScope(user)));
+
+  // Region derivada de las SECCIONES propias. getOwnSectionIdsForUser resuelve la
+  // seccion incluso cuando el destacamento viene en el alcance (no a nivel raiz
+  // del usuario), por lo que un Coordinador Asistente identifica su region.
+  const ownSectionIds = getOwnSectionIdsForUser(user, { dests, churches });
+  sectionals.forEach((sectional) => {
+    if (ownSectionIds.has(normalizeScopeId(getSectionalOwnScopeId(sectional)))) {
+      const regionId = normalizeScopeId(getSectionalRegionScopeId(sectional));
+      if (regionId) ids.add(regionId);
+    }
+  });
+
+  // Derivacion clasica adicional (por si el alcance trae la region directa).
+  deriveOwnRegionIds(user, { dests, churches, sectionals }).forEach((id) =>
+    ids.add(normalizeScopeId(id))
+  );
+  return ids;
+};
+
+// Ids del/los destacamento(s) propios del usuario (alcance explicito + el
+// destacamento de su propia membresia).
+export const getOwnDestIdsForUser = (user = {}) => {
+  const scope = getMemberScope(user);
+  const ids = new Set(getScopeDestIds(scope));
+  const ownDestId = normalizeScopeId(
+    user?.idDestacamento ?? user?.destId ?? user?.destamentoId ?? scope?.destacamentoId ?? scope?.idDestacamento
+  );
+  if (ownDestId) ids.add(ownDestId);
+  return ids;
+};
 
 export const filterSectionalsByMemberScope = (
   sectionals = [],

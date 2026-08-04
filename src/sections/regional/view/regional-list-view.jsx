@@ -20,7 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
-import { isRegionWideSectionViewer } from 'src/utils/member-access';
+import { getOwnRegionIdsForUser, isRegionWideSectionViewer } from 'src/utils/member-access';
 import {
   canEditRegional,
   canDeleteOrgLevel,
@@ -143,6 +143,7 @@ export function RegionalListView() {
 
   const [tableData, setTableData] = useState([]);
   const [tableLoading, setTableLoading] = useState(true);
+  const [ownRegionIds, setOwnRegionIds] = useState(() => new Set());
 
   useEffect(() => {
     async function loadRegionals() {
@@ -167,6 +168,7 @@ export function RegionalListView() {
         ]);
         setTableData(regionals.map(mapRegionalToBaseRow));
         setTableLoading(false);
+        setOwnRegionIds(getOwnRegionIdsForUser(user, { dests, churches, sectionals }));
         const memberById = new Map(
           [...MEMBERS, ...members].flatMap((member) =>
             [member?.id, member?.memberId].filter(Boolean).map((id) => [String(id), member])
@@ -437,7 +439,10 @@ export function RegionalListView() {
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
                         disabledCounts={disabledCounts}
-                        lockMemberCount={isForeignRegionForMembers(user, { regionId: row.id })}
+                        lockMemberCount={isForeignRegionForMembers(user, {
+                          regionId: row.id,
+                          ownRegionIds,
+                        })}
                       />
                     )}
                     notFound={notFound}

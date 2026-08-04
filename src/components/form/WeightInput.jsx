@@ -79,6 +79,9 @@ export default function WeightInput({
             label={label}
             onChange={handleChange}
             InputProps={{
+                // En solo lectura el VALOR no se edita (input readOnly), pero los
+                // botones de unidad SÍ funcionan (preferencia de visualización).
+                readOnly,
                 endAdornment: (
                     <InputAdornment position="end">
                         <ToggleButtonGroup
@@ -87,12 +90,8 @@ export default function WeightInput({
                             value={unit}
                             onChange={handleUnitChange}
                         >
-                            <ToggleButton value="lbs" component={readOnly ? 'span' : 'button'}>
-                                Lbs
-                            </ToggleButton>
-                            <ToggleButton value="kg" component={readOnly ? 'span' : 'button'}>
-                                Kgs
-                            </ToggleButton>
+                            <ToggleButton value="lbs">Lbs</ToggleButton>
+                            <ToggleButton value="kg">Kgs</ToggleButton>
                         </ToggleButtonGroup>
                     </InputAdornment>
                 ),

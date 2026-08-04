@@ -125,6 +125,7 @@ export function DestTableRow({
       <CompactEntityRowActions
         canManage={canManage}
         allowDelete={canDelete}
+        allowQuickEdit={false}
         editHref={editHref || `/dashboard/level/dest/${id}/edit`}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={DestQuickEditForm}

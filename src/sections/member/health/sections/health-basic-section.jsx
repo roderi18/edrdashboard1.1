@@ -87,6 +87,7 @@ export function HealthBasicSection({
                             <Field.Select
                                 name="healthInsurance"
                                 label="¿Tiene seguro médico?"
+                                disabled={readOnly}
                             >
                                 {HEALTH_INSURANCE_OPTIONS.map((option) => (
                                     <MenuItem key={option.value} value={option.value}>
@@ -118,6 +119,7 @@ export function HealthBasicSection({
                             <RestrictedSelect
                                 name="insuranceName"
                                 label="Nombre del Seguro (opcional)"
+                                readOnly={readOnly}
                                 conditions={[
                                     { value: healthInsurance, allowed: 'yes' },
                                 ]}
@@ -143,7 +145,7 @@ export function HealthBasicSection({
                                 maxLength={12}
                                 allow="numbers"
                                 message="Solo se permiten números."
-                                readOnly={healthInsurance !== 'yes'}
+                                readOnly={readOnly || healthInsurance !== 'yes'}
                                 useTouched
                                 blockedErrorText="Disponible solo si tiene seguro médico."
                             />
@@ -172,6 +174,7 @@ export function HealthBasicSection({
                             onChange={(val) => setValue('medicalContactName', val)}
                             allow="all"
                             maxLength={60}
+                            readOnly={readOnly}
                             useTouched
                         />
 
@@ -179,6 +182,7 @@ export function HealthBasicSection({
                             name="medicalPrimaryPhone"
                             label="Teléfono principal"
                             placeholder="(809) 555-1234"
+                            disabled={readOnly}
                             inputProps={{ inputMode: 'numeric' }}
                             onChange={(e) => {
                                 const raw = e.target.value;
@@ -222,6 +226,7 @@ export function HealthBasicSection({
                             name="medicalSecondaryPhone"
                             label="Teléfono de emergencia"
                             placeholder="(829) 555-1234"
+                            disabled={readOnly}
                             inputProps={{ inputMode: 'numeric' }}
                             onChange={(e) => {
                                 const raw = e.target.value;
@@ -248,6 +253,7 @@ export function HealthBasicSection({
                         onChange={(val) => setValue('medicalNotes', val)}
                         allow="all"
                         maxLength={500}
+                        readOnly={readOnly}
                         useTouched
                         multiline
                         rows={3}

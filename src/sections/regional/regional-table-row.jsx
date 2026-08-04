@@ -126,6 +126,7 @@ export function RegionalTableRow({
       <CompactEntityRowActions
         canManage={canManage}
         allowDelete={canDelete}
+        allowQuickEdit={false}
         editHref={editHref}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={RegionalQuickEditForm}

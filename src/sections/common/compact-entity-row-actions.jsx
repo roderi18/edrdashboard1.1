@@ -19,6 +19,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 export function CompactEntityRowActions({
   canManage = true,
   allowDelete = true,
+  allowQuickEdit = true,
   editHref,
   onDelete,
   QuickEditForm,
@@ -27,6 +28,9 @@ export function CompactEntityRowActions({
   deleteTitle = 'Eliminar',
   quickEditTitle = 'Actualización rápida',
 }) {
+  // El boton de actualizacion rapida (lapiz) solo se muestra cuando la vista lo
+  // permite (allowQuickEdit) ademas de recibir un formulario.
+  const showQuickEdit = allowQuickEdit && Boolean(QuickEditForm);
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -35,7 +39,7 @@ export function CompactEntityRowActions({
     <TableCell>
       {canManage && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          {QuickEditForm && (
+          {showQuickEdit && (
             <Tooltip title={quickEditTitle} placement="top" arrow>
               <IconButton
                 color={quickEditForm.value ? 'inherit' : 'default'}
@@ -52,7 +56,7 @@ export function CompactEntityRowActions({
         </Box>
       )}
 
-      {canManage && QuickEditForm && (
+      {canManage && showQuickEdit && (
         <QuickEditForm
           {...quickEditProps}
           open={quickEditForm.value}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
+
 import { Field } from 'src/components/hook-form';
 
 export default function RestrictedSelect({
@@ -10,6 +11,7 @@ export default function RestrictedSelect({
 
     conditions = [],
     errorText = 'This field is restricted.',
+    readOnly = false,
 }) {
     const [touched, setTouched] = useState(false);
     const wrapperRef = useRef(null);
@@ -18,6 +20,9 @@ export default function RestrictedSelect({
         (condition) => condition.value === condition.allowed
     );
 
+    // Bloqueado por la condición del campo (p. ej. requiere seguro) o porque el
+    // formulario está en solo lectura.
+    const blocked = !isAllowed || readOnly;
     const showError = touched && !isAllowed;
 
     // 👇 cerrar el mensaje al hacer click fuera
@@ -46,12 +51,12 @@ export default function RestrictedSelect({
                 helperText={showError ? errorText : ''}
                 slotProps={{
                     input: {
-                        readOnly: !isAllowed,
+                        readOnly: blocked,
                         onFocus: () => setTouched(true),
                         onMouseDown: (e) => {
-                            if (!isAllowed) {
+                            if (blocked) {
                                 e.preventDefault(); // evita abrir el menú
-                                setTouched(true);
+                                if (!isAllowed) setTouched(true);
                             }
                         },
                     },

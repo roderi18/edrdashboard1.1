@@ -225,23 +225,90 @@ const RESTRICCIONES_CARGO_DESTACAMENTO = {
   eliminarDocumentosRequiereAprobacion: true,
 };
 
+// Perfil del Coordinador de Destacamento (titular). El Coordinador Asistente
+// comparte EXACTAMENTE este perfil: gestionan a los miembros de su destacamento
+// de forma directa (crear/editar sin aprobacion), Dispensa Medica completa,
+// aprueban cambios de otros cargos, ven datos sensibles y menores, y eliminan
+// documentos directamente.
+const PERMISOS_COORDINADOR_DESTACAMENTO = [
+  PERMISOS.DESTACAMENTOS_VER,
+  PERMISOS.SECCIONES_VER,
+  PERMISOS.REGIONES_VER,
+  PERMISOS.MIEMBROS_VER,
+  PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.MIEMBROS_VER_MENORES,
+  PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+  PERMISOS.MIEMBROS_CREAR,
+  PERMISOS.MIEMBROS_EDITAR,
+  PERMISOS.MIEMBROS_SUBIR_FOTO,
+  PERMISOS.DOCUMENTOS_VER,
+  PERMISOS.DOCUMENTOS_SUBIR,
+  PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
+  PERMISOS.DOCUMENTOS_ELIMINAR,
+  PERMISOS.ASISTENCIA_VER,
+  PERMISOS.ASISTENCIA_CREAR,
+  PERMISOS.ASISTENCIA_EDITAR,
+  PERMISOS.REPORTES_VER_LOCALES,
+  PERMISOS.REPORTES_VER_SECCIONALES,
+  PERMISOS.REPORTES_VER_REGIONALES,
+  PERMISOS.REPORTES_VER_NACIONALES,
+  PERMISOS.TIENDA_VER,
+  PERMISOS.CORREOS_ENVIAR,
+  ...PERMISOS_SALUD_COMPLETO,
+  ...PERMISOS_ASCENSO_EDITOR,
+  PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
+  ...PERMISOS_PADRES_EDITOR,
+];
+
+const RESTRICCIONES_COORDINADOR_DESTACAMENTO = {
+  ...RESTRICCIONES_BASE,
+  requierePermisoParaMenores: true,
+  // Coordinador (y equivalentes): elimina documentos de sus miembros directamente.
+  eliminarDocumentosRequiereAprobacion: false,
+};
+
+// Pastor: consulta de SOLO LECTURA de los miembros de su destacamento. Ve todo lo
+// que ve el Coordinador (adultos, menores, datos sensibles, salud, ascenso y
+// padres) pero NO edita ni crea nada y no usa desplegables (el formulario se
+// renderiza en solo lectura porque carece de permisos de edicion). La seccion de
+// Documentos de la Dispensa Medica queda deshabilitada aparte (solicita acceso).
+const PERMISOS_PASTOR_LECTURA = [
+  PERMISOS.DESTACAMENTOS_VER,
+  PERMISOS.SECCIONES_VER,
+  PERMISOS.REGIONES_VER,
+  PERMISOS.MIEMBROS_VER,
+  PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.MIEMBROS_VER_MENORES,
+  PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+  PERMISOS.DOCUMENTOS_VER,
+  PERMISOS.ASISTENCIA_VER,
+  PERMISOS.REPORTES_VER_LOCALES,
+  PERMISOS.REPORTES_VER_SECCIONALES,
+  PERMISOS.REPORTES_VER_REGIONALES,
+  PERMISOS.REPORTES_VER_NACIONALES,
+  PERMISOS.TIENDA_VER,
+  PERMISOS.SALUD_VER,
+  PERMISOS.ASCENSO_VER,
+  PERMISOS.PADRES_VER,
+];
+
+const RESTRICCIONES_PASTOR = {
+  ...RESTRICCIONES_BASE,
+  soloLectura: true,
+  requierePermisoParaMenores: true,
+};
+
 export const RESTRICCIONES_ROL = {
   [ROLES.USUARIO_COMUN]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
   },
-  [ROLES.USUARIO_DESTACAMENTO]: {
-    ...RESTRICCIONES_BASE,
-    requierePermisoParaMenores: true,
-    // El coordinador elimina documentos de sus miembros directamente.
-    eliminarDocumentosRequiereAprobacion: false,
-  },
-  [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: {
-    ...RESTRICCIONES_BASE,
-    requierePermisoParaMenores: true,
-    eliminarDocumentosRequiereAprobacion: false,
-  },
+  [ROLES.USUARIO_DESTACAMENTO]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
+  [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
   ...fromCodes(CARGOS_DESTACAMENTO, RESTRICCIONES_CARGO_DESTACAMENTO),
+  // El Pastor es de SOLO LECTURA (sobrescribe la restriccion que aplica fromCodes
+  // al resto de CARGOS_DESTACAMENTO).
+  [ROLES.PASTOR_DESTACAMENTO]: RESTRICCIONES_PASTOR,
   [ROLES.USUARIO_SECCION]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
@@ -317,74 +384,15 @@ export const PERMISOS_POR_ROL = {
   // Coordinador de Destacamento: gestiona a los miembros de su destacamento
   // (crear, editar), sus documentos (subir/eliminar) y asistencia; ve regiones y
   // reportes de todos los niveles; puede enviar correos. No elimina miembros.
-  [ROLES.USUARIO_DESTACAMENTO]: [
-    PERMISOS.DESTACAMENTOS_VER,
-    PERMISOS.SECCIONES_VER,
-    PERMISOS.REGIONES_VER,
-    PERMISOS.MIEMBROS_VER,
-    PERMISOS.MIEMBROS_VER_ADULTOS,
-    PERMISOS.MIEMBROS_VER_MENORES,
-    PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
-    PERMISOS.MIEMBROS_CREAR,
-    PERMISOS.MIEMBROS_EDITAR,
-    PERMISOS.MIEMBROS_SUBIR_FOTO,
-    PERMISOS.DOCUMENTOS_VER,
-    PERMISOS.DOCUMENTOS_SUBIR,
-    PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
-    PERMISOS.DOCUMENTOS_ELIMINAR,
-    PERMISOS.ASISTENCIA_VER,
-    PERMISOS.ASISTENCIA_CREAR,
-    PERMISOS.ASISTENCIA_EDITAR,
-    PERMISOS.REPORTES_VER_LOCALES,
-    PERMISOS.REPORTES_VER_SECCIONALES,
-    PERMISOS.REPORTES_VER_REGIONALES,
-    PERMISOS.REPORTES_VER_NACIONALES,
-    PERMISOS.TIENDA_VER,
-    PERMISOS.CORREOS_ENVIAR,
-    // Dispensa Médica completa (ver/editar, subir y eliminar documentos, autorizar
-    // acceso a menores), Sistema de Ascenso, aprobar cambios de otros cargos y padres.
-    ...PERMISOS_SALUD_COMPLETO,
-    ...PERMISOS_ASCENSO_EDITOR,
-    PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
-    ...PERMISOS_PADRES_EDITOR,
-  ],
+  [ROLES.USUARIO_DESTACAMENTO]: PERMISOS_COORDINADOR_DESTACAMENTO,
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
-  [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: [
-    PERMISOS.DESTACAMENTOS_VER,
-    PERMISOS.SECCIONES_VER,
-    PERMISOS.REGIONES_VER,
-    PERMISOS.MIEMBROS_VER,
-    PERMISOS.MIEMBROS_VER_ADULTOS,
-    PERMISOS.MIEMBROS_VER_MENORES,
-    PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
-    PERMISOS.MIEMBROS_CREAR,
-    PERMISOS.MIEMBROS_EDITAR,
-    PERMISOS.MIEMBROS_SUBIR_FOTO,
-    PERMISOS.DOCUMENTOS_VER,
-    PERMISOS.DOCUMENTOS_SUBIR,
-    PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
-    PERMISOS.DOCUMENTOS_ELIMINAR,
-    PERMISOS.ASISTENCIA_VER,
-    PERMISOS.ASISTENCIA_CREAR,
-    PERMISOS.ASISTENCIA_EDITAR,
-    PERMISOS.REPORTES_VER_LOCALES,
-    PERMISOS.REPORTES_VER_SECCIONALES,
-    PERMISOS.REPORTES_VER_REGIONALES,
-    PERMISOS.REPORTES_VER_NACIONALES,
-    PERMISOS.TIENDA_VER,
-    PERMISOS.CORREOS_ENVIAR,
-    // Dispensa Médica completa (ver/editar, subir y eliminar documentos, autorizar
-    // acceso a menores), Sistema de Ascenso, aprobar cambios de otros cargos y padres.
-    ...PERMISOS_SALUD_COMPLETO,
-    ...PERMISOS_ASCENSO_EDITOR,
-    PERMISOS.MIEMBROS_APROBAR_CAMBIOS,
-    ...PERMISOS_PADRES_EDITOR,
-  ],
+  [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: PERMISOS_COORDINADOR_DESTACAMENTO,
   // Consejo Destacamento: perfil operativo base.
   ...fromCodes(CARGOS_DESTACAMENTO_APOYO, PERMISOS_CARGO_DESTACAMENTO),
-  // Pastor de Destacamento: idéntico al Líder de Grupo (crea miembros, ve menores
-  // y datos sensibles, regiones, reportes seccionales y envía correos).
-  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_LIDER_GRUPO,
+  // Pastor de Destacamento: SOLO LECTURA de los miembros de su destacamento. Ve lo
+  // mismo que el Coordinador (datos sensibles, menores, salud, ascenso, padres)
+  // pero no edita ni crea nada.
+  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_LECTURA,
   // Capellán de Destacamento: como el Líder de Grupo pero SIN ver menores ni
   // datos sensibles.
   [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CAPELLAN_DESTACAMENTO,

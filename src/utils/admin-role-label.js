@@ -71,8 +71,15 @@ export const isDestacamentoAdminRole = (user = {}) => {
     user?.roleCodigo ||
     (ROLES_POR_CODIGO[rawRole] ? rawRole : '');
 
-  // El Coordinador Asistente de Destacamento se comporta al 100% como el titular.
-  return roleId === ROLES.USUARIO_DESTACAMENTO || roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE;
+  // El Coordinador Asistente se comporta al 100% como el titular. El Pastor se
+  // incluye a nivel de gating de UI (mismo destacamento): oculta filtros de
+  // alcance y bloquea la edicion de la directiva; su acceso es de SOLO LECTURA por
+  // carecer de permisos de edicion.
+  return (
+    roleId === ROLES.USUARIO_DESTACAMENTO ||
+    roleId === ROLES.USUARIO_DESTACAMENTO_ASISTENTE ||
+    roleId === ROLES.PASTOR_DESTACAMENTO
+  );
 };
 
 export const getAdminRoleName = (user = {}) => {

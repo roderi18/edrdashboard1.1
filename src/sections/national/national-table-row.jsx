@@ -97,6 +97,7 @@ export function NationalTableRow({
       <CompactEntityRowActions
         canManage={canManage}
         allowDelete={canDelete && !row.isLocalhostTest}
+        allowQuickEdit={false}
         editHref={editHref}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={NationalQuickEditForm}

@@ -28,6 +28,7 @@ import {
   isMemberSessionUser,
   canMemberManageMembers,
   filterMembersByMemberScope,
+  isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
@@ -60,7 +61,7 @@ import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-d
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { can, PERMISOS } from 'src/auth/permissions';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 import { MemberTableRow } from '../member-table-row';
 import { MemberCardList } from '../member-card-list';
@@ -314,16 +315,21 @@ export function MemberListView() {
   // Los administradores de seccion y region pueden VER la lista completa de
   // miembros pero no editarlos (su rol no incluye permisos de edicion). Por eso
   // no basta con "es admin": exigimos permiso real de gestion de miembros.
+  // Se usa puedeModificar (no `can`) para que un rol de SOLO LECTURA —p. ej. el
+  // Pastor— nunca gestione miembros, aunque el token traiga permisos heredados.
   const adminCanManageMembers =
     isFullOrgManager(user) ||
-    can(user, PERMISOS.MIEMBROS_EDITAR) ||
-    can(user, PERMISOS.MIEMBROS_CREAR) ||
-    can(user, PERMISOS.MIEMBROS_ELIMINAR);
+    puedeModificar(user, PERMISOS.MIEMBROS_EDITAR) ||
+    puedeModificar(user, PERMISOS.MIEMBROS_CREAR) ||
+    puedeModificar(user, PERMISOS.MIEMBROS_ELIMINAR);
   const memberCanManage = isMemberSessionUser(user)
     ? canMemberManageMembers(user)
     : adminCanManageMembers;
   // Eliminar miembros: solo el Administrador Global.
   const memberCanDelete = isAdminGlobal(user);
+  // Actualizacion rapida (lapiz): solo en la lista de miembros y solo para el
+  // Coordinador de Destacamento (titular/asistente) o el Administrador Global.
+  const memberAllowQuickEdit = isCoordinadorDestacamentoRole(user) || isAdminGlobal(user);
   const memberDestLabel = useMemo(() => {
     if (!isMemberSessionUser(user)) {
       return '';
@@ -803,6 +809,7 @@ export function MemberListView() {
                         selected={table.selected.includes(row.id)}
                         canManage={memberCanManage}
                         canDelete={memberCanDelete}
+                        allowQuickEdit={memberAllowQuickEdit}
                         onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.member.edit(

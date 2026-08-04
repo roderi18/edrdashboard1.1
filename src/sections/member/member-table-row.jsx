@@ -34,6 +34,7 @@ export function MemberTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  allowQuickEdit = true,
 }) {
   const router = useRouter();
   const showMorePositions = useBoolean();
@@ -290,6 +291,7 @@ export function MemberTableRow({
       <CompactEntityRowActions
         canManage={canManage}
         allowDelete={canDelete}
+        allowQuickEdit={allowQuickEdit}
         editHref={editHref}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={MemberQuickEditForm}

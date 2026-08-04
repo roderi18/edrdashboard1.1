@@ -3,7 +3,7 @@
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -20,9 +20,14 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
-import { filterDestsByMemberScope } from 'src/utils/member-access';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { canEditDest, isAdminGlobal, isForeignDestForMembers } from 'src/utils/org-level-access';
+import {
+  getOwnDestIdsForUser,
+  getOwnRegionIdsForUser,
+  getOwnSectionIdsForUser,
+  filterDestsByMemberScope,
+} from 'src/utils/member-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -251,6 +256,16 @@ export function DestListView() {
   };
 
   const [tableData, setTableData] = useState([]);
+  // Alcance propio (derivado del destacamento/seccion del usuario) para bloquear
+  // el contador de miembros de destacamentos ajenos.
+  const ownScope = useMemo(
+    () => ({
+      regionIds: getOwnRegionIdsForUser(user, { dests: tableData, churches, sectionals }),
+      sectionIds: getOwnSectionIdsForUser(user, { dests: tableData, churches }),
+      destIds: getOwnDestIdsForUser(user),
+    }),
+    [user, tableData, churches, sectionals]
+  );
   const canCreateDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
   // Eliminar destacamentos: solo el Administrador Global.
   const canDeleteDest = isAdminGlobal(user);
@@ -621,6 +636,9 @@ export function DestListView() {
                           destId: row.id,
                           sectionId: row.sectionalId,
                           regionId: row.regionalId,
+                          ownRegionIds: ownScope.regionIds,
+                          ownSectionIds: ownScope.sectionIds,
+                          ownDestIds: ownScope.destIds,
                         })}
                       />
                     )}

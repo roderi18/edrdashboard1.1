@@ -9,7 +9,15 @@ const normalizeList = (value) =>
       : [];
 
 export const normalizarAccesoUsuario = (usuario = {}) => {
-  const rolId = usuario.rolId || usuario.roleId || usuario.rol || usuario.role || ROLES.USUARIO_COMUN;
+  const rolId =
+    usuario.rolId ||
+    usuario.roleId ||
+    usuario.rolCodigo ||
+    usuario.roleCodigo ||
+    usuario.memberRole ||
+    usuario.rol ||
+    usuario.role ||
+    ROLES.USUARIO_COMUN;
   const permisosRol = PERMISOS_POR_ROL[rolId] || [];
   const permisosDirectos = [
     ...normalizeList(usuario.permisos),
@@ -48,7 +56,15 @@ export const canAny = (usuario, permisos = []) => permisos.some((permiso) => can
 
 export const canAll = (usuario, permisos = []) => permisos.every((permiso) => can(usuario, permiso));
 
-export const isReadOnlyRole = (usuario) => Boolean(normalizarAccesoUsuario(usuario).restricciones.soloLectura);
+export const isReadOnlyRole = (usuario) => {
+  const acceso = normalizarAccesoUsuario(usuario);
+  // El catálogo del rol MANDA para solo lectura: un rol definido como soloLectura
+  // lo es aunque el token traiga una restricción heredada (soloLectura:false) de
+  // una asignación anterior. Así el cambio de rol surte efecto sin necesidad de
+  // re-sincronizar el token/catálogo en Firebase.
+  const catalogo = RESTRICCIONES_ROL[acceso.rolId];
+  return Boolean(catalogo?.soloLectura || acceso.restricciones.soloLectura);
+};
 
 export const puedeModificar = (usuario, permiso) => can(usuario, permiso) && !isReadOnlyRole(usuario);
 

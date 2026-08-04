@@ -16,6 +16,7 @@ import {
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
+  isPastorDestacamentoRole,
   canViewMemberSensitiveData,
   isConsejoNacionalHealthViewer,
 } from 'src/utils/member-access';
@@ -49,9 +50,12 @@ const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta 
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
 const isRestrictedForRoute = (user, pathname = '') => {
-  // En Dispensa Médica, los cargos del Consejo Nacional solicitan acceso
-  // únicamente a los datos del seguro enmascarados para miembros menores.
-  if (pathname.includes('/edit/health')) return isConsejoNacionalHealthViewer(user);
+  // En Dispensa Médica, los cargos del Consejo Nacional solicitan acceso a los
+  // datos del seguro enmascarados de menores; el Pastor solicita acceso a la
+  // sección de Documentos, que tiene deshabilitada.
+  if (pathname.includes('/edit/health')) {
+    return isConsejoNacionalHealthViewer(user) || isPastorDestacamentoRole(user);
+  }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
   if (pathname.includes('/edit/history')) return !canViewMemberHistoryTab(user);
@@ -127,10 +131,14 @@ export function MemberSensitiveInfoBanner({ member }) {
     isHealthRoute &&
     isConsejoNacionalHealthViewer(user) &&
     esMiembroMenorDeEdad(member);
+  // El Pastor tiene deshabilitada la sección de Documentos de la Dispensa Médica y
+  // solicita acceso al Coordinador (flujo de notificación, no el de menores).
+  const isPastorDocsRestricted = isHealthRoute && isPastorDestacamentoRole(user);
   const shouldShow =
     Boolean(member) &&
     isRestrictedForRoute(user, pathname) &&
     (!isHealthRoute ||
+      isPastorDocsRestricted ||
       (isHealthAccessRequest && !healthAccessLoading && !healthAccessState.permiso));
 
   useEffect(() => {

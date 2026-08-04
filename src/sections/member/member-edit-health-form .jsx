@@ -26,6 +26,7 @@ import {
   canApproveMemberChanges,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
+  isPastorDestacamentoRole,
   isDestacamentoApprovalRole,
   isCoordinadorDestacamentoRole,
   canAuthorizeMinorHealthAccess,
@@ -120,6 +121,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero no eliminarlos.
     const isApprovalUser = isDestacamentoApprovalRole(user);
     const isCoordinador = isCoordinadorDestacamentoRole(user);
+    // Excepción del Pastor: aunque comparte el perfil del Coordinador, NO tiene
+    // acceso a la sección de Documentos de la Dispensa Médica (se deshabilita/
+    // enmascara con el mecanismo de secciones); puede solicitar acceso desde el
+    // banner de costumbre.
+    const isPastor = isPastorDestacamentoRole(user);
     const isMinor = esMiembroMenorDeEdad(currentMember);
     // Quien puede AUTORIZAR el acceso a la salud de menores no necesita pedirlo
     // (coordinadores y Administrador Global, según el catálogo de permisos).
@@ -133,8 +139,14 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero los datos del seguro de un menor permanecen enmascarados hasta
     // obtener autorización.
     const requiresMaskedInsuranceAccess = isMinor && isConsejoNacionalHealthViewerRole;
+    // El Pastor NO entra al flujo de acceso temporal de menores: ve todas las
+    // secciones médicas en solo lectura (los desplegables se abren pero no editan);
+    // únicamente la sección de Documentos queda deshabilitada por separado.
     const requiresTemporaryAccess =
-        isMinor && !puedeAutorizarAccesoMenores && !isConsejoNacionalHealthViewerRole;
+        isMinor &&
+        !puedeAutorizarAccesoMenores &&
+        !isConsejoNacionalHealthViewerRole &&
+        !isPastor;
     const shouldCheckAccess = requiresTemporaryAccess || requiresMaskedInsuranceAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
@@ -170,9 +182,15 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     const maskHealthInsurance =
         limitedHealth || (requiresMaskedInsuranceAccess && !accessPermission);
-    const allowedHealthSections = requiresTemporaryAccess
+    const baseHealthSections = requiresTemporaryAccess
         ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
         : TODAS_SECCIONES_ACCESO_SALUD;
+    // El Pastor no accede a la sección de Documentos (se deshabilita/enmascara con
+    // el mismo mecanismo de secciones); usa el banner de costumbre para solicitar
+    // acceso al Coordinador de Destacamento.
+    const allowedHealthSections = isPastor
+        ? baseHealthSections.filter((section) => section !== 'documentos')
+        : baseHealthSections;
     const canAccessSection = (section) => allowedHealthSections.includes(section);
 
     const normalizedMember = {
@@ -958,7 +976,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     </Alert>
                 )}
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('general')} sx={getSectionFieldsetSx('general')}>
+                <Box component="fieldset" disabled={!canAccessSection('general')} sx={getSectionFieldsetSx('general')}>
                     <HealthBasicSection
                         open={canAccessSection('general') && openBasic.value}
                         onToggle={openBasic.onToggle}
@@ -972,12 +990,12 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         isSubmitting={isSubmitting}
                         masked={limitedHealth}
                         maskInsurance={maskHealthInsurance}
-                        readOnly={readOnly && isConsejoNacionalHealthViewerRole}
+                        readOnly={readOnly}
                         {...approvalProps}
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('documentos')} sx={getSectionFieldsetSx('documentos')}>
+                <Box component="fieldset" disabled={!canAccessSection('documentos')} sx={getSectionFieldsetSx('documentos')}>
                     <HealthDocumentsSection
                         open={canAccessSection('documentos') && openDocument.value}
                         onToggle={openDocument.onToggle}
@@ -999,7 +1017,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('medicacion')} sx={getSectionFieldsetSx('medicacion')}>
+                <Box component="fieldset" disabled={!canAccessSection('medicacion')} sx={getSectionFieldsetSx('medicacion')}>
                     <HealthMedicationSection
                         open={canAccessSection('medicacion') && openMedication.value}
                         onToggle={openMedication.onToggle}
@@ -1017,7 +1035,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('alergias')} sx={getSectionFieldsetSx('alergias')}>
+                <Box component="fieldset" disabled={!canAccessSection('alergias')} sx={getSectionFieldsetSx('alergias')}>
                     <HealthAllergiesSection
                         open={canAccessSection('alergias') && openAllergies.value}
                         onToggle={openAllergies.onToggle}
@@ -1033,7 +1051,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                     />
                 </Box>
 
-                <Box component="fieldset" disabled={readOnly || !canAccessSection('condiciones')} sx={getSectionFieldsetSx('condiciones')}>
+                <Box component="fieldset" disabled={!canAccessSection('condiciones')} sx={getSectionFieldsetSx('condiciones')}>
                     <HealthConditionsSection
                         open={canAccessSection('condiciones') && openConditions.value}
                         onToggle={openConditions.onToggle}

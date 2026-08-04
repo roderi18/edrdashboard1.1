@@ -130,6 +130,10 @@ export default function HeightInput({
             placeholder={getPlaceholder()}
             onChange={handleChange}
             InputProps={{
+                // En solo lectura el VALOR no se edita (input readOnly), pero los
+                // botones de unidad SÍ funcionan: cambiar metros/pies/cm es una
+                // preferencia de visualización, no una edición del dato.
+                readOnly,
                 endAdornment: (
                     <InputAdornment position="end">
                         <ToggleButtonGroup
@@ -138,15 +142,9 @@ export default function HeightInput({
                             value={unit}
                             onChange={handleUnitChange}
                         >
-                            <ToggleButton value="meters" component={readOnly ? 'span' : 'button'}>
-                                Metros
-                            </ToggleButton>
-                            <ToggleButton value="feet" component={readOnly ? 'span' : 'button'}>
-                                Pies
-                            </ToggleButton>
-                            <ToggleButton value="cm" component={readOnly ? 'span' : 'button'}>
-                                CM
-                            </ToggleButton>
+                            <ToggleButton value="meters">Metros</ToggleButton>
+                            <ToggleButton value="feet">Pies</ToggleButton>
+                            <ToggleButton value="cm">CM</ToggleButton>
                         </ToggleButtonGroup>
                     </InputAdornment>
                 ),

@@ -14,7 +14,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { can, PERMISOS } from 'src/auth/permissions';
+import { PERMISOS, puedeModificar } from 'src/auth/permissions';
 
 import { MemberCreateEditForm } from '../member-create-edit-form';
 
@@ -32,7 +32,7 @@ export function MemberEditView({ member: currentMember }) {
   // incluye permiso de edicion) -> formulario en solo lectura.
   const canEditMembers = isMemberSession
     ? canMemberManageMembers(user)
-    : isFullOrgManager(user) || can(user, PERMISOS.MIEMBROS_EDITAR);
+    : isFullOrgManager(user) || puedeModificar(user, PERMISOS.MIEMBROS_EDITAR);
 
   // Los miembros sin permiso de gestion no acceden a la edicion.
   if (isMemberSession && !canEditMembers) {
