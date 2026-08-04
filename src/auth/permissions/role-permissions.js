@@ -145,10 +145,6 @@ const CARGOS_DESTACAMENTO = [
   ROLES.LIDER_ASISTENTE_GRUPO,
 ];
 
-// Cargo de apoyo del destacamento (Consejo): perfil operativo base, sin crear
-// miembros ni permisos ampliados.
-const CARGOS_DESTACAMENTO_APOYO = [ROLES.CONSEJO_DESTACAMENTO];
-
 // Lider de Grupo y Lider Asistente de Grupo: perfil operativo base + crear
 // miembros, ver regiones, reportes seccionales y enviar correos.
 const LIDERES_GRUPO = [ROLES.LIDER_GRUPO, ROLES.LIDER_ASISTENTE_GRUPO];
@@ -187,36 +183,6 @@ const PERMISOS_LIDER_GRUPO = [
   PERMISOS.REGIONES_VER,
   PERMISOS.REPORTES_VER_SECCIONALES,
   PERMISOS.CORREOS_ENVIAR,
-];
-
-// Capellan de Destacamento: edita y crea miembros (via aprobacion, igual que el
-// Lider de Grupo), ve regiones, reportes seccionales y envia correos; pero NO ve
-// menores ni datos sensibles.
-const PERMISOS_CAPELLAN_DESTACAMENTO = [
-  PERMISOS.DESTACAMENTOS_VER,
-  PERMISOS.SECCIONES_VER,
-  PERMISOS.REGIONES_VER,
-  PERMISOS.MIEMBROS_VER,
-  PERMISOS.MIEMBROS_VER_ADULTOS,
-  PERMISOS.MIEMBROS_VER_MENORES,
-  PERMISOS.MIEMBROS_CREAR,
-  PERMISOS.MIEMBROS_EDITAR,
-  PERMISOS.MIEMBROS_SUBIR_FOTO,
-  PERMISOS.DOCUMENTOS_VER,
-  PERMISOS.DOCUMENTOS_SUBIR,
-  PERMISOS.DOCUMENTOS_SOLICITAR_ELIMINACION,
-  PERMISOS.ASISTENCIA_VER,
-  PERMISOS.ASISTENCIA_CREAR,
-  PERMISOS.ASISTENCIA_EDITAR,
-  PERMISOS.REPORTES_VER_LOCALES,
-  PERMISOS.REPORTES_VER_SECCIONALES,
-  PERMISOS.REPORTES_VER_REGIONALES,
-  PERMISOS.REPORTES_VER_NACIONALES,
-  PERMISOS.TIENDA_VER,
-  PERMISOS.CORREOS_ENVIAR,
-  ...PERMISOS_SALUD_APROBACION,
-  ...PERMISOS_ASCENSO_EDITOR,
-  ...PERMISOS_PADRES_EDITOR,
 ];
 
 const RESTRICCIONES_CARGO_DESTACAMENTO = {
@@ -292,10 +258,30 @@ const PERMISOS_PASTOR_LECTURA = [
   PERMISOS.PADRES_VER,
 ];
 
+// Consejo y Capellan consultan los mismos modulos que el Pastor, pero sus datos
+// personales sensibles permanecen enmascarados.
+const PERMISOS_CONSEJO_CAPELLAN_LECTURA = PERMISOS_PASTOR_LECTURA.filter(
+  (permiso) => permiso !== PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES
+);
+
+// El Pastor puede editar la ficha general y la foto como un Lider de Grupo. Sus
+// cambios no se guardan directamente: pasan por aprobacion del Coordinador.
+const PERMISOS_PASTOR_EDICION_MIEMBROS = [
+  ...PERMISOS_PASTOR_LECTURA,
+  PERMISOS.MIEMBROS_EDITAR,
+  PERMISOS.MIEMBROS_SUBIR_FOTO,
+];
+
 const RESTRICCIONES_PASTOR = {
   ...RESTRICCIONES_BASE,
   soloLectura: true,
   requierePermisoParaMenores: true,
+};
+
+const RESTRICCIONES_PASTOR_EDICION_MIEMBROS = {
+  ...RESTRICCIONES_BASE,
+  requierePermisoParaMenores: true,
+  eliminarDocumentosRequiereAprobacion: true,
 };
 
 export const RESTRICCIONES_ROL = {
@@ -306,9 +292,9 @@ export const RESTRICCIONES_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
   ...fromCodes(CARGOS_DESTACAMENTO, RESTRICCIONES_CARGO_DESTACAMENTO),
-  // El Pastor es de SOLO LECTURA (sobrescribe la restriccion que aplica fromCodes
-  // al resto de CARGOS_DESTACAMENTO).
-  [ROLES.PASTOR_DESTACAMENTO]: RESTRICCIONES_PASTOR,
+  [ROLES.PASTOR_DESTACAMENTO]: RESTRICCIONES_PASTOR_EDICION_MIEMBROS,
+  [ROLES.CONSEJO_DESTACAMENTO]: RESTRICCIONES_PASTOR,
+  [ROLES.CAPELLAN_DESTACAMENTO]: RESTRICCIONES_PASTOR,
   [ROLES.USUARIO_SECCION]: {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
@@ -387,15 +373,11 @@ export const PERMISOS_POR_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: PERMISOS_COORDINADOR_DESTACAMENTO,
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: PERMISOS_COORDINADOR_DESTACAMENTO,
-  // Consejo Destacamento: perfil operativo base.
-  ...fromCodes(CARGOS_DESTACAMENTO_APOYO, PERMISOS_CARGO_DESTACAMENTO),
-  // Pastor de Destacamento: SOLO LECTURA de los miembros de su destacamento. Ve lo
-  // mismo que el Coordinador (datos sensibles, menores, salud, ascenso, padres)
-  // pero no edita ni crea nada.
-  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_LECTURA,
-  // Capellán de Destacamento: como el Líder de Grupo pero SIN ver menores ni
-  // datos sensibles.
-  [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CAPELLAN_DESTACAMENTO,
+  // Pastor: puede editar la ficha de miembros, siempre mediante aprobacion.
+  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_EDICION_MIEMBROS,
+  // Consejo y Capellan: mismo perfil de consulta, pero sin datos sensibles.
+  [ROLES.CONSEJO_DESTACAMENTO]: PERMISOS_CONSEJO_CAPELLAN_LECTURA,
+  [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CONSEJO_CAPELLAN_LECTURA,
   // Líder de Grupo y Líder Asistente: base + crear miembros, ver regiones,
   // reportes seccionales y enviar correos.
   ...fromCodes(LIDERES_GRUPO, PERMISOS_LIDER_GRUPO),

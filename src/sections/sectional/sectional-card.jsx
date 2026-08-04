@@ -31,7 +31,7 @@ const getRegionalName = (sectional) => {
 
 // ----------------------------------------------------------------------
 
-export function SectionalCard({ sectional, disabled = false, sx, ...other }) {
+export function SectionalCard({ sectional, disabled = false, canViewRegionalDests = false, sx, ...other }) {
   const sectionalId = getSectionalId(sectional);
   const directorId = getDirectorId(sectional);
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
@@ -63,6 +63,7 @@ export function SectionalCard({ sectional, disabled = false, sx, ...other }) {
             regionalName !== UNKNOWN_REGIONAL
               ? `/dashboard/level/regional?sectional=${encodeURIComponent(regionalName)}`
               : '',
+          allowWhenDisabled: true,
         },
         ...(destCount !== undefined
           ? [
@@ -70,6 +71,7 @@ export function SectionalCard({ sectional, disabled = false, sx, ...other }) {
                 icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
                 href: sectionalId ? `/dashboard/level/dest?sectional=${sectionalId}` : '',
+                allowWhenDisabled: canViewRegionalDests,
               },
             ]
           : []),

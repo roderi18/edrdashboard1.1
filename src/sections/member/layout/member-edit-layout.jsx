@@ -13,7 +13,11 @@ import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
-import { isGroupLeaderRole, isDestacamentoApprovalRole } from 'src/utils/member-access';
+import {
+  isGroupLeaderRole,
+  isPastorDestacamentoRole,
+  isDestacamentoApprovalRole,
+} from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -89,7 +93,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
     // Historial: oculto para los cargos de destacamento en flujo de aprobacion
     // (pastor, consejo, capellan), EXCEPTO el Lider de Grupo y Lider Asistente de
     // Grupo, que si deben verlo.
-    ...(!isDestacamentoApprovalRole(user) || isGroupLeaderRole(user)
+    ...(!isDestacamentoApprovalRole(user) || isGroupLeaderRole(user) || isPastorDestacamentoRole(user)
       ? [
           {
             label: 'Historial',

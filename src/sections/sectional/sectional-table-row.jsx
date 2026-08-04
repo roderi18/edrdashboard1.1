@@ -25,6 +25,7 @@ export function SectionalTableRow({
   canDelete = true,
   disabled = false,
   lockMemberCount = false,
+  canViewRegionalDests = false,
 }) {
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
@@ -39,7 +40,7 @@ export function SectionalTableRow({
   // toda la region), se muestra en modo consulta: sin enlaces y con el texto
   // atenuado en todas las celdas.
   const renderCount = (value, href) =>
-    disabled ? (
+    disabled && !canViewRegionalDests ? (
       <Box component="span" sx={{ color: 'text.disabled' }}>
         {value}
       </Box>
@@ -108,7 +109,7 @@ export function SectionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {regionalName && !disabled ? (
+          {regionalName ? (
             <Link
               component={RouterLink}
               href={`/dashboard/level/regional?sectional=${encodeURIComponent(regionalName)}`}
@@ -118,7 +119,7 @@ export function SectionalTableRow({
               {regionalLabel}
             </Link>
           ) : (
-            <Box component="span" sx={disabled ? { color: 'text.disabled' } : undefined}>
+            <Box component="span">
               {regionalLabel}
             </Box>
           )}

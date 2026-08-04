@@ -283,7 +283,10 @@ export function DestListView() {
 
     async function loadBaseDests() {
       const cachedDests = getDests();
-      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user, { churches });
+      const cachedScopedDests = filterDestsByMemberScope(cachedDests, user, {
+        churches,
+        sectionals,
+      });
 
       if (cachedScopedDests.length) {
         setTableData(cachedScopedDests.map(mapDestToBaseRow));
@@ -296,7 +299,7 @@ export function DestListView() {
         const data = await getDestsApi({ includePhotos: false });
         if (cancelled) return;
 
-        const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
+        const scopedDests = filterDestsByMemberScope(data || [], user, { churches, sectionals });
 
         setTableData(scopedDests.map(mapDestToBaseRow));
       } catch (error) {
@@ -314,7 +317,7 @@ export function DestListView() {
     return () => {
       cancelled = true;
     };
-  }, [churches, user]);
+  }, [churches, sectionals, user]);
 
   useEffect(() => {
     if (tableLoading) return;
@@ -325,7 +328,7 @@ export function DestListView() {
     const load = async () => {
       const data = await getDestsApi();
 
-      const scopedDests = filterDestsByMemberScope(data || [], user, { churches });
+      const scopedDests = filterDestsByMemberScope(data || [], user, { churches, sectionals });
 
       const built = buildDestList(scopedDests);
 

@@ -545,6 +545,9 @@ export function SectionalListView() {
                         editHref={paths.dashboard.level.sectional.edit(row.id)}
                         canManage={canEditSectional(user, row) && !isRowDisabled(row)}
                         canDelete={canDelete && !isRowDisabled(row)}
+                        canViewRegionalDests={
+                          !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId))
+                        }
                         lockMemberCount={isForeignSectionForMembers(user, {
                           sectionId: row.id,
                           regionId: row.regionalId,
@@ -579,7 +582,12 @@ export function SectionalListView() {
 
         {displayMode !== 'panel' && (
           <SectionalCardList
-            sectionals={dataFiltered.map((row) => ({ ...row, disabled: isRowDisabled(row) }))}
+            sectionals={dataFiltered.map((row) => ({
+              ...row,
+              disabled: isRowDisabled(row),
+              canViewRegionalDests:
+                !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId)),
+            }))}
           />
         )}
       </DashboardContent>

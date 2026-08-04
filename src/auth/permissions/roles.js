@@ -83,7 +83,7 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.PASTOR_DESTACAMENTO,
     nombre: 'Pastor',
-    descripcion: 'Cargo del destacamento con el mismo alcance operativo que el Coordinador de Destacamento.',
+    descripcion: 'Consulta de su destacamento y edición de miembros mediante aprobación.',
     alcancePredeterminado: ALCANCES.DESTACAMENTO,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -91,7 +91,7 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.CONSEJO_DESTACAMENTO,
     nombre: 'Consejo Destacamento',
-    descripcion: 'Cargo del destacamento con el mismo alcance operativo que el Coordinador de Destacamento.',
+    descripcion: 'Consulta de solo lectura de su destacamento, con datos sensibles enmascarados.',
     alcancePredeterminado: ALCANCES.DESTACAMENTO,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -99,7 +99,7 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.CAPELLAN_DESTACAMENTO,
     nombre: 'Capellán',
-    descripcion: 'Cargo del destacamento con el mismo alcance operativo que el Coordinador de Destacamento.',
+    descripcion: 'Consulta de solo lectura de su destacamento, con datos sensibles enmascarados.',
     alcancePredeterminado: ALCANCES.DESTACAMENTO,
     asignableDesdeAdministradores: true,
     activo: true,

@@ -106,7 +106,7 @@ export function RegionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {disabledCounts || lockMemberCount ? (
+          {lockMemberCount ? (
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {row.regionalXSectionalMemberCount}
             </Box>

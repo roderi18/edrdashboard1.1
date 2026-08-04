@@ -54,8 +54,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     setAvatarLoaded(false);
   }, [avatarUrl]);
 
-  const canUseHref = (hrefValue, textValue) => {
-    if (disabled) return false;
+  const canUseHref = (hrefValue, textValue, allowWhenDisabled = false) => {
+    if (disabled && !allowWhenDisabled) return false;
 
     const normalizedText = String(textValue ?? '')
       .trim()
@@ -189,7 +189,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                 {line.icon && (
                   <Iconify icon={line.icon} width={16} sx={{ flexShrink: 0, mr: 0.5 }} />
                 )}
-                {canUseHref(line.href, line.text) ? (
+                {canUseHref(line.href, line.text, line.allowWhenDisabled) ? (
                   <Link
                     {...(isInternalHref(line.href)
                       ? { component: RouterLink, href: line.href }

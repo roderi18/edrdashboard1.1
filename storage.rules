@@ -132,6 +132,17 @@ service firebase.storage {
       return documentoUsuario('usuarios_roles').data.rolId;
     }
 
+    // Estos cargos son de consulta aun si el catalogo remoto o una asignacion
+    // antigua conserva permisos directos de escritura.
+    function esCargoDestacamentoSoloLectura() {
+      return tieneDocumento('usuarios_roles')
+        && rolDeUsuario() in [
+          'pastor_destacamento',
+          'consejo_destacamento',
+          'capellan_destacamento'
+        ];
+    }
+
     // Cargos que pueden SUBIR documentos de salud: coordinadores de destacamento y
     // el resto de cargos del destacamento (pastor, consejo, capellán, líderes),
     // más seccion/region.
@@ -180,9 +191,11 @@ service firebase.storage {
       allow read: if estaAutenticado();
       allow create, update: if estaAutenticado()
         && esArchivoSaludPermitido()
-        && (esAdminRegistrado() || puedeSubirDocumentoSalud() || esUsuarioRegistrado());
+        && !esCargoDestacamentoSoloLectura()
+        && (esAdminRegistrado() || tienePermiso('salud.subir_documentos'));
       allow delete: if estaAutenticado()
-        && (esAdminRegistrado() || puedeEliminarDocumentoSalud() || esUsuarioRegistrado());
+        && !esCargoDestacamentoSoloLectura()
+        && (esAdminRegistrado() || tienePermiso('salud.eliminar_documentos'));
     }
 
     match /miembros/{idMiembro}/{archivo} {

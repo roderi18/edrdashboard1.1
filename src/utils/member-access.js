@@ -694,6 +694,17 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
 };
 
 export const getMemberAllowedDestIds = (user, context = {}) => {
+  if (isRegionWideSectionViewer(user)) {
+    const { dests = [], churches = [], sectionals = [] } = context;
+
+    if (!dests.length || !sectionals.length) return new Set();
+
+    const regionIds = new Set(deriveOwnRegionIds(user, { dests, churches, sectionals }));
+    if (!regionIds.size) return new Set();
+
+    return getDestIdsInSections(dests, churches, getSectionIdsInRegions(sectionals, regionIds));
+  }
+
   // Cargos seccionales: la lista de destacamentos se acota a su sección.
   if (isSectionScopedMemberViewer(user)) {
     const { dests = [], churches = [] } = context;
@@ -768,7 +779,9 @@ export const filterDestsByMemberScope = (dests = [], user, context = {}) => {
 const REGION_WIDE_SECTION_VIEWER_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
+  ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
 ];
 
 const getSectionalOwnId = (sectional = {}) =>
@@ -797,8 +810,7 @@ export const isGroupLeaderRole = (user = {}) =>
 const DESTACAMENTO_APPROVAL_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
-  ROLES.CONSEJO_DESTACAMENTO,
-  ROLES.CAPELLAN_DESTACAMENTO,
+  ROLES.PASTOR_DESTACAMENTO,
 ];
 
 export const isDestacamentoApprovalRole = (user = {}) =>
@@ -814,16 +826,18 @@ export const isCoordinadorDestacamentoRole = (user = {}) =>
 // Dispensa Médica, la sección de Documentos se le oculta y solo puede solicitar
 // acceso al Coordinador de Destacamento.
 export const isPastorDestacamentoRole = (user = {}) =>
-  String(
-    user?.rolId ||
-      user?.roleId ||
-      user?.rolCodigo ||
-      user?.roleCodigo ||
-      user?.memberRole ||
-      ''
-  )
-    .trim()
-    .toLowerCase() === ROLES.PASTOR_DESTACAMENTO;
+  [ROLES.PASTOR_DESTACAMENTO, ROLES.CONSEJO_DESTACAMENTO, ROLES.CAPELLAN_DESTACAMENTO].includes(
+    String(
+      user?.rolId ||
+        user?.roleId ||
+        user?.rolCodigo ||
+        user?.roleCodigo ||
+        user?.memberRole ||
+        ''
+    )
+      .trim()
+      .toLowerCase()
+  );
 
 // --- Capacidades de Dispensa Médica, Ascenso y Padres --------------------------
 // Se resuelven contra el CATALOGO de permisos (`can`), no contra listas de roles,

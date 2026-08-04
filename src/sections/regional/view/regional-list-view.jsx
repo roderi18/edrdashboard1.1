@@ -20,7 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
-import { getOwnRegionIdsForUser, isRegionWideSectionViewer } from 'src/utils/member-access';
+import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import {
   canEditRegional,
   canDeleteOrgLevel,
@@ -122,9 +122,6 @@ export function RegionalListView() {
   const canManage = canManageOrgLevels(user);
   // Eliminar regiones: solo el Administrador Global.
   const canDelete = canDeleteOrgLevel(user);
-  // Cargos de solo lectura (p. ej. Lider de Grupo): los contadores de las
-  // regionales se muestran deshabilitados (sin enlace y atenuados).
-  const disabledCounts = isRegionWideSectionViewer(user);
   const table = useTable();
 
   const confirmDialog = useBoolean();
@@ -438,7 +435,10 @@ export function RegionalListView() {
                         editHref={paths.dashboard.level.regional.edit(row.id)}
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
-                        disabledCounts={disabledCounts}
+                        disabledCounts={isForeignRegionForMembers(user, {
+                          regionId: row.id,
+                          ownRegionIds,
+                        })}
                         lockMemberCount={isForeignRegionForMembers(user, {
                           regionId: row.id,
                           ownRegionIds,
@@ -470,7 +470,15 @@ export function RegionalListView() {
         </Card>
 
         {displayMode !== 'panel' && (
-          <RegionalCardList regionals={dataFiltered} disabledCounts={disabledCounts} />
+          <RegionalCardList
+            regionals={dataFiltered.map((row) => ({
+              ...row,
+              disabledCounts: isForeignRegionForMembers(user, {
+                regionId: row.id,
+                ownRegionIds,
+              }),
+            }))}
+          />
         )}
       </DashboardContent>
 

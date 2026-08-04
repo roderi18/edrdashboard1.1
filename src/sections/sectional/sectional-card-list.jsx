@@ -9,7 +9,12 @@ export function SectionalCardList({ sectionals }) {
     <CompactEntityCardList
       items={sectionals}
       renderCard={(sectional) => (
-        <SectionalCard key={sectional.id} sectional={sectional} disabled={sectional.disabled} />
+        <SectionalCard
+          key={sectional.id}
+          sectional={sectional}
+          disabled={sectional.disabled}
+          canViewRegionalDests={sectional.canViewRegionalDests}
+        />
       )}
     />
   );
