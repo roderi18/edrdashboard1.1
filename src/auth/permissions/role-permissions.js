@@ -155,7 +155,10 @@ const PERMISOS_CARGO_DESTACAMENTO = [
   PERMISOS.MIEMBROS_VER,
   PERMISOS.MIEMBROS_VER_ADULTOS,
   PERMISOS.MIEMBROS_VER_MENORES,
-  PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+  // SIN `miembros.ver_datos_sensibles`: el Lider de Grupo y su asistente ven la
+  // ficha con los datos personales ENMASCARADOS (direccion, telefono y correo).
+  // La fecha de nacimiento es la unica excepcion y se resuelve en la vista con
+  // `canViewMemberBirthdateWhenMasked`, porque la necesitan para la division.
   PERMISOS.MIEMBROS_EDITAR,
   PERMISOS.MIEMBROS_SUBIR_FOTO,
   PERMISOS.DOCUMENTOS_VER,

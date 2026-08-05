@@ -16,6 +16,9 @@ export default function MemberGeneralSection({
     minBirthdate,
     maxBirthdate,
     masked = false,
+    // La fecha de nacimiento se enmascara por separado: algunos cargos ven la
+    // ficha enmascarada pero conservan visible la fecha (edad y division).
+    maskBirthdate = masked,
     readOnly = false,
 }) {
     return (
@@ -62,7 +65,7 @@ export default function MemberGeneralSection({
                 disabled={readOnly}
             />
 
-            {masked ? (
+            {maskBirthdate ? (
                 <MaskedField
                     label={`Fecha de nacimiento${age !== null ? ` (${age} años)` : ''}`}
                     preset="date"
@@ -76,6 +79,7 @@ export default function MemberGeneralSection({
                     views={['year', 'month', 'day']}
                     minDate={minBirthdate}
                     maxDate={maxBirthdate}
+                    disabled={readOnly}
                 />
             )}
 

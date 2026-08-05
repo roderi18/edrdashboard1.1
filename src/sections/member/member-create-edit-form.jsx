@@ -45,9 +45,10 @@ import {
 import {
   canApproveMemberChanges,
   isDestacamentoApprovalRole,
-  buildDefaultMemberPermissions,
   canViewMemberSensitiveData,
+  buildDefaultMemberPermissions,
   isCoordinadorDestacamentoRole,
+  canViewMemberBirthdateWhenMasked,
 } from 'src/utils/member-access';
 
 import { CONFIG } from 'src/global-config';
@@ -408,11 +409,17 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const isCoordinador = isCoordinadorDestacamentoRole(user);
   const puedeAprobarCambios = canApproveMemberChanges(user);
   // Usuarios sin acceso a los datos sensibles (sección, región, consejo nacional,
-  // etc.): la información personal se muestra enmascarada y el formulario queda en
-  // solo lectura. La dirección, teléfono, correo y fecha se ocultan; el resto de
-  // los campos se ven deshabilitados.
+  // consejo de destacamento, líderes de grupo, etc.): la información personal se
+  // muestra ENMASCARADA (dirección, teléfono y correo).
   const maskSensitive = Boolean(currentMember) && !canViewMemberSensitiveData(user);
-  const readOnlyEffective = readOnly || maskSensitive;
+  // La fecha de nacimiento es la única excepción al enmascarado para los cargos
+  // del destacamento que la necesitan (edad y división del miembro).
+  const maskBirthdate = maskSensitive && !canViewMemberBirthdateWhenMasked(user);
+  // Enmascarar NO implica solo lectura: quién puede editar ya lo decide el prop
+  // `readOnly` (derivado de `miembros.editar`). Acoplarlos dejaba sin el botón de
+  // "Enviar cambios a aprobación" a los líderes de grupo, que sí editan aunque
+  // vean los datos personales enmascarados.
+  const readOnlyEffective = readOnly;
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
   // que "envia a aprobacion" a sus coordinadores y el boton queda "pendiente".
   const [sendingApproval, setSendingApproval] = useState(false);
@@ -2022,6 +2029,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     minBirthdate={minBirthdate}
                     maxBirthdate={maxBirthdate}
                     masked={maskSensitive}
+                    maskBirthdate={maskBirthdate}
                     readOnly={readOnlyEffective}
                   />
                 )}

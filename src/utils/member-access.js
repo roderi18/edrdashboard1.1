@@ -926,6 +926,19 @@ export const canViewMemberSensitiveData = (user = {}) =>
   FULL_MEMBER_TEXT_ROLE_IDS.has(getUserRoleId(user)) ||
   puedePorCatalogo(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
 
+// Cargos del destacamento que ven la ficha ENMASCARADA pero conservan visible la
+// FECHA DE NACIMIENTO. Es la unica excepcion al enmascarado: la necesitan para
+// conocer la edad y la division del miembro (sobre todo en menores). El resto de
+// los datos personales —direccion, telefono y correo— siguen ocultos.
+const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
+]);
+
+export const canViewMemberBirthdateWhenMasked = (user = {}) =>
+  BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS.has(getUserRoleId(user));
+
 // "Visor completo" de la ficha del miembro: puede editar miembros o ver sus
 // datos sensibles. Estos cargos ven habilitados todos los tabs de la ficha.
 export const isFullMemberViewer = (user = {}) =>
