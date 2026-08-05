@@ -320,7 +320,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       if (readOnly) return;
       const deleteRow = tableData.filter((row) => row.id !== id);
 
-      toast.success('Delete success!');
+      toast.success('Elemento eliminado.');
 
       setTableData(deleteRow);
 
@@ -333,7 +333,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     if (readOnly) return;
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
 
-    toast.success('Delete success!');
+    toast.success('Elementos eliminados.');
 
     setTableData(deleteRows);
 
@@ -449,7 +449,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
         title="Eliminar"
         content={
           <>
-            Are you sure want to delete <strong> {table.selected.length} </strong> items?
+            ¿Seguro que deseas eliminar <strong> {table.selected.length} </strong>
+            {table.selected.length === 1 ? 'elemento' : 'elementos'}?
           </>
         }
         action={
@@ -461,7 +462,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
               confirmDialog.onFalse();
             }}
           >
-            Delete
+            Eliminar
           </Button>
         }
       />

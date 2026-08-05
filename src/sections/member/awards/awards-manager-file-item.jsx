@@ -99,7 +99,7 @@ export function FileManagerFileItem({
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
@@ -112,7 +112,7 @@ export function FileManagerFileItem({
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -140,7 +140,7 @@ export function FileManagerFileItem({
       content="Estás seguro que quieres eliminar?"
       action={
         <Button variant="contained" color="error" onClick={onDelete}>
-          Delete
+          Eliminar
         </Button>
       }
     />

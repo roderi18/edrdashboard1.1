@@ -21,6 +21,46 @@ const ensureStorageListener = () => {
     });
 };
 
+// Lee y parsea una coleccion tolerando datos corruptos. Estas colecciones son un
+// ESPEJO local de lo que devuelve el servidor (no la fuente de verdad), asi que
+// ante un JSON invalido o un valor que no sea arreglo se descarta la entrada y se
+// devuelve una coleccion vacia: la proxima sincronizacion la repuebla. Sin esto,
+// un unico caracter corrupto en localStorage propagaba la excepcion y dejaba la
+// aplicacion en blanco, sin forma de recuperarse desde la interfaz.
+const readAndParse = (key) => {
+    let raw;
+
+    try {
+        raw = localStorage.getItem(key);
+    } catch {
+        // Modo privado o almacenamiento bloqueado por el navegador.
+        return [];
+    }
+
+    if (!raw) return [];
+
+    try {
+        const parsed = JSON.parse(raw);
+
+        if (!Array.isArray(parsed)) {
+            console.warn(`[storage] "${key}" no contenia un arreglo; se descarta.`);
+            return [];
+        }
+
+        return parsed;
+    } catch (error) {
+        console.warn(`[storage] "${key}" tenia un JSON invalido; se descarta.`, error);
+
+        try {
+            localStorage.removeItem(key);
+        } catch {
+            // Si tampoco se puede limpiar, basta con devolver la coleccion vacia.
+        }
+
+        return [];
+    }
+};
+
 export function getStorageCollection(key) {
     if (typeof window === 'undefined') return [];
 
@@ -31,8 +71,7 @@ export function getStorageCollection(key) {
     if (memoryCache.has(key)) {
         value = memoryCache.get(key);
     } else {
-        const data = localStorage.getItem(key);
-        value = data ? JSON.parse(data) : [];
+        value = readAndParse(key);
         memoryCache.set(key, value);
     }
 
@@ -48,7 +87,15 @@ export function setStorageCollection(key, data) {
     ensureStorageListener();
 
     memoryCache.set(key, data);
-    localStorage.setItem(key, JSON.stringify(data));
+
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+        // Cuota agotada o almacenamiento bloqueado (modo privado). El espejo en
+        // memoria ya quedo actualizado, asi que la sesion actual sigue funcionando;
+        // solo se pierde la persistencia entre recargas.
+        console.warn(`[storage] no se pudo persistir "${key}".`, error);
+    }
 }
 
 export function saveItem(key, item) {

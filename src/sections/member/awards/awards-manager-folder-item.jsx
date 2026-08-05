@@ -118,7 +118,7 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <MenuItem
@@ -128,7 +128,7 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
           }}
         >
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Editar
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
@@ -141,7 +141,7 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -166,10 +166,10 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este elemento?"
       action={
         <Button variant="contained" color="error" onClick={onDelete}>
-          Delete
+          Eliminar
         </Button>
       }
     />
@@ -179,7 +179,7 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
     <AwardsManagerCreateFolderDialog
       open={editFolderDialog.value}
       onClose={editFolderDialog.onFalse}
-      title="Edit Folder"
+      title="Editar carpeta"
       onUpdate={() => {
         editFolderDialog.onFalse();
         setFolderName(folderName);

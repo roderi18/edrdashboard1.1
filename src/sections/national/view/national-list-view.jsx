@@ -361,6 +361,8 @@ export function NationalListView() {
                         editHref={paths.dashboard.level.national.edit(row.id)}
                         canManage={canManage}
                         canDelete={canDelete}
+                        allMembers={allMembers}
+                        leadershipAssignments={leadershipAssignments}
                       />
                     )}
                     notFound={notFound}

@@ -79,7 +79,7 @@ export function CompactEntityRowActions({
                 onClick={() => menuActions.onClose()}
               >
                 <Iconify icon="solar:pen-bold" />
-                Edit
+                Editar
               </MenuItem>
             </li>
 
@@ -92,7 +92,7 @@ export function CompactEntityRowActions({
                 sx={{ color: 'error.main' }}
               >
                 <Iconify icon="solar:trash-bin-trash-bold" />
-                Delete
+                Eliminar
               </MenuItem>
             )}
           </MenuList>

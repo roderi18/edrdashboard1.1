@@ -249,7 +249,7 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
               onClick={onOpenConfirm}
               sx={{ mr: 1 }}
             >
-              Delete
+              Eliminar
             </Button>
 
             <Button
@@ -259,7 +259,7 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
               startIcon={<Iconify icon="solar:share-bold" />}
               onClick={shareDialog.onTrue}
             >
-              Share
+              Compartir
             </Button>
           </>
         }

@@ -49,7 +49,7 @@ export function AwardItemCard({
         <li>
           <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
             <Iconify icon="solar:pen-bold" />
-            Edit
+            Editar
           </MenuItem>
         </li>
 
@@ -68,7 +68,7 @@ export function AwardItemCard({
           onClick={() => menuActions.onClose()}
         >
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Editar
         </MenuItem>
 
         <MenuItem
@@ -79,7 +79,7 @@ export function AwardItemCard({
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
 
       </MenuList>

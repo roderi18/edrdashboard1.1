@@ -200,7 +200,7 @@ export function AwardsManagerTable({
                 </Tooltip>
               )}
 
-              <Tooltip title="Share">
+              <Tooltip title="Compartir">
                 <IconButton color="primary">
                   <Iconify icon="solar:share-bold" />
                 </IconButton>

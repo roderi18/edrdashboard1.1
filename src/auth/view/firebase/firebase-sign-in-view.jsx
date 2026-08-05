@@ -67,11 +67,11 @@ const expectedAuthErrorCodes = [
 ];
 
 export const MemberSignInSchema = z.object({
-  userNumber: z.string().min(1, { error: 'El codigo de usuario es requerido.' }),
+  userNumber: z.string().min(1, { error: 'El código de usuario es requerido.' }),
   password: z
     .string()
-    .min(1, { error: 'La contrasena es requerida.' })
-    .min(6, { error: 'La contrasena debe tener al menos 6 caracteres.' }),
+    .min(1, { error: 'La contraseña es requerida.' })
+    .min(6, { error: 'La contraseña debe tener al menos 6 caracteres.' }),
   rememberEmail: z.boolean(),
 });
 
@@ -79,8 +79,8 @@ export const AdminSignInSchema = z.object({
   loginValue: z.string().min(1, { error: 'El usuario o correo es requerido.' }),
   password: z
     .string()
-    .min(1, { error: 'La contrasena es requerida.' })
-    .min(6, { error: 'La contrasena debe tener al menos 6 caracteres.' }),
+    .min(1, { error: 'La contraseña es requerida.' })
+    .min(6, { error: 'La contraseña debe tener al menos 6 caracteres.' }),
   rememberEmail: z.boolean(),
 });
 
@@ -209,8 +209,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
   const renderModeSwitch = () => {
     const href = isAdminMode ? paths.auth.firebase.signIn : paths.auth.firebase.adminSignIn;
     const label = isAdminMode
-      ? 'Volver al inicio de sesion de miembros'
-      : 'Iniciar sesion como administrador';
+      ? 'Volver al inicio de sesión de miembros'
+      : 'Iniciar sesión como administrador';
 
     return (
       <Link
@@ -231,11 +231,11 @@ export function FirebaseSignInView({ mode = 'member' }) {
   return (
     <>
       <FormHead
-        title={isAdminMode ? 'Inicia sesion como administrador' : 'Inicia sesion en tu cuenta'}
+        title={isAdminMode ? 'Inicia sesión como administrador' : 'Inicia sesión en tu cuenta'}
         description={
           isAdminMode
-            ? 'Usa tu usuario o correo institucional para entrar, administrar accesos y continuar tu jornada sin friccion.'
-            : 'Ingresa con tu codigo de usuario para consultar tu panel, retomar procesos y mantener tu cuenta al dia.'
+            ? 'Usa tu usuario o correo institucional para entrar, administrar accesos y continuar tu jornada sin fricción.'
+            : 'Ingresa con tu código de usuario para consultar tu panel, retomar procesos y mantener tu cuenta al día.'
         }
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
@@ -248,7 +248,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       {!isAuthReady && (
         <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
-          El inicio de sesion de Firebase no esta disponible en este entorno. Revisa las variables
+          El inicio de sesión de Firebase no está disponible en este entorno. Revisa las variables
           publicas de Firebase en Netlify
           {missingFirebaseConfigKeys.length ? `: ${missingFirebaseConfigKeys.join(', ')}.` : '.'}
         </Alert>
@@ -268,7 +268,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
             <Field.Text
               autoFocus
               name="userNumber"
-              label="Codigo de usuario"
+              label="Código de usuario"
               placeholder="111111017"
               slotProps={{ inputLabel: { shrink: true } }}
             />
@@ -284,12 +284,12 @@ export function FirebaseSignInView({ mode = 'member' }) {
               color="inherit"
               sx={{ alignSelf: 'flex-end' }}
             >
-              Olvidaste tu contrasena?
+              ¿Olvidaste tu contraseña?
             </Link>
 
             <Field.Text
               name="password"
-              label="Contrasena"
+              label="Contraseña"
               placeholder="6+ caracteres"
               type={showPassword.value ? 'text' : 'password'}
               slotProps={{
@@ -319,10 +319,10 @@ export function FirebaseSignInView({ mode = 'member' }) {
             variant="contained"
             disabled={isSigningIn}
             loading={isSubmitting}
-            loadingIndicator="Iniciando sesion..."
+            loadingIndicator="Iniciando sesión..."
             sx={{ minHeight: 54, borderRadius: 1.8 }}
           >
-            {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesion'}
+            {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesión'}
           </Button>
 
           {isSigningIn ? (
@@ -338,13 +338,13 @@ export function FirebaseSignInView({ mode = 'member' }) {
             >
               <CircularProgress size={20} color="inherit" />
               <Typography variant="body2">
-                {isRedirecting ? 'Abriendo tu panel...' : 'Iniciando sesion...'}
+                {isRedirecting ? 'Abriendo tu panel...' : 'Iniciando sesión...'}
               </Typography>
             </Box>
           ) : (
             <>
               <Divider sx={{ color: 'text.disabled', typography: 'caption' }}>
-                o continua con
+                o continúa con
               </Divider>
 
               <Box sx={{ gap: 1.5, display: 'flex', justifyContent: 'center' }}>
@@ -358,12 +358,12 @@ export function FirebaseSignInView({ mode = 'member' }) {
                       aria-label={
                         option.disabled
                           ? `${option.label} deshabilitado`
-                          : `Iniciar sesion con ${option.label}`
+                          : `Iniciar sesión con ${option.label}`
                       }
                       title={
                         option.disabled
                           ? `${option.label} - ${option.helperText}`
-                          : `Iniciar sesion con ${option.label}`
+                          : `Iniciar sesión con ${option.label}`
                       }
                       sx={{
                         border: (theme) => `1px solid ${theme.vars.palette.divider}`,

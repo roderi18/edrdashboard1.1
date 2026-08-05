@@ -3,10 +3,8 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
-import { getStorageCollection } from 'src/utils/storage-service';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
-import { MEMBERS } from 'src/_mock/assets';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
@@ -35,11 +33,12 @@ export function NationalTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  // Ambas colecciones las calcula UNA vez la vista y las pasa por props: leerlas
+  // aqui suponia dos copias completas por fila y por render. Son exactamente el
+  // mismo conjunto con el que la vista construyo las filas.
+  allMembers = [],
+  leadershipAssignments = [],
 }) {
-  const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
-  const storedMembers = getStorageCollection('members') || [];
-  const allMembers = [...MEMBERS, ...storedMembers];
-
   const assignment = leadershipAssignments.find(
     (l) =>
       l.memberId === row.memberId &&

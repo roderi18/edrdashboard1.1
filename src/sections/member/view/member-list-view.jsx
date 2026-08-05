@@ -36,7 +36,12 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
 import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
-import { getMembers, deleteMember, getCachedMembers } from 'src/services/member-service';
+import {
+  getMembers,
+  deleteMember,
+  getCachedMembers,
+  getLeadershipAssignments,
+} from 'src/services/member-service';
 import {
   obtenerCargosDirectiva,
   obtenerAsignacionesDirectivaMiembros,
@@ -312,6 +317,9 @@ export function MemberListView() {
     () => filterMembersByMemberScope(tableData, user, { dests, churches, sectionals }),
     [churches, dests, sectionals, tableData, user]
   );
+  // Se lee UNA vez para toda la tabla y se pasa a cada fila. Antes cada fila
+  // leia la coleccion completa en cada render (N copias por render).
+  const leadershipAssignments = useMemo(() => getLeadershipAssignments(), []);
   // Los administradores de seccion y region pueden VER la lista completa de
   // miembros pero no editarlos (su rol no incluye permisos de edicion). Por eso
   // no basta con "es admin": exigimos permiso real de gestion de miembros.
@@ -810,6 +818,7 @@ export function MemberListView() {
                         canManage={memberCanManage}
                         canDelete={memberCanDelete}
                         allowQuickEdit={memberAllowQuickEdit}
+                        leadershipAssignments={leadershipAssignments}
                         onSelectRow={() => memberCanManage && table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.dashboard.level.member.edit(

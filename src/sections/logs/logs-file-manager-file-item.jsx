@@ -112,7 +112,7 @@ export function FileManagerFileItem({ file, selected, onSelect, onDelete, disabl
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Eliminar"
-      content="Are you sure want to delete?"
+      content="¿Seguro que deseas eliminar este elemento?"
       action={
         <Button variant="contained" color="error" onClick={onDelete}>
           Delete

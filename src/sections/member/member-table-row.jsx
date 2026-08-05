@@ -11,7 +11,6 @@ import { useRouter } from 'src/routes/hooks';
 import { capitalizeWords } from 'src/utils/text-format';
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 import { resolveById } from 'src/utils/resolve-display-name';
-import { getStorageCollection } from 'src/utils/storage-service';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { SECTIONALS } from 'src/_mock/assets';
@@ -35,6 +34,9 @@ export function MemberTableRow({
   canManage = true,
   canDelete = true,
   allowQuickEdit = true,
+  // La coleccion se lee UNA sola vez en la vista y se pasa por props: leerla aqui
+  // suponia una copia completa por fila y por render (N lecturas por render).
+  leadershipAssignments = [],
 }) {
   const router = useRouter();
   const showMorePositions = useBoolean();
@@ -81,7 +83,6 @@ export function MemberTableRow({
       : 'Posición desconocida';
   })();
 
-  const leadershipAssignments = getStorageCollection('leadershipAssignments') || [];
   const leaderships = leadershipAssignments
     .filter(
       (l) =>

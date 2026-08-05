@@ -109,7 +109,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
 
         await sendPasswordResetEmail({ email: admin.data.correo });
         setSuccessMessage(
-          `Te enviamos un enlace para restablecer tu contrasena a ${admin.data.correo}.`
+          `Te enviamos un enlace para restablecer tu contraseña a ${admin.data.correo}.`
         );
         return;
       }
@@ -128,7 +128,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
 
       await sendPasswordResetEmail({ email: member.correo });
 
-      setSuccessMessage(`Te enviamos un enlace para restablecer tu contrasena a ${member.correo}.`);
+      setSuccessMessage(`Te enviamos un enlace para restablecer tu contraseña a ${member.correo}.`);
     } catch (error) {
       if (!expectedResetErrorCodes.includes(error?.code)) {
         console.error(error);
@@ -163,7 +163,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
     <>
       <FormHead
         icon={<PasswordIcon />}
-        title="Olvidaste tu contrasena?"
+        title="¿Olvidaste tu contraseña?"
         description={
           isAdminMode
             ? 'Ingresa tu usuario o correo de administrador para recuperar el acceso a tu cuenta.'
@@ -221,7 +221,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
             <Field.Text
               autoFocus
               name="userNumber"
-              label="Codigo de usuario"
+              label="Código de usuario"
               placeholder="111111017"
               slotProps={{ inputLabel: { shrink: true } }}
             />

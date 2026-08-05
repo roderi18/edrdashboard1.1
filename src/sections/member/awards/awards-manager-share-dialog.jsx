@@ -27,7 +27,7 @@ export function AwardsManagerShareDialog({
 
   return (
     <Dialog fullWidth maxWidth="xs" open={open} onClose={onClose} sx={sx} {...other}>
-      <DialogTitle>Share</DialogTitle>
+      <DialogTitle>Compartir</DialogTitle>
 
       <Box sx={{ px: 3 }}>
         {onChangeInvite && (

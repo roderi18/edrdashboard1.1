@@ -10,7 +10,7 @@ import { getResolvedMemberByIdentifier } from 'src/services/member-context-servi
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
-import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form ';
+import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 

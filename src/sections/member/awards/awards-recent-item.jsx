@@ -75,7 +75,7 @@ export function FileRecentItem({ file, onDelete, sx, ...other }) {
           }}
         >
           <Iconify icon="solar:share-bold" />
-          Share
+          Compartir
         </MenuItem>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
@@ -88,7 +88,7 @@ export function FileRecentItem({ file, onDelete, sx, ...other }) {
           sx={{ color: 'error.main' }}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          Eliminar
         </MenuItem>
       </MenuList>
     </CustomPopover>
