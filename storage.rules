@@ -187,6 +187,21 @@ service firebase.storage {
         || tieneDocumento('usuarios_roles');
     }
 
+    // Certificados PDF del Sistema de Ascenso / Academia Ministerial (subidos por
+    // el coordinador/lider al marcar un item como completado) y lotes de
+    // certificados generados por administracion. Cualquier cargo de solo lectura
+    // (Pastor, Consejo, Capellan) queda excluido aunque conserve un permiso
+    // directo heredado.
+    function puedeGestionarCertificadosAscenso() {
+      return !esCargoDestacamentoSoloLectura()
+        && (esAdminRegistrado() || tienePermiso('ascenso.editar'));
+    }
+
+    match /certificados/{allPaths=**} {
+      allow read: if estaAutenticado();
+      allow write: if estaAutenticado() && puedeGestionarCertificadosAscenso();
+    }
+
     match /documentos-salud-miembros/{idMiembro}/{archivo} {
       allow read: if estaAutenticado();
       allow create, update: if estaAutenticado()

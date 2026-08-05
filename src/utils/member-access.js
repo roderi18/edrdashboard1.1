@@ -776,10 +776,10 @@ export const filterDestsByMemberScope = (dests = [], user, context = {}) => {
 
 // Cargos que ven todas las secciones de SU region (no del pais), pero solo
 // pueden interactuar con su propia seccion; el resto se muestra deshabilitado.
+// El Pastor NO va aqui: es de solo lectura y no interactua con nada.
 const REGION_WIDE_SECTION_VIEWER_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
-  ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
   ROLES.CAPELLAN_DESTACAMENTO,
 ];
@@ -805,12 +805,11 @@ export const isGroupLeaderRole = (user = {}) =>
 // sus cambios (General y Dispensa Médica) van a APROBACION del Coordinador de
 // Destacamento (mismo flujo/bloqueos que el Lider de Grupo). En Documentos de
 // salud pueden subir pero no eliminar.
-// El Pastor NO va aqui: comparte el perfil del Coordinador de Destacamento y
-// edita de forma directa (se normaliza a titular en getScopeUserRoleId).
+// El Pastor NO va aqui: es de SOLO LECTURA (no edita, ni siquiera por
+// aprobacion); su formulario se renderiza en solo lectura completo.
 const DESTACAMENTO_APPROVAL_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
-  ROLES.PASTOR_DESTACAMENTO,
 ];
 
 export const isDestacamentoApprovalRole = (user = {}) =>

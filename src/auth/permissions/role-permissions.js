@@ -264,24 +264,10 @@ const PERMISOS_CONSEJO_CAPELLAN_LECTURA = PERMISOS_PASTOR_LECTURA.filter(
   (permiso) => permiso !== PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES
 );
 
-// El Pastor puede editar la ficha general y la foto como un Lider de Grupo. Sus
-// cambios no se guardan directamente: pasan por aprobacion del Coordinador.
-const PERMISOS_PASTOR_EDICION_MIEMBROS = [
-  ...PERMISOS_PASTOR_LECTURA,
-  PERMISOS.MIEMBROS_EDITAR,
-  PERMISOS.MIEMBROS_SUBIR_FOTO,
-];
-
 const RESTRICCIONES_PASTOR = {
   ...RESTRICCIONES_BASE,
   soloLectura: true,
   requierePermisoParaMenores: true,
-};
-
-const RESTRICCIONES_PASTOR_EDICION_MIEMBROS = {
-  ...RESTRICCIONES_BASE,
-  requierePermisoParaMenores: true,
-  eliminarDocumentosRequiereAprobacion: true,
 };
 
 export const RESTRICCIONES_ROL = {
@@ -292,7 +278,9 @@ export const RESTRICCIONES_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: RESTRICCIONES_COORDINADOR_DESTACAMENTO,
   ...fromCodes(CARGOS_DESTACAMENTO, RESTRICCIONES_CARGO_DESTACAMENTO),
-  [ROLES.PASTOR_DESTACAMENTO]: RESTRICCIONES_PASTOR_EDICION_MIEMBROS,
+  // El Pastor es de SOLO LECTURA en todos los ambitos de miembros: no edita, no
+  // usa desplegables. Consejo y Capellan comparten el mismo perfil de consulta.
+  [ROLES.PASTOR_DESTACAMENTO]: RESTRICCIONES_PASTOR,
   [ROLES.CONSEJO_DESTACAMENTO]: RESTRICCIONES_PASTOR,
   [ROLES.CAPELLAN_DESTACAMENTO]: RESTRICCIONES_PASTOR,
   [ROLES.USUARIO_SECCION]: {
@@ -373,8 +361,8 @@ export const PERMISOS_POR_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: PERMISOS_COORDINADOR_DESTACAMENTO,
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: PERMISOS_COORDINADOR_DESTACAMENTO,
-  // Pastor: puede editar la ficha de miembros, siempre mediante aprobacion.
-  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_EDICION_MIEMBROS,
+  // Pastor: SOLO LECTURA de los miembros de su destacamento; no edita ni crea.
+  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_LECTURA,
   // Consejo y Capellan: mismo perfil de consulta, pero sin datos sensibles.
   [ROLES.CONSEJO_DESTACAMENTO]: PERMISOS_CONSEJO_CAPELLAN_LECTURA,
   [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CONSEJO_CAPELLAN_LECTURA,

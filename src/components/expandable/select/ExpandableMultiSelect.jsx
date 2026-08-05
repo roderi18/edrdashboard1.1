@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
+import { useRef, useState, useEffect } from 'react';
+
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
-import { Iconify } from 'src/components/iconify';
+import TextField from '@mui/material/TextField';
 import { useTheme, useMediaQuery } from '@mui/material';
+import InputAdornment from '@mui/material/InputAdornment';
+
+import { Iconify } from 'src/components/iconify';
 
 const defaultFormatLabel = (value) => {
     if (!value) return '';
@@ -26,6 +28,7 @@ export function ExpandableMultiSelect({
     options = [],
     getOptionValue,
     getOptionLabel,
+    getOptionDisabled,
     width = 200,
     compact = false,
     icon = 'ic:round-filter-list',
@@ -63,6 +66,12 @@ export function ExpandableMultiSelect({
         if (typeof option === 'object')
             return option.label ?? defaultFormatLabel(option.value);
         return defaultFormatLabel(option);
+    };
+
+    const resolveDisabled = (option) => {
+        if (getOptionDisabled) return getOptionDisabled(option);
+        if (typeof option === 'object') return Boolean(option.disabled);
+        return false;
     };
 
     const handleClickAway = () => {
@@ -183,10 +192,11 @@ export function ExpandableMultiSelect({
         >
             {options.map((option) => {
                 const optionValue = resolveValue(option);
+                const optionDisabled = resolveDisabled(option);
 
                 return (
-                    <MenuItem key={optionValue} value={optionValue}>
-                        <Checkbox checked={value.includes(optionValue)} />
+                    <MenuItem key={optionValue} value={optionValue} disabled={optionDisabled}>
+                        <Checkbox checked={value.includes(optionValue)} disabled={optionDisabled} />
                         {resolveLabel(option)}
                     </MenuItem>
                 );

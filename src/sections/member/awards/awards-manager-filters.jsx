@@ -11,6 +11,12 @@ import { ExpandableMultiSelect } from 'src/components/expandable/select/Expandab
 
 // ----------------------------------------------------------------------
 
+const STATUS_LABELS = {
+  completado: 'Completado',
+  en_progreso: 'En progreso',
+  no_iniciado: 'No iniciado',
+};
+
 export function AwardsManagerFilters({
   filters,
   dateError,
@@ -20,6 +26,7 @@ export function AwardsManagerFilters({
   activeInput,
   setActiveInput,
   showStatusFilter = true,
+  statusCounts = { completado: 0, en_progreso: 0, no_iniciado: 0 },
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -122,7 +129,11 @@ export function AwardsManagerFilters({
           label="Estado"
           value={currentFilters.status || []}
           onChange={handleFilterStatus}
-          options={['completado', 'en_progreso', 'no_iniciado']}
+          options={['completado', 'en_progreso', 'no_iniciado'].map((value) => ({
+            value,
+            label: `${STATUS_LABELS[value]} (${statusCounts[value] ?? 0})`,
+            disabled: !(statusCounts[value] > 0),
+          }))}
           width={{ xs: 140, md: 200 }}
           compact={isMobile}
           onOpen={() => setActiveInput('status')}

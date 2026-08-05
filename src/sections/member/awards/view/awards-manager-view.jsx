@@ -264,6 +264,20 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     };
   });
 
+  // Conteo por estado dentro de la carpeta/pestaña actual (antes de aplicar el
+  // propio filtro de estado), para mostrarlo en el desplegable "Estado" y
+  // deshabilitar las opciones sin coincidencias.
+  const statusCounts = dataWithStatus.reduce(
+    (acc, item) => {
+      const realStatus = item.status;
+      const key =
+        realStatus === 'completado' || realStatus === 'en_progreso' ? realStatus : 'no_iniciado';
+      acc[key] += 1;
+      return acc;
+    },
+    { completado: 0, en_progreso: 0, no_iniciado: 0 }
+  );
+
   const dataFiltered = applyFilter({
     inputData: dataWithStatus,
     comparator: getComparator(table.order, table.orderBy),
@@ -351,6 +365,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
           activeInput={activeInput}
           setActiveInput={setActiveInput}
           showStatusFilter={showStatusFilter}
+          statusCounts={statusCounts}
         />
       </Box>
 
@@ -639,15 +654,16 @@ function applyFilter({ inputData, comparator, filters, dateError, showStatusFilt
 
   if (showStatusFilter && status?.length) {
     inputData = inputData.filter((file) => {
-      const realStatus = file.status;
+      // "no iniciado" no se guarda en el storage (ausencia de estado = no iniciado),
+      // por eso se normaliza aquí antes de comparar contra la selección. Con
+      // varios estados seleccionados a la vez, el item debe coincidir con
+      // CUALQUIERA de ellos (OR), no solo con "no_iniciado" cuando está presente.
+      const normalizedStatus =
+        file.status === 'completado' || file.status === 'en_progreso'
+          ? file.status
+          : 'no_iniciado';
 
-      // 🔥 Si están filtrando "no_iniciado". Esto se hace porque "no iniciado" no está en local storage
-      if (status.includes('no_iniciado')) {
-        return realStatus !== 'completado' && realStatus !== 'en_progreso';
-      }
-
-      // 🔥 Si están filtrando completado o en_progreso
-      return status.includes(realStatus);
+      return status.includes(normalizedStatus);
     });
   }
 

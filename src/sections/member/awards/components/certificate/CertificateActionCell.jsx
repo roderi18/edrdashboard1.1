@@ -21,10 +21,16 @@ export function CertificateActionCell({
         );
     }
 
-    // Solo lectura (p. ej. Director Nacional / Consejo Nacional): puede VER el
-    // certificado si existe, pero no puede subirlo.
+    // Solo lectura (p. ej. Pastor / Director Nacional / Consejo Nacional): puede
+    // VER el certificado si existe, pero no puede subirlo. Sin certificado no hay
+    // nada que ver ni subir, pero el botón NUNCA debe desaparecer (columna vacía
+    // confunde); se muestra "N/A" deshabilitado, igual que cuando no está completado.
     if (readOnly && !hasCertificate) {
-        return null;
+        return (
+            <Button size="small" variant="outlined" disabled>
+                N/A
+            </Button>
+        );
     }
 
     if (isCompleted && !hasCertificate) {
