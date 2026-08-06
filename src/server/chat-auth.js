@@ -3,6 +3,10 @@ import 'server-only';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import {
+  isFirebaseRestAuthConfigured,
+  createFirebaseRestIdentityProvider,
+} from './firebase-auth-rest.mjs';
+import {
   CHAT_AUTH_CODES,
   ChatAuthenticationError,
   createChatRequestAuthenticator,
@@ -19,6 +23,22 @@ export {
 const PROFILE_COLLECTIONS = ['usuarios_roles', 'users', 'admins'];
 const UID_FIELDS = ['uid', 'idUsuario'];
 const EMAIL_FIELDS = ['correo', 'email'];
+
+let restIdentityProvider = null;
+
+const getRestIdentityProvider = () => {
+  if (!restIdentityProvider) {
+    restIdentityProvider = createFirebaseRestIdentityProvider({
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    });
+  }
+
+  return restIdentityProvider;
+};
+
+const isChatAuthenticationConfigured = () =>
+  isAdminConfigured() || isFirebaseRestAuthConfigured();
 
 const hasMemberId = (profiles = []) =>
   profiles.some((profile) => {
@@ -91,8 +111,12 @@ const loadIdentityProfiles = async ({ uid, email }) => {
 };
 
 export const authenticateChatRequest = createChatRequestAuthenticator({
-  isConfigured: isAdminConfigured,
+  isConfigured: isChatAuthenticationConfigured,
   verifyIdToken: async (token) => {
+    if (!isAdminConfigured()) {
+      return getRestIdentityProvider().verifyIdToken(token);
+    }
+
     let adminAuth;
 
     try {
@@ -110,7 +134,10 @@ export const authenticateChatRequest = createChatRequestAuthenticator({
 
     return adminAuth.verifyIdToken(token, true);
   },
-  loadIdentityProfiles,
+  loadIdentityProfiles: (identity) =>
+    isAdminConfigured()
+      ? loadIdentityProfiles(identity)
+      : getRestIdentityProvider().loadIdentityProfiles(identity),
 });
 
 export const chatAuthenticationErrorResponse = (error) => {

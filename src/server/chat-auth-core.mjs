@@ -159,6 +159,7 @@ export const createChatRequestAuthenticator = ({
         uid,
         email: normalizeText(decodedToken.email),
         decodedToken,
+        token,
       });
     } catch (error) {
       throw new ChatAuthenticationError(

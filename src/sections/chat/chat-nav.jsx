@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Drawer from '@mui/material/Drawer';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -29,7 +30,14 @@ import { useChatCurrentContact } from './hooks/use-chat-current-contact';
 const NAV_WIDTH = 320;
 const NAV_COLLAPSE_WIDTH = 96;
 
-export function ChatNav({ loading, contacts, collapseNav, conversations, selectedConversationId }) {
+export function ChatNav({
+  error: contactsError,
+  loading,
+  contacts,
+  collapseNav,
+  conversations,
+  selectedConversationId,
+}) {
   const router = useRouter();
 
   const myContact = useChatCurrentContact(contacts);
@@ -215,7 +223,11 @@ export function ChatNav({ loading, contacts, collapseNav, conversations, selecte
 
       <Box sx={{ p: 2.5, pt: 0 }}>{!collapseDesktop && renderSearchInput()}</Box>
 
-      {loading ? (
+      {contactsError && !collapseDesktop ? (
+        <Alert severity="error" sx={{ mx: 2.5 }}>
+          {contactsError.message || 'No se pudieron cargar los contactos.'}
+        </Alert>
+      ) : loading ? (
         renderLoading()
       ) : (
         <Scrollbar sx={{ pb: 1 }}>

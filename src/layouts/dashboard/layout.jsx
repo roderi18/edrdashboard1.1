@@ -17,7 +17,7 @@ import { filterDashboardNavDataByUser } from 'src/utils/member-access';
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
 import { _contacts, _notifications } from 'src/_mock';
-import { useGetContacts, useGetConversations } from 'src/actions/chat';
+import { useGetChatUnreadSummary } from 'src/actions/chat';
 import {
   marcarNotificacionComoLeida,
   marcarNotificacionComoAtendida,
@@ -29,7 +29,8 @@ import { Logo } from 'src/components/logo';
 import { Label } from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
 
-import { useChatCurrentContact } from 'src/sections/chat/hooks/use-chat-current-contact';
+import { useChatRealtimeSync } from 'src/sections/chat/hooks/use-chat-realtime-sync';
+import { usePresenceHeartbeat } from 'src/sections/chat/hooks/use-presence-heartbeat';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -107,20 +108,21 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
-  const { contacts } = useGetContacts(isChatRoute);
   const { labels: mailLabels } = useGetLabels(isMailRoute);
-  const currentContact = useChatCurrentContact(contacts);
-  const { conversations } = useGetConversations(currentContact.idMiembros, isChatRoute);
+  const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
+  const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
+  const { unreadByConversation } = useGetChatUnreadSummary(chatMemberId, chatSummaryEnabled);
+
+  useChatRealtimeSync({
+    idMiembros: !isChatRoute && chatSummaryEnabled ? chatMemberId : null,
+    conversationId: null,
+  });
+  usePresenceHeartbeat(!isChatRoute && chatSummaryEnabled ? chatMemberId : null);
+
   const activeChatId = isChatRoute ? searchParams.get('id') : null;
-  const chatsSinLeer = conversations.allIds.reduce(
-    (total, conversationId) =>
-      total +
-      (conversationId !== activeChatId &&
-      Number(conversations.byId[conversationId]?.unreadCount || 0) > 0
-        ? 1
-        : 0),
-    0
-  );
+  const chatsSinLeer = Object.keys(unreadByConversation).filter(
+    (conversationId) => conversationId !== activeChatId
+  ).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
 

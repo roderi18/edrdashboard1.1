@@ -33,6 +33,8 @@ export const isConversationKey = (key, conversationId) =>
 
 export const isConversationsKey = (key) => isChatKey(key, 'conversations');
 
+export const isChatUnreadSummaryKey = (key) => isChatKey(key, 'unread-summary');
+
 export function useGetContacts(enabled = true) {
   const url = enabled ? [CHAT_ENDPOINT, { params: { endpoint: 'contacts' } }] : '';
 
@@ -53,6 +55,32 @@ export function useGetContacts(enabled = true) {
   );
 
   return memoizedValue;
+}
+
+// ----------------------------------------------------------------------
+
+export function useGetChatUnreadSummary(idMiembros, enabled = true) {
+  const url =
+    enabled && idMiembros
+      ? [CHAT_ENDPOINT, { params: { endpoint: 'unread-summary', sessionMemberId: idMiembros } }]
+      : '';
+
+  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+    ...swrOptions,
+    refreshInterval: 0,
+  });
+
+  return useMemo(
+    () => ({
+      unreadByConversation: data?.unreadByConversation ?? {},
+      unreadConversationCount: Number(data?.unreadConversationCount ?? 0),
+      unreadMessageCount: Number(data?.unreadMessageCount ?? 0),
+      unreadSummaryLoading: isLoading,
+      unreadSummaryError: error,
+      unreadSummaryValidating: isValidating,
+    }),
+    [data, error, isLoading, isValidating]
+  );
 }
 
 // ----------------------------------------------------------------------

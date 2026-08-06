@@ -9,7 +9,7 @@
     "start": "next start -p 3032",
     "build": "next build",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-    "test:chat-auth": "node --test tests/chat/chat-auth.test.mjs tests/chat/chat-route-identity-regression.test.mjs",
+    "test:chat-auth": "node --test tests/chat/*.test.mjs",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:print": "npx eslint --print-config eslint.config.mjs > eslint-show-config.json",
     "fm:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx}\"",

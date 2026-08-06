@@ -17,6 +17,7 @@ import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
+import { toPublicChatContact, getPublicChatContacts } from 'src/server/chat-contact-core.mjs';
 import {
   authenticateChatRequest,
   bindAuthenticatedMessage,
@@ -24,6 +25,14 @@ import {
   chatAuthenticationErrorResponse,
   assertAuthenticatedConversationParticipant,
 } from 'src/server/chat-auth';
+import {
+  CHAT_PERMISSIONS,
+  assertMessageAuthor,
+  assertChatPermission,
+  ChatAuthorizationError,
+  assertConversationParticipant,
+  authorizeConversationOperation,
+} from 'src/server/chat-authorization-core.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -35,6 +44,15 @@ const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
 const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const COLECCION_FOTOS = 'fotos';
 const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
+
+const chatAuthorizationErrorResponse = (error) => {
+  if (!(error instanceof ChatAuthorizationError)) return null;
+
+  return Response.json(
+    { message: error.message, code: error.code },
+    { status: error.status }
+  );
+};
 
 const nowIso = () => new Date().toISOString();
 
@@ -109,42 +127,12 @@ const normalizeMember = (member = {}) => {
 
 const memberToContact = (member = {}) => {
   const normalizedMember = normalizeMember(member);
-  const id = String(normalizedMember.idMiembros ?? '');
 
-  return {
-    ...normalizedMember,
-    id,
-    name: buildNombreCompleto(normalizedMember),
-    role: normalizedMember.estatusMiembro,
-    email: normalizedMember.correo,
-    address: normalizedMember.direccion,
-    phoneNumber: normalizedMember.telefono,
-    status: 'offline',
-    lastActivity: nowIso(),
-  };
+  return toPublicChatContact(normalizedMember);
 };
 
-const getAllContacts = (members = []) => {
-  const contacts = new Map();
-
-  const mergeContact = (currentContact, nextContact) => ({
-    ...nextContact,
-    ...currentContact,
-    avatarUrl: currentContact.avatarUrl || nextContact.avatarUrl,
-    status: currentContact.status || nextContact.status,
-    lastActivity: currentContact.lastActivity || nextContact.lastActivity,
-  });
-
-  members.forEach((member) => {
-    const contact = memberToContact(member);
-
-    if (contact.id) {
-      contacts.set(contact.id, contacts.has(contact.id) ? mergeContact(contacts.get(contact.id), contact) : contact);
-    }
-  });
-
-  return Array.from(contacts.values());
-};
+const getAllContacts = (members = []) =>
+  getPublicChatContacts(members.map((member) => normalizeMember(member)));
 
 const getMemberLookupKeys = (member = {}) =>
   [
@@ -161,32 +149,21 @@ const getMemberLookupKeys = (member = {}) =>
     .filter(Boolean);
 
 const resolveParticipantFromContacts = (participant = {}, contacts = []) => {
-  const normalizedParticipant = normalizeMember(participant);
-
-  if (normalizedParticipant.idMiembros) {
-    return normalizedParticipant;
-  }
-
   const participantKeys = new Set(getMemberLookupKeys(participant));
 
   if (!participantKeys.size) {
-    return normalizedParticipant;
+    return null;
   }
 
   const contact = contacts.find((item) =>
     getMemberLookupKeys(item).some((key) => participantKeys.has(key))
   );
 
-  return normalizeMember({ ...participant, ...contact });
+  return contact ? normalizeMember(contact) : null;
 };
 
 async function resolveConversationParticipants(conversationData = {}) {
   const rawParticipants = asArray(conversationData.participantes ?? conversationData.participants);
-  const participants = rawParticipants.map(normalizeMember);
-
-  if (participants.filter((member) => member.idMiembros).length >= 2) {
-    return participants.filter((member) => member.idMiembros);
-  }
 
   const [members, firestoreProfiles] = await Promise.all([
     getMembersFromApi().catch(() => []),
@@ -196,7 +173,8 @@ async function resolveConversationParticipants(conversationData = {}) {
 
   return rawParticipants
     .map((participant) => resolveParticipantFromContacts(participant, contacts))
-    .filter((member) => member.idMiembros);
+    .filter((member) => member?.idMiembros)
+    .map(toPublicChatContact);
 }
 
 const messageToFirestore = (message = {}, fallbackSender = {}) => {
@@ -210,7 +188,7 @@ const messageToFirestore = (message = {}, fallbackSender = {}) => {
     texto: message.texto ?? message.body ?? '',
     tipoContenido: message.tipoContenido ?? message.contentType ?? 'text',
     remitenteIdMiembros,
-    remitente: normalizeMember({
+    remitente: toPublicChatContact({
       ...fallbackSender,
       idMiembros: remitenteIdMiembros,
     }),
@@ -594,7 +572,47 @@ async function getConversations(viewerIdMiembros = null) {
   );
 }
 
+async function getUnreadSummary(viewerIdMiembros) {
+  const viewerId = toNumberOrNull(viewerIdMiembros);
+
+  if (!viewerId) {
+    return {
+      unreadByConversation: {},
+      unreadConversationCount: 0,
+      unreadMessageCount: 0,
+    };
+  }
+
+  const conversationsQuery = query(
+    collection(FIRESTORE, COLECCION_CONVERSACIONES),
+    where('eliminada', '==', false),
+    where('participantesIds', 'array-contains', viewerId)
+  );
+  const snapshot = await getDocs(conversationsQuery);
+  const unreadByConversation = {};
+
+  snapshot.docs.forEach((item) => {
+    const conversation = item.data() ?? {};
+    const unreadCount = Number(conversation.noLeidosPorIdMiembros?.[String(viewerId)] ?? 0);
+
+    if (unreadCount > 0) {
+      unreadByConversation[item.id] = unreadCount;
+    }
+  });
+
+  return {
+    unreadByConversation,
+    unreadConversationCount: Object.keys(unreadByConversation).length,
+    unreadMessageCount: Object.values(unreadByConversation).reduce(
+      (total, count) => total + Number(count || 0),
+      0
+    ),
+  };
+}
+
 async function createConversation(conversationData = {}, chatActor = {}) {
+  assertChatPermission(chatActor, CHAT_PERMISSIONS.START);
+
   const authenticatedConversationData = bindAuthenticatedConversation(conversationData, chatActor);
   const participantes = await resolveConversationParticipants(authenticatedConversationData);
   const participantesIds = [...new Set(participantes.map((member) => member.idMiembros))];
@@ -604,6 +622,10 @@ async function createConversation(conversationData = {}, chatActor = {}) {
     (authenticatedConversationData.type === 'GROUP' || participantesIds.length > 2
       ? 'GRUPAL'
       : 'INDIVIDUAL');
+
+  if (tipoConversacion === 'GRUPAL') {
+    assertChatPermission(chatActor, CHAT_PERMISSIONS.MANAGE_GROUP);
+  }
   const idConversacion = buildConversationId({
     tipoConversacion,
     participantesIds,
@@ -626,9 +648,10 @@ async function createConversation(conversationData = {}, chatActor = {}) {
 
   if (existingConversation) {
     if (primerMensaje.texto) {
-      return addMessage(idConversacion, primerMensaje, actorIdMiembros);
+      return addMessage(idConversacion, primerMensaje, chatActor);
     }
 
+    assertConversationParticipant(existingConversation, chatActor);
     return conversationToUi(existingConversation, null, actorIdMiembros);
   }
 
@@ -674,13 +697,18 @@ async function createConversation(conversationData = {}, chatActor = {}) {
   return conversationToUi(conversationDoc, [messageToUi(primerMensaje)]);
 }
 
-async function addMessage(conversationId, messageData = {}, viewerIdMiembros = null) {
+async function addMessage(conversationId, messageData = {}, chatActor = {}) {
   const existingConversation = await getConversationDoc(conversationId);
 
   if (!existingConversation) {
     throw new Error('La conversación no existe.');
   }
 
+  const viewerIdMiembros = authorizeConversationOperation({
+    actor: chatActor,
+    conversation: existingConversation,
+    permission: CHAT_PERMISSIONS.SEND,
+  });
   const authenticatedMessageData = bindAuthenticatedMessage(messageData, {
     idMiembros: viewerIdMiembros,
   });
@@ -740,12 +768,16 @@ async function addMessage(conversationId, messageData = {}, viewerIdMiembros = n
   );
 }
 
-async function markAsSeen(conversationId, viewerIdMiembros = null) {
+async function markAsSeen(conversationId, chatActor = {}) {
   const existingConversation = await getConversationDoc(conversationId);
 
   if (!existingConversation) return null;
 
-  const viewerId = toNumberOrNull(viewerIdMiembros);
+  const viewerId = authorizeConversationOperation({
+    actor: chatActor,
+    conversation: existingConversation,
+    permission: CHAT_PERMISSIONS.VIEW,
+  });
   const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
 
   if (viewerId) {
@@ -769,7 +801,7 @@ async function updateMessageAction({
   conversationId,
   messageId,
   action,
-  viewerIdMiembros = null,
+  chatActor = {},
   reaction = '👍',
   text = '',
 }) {
@@ -778,6 +810,24 @@ async function updateMessageAction({
   if (!existingConversation) {
     throw new Error('La conversación no existe.');
   }
+
+  const permissionByAction = {
+    react: CHAT_PERMISSIONS.REACT,
+    edit: CHAT_PERMISSIONS.EDIT_OWN,
+    delete: CHAT_PERMISSIONS.DELETE_OWN,
+    restore: CHAT_PERMISSIONS.DELETE_OWN,
+  };
+  const permission = permissionByAction[action];
+
+  if (!permission) {
+    throw new Error('Acción de mensaje inválida.');
+  }
+
+  const viewerIdMiembros = authorizeConversationOperation({
+    actor: chatActor,
+    conversation: existingConversation,
+    permission,
+  });
 
   const messageRef = doc(
     FIRESTORE,
@@ -795,11 +845,11 @@ async function updateMessageAction({
   const messageData = messageSnapshot.data();
   let nextMessage = messageData;
 
-  if (action === 'delete') {
-    if (Number(messageData.remitenteIdMiembros) !== Number(viewerIdMiembros)) {
-      throw new Error('Solo puedes eliminar tus propios mensajes.');
-    }
+  if (['edit', 'delete', 'restore'].includes(action)) {
+    assertMessageAuthor(messageData, chatActor);
+  }
 
+  if (action === 'delete') {
     const sentAtTime = new Date(messageData.enviadoEn ?? messageData.createdAt).getTime();
 
     if (!Number.isFinite(sentAtTime) || Date.now() - sentAtTime > MESSAGE_DELETE_WINDOW_MS) {
@@ -892,7 +942,7 @@ async function updateMessageAction({
 async function updateConversationAction({
   conversationId,
   action,
-  viewerIdMiembros = null,
+  chatActor = {},
   comment = '',
   newParticipants = [],
   targetIdMiembros = null,
@@ -904,7 +954,26 @@ async function updateConversationAction({
   }
 
   const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
-  const viewerId = toNumberOrNull(viewerIdMiembros);
+  const permissionByAction = {
+    typing: CHAT_PERMISSIONS.SEND,
+    'toggle-mute': CHAT_PERMISSIONS.VIEW,
+    clear: CHAT_PERMISSIONS.CLEAR,
+    report: CHAT_PERMISSIONS.REPORT,
+    'add-participants': CHAT_PERMISSIONS.MANAGE_GROUP,
+    'remove-participant': CHAT_PERMISSIONS.MANAGE_GROUP,
+  };
+  const permission = permissionByAction[action];
+
+  if (!permission) {
+    throw new Error('Acción de conversación inválida.');
+  }
+
+  const viewerId = authorizeConversationOperation({
+    actor: chatActor,
+    conversation: existingConversation,
+    permission,
+    creatorOnly: ['clear', 'add-participants'].includes(action),
+  });
 
   if (action === 'typing') {
     if (!viewerId) {
@@ -1050,7 +1119,8 @@ async function updateConversationAction({
         (member) =>
           member.idMiembros &&
           !asArray(existingConversation.participantesIds).includes(member.idMiembros)
-      );
+      )
+      .map(toPublicChatContact);
 
     if (!nuevosParticipantes.length) {
       return conversationToUi(
@@ -1129,6 +1199,7 @@ async function updateConversationAction({
 export async function GET(req) {
   try {
     const chatActor = await authenticateChatRequest(req);
+    assertChatPermission(chatActor, CHAT_PERMISSIONS.VIEW);
     ensureFirestore();
 
     const { searchParams } = new URL(req.url);
@@ -1142,7 +1213,14 @@ export async function GET(req) {
         getMembersFromFirestoreProfiles(),
       ]);
 
-      return Response.json({ contacts: getAllContacts([...members, ...firestoreProfiles]) });
+      return Response.json(
+        { contacts: getAllContacts([...members, ...firestoreProfiles]) },
+        { headers: { 'Cache-Control': 'private, no-store' } }
+      );
+    }
+
+    if (endpoint === 'unread-summary') {
+      return Response.json(await getUnreadSummary(viewerIdMiembros));
     }
 
     if (endpoint === 'conversations') {
@@ -1158,17 +1236,7 @@ export async function GET(req) {
         return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
       }
 
-      if (
-        viewerIdMiembros &&
-        !asArray(conversation.participantesIds).some(
-          (idMiembros) => Number(idMiembros) === Number(viewerIdMiembros)
-        )
-      ) {
-        return Response.json(
-          { message: 'No tienes acceso a esta conversación.' },
-          { status: 403 }
-        );
-      }
+      assertConversationParticipant(conversation, chatActor);
 
       return Response.json({
         conversation: await conversationToUi(conversation, null, viewerIdMiembros),
@@ -1182,17 +1250,7 @@ export async function GET(req) {
         return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
       }
 
-      if (
-        viewerIdMiembros &&
-        !asArray(conversation.participantesIds).some(
-          (idMiembros) => Number(idMiembros) === Number(viewerIdMiembros)
-        )
-      ) {
-        return Response.json(
-          { message: 'No tienes acceso a esta conversación.' },
-          { status: 403 }
-        );
-      }
+      assertConversationParticipant(conversation, chatActor);
 
       const before = searchParams.get('before');
       const olderMessages = await getMessages(conversationId, {
@@ -1204,7 +1262,7 @@ export async function GET(req) {
     }
 
     if (endpoint === 'mark-as-seen') {
-      await markAsSeen(conversationId, viewerIdMiembros);
+      await markAsSeen(conversationId, chatActor);
 
       return Response.json({ success: true });
     }
@@ -1212,8 +1270,10 @@ export async function GET(req) {
     return Response.json({ message: 'Endpoint de chat inválido.' }, { status: 400 });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
+    const authorizationResponse = chatAuthorizationErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
+    if (authorizationResponse) return authorizationResponse;
 
     return Response.json(
       { message: error?.message || 'Error procesando el chat.' },
@@ -1233,8 +1293,10 @@ export async function POST(req) {
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
+    const authorizationResponse = chatAuthorizationErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
+    if (authorizationResponse) return authorizationResponse;
 
     return Response.json(
       { message: error?.message || 'Error creando la conversación.' },
@@ -1249,17 +1311,15 @@ export async function PUT(req) {
     ensureFirestore();
 
     const body = await req.json();
-    const conversation = await addMessage(
-      body.conversationId,
-      body.messageData,
-      chatActor.idMiembros
-    );
+    const conversation = await addMessage(body.conversationId, body.messageData, chatActor);
 
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
+    const authorizationResponse = chatAuthorizationErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
+    if (authorizationResponse) return authorizationResponse;
 
     return Response.json(
       { message: error?.message || 'Error enviando el mensaje.' },
@@ -1287,7 +1347,7 @@ export async function PATCH(req) {
       ? await updateConversationAction({
           conversationId: body.conversationId,
           action: body.action,
-          viewerIdMiembros: chatActor.idMiembros,
+          chatActor,
           comment: body.comment,
           newParticipants: body.newParticipants,
           targetIdMiembros: toNumberOrNull(body.targetIdMiembros),
@@ -1296,7 +1356,7 @@ export async function PATCH(req) {
           conversationId: body.conversationId,
           messageId: body.messageId,
           action: body.action,
-          viewerIdMiembros: chatActor.idMiembros,
+          chatActor,
           reaction: body.reaction,
           text: body.text,
         });
@@ -1304,8 +1364,10 @@ export async function PATCH(req) {
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
+    const authorizationResponse = chatAuthorizationErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
+    if (authorizationResponse) return authorizationResponse;
 
     return Response.json(
       { message: error?.message || 'Error actualizando el mensaje.' },

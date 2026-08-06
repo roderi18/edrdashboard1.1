@@ -1,12 +1,18 @@
 import Box from '@mui/material/Box';
+import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import ListItemButton from '@mui/material/ListItemButton';
+
+import { usePresenceStatuses } from './hooks/use-presence-status';
 
 // ----------------------------------------------------------------------
 
 export function ChatNavSearchResults({ query, results, onClickResult }) {
   const totalResults = results.length;
+  const presenceStatuses = usePresenceStatuses(
+    results.map((result) => result.idMiembros ?? result.id)
+  );
 
   const notFound = !totalResults && !!query;
 
@@ -42,7 +48,18 @@ export function ChatNavSearchResults({ query, results, onClickResult }) {
                 typography: 'subtitle2',
               }}
             >
-              <Avatar alt={result.name} src={result.avatarUrl} />
+              <Badge
+                variant={
+                  presenceStatuses[String(result.idMiembros ?? result.id)]?.status ??
+                  result.status ??
+                  'offline'
+                }
+                badgeContent=" "
+                overlap="circular"
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              >
+                <Avatar alt={result.name} src={result.avatarUrl} />
+              </Badge>
               {result.name}
             </ListItemButton>
           </li>

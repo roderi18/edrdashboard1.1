@@ -3,7 +3,11 @@ import { useRef, useEffect } from 'react';
 import { doc, query, where, limit, orderBy, collection, onSnapshot } from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { isConversationKey, isConversationsKey } from 'src/actions/chat';
+import {
+  isConversationKey,
+  isConversationsKey,
+  isChatUnreadSummaryKey,
+} from 'src/actions/chat';
 
 // ----------------------------------------------------------------------
 
@@ -37,6 +41,7 @@ function useDebouncedCallback(callback, delay) {
 export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapshot }) {
   const revalidateConversations = useDebouncedCallback(() => {
     mutate((key) => isConversationsKey(key));
+    mutate((key) => isChatUnreadSummaryKey(key));
   }, DEBOUNCE_MS);
 
   const revalidateConversation = useDebouncedCallback(() => {

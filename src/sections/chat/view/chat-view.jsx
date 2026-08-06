@@ -27,6 +27,8 @@ import {
 
 import { EmptyContent } from 'src/components/empty-content';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
 import { ChatRoom } from '../chat-room';
@@ -48,7 +50,9 @@ const isSameMember = (participant, currentContact) =>
 export function ChatView() {
   const router = useRouter();
 
-  const { contacts } = useGetContacts();
+  const { user } = useAuthContext();
+
+  const { contacts, contactsError, contactsLoading } = useGetContacts(Boolean(user?.accessToken));
   const currentContact = useChatCurrentContact(contacts);
 
   const searchParams = useSearchParams();
@@ -285,7 +289,8 @@ export function ChatView() {
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               collapseNav={conversationsNav}
-              loading={conversationsLoading}
+              loading={contactsLoading || conversationsLoading}
+              error={contactsError}
             />
           ),
           main: (

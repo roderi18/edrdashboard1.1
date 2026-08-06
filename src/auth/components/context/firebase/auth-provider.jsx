@@ -292,6 +292,13 @@ export function AuthProvider({ children }) {
             (await authUser.getIdToken?.()) ??
             null;
 
+          // La interfaz puede hidratarse desde sessionStorage antes de completar
+          // los perfiles. Instalar el token inmediatamente evita que las primeras
+          // consultas autenticadas (por ejemplo, contactos de chat) salgan en 401.
+          if (accessToken) {
+            axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+          }
+
           const email = String(authUser.email ?? '')
             .trim()
             .toLowerCase();
@@ -361,10 +368,6 @@ export function AuthProvider({ children }) {
           const resolvedUser = { ...sessionUser, accessToken };
           setState({ user: resolvedUser, loading: false });
           writeCachedSession(resolvedUser);
-
-          if (accessToken) {
-            axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-          }
 
           return;
         }
