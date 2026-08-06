@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "conversaciones_chat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participantesIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "eliminada", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

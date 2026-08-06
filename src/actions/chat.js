@@ -757,6 +757,76 @@ export async function removeParticipant(conversationId, idMiembros, targetIdMiem
   });
 }
 
+export async function leaveGroup(conversationId, idMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, { action: 'leave-group', conversationId, idMiembros }),
+  });
+}
+
+export async function markConversationDelivered(conversationId) {
+  if (!conversationId) return null;
+
+  const response = await axios.patch(CHAT_ENDPOINT, {
+    action: 'mark-delivered',
+    conversationId,
+  });
+
+  return response.data?.conversation ?? null;
+}
+
+export async function transferGroupOwnership(conversationId, idMiembros, targetIdMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'transfer-ownership',
+        conversationId,
+        idMiembros,
+        targetIdMiembros,
+      }),
+  });
+}
+
+export async function setGroupAdministrator(
+  conversationId,
+  idMiembros,
+  administratorIdMiembros,
+  makeAdmin
+) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'set-group-admin',
+        conversationId,
+        idMiembros,
+        administratorIdMiembros,
+        makeAdmin,
+      }),
+  });
+}
+
+export async function updateGroupDetails(
+  conversationId,
+  idMiembros,
+  groupName,
+  groupAvatarUrl = ''
+) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'update-group',
+        conversationId,
+        idMiembros,
+        groupName,
+        groupAvatarUrl,
+      }),
+  });
+}
+
 // ----------------------------------------------------------------------
 
 export async function clearConversation(conversationId, idMiembros) {
@@ -784,4 +854,16 @@ export async function clearConversation(conversationId, idMiembros) {
     mutate((key) => isConversationsKey(key));
     throw error;
   }
+}
+
+export async function clearConversationGlobally(conversationId, idMiembros) {
+  return mutateConversationAction({
+    conversationId,
+    request: () =>
+      axios.patch(CHAT_ENDPOINT, {
+        action: 'clear-global',
+        conversationId,
+        idMiembros,
+      }),
+  });
 }

@@ -4,6 +4,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -13,6 +15,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { CollapseButton } from './styles';
 import { usePresenceStatuses } from './hooks/use-presence-status';
@@ -25,14 +28,20 @@ export function ChatRoomGroup({
   contacts = [],
   currentContact,
   creatorIdMiembros,
+  administratorIds = [],
   onAddParticipants,
   onRemoveParticipant,
+  onLeaveGroup,
+  onSetGroupAdministrator,
+  onTransferGroupOwnership,
 }) {
   const collapse = useBoolean(true);
 
   const [selected, setSelected] = useState(null);
   const [newMembers, setNewMembers] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [groupActionLoading, setGroupActionLoading] = useState(false);
+  const [transferTarget, setTransferTarget] = useState(null);
 
   const presenceStatuses = usePresenceStatuses(
     participants.map((participant) => participant.idMiembros ?? participant.id)
@@ -41,6 +50,9 @@ export function ChatRoomGroup({
   const isCreator =
     !!creatorIdMiembros &&
     String(creatorIdMiembros) === String(currentContact?.idMiembros ?? currentContact?.id);
+  const currentMemberId = String(currentContact?.idMiembros ?? currentContact?.id ?? '');
+  const administratorIdSet = new Set(administratorIds.map(String));
+  const isAdministrator = isCreator || administratorIdSet.has(currentMemberId);
 
   const availableContacts = contacts.filter(
     (contact) =>
@@ -79,14 +91,59 @@ export function ChatRoomGroup({
       event.stopPropagation();
 
       try {
-        await onRemoveParticipant?.(participant.idMiembros ?? participant.id);
+        const participantId = String(participant.idMiembros ?? participant.id);
+
+        if (participantId === currentMemberId) {
+          await onLeaveGroup?.();
+        } else {
+          await onRemoveParticipant?.(participant.idMiembros ?? participant.id);
+        }
       } catch (error) {
         console.error(error);
         toast.error(error.message || 'No se pudo quitar al participante.');
       }
     },
-    [onRemoveParticipant]
+    [currentMemberId, onLeaveGroup, onRemoveParticipant]
   );
+
+  const handleSetAdministrator = useCallback(
+    async (participant, makeAdmin, event) => {
+      event.stopPropagation();
+      setGroupActionLoading(true);
+
+      try {
+        await onSetGroupAdministrator?.(
+          participant.idMiembros ?? participant.id,
+          makeAdmin
+        );
+        toast.success(makeAdmin ? 'Administrador asignado.' : 'Administrador retirado.');
+      } catch (error) {
+        console.error(error);
+        toast.error(error.message || 'No se pudo cambiar el rol del participante.');
+      } finally {
+        setGroupActionLoading(false);
+      }
+    },
+    [onSetGroupAdministrator]
+  );
+
+  const handleTransferOwnership = useCallback(async () => {
+    if (!transferTarget) return;
+    setGroupActionLoading(true);
+
+    try {
+      await onTransferGroupOwnership?.(
+        transferTarget.idMiembros ?? transferTarget.id
+      );
+      toast.success('Propiedad del grupo transferida.');
+      setTransferTarget(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo transferir la propiedad del grupo.');
+    } finally {
+      setGroupActionLoading(false);
+    }
+  }, [onTransferGroupOwnership, transferTarget]);
 
   const totalParticipants = participants.length;
 
@@ -97,7 +154,17 @@ export function ChatRoomGroup({
         const status = presenceStatuses[participantId]?.status ?? 'offline';
         const isSelf =
           participantId === String(currentContact?.idMiembros ?? currentContact?.id ?? '');
-        const canRemove = isCreator || isSelf;
+        const participantIsCreator = participantId === String(creatorIdMiembros ?? '');
+        const participantIsAdmin = administratorIdSet.has(participantId);
+        const canRemove =
+          (!participantIsCreator && isSelf) ||
+          (isCreator && !isSelf) ||
+          (isAdministrator && !participantIsAdmin && !isSelf);
+        const participantRole = participantIsCreator
+          ? 'Creador'
+          : participantIsAdmin
+            ? 'Administrador'
+            : 'Miembro';
 
         return (
           <ListItemButton
@@ -115,7 +182,7 @@ export function ChatRoomGroup({
 
             <ListItemText
               primary={participant.name}
-              secondary={participant.role}
+              secondary={participantRole}
               slotProps={{
                 primary: { noWrap: true },
                 secondary: { noWrap: true, sx: { typography: 'caption' } },
@@ -124,9 +191,43 @@ export function ChatRoomGroup({
             />
 
             {canRemove && onRemoveParticipant && (
-              <IconButton size="small" onClick={(event) => handleRemove(participant, event)}>
-                <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-              </IconButton>
+              <Tooltip title={isSelf ? 'Salir del grupo' : 'Quitar del grupo'}>
+                <IconButton size="small" onClick={(event) => handleRemove(participant, event)}>
+                  <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {isCreator && !isSelf && onSetGroupAdministrator && (
+              <Tooltip title={participantIsAdmin ? 'Quitar administrador' : 'Hacer administrador'}>
+                <IconButton
+                  size="small"
+                  disabled={groupActionLoading}
+                  onClick={(event) =>
+                    handleSetAdministrator(participant, !participantIsAdmin, event)
+                  }
+                >
+                  <Iconify
+                    icon={participantIsAdmin ? 'solar:shield-minus-bold' : 'solar:shield-plus-bold'}
+                    width={18}
+                  />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {isCreator && !isSelf && onTransferGroupOwnership && (
+              <Tooltip title="Transferir propiedad">
+                <IconButton
+                  size="small"
+                  disabled={groupActionLoading}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setTransferTarget(participant);
+                  }}
+                >
+                  <Iconify icon="solar:crown-bold" width={18} />
+                </IconButton>
+              </Tooltip>
             )}
           </ListItemButton>
         );
@@ -135,7 +236,7 @@ export function ChatRoomGroup({
   );
 
   const renderAddMember = () =>
-    onAddParticipants && (
+    isAdministrator && onAddParticipants && (
       <Box sx={{ gap: 1, px: 2, py: 1.5, display: 'flex', flexDirection: 'column' }}>
         <Autocomplete
           multiple
@@ -180,6 +281,18 @@ export function ChatRoomGroup({
       {selected && (
         <ChatRoomParticipantDialog participant={selected} open={!!selected} onClose={handleClose} />
       )}
+
+      <ConfirmDialog
+        open={!!transferTarget}
+        title="Transferir propiedad del grupo"
+        onClose={() => setTransferTarget(null)}
+        content={`¿Deseas convertir a ${transferTarget?.name || 'este participante'} en creador del grupo? Conservarás el rol de administrador.`}
+        action={
+          <Button variant="contained" loading={groupActionLoading} onClick={handleTransferOwnership}>
+            Transferir propiedad
+          </Button>
+        }
+      />
     </>
   );
 }

@@ -7,6 +7,7 @@ import {
   isConversationKey,
   isConversationsKey,
   isChatUnreadSummaryKey,
+  markConversationDelivered,
 } from 'src/actions/chat';
 
 // ----------------------------------------------------------------------
@@ -58,9 +59,23 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
       where('eliminada', '==', false)
     );
 
-    const unsubscribe = onSnapshot(conversationsQuery, revalidateConversations, (error) => {
-      console.error('[chat] error en el listener de conversaciones', error);
-    });
+    const unsubscribe = onSnapshot(
+      conversationsQuery,
+      (snapshot) => {
+        revalidateConversations();
+
+        snapshot.docChanges().forEach((change) => {
+          if (!['added', 'modified'].includes(change.type)) return;
+
+          markConversationDelivered(change.doc.id).catch((error) => {
+            console.error('[chat] no se pudo confirmar la entrega de la conversación', error);
+          });
+        });
+      },
+      (error) => {
+        console.error('[chat] error en el listener de conversaciones', error);
+      }
+    );
 
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,9 +90,13 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
       orderBy('enviadoEn', 'desc'),
       limit(RECENT_MESSAGES_WINDOW)
     );
+    const receiptsQuery = query(collection(conversationRef, 'recibos'));
 
     const unsubscribeMessages = onSnapshot(messagesQuery, revalidateConversation, (error) => {
       console.error('[chat] error en el listener de mensajes', error);
+    });
+    const unsubscribeReceipts = onSnapshot(receiptsQuery, revalidateConversation, (error) => {
+      console.error('[chat] error en el listener de recibos', error);
     });
 
     const unsubscribeConversation = onSnapshot(
@@ -103,6 +122,7 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
 
     return () => {
       unsubscribeMessages();
+      unsubscribeReceipts();
       unsubscribeConversation();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

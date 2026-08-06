@@ -176,6 +176,7 @@ export const createChatRequestAuthenticator = ({
       idMiembros,
       profile,
       claims: decodedToken,
+      token,
     };
   };
 };

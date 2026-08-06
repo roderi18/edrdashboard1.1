@@ -139,7 +139,11 @@ async function run() {
       continue;
     }
 
-    const claims = deriveUserClaims({ rolId, alcance: data?.alcance });
+    const claims = deriveUserClaims({
+      rolId,
+      alcance: data?.alcance,
+      idMiembros: data?.idMiembros ?? data?.memberId,
+    });
     const authUid = await resolverAuthUid(auth, { docId: snap.id, correo: data?.correo });
 
     if (!authUid) {

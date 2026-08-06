@@ -2,7 +2,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 
-import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AUTH, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 const sanitizeStorageSegment = (value = '') =>
   String(value || 'archivo')
@@ -29,13 +29,23 @@ const optimizeAttachmentIfNeeded = (file) => {
   });
 };
 
-export async function uploadFilesToStorage({ files = [], storagePathBuilder, metadataBuilder } = {}) {
+export async function uploadFilesToStorage({
+  files = [],
+  storagePathBuilder,
+  metadataBuilder,
+} = {}) {
   if (!files.length) {
     return [];
   }
 
   if (!isFirebaseConfigured || !FIREBASE_STORAGE) {
     throw new Error('Firebase Storage no esta configurado en este entorno.');
+  }
+
+  const uploaderUid = String(AUTH?.currentUser?.uid ?? '').trim();
+
+  if (!uploaderUid) {
+    throw new Error('La sesión autenticada es necesaria para subir archivos al chat.');
   }
 
   return Promise.all(
@@ -51,7 +61,10 @@ export async function uploadFilesToStorage({ files = [], storagePathBuilder, met
 
       await uploadBytes(storageRef, finalFile, {
         contentType: finalFile?.type || file?.type || 'application/octet-stream',
-        customMetadata: metadataBuilder?.(finalFile, index) || {},
+        customMetadata: {
+          ...(metadataBuilder?.(finalFile, index) || {}),
+          uploaderUid,
+        },
       });
 
       const downloadUrl = await getDownloadURL(storageRef);

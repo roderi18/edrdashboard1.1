@@ -28,7 +28,7 @@ import { initialConversation } from './utils/initial-conversation';
 // ----------------------------------------------------------------------
 
 const MAX_IMAGE_FILES = 10;
-const MAX_DOCUMENT_TOTAL_SIZE = 1024 * 1024;
+const MAX_DOCUMENT_TOTAL_SIZE = 10 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set([
   'application/pdf',
   'application/zip',
@@ -240,9 +240,7 @@ export function ChatMessageInput({
   }, []);
 
   const sendAttachmentMessages = useCallback(
-    async ({ uploads, contentType }) => {
-      let activeConversationId = selectedConversationId;
-
+    async ({ uploads, contentType, conversationId }) => {
       for (const upload of uploads) {
         const attachmentMessage = buildAttachmentMessage({
           upload,
@@ -250,29 +248,10 @@ export function ChatMessageInput({
           senderId: currentContact.idMiembros || currentContact.id,
         });
 
-        if (activeConversationId) {
-          await sendMessage(activeConversationId, attachmentMessage, currentContact.idMiembros);
-        } else {
-          const nextConversationData = {
-            ...conversationData,
-            messages: [attachmentMessage],
-          };
-          const res = await createConversation(nextConversationData, currentContact.idMiembros);
-
-          activeConversationId = res.conversation.id;
-          router.push(`${paths.dashboard.chat}?id=${activeConversationId}`);
-          onAddRecipients([]);
-        }
+        await sendMessage(conversationId, attachmentMessage, currentContact.idMiembros);
       }
     },
-    [
-      conversationData,
-      currentContact.id,
-      currentContact.idMiembros,
-      onAddRecipients,
-      router,
-      selectedConversationId,
-    ]
+    [currentContact.id, currentContact.idMiembros]
   );
 
   const handleSubmitMessage = useCallback(async () => {
@@ -286,6 +265,8 @@ export function ChatMessageInput({
     onClearReply?.();
 
     try {
+      let activeConversationId = selectedConversationId;
+
       if (editingMessage && selectedConversationId) {
         onClearEditing?.();
         await editMessage(
@@ -298,10 +279,21 @@ export function ChatMessageInput({
       }
 
       if (attachmentsToSend.length) {
+        if (!activeConversationId) {
+          const res = await createConversation(
+            { ...conversationData, messages: [] },
+            currentContact.idMiembros
+          );
+
+          activeConversationId = res.conversation.id;
+          router.push(`${paths.dashboard.chat}?id=${activeConversationId}`);
+          onAddRecipients([]);
+        }
+
         const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
         const fileAttachments = attachmentsToSend.filter((item) => item.contentType === 'file');
 
-        if (imageAttachments.length && selectedConversationId) {
+        if (imageAttachments.length) {
           const localImageMessage = {
             id: uuidv4(),
             attachments: imageAttachments.map((item) => ({
@@ -319,21 +311,22 @@ export function ChatMessageInput({
             estadoEnvio: 'enviando',
           };
 
-          await addLocalMessage(selectedConversationId, localImageMessage);
+          await addLocalMessage(activeConversationId, localImageMessage);
 
           const uploads = await uploadFilesToStorage({
             files: imageAttachments.map((item) => item.file),
             storagePathBuilder: (file, index) =>
-              `chat/${selectedConversationId}/imagenes/${buildStorageFileName(file, index)}`,
+              `chat/${activeConversationId}/imagenes/${buildStorageFileName(file, index)}`,
             metadataBuilder: () => ({
               modulo: 'chat',
               tipo: 'imagen',
+              idConversacion: String(activeConversationId),
               remitenteIdMiembros: String(currentContact.idMiembros || ''),
             }),
           });
 
           await sendMessage(
-            selectedConversationId,
+            activeConversationId,
             {
               ...localImageMessage,
               attachments: uploads,
@@ -347,42 +340,32 @@ export function ChatMessageInput({
           });
         }
 
-        if (imageAttachments.length && !selectedConversationId) {
-          const uploads = await uploadFilesToStorage({
-            files: imageAttachments.map((item) => item.file),
-            storagePathBuilder: (file, index) =>
-              `chat/${currentContact.idMiembros || 'nuevo'}/imagenes/${buildStorageFileName(file, index)}`,
-            metadataBuilder: () => ({
-              modulo: 'chat',
-              tipo: 'imagen',
-              remitenteIdMiembros: String(currentContact.idMiembros || ''),
-            }),
-          });
-
-          await sendAttachmentMessages({ uploads, contentType: 'image' });
-        }
-
         if (fileAttachments.length) {
           const uploads = await uploadFilesToStorage({
             files: fileAttachments.map((item) => item.file),
             storagePathBuilder: (file, index) =>
-              `chat/${selectedConversationId || currentContact.idMiembros || 'nuevo'}/archivos/${buildStorageFileName(file, index)}`,
+              `chat/${activeConversationId}/archivos/${buildStorageFileName(file, index)}`,
             metadataBuilder: () => ({
               modulo: 'chat',
               tipo: 'archivo',
+              idConversacion: String(activeConversationId),
               remitenteIdMiembros: String(currentContact.idMiembros || ''),
             }),
           });
 
-          await sendAttachmentMessages({ uploads, contentType: 'file' });
+          await sendAttachmentMessages({
+            uploads,
+            contentType: 'file',
+            conversationId: activeConversationId,
+          });
         }
       }
 
       if (!textToSend) return;
 
-      if (selectedConversationId) {
+      if (activeConversationId) {
         await sendMessage(
-          selectedConversationId,
+          activeConversationId,
           { ...messageData, body: textToSend },
           currentContact.idMiembros
         );

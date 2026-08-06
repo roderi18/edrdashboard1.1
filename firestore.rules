@@ -1,0 +1,431 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function rutaAsignacion() {
+      return /databases/$(database)/documents/usuarios_roles/$(request.auth.uid);
+    }
+
+    function idMiembro() {
+      return request.auth.token.idMiembros;
+    }
+
+    function permisoChatExcluido() {
+      return exists(rutaAsignacion())
+        && 'permisosExcluidos' in get(rutaAsignacion()).data
+        && get(rutaAsignacion()).data.permisosExcluidos is list
+        && get(rutaAsignacion()).data.permisosExcluidos.hasAny(['chats.ver']);
+    }
+
+    function moduloChatDeshabilitado() {
+      return exists(rutaAsignacion())
+        && 'permisos' in get(rutaAsignacion()).data
+        && get(rutaAsignacion()).data.permisos is map
+        && 'chats' in get(rutaAsignacion()).data.permisos
+        && get(rutaAsignacion()).data.permisos.chats is map
+        && 'ver' in get(rutaAsignacion()).data.permisos.chats
+        && get(rutaAsignacion()).data.permisos.chats.ver == false;
+    }
+
+    function puedeUsarChat() {
+      return estaAutenticado()
+        && 'idMiembros' in request.auth.token
+        && idMiembro() is int
+        && !permisoChatExcluido()
+        && !moduloChatDeshabilitado();
+    }
+
+    function esParticipante(datosConversacion) {
+      return puedeUsarChat()
+        && datosConversacion.participantesIds is list
+        && idMiembro() in datosConversacion.participantesIds;
+    }
+
+    function puedeLeerConversacion(idConversacion) {
+      return esParticipante(
+        get(/databases/$(database)/documents/conversaciones_chat/$(idConversacion)).data
+      );
+    }
+
+    function conversacion(idConversacion) {
+      return get(/databases/$(database)/documents/conversaciones_chat/$(idConversacion)).data;
+    }
+
+    function esCreador(datosConversacion) {
+      return esParticipante(datosConversacion)
+        && datosConversacion.creadoPorIdMiembros == idMiembro();
+    }
+
+    function esAdministradorGrupo(datosConversacion) {
+      return esParticipante(datosConversacion)
+        && (
+          datosConversacion.creadoPorIdMiembros == idMiembro()
+          || (
+            'administradoresIds' in datosConversacion
+            && datosConversacion.administradoresIds is list
+            && idMiembro() in datosConversacion.administradoresIds
+          )
+        );
+    }
+
+    function camposConversacionPermitidos() {
+      return request.resource.data.keys().hasOnly([
+        'idConversacion',
+        'tipoConversacion',
+        'nombreGrupo',
+        'avatarGrupoUrl',
+        'participantesIds',
+        'participantes',
+        'creadoPorIdMiembros',
+        'administradoresIds',
+        'creadoEn',
+        'actualizadoEn',
+        'ultimoMensaje',
+        'noLeidosPorIdMiembros',
+        'ocultoAntesPorIdMiembros',
+        'silenciadoPorIdMiembros',
+        'escribiendoPorIdMiembros',
+        'activa',
+        'eliminada',
+        'versionModelo'
+      ]);
+    }
+
+    function creacionConversacionValida(idConversacion) {
+      return esParticipante(request.resource.data)
+        && request.resource.data.idConversacion == idConversacion
+        && request.resource.data.creadoPorIdMiembros == idMiembro()
+        && request.resource.data.participantesIds.size() >= 2
+        && request.resource.data.participantes is list
+        && (
+          request.resource.data.tipoConversacion != 'GRUPAL'
+          || (
+            'administradoresIds' in request.resource.data
+            && request.resource.data.administradoresIds is list
+            && request.resource.data.creadoPorIdMiembros
+              in request.resource.data.administradoresIds
+          )
+        )
+        && request.resource.data.tipoConversacion in ['INDIVIDUAL', 'GRUPAL']
+        && request.resource.data.eliminada == false
+        && camposConversacionPermitidos();
+    }
+
+    function actualizacionOperativaConversacionValida() {
+      return esParticipante(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'actualizadoEn',
+          'ultimoMensaje',
+          'noLeidosPorIdMiembros',
+          'ocultoAntesPorIdMiembros',
+          'silenciadoPorIdMiembros',
+          'escribiendoPorIdMiembros'
+        ])
+        && camposConversacionPermitidos();
+    }
+
+    function actualizacionAdministrativaConversacionValida() {
+      return esCreador(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'tipoConversacion',
+          'nombreGrupo',
+          'avatarGrupoUrl',
+          'participantesIds',
+          'participantes',
+          'administradoresIds',
+          'actualizadoEn',
+          'ultimoMensaje',
+          'noLeidosPorIdMiembros',
+          'ocultoAntesPorIdMiembros',
+          'silenciadoPorIdMiembros',
+          'escribiendoPorIdMiembros',
+          'activa',
+          'eliminada'
+        ])
+        && request.resource.data.participantesIds is list
+        && request.resource.data.participantesIds.size() >= 2
+        && camposConversacionPermitidos()
+        && (
+          request.resource.data.tipoConversacion != 'GRUPAL'
+          || estructuraGrupoValida()
+        );
+    }
+
+    function estructuraGrupoValida() {
+      return request.resource.data.tipoConversacion == 'GRUPAL'
+        && request.resource.data.participantesIds is list
+        && request.resource.data.participantes is list
+        && request.resource.data.administradoresIds is list
+        && request.resource.data.participantesIds.size() >= 2
+        && request.resource.data.participantes.size()
+          == request.resource.data.participantesIds.size()
+        && request.resource.data.creadoPorIdMiembros in request.resource.data.participantesIds
+        && request.resource.data.creadoPorIdMiembros in request.resource.data.administradoresIds
+        && request.resource.data.participantesIds.hasAll(
+          request.resource.data.administradoresIds
+        )
+        && camposConversacionPermitidos();
+    }
+
+    function actualizacionGrupoPorAdministradorValida() {
+      return resource.data.tipoConversacion == 'GRUPAL'
+        && esAdministradorGrupo(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nombreGrupo',
+          'avatarGrupoUrl',
+          'participantesIds',
+          'participantes',
+          'creadoPorIdMiembros',
+          'administradoresIds',
+          'actualizadoEn',
+          'ultimoMensaje',
+          'noLeidosPorIdMiembros',
+          'silenciadoPorIdMiembros'
+        ])
+        && (
+          idMiembro() == resource.data.creadoPorIdMiembros
+          || (
+            request.resource.data.creadoPorIdMiembros == resource.data.creadoPorIdMiembros
+            && request.resource.data.administradoresIds == resource.data.administradoresIds
+          )
+        )
+        && estructuraGrupoValida();
+    }
+
+    function salidaPropiaGrupoValida() {
+      return resource.data.tipoConversacion == 'GRUPAL'
+        && esParticipante(resource.data)
+        && idMiembro() != resource.data.creadoPorIdMiembros
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'participantesIds',
+          'participantes',
+          'administradoresIds',
+          'actualizadoEn',
+          'ultimoMensaje',
+          'noLeidosPorIdMiembros',
+          'silenciadoPorIdMiembros'
+        ])
+        && request.resource.data.participantesIds
+          == resource.data.participantesIds.removeAll([idMiembro()])
+        && request.resource.data.administradoresIds
+          == resource.data.administradoresIds.removeAll([idMiembro()])
+        && request.resource.data.participantes.size()
+          == resource.data.participantes.size() - 1
+        && estructuraGrupoValida();
+    }
+
+    function actualizacionConversacionValida() {
+      let camposCambiados = request.resource.data.diff(resource.data).affectedKeys();
+      let esActualizacionOperativa = camposCambiados.hasOnly([
+        'actualizadoEn',
+        'ultimoMensaje',
+        'noLeidosPorIdMiembros',
+        'ocultoAntesPorIdMiembros',
+        'silenciadoPorIdMiembros',
+        'escribiendoPorIdMiembros'
+      ]);
+      return esActualizacionOperativa
+        ? actualizacionOperativaConversacionValida()
+        : resource.data.tipoConversacion == 'GRUPAL'
+          ? (
+            idMiembro() in request.resource.data.participantesIds
+              ? actualizacionGrupoPorAdministradorValida()
+              : salidaPropiaGrupoValida()
+          )
+          : actualizacionAdministrativaConversacionValida();
+    }
+
+    function camposMensajePermitidos() {
+      return request.resource.data.keys().hasOnly([
+        'idMensaje',
+        'versionModelo',
+        'texto',
+        'textoOriginal',
+        'tipoContenido',
+        'tipoContenidoOriginal',
+        'remitenteIdMiembros',
+        'remitente',
+        'adjuntos',
+        'adjuntosOriginales',
+        'enviadoEn',
+        'actualizadoEn',
+        'editado',
+        'eliminado',
+        'eliminadoEn',
+        'respuestaA',
+        'mencionesIds',
+        'reacciones',
+        'metadatos',
+        'estadoEntrega',
+        'entregadoAIdMiembros',
+        'vistoPorIdMiembros'
+      ]);
+    }
+
+    function mensajeNuevoValido(idMensaje) {
+      return request.resource.data.idMensaje == idMensaje
+        && request.resource.data.remitenteIdMiembros == idMiembro()
+        && request.resource.data.tipoContenido in ['text', 'image', 'file', 'system']
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() <= 20000
+        && request.resource.data.adjuntos is list
+        && request.resource.data.adjuntos.size() <= 10
+        && camposMensajePermitidos();
+    }
+
+    function actualizacionMensajePropioValida() {
+      return resource.data.remitenteIdMiembros == idMiembro()
+        && request.resource.data.remitenteIdMiembros == resource.data.remitenteIdMiembros
+        && request.resource.data.idMensaje == resource.data.idMensaje
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'texto',
+          'textoOriginal',
+          'tipoContenido',
+          'tipoContenidoOriginal',
+          'adjuntos',
+          'adjuntosOriginales',
+          'actualizadoEn',
+          'editado',
+          'eliminado',
+          'eliminadoEn'
+        ])
+        && camposMensajePermitidos();
+    }
+
+    function actualizacionReaccionValida() {
+      return request.resource.data.remitenteIdMiembros == resource.data.remitenteIdMiembros
+        && request.resource.data.idMensaje == resource.data.idMensaje
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'reacciones',
+          'actualizadoEn'
+        ])
+        && camposMensajePermitidos();
+    }
+
+    function camposPresenciaPermitidos() {
+      return request.resource.data.keys().hasOnly([
+        'idMiembros',
+        'estado',
+        'estadoManual',
+        'estadoManualActualizadoEn',
+        'actualizadoEn',
+        'sesiones'
+      ]);
+    }
+
+    function estadoPresenciaValido() {
+      return (!('estado' in request.resource.data)
+          || request.resource.data.estado in ['online', 'away', 'busy', 'offline', 'always'])
+        && (!('estadoManual' in request.resource.data)
+          || request.resource.data.estadoManual == null
+          || request.resource.data.estadoManual in ['always', 'busy'])
+        && (!('sesiones' in request.resource.data) || request.resource.data.sesiones is map);
+    }
+
+    function presenciaPropiaValida() {
+      return puedeUsarChat()
+        && request.resource.data.idMiembros == idMiembro()
+        && camposPresenciaPermitidos()
+        && estadoPresenciaValido();
+    }
+
+    match /conversaciones_chat/{idConversacion} {
+      allow get: if esParticipante(resource.data);
+      allow list: if estaAutenticado()
+        && 'idMiembros' in request.auth.token
+        && request.auth.token.idMiembros is int
+        && request.auth.token.idMiembros in resource.data.participantesIds;
+      allow create: if creacionConversacionValida(idConversacion);
+      allow update: if actualizacionConversacionValida();
+      allow delete: if esCreador(resource.data);
+
+      match /mensajes/{idMensaje} {
+        allow get, list: if puedeLeerConversacion(idConversacion);
+        allow create: if puedeLeerConversacion(idConversacion) && mensajeNuevoValido(idMensaje);
+        allow update: if puedeLeerConversacion(idConversacion)
+          && (actualizacionMensajePropioValida() || actualizacionReaccionValida());
+        allow delete: if puedeLeerConversacion(idConversacion)
+          && (
+            resource.data.remitenteIdMiembros == idMiembro()
+            || esCreador(conversacion(idConversacion))
+          );
+      }
+
+      match /auditoria/{idEvento} {
+        allow get, list: if puedeLeerConversacion(idConversacion);
+        allow create: if puedeLeerConversacion(idConversacion)
+          && request.resource.data.keys().hasOnly([
+            'idEvento',
+            'accion',
+            'actorIdMiembros',
+            'idMensaje',
+            'creadoEn',
+            'detalle'
+          ])
+          && request.resource.data.idEvento == idEvento
+          && request.resource.data.actorIdMiembros == idMiembro();
+        allow update: if puedeLeerConversacion(idConversacion)
+          && resource.data.actorIdMiembros == idMiembro()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['detalle']);
+        allow delete: if false;
+      }
+
+      match /recibos/{idRecibo} {
+        allow get, list: if puedeLeerConversacion(idConversacion);
+        allow create: if puedeLeerConversacion(idConversacion)
+          && idRecibo == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            'idMiembros',
+            'entregadoHasta',
+            'leidoHasta',
+            'actualizadoEn'
+          ])
+          && request.resource.data.idMiembros == idMiembro()
+          && request.resource.data.entregadoHasta is string
+          && (request.resource.data.leidoHasta == null
+            || request.resource.data.leidoHasta is string);
+        allow update: if puedeLeerConversacion(idConversacion)
+          && idRecibo == request.auth.uid
+          && resource.data.idMiembros == idMiembro()
+          && request.resource.data.idMiembros == resource.data.idMiembros
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'entregadoHasta',
+            'leidoHasta',
+            'actualizadoEn'
+          ])
+          && request.resource.data.entregadoHasta is string
+          && request.resource.data.entregadoHasta >= resource.data.entregadoHasta
+          && (
+            request.resource.data.leidoHasta == resource.data.leidoHasta
+            || (
+              request.resource.data.leidoHasta is string
+              && (
+                resource.data.leidoHasta == null
+                || request.resource.data.leidoHasta >= resource.data.leidoHasta
+              )
+            )
+          );
+        allow delete: if false;
+      }
+    }
+
+    match /presencia_chat/{idDocumento} {
+      allow get, list: if puedeUsarChat();
+      allow create, update: if presenciaPropiaValida();
+      allow delete: if puedeUsarChat() && resource.data.idMiembros == idMiembro();
+    }
+
+    // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar
+    // el acceso especial del chat. Las reglas específicas de otros módulos deben
+    // continuar endureciéndose en sus propias fases.
+    match /{coleccion}/{documento=**} {
+      allow read, write: if coleccion != 'conversaciones_chat'
+        && coleccion != 'presencia_chat'
+        && estaAutenticado();
+    }
+  }
+}

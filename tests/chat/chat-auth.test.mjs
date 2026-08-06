@@ -143,6 +143,7 @@ test('deriva idMiembros del perfil vinculado al uid verificado', async () => {
   assert.equal(actor.uid, 'firebase-uid-1');
   assert.equal(actor.idMiembros, 42);
   assert.equal(actor.email, 'miembro@example.com');
+  assert.equal(actor.token, 'token-valido');
 });
 
 test('acepta idMiembros firmado en el token cuando no existe un perfil duplicado', async () => {

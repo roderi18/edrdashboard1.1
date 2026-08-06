@@ -15,7 +15,7 @@ export async function setPresence(idMiembros, estado) {
 
   await setDoc(
     doc(FIRESTORE, COLECCION_PRESENCIA, String(idMiembros)),
-    { estado, actualizadoEn: serverTimestamp() },
+    { idMiembros: Number(idMiembros), estado, actualizadoEn: serverTimestamp() },
     { merge: true }
   );
 }
@@ -26,6 +26,7 @@ export async function setPresenceSession(idMiembros, sessionId, { visible } = {}
   await setDoc(
     doc(FIRESTORE, COLECCION_PRESENCIA, String(idMiembros)),
     {
+      idMiembros: Number(idMiembros),
       sesiones: {
         [sessionId]: {
           visible: Boolean(visible),
@@ -54,6 +55,7 @@ export async function setManualPresenceOverride(idMiembros, estado) {
   await setDoc(
     doc(FIRESTORE, COLECCION_PRESENCIA, String(idMiembros)),
     {
+      idMiembros: Number(idMiembros),
       estadoManual: manualStatus ?? deleteField(),
       estadoManualActualizadoEn: serverTimestamp(),
     },

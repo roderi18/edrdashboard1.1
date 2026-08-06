@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
+  leaveGroup,
   reactMessage,
   deleteMessage,
   restoreMessage,
@@ -19,10 +20,14 @@ import {
   loadOlderMessages,
   clearConversation,
   removeParticipant,
+  updateGroupDetails,
   reportConversation,
   useGetConversation,
   useGetConversations,
+  setGroupAdministrator,
   toggleMuteConversation,
+  transferGroupOwnership,
+  clearConversationGlobally,
 } from 'src/actions/chat';
 
 import { EmptyContent } from 'src/components/empty-content';
@@ -107,12 +112,31 @@ export function ChatView() {
 
   useEffect(() => {
     if (!selectedConversationId || !currentContact.idMiembros || !conversation?.unreadCount) {
-      return;
+      return undefined;
     }
 
-    clickConversation(selectedConversationId, currentContact.idMiembros).catch((error) => {
-      console.error('[chat] no se pudo marcar la conversación como leída', error);
-    });
+    let marking = false;
+    const markVisibleConversationAsRead = () => {
+      if (marking || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+
+      marking = true;
+      clickConversation(selectedConversationId, currentContact.idMiembros)
+        .catch((error) => {
+          console.error('[chat] no se pudo marcar la conversación como leída', error);
+        })
+        .finally(() => {
+          marking = false;
+        });
+    };
+
+    markVisibleConversationAsRead();
+    window.addEventListener('focus', markVisibleConversationAsRead);
+    document.addEventListener('visibilitychange', markVisibleConversationAsRead);
+
+    return () => {
+      window.removeEventListener('focus', markVisibleConversationAsRead);
+      document.removeEventListener('visibilitychange', markVisibleConversationAsRead);
+    };
   }, [conversation?.unreadCount, currentContact.idMiembros, selectedConversationId]);
 
   const handleAddRecipients = useCallback((selected) => {
@@ -141,6 +165,54 @@ export function ChatView() {
       if (!selectedConversationId) return;
 
       await removeParticipant(selectedConversationId, currentContact.idMiembros, targetIdMiembros);
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleLeaveGroup = useCallback(async () => {
+    if (!selectedConversationId) return;
+
+    await leaveGroup(selectedConversationId, currentContact.idMiembros);
+    startTransition(() => router.push(paths.dashboard.chat));
+  }, [currentContact.idMiembros, router, selectedConversationId]);
+
+  const handleSetGroupAdministrator = useCallback(
+    async (administratorIdMiembros, makeAdmin) => {
+      if (!selectedConversationId) return;
+
+      await setGroupAdministrator(
+        selectedConversationId,
+        currentContact.idMiembros,
+        administratorIdMiembros,
+        makeAdmin
+      );
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleTransferGroupOwnership = useCallback(
+    async (targetIdMiembros) => {
+      if (!selectedConversationId) return;
+
+      await transferGroupOwnership(
+        selectedConversationId,
+        currentContact.idMiembros,
+        targetIdMiembros
+      );
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const handleUpdateGroup = useCallback(
+    async (name, avatarUrl) => {
+      if (!selectedConversationId) return;
+
+      await updateGroupDetails(
+        selectedConversationId,
+        currentContact.idMiembros,
+        name,
+        avatarUrl
+      );
     },
     [currentContact.idMiembros, selectedConversationId]
   );
@@ -242,6 +314,12 @@ export function ChatView() {
     await clearConversation(selectedConversationId, currentContact.idMiembros);
   }, [currentContact.idMiembros, selectedConversationId]);
 
+  const handleClearConversationGlobally = useCallback(async () => {
+    if (!selectedConversationId) return;
+
+    await clearConversationGlobally(selectedConversationId, currentContact.idMiembros);
+  }, [currentContact.idMiembros, selectedConversationId]);
+
   const filteredParticipants = conversation
     ? conversation.participants.filter((participant) => !isSameMember(participant, currentContact))
     : [];
@@ -274,6 +352,8 @@ export function ChatView() {
               onToggleMute={handleToggleMuteConversation}
               onReport={handleReportConversation}
               onClear={handleClearConversation}
+              onClearGlobal={handleClearConversationGlobally}
+              onUpdateGroup={handleUpdateGroup}
             />
           ) : (
             <ChatHeaderCompose
@@ -346,14 +426,18 @@ export function ChatView() {
           details: conversation && selectedConversationId && (
             <ChatRoom
               collapseNav={roomNav}
-              participants={filteredParticipants}
+              participants={conversation?.participants ?? []}
               loading={conversationLoading}
               messages={conversation?.messages ?? []}
               contacts={contacts}
               currentContact={currentContact}
               creatorIdMiembros={conversation?.creatorIdMiembros}
+              administratorIds={conversation?.administratorIds ?? []}
               onAddParticipants={handleAddParticipants}
               onRemoveParticipant={handleRemoveParticipant}
+              onLeaveGroup={handleLeaveGroup}
+              onSetGroupAdministrator={handleSetGroupAdministrator}
+              onTransferGroupOwnership={handleTransferGroupOwnership}
             />
           ),
         }}

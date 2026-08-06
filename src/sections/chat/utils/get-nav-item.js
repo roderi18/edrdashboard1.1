@@ -1,10 +1,12 @@
 // ----------------------------------------------------------------------
 
 export function getNavItem({ currentUserId, conversation }) {
-  const { messages, participants } = conversation;
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const participants = Array.isArray(conversation?.participants) ? conversation.participants : [];
 
   const participantsInConversation = participants.filter(
-    (participant) => participant.id !== currentUserId
+    (participant) =>
+      String(participant.idMiembros ?? participant.id ?? '') !== String(currentUserId ?? '')
   );
 
   const lastMessage = messages[messages.length - 1];
@@ -30,6 +32,10 @@ export function getNavItem({ currentUserId, conversation }) {
     displayName,
     displayText,
     participants: participantsInConversation,
-    lastActivity: lastMessage.createdAt,
+    lastActivity:
+      lastMessage?.createdAt ??
+      conversation?.updatedAt ??
+      conversation?.createdAt ??
+      null,
   };
 }

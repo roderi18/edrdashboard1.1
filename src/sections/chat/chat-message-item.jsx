@@ -234,6 +234,7 @@ export function ChatMessageItem({
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
   const isSent = me && message.estadoEnvio !== 'enviando';
+  const deliveryStatus = message.deliveryStatus ?? message.estadoEntrega ?? 'enviado';
   const reactions = Object.values(localReactions);
   const isDeleted = message.eliminado;
   const sentAtTime = new Date(createdAt).getTime();
@@ -612,14 +613,20 @@ export function ChatMessageItem({
   const renderDeliveryStatus = () =>
     isSent && (
       <Iconify
-        icon="eva:done-all-fill"
+        icon={deliveryStatus === 'enviado' ? 'eva:done-fill' : 'eva:done-all-fill'}
         width={16}
-        aria-label="Mensaje enviado"
+        aria-label={
+          deliveryStatus === 'visto'
+            ? 'Mensaje leído'
+            : deliveryStatus === 'entregado'
+              ? 'Mensaje entregado'
+              : 'Mensaje enviado'
+        }
         sx={{
           ml: 0.75,
           alignSelf: 'flex-end',
           lineHeight: 1,
-          color: '#00A76F',
+          color: deliveryStatus === 'visto' ? '#00A76F' : 'text.disabled',
         }}
       />
     );

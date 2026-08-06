@@ -108,7 +108,11 @@ export async function POST(req) {
   }
 
   // 4) Derivar y setear los claims.
-  const claims = deriveUserClaims({ rolId: asignacion.rolId, alcance: asignacion.alcance });
+  const claims = deriveUserClaims({
+    rolId: asignacion.rolId,
+    alcance: asignacion.alcance,
+    idMiembros: asignacion.idMiembros ?? asignacion.memberId,
+  });
   await auth.setCustomUserClaims(authUid, claims);
 
   return Response.json({ ok: true, uid: authUid, claims });

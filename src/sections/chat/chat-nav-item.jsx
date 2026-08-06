@@ -136,14 +136,16 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
                 flexDirection: 'column',
               }}
             >
-              <Typography
-                noWrap
-                variant="body2"
-                component="span"
-                sx={{ mb: 1.5, fontSize: 12, color: 'text.disabled' }}
-              >
-                {fToNow(lastActivity)}
-              </Typography>
+              {lastActivity && (
+                <Typography
+                  noWrap
+                  variant="body2"
+                  component="span"
+                  sx={{ mb: 1.5, fontSize: 12, color: 'text.disabled' }}
+                >
+                  {fToNow(lastActivity)}
+                </Typography>
+              )}
 
               {!!conversation.unreadCount && (
                 <Box

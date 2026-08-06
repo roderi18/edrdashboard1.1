@@ -1,13 +1,10 @@
 import {
   doc,
-  limit,
   query,
   where,
   setDoc,
   getDoc,
   getDocs,
-  orderBy,
-  deleteDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -16,8 +13,29 @@ import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 import { toPublicChatContact, getPublicChatContacts } from 'src/server/chat-contact-core.mjs';
+import {
+  buildChatReceipt,
+  applyChatReceiptsToMessages,
+} from 'src/server/chat-receipts.mjs';
+import {
+  ChatFirestoreRestError,
+  createChatFirestoreRestClient,
+} from 'src/server/chat-firestore-rest.mjs';
+import {
+  chatMessageToUi,
+  normalizeChatReaction,
+  createChatMessageDocument,
+  ChatMessageValidationError,
+} from 'src/server/chat-message-model.mjs';
+import {
+  createChatAuditEvent,
+  getPersonalClearCutoff,
+  collectChatAttachmentPaths,
+  applyChatMessageLifecycleAction,
+} from 'src/server/chat-message-lifecycle.mjs';
 import {
   authenticateChatRequest,
   bindAuthenticatedMessage,
@@ -33,6 +51,16 @@ import {
   assertConversationParticipant,
   authorizeConversationOperation,
 } from 'src/server/chat-authorization-core.mjs';
+import {
+  ChatGroupError,
+  getChatGroupRole,
+  assertChatGroupAdmin,
+  updateChatGroupDetails,
+  assertChatGroupCreator,
+  validateChatGroupRemoval,
+  transferChatGroupOwnership,
+  updateChatGroupAdministrator,
+} from 'src/server/chat-group-core.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -43,16 +71,38 @@ const SUBCOLECCION_MENSAJES = 'mensajes';
 const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
 const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const COLECCION_FOTOS = 'fotos';
-const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
 
 const chatAuthorizationErrorResponse = (error) => {
   if (!(error instanceof ChatAuthorizationError)) return null;
 
-  return Response.json(
-    { message: error.message, code: error.code },
-    { status: error.status }
-  );
+  return Response.json({ message: error.message, code: error.code }, { status: error.status });
 };
+
+const chatFirestoreErrorResponse = (error) => {
+  if (!(error instanceof ChatFirestoreRestError)) return null;
+
+  const status = error.status === 401 ? 401 : error.status === 403 ? 403 : 503;
+
+  return Response.json({ message: error.message, code: error.code }, { status });
+};
+
+const chatMessageValidationErrorResponse = (error) => {
+  if (!(error instanceof ChatMessageValidationError)) return null;
+
+  return Response.json({ message: error.message, code: error.code }, { status: error.status });
+};
+
+const chatGroupErrorResponse = (error) => {
+  if (!(error instanceof ChatGroupError)) return null;
+
+  return Response.json({ message: error.message, code: error.code }, { status: error.status });
+};
+
+const createChatStore = (chatActor = {}) =>
+  createChatFirestoreRestClient({
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    token: chatActor.token,
+  });
 
 const nowIso = () => new Date().toISOString();
 
@@ -177,33 +227,8 @@ async function resolveConversationParticipants(conversationData = {}) {
     .map(toPublicChatContact);
 }
 
-const messageToFirestore = (message = {}, fallbackSender = {}) => {
-  const remitenteIdMiembros =
-    toNumberOrNull(message.remitenteIdMiembros ?? message.senderId) ??
-    toNumberOrNull(fallbackSender.idMiembros);
-  const enviadoEn = message.enviadoEn ?? message.createdAt ?? nowIso();
-
-  return {
-    idMensaje: message.idMensaje ?? message.id ?? crypto.randomUUID(),
-    texto: message.texto ?? message.body ?? '',
-    tipoContenido: message.tipoContenido ?? message.contentType ?? 'text',
-    remitenteIdMiembros,
-    remitente: toPublicChatContact({
-      ...fallbackSender,
-      idMiembros: remitenteIdMiembros,
-    }),
-    adjuntos: asArray(message.adjuntos ?? message.attachments),
-    enviadoEn,
-    actualizadoEn: message.actualizadoEn ?? enviadoEn,
-    editado: Boolean(message.editado),
-    eliminado: Boolean(message.eliminado),
-    eliminadoEn: message.eliminadoEn ?? null,
-    respuestaA: message.respuestaA ?? message.replyTo ?? null,
-    reacciones: message.reacciones ?? message.reactions ?? {},
-    metadatos: message.metadatos ?? message.metadata ?? {},
-    vistoPorIdMiembros: message.vistoPorIdMiembros ?? {},
-  };
-};
+const messageToFirestore = (message = {}, fallbackSender = {}, conversationId) =>
+  createChatMessageDocument({ message, fallbackSender, conversationId });
 
 const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
   const participants = asArray(conversation.participantes);
@@ -215,7 +240,9 @@ const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
 
   if (directMatch) return directMatch;
 
-  const normalizedSender = String(senderId ?? '').trim().toLowerCase();
+  const normalizedSender = String(senderId ?? '')
+    .trim()
+    .toLowerCase();
 
   return (
     participants.find((participant) =>
@@ -235,21 +262,7 @@ const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
   );
 };
 
-const messageToUi = (message = {}) => ({
-  id: String(message.idMensaje ?? message.id ?? ''),
-  body: message.texto ?? message.body ?? '',
-  contentType: message.tipoContenido ?? message.contentType ?? 'text',
-  attachments: asArray(message.adjuntos ?? message.attachments),
-  bodyOriginal: message.textoOriginal ?? message.bodyOriginal ?? null,
-  contentTypeOriginal: message.tipoContenidoOriginal ?? message.contentTypeOriginal ?? null,
-  attachmentsOriginal: asArray(message.adjuntosOriginales ?? message.attachmentsOriginal),
-  createdAt: message.enviadoEn ?? message.createdAt ?? nowIso(),
-  senderId: String(message.remitenteIdMiembros ?? message.senderId ?? ''),
-  eliminado: Boolean(message.eliminado),
-  replyTo: message.respuestaA ?? message.replyTo ?? null,
-  reactions: message.reacciones ?? message.reactions ?? {},
-  metadata: message.metadatos ?? message.metadata ?? {},
-});
+const messageToUi = (message = {}) => chatMessageToUi(message);
 
 const contactWithCurrentPhoto = async (member = {}) => {
   const contact = memberToContact(member);
@@ -261,12 +274,34 @@ const contactWithCurrentPhoto = async (member = {}) => {
   };
 };
 
-const conversationToUi = async (conversation = {}, messages = null, viewerIdMiembros = null) => {
+const conversationToUi = async (
+  conversation = {},
+  messages = null,
+  viewerIdMiembros = null,
+  chatStore,
+  { includeReceipts = true } = {}
+) => {
+  const visibilityCutoff = getPersonalClearCutoff(conversation, viewerIdMiembros);
   const loadedMessages =
     messages ??
-    (await getMessages(conversation.idConversacion ?? conversation.id)).map((message) =>
-      messageToUi(message)
-    );
+    (
+      await getMessages(
+        conversation.idConversacion ?? conversation.id,
+        { afterEnviadoEn: visibilityCutoff },
+        chatStore
+      )
+    ).map((message) => messageToUi(message));
+  const receipts =
+    includeReceipts && chatStore
+      ? await getConversationReceipts(conversation.idConversacion ?? conversation.id, chatStore)
+      : [];
+  const messagesWithReceipts = includeReceipts
+    ? applyChatReceiptsToMessages({
+        messages: loadedMessages,
+        participantIds: asArray(conversation.participantesIds),
+        receipts,
+      })
+    : loadedMessages;
   const viewerUnreadCount =
     viewerIdMiembros && conversation.noLeidosPorIdMiembros
       ? Number(conversation.noLeidosPorIdMiembros[String(viewerIdMiembros)] || 0)
@@ -279,9 +314,28 @@ const conversationToUi = async (conversation = {}, messages = null, viewerIdMiem
         ? 'GROUP'
         : 'ONE_TO_ONE',
     groupName: conversation.nombreGrupo || null,
+    groupAvatarUrl: conversation.avatarGrupoUrl || null,
     creatorIdMiembros: conversation.creadoPorIdMiembros ?? null,
-    participants: await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto)),
-    messages: loadedMessages,
+    canClearGlobally:
+      !!viewerIdMiembros &&
+      Number(conversation.creadoPorIdMiembros) === Number(viewerIdMiembros),
+    administratorIds: asArray(conversation.administradoresIds),
+    currentUserGroupRole:
+      conversation.tipoConversacion === 'GRUPAL' && viewerIdMiembros
+        ? getChatGroupRole(conversation, viewerIdMiembros)
+        : null,
+    createdAt: conversation.creadoEn ?? conversation.createdAt ?? null,
+    updatedAt:
+      conversation.actualizadoEn ??
+      conversation.updatedAt ??
+      conversation.creadoEn ??
+      conversation.createdAt ??
+      null,
+    participants: await Promise.all(
+      asArray(conversation.participantes).map(contactWithCurrentPhoto)
+    ),
+    messages: messagesWithReceipts,
+    deliveryReceipts: receipts,
     muted:
       !!viewerIdMiembros &&
       Boolean(conversation.silenciadoPorIdMiembros?.[String(viewerIdMiembros)]),
@@ -305,7 +359,9 @@ async function getMembersFromApi() {
   const payload = await response.json();
   const normalized = normalizeApiResponse(payload);
 
-  return asArray(normalized.data).map(normalizeMember).filter((member) => member.idMiembros);
+  return asArray(normalized.data)
+    .map(normalizeMember)
+    .filter((member) => member.idMiembros);
 }
 
 async function getMembersFromFirestoreProfiles() {
@@ -358,8 +414,7 @@ async function getNotificationProfilesByMemberIds(idMiembrosList = []) {
         }
 
         const role = String(profile.rol ?? profile.role ?? '').toLowerCase();
-        const isAdmin =
-          collectionName === 'admins' || role === 'admin' || role === 'administrador';
+        const isAdmin = collectionName === 'admins' || role === 'admin' || role === 'administrador';
 
         return {
           idMiembros,
@@ -382,9 +437,9 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
     return '';
   }
 
-  const snapshot = await getDoc(doc(FIRESTORE, COLECCION_FOTOS, `miembro_${memberId}_perfil`)).catch(
-    () => null
-  );
+  const snapshot = await getDoc(
+    doc(FIRESTORE, COLECCION_FOTOS, `miembro_${memberId}_perfil`)
+  ).catch(() => null);
 
   if (!snapshot?.exists()) {
     return '';
@@ -408,7 +463,9 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
     .flatMap((profileSnapshot) => profileSnapshot.docs.map((item) => item.data() ?? {}))
     .find((profile) => profile.photoURL || profile.avatarUrl || profile.urlFoto);
 
-  return profileWithPhoto?.photoURL || profileWithPhoto?.avatarUrl || profileWithPhoto?.urlFoto || '';
+  return (
+    profileWithPhoto?.photoURL || profileWithPhoto?.avatarUrl || profileWithPhoto?.urlFoto || ''
+  );
 }
 
 async function createMessageNotifications({ conversation = {}, message = {} }) {
@@ -417,8 +474,7 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
   const senderId = Number(message.remitenteIdMiembros);
   const mutedByIdMiembros = conversation.silenciadoPorIdMiembros ?? {};
   const recipientsIds = asArray(conversation.participantesIds).filter(
-    (idMiembros) =>
-      Number(idMiembros) !== senderId && !mutedByIdMiembros[String(idMiembros)]
+    (idMiembros) => Number(idMiembros) !== senderId && !mutedByIdMiembros[String(idMiembros)]
   );
 
   if (!recipientsIds.length) return;
@@ -436,47 +492,47 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
       const notificationId = `mensaje_recibido_${conversation.idConversacion || conversation.id}_${message.idMensaje}_${profile.uid}`;
 
       return guardarNotificacionConfigurada({
-          id: notificationId,
-          tipoNotificacion: 'mensaje_recibido',
-          modulo: 'mensajes',
-          titulo: 'Mensaje recibido',
-          tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> te envió un mensaje</p>`,
-          mensaje: 'te envió un mensaje.',
-          mensajeVisual: 'te envió un mensaje.',
-          rolDestinatario: profile.rolDestinatario,
-          idsDestinatarios: [profile.uid],
-          prioridad: 'informativa',
-          estado: 'no_leida',
-          fechaCreacion: message.enviadoEn ?? nowIso(),
-          fechaEnvio: message.enviadoEn ?? nowIso(),
-          actorId: String(senderId || ''),
-          actorTipo: 'usuario',
-          actorNombre: senderName,
-          actorFotoURL: senderPhotoUrl || null,
-          entidadTipo: 'mensaje',
-          entidadId: message.idMensaje,
-          ruta: `/dashboard/chat?id=${conversation.idConversacion || conversation.id}`,
-          imagenTipo: 'persona',
-          imagenURL: senderPhotoUrl || null,
-          miniaturaURL: senderPhotoUrl || null,
-          tipoAccion: 'responder',
-          etiquetaAccion: 'Responder',
-          tipoAccionSecundaria: null,
-          etiquetaAccionSecundaria: null,
-          leidaPor: [],
-          fechaProgramada: null,
-          fechaExpiracion: null,
-          fechaLectura: null,
-          metadatos: {
-            idMensaje: message.idMensaje,
-            idConversacion: conversation.idConversacion || conversation.id,
-            remitenteIdMiembros: senderId,
-            destinatarioIdMiembros: profile.idMiembros,
-            texto: message.texto,
-          },
-          creadoEnServidor: serverTimestamp(),
-          actualizadoEnServidor: serverTimestamp(),
-        });
+        id: notificationId,
+        tipoNotificacion: 'mensaje_recibido',
+        modulo: 'mensajes',
+        titulo: 'Mensaje recibido',
+        tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> te envió un mensaje</p>`,
+        mensaje: 'te envió un mensaje.',
+        mensajeVisual: 'te envió un mensaje.',
+        rolDestinatario: profile.rolDestinatario,
+        idsDestinatarios: [profile.uid],
+        prioridad: 'informativa',
+        estado: 'no_leida',
+        fechaCreacion: message.enviadoEn ?? nowIso(),
+        fechaEnvio: message.enviadoEn ?? nowIso(),
+        actorId: String(senderId || ''),
+        actorTipo: 'usuario',
+        actorNombre: senderName,
+        actorFotoURL: senderPhotoUrl || null,
+        entidadTipo: 'mensaje',
+        entidadId: message.idMensaje,
+        ruta: `/dashboard/chat?id=${conversation.idConversacion || conversation.id}`,
+        imagenTipo: 'persona',
+        imagenURL: senderPhotoUrl || null,
+        miniaturaURL: senderPhotoUrl || null,
+        tipoAccion: 'responder',
+        etiquetaAccion: 'Responder',
+        tipoAccionSecundaria: null,
+        etiquetaAccionSecundaria: null,
+        leidaPor: [],
+        fechaProgramada: null,
+        fechaExpiracion: null,
+        fechaLectura: null,
+        metadatos: {
+          idMensaje: message.idMensaje,
+          idConversacion: conversation.idConversacion || conversation.id,
+          remitenteIdMiembros: senderId,
+          destinatarioIdMiembros: profile.idMiembros,
+          texto: message.texto,
+        },
+        creadoEnServidor: serverTimestamp(),
+        actualizadoEnServidor: serverTimestamp(),
+      });
     })
   );
 }
@@ -495,8 +551,7 @@ async function getAdminNotificationProfiles() {
       .map((item) => {
         const profile = item.data() ?? {};
         const role = String(profile.rol ?? profile.role ?? '').toLowerCase();
-        const isAdmin =
-          collectionName === 'admins' || role === 'admin' || role === 'administrador';
+        const isAdmin = collectionName === 'admins' || role === 'admin' || role === 'administrador';
 
         if (!isAdmin) {
           return null;
@@ -513,24 +568,79 @@ async function getAdminNotificationProfiles() {
 
 const DEFAULT_MESSAGES_PAGE_SIZE = 30;
 
-async function getMessages(idConversacion, { pageLimit, beforeEnviadoEn } = {}) {
+async function getMessages(
+  idConversacion,
+  { pageLimit, beforeEnviadoEn, afterEnviadoEn } = {},
+  chatStore
+) {
   if (!idConversacion) return [];
 
-  const constraints = [orderBy('enviadoEn', 'desc')];
+  const messages = await chatStore.runQuery({
+    parentPath: `${COLECCION_CONVERSACIONES}/${idConversacion}`,
+    collectionId: SUBCOLECCION_MENSAJES,
+    filters: [
+      ...(beforeEnviadoEn ? [{ field: 'enviadoEn', op: '<', value: beforeEnviadoEn }] : []),
+      ...(afterEnviadoEn ? [{ field: 'enviadoEn', op: '>', value: afterEnviadoEn }] : []),
+    ],
+    orderBy: [{ field: 'enviadoEn', direction: 'desc' }],
+    limit: pageLimit || DEFAULT_MESSAGES_PAGE_SIZE,
+  });
 
-  if (beforeEnviadoEn) {
-    constraints.push(where('enviadoEn', '<', beforeEnviadoEn));
+  return messages.reverse();
+}
+
+async function getAllMessages(idConversacion, chatStore) {
+  if (!idConversacion) return [];
+
+  return chatStore.runQuery({
+    parentPath: `${COLECCION_CONVERSACIONES}/${idConversacion}`,
+    collectionId: SUBCOLECCION_MENSAJES,
+    orderBy: [{ field: 'enviadoEn', direction: 'asc' }],
+  });
+}
+
+async function getConversationReceipts(idConversacion, chatStore) {
+  if (!idConversacion) return [];
+
+  return chatStore.runQuery({
+    parentPath: `${COLECCION_CONVERSACIONES}/${idConversacion}`,
+    collectionId: 'recibos',
+  });
+}
+
+async function updateConversationReceipt({
+  conversationId,
+  conversation,
+  chatActor,
+  chatStore,
+  markRead = false,
+  persist = true,
+}) {
+  const viewerId = authorizeConversationOperation({
+    actor: chatActor,
+    conversation,
+    permission: CHAT_PERMISSIONS.VIEW,
+  });
+  const deliveredUntil =
+    conversation.ultimoMensaje?.enviadoEn ?? conversation.actualizadoEn ?? null;
+
+  if (!deliveredUntil) return null;
+
+  const receiptPath = `${COLECCION_CONVERSACIONES}/${conversationId}/recibos/${chatActor.uid}`;
+  const existingReceipt = (await chatStore.getDocument(receiptPath)) ?? {};
+  const receipt = buildChatReceipt({
+    existing: existingReceipt,
+    idMiembros: viewerId,
+    deliveredUntil,
+    readUntil: markRead ? deliveredUntil : null,
+    now: nowIso(),
+  });
+
+  if (persist) {
+    await chatStore.setDocument(receiptPath, receipt);
   }
 
-  constraints.push(limit(pageLimit || DEFAULT_MESSAGES_PAGE_SIZE));
-
-  const messagesQuery = query(
-    collection(FIRESTORE, COLECCION_CONVERSACIONES, String(idConversacion), SUBCOLECCION_MENSAJES),
-    ...constraints
-  );
-  const snapshot = await getDocs(messagesQuery);
-
-  return snapshot.docs.map((item) => item.data()).reverse();
+  return { path: receiptPath, data: receipt };
 }
 
 function buildConversationId({ tipoConversacion, participantesIds, providedId }) {
@@ -547,32 +657,28 @@ function buildConversationId({ tipoConversacion, participantesIds, providedId })
   return ids.length >= 2 ? `individual_${ids.join('_')}` : String(providedId || ids[0] || '');
 }
 
-async function getConversationDoc(idConversacion) {
-  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(idConversacion));
-  const snapshot = await getDoc(conversationRef);
-
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+async function getConversationDoc(idConversacion, chatStore) {
+  return chatStore.getDocument(`${COLECCION_CONVERSACIONES}/${idConversacion}`);
 }
 
-async function getConversations(viewerIdMiembros = null) {
+async function getConversations(viewerIdMiembros = null, chatStore) {
   const viewerId = toNumberOrNull(viewerIdMiembros);
-  const conversationsQuery = viewerId
-    ? query(
-        collection(FIRESTORE, COLECCION_CONVERSACIONES),
-        where('eliminada', '==', false),
-        where('participantesIds', 'array-contains', viewerId)
-      )
-    : query(collection(FIRESTORE, COLECCION_CONVERSACIONES), where('eliminada', '==', false));
-  const snapshot = await getDocs(conversationsQuery);
+  const conversations = await chatStore.runQuery({
+    collectionId: COLECCION_CONVERSACIONES,
+    filters: [
+      { field: 'eliminada', op: '==', value: false },
+      ...(viewerId ? [{ field: 'participantesIds', op: 'array-contains', value: viewerId }] : []),
+    ],
+  });
 
   return Promise.all(
-    snapshot.docs.map(async (item) =>
-      conversationToUi({ idConversacion: item.id, ...item.data() }, null, viewerId)
+    conversations.map(async (conversation) =>
+      conversationToUi(conversation, null, viewerId, chatStore, { includeReceipts: false })
     )
   );
 }
 
-async function getUnreadSummary(viewerIdMiembros) {
+async function getUnreadSummary(viewerIdMiembros, chatStore) {
   const viewerId = toNumberOrNull(viewerIdMiembros);
 
   if (!viewerId) {
@@ -583,20 +689,20 @@ async function getUnreadSummary(viewerIdMiembros) {
     };
   }
 
-  const conversationsQuery = query(
-    collection(FIRESTORE, COLECCION_CONVERSACIONES),
-    where('eliminada', '==', false),
-    where('participantesIds', 'array-contains', viewerId)
-  );
-  const snapshot = await getDocs(conversationsQuery);
+  const conversations = await chatStore.runQuery({
+    collectionId: COLECCION_CONVERSACIONES,
+    filters: [
+      { field: 'eliminada', op: '==', value: false },
+      { field: 'participantesIds', op: 'array-contains', value: viewerId },
+    ],
+  });
   const unreadByConversation = {};
 
-  snapshot.docs.forEach((item) => {
-    const conversation = item.data() ?? {};
+  conversations.forEach((conversation) => {
     const unreadCount = Number(conversation.noLeidosPorIdMiembros?.[String(viewerId)] ?? 0);
 
     if (unreadCount > 0) {
-      unreadByConversation[item.id] = unreadCount;
+      unreadByConversation[conversation.id] = unreadCount;
     }
   });
 
@@ -610,7 +716,7 @@ async function getUnreadSummary(viewerIdMiembros) {
   };
 }
 
-async function createConversation(conversationData = {}, chatActor = {}) {
+async function createConversation(conversationData = {}, chatActor = {}, chatStore) {
   assertChatPermission(chatActor, CHAT_PERMISSIONS.START);
 
   const authenticatedConversationData = bindAuthenticatedConversation(conversationData, chatActor);
@@ -629,35 +735,43 @@ async function createConversation(conversationData = {}, chatActor = {}) {
   const idConversacion = buildConversationId({
     tipoConversacion,
     participantesIds,
-    providedId:
-      authenticatedConversationData.idConversacion ?? authenticatedConversationData.id,
+    providedId: authenticatedConversationData.idConversacion ?? authenticatedConversationData.id,
   });
 
   if (!idConversacion || participantesIds.length < 2) {
     throw new Error('La conversación necesita al menos dos participantes con idMiembros.');
   }
 
-  const primerMensaje = messageToFirestore(
-    asArray(authenticatedConversationData.messages)[0],
-    resolveMessageSender({
-      messageData: asArray(authenticatedConversationData.messages)[0],
-      conversation: { participantes, participantesIds },
-    })
+  const rawFirstMessage = asArray(authenticatedConversationData.messages)[0];
+  const hasFirstMessage = Boolean(
+    rawFirstMessage &&
+    (String(rawFirstMessage.texto ?? rawFirstMessage.body ?? '').trim() ||
+      asArray(rawFirstMessage.adjuntos ?? rawFirstMessage.attachments).length)
   );
-  const existingConversation = await getConversationDoc(idConversacion);
+  const primerMensaje = hasFirstMessage
+    ? messageToFirestore(
+        rawFirstMessage,
+        resolveMessageSender({
+          messageData: rawFirstMessage,
+          conversation: { participantes, participantesIds },
+        }),
+        idConversacion
+      )
+    : null;
+  const existingConversation = await getConversationDoc(idConversacion, chatStore);
 
   if (existingConversation) {
-    if (primerMensaje.texto) {
-      return addMessage(idConversacion, primerMensaje, chatActor);
+    if (primerMensaje) {
+      return addMessage(idConversacion, primerMensaje, chatActor, chatStore);
     }
 
     assertConversationParticipant(existingConversation, chatActor);
-    return conversationToUi(existingConversation, null, actorIdMiembros);
+    return conversationToUi(existingConversation, null, actorIdMiembros, chatStore);
   }
 
   const creadoEn =
     authenticatedConversationData.creadoEn ?? authenticatedConversationData.createdAt ?? nowIso();
-  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, idConversacion);
+  const conversationPath = `${COLECCION_CONVERSACIONES}/${idConversacion}`;
   const noLeidosPorIdMiembros = Object.fromEntries(participantesIds.map((id) => [String(id), 0]));
 
   const conversationDoc = {
@@ -665,40 +779,52 @@ async function createConversation(conversationData = {}, chatActor = {}) {
     tipoConversacion,
     nombreGrupo:
       tipoConversacion === 'GRUPAL' ? authenticatedConversationData.groupName || null : null,
+    avatarGrupoUrl: null,
     participantesIds,
     participantes,
     creadoPorIdMiembros: actorIdMiembros,
+    administradoresIds: tipoConversacion === 'GRUPAL' ? [actorIdMiembros] : [],
     creadoEn,
-    actualizadoEn: primerMensaje.enviadoEn ?? creadoEn,
-    ultimoMensaje: {
-      idMensaje: primerMensaje.idMensaje,
-      texto: primerMensaje.texto,
-      tipoContenido: primerMensaje.tipoContenido,
-      remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
-      enviadoEn: primerMensaje.enviadoEn,
-    },
+    actualizadoEn: primerMensaje?.enviadoEn ?? creadoEn,
+    ultimoMensaje: primerMensaje
+      ? {
+          idMensaje: primerMensaje.idMensaje,
+          texto: primerMensaje.texto,
+          tipoContenido: primerMensaje.tipoContenido,
+          remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
+          enviadoEn: primerMensaje.enviadoEn,
+        }
+      : null,
     noLeidosPorIdMiembros,
     activa: true,
     eliminada: false,
   };
 
-  await setDoc(conversationRef, conversationDoc);
-  await setDoc(
-    doc(conversationRef, SUBCOLECCION_MENSAJES, primerMensaje.idMensaje),
-    primerMensaje
-  );
+  await chatStore.setDocument(conversationPath, conversationDoc);
+  if (primerMensaje) {
+    await chatStore.setDocument(
+      `${conversationPath}/${SUBCOLECCION_MENSAJES}/${primerMensaje.idMensaje}`,
+      primerMensaje
+    );
 
-  await createMessageNotifications({ conversation: conversationDoc, message: primerMensaje }).catch(
-    (error) => {
+    await createMessageNotifications({
+      conversation: conversationDoc,
+      message: primerMensaje,
+    }).catch((error) => {
       console.error('[chat] no se pudo crear la notificación del primer mensaje', error);
-    }
-  );
+    });
+  }
 
-  return conversationToUi(conversationDoc, [messageToUi(primerMensaje)]);
+  return conversationToUi(
+    conversationDoc,
+    primerMensaje ? [messageToUi(primerMensaje)] : [],
+    null,
+    chatStore
+  );
 }
 
-async function addMessage(conversationId, messageData = {}, chatActor = {}) {
-  const existingConversation = await getConversationDoc(conversationId);
+async function addMessage(conversationId, messageData = {}, chatActor = {}, chatStore) {
+  const existingConversation = await getConversationDoc(conversationId, chatStore);
 
   if (!existingConversation) {
     throw new Error('La conversación no existe.');
@@ -716,13 +842,13 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}) {
     messageData: authenticatedMessageData,
     conversation: existingConversation,
   });
-  const messageDoc = messageToFirestore(authenticatedMessageData, sender);
+  const messageDoc = messageToFirestore(authenticatedMessageData, sender, conversationId);
 
   if (!messageDoc.remitenteIdMiembros) {
     throw new Error('El mensaje necesita remitenteIdMiembros válido.');
   }
 
-  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
+  const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
   const noLeidosPorIdMiembros = {
     ...(existingConversation.noLeidosPorIdMiembros ?? {}),
   };
@@ -736,9 +862,12 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}) {
         : Number(noLeidosPorIdMiembros[key] || 0) + 1;
   });
 
-  await setDoc(doc(conversationRef, SUBCOLECCION_MENSAJES, messageDoc.idMensaje), messageDoc);
-  await setDoc(
-    conversationRef,
+  await chatStore.setDocument(
+    `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`,
+    messageDoc
+  );
+  await chatStore.setDocument(
+    conversationPath,
     {
       ...existingConversation,
       actualizadoEn: messageDoc.enviadoEn,
@@ -763,21 +892,18 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}) {
 
   return conversationToUi(
     { ...existingConversation, actualizadoEn: messageDoc.enviadoEn, noLeidosPorIdMiembros },
-    (await getMessages(conversationId)).map(messageToUi),
-    viewerIdMiembros
+    (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+    viewerIdMiembros,
+    chatStore
   );
 }
 
-async function markAsSeen(conversationId, chatActor = {}) {
-  const existingConversation = await getConversationDoc(conversationId);
+async function markAsSeen(conversationId, chatActor = {}, chatStore) {
+  const existingConversation = await getConversationDoc(conversationId, chatStore);
 
   if (!existingConversation) return null;
 
-  const viewerId = authorizeConversationOperation({
-    actor: chatActor,
-    conversation: existingConversation,
-    permission: CHAT_PERMISSIONS.VIEW,
-  });
+  const viewerId = assertConversationParticipant(existingConversation, chatActor);
   const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
 
   if (viewerId) {
@@ -788,11 +914,23 @@ async function markAsSeen(conversationId, chatActor = {}) {
     });
   }
 
-  await setDoc(
-    doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId)),
-    { noLeidosPorIdMiembros },
-    { merge: true }
-  );
+  const receipt = await updateConversationReceipt({
+    conversationId,
+    conversation: existingConversation,
+    chatActor,
+    chatStore,
+    markRead: true,
+    persist: false,
+  });
+  await chatStore.commitWrites([
+    ...(receipt ? [{ type: 'set', path: receipt.path, data: receipt.data }] : []),
+    {
+      type: 'set',
+      path: `${COLECCION_CONVERSACIONES}/${conversationId}`,
+      data: { noLeidosPorIdMiembros },
+      merge: true,
+    },
+  ]);
 
   return { ...existingConversation, noLeidosPorIdMiembros };
 }
@@ -804,8 +942,9 @@ async function updateMessageAction({
   chatActor = {},
   reaction = '👍',
   text = '',
+  chatStore,
 }) {
-  const existingConversation = await getConversationDoc(conversationId);
+  const existingConversation = await getConversationDoc(conversationId, chatStore);
 
   if (!existingConversation) {
     throw new Error('La conversación no existe.');
@@ -829,100 +968,94 @@ async function updateMessageAction({
     permission,
   });
 
-  const messageRef = doc(
-    FIRESTORE,
-    COLECCION_CONVERSACIONES,
-    String(conversationId),
-    SUBCOLECCION_MENSAJES,
-    String(messageId)
-  );
-  const messageSnapshot = await getDoc(messageRef);
+  const messagePath = `${COLECCION_CONVERSACIONES}/${conversationId}/${SUBCOLECCION_MENSAJES}/${messageId}`;
+  const messageData = await chatStore.getDocument(messagePath);
 
-  if (!messageSnapshot.exists()) {
+  if (!messageData) {
     throw new Error('El mensaje no existe.');
   }
 
-  const messageData = messageSnapshot.data();
   let nextMessage = messageData;
+  let auditEvent = null;
+  const updatedAt = nowIso();
+  const isLastMessage =
+    String(existingConversation?.ultimoMensaje?.idMensaje) === String(messageId);
 
   if (['edit', 'delete', 'restore'].includes(action)) {
     assertMessageAuthor(messageData, chatActor);
-  }
-
-  if (action === 'delete') {
-    const sentAtTime = new Date(messageData.enviadoEn ?? messageData.createdAt).getTime();
-
-    if (!Number.isFinite(sentAtTime) || Date.now() - sentAtTime > MESSAGE_DELETE_WINDOW_MS) {
-      throw new Error('No se pueden eliminar mensajes despues de 1 hora de enviados.');
-    }
-
-    nextMessage = {
-      ...messageData,
-      textoOriginal: messageData.textoOriginal ?? messageData.texto,
-      tipoContenidoOriginal: messageData.tipoContenidoOriginal ?? messageData.tipoContenido,
-      adjuntosOriginales: messageData.adjuntosOriginales ?? messageData.adjuntos,
-      texto: 'Mensaje eliminado',
-      eliminado: true,
-      eliminadoEn: nowIso(),
-      actualizadoEn: nowIso(),
-    };
-  }
-
-  if (action === 'restore') {
-    nextMessage = {
-      ...messageData,
-      texto: messageData.textoOriginal ?? messageData.texto,
-      tipoContenido: messageData.tipoContenidoOriginal ?? messageData.tipoContenido,
-      adjuntos: messageData.adjuntosOriginales ?? messageData.adjuntos,
-      eliminado: false,
-      eliminadoEn: null,
-      actualizadoEn: nowIso(),
-    };
-  }
-
-  if (action === 'edit') {
-    nextMessage = {
-      ...messageData,
-      texto: text || messageData.texto,
-      textoOriginal: null,
-      editado: true,
-      actualizadoEn: nowIso(),
-    };
+    nextMessage = applyChatMessageLifecycleAction({
+      action,
+      message: messageData,
+      text,
+      now: updatedAt,
+    });
+    auditEvent = createChatAuditEvent({
+      action: `mensaje_${action === 'edit' ? 'editado' : action === 'delete' ? 'eliminado' : 'restaurado'}`,
+      actorIdMiembros: viewerIdMiembros,
+      messageId,
+      now: updatedAt,
+      details: {
+        longitudAnterior: String(messageData.texto ?? '').length,
+        longitudActual: String(nextMessage.texto ?? '').length,
+        adjuntosAfectados: asArray(
+          messageData.adjuntosOriginales ?? messageData.adjuntos
+        ).length,
+      },
+    });
   }
 
   if (action === 'react') {
+    const normalizedReaction = normalizeChatReaction(reaction);
     const reactionKey = String(viewerIdMiembros || 'usuario');
     const currentReactions = messageData.reacciones ?? {};
     const currentReaction = currentReactions[reactionKey];
     const nextReactions = { ...currentReactions };
 
-    if (currentReaction === reaction) {
+    if (currentReaction === normalizedReaction) {
       delete nextReactions[reactionKey];
     } else {
-      nextReactions[reactionKey] = reaction;
+      nextReactions[reactionKey] = normalizedReaction;
     }
 
     nextMessage = {
       ...messageData,
       reacciones: nextReactions,
-      actualizadoEn: nowIso(),
+      actualizadoEn: updatedAt,
     };
   }
 
-  await setDoc(messageRef, nextMessage, { merge: true });
-
-  if (String(existingConversation?.ultimoMensaje?.idMensaje) === String(messageId)) {
-    await setDoc(
-      doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId)),
-      {
+  const conversationUpdate = isLastMessage
+    ? {
         ultimoMensaje: {
           ...(existingConversation.ultimoMensaje || {}),
           texto: nextMessage.texto,
+          tipoContenido: nextMessage.tipoContenido,
         },
-        actualizadoEn: nowIso(),
+        actualizadoEn: updatedAt,
+      }
+    : null;
+
+  if (auditEvent) {
+    await chatStore.commitWrites([
+      { type: 'set', path: messagePath, data: nextMessage, merge: true },
+      {
+        type: 'set',
+        path: `${COLECCION_CONVERSACIONES}/${conversationId}/auditoria/${auditEvent.idEvento}`,
+        data: auditEvent,
       },
-      { merge: true }
-    );
+      ...(conversationUpdate
+        ? [
+            {
+              type: 'set',
+              path: `${COLECCION_CONVERSACIONES}/${conversationId}`,
+              data: conversationUpdate,
+              merge: true,
+            },
+          ]
+        : []),
+    ]);
+  } else {
+    await chatStore.setDocument(messagePath, nextMessage, { merge: true });
   }
 
   return conversationToUi(
@@ -930,13 +1063,103 @@ async function updateMessageAction({
       ...existingConversation,
       idConversacion: conversationId,
       ultimoMensaje:
-        String(existingConversation?.ultimoMensaje?.idMensaje) === String(messageId)
-          ? { ...(existingConversation.ultimoMensaje || {}), texto: nextMessage.texto }
+        isLastMessage
+          ? {
+              ...(existingConversation.ultimoMensaje || {}),
+              texto: nextMessage.texto,
+              tipoContenido: nextMessage.tipoContenido,
+            }
           : existingConversation.ultimoMensaje,
     },
-    (await getMessages(conversationId)).map(messageToUi),
-    viewerIdMiembros
+    (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+    viewerIdMiembros,
+    chatStore
   );
+}
+
+async function commitGroupChange({
+  conversationId,
+  conversation,
+  viewerId,
+  chatStore,
+  action,
+  update,
+  systemText,
+}) {
+  const changedAt = nowIso();
+  const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
+  const actor =
+    asArray(conversation.participantes).find(
+      (participant) => Number(participant.idMiembros) === Number(viewerId)
+    ) ?? { idMiembros: viewerId };
+  const systemMessage = messageToFirestore(
+    {
+      id: `sistema_${crypto.randomUUID()}`,
+      body: systemText,
+      contentType: 'system',
+      senderId: viewerId,
+      createdAt: changedAt,
+      metadata: { groupAction: action },
+    },
+    actor,
+    conversationId
+  );
+  const participantIds = asArray(update.participantesIds ?? conversation.participantesIds);
+  const noLeidosPorIdMiembros = {
+    ...(update.noLeidosPorIdMiembros ?? conversation.noLeidosPorIdMiembros ?? {}),
+  };
+
+  Object.keys(noLeidosPorIdMiembros).forEach((id) => {
+    if (!participantIds.some((participantId) => Number(participantId) === Number(id))) {
+      delete noLeidosPorIdMiembros[id];
+    }
+  });
+  participantIds.forEach((id) => {
+    noLeidosPorIdMiembros[String(id)] =
+      Number(id) === Number(viewerId) ? 0 : Number(noLeidosPorIdMiembros[String(id)] || 0) + 1;
+  });
+
+  const conversationUpdate = {
+    ...update,
+    actualizadoEn: changedAt,
+    noLeidosPorIdMiembros,
+    ultimoMensaje: {
+      idMensaje: systemMessage.idMensaje,
+      texto: systemMessage.texto,
+      tipoContenido: systemMessage.tipoContenido,
+      remitenteIdMiembros: systemMessage.remitenteIdMiembros,
+      enviadoEn: systemMessage.enviadoEn,
+    },
+  };
+  const auditEvent = createChatAuditEvent({
+    action: `grupo_${action}`,
+    actorIdMiembros: viewerId,
+    messageId: systemMessage.idMensaje,
+    now: changedAt,
+    details: { participantes: participantIds.length },
+  });
+
+  await chatStore.commitWrites([
+    { type: 'set', path: conversationPath, data: conversationUpdate, merge: true },
+    {
+      type: 'set',
+      path: `${conversationPath}/${SUBCOLECCION_MENSAJES}/${systemMessage.idMensaje}`,
+      data: systemMessage,
+    },
+    {
+      type: 'set',
+      path: `${conversationPath}/auditoria/${auditEvent.idEvento}`,
+      data: auditEvent,
+    },
+  ]);
+
+  const updatedConversation = { ...conversation, ...conversationUpdate };
+
+  if (!participantIds.includes(Number(viewerId))) {
+    return { id: String(conversationId), left: true };
+  }
+
+  return conversationToUi(updatedConversation, null, viewerId, chatStore);
 }
 
 async function updateConversationAction({
@@ -946,21 +1169,32 @@ async function updateConversationAction({
   comment = '',
   newParticipants = [],
   targetIdMiembros = null,
+  administratorIdMiembros = null,
+  makeAdmin = false,
+  groupName = '',
+  groupAvatarUrl = '',
+  chatStore,
 }) {
-  const existingConversation = await getConversationDoc(conversationId);
+  const existingConversation = await getConversationDoc(conversationId, chatStore);
 
   if (!existingConversation) {
     throw new Error('La conversacion no existe.');
   }
 
-  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
+  const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
   const permissionByAction = {
     typing: CHAT_PERMISSIONS.SEND,
     'toggle-mute': CHAT_PERMISSIONS.VIEW,
+    'mark-delivered': CHAT_PERMISSIONS.VIEW,
     clear: CHAT_PERMISSIONS.CLEAR,
+    'clear-global': CHAT_PERMISSIONS.CLEAR,
     report: CHAT_PERMISSIONS.REPORT,
     'add-participants': CHAT_PERMISSIONS.MANAGE_GROUP,
     'remove-participant': CHAT_PERMISSIONS.MANAGE_GROUP,
+    'leave-group': CHAT_PERMISSIONS.VIEW,
+    'transfer-ownership': CHAT_PERMISSIONS.MANAGE_GROUP,
+    'set-group-admin': CHAT_PERMISSIONS.MANAGE_GROUP,
+    'update-group': CHAT_PERMISSIONS.MANAGE_GROUP,
   };
   const permission = permissionByAction[action];
 
@@ -972,7 +1206,7 @@ async function updateConversationAction({
     actor: chatActor,
     conversation: existingConversation,
     permission,
-    creatorOnly: ['clear', 'add-participants'].includes(action),
+    creatorOnly: ['clear-global'].includes(action),
   });
 
   if (action === 'typing') {
@@ -980,8 +1214,8 @@ async function updateConversationAction({
       throw new Error('No se pudo identificar el miembro que está escribiendo.');
     }
 
-    await setDoc(
-      conversationRef,
+    await chatStore.setDocument(
+      conversationPath,
       { escribiendoPorIdMiembros: { [String(viewerId)]: nowIso() } },
       { merge: true }
     );
@@ -1002,46 +1236,148 @@ async function updateConversationAction({
       silenciadoPorIdMiembros[String(viewerId)] = true;
     }
 
-    await setDoc(conversationRef, { silenciadoPorIdMiembros }, { merge: true });
+    await chatStore.setDocument(conversationPath, { silenciadoPorIdMiembros }, { merge: true });
 
     return conversationToUi(
       { ...existingConversation, silenciadoPorIdMiembros },
-      (await getMessages(conversationId)).map(messageToUi),
-      viewerId
+      (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+      viewerId,
+      chatStore
     );
   }
 
+  if (action === 'mark-delivered') {
+    await updateConversationReceipt({
+      conversationId,
+      conversation: existingConversation,
+      chatActor,
+      chatStore,
+    });
+
+    return { id: String(conversationId), delivered: true };
+  }
+
   if (action === 'clear') {
-    const messages = await getMessages(conversationId);
+    const clearedAt = nowIso();
+    const ocultoAntesPorIdMiembros = {
+      ...(existingConversation.ocultoAntesPorIdMiembros ?? {}),
+      [String(viewerId)]: clearedAt,
+    };
+    const noLeidosPorIdMiembros = {
+      ...(existingConversation.noLeidosPorIdMiembros ?? {}),
+      [String(viewerId)]: 0,
+    };
+    const auditEvent = createChatAuditEvent({
+      action: 'conversacion_limpiada_personal',
+      actorIdMiembros: viewerId,
+      now: clearedAt,
+    });
 
-    await Promise.all(
-      messages.map((message) =>
-        deleteDoc(
-          doc(
-            FIRESTORE,
-            COLECCION_CONVERSACIONES,
-            String(conversationId),
-            SUBCOLECCION_MENSAJES,
-            String(message.idMensaje)
-          )
-        )
-      )
-    );
-
-    await setDoc(
-      conversationRef,
+    await chatStore.commitWrites([
       {
-        actualizadoEn: nowIso(),
-        ultimoMensaje: null,
-        noLeidosPorIdMiembros: {},
+        type: 'set',
+        path: conversationPath,
+        data: { ocultoAntesPorIdMiembros, noLeidosPorIdMiembros },
+        merge: true,
       },
-      { merge: true }
-    );
+      {
+        type: 'set',
+        path: `${conversationPath}/auditoria/${auditEvent.idEvento}`,
+        data: auditEvent,
+      },
+    ]);
 
     return conversationToUi(
-      { ...existingConversation, actualizadoEn: nowIso(), ultimoMensaje: null, noLeidosPorIdMiembros: {} },
+      {
+        ...existingConversation,
+        ocultoAntesPorIdMiembros,
+        noLeidosPorIdMiembros,
+      },
       [],
-      viewerId
+      viewerId,
+      chatStore
+    );
+  }
+
+  if (action === 'clear-global') {
+    const messages = await getAllMessages(conversationId, chatStore);
+
+    if (messages.length > 498) {
+      throw new ChatMessageValidationError(
+        'La conversación es demasiado grande para limpiarla de forma atómica.',
+        'CHAT_GLOBAL_CLEAR_LIMIT_EXCEEDED'
+      );
+    }
+
+    const clearedAt = nowIso();
+    const attachmentPaths = collectChatAttachmentPaths(messages);
+    const noLeidosPorIdMiembros = Object.fromEntries(
+      asArray(existingConversation.participantesIds).map((idMiembros) => [String(idMiembros), 0])
+    );
+    const auditEvent = createChatAuditEvent({
+      action: 'conversacion_limpiada_global',
+      actorIdMiembros: viewerId,
+      now: clearedAt,
+      details: {
+        mensajesEliminados: messages.length,
+        adjuntosProgramados: attachmentPaths.length,
+      },
+    });
+
+    await chatStore.commitWrites([
+      ...messages.map((message) => ({
+        type: 'delete',
+        path: `${conversationPath}/${SUBCOLECCION_MENSAJES}/${message.idMensaje}`,
+      })),
+      {
+        type: 'set',
+        path: conversationPath,
+        data: {
+          actualizadoEn: clearedAt,
+          ultimoMensaje: null,
+          noLeidosPorIdMiembros,
+        },
+        merge: true,
+      },
+      {
+        type: 'set',
+        path: `${conversationPath}/auditoria/${auditEvent.idEvento}`,
+        data: auditEvent,
+      },
+    ]);
+
+    const storageCleanup = attachmentPaths.length
+      ? await deleteChatStorageObjects({
+          bucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          token: chatActor.token,
+          paths: attachmentPaths,
+        })
+      : { deleted: [], failed: [] };
+
+    if (storageCleanup.failed.length) {
+      await chatStore.setDocument(
+        `${conversationPath}/auditoria/${auditEvent.idEvento}`,
+        {
+          detalle: {
+            ...auditEvent.detalle,
+            adjuntosEliminados: storageCleanup.deleted.length,
+            adjuntosPendientes: storageCleanup.failed.map((item) => item.path),
+          },
+        },
+        { merge: true }
+      );
+    }
+
+    return conversationToUi(
+      {
+        ...existingConversation,
+        actualizadoEn: clearedAt,
+        ultimoMensaje: null,
+        noLeidosPorIdMiembros,
+      },
+      [],
+      viewerId,
+      chatStore
     );
   }
 
@@ -1100,12 +1436,14 @@ async function updateConversationAction({
 
     return conversationToUi(
       existingConversation,
-      (await getMessages(conversationId)).map(messageToUi),
-      viewerId
+      (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+      viewerId,
+      chatStore
     );
   }
 
   if (action === 'add-participants') {
+    assertChatGroupAdmin(existingConversation, viewerId);
     const candidatos = asArray(newParticipants);
     const [members, firestoreProfiles] = await Promise.all([
       getMembersFromApi().catch(() => []),
@@ -1125,8 +1463,9 @@ async function updateConversationAction({
     if (!nuevosParticipantes.length) {
       return conversationToUi(
         existingConversation,
-        (await getMessages(conversationId)).map(messageToUi),
-        viewerId
+        (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+        viewerId,
+        chatStore
       );
     }
 
@@ -1143,54 +1482,137 @@ async function updateConversationAction({
       noLeidosPorIdMiembros[String(member.idMiembros)] = 0;
     });
 
-    await setDoc(
-      conversationRef,
-      { participantes, participantesIds, noLeidosPorIdMiembros, tipoConversacion: 'GRUPAL' },
-      { merge: true }
+    const actorName = buildNombreCompleto(
+      asArray(existingConversation.participantes).find(
+        (participant) => Number(participant.idMiembros) === Number(viewerId)
+      ) ?? {}
     );
 
-    return conversationToUi(
-      { ...existingConversation, participantes, participantesIds, noLeidosPorIdMiembros },
-      (await getMessages(conversationId)).map(messageToUi),
-      viewerId
-    );
+    return commitGroupChange({
+      conversationId,
+      conversation: existingConversation,
+      viewerId,
+      chatStore,
+      action: 'participantes_agregados',
+      update: {
+        participantes,
+        participantesIds,
+        noLeidosPorIdMiembros,
+        tipoConversacion: 'GRUPAL',
+        administradoresIds: asArray(existingConversation.administradoresIds).length
+          ? existingConversation.administradoresIds
+          : [existingConversation.creadoPorIdMiembros],
+      },
+      systemText: `${actorName} agregó a ${nuevosParticipantes.map(buildNombreCompleto).join(', ')} al grupo.`,
+    });
   }
 
-  if (action === 'remove-participant') {
-    if (!targetIdMiembros) {
+  if (['remove-participant', 'leave-group'].includes(action)) {
+    const removalTargetId = action === 'leave-group' ? viewerId : targetIdMiembros;
+
+    if (!removalTargetId) {
       throw new Error('Falta indicar el participante a quitar.');
     }
 
-    const isCreator = Number(existingConversation.creadoPorIdMiembros) === Number(viewerId);
-    const isSelf = Number(targetIdMiembros) === Number(viewerId);
-
-    if (!isCreator && !isSelf) {
-      throw new Error('Solo el creador del grupo o el propio participante pueden salir del grupo.');
-    }
-
-    const participantesIds = asArray(existingConversation.participantesIds).filter(
-      (idMiembros) => Number(idMiembros) !== Number(targetIdMiembros)
-    );
+    const removal = validateChatGroupRemoval({
+      conversation: existingConversation,
+      actorIdMiembros: viewerId,
+      targetIdMiembros: removalTargetId,
+    });
+    const participantesIds = removal.participantesIds;
     const participantes = asArray(existingConversation.participantes).filter(
-      (member) => Number(member.idMiembros) !== Number(targetIdMiembros)
+      (member) => Number(member.idMiembros) !== Number(removal.targetId)
     );
     const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
     const silenciadoPorIdMiembros = { ...(existingConversation.silenciadoPorIdMiembros ?? {}) };
-
-    delete noLeidosPorIdMiembros[String(targetIdMiembros)];
-    delete silenciadoPorIdMiembros[String(targetIdMiembros)];
-
-    await setDoc(
-      conversationRef,
-      { participantes, participantesIds, noLeidosPorIdMiembros, silenciadoPorIdMiembros },
-      { merge: true }
+    const removedParticipant = asArray(existingConversation.participantes).find(
+      (member) => Number(member.idMiembros) === Number(removal.targetId)
     );
 
-    return conversationToUi(
-      { ...existingConversation, participantes, participantesIds, noLeidosPorIdMiembros, silenciadoPorIdMiembros },
-      (await getMessages(conversationId)).map(messageToUi),
-      viewerId
+    delete noLeidosPorIdMiembros[String(removal.targetId)];
+    delete silenciadoPorIdMiembros[String(removal.targetId)];
+
+    return commitGroupChange({
+      conversationId,
+      conversation: existingConversation,
+      viewerId,
+      chatStore,
+      action: action === 'leave-group' ? 'miembro_salio' : 'participante_retirado',
+      update: {
+        participantes,
+        participantesIds,
+        administradoresIds: removal.administradoresIds,
+        noLeidosPorIdMiembros,
+        silenciadoPorIdMiembros,
+      },
+      systemText:
+        action === 'leave-group'
+          ? `${buildNombreCompleto(removedParticipant)} salió del grupo.`
+          : `${buildNombreCompleto(removedParticipant)} fue retirado del grupo.`,
+    });
+  }
+
+  if (action === 'transfer-ownership') {
+    assertChatGroupCreator(existingConversation, viewerId);
+    const transfer = transferChatGroupOwnership({
+      conversation: existingConversation,
+      actorIdMiembros: viewerId,
+      targetIdMiembros,
+    });
+    const target = asArray(existingConversation.participantes).find(
+      (participant) => Number(participant.idMiembros) === Number(transfer.creadoPorIdMiembros)
     );
+
+    return commitGroupChange({
+      conversationId,
+      conversation: existingConversation,
+      viewerId,
+      chatStore,
+      action: 'propiedad_transferida',
+      update: transfer,
+      systemText: `${buildNombreCompleto(target)} ahora es el creador del grupo.`,
+    });
+  }
+
+  if (action === 'set-group-admin') {
+    const adminUpdate = updateChatGroupAdministrator({
+      conversation: existingConversation,
+      actorIdMiembros: viewerId,
+      targetIdMiembros: administratorIdMiembros,
+      makeAdmin,
+    });
+    const target = asArray(existingConversation.participantes).find(
+      (participant) => Number(participant.idMiembros) === Number(administratorIdMiembros)
+    );
+
+    return commitGroupChange({
+      conversationId,
+      conversation: existingConversation,
+      viewerId,
+      chatStore,
+      action: makeAdmin ? 'administrador_agregado' : 'administrador_retirado',
+      update: adminUpdate,
+      systemText: `${buildNombreCompleto(target)} ${makeAdmin ? 'ahora es administrador' : 'dejó de ser administrador'} del grupo.`,
+    });
+  }
+
+  if (action === 'update-group') {
+    const details = updateChatGroupDetails({
+      conversation: existingConversation,
+      actorIdMiembros: viewerId,
+      name: groupName,
+      avatarUrl: groupAvatarUrl,
+    });
+
+    return commitGroupChange({
+      conversationId,
+      conversation: existingConversation,
+      viewerId,
+      chatStore,
+      action: 'detalles_actualizados',
+      update: details,
+      systemText: `Se actualizaron los detalles del grupo ${details.nombreGrupo}.`,
+    });
   }
 
   throw new Error('Accion de conversacion invalida.');
@@ -1206,6 +1628,7 @@ export async function GET(req) {
     const endpoint = searchParams.get('endpoint');
     const conversationId = searchParams.get('conversationId');
     const viewerIdMiembros = chatActor.idMiembros;
+    const chatStore = createChatStore(chatActor);
 
     if (endpoint === 'contacts') {
       const [members, firestoreProfiles] = await Promise.all([
@@ -1220,31 +1643,37 @@ export async function GET(req) {
     }
 
     if (endpoint === 'unread-summary') {
-      return Response.json(await getUnreadSummary(viewerIdMiembros));
+      return Response.json(await getUnreadSummary(viewerIdMiembros, chatStore));
     }
 
     if (endpoint === 'conversations') {
-      const conversations = await getConversations(viewerIdMiembros);
+      const conversations = await getConversations(viewerIdMiembros, chatStore);
 
       return Response.json({ conversations });
     }
 
     if (endpoint === 'conversation') {
-      const conversation = await getConversationDoc(conversationId);
+      const conversation = await getConversationDoc(conversationId, chatStore);
 
       if (!conversation) {
         return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
       }
 
       assertConversationParticipant(conversation, chatActor);
+      await updateConversationReceipt({
+        conversationId,
+        conversation,
+        chatActor,
+        chatStore,
+      });
 
       return Response.json({
-        conversation: await conversationToUi(conversation, null, viewerIdMiembros),
+        conversation: await conversationToUi(conversation, null, viewerIdMiembros, chatStore),
       });
     }
 
     if (endpoint === 'older-messages') {
-      const conversation = await getConversationDoc(conversationId);
+      const conversation = await getConversationDoc(conversationId, chatStore);
 
       if (!conversation) {
         return Response.json({ message: 'Conversación no encontrada.' }, { status: 404 });
@@ -1253,16 +1682,22 @@ export async function GET(req) {
       assertConversationParticipant(conversation, chatActor);
 
       const before = searchParams.get('before');
-      const olderMessages = await getMessages(conversationId, {
-        pageLimit: DEFAULT_MESSAGES_PAGE_SIZE,
-        beforeEnviadoEn: before,
-      });
+      const visibilityCutoff = getPersonalClearCutoff(conversation, viewerIdMiembros);
+      const olderMessages = await getMessages(
+        conversationId,
+        {
+          pageLimit: DEFAULT_MESSAGES_PAGE_SIZE,
+          beforeEnviadoEn: before,
+          afterEnviadoEn: visibilityCutoff,
+        },
+        chatStore
+      );
 
       return Response.json({ messages: olderMessages.map(messageToUi) });
     }
 
     if (endpoint === 'mark-as-seen') {
-      await markAsSeen(conversationId, chatActor);
+      await markAsSeen(conversationId, chatActor, chatStore);
 
       return Response.json({ success: true });
     }
@@ -1271,9 +1706,15 @@ export async function GET(req) {
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
     const authorizationResponse = chatAuthorizationErrorResponse(error);
+    const firestoreResponse = chatFirestoreErrorResponse(error);
+    const messageValidationResponse = chatMessageValidationErrorResponse(error);
+    const groupResponse = chatGroupErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
     if (authorizationResponse) return authorizationResponse;
+    if (firestoreResponse) return firestoreResponse;
+    if (messageValidationResponse) return messageValidationResponse;
+    if (groupResponse) return groupResponse;
 
     return Response.json(
       { message: error?.message || 'Error procesando el chat.' },
@@ -1286,17 +1727,24 @@ export async function POST(req) {
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
+    const chatStore = createChatStore(chatActor);
 
     const body = await req.json();
-    const conversation = await createConversation(body.conversationData, chatActor);
+    const conversation = await createConversation(body.conversationData, chatActor, chatStore);
 
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
     const authorizationResponse = chatAuthorizationErrorResponse(error);
+    const firestoreResponse = chatFirestoreErrorResponse(error);
+    const messageValidationResponse = chatMessageValidationErrorResponse(error);
+    const groupResponse = chatGroupErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
     if (authorizationResponse) return authorizationResponse;
+    if (firestoreResponse) return firestoreResponse;
+    if (messageValidationResponse) return messageValidationResponse;
+    if (groupResponse) return groupResponse;
 
     return Response.json(
       { message: error?.message || 'Error creando la conversación.' },
@@ -1309,17 +1757,29 @@ export async function PUT(req) {
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
+    const chatStore = createChatStore(chatActor);
 
     const body = await req.json();
-    const conversation = await addMessage(body.conversationId, body.messageData, chatActor);
+    const conversation = await addMessage(
+      body.conversationId,
+      body.messageData,
+      chatActor,
+      chatStore
+    );
 
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
     const authorizationResponse = chatAuthorizationErrorResponse(error);
+    const firestoreResponse = chatFirestoreErrorResponse(error);
+    const messageValidationResponse = chatMessageValidationErrorResponse(error);
+    const groupResponse = chatGroupErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
     if (authorizationResponse) return authorizationResponse;
+    if (firestoreResponse) return firestoreResponse;
+    if (messageValidationResponse) return messageValidationResponse;
+    if (groupResponse) return groupResponse;
 
     return Response.json(
       { message: error?.message || 'Error enviando el mensaje.' },
@@ -1332,15 +1792,22 @@ export async function PATCH(req) {
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
+    const chatStore = createChatStore(chatActor);
 
     const body = await req.json();
     const conversationActions = [
       'toggle-mute',
+      'mark-delivered',
       'report',
       'clear',
+      'clear-global',
       'typing',
       'add-participants',
       'remove-participant',
+      'leave-group',
+      'transfer-ownership',
+      'set-group-admin',
+      'update-group',
     ];
 
     const conversation = conversationActions.includes(body.action)
@@ -1351,6 +1818,11 @@ export async function PATCH(req) {
           comment: body.comment,
           newParticipants: body.newParticipants,
           targetIdMiembros: toNumberOrNull(body.targetIdMiembros),
+          administratorIdMiembros: toNumberOrNull(body.administratorIdMiembros),
+          makeAdmin: Boolean(body.makeAdmin),
+          groupName: body.groupName,
+          groupAvatarUrl: body.groupAvatarUrl,
+          chatStore,
         })
       : await updateMessageAction({
           conversationId: body.conversationId,
@@ -1359,15 +1831,22 @@ export async function PATCH(req) {
           chatActor,
           reaction: body.reaction,
           text: body.text,
+          chatStore,
         });
 
     return Response.json({ conversation });
   } catch (error) {
     const authenticationResponse = chatAuthenticationErrorResponse(error);
     const authorizationResponse = chatAuthorizationErrorResponse(error);
+    const firestoreResponse = chatFirestoreErrorResponse(error);
+    const messageValidationResponse = chatMessageValidationErrorResponse(error);
+    const groupResponse = chatGroupErrorResponse(error);
 
     if (authenticationResponse) return authenticationResponse;
     if (authorizationResponse) return authorizationResponse;
+    if (firestoreResponse) return firestoreResponse;
+    if (messageValidationResponse) return messageValidationResponse;
+    if (groupResponse) return groupResponse;
 
     return Response.json(
       { message: error?.message || 'Error actualizando el mensaje.' },

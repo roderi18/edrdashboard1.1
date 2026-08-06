@@ -23,8 +23,12 @@ export function ChatRoom({
   contacts,
   currentContact,
   creatorIdMiembros,
+  administratorIds,
   onAddParticipants,
   onRemoveParticipant,
+  onLeaveGroup,
+  onSetGroupAdministrator,
+  onTransferGroupOwnership,
   ...other
 }) {
   const { collapseDesktop, openMobile, onCloseMobile } = collapseNav;
@@ -45,8 +49,12 @@ export function ChatRoom({
               contacts={contacts}
               currentContact={currentContact}
               creatorIdMiembros={creatorIdMiembros}
+              administratorIds={administratorIds}
               onAddParticipants={onAddParticipants}
               onRemoveParticipant={onRemoveParticipant}
+              onLeaveGroup={onLeaveGroup}
+              onSetGroupAdministrator={onSetGroupAdministrator}
+              onTransferGroupOwnership={onTransferGroupOwnership}
             />
           ) : (
             <ChatRoomSingle participant={participants[0]} />

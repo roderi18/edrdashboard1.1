@@ -23,11 +23,11 @@ test('la ruta no deriva la identidad desde body.idMiembros', () => {
 test('envío, creación y mutaciones usan la identidad autenticada', () => {
   assert.match(
     routeSource,
-    /createConversation\(body\.conversationData,\s*chatActor\)/
+    /createConversation\(body\.conversationData,\s*chatActor,\s*chatStore\)/
   );
   assert.match(
     routeSource,
-    /addMessage\(\s*body\.conversationId,\s*body\.messageData,\s*chatActor\s*\)/
+    /addMessage\(\s*body\.conversationId,\s*body\.messageData,\s*chatActor,\s*chatStore\s*\)/
   );
   assert.match(routeSource, /chatActor,/g);
 });
@@ -43,10 +43,7 @@ test('las operaciones sensibles usan la autorización centralizada del servidor'
 test('contactos y participantes se proyectan al contrato público del chat', () => {
   assert.match(routeSource, /getPublicChatContacts\(/);
   assert.match(routeSource, /toPublicChatContact\(/g);
-  assert.match(
-    routeSource,
-    /remitente:\s*toPublicChatContact\(\{/
-  );
+  assert.match(routeSource, /createChatMessageDocument\(\{ message, fallbackSender, conversationId \}\)/);
   assert.match(routeSource, /['"]Cache-Control['"]:\s*['"]private, no-store['"]/);
 });
 
@@ -79,4 +76,15 @@ test('el resumen de no leidos no descarga mensajes de las conversaciones', () =>
   assert.match(routeSource, /endpoint === ['"]unread-summary['"]/);
   assert.match(summarySource, /noLeidosPorIdMiembros/);
   assert.doesNotMatch(summarySource, /getMessages\(/);
+});
+
+test('la entrega se confirma cuando el listener recibe una conversación', async () => {
+  const realtimeSource = await readFile(
+    new URL('../../src/sections/chat/hooks/use-chat-realtime-sync.js', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(routeSource, /['"]mark-delivered['"]:\s*CHAT_PERMISSIONS\.VIEW/);
+  assert.match(realtimeSource, /snapshot\.docChanges\(\)/);
+  assert.match(realtimeSource, /markConversationDelivered\(change\.doc\.id\)/);
 });

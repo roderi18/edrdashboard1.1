@@ -36,13 +36,17 @@ export const getAlcanceNivel = (rolId, alcance = {}) =>
   alcance?.modo ||
   '';
 
-export const deriveUserClaims = ({ rolId, alcance = {} } = {}) => {
+export const deriveUserClaims = ({ rolId, alcance = {}, idMiembros = null } = {}) => {
   const rol = normalizeRolId(rolId);
   const alcanceNivel = getAlcanceNivel(rol, alcance);
   const soloLectura = Boolean(RESTRICCIONES_ROL[rol]?.soloLectura);
+  const parsedMemberId = Number(idMiembros);
 
   return {
     rol,
+    ...(Number.isSafeInteger(parsedMemberId) && parsedMemberId > 0
+      ? { idMiembros: parsedMemberId }
+      : {}),
     alcanceNivel,
     regiones: toIdArray(alcance?.regiones, alcance?.regionId, alcance?.idRegion),
     secciones: toIdArray(alcance?.secciones, alcance?.seccionId, alcance?.idSeccion),

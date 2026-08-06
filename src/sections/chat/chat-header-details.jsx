@@ -35,18 +35,27 @@ export function ChatHeaderDetails({
   onToggleMute,
   onReport,
   onClear,
+  onClearGlobal,
+  onUpdateGroup,
 }) {
   const lgUp = useMediaQuery((theme) => theme.breakpoints.up('lg'));
 
   const menuActions = usePopover();
   const [reportOpen, setReportOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [globalClearOpen, setGlobalClearOpen] = useState(false);
+  const [groupEditOpen, setGroupEditOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupAvatarUrl, setGroupAvatarUrl] = useState('');
   const [reporting, setReporting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
 
-  const isGroup = participants.length > 1;
+  const isGroup = conversation?.type === 'GROUP';
   const isMuted = Boolean(conversation?.muted);
+  const canManageGroup = ['creator', 'admin'].includes(conversation?.currentUserGroupRole);
+  const canClearGlobally = Boolean(conversation?.canClearGlobally);
 
   const singleParticipant = participants[0];
 
@@ -76,6 +85,18 @@ export function ChatHeaderDetails({
     setClearOpen(true);
   }, [menuActions]);
 
+  const handleOpenGlobalClear = useCallback(() => {
+    menuActions.onClose();
+    setGlobalClearOpen(true);
+  }, [menuActions]);
+
+  const handleOpenGroupEdit = useCallback(() => {
+    menuActions.onClose();
+    setGroupName(conversation?.groupName || '');
+    setGroupAvatarUrl(conversation?.groupAvatarUrl || '');
+    setGroupEditOpen(true);
+  }, [conversation?.groupAvatarUrl, conversation?.groupName, menuActions]);
+
   const handleSubmitReport = useCallback(async () => {
     if (!reportComment.trim()) {
       toast.error('Escribe un comentario para reportar el chat.');
@@ -102,7 +123,7 @@ export function ChatHeaderDetails({
 
     try {
       await onClear?.();
-      toast.success('Chat vaciado.');
+      toast.success('El historial se ocultó para ti.');
       setClearOpen(false);
     } catch (error) {
       console.error(error);
@@ -111,6 +132,36 @@ export function ChatHeaderDetails({
       setClearing(false);
     }
   }, [onClear]);
+
+  const handleSubmitGlobalClear = useCallback(async () => {
+    setClearing(true);
+
+    try {
+      await onClearGlobal?.();
+      toast.success('El historial se eliminó para todos los participantes.');
+      setGlobalClearOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo eliminar el historial global.');
+    } finally {
+      setClearing(false);
+    }
+  }, [onClearGlobal]);
+
+  const handleSubmitGroup = useCallback(async () => {
+    setSavingGroup(true);
+
+    try {
+      await onUpdateGroup?.(groupName, groupAvatarUrl);
+      toast.success('Información del grupo actualizada.');
+      setGroupEditOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo actualizar el grupo.');
+    } finally {
+      setSavingGroup(false);
+    }
+  }, [groupAvatarUrl, groupName, onUpdateGroup]);
 
   const groupDisplayName =
     conversation?.groupName || participants.map((participant) => participant.name).join(', ');
@@ -190,12 +241,26 @@ export function ChatHeaderDetails({
           Reportar
         </MenuItem>
 
+        {isGroup && canManageGroup && (
+          <MenuItem onClick={handleOpenGroupEdit}>
+            <Iconify icon="solar:pen-bold" />
+            Editar grupo
+          </MenuItem>
+        )}
+
         <Divider sx={{ borderStyle: 'dashed' }} />
 
         <MenuItem onClick={handleOpenClear} sx={{ color: 'error.main' }}>
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Vaciar chat
+          Limpiar historial para mí
         </MenuItem>
+
+        {canClearGlobally && onClearGlobal && (
+          <MenuItem onClick={handleOpenGlobalClear} sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:trash-bin-minimalistic-bold" />
+            Eliminar historial para todos
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -251,15 +316,60 @@ export function ChatHeaderDetails({
       />
 
       <ConfirmDialog
+        open={globalClearOpen}
+        title="Eliminar historial para todos"
+        onClose={() => setGlobalClearOpen(false)}
+        content="Esta acción eliminará permanentemente todos los mensajes y adjuntos del grupo para todos sus participantes."
+        action={
+          <Button
+            color="error"
+            variant="contained"
+            loading={clearing}
+            onClick={handleSubmitGlobalClear}
+          >
+            Eliminar para todos
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={groupEditOpen}
+        title="Editar grupo"
+        onClose={() => setGroupEditOpen(false)}
+        content={
+          <Box sx={{ gap: 2, pt: 1, display: 'flex', flexDirection: 'column' }}>
+            <TextField
+              fullWidth
+              label="Nombre del grupo"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              inputProps={{ maxLength: 80 }}
+            />
+            <TextField
+              fullWidth
+              label="URL HTTPS del avatar (opcional)"
+              value={groupAvatarUrl}
+              onChange={(event) => setGroupAvatarUrl(event.target.value)}
+            />
+          </Box>
+        }
+        action={
+          <Button variant="contained" loading={savingGroup} onClick={handleSubmitGroup}>
+            Guardar cambios
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
         open={clearOpen}
-        title="Vaciar chat"
+        title="Limpiar historial para mí"
         onClose={() => setClearOpen(false)}
         content={`¿Seguro que deseas vaciar el chat con ${
           singleParticipant?.name || 'esta persona'
-        }? Esta accion eliminara todos los mensajes de la conversacion.`}
+        }? Los demás participantes conservarán sus mensajes.`}
         action={
           <Button color="error" variant="contained" loading={clearing} onClick={handleSubmitClear}>
-            Vaciar chat
+            Limpiar historial
           </Button>
         }
       />
