@@ -803,11 +803,14 @@ export const isGroupLeaderRole = (user = {}) =>
 
 // Cargos del destacamento que NO son coordinadores: editan a sus miembros pero
 // sus cambios (General y Dispensa Médica) van a APROBACION del Coordinador de
-// Destacamento (mismo flujo/bloqueos que el Lider de Grupo). En Documentos de
-// salud pueden subir pero no eliminar.
-// El Pastor NO va aqui: es de SOLO LECTURA (no edita, ni siquiera por
-// aprobacion); su formulario se renderiza en solo lectura completo.
+// Destacamento y su Asistente (mismo flujo/bloqueos que el Lider de Grupo). En
+// Documentos de salud pueden subir pero no eliminar.
+// Pastor, Consejo y Capellán comparten este flujo: editan y envían a aprobación
+// igual que el Líder de Grupo (ya no son de solo lectura).
 const DESTACAMENTO_APPROVAL_ROLE_IDS = [
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
 ];
@@ -905,7 +908,14 @@ export const canAuthorizeMinorHealthAccess = (user = {}) =>
 
 export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_VER);
 
-export const canEditAwards = (user = {}) => puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
+// Pastor, Consejo y Capellán de Destacamento consultan el Sistema de Ascenso pero
+// NUNCA lo editan. Se bloquea por ROL además de quitarles `ascenso.editar` del
+// catálogo, porque `normalizarAccesoUsuario` UNE los permisos del rol con los
+// `permisos` guardados en el documento del usuario: si su ficha conserva
+// `ascenso.editar` de una asignación anterior, el catálogo por sí solo no basta.
+// Mismo patrón que `canEditHealth` con el Consejo Nacional.
+export const canEditAwards = (user = {}) =>
+  !isPastorDestacamentoRole(user) && puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
 export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PADRES_VER);
 
@@ -922,16 +932,44 @@ const FULL_MEMBER_TEXT_ROLE_IDS = new Set([
 // Destacamento. Full: administradores global/funcional y los cargos con
 // `miembros.ver_datos_sensibles` (coordinador de destacamento y su asistente,
 // pastor, consejo de destacamento, consejo ejecutivo, etc.).
-export const canViewMemberSensitiveData = (user = {}) =>
-  FULL_MEMBER_TEXT_ROLE_IDS.has(getUserRoleId(user)) ||
-  puedePorCatalogo(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
+// Cargos del destacamento de SOLO LECTURA (Pastor, Consejo, Capellán) para los
+// que el CATÁLOGO manda sobre el permiso heredado del token: si el catálogo del
+// rol no otorga `miembros.ver_datos_sensibles`, ven los datos enmascarados aunque
+// una asignación de rol anterior haya dejado el permiso pegado en el token. Es el
+// mismo blindaje que `isReadOnlyRole` aplica a `soloLectura`, para que el cambio
+// de rol surta efecto sin re-sincronizar el token en Firebase.
+const SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS = new Set([
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
+]);
 
-// Cargos del destacamento que ven la ficha ENMASCARADA pero conservan visible la
-// FECHA DE NACIMIENTO. Es la unica excepcion al enmascarado: la necesitan para
-// conocer la edad y la division del miembro (sobre todo en menores). El resto de
-// los datos personales —direccion, telefono y correo— siguen ocultos.
+export const canViewMemberSensitiveData = (user = {}) => {
+  const roleId = getUserRoleId(user);
+
+  if (FULL_MEMBER_TEXT_ROLE_IDS.has(roleId)) {
+    return true;
+  }
+
+  // Para los cargos de solo lectura del destacamento, decide únicamente el
+  // catálogo del rol (ignora el permiso heredado del token).
+  if (SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS.has(roleId)) {
+    return (PERMISOS_POR_ROL[roleId] ?? []).includes(PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
+  }
+
+  return puedePorCatalogo(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
+};
+
+// Cargos del desplegable de Coordinador de Destacamento que ven la ficha
+// ENMASCARADA pero conservan visible la FECHA DE NACIMIENTO de los miembros de su
+// destacamento. Es la unica excepcion al enmascarado: la necesitan para conocer la
+// edad y la division del miembro (sobre todo en menores). El resto de los datos
+// personales —direccion, telefono y correo— siguen ocultos. (El Coordinador,
+// Coordinador Asistente y Pastor no aparecen aqui porque ya ven la ficha completa
+// sin enmascarar.)
 const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
   ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
 ]);

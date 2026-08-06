@@ -3,8 +3,11 @@
 import { useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
+import { Iconify } from 'src/components/iconify';
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 import { ExpandableSearchInput } from 'src/components/expandable/search/ExpandableSearchInput';
 import { ExpandableMultiSelect } from 'src/components/expandable/select/ExpandableMultiSelect';
@@ -27,6 +30,7 @@ export function AwardsManagerFilters({
   setActiveInput,
   showStatusFilter = true,
   statusCounts = { completado: 0, en_progreso: 0, no_iniciado: 0 },
+  auditNotice = null,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -141,7 +145,56 @@ export function AwardsManagerFilters({
         />
       )}
 
-
+      {/* Escudo de auditoría: al señalarlo despliega el aviso de registro/notificación. */}
+      {auditNotice && (
+        <Tooltip
+          title={auditNotice}
+          arrow
+          enterTouchDelay={0}
+          leaveTouchDelay={6000}
+          slotProps={{
+            tooltip: {
+              sx: {
+                maxWidth: 420,
+                // Mismo tipo y tamaño que el texto del campo "Buscar...".
+                fontFamily: theme.typography.body1.fontFamily,
+                fontSize: theme.typography.body1.fontSize,
+                fontWeight: theme.typography.body1.fontWeight,
+                lineHeight: theme.typography.body1.lineHeight,
+              },
+            },
+          }}
+        >
+          {/* Mismo recuadro que el grupo lista/grid: borde `shared.paperOutlined`,
+              4px de padding y botón de 44px, para que se lea como parte de la fila. */}
+          <Box
+            sx={{
+              p: '4px',
+              flexShrink: 0,
+              display: 'flex',
+              borderRadius: 1,
+              border: '1px solid',
+              borderColor: 'shared.paperOutlined',
+            }}
+          >
+            <IconButton
+              disableRipple
+              aria-label="Información de auditoría del Sistema de Ascenso"
+              sx={{
+                p: 0,
+                width: 44,
+                height: 44,
+                borderRadius: 'inherit',
+                color: 'text.disabled',
+                cursor: 'default',
+                '& svg': { fontSize: 20 },
+              }}
+            >
+              <Iconify icon="solar:shield-check-bold" />
+            </IconButton>
+          </Box>
+        </Tooltip>
+      )}
 
       {/* 🎯 Filtro Estado */}
       {/* <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>

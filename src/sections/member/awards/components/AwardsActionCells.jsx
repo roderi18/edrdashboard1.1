@@ -57,7 +57,8 @@ export function AwardsActionCells({
           minDate={dayjs('2000-01-01')}
           maxDate={dayjs()}
           disableFuture
-          disabled={!isCompleted}
+          // Solo lectura: la fecha se consulta pero no se cambia.
+          disabled={!isCompleted || readOnly}
           slotProps={{
             textField: {
               size: 'small',

@@ -11,6 +11,10 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import {
+  isDestacamentoApprovalRole,
+  isCoordinadorDestacamentoRole,
+} from 'src/utils/member-access';
 
 import { _awards } from 'src/_mock/_awards';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -25,6 +29,8 @@ import { detectFileFormat } from 'src/components/file-thumbnail';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useTable, rowInPage, getComparator } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { AwardsManagerTable } from '../awards-manager-table';
 import { AwardsManagerFilters } from '../awards-manager-filters';
 import { FileManagerFileItem } from '../awards-manager-file-item';
@@ -35,6 +41,22 @@ import { useAwardsFolderNavigation } from '../hooks/use-awards-folder-navigation
 import { AwardsManagerCreateFolderDialog } from '../awards-manager-create-folder-dialog';
 
 // ----------------------------------------------------------------------
+
+// Se define como JSX (no como cadena con HTML) porque el `title` del Tooltip
+// renderiza nodos, no marcado en texto plano.
+const ASCENSO_AUDIT_NOTICE = (
+  <>
+    Los cambios realizados en Sistema de Ascenso{' '}
+    <Box component="span" sx={{ textDecoration: 'underline' }}>
+      se registrarán en el historial del miembro
+    </Box>{' '}
+    y serán visibles para administradores y coordinadores del destacamento{' '}
+    <Box component="span" sx={{ textDecoration: 'underline' }}>
+      con fines de auditoría
+    </Box>
+    . Además, se les enviará una notificación.
+  </>
+);
 
 const normalizeSearchText = (value) =>
   String(value || '')
@@ -70,6 +92,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     // { id: 'certificate', label: 'Certificado', width: 140 },
     { id: '', width: 88 },
   ];
+
+  const { user } = useAuthContext();
 
   const table = useTable({ defaultRowsPerPage: 10 });
   const newAwardsDialog = useBoolean();
@@ -195,6 +219,14 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   const isSistemaAscensoDeepSubFolder =
     sistemaAscensoIndex !== -1 && folderBreadcrumbs.length >= sistemaAscensoIndex + 3;
   const showStatusFilter = isAcademiaSubFolder || isSistemaAscensoDeepSubFolder;
+
+  // Aviso de auditoría del Sistema de Ascenso: la pestaña completa es el módulo, así
+  // que se muestra en cualquier carpeta de la vista. Lo ven todos los cargos de
+  // nivel destacamento: el Coordinador titular y su Asistente
+  // (`isCoordinadorDestacamentoRole`) más Pastor, Consejo, Capellán, Líder de Grupo
+  // y Líder Asistente (`isDestacamentoApprovalRole`).
+  const showAscensoAuditNotice =
+    isCoordinadorDestacamentoRole(user) || isDestacamentoApprovalRole(user);
 
   useEffect(() => {
     if (!showStatusFilter && currentFilters.status?.length) {
@@ -366,6 +398,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
           setActiveInput={setActiveInput}
           showStatusFilter={showStatusFilter}
           statusCounts={statusCounts}
+          auditNotice={showAscensoAuditNotice ? ASCENSO_AUDIT_NOTICE : null}
         />
       </Box>
 
