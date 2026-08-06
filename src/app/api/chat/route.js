@@ -17,8 +17,17 @@ import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
+import {
+  authenticateChatRequest,
+  bindAuthenticatedMessage,
+  bindAuthenticatedConversation,
+  chatAuthenticationErrorResponse,
+  assertAuthenticatedConversationParticipant,
+} from 'src/server/chat-auth';
 
 // ----------------------------------------------------------------------
+
+export const runtime = 'nodejs';
 
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
@@ -585,16 +594,21 @@ async function getConversations(viewerIdMiembros = null) {
   );
 }
 
-async function createConversation(conversationData = {}) {
-  const participantes = await resolveConversationParticipants(conversationData);
+async function createConversation(conversationData = {}, chatActor = {}) {
+  const authenticatedConversationData = bindAuthenticatedConversation(conversationData, chatActor);
+  const participantes = await resolveConversationParticipants(authenticatedConversationData);
   const participantesIds = [...new Set(participantes.map((member) => member.idMiembros))];
+  const actorIdMiembros = assertAuthenticatedConversationParticipant(participantesIds, chatActor);
   const tipoConversacion =
-    conversationData.tipoConversacion ??
-    (conversationData.type === 'GROUP' || participantesIds.length > 2 ? 'GRUPAL' : 'INDIVIDUAL');
+    authenticatedConversationData.tipoConversacion ??
+    (authenticatedConversationData.type === 'GROUP' || participantesIds.length > 2
+      ? 'GRUPAL'
+      : 'INDIVIDUAL');
   const idConversacion = buildConversationId({
     tipoConversacion,
     participantesIds,
-    providedId: conversationData.idConversacion ?? conversationData.id,
+    providedId:
+      authenticatedConversationData.idConversacion ?? authenticatedConversationData.id,
   });
 
   if (!idConversacion || participantesIds.length < 2) {
@@ -602,9 +616,9 @@ async function createConversation(conversationData = {}) {
   }
 
   const primerMensaje = messageToFirestore(
-    asArray(conversationData.messages)[0],
+    asArray(authenticatedConversationData.messages)[0],
     resolveMessageSender({
-      messageData: asArray(conversationData.messages)[0],
+      messageData: asArray(authenticatedConversationData.messages)[0],
       conversation: { participantes, participantesIds },
     })
   );
@@ -612,23 +626,25 @@ async function createConversation(conversationData = {}) {
 
   if (existingConversation) {
     if (primerMensaje.texto) {
-      return addMessage(idConversacion, primerMensaje);
+      return addMessage(idConversacion, primerMensaje, actorIdMiembros);
     }
 
-    return conversationToUi(existingConversation);
+    return conversationToUi(existingConversation, null, actorIdMiembros);
   }
 
-  const creadoEn = conversationData.creadoEn ?? conversationData.createdAt ?? nowIso();
+  const creadoEn =
+    authenticatedConversationData.creadoEn ?? authenticatedConversationData.createdAt ?? nowIso();
   const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, idConversacion);
   const noLeidosPorIdMiembros = Object.fromEntries(participantesIds.map((id) => [String(id), 0]));
 
   const conversationDoc = {
     idConversacion,
     tipoConversacion,
-    nombreGrupo: tipoConversacion === 'GRUPAL' ? conversationData.groupName || null : null,
+    nombreGrupo:
+      tipoConversacion === 'GRUPAL' ? authenticatedConversationData.groupName || null : null,
     participantesIds,
     participantes,
-    creadoPorIdMiembros: primerMensaje.remitenteIdMiembros ?? participantesIds[0],
+    creadoPorIdMiembros: actorIdMiembros,
     creadoEn,
     actualizadoEn: primerMensaje.enviadoEn ?? creadoEn,
     ultimoMensaje: {
@@ -665,11 +681,14 @@ async function addMessage(conversationId, messageData = {}, viewerIdMiembros = n
     throw new Error('La conversación no existe.');
   }
 
+  const authenticatedMessageData = bindAuthenticatedMessage(messageData, {
+    idMiembros: viewerIdMiembros,
+  });
   const sender = resolveMessageSender({
-    messageData,
+    messageData: authenticatedMessageData,
     conversation: existingConversation,
   });
-  const messageDoc = messageToFirestore(messageData, sender);
+  const messageDoc = messageToFirestore(authenticatedMessageData, sender);
 
   if (!messageDoc.remitenteIdMiembros) {
     throw new Error('El mensaje necesita remitenteIdMiembros válido.');
@@ -1109,12 +1128,13 @@ async function updateConversationAction({
 
 export async function GET(req) {
   try {
+    const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
 
     const { searchParams } = new URL(req.url);
     const endpoint = searchParams.get('endpoint');
     const conversationId = searchParams.get('conversationId');
-    const viewerIdMiembros = toNumberOrNull(searchParams.get('idMiembros'));
+    const viewerIdMiembros = chatActor.idMiembros;
 
     if (endpoint === 'contacts') {
       const [members, firestoreProfiles] = await Promise.all([
@@ -1191,6 +1211,10 @@ export async function GET(req) {
 
     return Response.json({ message: 'Endpoint de chat inválido.' }, { status: 400 });
   } catch (error) {
+    const authenticationResponse = chatAuthenticationErrorResponse(error);
+
+    if (authenticationResponse) return authenticationResponse;
+
     return Response.json(
       { message: error?.message || 'Error procesando el chat.' },
       { status: 500 }
@@ -1200,13 +1224,18 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
 
     const body = await req.json();
-    const conversation = await createConversation(body.conversationData);
+    const conversation = await createConversation(body.conversationData, chatActor);
 
     return Response.json({ conversation });
   } catch (error) {
+    const authenticationResponse = chatAuthenticationErrorResponse(error);
+
+    if (authenticationResponse) return authenticationResponse;
+
     return Response.json(
       { message: error?.message || 'Error creando la conversación.' },
       { status: 500 }
@@ -1216,13 +1245,22 @@ export async function POST(req) {
 
 export async function PUT(req) {
   try {
+    const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
 
     const body = await req.json();
-    const conversation = await addMessage(body.conversationId, body.messageData, body.idMiembros);
+    const conversation = await addMessage(
+      body.conversationId,
+      body.messageData,
+      chatActor.idMiembros
+    );
 
     return Response.json({ conversation });
   } catch (error) {
+    const authenticationResponse = chatAuthenticationErrorResponse(error);
+
+    if (authenticationResponse) return authenticationResponse;
+
     return Response.json(
       { message: error?.message || 'Error enviando el mensaje.' },
       { status: 500 }
@@ -1232,6 +1270,7 @@ export async function PUT(req) {
 
 export async function PATCH(req) {
   try {
+    const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
 
     const body = await req.json();
@@ -1248,7 +1287,7 @@ export async function PATCH(req) {
       ? await updateConversationAction({
           conversationId: body.conversationId,
           action: body.action,
-          viewerIdMiembros: toNumberOrNull(body.idMiembros),
+          viewerIdMiembros: chatActor.idMiembros,
           comment: body.comment,
           newParticipants: body.newParticipants,
           targetIdMiembros: toNumberOrNull(body.targetIdMiembros),
@@ -1257,13 +1296,17 @@ export async function PATCH(req) {
           conversationId: body.conversationId,
           messageId: body.messageId,
           action: body.action,
-          viewerIdMiembros: toNumberOrNull(body.idMiembros),
+          viewerIdMiembros: chatActor.idMiembros,
           reaction: body.reaction,
           text: body.text,
         });
 
     return Response.json({ conversation });
   } catch (error) {
+    const authenticationResponse = chatAuthenticationErrorResponse(error);
+
+    if (authenticationResponse) return authenticationResponse;
+
     return Response.json(
       { message: error?.message || 'Error actualizando el mensaje.' },
       { status: 500 }

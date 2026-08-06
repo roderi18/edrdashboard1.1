@@ -2,7 +2,7 @@
 
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
-import { onAuthStateChanged, signOut as _signOut } from 'firebase/auth';
+import { onIdTokenChanged, signOut as _signOut } from 'firebase/auth';
 
 import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
@@ -34,7 +34,7 @@ const withTimeout = (promise, fallback, timeoutMs = 5000) =>
 
 // ----------------------------------------------------------------------
 // Caché de sesión (por pestaña) para que las recargas pinten el dashboard al
-// instante mientras onAuthStateChanged revalida en segundo plano. No se
+// instante mientras onIdTokenChanged revalida en segundo plano. No se
 // persiste el accessToken: se refresca al revalidar.
 
 const SESSION_CACHE_KEY = 'edr-auth-session';
@@ -382,7 +382,7 @@ export function AuthProvider({ children }) {
   );
 
   // Hidratación instantánea desde el caché (una sola vez, en cliente): evita el
-  // splash "Verificando tu acceso" en las recargas. onAuthStateChanged revalida
+  // splash "Verificando tu acceso" en las recargas. onIdTokenChanged revalida
   // enseguida y corrige/renueva el token o cierra la sesión si ya no es válida.
   useEffect(() => {
     if (!isFirebaseConfigured || !AUTH) return;
@@ -403,7 +403,7 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    const unsubscribe = onAuthStateChanged(AUTH, (authUser) => {
+    const unsubscribe = onIdTokenChanged(AUTH, (authUser) => {
       syncUserSession(authUser);
     });
 
