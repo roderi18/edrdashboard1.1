@@ -23,6 +23,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import {
   canViewHealth,
+  isGroupLeaderRole,
   canApproveMemberChanges,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
@@ -139,14 +140,20 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero los datos del seguro de un menor permanecen enmascarados hasta
     // obtener autorización.
     const requiresMaskedInsuranceAccess = isMinor && isConsejoNacionalHealthViewerRole;
-    // El Pastor NO entra al flujo de acceso temporal de menores: ve todas las
-    // secciones médicas en solo lectura (los desplegables se abren pero no editan);
-    // únicamente la sección de Documentos queda deshabilitada por separado.
+    // Cargos del destacamento que NO entran al flujo de acceso temporal de menores:
+    // - Pastor: ve todas las secciones médicas en solo lectura (los desplegables se
+    //   abren pero no edita); solo la sección de Documentos queda deshabilitada.
+    // - Líder de Grupo y Líder Asistente: ven y EDITAN la Dispensa Médica de sus
+    //   miembros (incluidos los menores) sin pedir autorización previa; el control
+    //   es que sus cambios van a APROBACIÓN de los Coordinadores de Destacamento
+    //   (titular y asistente) mediante `mustRequestApproval`.
+    const isGroupLeader = isGroupLeaderRole(user);
     const requiresTemporaryAccess =
         isMinor &&
         !puedeAutorizarAccesoMenores &&
         !isConsejoNacionalHealthViewerRole &&
-        !isPastor;
+        !isPastor &&
+        !isGroupLeader;
     const shouldCheckAccess = requiresTemporaryAccess || requiresMaskedInsuranceAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
