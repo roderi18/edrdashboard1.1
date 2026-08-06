@@ -1,5 +1,16 @@
 export const MANUAL_PRESENCE_STATUSES = new Set(['always', 'busy']);
 
+export const chunkPresenceIds = (ids = [], chunkSize = 30) => {
+  const normalizedSize = Number.isSafeInteger(chunkSize) && chunkSize > 0 ? chunkSize : 30;
+  const chunks = [];
+
+  for (let index = 0; index < ids.length; index += normalizedSize) {
+    chunks.push(ids.slice(index, index + normalizedSize));
+  }
+
+  return chunks;
+};
+
 export const normalizeManualPresence = (status) =>
   MANUAL_PRESENCE_STATUSES.has(status) ? status : null;
 

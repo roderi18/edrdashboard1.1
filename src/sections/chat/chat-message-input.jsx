@@ -1,34 +1,47 @@
 import { uuidv4 } from 'minimal-shared/utils';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
+import Tooltip from '@mui/material/Tooltip';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import LinearProgress from '@mui/material/LinearProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
+import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
+import {
+  uploadFilesToStorage,
+  buildStorageFileName,
+  deleteUploadedFilesFromStorage,
+} from 'src/utils/firebase-file-storage';
 
 import {
   setTyping,
   sendMessage,
   editMessage,
   addLocalMessage,
+  removeLocalMessage,
   createConversation,
 } from 'src/actions/chat';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+import { buildChatDraftKey } from './utils/productivity.mjs';
 import { initialConversation } from './utils/initial-conversation';
 
 // ----------------------------------------------------------------------
 
 const MAX_IMAGE_FILES = 10;
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_DOCUMENT_FILES = 10;
 const MAX_DOCUMENT_TOTAL_SIZE = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const ALLOWED_DOCUMENT_TYPES = new Set([
   'application/pdf',
   'application/zip',
@@ -120,6 +133,12 @@ const isZipOrPdf = (file) => {
   return ALLOWED_DOCUMENT_TYPES.has(file?.type) || name.endsWith('.pdf') || name.endsWith('.zip');
 };
 
+const formatFileSize = (bytes = 0) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const buildAttachmentMessage = ({ upload, senderId, contentType }) => ({
   id: uuidv4(),
   attachments: [upload],
@@ -130,6 +149,7 @@ const buildAttachmentMessage = ({ upload, senderId, contentType }) => ({
 });
 
 export function ChatMessageInput({
+  authReady = true,
   disabled,
   recipients,
   groupName,
@@ -151,11 +171,15 @@ export function ChatMessageInput({
   const lastTypingSentAtRef = useRef(0);
   const typingStopTimeoutRef = useRef(null);
   const typingRequestRef = useRef(Promise.resolve());
+  const uploadAbortControllerRef = useRef(null);
+  const pendingAttachmentsRef = useRef([]);
+  const hydratedDraftKeyRef = useRef(null);
   const inputRef = useRef(null);
 
   const [message, setMessage] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState([]);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState(CHAT_EMOJI_CATEGORIES[0].label);
   const [mentionQuery, setMentionQuery] = useState(null);
@@ -163,6 +187,15 @@ export function ChatMessageInput({
   const currentEmojiCategory =
     CHAT_EMOJI_CATEGORIES.find((category) => category.label === emojiCategory) ||
     CHAT_EMOJI_CATEGORIES[0];
+  const draftKey = useMemo(
+    () =>
+      buildChatDraftKey({
+        currentMemberId: currentContact.idMiembros ?? currentContact.id,
+        conversationId: selectedConversationId,
+        recipientIds: recipients.map((recipient) => recipient.idMiembros ?? recipient.id),
+      }),
+    [currentContact.id, currentContact.idMiembros, recipients, selectedConversationId]
+  );
 
   const mentionCandidates =
     mentionQuery !== null
@@ -188,12 +221,71 @@ export function ChatMessageInput({
 
   useEffect(
     () => () => {
-      pendingAttachments.forEach((item) => {
+      uploadAbortControllerRef.current?.abort();
+      const abandonedUploads = pendingAttachmentsRef.current
+        .filter((item) => ['error', 'cancelled'].includes(item.status) && item.upload)
+        .map((item) => item.upload);
+      if (abandonedUploads.length) void deleteUploadedFilesFromStorage(abandonedUploads);
+      pendingAttachmentsRef.current.forEach((item) => {
         if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
+  );
+
+  useEffect(() => {
+    pendingAttachmentsRef.current = pendingAttachments;
+  }, [pendingAttachments]);
+
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined' || editingMessage || sharedMessage) return;
+
+    hydratedDraftKeyRef.current = draftKey;
+    setMessage(window.localStorage.getItem(draftKey) ?? '');
+  }, [draftKey, editingMessage, sharedMessage]);
+
+  useEffect(() => {
+    if (
+      !draftKey ||
+      typeof window === 'undefined' ||
+      editingMessage ||
+      hydratedDraftKeyRef.current !== draftKey
+    ) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (message.trim()) window.localStorage.setItem(draftKey, message);
+      else window.localStorage.removeItem(draftKey);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [draftKey, editingMessage, message]);
+
+  const updateAttachmentState = useCallback((attachmentId, changes) => {
+    setPendingAttachments((currentItems) =>
+      currentItems.map((item) =>
+        item.id === attachmentId
+          ? { ...item, ...(typeof changes === 'function' ? changes(item) : changes) }
+          : item
+      )
+    );
+  }, []);
+
+  const buildUploadCallbacks = useCallback(
+    (attachments) => ({
+      onProgress: ({ index, progress, state }) => {
+        const attachmentId = attachments[index]?.id;
+        if (attachmentId) {
+          updateAttachmentState(attachmentId, {
+            progress,
+            status: state === 'success' ? 'uploaded' : 'uploading',
+          });
+        }
+      },
+      signal: uploadAbortControllerRef.current?.signal,
+    }),
+    [updateAttachmentState]
   );
 
   const { messageData, conversationData } = initialConversation({
@@ -206,13 +298,13 @@ export function ChatMessageInput({
 
   const queueTypingUpdate = useCallback(
     (isTyping) => {
-      if (!selectedConversationId || !currentContact.idMiembros) return;
+      if (!authReady || !selectedConversationId || !currentContact.idMiembros) return;
 
       typingRequestRef.current = typingRequestRef.current
         .catch(() => undefined)
         .then(() => setTyping(selectedConversationId, currentContact.idMiembros, isTyping));
     },
-    [currentContact.idMiembros, selectedConversationId]
+    [authReady, currentContact.idMiembros, selectedConversationId]
   );
 
   const stopTyping = useCallback(() => {
@@ -225,13 +317,13 @@ export function ChatMessageInput({
   useEffect(
     () => () => {
       if (typingStopTimeoutRef.current) clearTimeout(typingStopTimeoutRef.current);
-      if (selectedConversationId && currentContact.idMiembros) {
+      if (authReady && selectedConversationId && currentContact.idMiembros) {
         typingRequestRef.current = typingRequestRef.current
           .catch(() => undefined)
           .then(() => setTyping(selectedConversationId, currentContact.idMiembros, false));
       }
     },
-    [currentContact.idMiembros, selectedConversationId]
+    [authReady, currentContact.idMiembros, selectedConversationId]
   );
 
   const handleOpenImages = useCallback(() => {
@@ -247,23 +339,23 @@ export function ChatMessageInput({
       const value = event.target.value;
       setMessage(value);
 
-      const mentionMatch = value.match(/(?:^|\s)@(\w*)$/);
-      setMentionQuery(mentionMatch ? mentionMatch[1] : null);
+      const mentionMatch = value.match(/(?:^|\s)@([^@\n]*)$/u);
+      setMentionQuery(mentionMatch ? mentionMatch[1].trimStart() : null);
 
       if (!value.trim()) {
         stopTyping();
-      } else if (selectedConversationId && currentContact.idMiembros) {
+      } else if (authReady && selectedConversationId && currentContact.idMiembros) {
         const now = Date.now();
-        if (now - lastTypingSentAtRef.current > 1200) {
+        if (now - lastTypingSentAtRef.current > 10000) {
           lastTypingSentAtRef.current = now;
           queueTypingUpdate(true);
         }
 
         if (typingStopTimeoutRef.current) clearTimeout(typingStopTimeoutRef.current);
-        typingStopTimeoutRef.current = setTimeout(stopTyping, 2500);
+        typingStopTimeoutRef.current = setTimeout(stopTyping, 5000);
       }
     },
-    [currentContact.idMiembros, queueTypingUpdate, selectedConversationId, stopTyping]
+    [authReady, currentContact.idMiembros, queueTypingUpdate, selectedConversationId, stopTyping]
   );
 
   const handleInsertEmoji = useCallback((emoji) => {
@@ -271,40 +363,39 @@ export function ChatMessageInput({
   }, []);
 
   const handleSelectMention = useCallback((participant) => {
-    setMessage((currentMessage) => currentMessage.replace(/@(\w*)$/, `@${participant.name} `));
+    setMessage((currentMessage) =>
+      currentMessage.replace(/@([^@\n]*)$/u, `@${participant.name} `)
+    );
     setMentionQuery(null);
     inputRef.current?.focus();
   }, []);
 
-  const sendAttachmentMessages = useCallback(
-    async ({ uploads, contentType, conversationId }) => {
-      for (const upload of uploads) {
-        const attachmentMessage = buildAttachmentMessage({
-          upload,
-          contentType,
-          senderId: currentContact.idMiembros || currentContact.id,
-        });
-
-        await sendMessage(conversationId, attachmentMessage, currentContact.idMiembros);
-      }
-    },
-    [currentContact.id, currentContact.idMiembros]
-  );
-
   const handleSubmitMessage = useCallback(async () => {
-    if (!message && !pendingAttachments.length) return;
+    if (isUploading || (!message.trim() && !pendingAttachments.length)) return;
 
     const textToSend = message;
     const attachmentsToSend = pendingAttachments;
+    const deliveredAttachmentIds = new Set();
+    let activeConversationId = selectedConversationId;
+    let localImageMessageId = null;
 
     stopTyping();
     setMessage('');
-    setPendingAttachments([]);
-    onClearReply?.();
+    uploadAbortControllerRef.current = new AbortController();
+
+    if (attachmentsToSend.length) {
+      setIsUploading(true);
+      setPendingAttachments((currentItems) =>
+        currentItems.map((item) => ({
+          ...item,
+          error: null,
+          progress: item.upload ? 100 : 0,
+          status: item.upload ? 'uploaded' : 'uploading',
+        }))
+      );
+    }
 
     try {
-      let activeConversationId = selectedConversationId;
-
       if (editingMessage && selectedConversationId) {
         onClearEditing?.();
         await editMessage(
@@ -313,6 +404,7 @@ export function ChatMessageInput({
           textToSend,
           currentContact.idMiembros
         );
+        onClearReply?.();
         return;
       }
 
@@ -332,17 +424,20 @@ export function ChatMessageInput({
         const fileAttachments = attachmentsToSend.filter((item) => item.contentType === 'file');
 
         if (imageAttachments.length) {
+          const imageMessageId = imageAttachments[0].localMessageId || uuidv4();
+          localImageMessageId = imageMessageId;
           const localImageMessage = {
-            id: uuidv4(),
+            id: imageMessageId,
             attachments: imageAttachments.map((item) => ({
-              id: item.id,
-              nombre: item.file.name,
+              ...(item.upload || {}),
+              id: item.upload?.id || item.id,
+              nombre: item.upload?.nombre || item.file.name,
               nombreOriginal: item.file.name,
-              tipo: item.file.type,
-              tamano: item.file.size,
-              previewUrl: item.previewUrl,
+              tipo: item.upload?.tipo || item.file.type,
+              tamano: item.upload?.tamano || item.file.size,
+              previewUrl: item.upload?.url ? undefined : item.previewUrl,
             })),
-            body: imageAttachments[0].previewUrl,
+            body: imageAttachments[0].upload?.url || imageAttachments[0].previewUrl,
             contentType: 'image',
             createdAt: new Date().toISOString(),
             senderId: String(currentContact.idMiembros || currentContact.id),
@@ -351,16 +446,36 @@ export function ChatMessageInput({
 
           await addLocalMessage(activeConversationId, localImageMessage);
 
-          const uploads = await uploadFilesToStorage({
-            files: imageAttachments.map((item) => item.file),
-            storagePathBuilder: (file, index) =>
-              `chat/${activeConversationId}/imagenes/${buildStorageFileName(file, index)}`,
-            metadataBuilder: () => ({
-              modulo: 'chat',
-              tipo: 'imagen',
-              idConversacion: String(activeConversationId),
-              remitenteIdMiembros: String(currentContact.idMiembros || ''),
-            }),
+          updateAttachmentState(imageAttachments[0].id, { localMessageId: imageMessageId });
+          const missingImages = imageAttachments.filter((item) => !item.upload);
+          const newUploads = missingImages.length
+            ? await uploadFilesToStorage({
+                files: missingImages.map((item) => item.file),
+                storagePathBuilder: (file, index) =>
+                  `chat/${activeConversationId}/imagenes/${buildStorageFileName(file, index)}`,
+                metadataBuilder: () => ({
+                  modulo: 'chat',
+                  tipo: 'imagen',
+                  idConversacion: String(activeConversationId),
+                  remitenteIdMiembros: String(currentContact.idMiembros || ''),
+                }),
+                ...buildUploadCallbacks(missingImages),
+              })
+            : [];
+          const uploadByAttachmentId = new Map(
+            missingImages.map((item, index) => [item.id, newUploads[index]])
+          );
+          const uploads = imageAttachments.map(
+            (item) => item.upload || uploadByAttachmentId.get(item.id)
+          );
+
+          imageAttachments.forEach((item, index) => {
+            updateAttachmentState(item.id, {
+              upload: uploads[index],
+              localMessageId: imageMessageId,
+              progress: 100,
+              status: 'uploaded',
+            });
           });
 
           await sendMessage(
@@ -374,40 +489,63 @@ export function ChatMessageInput({
           );
 
           imageAttachments.forEach((item) => {
+            deliveredAttachmentIds.add(item.id);
             if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
           });
+          setPendingAttachments((currentItems) =>
+            currentItems.filter((item) => !deliveredAttachmentIds.has(item.id))
+          );
         }
 
         if (fileAttachments.length) {
-          const uploads = await uploadFilesToStorage({
-            files: fileAttachments.map((item) => item.file),
-            storagePathBuilder: (file, index) =>
-              `chat/${activeConversationId}/archivos/${buildStorageFileName(file, index)}`,
-            metadataBuilder: () => ({
-              modulo: 'chat',
-              tipo: 'archivo',
-              idConversacion: String(activeConversationId),
-              remitenteIdMiembros: String(currentContact.idMiembros || ''),
-            }),
+          const missingFiles = fileAttachments.filter((item) => !item.upload);
+          const newUploads = missingFiles.length
+            ? await uploadFilesToStorage({
+                files: missingFiles.map((item) => item.file),
+                storagePathBuilder: (file, index) =>
+                  `chat/${activeConversationId}/archivos/${buildStorageFileName(file, index)}`,
+                metadataBuilder: () => ({
+                  modulo: 'chat',
+                  tipo: 'archivo',
+                  idConversacion: String(activeConversationId),
+                  remitenteIdMiembros: String(currentContact.idMiembros || ''),
+                }),
+                ...buildUploadCallbacks(missingFiles),
+              })
+            : [];
+          const uploadByAttachmentId = new Map(
+            missingFiles.map((item, index) => [item.id, newUploads[index]])
+          );
+
+          fileAttachments.forEach((item) => {
+            const upload = item.upload || uploadByAttachmentId.get(item.id);
+            updateAttachmentState(item.id, { upload, progress: 100, status: 'uploaded' });
           });
 
-          await sendAttachmentMessages({
-            uploads,
-            contentType: 'file',
-            conversationId: activeConversationId,
-          });
+          for (const item of fileAttachments) {
+            const upload = item.upload || uploadByAttachmentId.get(item.id);
+            const attachmentMessage = buildAttachmentMessage({
+              upload,
+              contentType: 'file',
+              senderId: currentContact.idMiembros || currentContact.id,
+            });
+            await sendMessage(activeConversationId, attachmentMessage, currentContact.idMiembros);
+            deliveredAttachmentIds.add(item.id);
+            if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+            setPendingAttachments((currentItems) =>
+              currentItems.filter((currentItem) => currentItem.id !== item.id)
+            );
+          }
         }
       }
 
-      if (!textToSend) return;
-
-      if (activeConversationId) {
+      if (textToSend && activeConversationId) {
         await sendMessage(
           activeConversationId,
           { ...messageData, body: textToSend },
           currentContact.idMiembros
         );
-      } else {
+      } else if (textToSend) {
         const res = await createConversation(
           {
             ...conversationData,
@@ -419,13 +557,33 @@ export function ChatMessageInput({
 
         onAddRecipients([]);
       }
+
+      onClearReply?.();
+      if (draftKey && typeof window !== 'undefined') window.localStorage.removeItem(draftKey);
     } catch (error) {
-      console.error(error);
-      toast.error(error.message || 'No se pudo enviar el mensaje.');
-      setPendingAttachments(attachmentsToSend);
+      const errorMessage = getChatErrorMessage(error, 'No se pudo enviar el mensaje.');
+      logChatClientError('send-message', error);
+      toast.error(errorMessage);
+      const cancelled = error?.cancelled || error?.code === 'chat/upload-cancelled';
+      if (localImageMessageId && activeConversationId) {
+        await removeLocalMessage(activeConversationId, localImageMessageId).catch(() => undefined);
+      }
+      setPendingAttachments((currentItems) =>
+        currentItems
+          .filter((item) => !deliveredAttachmentIds.has(item.id))
+          .map((item) => ({
+            ...item,
+            status: cancelled ? 'cancelled' : 'error',
+            error: errorMessage,
+          }))
+      );
       setMessage(textToSend);
+    } finally {
+      uploadAbortControllerRef.current = null;
+      setIsUploading(false);
     }
   }, [
+    buildUploadCallbacks,
     conversationData,
     currentContact.idMiembros,
     currentContact.id,
@@ -438,14 +596,17 @@ export function ChatMessageInput({
     pendingAttachments,
     router,
     selectedConversationId,
-    sendAttachmentMessages,
     stopTyping,
+    isUploading,
+    updateAttachmentState,
+    draftKey,
   ]);
 
   const handleSendMessage = useCallback(
     async (event) => {
-      if (event.key !== 'Enter') return;
+      if (event.key !== 'Enter' || event.shiftKey) return;
 
+      event.preventDefault();
       await handleSubmitMessage();
     },
     [handleSubmitMessage]
@@ -457,26 +618,42 @@ export function ChatMessageInput({
 
     if (!files.length) return;
 
-    const imageFiles = files.filter((file) => String(file.type || '').startsWith('image/'));
+    const imageFiles = files.filter((file) => ALLOWED_IMAGE_TYPES.has(String(file.type || '')));
 
     if (imageFiles.length !== files.length) {
-      toast.error('Solo puedes enviar imagenes desde este boton.');
+      toast.error('Solo puedes enviar imágenes JPG, PNG, WebP o GIF.');
       return;
     }
 
     if (imageFiles.length > MAX_IMAGE_FILES) {
-      toast.error('Puedes enviar un maximo de 10 imagenes a la vez.');
+      toast.error('Puedes enviar un máximo de 10 imágenes a la vez.');
       return;
     }
 
-    setPendingAttachments(
-      imageFiles.map((file, index) => ({
-        id: `image-${file.name}-${file.size}-${file.lastModified}-${index}`,
-        file,
-        contentType: 'image',
-        previewUrl: URL.createObjectURL(file),
-      }))
-    );
+    if (imageFiles.some((file) => file.size > MAX_IMAGE_SIZE)) {
+      toast.error('Cada imagen puede pesar hasta 8 MB.');
+      return;
+    }
+
+    setPendingAttachments((currentItems) => {
+      const currentImages = currentItems.filter((item) => item.contentType === 'image').length;
+      if (currentImages + imageFiles.length > MAX_IMAGE_FILES) {
+        toast.error('Puedes enviar un máximo de 10 imágenes a la vez.');
+        return currentItems;
+      }
+
+      return [
+        ...currentItems,
+        ...imageFiles.map((file, index) => ({
+          id: `image-${uuidv4()}-${index}`,
+          file,
+          contentType: 'image',
+          previewUrl: URL.createObjectURL(file),
+          progress: 0,
+          status: 'pending',
+        })),
+      ];
+    });
   }, []);
 
   const handleUploadFiles = useCallback(async (event) => {
@@ -490,20 +667,62 @@ export function ChatMessageInput({
       return;
     }
 
-    const totalSize = files.reduce((total, file) => total + Number(file.size || 0), 0);
-
-    if (totalSize > MAX_DOCUMENT_TOTAL_SIZE) {
-      toast.error('Los archivos PDF/ZIP no pueden superar 1 MB en conjunto.');
+    if (files.length > MAX_DOCUMENT_FILES) {
+      toast.error('Puedes enviar un máximo de 10 documentos a la vez.');
       return;
     }
 
-    setPendingAttachments(
-      files.map((file, index) => ({
-        id: `file-${file.name}-${file.size}-${file.lastModified}-${index}`,
-        file,
-        contentType: 'file',
-      }))
+    const selectedSize = files.reduce((total, file) => total + Number(file.size || 0), 0);
+
+    if (selectedSize > MAX_DOCUMENT_TOTAL_SIZE) {
+      toast.error('Los archivos PDF/ZIP no pueden superar 10 MB en conjunto.');
+      return;
+    }
+
+    setPendingAttachments((currentItems) => {
+      const currentFiles = currentItems.filter((item) => item.contentType === 'file');
+      const currentSize = currentFiles.reduce(
+        (total, item) => total + Number(item.file?.size || 0),
+        0
+      );
+
+      if (currentFiles.length + files.length > MAX_DOCUMENT_FILES) {
+        toast.error('Puedes enviar un máximo de 10 documentos a la vez.');
+        return currentItems;
+      }
+
+      if (currentSize + selectedSize > MAX_DOCUMENT_TOTAL_SIZE) {
+        toast.error('Los archivos PDF/ZIP no pueden superar 10 MB en conjunto.');
+        return currentItems;
+      }
+
+      return [
+        ...currentItems,
+        ...files.map((file, index) => ({
+          id: `file-${uuidv4()}-${index}`,
+          file,
+          contentType: 'file',
+          previewUrl:
+            file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+              ? URL.createObjectURL(file)
+              : null,
+          progress: 0,
+          status: 'pending',
+        })),
+      ];
+    });
+  }, []);
+
+  const handleRemoveAttachment = useCallback((item) => {
+    if (item.upload) void deleteUploadedFilesFromStorage([item.upload]);
+    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    setPendingAttachments((currentItems) =>
+      currentItems.filter((currentItem) => currentItem.id !== item.id)
     );
+  }, []);
+
+  const handleCancelUpload = useCallback(() => {
+    uploadAbortControllerRef.current?.abort();
   }, []);
 
   return (
@@ -600,7 +819,7 @@ export function ChatMessageInput({
                 <Box
                   component="button"
                   type="button"
-                  onClick={() => setPreviewImage(item)}
+                  onClick={() => setPreviewAttachment(item)}
                   sx={{
                     p: 0,
                     width: 48,
@@ -620,37 +839,81 @@ export function ChatMessageInput({
                     sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
                   />
                 </Box>
+              ) : item.previewUrl ? (
+                <IconButton
+                  size="small"
+                  aria-label={`Vista previa de ${item.file.name}`}
+                  onClick={() => setPreviewAttachment(item)}
+                >
+                  <Iconify icon="solar:file-text-bold" width={22} />
+                </IconButton>
               ) : (
                 <Iconify icon="solar:file-bold" width={20} />
               )}
 
-              <Typography noWrap variant="body2" sx={{ minWidth: 0, flexGrow: 1 }}>
-                {item.file.name}
-              </Typography>
+              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                <Typography noWrap variant="body2">
+                  {item.file.name}
+                </Typography>
+                <Typography
+                  noWrap
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    color:
+                      item.status === 'error'
+                        ? 'error.main'
+                        : item.status === 'cancelled'
+                          ? 'warning.main'
+                          : 'text.secondary',
+                  }}
+                >
+                  {item.status === 'uploading' && `Subiendo ${item.progress || 0}%`}
+                  {item.status === 'uploaded' && 'Listo para enviar'}
+                  {item.status === 'error' && 'Error; puedes reintentar'}
+                  {item.status === 'cancelled' && 'Carga cancelada'}
+                  {(!item.status || item.status === 'pending') && formatFileSize(item.file.size)}
+                </Typography>
+                {item.status === 'uploading' && (
+                  <LinearProgress
+                    variant="determinate"
+                    value={item.progress || 0}
+                    aria-label={`Progreso de ${item.file.name}`}
+                    sx={{ mt: 0.5 }}
+                  />
+                )}
+              </Box>
 
               <IconButton
                 size="small"
-                onClick={() =>
-                  setPendingAttachments((currentItems) => {
-                    if (item.previewUrl) {
-                      URL.revokeObjectURL(item.previewUrl);
-                    }
-
-                    return currentItems.filter((currentItem) => currentItem.id !== item.id);
-                  })
-                }
+                disabled={isUploading}
+                aria-label={`Quitar ${item.file.name}`}
+                onClick={() => handleRemoveAttachment(item)}
               >
                 <Iconify icon="mingcute:close-line" width={16} />
               </IconButton>
             </Box>
           ))}
+
+          {isUploading && (
+            <Button size="small" color="warning" onClick={handleCancelUpload}>
+              Cancelar carga
+            </Button>
+          )}
+
+          {!isUploading &&
+            pendingAttachments.some((item) => ['error', 'cancelled'].includes(item.status)) && (
+              <Button size="small" onClick={handleSubmitMessage}>
+                Reintentar
+              </Button>
+            )}
         </Box>
       )}
 
       <Popover
-        open={Boolean(previewImage)}
+        open={Boolean(previewAttachment)}
         anchorEl={imageInputRef.current}
-        onClose={() => setPreviewImage(null)}
+        onClose={() => setPreviewAttachment(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
@@ -663,23 +926,32 @@ export function ChatMessageInput({
           },
         }}
       >
-        {previewImage && (
+        {previewAttachment && (
           <Box>
-            <Box
-              component="img"
-              src={previewImage.previewUrl}
-              alt={previewImage.file.name}
-              sx={{
-                width: 420,
-                maxWidth: 'calc(100vw - 64px)',
-                maxHeight: 420,
-                display: 'block',
-                borderRadius: 1,
-                objectFit: 'contain',
-              }}
-            />
+            {previewAttachment.contentType === 'image' ? (
+              <Box
+                component="img"
+                src={previewAttachment.previewUrl}
+                alt={previewAttachment.file.name}
+                sx={{
+                  width: 420,
+                  maxWidth: 'calc(100vw - 64px)',
+                  maxHeight: 420,
+                  display: 'block',
+                  borderRadius: 1,
+                  objectFit: 'contain',
+                }}
+              />
+            ) : (
+              <Box
+                component="iframe"
+                src={previewAttachment.previewUrl}
+                title={`Vista previa de ${previewAttachment.file.name}`}
+                sx={{ width: 560, maxWidth: 'calc(100vw - 64px)', height: 420, border: 0 }}
+              />
+            )}
             <Typography noWrap variant="caption" sx={{ mt: 1, display: 'block' }}>
-              {previewImage.file.name}
+              {previewAttachment.file.name} · {formatFileSize(previewAttachment.file.size)}
             </Typography>
           </Box>
         )}
@@ -687,33 +959,61 @@ export function ChatMessageInput({
 
       <InputBase
         inputRef={inputRef}
+        multiline
+        maxRows={5}
         name="chat-message"
         id="chat-message-input"
         value={message}
-        onKeyUp={handleSendMessage}
+        onKeyDown={handleSendMessage}
         onChange={handleChangeMessage}
         onBlur={stopTyping}
         placeholder="Escribe un mensaje"
-        disabled={disabled}
+        inputProps={{ 'aria-label': 'Escribir mensaje. Enter envía y Mayús más Enter crea una línea.' }}
+        disabled={disabled || isUploading}
         startAdornment={
-          <IconButton onClick={(event) => setEmojiAnchorEl(event.currentTarget)}>
+          <IconButton
+            aria-label="Abrir selector de emojis"
+            aria-expanded={emojiPickerOpen}
+            onClick={(event) => setEmojiAnchorEl(event.currentTarget)}
+          >
             <Iconify icon="eva:smiling-face-fill" />
           </IconButton>
         }
         endAdornment={
           <Box sx={{ flexShrink: 0, display: 'flex' }}>
-            <IconButton onClick={handleOpenImages}>
-              <Iconify icon="solar:gallery-add-bold" />
-            </IconButton>
-            <IconButton onClick={handleOpenFiles}>
-              <Iconify icon="eva:attach-2-fill" />
-            </IconButton>
-            <IconButton>
-              <Iconify icon="solar:microphone-bold" />
-            </IconButton>
+            <Tooltip title="Imágenes JPG, PNG, WebP o GIF; máximo 10 y 8 MB cada una">
+              <span>
+                <IconButton
+                  disabled={disabled || isUploading}
+                  aria-label="Adjuntar imágenes"
+                  onClick={handleOpenImages}
+                >
+                  <Iconify icon="solar:gallery-add-bold" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Documentos PDF o ZIP; máximo 10 y 10 MB en conjunto">
+              <span>
+                <IconButton
+                  disabled={disabled || isUploading}
+                  aria-label="Adjuntar documentos"
+                  onClick={handleOpenFiles}
+                >
+                  <Iconify icon="eva:attach-2-fill" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Mensajes de voz próximamente">
+              <span>
+                <IconButton disabled aria-label="Mensajes de voz próximamente">
+                  <Iconify icon="solar:microphone-bold" />
+                </IconButton>
+              </span>
+            </Tooltip>
             <IconButton
               color="primary"
-              disabled={!message.trim() && !pendingAttachments.length}
+              disabled={isUploading || (!message.trim() && !pendingAttachments.length)}
+              aria-label={isUploading ? 'Enviando archivos' : 'Enviar mensaje'}
               onClick={handleSubmitMessage}
             >
               <Iconify icon="solar:plain-bold" />
@@ -723,7 +1023,9 @@ export function ChatMessageInput({
         sx={[
           (theme) => ({
             px: 1,
-            height: 56,
+            py: 0.5,
+            minHeight: 56,
+            maxHeight: 160,
             flexShrink: 0,
             borderTop: `solid 1px ${theme.vars.palette.divider}`,
           }),
@@ -740,29 +1042,33 @@ export function ChatMessageInput({
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{ paper: { sx: { width: 240, maxHeight: 240 } } }}
       >
-        {mentionCandidates.map((participant) => (
-          <Box
-            key={participant.idMiembros ?? participant.id}
-            component="button"
-            type="button"
-            onClick={() => handleSelectMention(participant)}
-            sx={{
-              p: 1,
-              gap: 1,
-              width: 1,
-              border: 0,
-              display: 'flex',
-              cursor: 'pointer',
-              textAlign: 'left',
-              alignItems: 'center',
-              bgcolor: 'transparent',
-              typography: 'body2',
-              '&:hover': { bgcolor: 'action.hover' },
-            }}
-          >
-            {participant.name}
-          </Box>
-        ))}
+        <Box role="listbox" aria-label="Sugerencias de menciones">
+          {mentionCandidates.map((participant) => (
+            <Box
+              key={participant.idMiembros ?? participant.id}
+              component="button"
+              type="button"
+              role="option"
+              aria-selected="false"
+              onClick={() => handleSelectMention(participant)}
+              sx={{
+                p: 1,
+                gap: 1,
+                width: 1,
+                border: 0,
+                display: 'flex',
+                cursor: 'pointer',
+                textAlign: 'left',
+                alignItems: 'center',
+                bgcolor: 'transparent',
+                typography: 'body2',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {participant.name}
+            </Box>
+          ))}
+        </Box>
       </Popover>
 
       <Popover
@@ -782,6 +1088,7 @@ export function ChatMessageInput({
                 key={category.label}
                 component="button"
                 type="button"
+                aria-pressed={emojiCategory === category.label}
                 onClick={() => setEmojiCategory(category.label)}
                 sx={{
                   px: 1,
@@ -813,6 +1120,7 @@ export function ChatMessageInput({
               <IconButton
                 key={`${emoji}-${index}`}
                 size="small"
+                aria-label={`Insertar ${emoji}`}
                 onClick={() => handleInsertEmoji(emoji)}
                 sx={{ width: 38, height: 38, fontSize: 22 }}
               >
@@ -826,7 +1134,7 @@ export function ChatMessageInput({
       <input
         multiple
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         ref={imageInputRef}
         style={{ display: 'none' }}
         onChange={handleUploadImages}

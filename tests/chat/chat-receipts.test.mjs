@@ -3,8 +3,39 @@ import test from 'node:test';
 
 import {
   buildChatReceipt,
+  shouldAdvanceChatReceipt,
   applyChatReceiptsToMessages,
 } from '../../src/server/chat-receipts.mjs';
+
+test('evita escrituras de recibos cuando entrega y lectura no avanzan', () => {
+  const existing = {
+    entregadoHasta: '2026-08-06T12:10:00.000Z',
+    leidoHasta: '2026-08-06T12:09:00.000Z',
+  };
+
+  assert.equal(
+    shouldAdvanceChatReceipt({
+      existing,
+      deliveredUntil: '2026-08-06T12:10:00.000Z',
+    }),
+    false
+  );
+  assert.equal(
+    shouldAdvanceChatReceipt({
+      existing,
+      deliveredUntil: '2026-08-06T12:11:00.000Z',
+    }),
+    true
+  );
+  assert.equal(
+    shouldAdvanceChatReceipt({
+      existing,
+      deliveredUntil: '2026-08-06T12:10:00.000Z',
+      readUntil: '2026-08-06T12:10:00.000Z',
+    }),
+    true
+  );
+});
 
 test('los recibos avanzan de forma monótona entre pestañas y dispositivos', () => {
   const receipt = buildChatReceipt({

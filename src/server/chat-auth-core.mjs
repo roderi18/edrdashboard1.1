@@ -41,11 +41,16 @@ const INACTIVE_PROFILE_STATES = new Set([
 ]);
 
 const isInactiveProfile = (profile = {}) => {
-  if (profile.activo === false || profile.active === false || profile.habilitado === false) {
+  if (
+    profile.activo === false ||
+    profile.active === false ||
+    profile.habilitado === false ||
+    profile.estatusMiembro === false
+  ) {
     return true;
   }
 
-  return [profile.estado, profile.estatus, profile.status]
+  return [profile.estado, profile.estatus, profile.status, profile.estatusMiembro]
     .map(normalizeText)
     .filter(Boolean)
     .some((status) => INACTIVE_PROFILE_STATES.has(status));
@@ -178,6 +183,75 @@ export const createChatRequestAuthenticator = ({
       claims: decodedToken,
       token,
     };
+  };
+};
+
+const getJwtExpirationTime = (token) => {
+  try {
+    const payload = String(token).split('.')[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const json =
+      typeof globalThis.Buffer !== 'undefined'
+        ? globalThis.Buffer.from(padded, 'base64').toString('utf8')
+        : globalThis.atob(padded);
+    const expiration = Number(JSON.parse(json)?.exp);
+
+    return Number.isFinite(expiration) ? expiration * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+export const createCachedChatAuthenticator = ({
+  authenticate,
+  ttlMs = 30_000,
+  maxEntries = 500,
+  now = () => Date.now(),
+} = {}) => {
+  if (typeof authenticate !== 'function') {
+    throw new TypeError('El caché de autenticación requiere un autenticador válido.');
+  }
+
+  const cache = new Map();
+
+  const prune = (currentTime) => {
+    cache.forEach((entry, token) => {
+      if (entry.expiresAt <= currentTime) cache.delete(token);
+    });
+
+    while (cache.size >= maxEntries) cache.delete(cache.keys().next().value);
+  };
+
+  return async (request) => {
+    const token = extractBearerToken(request?.headers);
+
+    // Conserva los errores originales para solicitudes sin Bearer.
+    if (!token || ttlMs <= 0 || maxEntries <= 0) return authenticate(request);
+
+    const currentTime = now();
+    const cached = cache.get(token);
+
+    if (cached?.expiresAt > currentTime) return cached.promise;
+    if (cached) cache.delete(token);
+
+    prune(currentTime);
+
+    const tokenExpiration = getJwtExpirationTime(token);
+    const expiresAt = Math.min(
+      currentTime + ttlMs,
+      tokenExpiration ? Math.max(currentTime, tokenExpiration) : Number.POSITIVE_INFINITY
+    );
+    const promise = Promise.resolve(authenticate(request)).catch((error) => {
+      if (cache.get(token)?.promise === promise) cache.delete(token);
+      throw error;
+    });
+
+    cache.set(token, { expiresAt, promise });
+
+    return promise;
   };
 };
 

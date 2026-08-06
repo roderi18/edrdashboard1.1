@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
 import { keyBy } from 'es-toolkit';
 import useSWR, { mutate } from 'swr';
+import useSWRInfinite from 'swr/infinite';
+import { useMemo, useCallback } from 'react';
+
+import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
 import axios, { fetcher, endpoints } from 'src/lib/axios';
 
@@ -20,6 +23,7 @@ const swrOptions = {
 };
 
 const CHAT_CONTACTS_REFRESH_INTERVAL = 0;
+const CHAT_CONVERSATIONS_PAGE_SIZE = 30;
 // El polling ahora es solo una red de seguridad: el push en tiempo real
 // (useChatRealtimeSync) es quien dispara la revalidación real vía mutate().
 const CHAT_CONVERSATIONS_REFRESH_INTERVAL = 45000;
@@ -31,7 +35,8 @@ const isChatKey = (key, endpoint) =>
   Array.isArray(key) && key[0] === CHAT_ENDPOINT && key[1]?.params?.endpoint === endpoint;
 
 export const isConversationKey = (key, conversationId) =>
-  isChatKey(key, 'conversation') && String(key[1]?.params?.conversationId) === String(conversationId);
+  isChatKey(key, 'conversation') &&
+  String(key[1]?.params?.conversationId) === String(conversationId);
 
 export const isConversationsKey = (key) => isChatKey(key, 'conversations');
 
@@ -88,29 +93,54 @@ export function useGetChatUnreadSummary(idMiembros, enabled = true) {
 // ----------------------------------------------------------------------
 
 export function useGetConversations(idMiembros, enabled = true) {
-  const url = enabled && idMiembros
-    ? [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }]
-    : '';
+  const getKey = useCallback(
+    (pageIndex, previousPageData) => {
+      if (!enabled || !idMiembros) return null;
+      if (pageIndex > 0 && !previousPageData?.hasMore) return null;
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+      return [
+        CHAT_ENDPOINT,
+        {
+          params: {
+            endpoint: 'conversations',
+            idMiembros,
+            limit: CHAT_CONVERSATIONS_PAGE_SIZE,
+            ...(previousPageData?.nextCursor ? { cursor: previousPageData.nextCursor } : {}),
+          },
+        },
+      ];
+    },
+    [enabled, idMiembros]
+  );
+
+  const { data, size, setSize, isLoading, error, isValidating } = useSWRInfinite(getKey, fetcher, {
     ...swrOptions,
     refreshInterval: enabled && enableServer ? CHAT_CONVERSATIONS_REFRESH_INTERVAL : 0,
+    revalidateFirstPage: true,
   });
 
   const memoizedValue = useMemo(() => {
-    const byId = data?.conversations.length ? keyBy(data.conversations, (option) => option.id) : {};
+    const mergedConversations = (data ?? []).flatMap((page) => page?.conversations ?? []);
+    const byId = mergedConversations.length
+      ? keyBy(mergedConversations, (option) => option.id)
+      : {};
     const allIds = Object.keys(byId);
+    const lastPage = data?.at(-1);
 
     return {
       conversations: { byId, allIds },
+      conversationsHasMore: Boolean(lastPage?.hasMore),
+      conversationsLoadingMore: isValidating && size > (data?.length ?? 0),
       conversationsLoading: isLoading,
       conversationsError: error,
       conversationsValidating: isValidating,
       conversationsEmpty: !isLoading && !isValidating && !allIds.length,
     };
-  }, [data?.conversations, error, isLoading, isValidating]);
+  }, [data, error, isLoading, isValidating, size]);
 
-  return memoizedValue;
+  const loadMoreConversations = useCallback(() => setSize((current) => current + 1), [setSize]);
+
+  return { ...memoizedValue, loadMoreConversations };
 }
 
 // ----------------------------------------------------------------------
@@ -145,10 +175,7 @@ export function useGetConversation(conversationId, idMiembros) {
 // ----------------------------------------------------------------------
 
 export async function sendMessage(conversationId, messageData, idMiembros) {
-  const conversationsUrl = [
-    CHAT_ENDPOINT,
-    { params: { endpoint: 'conversations', idMiembros } },
-  ];
+  const conversationsUrl = [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }];
 
   const conversationUrl = [
     CHAT_ENDPOINT,
@@ -267,7 +294,9 @@ export async function addLocalMessage(conversationId, messageData) {
   const localMessage = { ...messageData, estadoEnvio: messageData.estadoEnvio ?? 'enviando' };
 
   const addMessage = (messages = []) =>
-    messages.some((message) => message.id === localMessage.id) ? messages : [...messages, localMessage];
+    messages.some((message) => message.id === localMessage.id)
+      ? messages
+      : [...messages, localMessage];
 
   await mutate(
     (key) => isConversationKey(key, conversationId),
@@ -305,34 +334,55 @@ export async function addLocalMessage(conversationId, messageData) {
 
 // ----------------------------------------------------------------------
 
-export async function createConversation(conversationData, idMiembros) {
-  const url = [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }];
+export async function removeLocalMessage(conversationId, messageId) {
+  const removeMessage = (messages = []) =>
+    messages.filter((message) => String(message.id) !== String(messageId));
 
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) =>
+      currentData?.conversation
+        ? {
+            ...currentData,
+            conversation: {
+              ...currentData.conversation,
+              messages: removeMessage(currentData.conversation.messages),
+            },
+          }
+        : currentData,
+    { revalidate: false }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) =>
+      currentData?.conversations
+        ? {
+            ...currentData,
+            conversations: currentData.conversations.map((conversation) =>
+              String(conversation.id) === String(conversationId)
+                ? { ...conversation, messages: removeMessage(conversation.messages) }
+                : conversation
+            ),
+          }
+        : currentData,
+    { revalidate: false }
+  );
+}
+
+// ----------------------------------------------------------------------
+
+export async function createConversation(conversationData) {
   /**
    * Work on server
    */
   const data = { conversationData };
   const res = await axios.post(CHAT_ENDPOINT, data);
-  const createdConversation = res.data?.conversation ?? conversationData;
 
   /**
    * Work in local
    */
-  mutate(
-    url,
-    (currentData) => {
-      if (!currentData?.conversations) {
-        return currentData;
-      }
-
-      const currentConversations = currentData.conversations;
-
-      const conversations = [...currentConversations, createdConversation];
-
-      return { ...currentData, conversations };
-    },
-    false
-  );
+  await mutate((key) => isConversationsKey(key));
 
   return res.data;
 }
@@ -401,7 +451,12 @@ const updateMessageInConversation = (conversation, messageId, updater) => {
   };
 };
 
-const mutateConversationMessage = async ({ conversationId, messageId, updater, revalidate = false }) => {
+const mutateConversationMessage = async ({
+  conversationId,
+  messageId,
+  updater,
+  revalidate = false,
+}) => {
   await mutate(
     (key) => isConversationKey(key, conversationId),
     (currentData) => {
@@ -515,13 +570,7 @@ export async function reactMessage(conversationId, messageId, idMiembros, reacti
     messageId,
     updater: (message) => {
       const currentReactions = message.reactions || {};
-      const nextReactions = { ...currentReactions };
-
-      if (nextReactions[reactionKey] === reaction) {
-        delete nextReactions[reactionKey];
-      } else {
-        nextReactions[reactionKey] = reaction;
-      }
+      const nextReactions = toggleChatReaction(currentReactions, reactionKey, reaction);
 
       return { ...message, reactions: nextReactions };
     },
@@ -713,7 +762,7 @@ export async function setTyping(conversationId, idMiembros, isTyping = true) {
     });
   } catch (error) {
     // Best-effort: un fallo al anunciar "escribiendo" no debe interrumpir al usuario.
-    console.error('[chat] no se pudo anunciar el estado de escritura', error);
+    console.warn('[chat] no se pudo anunciar el estado de escritura', error?.message ?? error);
   }
 }
 
@@ -813,12 +862,18 @@ export async function leaveGroup(conversationId, idMiembros) {
 export async function markConversationDelivered(conversationId) {
   if (!conversationId) return null;
 
-  const response = await axios.patch(CHAT_ENDPOINT, {
-    action: 'mark-delivered',
-    conversationId,
-  });
+  try {
+    const response = await axios.patch(CHAT_ENDPOINT, {
+      action: 'mark-delivered',
+      conversationId,
+    });
 
-  return response.data?.conversation ?? null;
+    return response.data?.conversation ?? null;
+  } catch (error) {
+    // La confirmación de entrega es secundaria y se reintenta con el siguiente snapshot.
+    console.warn('[chat] no se pudo confirmar la entrega', error?.message ?? error);
+    return null;
+  }
 }
 
 export async function transferGroupOwnership(conversationId, idMiembros, targetIdMiembros) {

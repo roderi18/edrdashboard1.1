@@ -30,3 +30,24 @@ test('las cargas usan la conversación real y metadatos ligados al usuario auten
   assert.match(uploadSource, /AUTH\?\.currentUser\?\.uid/);
   assert.match(uploadSource, /uploaderUid/);
 });
+
+test('la carga de adjuntos ofrece progreso, cancelación, reintento y limpieza recuperable', () => {
+  assert.match(uploadSource, /uploadBytesResumable/);
+  assert.match(uploadSource, /onProgress\?\./);
+  assert.match(uploadSource, /signal\?\.addEventListener\('abort'/);
+  assert.match(uploadSource, /task\.cancel\(\)/);
+  assert.match(uploadSource, /deleteUploadedFilesFromStorage/);
+  assert.match(uploadSource, /Promise\.allSettled/);
+  assert.match(inputSource, /Cancelar carga/);
+  assert.match(inputSource, /Reintentar/);
+  assert.match(inputSource, /LinearProgress/);
+});
+
+test('la selección muestra límites coherentes y vista previa para imagen y PDF', () => {
+  assert.match(inputSource, /MAX_IMAGE_SIZE = 8 \* 1024 \* 1024/);
+  assert.match(inputSource, /MAX_DOCUMENT_TOTAL_SIZE = 10 \* 1024 \* 1024/);
+  assert.match(inputSource, /image\/jpeg,image\/png,image\/webp,image\/gif/);
+  assert.match(inputSource, /component="iframe"/);
+  assert.match(inputSource, /máximo 10 y 10 MB en conjunto/);
+  assert.doesNotMatch(inputSource, /no pueden superar 1 MB/);
+});

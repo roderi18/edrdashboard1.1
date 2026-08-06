@@ -1,4 +1,5 @@
 import { toPublicChatContact } from './chat-contact-core.mjs';
+import { normalizeEmojiReaction } from '../utils/chat-reaction-core.mjs';
 
 export const CHAT_MESSAGE_MODEL_VERSION = 2;
 export const CHAT_MESSAGE_MAX_TEXT_LENGTH = 20_000;
@@ -76,8 +77,8 @@ const normalizeReply = (value) => {
 const normalizeReactions = (value) =>
   Object.fromEntries(
     Object.entries(asObject(value))
-      .map(([memberId, reaction]) => [positiveMemberId(memberId), cleanText(reaction)])
-      .filter(([memberId, reaction]) => memberId && reaction && reaction.length <= 16)
+      .map(([memberId, reaction]) => [positiveMemberId(memberId), normalizeEmojiReaction(reaction)])
+      .filter(([memberId, reaction]) => memberId && reaction)
       .slice(0, 250)
       .map(([memberId, reaction]) => [String(memberId), reaction])
   );
@@ -115,9 +116,9 @@ export const normalizeChatMessageEditText = (value) => {
 };
 
 export const normalizeChatReaction = (value) => {
-  const reaction = cleanText(value);
+  const reaction = normalizeEmojiReaction(value);
 
-  if (!reaction || reaction.length > 16) {
+  if (!reaction) {
     throw new ChatMessageValidationError('La reacción no es válida.', 'CHAT_REACTION_INVALID');
   }
 
@@ -276,6 +277,8 @@ export const createChatMessageDocument = ({
     throw new ChatMessageValidationError('El mensaje del sistema no puede estar vacío.');
   }
 
+  const eliminado = Boolean(message.eliminado);
+
   return {
     idMensaje,
     versionModelo: CHAT_MESSAGE_MODEL_VERSION,
@@ -287,11 +290,11 @@ export const createChatMessageDocument = ({
     enviadoEn,
     actualizadoEn: normalizeIso(message.actualizadoEn, enviadoEn),
     editado: Boolean(message.editado),
-    eliminado: Boolean(message.eliminado),
+    eliminado,
     eliminadoEn: message.eliminadoEn ? normalizeIso(message.eliminadoEn, null) : null,
     respuestaA: normalizeReply(message.respuestaA ?? message.replyTo),
     mencionesIds: normalizeUniqueMemberIds(message.mencionesIds ?? message.mentionIds),
-    reacciones: normalizeReactions(message.reacciones ?? message.reactions),
+    reacciones: eliminado ? {} : normalizeReactions(message.reacciones ?? message.reactions),
     metadatos: normalizeMetadata(message.metadatos ?? message.metadata),
     estadoEntrega: DELIVERY_STATES.has(message.estadoEntrega) ? message.estadoEntrega : 'enviado',
     entregadoAIdMiembros: normalizeUniqueMemberIds(message.entregadoAIdMiembros),
@@ -316,7 +319,7 @@ export const chatMessageToUi = (message = {}, now = new Date().toISOString()) =>
   eliminadoEn: message.eliminadoEn ?? null,
   replyTo: message.respuestaA ?? message.replyTo ?? null,
   mentionIds: normalizeUniqueMemberIds(message.mencionesIds ?? message.mentionIds),
-  reactions: normalizeReactions(message.reacciones ?? message.reactions),
+  reactions: message.eliminado ? {} : normalizeReactions(message.reacciones ?? message.reactions),
   metadata: normalizeMetadata(message.metadatos ?? message.metadata),
   deliveryStatus: DELIVERY_STATES.has(message.estadoEntrega) ? message.estadoEntrega : 'enviado',
   deliveredToMemberIds: normalizeUniqueMemberIds(message.entregadoAIdMiembros),

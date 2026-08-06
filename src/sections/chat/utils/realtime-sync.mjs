@@ -66,3 +66,12 @@ export const getActiveTypingState = ({
         : null,
   };
 };
+
+export const getConversationDeliveryMarker = ({ conversation, currentMemberId } = {}) => {
+  const lastMessage = conversation?.ultimoMensaje;
+
+  if (!lastMessage?.idMensaje) return null;
+  if (Number(lastMessage.remitenteIdMiembros) === Number(currentMemberId)) return null;
+
+  return `${lastMessage.idMensaje}:${lastMessage.enviadoEn ?? conversation?.actualizadoEn ?? ''}`;
+};

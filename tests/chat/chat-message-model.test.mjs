@@ -187,5 +187,26 @@ test('valida el contenido de ediciones y reacciones antes de persistirlo', () =>
   assert.equal(normalizeChatMessageEditText('  texto corregido  '), 'texto corregido');
   assert.equal(normalizeChatReaction(' 👍 '), '👍');
   assert.throws(() => normalizeChatMessageEditText('   '), ChatMessageValidationError);
+  assert.throws(() => normalizeChatReaction('me gusta'), ChatMessageValidationError);
+  assert.equal(normalizeChatReaction('👨‍👩‍👧‍👦'), '👨‍👩‍👧‍👦');
   assert.throws(() => normalizeChatReaction('x'.repeat(17)), ChatMessageValidationError);
+});
+
+test('filtra reacciones históricas inválidas y limpia todas las de mensajes eliminados', () => {
+  const historical = chatMessageToUi({
+    idMensaje: 'historico-reacciones',
+    texto: 'Anterior',
+    remitenteIdMiembros: 84,
+    reacciones: { 42: '👍🏽', 84: 'texto', 99: '👍👍' },
+  });
+  const deleted = chatMessageToUi({
+    idMensaje: 'eliminado-reacciones',
+    texto: 'Mensaje eliminado',
+    remitenteIdMiembros: 84,
+    eliminado: true,
+    reacciones: { 42: '👍' },
+  });
+
+  assert.deepEqual(historical.reactions, { 42: '👍🏽' });
+  assert.deepEqual(deleted.reactions, {});
 });

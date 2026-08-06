@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   CHAT_AUTH_CODES,
+  createCachedChatAuthenticator,
   createChatRequestAuthenticator,
   assertAuthenticatedConversationParticipant,
   bindAuthenticatedMessage,
@@ -154,6 +155,48 @@ test('acepta idMiembros firmado en el token cuando no existe un perfil duplicado
   const actor = await authenticate(requestWithAuthorization('Bearer token-valido'));
 
   assert.equal(actor.idMiembros, 84);
+});
+
+test('reutiliza una identidad verificada y comparte solicitudes simultáneas', async () => {
+  let calls = 0;
+  let currentTime = 1_000;
+  const authenticate = createCachedChatAuthenticator({
+    authenticate: async () => {
+      calls += 1;
+      await Promise.resolve();
+      return { uid: 'firebase-uid-1', idMiembros: 42 };
+    },
+    ttlMs: 30_000,
+    now: () => currentTime,
+  });
+  const request = requestWithAuthorization('Bearer token-valido');
+
+  const [first, second] = await Promise.all([authenticate(request), authenticate(request)]);
+  const third = await authenticate(request);
+
+  assert.equal(calls, 1);
+  assert.equal(first, second);
+  assert.equal(second, third);
+
+  currentTime += 30_001;
+  await authenticate(request);
+  assert.equal(calls, 2);
+});
+
+test('no conserva fallos de autenticación en caché', async () => {
+  let calls = 0;
+  const authenticate = createCachedChatAuthenticator({
+    authenticate: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('fallo temporal');
+      return { uid: 'firebase-uid-1', idMiembros: 42 };
+    },
+  });
+  const request = requestWithAuthorization('Bearer token-valido');
+
+  await assert.rejects(authenticate(request), /fallo temporal/);
+  assert.equal((await authenticate(request)).idMiembros, 42);
+  assert.equal(calls, 2);
 });
 
 test('el remitente siempre se reemplaza por el miembro autenticado', () => {

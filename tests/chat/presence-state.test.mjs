@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  chunkPresenceIds,
   derivePresenceSnapshot,
   isFreshPresenceSession,
   normalizeManualPresence,
@@ -9,6 +10,12 @@ import {
 
 const NOW = 100_000;
 const STALE_AFTER_MS = 45_000;
+
+test('agrupa presencia en listeners de hasta treinta miembros', () => {
+  const chunks = chunkPresenceIds(Array.from({ length: 65 }, (_, index) => String(index + 1)));
+
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [30, 30, 5]);
+});
 
 test('una sesión visible mantiene al miembro en línea aunque otra esté oculta', () => {
   const presence = derivePresenceSnapshot({

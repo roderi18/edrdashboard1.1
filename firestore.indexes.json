@@ -5,7 +5,9 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "participantesIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "eliminada", "order": "ASCENDING" }
+        { "fieldPath": "eliminada", "order": "ASCENDING" },
+        { "fieldPath": "actualizadoEn", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
     }
   ],

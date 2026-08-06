@@ -65,6 +65,18 @@ test('todas las operaciones REST propagan el token del usuario', async () => {
       { field: 'eliminada', op: '==', value: false },
       { field: 'participantesIds', op: 'array-contains', value: 42 },
     ],
+    orderBy: [
+      { field: 'actualizadoEn', direction: 'desc' },
+      { field: '__name__', direction: 'desc' },
+    ],
+    limit: 31,
+    startAfter: [
+      { timestampValue: '2026-08-06T12:00:00.000Z' },
+      {
+        referenceValue:
+          'projects/demo/databases/(default)/documents/conversaciones_chat/chat-1',
+      },
+    ],
   });
 
   assert.equal(results[0].participantesIds[0], 42);
@@ -78,6 +90,13 @@ test('todas las operaciones REST propagan el token del usuario', async () => {
   assert.equal(
     queryBody.structuredQuery.where.compositeFilter.filters[1].fieldFilter.op,
     'ARRAY_CONTAINS'
+  );
+  assert.equal(queryBody.structuredQuery.limit, 31);
+  assert.equal(queryBody.structuredQuery.startAt.before, false);
+  assert.equal(queryBody.structuredQuery.startAt.values.length, 2);
+  assert.deepEqual(
+    queryBody.structuredQuery.orderBy.map((item) => item.direction),
+    ['DESCENDING', 'DESCENDING']
   );
 });
 

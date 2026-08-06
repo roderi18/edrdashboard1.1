@@ -19,11 +19,17 @@ import { clickConversation } from 'src/actions/chat';
 import { Iconify } from 'src/components/iconify';
 
 import { getNavItem } from './utils/get-nav-item';
-import { usePresenceStatuses } from './hooks/use-presence-status';
 
 // ----------------------------------------------------------------------
 
-export function ChatNavItem({ selected, collapse, conversation, currentContact, onCloseMobile }) {
+export function ChatNavItem({
+  selected,
+  collapse,
+  conversation,
+  currentContact,
+  onCloseMobile,
+  presenceStatuses = {},
+}) {
   const router = useRouter();
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
@@ -35,9 +41,6 @@ export function ChatNavItem({ selected, collapse, conversation, currentContact, 
 
   const singleParticipant = participants[0];
 
-  const presenceStatuses = usePresenceStatuses(
-    participants.map((participant) => participant.idMiembros ?? participant.id)
-  );
   const singleParticipantStatus =
     presenceStatuses[String(singleParticipant?.idMiembros ?? singleParticipant?.id)]?.status ??
     'offline';

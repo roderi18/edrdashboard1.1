@@ -5,8 +5,8 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // ----------------------------------------------------------------------
 
 export const COLECCION_PRESENCIA = 'presencia_chat';
-export const HEARTBEAT_INTERVAL_MS = 20000;
-export const STALE_AFTER_MS = 45000;
+export const HEARTBEAT_INTERVAL_MS = 60000;
+export const STALE_AFTER_MS = 150000;
 
 const MANUAL_PRESENCE_STATUSES = new Set(['always', 'busy']);
 

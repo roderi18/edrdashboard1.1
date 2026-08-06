@@ -11,11 +11,14 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { fToNow } from 'src/utils/format-time';
+import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { UnderlineLink } from 'src/components/link/underline-link';
 
 import { getMessage } from './utils/get-message';
+import { CHAT_EMOJI_CATEGORIES } from './chat-message-input';
 import { buildReactionGroups } from './utils/reaction-groups.mjs';
 
 // ----------------------------------------------------------------------
@@ -24,61 +27,252 @@ const ORDER_NUMBER_REGEX = /(ORD-\d+)/g;
 const ORDER_NUMBER_EXACT_REGEX = /^ORD-\d+$/;
 const MISSING_FILE_INSTRUCTION = 'Presiona este número de orden para cargar el archivo faltante.';
 const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
-const EMOJI_OPTIONS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F64F}'];
+const EMOJI_OPTIONS = [
+  '\u{1F44D}',
+  '\u{2764}\u{FE0F}',
+  '\u{1F602}',
+  '\u{1F62E}',
+  '\u{1F622}',
+  '\u{1F64F}',
+];
 const REACTION_EMOJI_CATEGORIES = [
   {
     label: 'Caras',
     emojis: [
-      '\u{1F600}', '\u{1F603}', '\u{1F604}', '\u{1F601}', '\u{1F606}', '\u{1F605}', '\u{1F602}', '\u{1F923}',
-      '\u{1F60A}', '\u{1F607}', '\u{1F642}', '\u{1F643}', '\u{1F609}', '\u{1F60C}', '\u{1F60D}', '\u{1F970}',
-      '\u{1F618}', '\u{1F617}', '\u{1F619}', '\u{1F61A}', '\u{1F60B}', '\u{1F61B}', '\u{1F61D}', '\u{1F61C}',
-      '\u{1F92A}', '\u{1F928}', '\u{1F9D0}', '\u{1F913}', '\u{1F60E}', '\u{1F929}', '\u{1F973}', '\u{1F60F}',
-      '\u{1F612}', '\u{1F61E}', '\u{1F614}', '\u{1F61F}', '\u{1F615}', '\u{1F641}', '\u{2639}\u{FE0F}', '\u{1F623}',
-      '\u{1F616}', '\u{1F62B}', '\u{1F629}', '\u{1F97A}', '\u{1F622}', '\u{1F62D}', '\u{1F624}', '\u{1F620}',
-      '\u{1F621}', '\u{1F92C}', '\u{1F92F}', '\u{1F633}', '\u{1F975}', '\u{1F976}', '\u{1F631}', '\u{1F628}',
-      '\u{1F630}', '\u{1F625}', '\u{1F613}', '\u{1F917}', '\u{1F914}', '\u{1F92D}', '\u{1F925}', '\u{1F636}',
-      '\u{1F610}', '\u{1F611}', '\u{1F62C}', '\u{1F644}', '\u{1F62F}', '\u{1F626}', '\u{1F627}', '\u{1F62E}',
-      '\u{1F632}', '\u{1F971}', '\u{1F634}', '\u{1F924}', '\u{1F62A}', '\u{1F635}', '\u{1F910}', '\u{1F974}',
-      '\u{1F922}', '\u{1F92E}', '\u{1F927}', '\u{1F637}', '\u{1F912}', '\u{1F915}',
+      '\u{1F600}',
+      '\u{1F603}',
+      '\u{1F604}',
+      '\u{1F601}',
+      '\u{1F606}',
+      '\u{1F605}',
+      '\u{1F602}',
+      '\u{1F923}',
+      '\u{1F60A}',
+      '\u{1F607}',
+      '\u{1F642}',
+      '\u{1F643}',
+      '\u{1F609}',
+      '\u{1F60C}',
+      '\u{1F60D}',
+      '\u{1F970}',
+      '\u{1F618}',
+      '\u{1F617}',
+      '\u{1F619}',
+      '\u{1F61A}',
+      '\u{1F60B}',
+      '\u{1F61B}',
+      '\u{1F61D}',
+      '\u{1F61C}',
+      '\u{1F92A}',
+      '\u{1F928}',
+      '\u{1F9D0}',
+      '\u{1F913}',
+      '\u{1F60E}',
+      '\u{1F929}',
+      '\u{1F973}',
+      '\u{1F60F}',
+      '\u{1F612}',
+      '\u{1F61E}',
+      '\u{1F614}',
+      '\u{1F61F}',
+      '\u{1F615}',
+      '\u{1F641}',
+      '\u{2639}\u{FE0F}',
+      '\u{1F623}',
+      '\u{1F616}',
+      '\u{1F62B}',
+      '\u{1F629}',
+      '\u{1F97A}',
+      '\u{1F622}',
+      '\u{1F62D}',
+      '\u{1F624}',
+      '\u{1F620}',
+      '\u{1F621}',
+      '\u{1F92C}',
+      '\u{1F92F}',
+      '\u{1F633}',
+      '\u{1F975}',
+      '\u{1F976}',
+      '\u{1F631}',
+      '\u{1F628}',
+      '\u{1F630}',
+      '\u{1F625}',
+      '\u{1F613}',
+      '\u{1F917}',
+      '\u{1F914}',
+      '\u{1F92D}',
+      '\u{1F925}',
+      '\u{1F636}',
+      '\u{1F610}',
+      '\u{1F611}',
+      '\u{1F62C}',
+      '\u{1F644}',
+      '\u{1F62F}',
+      '\u{1F626}',
+      '\u{1F627}',
+      '\u{1F62E}',
+      '\u{1F632}',
+      '\u{1F971}',
+      '\u{1F634}',
+      '\u{1F924}',
+      '\u{1F62A}',
+      '\u{1F635}',
+      '\u{1F910}',
+      '\u{1F974}',
+      '\u{1F922}',
+      '\u{1F92E}',
+      '\u{1F927}',
+      '\u{1F637}',
+      '\u{1F912}',
+      '\u{1F915}',
     ],
   },
   {
     label: 'Gestos',
     emojis: [
-      '\u{1F44D}', '\u{1F44E}', '\u{1F44A}', '\u{270A}', '\u{1F91B}', '\u{1F91C}', '\u{1F44F}', '\u{1F64C}',
-      '\u{1F450}', '\u{1F932}', '\u{1F91D}', '\u{1F64F}', '\u{270D}\u{FE0F}', '\u{1F4AA}', '\u{1F590}\u{FE0F}',
-      '\u{270B}', '\u{1F91A}', '\u{1F44B}', '\u{1F919}', '\u{1F90C}', '\u{1F90F}', '\u{270C}\u{FE0F}',
-      '\u{1F91E}', '\u{1FAF0}', '\u{1F91F}', '\u{1F918}', '\u{1F44C}', '\u{1F448}', '\u{1F449}', '\u{1F446}',
-      '\u{1F447}', '\u{261D}\u{FE0F}', '\u{1FAF5}',
+      '\u{1F44D}',
+      '\u{1F44E}',
+      '\u{1F44A}',
+      '\u{270A}',
+      '\u{1F91B}',
+      '\u{1F91C}',
+      '\u{1F44F}',
+      '\u{1F64C}',
+      '\u{1F450}',
+      '\u{1F932}',
+      '\u{1F91D}',
+      '\u{1F64F}',
+      '\u{270D}\u{FE0F}',
+      '\u{1F4AA}',
+      '\u{1F590}\u{FE0F}',
+      '\u{270B}',
+      '\u{1F91A}',
+      '\u{1F44B}',
+      '\u{1F919}',
+      '\u{1F90C}',
+      '\u{1F90F}',
+      '\u{270C}\u{FE0F}',
+      '\u{1F91E}',
+      '\u{1FAF0}',
+      '\u{1F91F}',
+      '\u{1F918}',
+      '\u{1F44C}',
+      '\u{1F448}',
+      '\u{1F449}',
+      '\u{1F446}',
+      '\u{1F447}',
+      '\u{261D}\u{FE0F}',
+      '\u{1FAF5}',
     ],
   },
   {
     label: 'Corazones',
     emojis: [
-      '\u{2764}\u{FE0F}', '\u{1F9E1}', '\u{1F49B}', '\u{1F49A}', '\u{1F499}', '\u{1F49C}', '\u{1F5A4}', '\u{1F90D}',
-      '\u{1F90E}', '\u{1F494}', '\u{2764}\u{FE0F}\u{200D}\u{1F525}', '\u{2764}\u{FE0F}\u{200D}\u{1FA79}',
-      '\u{2763}\u{FE0F}', '\u{1F495}', '\u{1F49E}', '\u{1F493}', '\u{1F497}', '\u{1F496}', '\u{1F498}', '\u{1F49D}',
-      '\u{1F49F}', '\u{1F48C}', '\u{1F48B}', '\u{1F4AF}', '\u{1F4A2}', '\u{1F4A5}', '\u{1F4AB}', '\u{1F4A6}',
+      '\u{2764}\u{FE0F}',
+      '\u{1F9E1}',
+      '\u{1F49B}',
+      '\u{1F49A}',
+      '\u{1F499}',
+      '\u{1F49C}',
+      '\u{1F5A4}',
+      '\u{1F90D}',
+      '\u{1F90E}',
+      '\u{1F494}',
+      '\u{2764}\u{FE0F}\u{200D}\u{1F525}',
+      '\u{2764}\u{FE0F}\u{200D}\u{1FA79}',
+      '\u{2763}\u{FE0F}',
+      '\u{1F495}',
+      '\u{1F49E}',
+      '\u{1F493}',
+      '\u{1F497}',
+      '\u{1F496}',
+      '\u{1F498}',
+      '\u{1F49D}',
+      '\u{1F49F}',
+      '\u{1F48C}',
+      '\u{1F48B}',
+      '\u{1F4AF}',
+      '\u{1F4A2}',
+      '\u{1F4A5}',
+      '\u{1F4AB}',
+      '\u{1F4A6}',
     ],
   },
   {
     label: 'Objetos',
     emojis: [
-      '\u{1F389}', '\u{1F38A}', '\u{1F381}', '\u{1F3C6}', '\u{1F947}', '\u{1F948}', '\u{1F949}', '\u{2B50}',
-      '\u{1F31F}', '\u{2728}', '\u{26A1}', '\u{1F525}', '\u{1F4A1}', '\u{1F4CC}', '\u{1F4CD}', '\u{1F4CE}',
-      '\u{1F4DD}', '\u{1F4E2}', '\u{1F4E3}', '\u{1F514}', '\u{1F515}', '\u{1F4AC}', '\u{1F4AD}', '\u{1F4E9}',
-      '\u{2705}', '\u{274C}', '\u{2757}', '\u{2753}', '\u{1F6AB}', '\u{1F6A8}', '\u{1F4B0}', '\u{1F4B3}',
+      '\u{1F389}',
+      '\u{1F38A}',
+      '\u{1F381}',
+      '\u{1F3C6}',
+      '\u{1F947}',
+      '\u{1F948}',
+      '\u{1F949}',
+      '\u{2B50}',
+      '\u{1F31F}',
+      '\u{2728}',
+      '\u{26A1}',
+      '\u{1F525}',
+      '\u{1F4A1}',
+      '\u{1F4CC}',
+      '\u{1F4CD}',
+      '\u{1F4CE}',
+      '\u{1F4DD}',
+      '\u{1F4E2}',
+      '\u{1F4E3}',
+      '\u{1F514}',
+      '\u{1F515}',
+      '\u{1F4AC}',
+      '\u{1F4AD}',
+      '\u{1F4E9}',
+      '\u{2705}',
+      '\u{274C}',
+      '\u{2757}',
+      '\u{2753}',
+      '\u{1F6AB}',
+      '\u{1F6A8}',
+      '\u{1F4B0}',
+      '\u{1F4B3}',
     ],
   },
   {
     label: 'Naturaleza',
     emojis: [
-      '\u{1F31E}', '\u{1F31D}', '\u{1F31A}', '\u{1F319}', '\u{2600}\u{FE0F}', '\u{1F324}\u{FE0F}', '\u{26C5}',
-      '\u{2601}\u{FE0F}', '\u{1F327}\u{FE0F}', '\u{26C8}\u{FE0F}', '\u{1F308}', '\u{2744}\u{FE0F}', '\u{2603}\u{FE0F}',
-      '\u{1F32A}\u{FE0F}', '\u{1F30A}', '\u{1F331}', '\u{1F33F}', '\u{2618}\u{FE0F}', '\u{1F340}', '\u{1F33A}',
-      '\u{1F33B}', '\u{1F339}', '\u{1F490}', '\u{1F384}',
+      '\u{1F31E}',
+      '\u{1F31D}',
+      '\u{1F31A}',
+      '\u{1F319}',
+      '\u{2600}\u{FE0F}',
+      '\u{1F324}\u{FE0F}',
+      '\u{26C5}',
+      '\u{2601}\u{FE0F}',
+      '\u{1F327}\u{FE0F}',
+      '\u{26C8}\u{FE0F}',
+      '\u{1F308}',
+      '\u{2744}\u{FE0F}',
+      '\u{2603}\u{FE0F}',
+      '\u{1F32A}\u{FE0F}',
+      '\u{1F30A}',
+      '\u{1F331}',
+      '\u{1F33F}',
+      '\u{2618}\u{FE0F}',
+      '\u{1F340}',
+      '\u{1F33A}',
+      '\u{1F33B}',
+      '\u{1F339}',
+      '\u{1F490}',
+      '\u{1F384}',
     ],
   },
+];
+const COMPLETE_REACTION_EMOJI_CATEGORIES = [
+  ...REACTION_EMOJI_CATEGORIES,
+  ...CHAT_EMOJI_CATEGORIES.filter(
+    (category) =>
+      !REACTION_EMOJI_CATEGORIES.some(
+        (reactionCategory) => reactionCategory.label === category.label
+      )
+  ),
 ];
 
 const formatChatTime = (input) => {
@@ -227,14 +421,19 @@ export function ChatMessageItem({
   const imageAttachments = (message.attachments || [])
     .map((item) => item.url || item.downloadURL || item.previewUrl)
     .filter(Boolean);
-  const imageUrls = hasImage ? (imageAttachments.length ? imageAttachments : [body].filter(Boolean)) : [];
+  const imageUrls = hasImage
+    ? imageAttachments.length
+      ? imageAttachments
+      : [body].filter(Boolean)
+    : [];
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [showAllReactionEmojis, setShowAllReactionEmojis] = useState(false);
   const [reactionEmojiCategory, setReactionEmojiCategory] = useState(
-    REACTION_EMOJI_CATEGORIES[0].label
+    COMPLETE_REACTION_EMOJI_CATEGORIES[0].label
   );
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
+  const [reactionPending, setReactionPending] = useState(false);
   const isSent = me && message.estadoEnvio !== 'enviando';
   const deliveryStatus = message.deliveryStatus ?? message.estadoEntrega ?? 'enviado';
   const reactionGroups = buildReactionGroups({
@@ -250,8 +449,9 @@ export function ChatMessageItem({
   const reactionKey = String(currentContact.idMiembros || currentContact.id || 'usuario');
   const selectedReactionEmoji = localReactions[reactionKey];
   const currentReactionEmojiCategory =
-    REACTION_EMOJI_CATEGORIES.find((category) => category.label === reactionEmojiCategory) ||
-    REACTION_EMOJI_CATEGORIES[0];
+    COMPLETE_REACTION_EMOJI_CATEGORIES.find(
+      (category) => category.label === reactionEmojiCategory
+    ) || COMPLETE_REACTION_EMOJI_CATEGORIES[0];
 
   useEffect(() => {
     setLocalReactions(message.reactions || {});
@@ -265,21 +465,25 @@ export function ChatMessageItem({
     return () => clearTimeout(timeout);
   }, [currentTime]);
 
-  const handleSelectEmoji = (emoji) => {
+  const handleSelectEmoji = async (emoji) => {
+    if (reactionPending) return;
+
+    const previousReactions = localReactions;
+    const nextReactions = toggleChatReaction(previousReactions, reactionKey, emoji);
+
     setEmojiAnchorEl(null);
     setShowAllReactionEmojis(false);
-    setLocalReactions((currentReactions) => {
-      const nextReactions = { ...currentReactions };
+    setLocalReactions(nextReactions);
+    setReactionPending(true);
 
-      if (nextReactions[reactionKey] === emoji) {
-        delete nextReactions[reactionKey];
-      } else {
-        nextReactions[reactionKey] = emoji;
-      }
-
-      return nextReactions;
-    });
-    onReact?.(message, emoji);
+    try {
+      await onReact?.(message, emoji);
+    } catch (error) {
+      setLocalReactions(previousReactions);
+      toast.error(error?.message || 'No se pudo guardar la reacción.');
+    } finally {
+      setReactionPending(false);
+    }
   };
 
   const renderInfo = () => (
@@ -432,12 +636,12 @@ export function ChatMessageItem({
           </Typography>
         </>
       )}
-
     </Stack>
   );
 
   const renderReactions = () =>
-    !isDeleted && !!reactionGroups.length && (
+    !isDeleted &&
+    !!reactionGroups.length && (
       <Box
         component="span"
         sx={{
@@ -473,8 +677,12 @@ export function ChatMessageItem({
             }
           >
             <Box
-              component="span"
+              component="button"
+              type="button"
+              disabled={reactionPending}
               aria-label={`${group.emoji}: ${group.names.join(', ')}`}
+              aria-pressed={selectedReactionEmoji === group.emoji}
+              onClick={() => handleSelectEmoji(group.emoji)}
               sx={{
                 gap: 0.4,
                 px: 0.9,
@@ -484,9 +692,20 @@ export function ChatMessageItem({
                 borderRadius: 10,
                 fontSize: 18,
                 lineHeight: 1,
-                cursor: 'default',
-                bgcolor: 'background.paper',
+                cursor: 'pointer',
+                border: (theme) =>
+                  `1px solid ${
+                    selectedReactionEmoji === group.emoji
+                      ? theme.vars.palette.primary.main
+                      : theme.vars.palette.divider
+                  }`,
+                bgcolor:
+                  selectedReactionEmoji === group.emoji ? 'action.selected' : 'background.paper',
                 boxShadow: 1,
+                '&:focus-visible': {
+                  outline: (theme) => `2px solid ${theme.vars.palette.primary.main}`,
+                  outlineOffset: 2,
+                },
               }}
             >
               <Box component="span">{group.emoji}</Box>
@@ -519,13 +738,19 @@ export function ChatMessageItem({
           ...(me && { right: 0, left: 'unset' }),
         })}
       >
-        <IconButton size="small" disabled={isDeleted} onClick={() => onReply?.(message)}>
+        <IconButton
+          size="small"
+          disabled={isDeleted}
+          aria-label="Responder mensaje"
+          onClick={() => onReply?.(message)}
+        >
           <Iconify icon="solar:reply-bold" width={16} />
         </IconButton>
 
         <IconButton
           size="small"
           disabled={isDeleted}
+          aria-label="Agregar reacción"
           onClick={(event) => {
             setShowAllReactionEmojis(false);
             setEmojiAnchorEl(event.currentTarget);
@@ -535,13 +760,23 @@ export function ChatMessageItem({
         </IconButton>
 
         {me && (
-          <IconButton size="small" disabled={isDeleted} onClick={() => onEdit?.(message)}>
+          <IconButton
+            size="small"
+            disabled={isDeleted}
+            aria-label="Editar mensaje"
+            onClick={() => onEdit?.(message)}
+          >
             <Iconify icon="solar:pen-bold" width={16} />
           </IconButton>
         )}
 
         {me && canDeleteMessage && (
-          <IconButton size="small" disabled={isDeleted} onClick={() => onDelete?.(message)}>
+          <IconButton
+            size="small"
+            disabled={isDeleted}
+            aria-label="Eliminar mensaje"
+            onClick={() => onDelete?.(message)}
+          >
             <Iconify icon="solar:trash-bin-trash-bold" width={16} />
           </IconButton>
         )}
@@ -560,6 +795,9 @@ export function ChatMessageItem({
             <IconButton
               key={`${emoji}-${index}`}
               size="small"
+              disabled={reactionPending}
+              aria-label={`Reaccionar con ${emoji}`}
+              aria-pressed={selectedReactionEmoji === emoji}
               onClick={() => {
                 handleSelectEmoji(emoji);
               }}
@@ -581,6 +819,9 @@ export function ChatMessageItem({
 
           <IconButton
             size="small"
+            disabled={reactionPending}
+            aria-label={showAllReactionEmojis ? 'Ocultar más emojis' : 'Mostrar más emojis'}
+            aria-expanded={showAllReactionEmojis}
             onClick={() => setShowAllReactionEmojis((value) => !value)}
             sx={{
               width: 36,
@@ -595,11 +836,12 @@ export function ChatMessageItem({
         {showAllReactionEmojis && (
           <Box sx={{ width: 340, maxWidth: 'calc(100vw - 40px)', pt: 1 }}>
             <Box sx={{ gap: 0.5, mb: 1, display: 'flex', overflowX: 'auto' }}>
-              {REACTION_EMOJI_CATEGORIES.map((category) => (
+              {COMPLETE_REACTION_EMOJI_CATEGORIES.map((category) => (
                 <Box
                   key={category.label}
                   component="button"
                   type="button"
+                  aria-pressed={reactionEmojiCategory === category.label}
                   onClick={() => setReactionEmojiCategory(category.label)}
                   sx={{
                     px: 1,
@@ -637,6 +879,9 @@ export function ChatMessageItem({
                 <IconButton
                   key={`${emoji}-${index}`}
                   size="small"
+                  disabled={reactionPending}
+                  aria-label={`Reaccionar con ${emoji}`}
+                  aria-pressed={selectedReactionEmoji === emoji}
                   onClick={() => handleSelectEmoji(emoji)}
                   sx={{
                     width: 42,

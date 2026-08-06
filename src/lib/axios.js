@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 
 import { CONFIG } from 'src/global-config';
 
@@ -11,18 +11,27 @@ const axiosInstance = axios.create({
   },
 });
 
-/**
- * Optional: Add token (if using auth)
- *
- axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+axiosInstance.interceptors.request.use(async (config) => {
+  if (typeof window === 'undefined') return config;
+
+  try {
+    const { AUTH } = await import('./firebase');
+
+    await AUTH?.authStateReady?.();
+    const token = await AUTH?.currentUser?.getIdToken?.();
+
+    if (token) {
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set('Authorization', `Bearer ${token}`);
+
+      return { ...config, headers };
+    }
+  } catch {
+    // La API devolverá un error de autenticación controlado si no hay sesión válida.
   }
+
   return config;
 });
-*
-*/
 
 axiosInstance.interceptors.response.use(
   (response) => response,
@@ -37,7 +46,12 @@ axiosInstance.interceptors.response.use(
         : error?.message) ||
       'Something went wrong!';
 
-    return Promise.reject(new Error(message));
+    const normalizedError = new Error(message, { cause: error });
+    normalizedError.code = responseData?.code || error?.code || null;
+    normalizedError.status = error?.response?.status || null;
+    normalizedError.requestId = responseData?.requestId || null;
+
+    return Promise.reject(normalizedError);
   }
 );
 

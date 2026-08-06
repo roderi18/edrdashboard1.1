@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
+import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -12,8 +14,11 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
+
 import { createConversation } from 'src/actions/chat';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
@@ -22,8 +27,13 @@ import { ChatNavItem } from './chat-nav-item';
 import { ChatNavAccount } from './chat-nav-account';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatNavSearchResults } from './chat-nav-search-results';
+import { usePresenceStatuses } from './hooks/use-presence-status';
 import { initialConversation } from './utils/initial-conversation';
 import { useChatCurrentContact } from './hooks/use-chat-current-contact';
+import {
+  searchChatDirectory,
+  getNextUnreadConversationId,
+} from './utils/productivity.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -37,8 +47,13 @@ export function ChatNav({
   collapseNav,
   conversations,
   selectedConversationId,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }) {
   const router = useRouter();
+  const conversationsInFlightRef = useRef(new Set());
+  const searchInputRef = useRef(null);
 
   const myContact = useChatCurrentContact(contacts);
 
@@ -53,7 +68,21 @@ export function ChatNav({
     onCollapseDesktop,
   } = collapseNav;
 
-  const [searchContacts, setSearchContacts] = useState({ query: '', results: [] });
+  const [searchContacts, setSearchContacts] = useState({
+    query: '',
+    results: [],
+    conversationResults: [],
+  });
+  const conversationParticipantIds = useMemo(
+    () =>
+      conversations.allIds.flatMap((conversationId) =>
+        (conversations.byId[conversationId]?.participants ?? []).map(
+          (participant) => participant.idMiembros ?? participant.id
+        )
+      ),
+    [conversations.allIds, conversations.byId]
+  );
+  const presenceStatuses = usePresenceStatuses(conversationParticipantIds);
 
   useEffect(() => {
     if (!mdUp) {
@@ -78,30 +107,61 @@ export function ChatNav({
 
   const handleSearchContacts = useCallback(
     (inputValue) => {
-      setSearchContacts((prevState) => ({ ...prevState, query: inputValue }));
+      const searchResults = searchChatDirectory({
+        query: inputValue,
+        contacts,
+        conversations,
+        currentMemberId: myContact.idMiembros ?? myContact.id,
+      });
 
-      if (inputValue) {
-        const results = contacts.filter((contact) =>
-          [contact.name, contact.codigoMiembro, contact.correo, contact.telefono]
-            .filter(Boolean)
-            .some((value) => String(value).toLowerCase().includes(inputValue.toLowerCase()))
-        );
-
-        setSearchContacts((prevState) => ({ ...prevState, results }));
-      }
+      setSearchContacts({
+        query: inputValue,
+        results: searchResults.contacts,
+        conversationResults: searchResults.conversations,
+      });
     },
-    [contacts]
+    [contacts, conversations, myContact.id, myContact.idMiembros]
   );
 
   const handleClickAwaySearch = useCallback(() => {
-    setSearchContacts({ query: '', results: [] });
+    setSearchContacts({ query: '', results: [], conversationResults: [] });
   }, []);
+
+  const handleNavigateUnread = useCallback(() => {
+    const conversationId = getNextUnreadConversationId({
+      ...conversations,
+      currentId: selectedConversationId,
+    });
+
+    if (conversationId) router.push(`${paths.dashboard.chat}?id=${conversationId}`);
+  }, [conversations, router, selectedConversationId]);
+
+  useEffect(() => {
+    const handleShortcut = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (event.altKey && event.shiftKey && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        handleNavigateUnread();
+      } else if (event.key === 'Escape' && searchContacts.query) {
+        handleClickAwaySearch();
+      }
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [handleClickAwaySearch, handleNavigateUnread, searchContacts.query]);
 
   const handleClickResult = useCallback(
     async (result) => {
       handleClickAwaySearch();
 
       const linkTo = (id) => router.push(`${paths.dashboard.chat}?id=${id}`);
+      const resultId = String(result.id);
+
+      if (conversationsInFlightRef.current.has(resultId)) return;
 
       try {
         // Reusar una conversación individual existente con este miembro.
@@ -116,9 +176,11 @@ export function ChatNav({
           return;
         }
 
+        conversationsInFlightRef.current.add(resultId);
+
         const recipient = contacts.find((contact) => contact.id === result.id);
         if (!recipient) {
-          console.error('Recipient not found');
+          toast.error('No se pudo identificar el contacto seleccionado.');
           return;
         }
 
@@ -130,13 +192,17 @@ export function ChatNav({
         const res = await createConversation(conversationData, myContact.idMiembros);
 
         if (!res || !res.conversation) {
-          console.error('Failed to create conversation');
+          toast.error('No se recibió la conversación creada.');
+          return;
         }
 
         // Navigate to the new conversation
         linkTo(res.conversation.id);
       } catch (error) {
-        console.error('Error al seleccionar el contacto:', error);
+        logChatClientError('create-conversation', error);
+        toast.error(getChatErrorMessage(error, 'No se pudo iniciar la conversación.'));
+      } finally {
+        conversationsInFlightRef.current.delete(resultId);
       }
     },
     [contacts, conversations.byId, handleClickAwaySearch, myContact, router]
@@ -153,10 +219,23 @@ export function ChatNav({
             collapse={collapseDesktop}
             currentContact={myContact}
             conversation={conversations.byId[conversationId]}
+            presenceStatuses={presenceStatuses}
             selected={conversationId === selectedConversationId}
             onCloseMobile={onCloseMobile}
           />
         ))}
+        {hasMore && (
+          <Box component="li" sx={{ display: 'flex', justifyContent: 'center', p: 1.5 }}>
+            <Button
+              size="small"
+              loading={loadingMore}
+              aria-label="Cargar conversaciones anteriores"
+              onClick={onLoadMore}
+            >
+              Ver conversaciones anteriores
+            </Button>
+          </Box>
+        )}
       </Box>
     </nav>
   );
@@ -165,17 +244,25 @@ export function ChatNav({
     <ChatNavSearchResults
       query={searchContacts.query}
       results={searchContacts.results}
+      conversationResults={searchContacts.conversationResults}
+      currentMemberId={myContact.idMiembros ?? myContact.id}
       onClickResult={handleClickResult}
+      onClickConversationResult={(conversation) => {
+        handleClickAwaySearch();
+        router.push(`${paths.dashboard.chat}?id=${conversation.id}`);
+      }}
     />
   );
 
   const renderSearchInput = () => (
     <ClickAwayListener onClickAway={handleClickAwaySearch}>
       <TextField
+        inputRef={searchInputRef}
         fullWidth
         value={searchContacts.query}
         onChange={(event) => handleSearchContacts(event.target.value)}
         placeholder="Buscar contactos..."
+        aria-label="Buscar contactos, conversaciones y mensajes recientes"
         slotProps={{
           input: {
             startAdornment: (
@@ -215,9 +302,24 @@ export function ChatNav({
         </IconButton>
 
         {!collapseDesktop && (
-          <IconButton onClick={handleClickCompose}>
-            <Iconify width={24} icon="solar:user-plus-bold" />
-          </IconButton>
+          <>
+            <Tooltip title="Siguiente conversación no leída (Alt+Mayús+N)">
+              <span>
+                <IconButton
+                  aria-label="Ir a la siguiente conversación no leída"
+                  disabled={!conversations.allIds.some(
+                    (id) => Number(conversations.byId[id]?.unreadCount) > 0
+                  )}
+                  onClick={handleNavigateUnread}
+                >
+                  <Iconify width={22} icon="solar:chat-unread-bold" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <IconButton aria-label="Crear conversación" onClick={handleClickCompose}>
+              <Iconify width={24} icon="solar:user-plus-bold" />
+            </IconButton>
+          </>
         )}
       </Box>
 

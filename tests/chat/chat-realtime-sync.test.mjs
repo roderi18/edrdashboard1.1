@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   getActiveTypingState,
+  getConversationDeliveryMarker,
   mergeRealtimeMessageChanges,
 } from '../../src/sections/chat/utils/realtime-sync.mjs';
 
@@ -106,4 +107,21 @@ test('el indicador de escritura calcula su vencimiento sin esperar otro snapshot
 
   assert.deepEqual(active.ids, ['42']);
   assert.equal(active.expiresIn, 3_000);
+});
+
+test('solo confirma entrega de mensajes enviados por otro miembro', () => {
+  const conversation = {
+    actualizadoEn: '2026-08-06T12:00:01.000Z',
+    ultimoMensaje: {
+      idMensaje: 'm2',
+      enviadoEn: '2026-08-06T12:00:00.000Z',
+      remitenteIdMiembros: 42,
+    },
+  };
+
+  assert.equal(getConversationDeliveryMarker({ conversation, currentMemberId: 42 }), null);
+  assert.equal(
+    getConversationDeliveryMarker({ conversation, currentMemberId: 84 }),
+    'm2:2026-08-06T12:00:00.000Z'
+  );
 });

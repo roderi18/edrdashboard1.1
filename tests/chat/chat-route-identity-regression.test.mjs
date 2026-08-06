@@ -5,6 +5,14 @@ import test from 'node:test';
 
 const routeUrl = new URL('../../src/app/api/chat/route.js', import.meta.url);
 const routeSource = await readFile(routeUrl, 'utf8');
+const axiosSource = await readFile(new URL('../../src/lib/axios.js', import.meta.url), 'utf8');
+
+test('cada solicitud del cliente recupera el Bearer vigente de Firebase', () => {
+  assert.match(axiosSource, /interceptors\.request\.use\(async/);
+  assert.match(axiosSource, /authStateReady/);
+  assert.match(axiosSource, /currentUser\?\.getIdToken/);
+  assert.match(axiosSource, /headers\.set\(['"]Authorization['"], `Bearer \$\{token\}`\)/);
+});
 
 test('los cuatro métodos autentican la solicitud', () => {
   const calls = routeSource.match(/authenticateChatRequest\(req\)/g) ?? [];

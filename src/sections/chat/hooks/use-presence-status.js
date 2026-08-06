@@ -1,10 +1,10 @@
 import { useMemo, useState, useEffect } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { query, where, collection, onSnapshot, documentId } from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { STALE_AFTER_MS, COLECCION_PRESENCIA } from 'src/lib/chat-presence';
 
-import { derivePresenceSnapshot } from '../utils/presence-state.mjs';
+import { chunkPresenceIds, derivePresenceSnapshot } from '../utils/presence-state.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -60,10 +60,23 @@ export function usePresenceStatuses(idMiembrosList = []) {
       }
     };
 
-    const unsubscribers = idsKey.split(',').map((id) =>
+    const unsubscribers = chunkPresenceIds(idsKey.split(',')).map((chunk) =>
       onSnapshot(
-        doc(FIRESTORE, COLECCION_PRESENCIA, id),
-        (snapshot) => publishStatus(id, snapshot.data() ?? {}),
+        query(
+          collection(FIRESTORE, COLECCION_PRESENCIA),
+          where(documentId(), 'in', chunk)
+        ),
+        (snapshot) => {
+          const foundIds = new Set();
+
+          snapshot.docs.forEach((presenceDocument) => {
+            foundIds.add(presenceDocument.id);
+            publishStatus(presenceDocument.id, presenceDocument.data() ?? {});
+          });
+          chunk
+            .filter((id) => !foundIds.has(id))
+            .forEach((id) => publishStatus(id, {}));
+        },
         (error) => {
           console.error('[chat] error leyendo presencia', error);
         }

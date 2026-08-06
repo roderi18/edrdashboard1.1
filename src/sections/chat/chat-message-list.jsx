@@ -181,13 +181,20 @@ export function ChatMessageList({
           justifyContent: 'flex-end',
         }}
       >
-        <IconButton size="small" onClick={handleToggleSearch}>
+        <IconButton
+          size="small"
+          aria-label={searchOpen ? 'Cerrar búsqueda en la conversación' : 'Buscar en la conversación'}
+          aria-expanded={searchOpen}
+          onClick={handleToggleSearch}
+        >
           <Iconify icon="eva:search-fill" width={18} />
         </IconButton>
       </Box>
 
       {searchOpen && (
         <Box
+          role="search"
+          aria-label="Buscar mensajes en la conversación"
           sx={{
             px: 3,
             pb: 1,
@@ -202,6 +209,7 @@ export function ChatMessageList({
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Buscar en la conversación..."
+            inputProps={{ 'aria-label': 'Texto para buscar en la conversación' }}
             sx={{
               px: 1.5,
               py: 0.5,
@@ -211,15 +219,29 @@ export function ChatMessageList({
             }}
           />
 
-          <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap' }}>
+          <Typography
+            variant="caption"
+            aria-live="polite"
+            sx={{ color: 'text.disabled', whiteSpace: 'nowrap' }}
+          >
             {searchMatches.length ? `${matchIndex + 1}/${searchMatches.length}` : '0/0'}
           </Typography>
 
-          <IconButton size="small" disabled={!searchMatches.length} onClick={() => handleNavigateMatch(-1)}>
+          <IconButton
+            size="small"
+            aria-label="Resultado anterior"
+            disabled={!searchMatches.length}
+            onClick={() => handleNavigateMatch(-1)}
+          >
             <Iconify icon="eva:arrow-ios-upward-fill" width={16} />
           </IconButton>
 
-          <IconButton size="small" disabled={!searchMatches.length} onClick={() => handleNavigateMatch(1)}>
+          <IconButton
+            size="small"
+            aria-label="Resultado siguiente"
+            disabled={!searchMatches.length}
+            onClick={() => handleNavigateMatch(1)}
+          >
             <Iconify icon="eva:arrow-ios-downward-fill" width={16} />
           </IconButton>
         </Box>
@@ -227,6 +249,10 @@ export function ChatMessageList({
 
       <Scrollbar
         ref={messagesScrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-label="Mensajes de la conversación"
         sx={{
           px: 3,
           pt: 1,
@@ -262,6 +288,8 @@ export function ChatMessageList({
         {!!typingParticipantNames.length && (
           <Typography
             variant="caption"
+            role="status"
+            aria-live="polite"
             sx={{ display: 'block', color: 'text.disabled', fontStyle: 'italic', mt: -2, mb: 3 }}
           >
             {typingParticipantNames.length === 1

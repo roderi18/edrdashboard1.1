@@ -11,15 +11,19 @@ import {
   markConversationDelivered,
 } from 'src/actions/chat';
 
-import { getActiveTypingState } from '../utils/realtime-sync.mjs';
+import {
+  getActiveTypingState,
+  getConversationDeliveryMarker,
+} from '../utils/realtime-sync.mjs';
 
 // ----------------------------------------------------------------------
 
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
 const DEBOUNCE_MS = 80;
-const TYPING_STALE_MS = 4000;
+const TYPING_STALE_MS = 15000;
 const RECENT_MESSAGES_WINDOW = 50;
+const RECENT_CONVERSATIONS_WINDOW = 100;
 
 function useDebouncedCallback(callback, delay) {
   const timeoutRef = useRef(null);
@@ -42,7 +46,12 @@ function useDebouncedCallback(callback, delay) {
  * un cambio, fuerza un refetch vía la API existente (mutate), que sigue siendo
  * la única fuente de verdad (permisos, enriquecimiento de participantes, etc.).
  */
-export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapshot }) {
+export function useChatRealtimeSync({
+  enabled = true,
+  idMiembros,
+  conversationId,
+  onTypingSnapshot,
+}) {
   const typingTimeoutRef = useRef(null);
   const messagesInitializedRef = useRef(false);
   const deliveredMarkersRef = useRef(new Map());
@@ -59,7 +68,7 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
   }, DEBOUNCE_MS);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) return undefined;
+    if (!enabled || !isFirebaseConfigured || !FIRESTORE || !idMiembros) return undefined;
 
     deliveredMarkersRef.current.clear();
     conversationMarkersRef.current.clear();
@@ -67,7 +76,9 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
     const conversationsQuery = query(
       collection(FIRESTORE, COLECCION_CONVERSACIONES),
       where('participantesIds', 'array-contains', Number(idMiembros)),
-      where('eliminada', '==', false)
+      where('eliminada', '==', false),
+      orderBy('actualizadoEn', 'desc'),
+      limit(RECENT_CONVERSATIONS_WINDOW)
     );
 
     const unsubscribe = onSnapshot(
@@ -94,23 +105,22 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
             conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
             conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
           ]);
-          const deliveryMarker = `${conversation.ultimoMensaje?.idMensaje ?? ''}:${
-            conversation.ultimoMensaje?.enviadoEn ?? conversation.actualizadoEn ?? ''
-          }`;
+          const deliveryMarker = getConversationDeliveryMarker({
+            conversation,
+            currentMemberId: idMiembros,
+          });
 
           if (conversationMarkersRef.current.get(change.doc.id) !== conversationMarker) {
             conversationMarkersRef.current.set(change.doc.id, conversationMarker);
             shouldRevalidate = true;
           }
 
-          if (!conversation.ultimoMensaje?.idMensaje) return;
+          if (!deliveryMarker) return;
 
           if (deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) return;
           deliveredMarkersRef.current.set(change.doc.id, deliveryMarker);
 
-          markConversationDelivered(change.doc.id).catch((error) => {
-            console.error('[chat] no se pudo confirmar la entrega de la conversación', error);
-          });
+          void markConversationDelivered(change.doc.id);
         });
 
         if (shouldRevalidate) revalidateConversations();
@@ -122,10 +132,10 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
 
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idMiembros]);
+  }, [enabled, idMiembros]);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !FIRESTORE || !conversationId) return undefined;
+    if (!enabled || !isFirebaseConfigured || !FIRESTORE || !conversationId) return undefined;
 
     const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
     const messagesQuery = query(
@@ -212,5 +222,5 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
       onTypingSnapshot?.([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, idMiembros]);
+  }, [conversationId, enabled, idMiembros]);
 }

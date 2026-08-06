@@ -204,6 +204,7 @@ export const createChatFirestoreRestClient = ({ projectId, token, fetchImpl = fe
     filters = [],
     orderBy = [],
     limit = null,
+    startAfter = [],
   } = {}) => {
     if (!normalizeText(collectionId)) {
       throw new TypeError('runQuery requiere collectionId.');
@@ -221,6 +222,9 @@ export const createChatFirestoreRestClient = ({ projectId, token, fetchImpl = fe
           }
         : {}),
       ...(Number.isSafeInteger(limit) && limit > 0 ? { limit } : {}),
+      ...(Array.isArray(startAfter) && startAfter.length
+        ? { startAt: { values: startAfter, before: false } }
+        : {}),
     };
     const queryUrl = `${baseUrl}${parentPath ? `/${encodePath(parentPath)}` : ''}:runQuery`;
     const payload = await authorizedFetch(queryUrl, {

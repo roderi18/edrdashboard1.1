@@ -3,12 +3,17 @@ import 'server-only';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import {
+  getChatMemberDirectory,
+  resolveDirectoryIdentityProfiles,
+} from './chat-identity-directory.mjs';
+import {
   isFirebaseRestAuthConfigured,
   createFirebaseRestIdentityProvider,
 } from './firebase-auth-rest.mjs';
 import {
   CHAT_AUTH_CODES,
   ChatAuthenticationError,
+  createCachedChatAuthenticator,
   createChatRequestAuthenticator,
 } from './chat-auth-core.mjs';
 
@@ -37,8 +42,7 @@ const getRestIdentityProvider = () => {
   return restIdentityProvider;
 };
 
-const isChatAuthenticationConfigured = () =>
-  isAdminConfigured() || isFirebaseRestAuthConfigured();
+const isChatAuthenticationConfigured = () => isAdminConfigured() || isFirebaseRestAuthConfigured();
 
 const hasMemberId = (profiles = []) =>
   profiles.some((profile) => {
@@ -65,9 +69,7 @@ const addSnapshot = (profiles, seen, collectionName, snapshot) => {
 };
 
 const addQuerySnapshot = (profiles, seen, collectionName, querySnapshot) => {
-  querySnapshot?.docs?.forEach((snapshot) =>
-    addSnapshot(profiles, seen, collectionName, snapshot)
-  );
+  querySnapshot?.docs?.forEach((snapshot) => addSnapshot(profiles, seen, collectionName, snapshot));
 };
 
 const loadIdentityProfiles = async ({ uid, email }) => {
@@ -110,7 +112,30 @@ const loadIdentityProfiles = async ({ uid, email }) => {
   return profiles;
 };
 
-export const authenticateChatRequest = createChatRequestAuthenticator({
+const enrichProfilesFromMemberDirectory = async ({ decodedToken, profiles }) => {
+  if (hasMemberId(profiles)) return profiles;
+
+  const directoryProfiles = resolveDirectoryIdentityProfiles({
+    decodedToken,
+    profiles,
+    members: await getChatMemberDirectory(),
+  });
+
+  return [...profiles, ...directoryProfiles];
+};
+
+const loadChatIdentityProfiles = async (identity) => {
+  const profiles = isAdminConfigured()
+    ? await loadIdentityProfiles(identity)
+    : await getRestIdentityProvider().loadIdentityProfiles(identity);
+
+  return enrichProfilesFromMemberDirectory({
+    decodedToken: identity.decodedToken,
+    profiles,
+  });
+};
+
+const authenticateChatRequestUncached = createChatRequestAuthenticator({
   isConfigured: isChatAuthenticationConfigured,
   verifyIdToken: async (token) => {
     if (!isAdminConfigured()) {
@@ -122,22 +147,25 @@ export const authenticateChatRequest = createChatRequestAuthenticator({
     try {
       adminAuth = getAdminAuth();
     } catch (error) {
-      throw new ChatAuthenticationError(
-        'La credencial Firebase Admin del servidor no es válida.',
-        {
-          status: 503,
-          code: CHAT_AUTH_CODES.SERVER_NOT_CONFIGURED,
-          cause: error,
-        }
-      );
+      throw new ChatAuthenticationError('La credencial Firebase Admin del servidor no es válida.', {
+        status: 503,
+        code: CHAT_AUTH_CODES.SERVER_NOT_CONFIGURED,
+        cause: error,
+      });
     }
 
     return adminAuth.verifyIdToken(token, true);
   },
-  loadIdentityProfiles: (identity) =>
-    isAdminConfigured()
-      ? loadIdentityProfiles(identity)
-      : getRestIdentityProvider().loadIdentityProfiles(identity),
+  loadIdentityProfiles: loadChatIdentityProfiles,
+});
+
+// El chat genera señales frecuentes (escritura, entrega y lectura). Reutilizar
+// brevemente una identidad ya verificada evita repetir accounts:lookup y hasta
+// quince lecturas de perfil para cada señal, sin almacenar sesiones persistentes.
+export const authenticateChatRequest = createCachedChatAuthenticator({
+  authenticate: authenticateChatRequestUncached,
+  ttlMs: 5 * 60_000,
+  maxEntries: 500,
 });
 
 export const chatAuthenticationErrorResponse = (error) => {

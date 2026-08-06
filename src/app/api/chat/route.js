@@ -9,21 +9,29 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { normalizeApiResponse } from 'src/utils/normalize-api-response';
+import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
+import { getChatMemberDirectory } from 'src/server/chat-identity-directory.mjs';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
+import { startChatOperation, toSafeChatErrorMetric } from 'src/server/chat-observability.mjs';
 import { toPublicChatContact, getPublicChatContacts } from 'src/server/chat-contact-core.mjs';
-import {
-  buildChatReceipt,
-  applyChatReceiptsToMessages,
-} from 'src/server/chat-receipts.mjs';
 import {
   ChatFirestoreRestError,
   createChatFirestoreRestClient,
 } from 'src/server/chat-firestore-rest.mjs';
+import {
+  buildChatReceipt,
+  shouldAdvanceChatReceipt,
+  applyChatReceiptsToMessages,
+} from 'src/server/chat-receipts.mjs';
+import {
+  buildConversationPage,
+  normalizeChatPageSize,
+  decodeConversationCursor,
+} from 'src/server/chat-pagination.mjs';
 import {
   chatMessageToUi,
   normalizeChatReaction,
@@ -69,8 +77,9 @@ export const runtime = 'nodejs';
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
 const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
-const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const COLECCION_FOTOS = 'fotos';
+const MEMBER_PHOTO_CACHE_TTL_MS = 5 * 60_000;
+const memberPhotoCache = new Map();
 
 const chatAuthorizationErrorResponse = (error) => {
   if (!(error instanceof ChatAuthorizationError)) return null;
@@ -81,9 +90,23 @@ const chatAuthorizationErrorResponse = (error) => {
 const chatFirestoreErrorResponse = (error) => {
   if (!(error instanceof ChatFirestoreRestError)) return null;
 
-  const status = error.status === 401 ? 401 : error.status === 403 ? 403 : 503;
+  const quotaExceeded =
+    error.code === 'RESOURCE_EXHAUSTED' || /quota exceeded/i.test(error.message || '');
+  const status = quotaExceeded
+    ? 429
+    : error.status === 401
+      ? 401
+      : error.status === 403
+        ? 403
+        : 503;
+  const message = quotaExceeded
+    ? '🔥 La fogata está encendiéndose. En unos minutos podrás continuar la conversación.'
+    : error.message;
 
-  return Response.json({ message: error.message, code: error.code }, { status });
+  return Response.json(
+    { message, code: error.code },
+    { status, ...(quotaExceeded ? { headers: { 'Retry-After': '60' } } : {}) }
+  );
 };
 
 const chatMessageValidationErrorResponse = (error) => {
@@ -96,6 +119,26 @@ const chatGroupErrorResponse = (error) => {
   if (!(error instanceof ChatGroupError)) return null;
 
   return Response.json({ message: error.message, code: error.code }, { status: error.status });
+};
+
+const buildChatErrorResponse = (error, requestId, fallbackMessage) => {
+  const response =
+    chatAuthenticationErrorResponse(error) ||
+    chatAuthorizationErrorResponse(error) ||
+    chatFirestoreErrorResponse(error) ||
+    chatMessageValidationErrorResponse(error) ||
+    chatGroupErrorResponse(error) ||
+    Response.json(
+      {
+        message: fallbackMessage,
+        code: 'CHAT_INTERNAL_ERROR',
+        requestId,
+      },
+      { status: 500 }
+    );
+
+  response.headers.set('X-Chat-Request-ID', requestId);
+  return response;
 };
 
 const createChatStore = (chatActor = {}) =>
@@ -279,18 +322,22 @@ const conversationToUi = async (
   messages = null,
   viewerIdMiembros = null,
   chatStore,
-  { includeReceipts = true } = {}
+  { includeReceipts = true, summaryOnly = false, enrichParticipantPhotos = true } = {}
 ) => {
   const visibilityCutoff = getPersonalClearCutoff(conversation, viewerIdMiembros);
   const loadedMessages =
     messages ??
-    (
-      await getMessages(
-        conversation.idConversacion ?? conversation.id,
-        { afterEnviadoEn: visibilityCutoff },
-        chatStore
-      )
-    ).map((message) => messageToUi(message));
+    (summaryOnly
+      ? conversation.ultimoMensaje
+        ? [messageToUi(conversation.ultimoMensaje)]
+        : []
+      : (
+          await getMessages(
+            conversation.idConversacion ?? conversation.id,
+            { afterEnviadoEn: visibilityCutoff },
+            chatStore
+          )
+        ).map((message) => messageToUi(message)));
   const receipts =
     includeReceipts && chatStore
       ? await getConversationReceipts(conversation.idConversacion ?? conversation.id, chatStore)
@@ -317,8 +364,7 @@ const conversationToUi = async (
     groupAvatarUrl: conversation.avatarGrupoUrl || null,
     creatorIdMiembros: conversation.creadoPorIdMiembros ?? null,
     canClearGlobally:
-      !!viewerIdMiembros &&
-      Number(conversation.creadoPorIdMiembros) === Number(viewerIdMiembros),
+      !!viewerIdMiembros && Number(conversation.creadoPorIdMiembros) === Number(viewerIdMiembros),
     administratorIds: asArray(conversation.administradoresIds),
     currentUserGroupRole:
       conversation.tipoConversacion === 'GRUPAL' && viewerIdMiembros
@@ -331,9 +377,9 @@ const conversationToUi = async (
       conversation.creadoEn ??
       conversation.createdAt ??
       null,
-    participants: await Promise.all(
-      asArray(conversation.participantes).map(contactWithCurrentPhoto)
-    ),
+    participants: enrichParticipantPhotos
+      ? await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto))
+      : asArray(conversation.participantes).map(toPublicChatContact),
     messages: messagesWithReceipts,
     deliveryReceipts: receipts,
     muted:
@@ -355,11 +401,7 @@ const ensureFirestore = () => {
 };
 
 async function getMembersFromApi() {
-  const response = await fetch(MEMBERS_API_URL, { cache: 'no-store' });
-  const payload = await response.json();
-  const normalized = normalizeApiResponse(payload);
-
-  return asArray(normalized.data)
+  return asArray(await getChatMemberDirectory())
     .map(normalizeMember)
     .filter((member) => member.idMiembros);
 }
@@ -437,6 +479,25 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
     return '';
   }
 
+  const cached = memberPhotoCache.get(memberId);
+
+  if (cached?.expiresAt > Date.now()) return cached.promise;
+  if (cached) memberPhotoCache.delete(memberId);
+
+  const promise = loadMemberPhotoUrl(memberId).catch((error) => {
+    if (memberPhotoCache.get(memberId)?.promise === promise) memberPhotoCache.delete(memberId);
+    throw error;
+  });
+
+  memberPhotoCache.set(memberId, {
+    expiresAt: Date.now() + MEMBER_PHOTO_CACHE_TTL_MS,
+    promise,
+  });
+
+  return promise;
+}
+
+async function loadMemberPhotoUrl(memberId) {
   const snapshot = await getDoc(
     doc(FIRESTORE, COLECCION_FOTOS, `miembro_${memberId}_perfil`)
   ).catch(() => null);
@@ -628,11 +689,17 @@ async function updateConversationReceipt({
 
   const receiptPath = `${COLECCION_CONVERSACIONES}/${conversationId}/recibos/${chatActor.uid}`;
   const existingReceipt = (await chatStore.getDocument(receiptPath)) ?? {};
+  const readUntil = markRead ? deliveredUntil : null;
+
+  if (!shouldAdvanceChatReceipt({ existing: existingReceipt, deliveredUntil, readUntil })) {
+    return { path: receiptPath, data: existingReceipt, changed: false };
+  }
+
   const receipt = buildChatReceipt({
     existing: existingReceipt,
     idMiembros: viewerId,
     deliveredUntil,
-    readUntil: markRead ? deliveredUntil : null,
+    readUntil,
     now: nowIso(),
   });
 
@@ -640,7 +707,7 @@ async function updateConversationReceipt({
     await chatStore.setDocument(receiptPath, receipt);
   }
 
-  return { path: receiptPath, data: receipt };
+  return { path: receiptPath, data: receipt, changed: true };
 }
 
 function buildConversationId({ tipoConversacion, participantesIds, providedId }) {
@@ -661,21 +728,49 @@ async function getConversationDoc(idConversacion, chatStore) {
   return chatStore.getDocument(`${COLECCION_CONVERSACIONES}/${idConversacion}`);
 }
 
-async function getConversations(viewerIdMiembros = null, chatStore) {
+async function getConversations(
+  viewerIdMiembros = null,
+  chatStore,
+  { pageSize: requestedPageSize, cursor: requestedCursor } = {}
+) {
   const viewerId = toNumberOrNull(viewerIdMiembros);
+  const pageSize = normalizeChatPageSize(requestedPageSize);
+  const cursor = decodeConversationCursor(requestedCursor);
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const conversations = await chatStore.runQuery({
     collectionId: COLECCION_CONVERSACIONES,
     filters: [
       { field: 'eliminada', op: '==', value: false },
       ...(viewerId ? [{ field: 'participantesIds', op: 'array-contains', value: viewerId }] : []),
     ],
+    orderBy: [
+      { field: 'actualizadoEn', direction: 'desc' },
+      { field: '__name__', direction: 'desc' },
+    ],
+    limit: pageSize + 1,
+    startAfter: cursor
+      ? [
+          { timestampValue: cursor.actualizadoEn },
+          {
+            referenceValue: `projects/${projectId}/databases/(default)/documents/${COLECCION_CONVERSACIONES}/${cursor.id}`,
+          },
+        ]
+      : [],
   });
+  const page = buildConversationPage({ conversations, pageSize });
 
-  return Promise.all(
-    conversations.map(async (conversation) =>
-      conversationToUi(conversation, null, viewerId, chatStore, { includeReceipts: false })
-    )
-  );
+  return {
+    ...page,
+    conversations: await Promise.all(
+      page.conversations.map((conversation) =>
+        conversationToUi(conversation, null, viewerId, chatStore, {
+          summaryOnly: true,
+          includeReceipts: false,
+          enrichParticipantPhotos: false,
+        })
+      )
+    ),
+  };
 }
 
 async function getUnreadSummary(viewerIdMiembros, chatStore) {
@@ -811,7 +906,13 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
       conversation: conversationDoc,
       message: primerMensaje,
     }).catch((error) => {
-      console.error('[chat] no se pudo crear la notificación del primer mensaje', error);
+      console.warn(
+        JSON.stringify({
+          event: 'chat_notification_error',
+          stage: 'first_message',
+          ...toSafeChatErrorMetric(error),
+        })
+      );
     });
   }
 
@@ -887,7 +988,13 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
     conversation: { ...existingConversation, idConversacion: conversationId },
     message: messageDoc,
   }).catch((error) => {
-    console.error('[chat] no se pudo crear la notificación de mensaje', error);
+    console.warn(
+      JSON.stringify({
+        event: 'chat_notification_error',
+        stage: 'message',
+        ...toSafeChatErrorMetric(error),
+      })
+    );
   });
 
   return conversationToUi(
@@ -922,15 +1029,22 @@ async function markAsSeen(conversationId, chatActor = {}, chatStore) {
     markRead: true,
     persist: false,
   });
-  await chatStore.commitWrites([
-    ...(receipt ? [{ type: 'set', path: receipt.path, data: receipt.data }] : []),
-    {
-      type: 'set',
-      path: `${COLECCION_CONVERSACIONES}/${conversationId}`,
-      data: { noLeidosPorIdMiembros },
-      merge: true,
-    },
-  ]);
+  const hadUnreadMessages = Number(existingConversation.noLeidosPorIdMiembros?.[String(viewerId)]) > 0;
+  const writes = [
+    ...(receipt?.changed ? [{ type: 'set', path: receipt.path, data: receipt.data }] : []),
+    ...(hadUnreadMessages
+      ? [
+          {
+            type: 'set',
+            path: `${COLECCION_CONVERSACIONES}/${conversationId}`,
+            data: { noLeidosPorIdMiembros },
+            merge: true,
+          },
+        ]
+      : []),
+  ];
+
+  if (writes.length) await chatStore.commitWrites(writes);
 
   return { ...existingConversation, noLeidosPorIdMiembros };
 }
@@ -997,9 +1111,7 @@ async function updateMessageAction({
       details: {
         longitudAnterior: String(messageData.texto ?? '').length,
         longitudActual: String(nextMessage.texto ?? '').length,
-        adjuntosAfectados: asArray(
-          messageData.adjuntosOriginales ?? messageData.adjuntos
-        ).length,
+        adjuntosAfectados: asArray(messageData.adjuntosOriginales ?? messageData.adjuntos).length,
       },
     });
   }
@@ -1015,14 +1127,7 @@ async function updateMessageAction({
     const normalizedReaction = normalizeChatReaction(reaction);
     const reactionKey = String(viewerIdMiembros || 'usuario');
     const currentReactions = messageData.reacciones ?? {};
-    const currentReaction = currentReactions[reactionKey];
-    const nextReactions = { ...currentReactions };
-
-    if (currentReaction === normalizedReaction) {
-      delete nextReactions[reactionKey];
-    } else {
-      nextReactions[reactionKey] = normalizedReaction;
-    }
+    const nextReactions = toggleChatReaction(currentReactions, reactionKey, normalizedReaction);
 
     nextMessage = {
       ...messageData,
@@ -1069,14 +1174,13 @@ async function updateMessageAction({
     {
       ...existingConversation,
       idConversacion: conversationId,
-      ultimoMensaje:
-        isLastMessage
-          ? {
-              ...(existingConversation.ultimoMensaje || {}),
-              texto: nextMessage.texto,
-              tipoContenido: nextMessage.tipoContenido,
-            }
-          : existingConversation.ultimoMensaje,
+      ultimoMensaje: isLastMessage
+        ? {
+            ...(existingConversation.ultimoMensaje || {}),
+            texto: nextMessage.texto,
+            tipoContenido: nextMessage.tipoContenido,
+          }
+        : existingConversation.ultimoMensaje,
     },
     (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
     viewerIdMiembros,
@@ -1095,10 +1199,9 @@ async function commitGroupChange({
 }) {
   const changedAt = nowIso();
   const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
-  const actor =
-    asArray(conversation.participantes).find(
-      (participant) => Number(participant.idMiembros) === Number(viewerId)
-    ) ?? { idMiembros: viewerId };
+  const actor = asArray(conversation.participantes).find(
+    (participant) => Number(participant.idMiembros) === Number(viewerId)
+  ) ?? { idMiembros: viewerId };
   const systemMessage = messageToFirestore(
     {
       id: `sistema_${crypto.randomUUID()}`,
@@ -1223,6 +1326,13 @@ async function updateConversationAction({
     }
 
     const viewerKey = String(viewerId);
+    const previousTypingAt = existingConversation.escribiendoPorIdMiembros?.[viewerKey];
+    const previousTypingTime = new Date(previousTypingAt ?? 0).getTime();
+    const isRecentTypingHeartbeat =
+      isTyping && Number.isFinite(previousTypingTime) && Date.now() - previousTypingTime < 2000;
+
+    if ((!isTyping && !previousTypingAt) || isRecentTypingHeartbeat) return null;
+
     const escribiendoPorIdMiembros = isTyping ? { [viewerKey]: nowIso() } : {};
 
     await chatStore.setDocument(
@@ -1263,14 +1373,14 @@ async function updateConversationAction({
   }
 
   if (action === 'mark-delivered') {
-    await updateConversationReceipt({
+    const receipt = await updateConversationReceipt({
       conversationId,
       conversation: existingConversation,
       chatActor,
       chatStore,
     });
 
-    return { id: String(conversationId), delivered: true };
+    return { id: String(conversationId), delivered: true, updated: Boolean(receipt?.changed) };
   }
 
   if (action === 'clear') {
@@ -1635,6 +1745,9 @@ async function updateConversationAction({
 }
 
 export async function GET(req) {
+  const operation = startChatOperation({ method: 'GET', url: req.url });
+  let operationError = null;
+
   try {
     const chatActor = await authenticateChatRequest(req);
     assertChatPermission(chatActor, CHAT_PERMISSIONS.VIEW);
@@ -1663,9 +1776,12 @@ export async function GET(req) {
     }
 
     if (endpoint === 'conversations') {
-      const conversations = await getConversations(viewerIdMiembros, chatStore);
+      const page = await getConversations(viewerIdMiembros, chatStore, {
+        cursor: searchParams.get('cursor'),
+        pageSize: searchParams.get('limit'),
+      });
 
-      return Response.json({ conversations });
+      return Response.json(page);
     }
 
     if (endpoint === 'conversation') {
@@ -1720,26 +1836,17 @@ export async function GET(req) {
 
     return Response.json({ message: 'Endpoint de chat inválido.' }, { status: 400 });
   } catch (error) {
-    const authenticationResponse = chatAuthenticationErrorResponse(error);
-    const authorizationResponse = chatAuthorizationErrorResponse(error);
-    const firestoreResponse = chatFirestoreErrorResponse(error);
-    const messageValidationResponse = chatMessageValidationErrorResponse(error);
-    const groupResponse = chatGroupErrorResponse(error);
-
-    if (authenticationResponse) return authenticationResponse;
-    if (authorizationResponse) return authorizationResponse;
-    if (firestoreResponse) return firestoreResponse;
-    if (messageValidationResponse) return messageValidationResponse;
-    if (groupResponse) return groupResponse;
-
-    return Response.json(
-      { message: error?.message || 'Error procesando el chat.' },
-      { status: 500 }
-    );
+    operationError = error;
+    return buildChatErrorResponse(error, operation.requestId, 'No se pudo procesar el chat.');
+  } finally {
+    operation.finish({ error: operationError });
   }
 }
 
 export async function POST(req) {
+  const operation = startChatOperation({ method: 'POST', url: req.url });
+  let operationError = null;
+
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
@@ -1750,26 +1857,17 @@ export async function POST(req) {
 
     return Response.json({ conversation });
   } catch (error) {
-    const authenticationResponse = chatAuthenticationErrorResponse(error);
-    const authorizationResponse = chatAuthorizationErrorResponse(error);
-    const firestoreResponse = chatFirestoreErrorResponse(error);
-    const messageValidationResponse = chatMessageValidationErrorResponse(error);
-    const groupResponse = chatGroupErrorResponse(error);
-
-    if (authenticationResponse) return authenticationResponse;
-    if (authorizationResponse) return authorizationResponse;
-    if (firestoreResponse) return firestoreResponse;
-    if (messageValidationResponse) return messageValidationResponse;
-    if (groupResponse) return groupResponse;
-
-    return Response.json(
-      { message: error?.message || 'Error creando la conversación.' },
-      { status: 500 }
-    );
+    operationError = error;
+    return buildChatErrorResponse(error, operation.requestId, 'No se pudo crear la conversación.');
+  } finally {
+    operation.finish({ error: operationError });
   }
 }
 
 export async function PUT(req) {
+  const operation = startChatOperation({ method: 'PUT', url: req.url });
+  let operationError = null;
+
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
@@ -1785,26 +1883,17 @@ export async function PUT(req) {
 
     return Response.json({ conversation });
   } catch (error) {
-    const authenticationResponse = chatAuthenticationErrorResponse(error);
-    const authorizationResponse = chatAuthorizationErrorResponse(error);
-    const firestoreResponse = chatFirestoreErrorResponse(error);
-    const messageValidationResponse = chatMessageValidationErrorResponse(error);
-    const groupResponse = chatGroupErrorResponse(error);
-
-    if (authenticationResponse) return authenticationResponse;
-    if (authorizationResponse) return authorizationResponse;
-    if (firestoreResponse) return firestoreResponse;
-    if (messageValidationResponse) return messageValidationResponse;
-    if (groupResponse) return groupResponse;
-
-    return Response.json(
-      { message: error?.message || 'Error enviando el mensaje.' },
-      { status: 500 }
-    );
+    operationError = error;
+    return buildChatErrorResponse(error, operation.requestId, 'No se pudo enviar el mensaje.');
+  } finally {
+    operation.finish({ error: operationError });
   }
 }
 
 export async function PATCH(req) {
+  const operation = startChatOperation({ method: 'PATCH', url: req.url });
+  let operationError = null;
+
   try {
     const chatActor = await authenticateChatRequest(req);
     ensureFirestore();
@@ -1853,21 +1942,9 @@ export async function PATCH(req) {
 
     return Response.json({ conversation });
   } catch (error) {
-    const authenticationResponse = chatAuthenticationErrorResponse(error);
-    const authorizationResponse = chatAuthorizationErrorResponse(error);
-    const firestoreResponse = chatFirestoreErrorResponse(error);
-    const messageValidationResponse = chatMessageValidationErrorResponse(error);
-    const groupResponse = chatGroupErrorResponse(error);
-
-    if (authenticationResponse) return authenticationResponse;
-    if (authorizationResponse) return authorizationResponse;
-    if (firestoreResponse) return firestoreResponse;
-    if (messageValidationResponse) return messageValidationResponse;
-    if (groupResponse) return groupResponse;
-
-    return Response.json(
-      { message: error?.message || 'Error actualizando el mensaje.' },
-      { status: 500 }
-    );
+    operationError = error;
+    return buildChatErrorResponse(error, operation.requestId, 'No se pudo actualizar el chat.');
+  } finally {
+    operation.finish({ error: operationError });
   }
 }

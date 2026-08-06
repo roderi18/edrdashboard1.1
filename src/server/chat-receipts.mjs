@@ -14,6 +14,22 @@ const validIso = (value) => {
 const latestIso = (...values) =>
   values.map(validIso).filter(Boolean).sort((a, b) => a.localeCompare(b)).at(-1) ?? null;
 
+export const shouldAdvanceChatReceipt = ({
+  existing = {},
+  deliveredUntil,
+  readUntil,
+} = {}) => {
+  const currentDelivered = validIso(existing.entregadoHasta);
+  const currentRead = validIso(existing.leidoHasta);
+  const nextDelivered = latestIso(deliveredUntil, readUntil);
+  const nextRead = validIso(readUntil);
+
+  return Boolean(
+    (nextDelivered && (!currentDelivered || nextDelivered > currentDelivered)) ||
+      (nextRead && (!currentRead || nextRead > currentRead))
+  );
+};
+
 export const buildChatReceipt = ({
   existing = {},
   idMiembros,

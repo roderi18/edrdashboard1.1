@@ -64,7 +64,13 @@ export function ChatView() {
   const selectedConversationId = searchParams.get('id') || '';
   const sharedMessageParam = searchParams.get('share') || '';
 
-  const { conversations, conversationsLoading } = useGetConversations(currentContact.idMiembros);
+  const {
+    conversations,
+    conversationsLoading,
+    conversationsHasMore,
+    conversationsLoadingMore,
+    loadMoreConversations,
+  } = useGetConversations(currentContact.idMiembros);
   const { conversation, conversationError, conversationLoading } = useGetConversation(
     selectedConversationId,
     currentContact.idMiembros
@@ -87,6 +93,7 @@ export function ChatView() {
   }, []);
 
   useChatRealtimeSync({
+    enabled: Boolean(user?.accessToken),
     idMiembros: currentContact.idMiembros,
     conversationId: selectedConversationId,
     onTypingSnapshot: handleTypingSnapshot,
@@ -371,6 +378,9 @@ export function ChatView() {
               collapseNav={conversationsNav}
               loading={contactsLoading || conversationsLoading}
               error={contactsError}
+              hasMore={conversationsHasMore}
+              loadingMore={conversationsLoadingMore}
+              onLoadMore={loadMoreConversations}
             />
           ),
           main: (
@@ -407,6 +417,7 @@ export function ChatView() {
               )}
 
               <ChatMessageInput
+                authReady={Boolean(user?.accessToken)}
                 recipients={recipients}
                 groupName={groupName}
                 participants={conversation?.participants ?? recipients}
@@ -419,7 +430,7 @@ export function ChatView() {
                 selectedConversationId={selectedConversationId}
                 sharedMessage={sharedMessage}
                 onConsumeSharedMessage={handleConsumeSharedMessage}
-                disabled={!recipients.length && !selectedConversationId}
+                disabled={!user?.accessToken || (!recipients.length && !selectedConversationId)}
               />
             </>
           ),
