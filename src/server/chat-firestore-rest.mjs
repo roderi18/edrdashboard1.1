@@ -173,11 +173,15 @@ export const createChatFirestoreRestClient = ({ projectId, token, fetchImpl = fe
     }
   };
 
-  const setDocument = async (path, data = {}, { merge = false } = {}) => {
+  const setDocument = async (path, data = {}, { merge = false, fieldPaths = null } = {}) => {
     const url = new URL(`${baseUrl}/${encodePath(path)}`);
 
     if (merge) {
-      Object.keys(data).forEach((fieldPath) =>
+      const updateMask = Array.isArray(fieldPaths) && fieldPaths.length
+        ? fieldPaths
+        : Object.keys(data);
+
+      updateMask.forEach((fieldPath) =>
         url.searchParams.append('updateMask.fieldPaths', fieldPath)
       );
     }

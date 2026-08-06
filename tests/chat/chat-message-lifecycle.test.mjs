@@ -13,6 +13,7 @@ const message = {
   texto: 'Original',
   tipoContenido: 'file',
   adjuntos: [{ storagePath: 'chat/chat-1/archivos/documento.pdf' }],
+  reacciones: { 42: '👍', 84: '🎉' },
   enviadoEn: sentAt,
   eliminado: false,
 };
@@ -40,6 +41,7 @@ test('elimina de forma reversible y oculta los adjuntos', () => {
   assert.equal(deleted.texto, 'Mensaje eliminado');
   assert.equal(deleted.eliminado, true);
   assert.deepEqual(deleted.adjuntos, []);
+  assert.deepEqual(deleted.reacciones, {});
   assert.deepEqual(deleted.adjuntosOriginales, message.adjuntos);
 });
 

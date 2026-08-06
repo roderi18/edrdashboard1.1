@@ -4,6 +4,8 @@ import useSWR, { mutate } from 'swr';
 
 import axios, { fetcher, endpoints } from 'src/lib/axios';
 
+import { mergeRealtimeMessageChanges } from 'src/sections/chat/utils/realtime-sync.mjs';
+
 // ----------------------------------------------------------------------
 
 const enableServer = true;
@@ -431,6 +433,47 @@ const mutateConversationMessage = async ({ conversationId, messageId, updater, r
   );
 };
 
+export async function syncRealtimeMessages(conversationId, changes, { allowInsert = true } = {}) {
+  const updateMessages = (conversation) => {
+    if (!conversation?.messages) return conversation;
+
+    return {
+      ...conversation,
+      messages: mergeRealtimeMessageChanges({
+        messages: conversation.messages,
+        changes,
+        allowInsert,
+      }),
+    };
+  };
+
+  await mutate(
+    (key) => isConversationKey(key, conversationId),
+    (currentData) =>
+      currentData?.conversation
+        ? { ...currentData, conversation: updateMessages(currentData.conversation) }
+        : currentData,
+    { revalidate: false }
+  );
+
+  await mutate(
+    (key) => isConversationsKey(key),
+    (currentData) => {
+      if (!currentData?.conversations) return currentData;
+
+      return {
+        ...currentData,
+        conversations: currentData.conversations.map((conversation) =>
+          String(conversation.id) === String(conversationId)
+            ? updateMessages(conversation)
+            : conversation
+        ),
+      };
+    },
+    { revalidate: false }
+  );
+}
+
 const mutateConversationAction = async ({ conversationId, request }) => {
   const res = await request();
   const serverConversation = res.data?.conversation ?? null;
@@ -514,6 +557,7 @@ export async function deleteMessage(conversationId, messageId, idMiembros) {
       bodyOriginal: message.bodyOriginal ?? message.body,
       contentTypeOriginal: message.contentTypeOriginal ?? message.contentType,
       attachmentsOriginal: message.attachmentsOriginal ?? message.attachments,
+      reactions: {},
     }),
   });
 
@@ -659,12 +703,13 @@ export async function reportConversation(conversationId, idMiembros, comment) {
   });
 }
 
-export async function setTyping(conversationId, idMiembros) {
+export async function setTyping(conversationId, idMiembros, isTyping = true) {
   try {
     await axios.patch(CHAT_ENDPOINT, {
       action: 'typing',
       conversationId,
       idMiembros,
+      isTyping,
     });
   } catch (error) {
     // Best-effort: un fallo al anunciar "escribiendo" no debe interrumpir al usuario.

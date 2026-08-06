@@ -97,6 +97,7 @@ export const applyChatMessageLifecycleAction = ({
       texto: 'Mensaje eliminado',
       tipoContenido: 'text',
       adjuntos: [],
+      reacciones: {},
       eliminado: true,
       eliminadoEn: now,
       actualizadoEn: now,

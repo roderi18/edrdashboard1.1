@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Popover from '@mui/material/Popover';
+import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
@@ -15,6 +16,7 @@ import { Iconify } from 'src/components/iconify';
 import { UnderlineLink } from 'src/components/link/underline-link';
 
 import { getMessage } from './utils/get-message';
+import { buildReactionGroups } from './utils/reaction-groups.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -235,7 +237,11 @@ export function ChatMessageItem({
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
   const isSent = me && message.estadoEnvio !== 'enviando';
   const deliveryStatus = message.deliveryStatus ?? message.estadoEntrega ?? 'enviado';
-  const reactions = Object.values(localReactions);
+  const reactionGroups = buildReactionGroups({
+    reactions: localReactions,
+    participants,
+    currentContact,
+  });
   const isDeleted = message.eliminado;
   const sentAtTime = new Date(createdAt).getTime();
   const canDeleteMessage =
@@ -431,24 +437,67 @@ export function ChatMessageItem({
   );
 
   const renderReactions = () =>
-    !!reactions.length && (
+    !isDeleted && !!reactionGroups.length && (
       <Box
         component="span"
         sx={{
-          px: 0.9,
-          py: 0.35,
+          gap: 0.5,
           bottom: -14,
           right: me ? 22 : -10,
           zIndex: 1,
-          borderRadius: 10,
+          display: 'flex',
           position: 'absolute',
-          fontSize: 18,
-          lineHeight: 1,
-          bgcolor: 'background.paper',
-          boxShadow: 1,
         }}
       >
-        {reactions.join(' ')}
+        {reactionGroups.map((group) => (
+          <Tooltip
+            arrow
+            key={group.emoji}
+            placement="top"
+            enterTouchDelay={0}
+            title={
+              <Box sx={{ py: 0.25 }}>
+                <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+                  {`${group.emoji} ${group.count} ${group.count === 1 ? 'reacción' : 'reacciones'}`}
+                </Typography>
+                {group.names.map((name, index) => (
+                  <Typography
+                    key={`${group.memberIds[index]}-${name}`}
+                    variant="caption"
+                    sx={{ display: 'block' }}
+                  >
+                    {name}
+                  </Typography>
+                ))}
+              </Box>
+            }
+          >
+            <Box
+              component="span"
+              aria-label={`${group.emoji}: ${group.names.join(', ')}`}
+              sx={{
+                gap: 0.4,
+                px: 0.9,
+                py: 0.35,
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderRadius: 10,
+                fontSize: 18,
+                lineHeight: 1,
+                cursor: 'default',
+                bgcolor: 'background.paper',
+                boxShadow: 1,
+              }}
+            >
+              <Box component="span">{group.emoji}</Box>
+              {group.count > 1 && (
+                <Typography component="span" variant="caption" sx={{ fontWeight: 700 }}>
+                  {group.count}
+                </Typography>
+              )}
+            </Box>
+          </Tooltip>
+        ))}
       </Box>
     );
 

@@ -149,6 +149,8 @@ export function ChatMessageInput({
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastTypingSentAtRef = useRef(0);
+  const typingStopTimeoutRef = useRef(null);
+  const typingRequestRef = useRef(Promise.resolve());
   const inputRef = useRef(null);
 
   const [message, setMessage] = useState('');
@@ -202,6 +204,36 @@ export function ChatMessageInput({
     groupName,
   });
 
+  const queueTypingUpdate = useCallback(
+    (isTyping) => {
+      if (!selectedConversationId || !currentContact.idMiembros) return;
+
+      typingRequestRef.current = typingRequestRef.current
+        .catch(() => undefined)
+        .then(() => setTyping(selectedConversationId, currentContact.idMiembros, isTyping));
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
+  const stopTyping = useCallback(() => {
+    if (typingStopTimeoutRef.current) clearTimeout(typingStopTimeoutRef.current);
+    typingStopTimeoutRef.current = null;
+    lastTypingSentAtRef.current = 0;
+    queueTypingUpdate(false);
+  }, [queueTypingUpdate]);
+
+  useEffect(
+    () => () => {
+      if (typingStopTimeoutRef.current) clearTimeout(typingStopTimeoutRef.current);
+      if (selectedConversationId && currentContact.idMiembros) {
+        typingRequestRef.current = typingRequestRef.current
+          .catch(() => undefined)
+          .then(() => setTyping(selectedConversationId, currentContact.idMiembros, false));
+      }
+    },
+    [currentContact.idMiembros, selectedConversationId]
+  );
+
   const handleOpenImages = useCallback(() => {
     imageInputRef.current?.click();
   }, []);
@@ -218,15 +250,20 @@ export function ChatMessageInput({
       const mentionMatch = value.match(/(?:^|\s)@(\w*)$/);
       setMentionQuery(mentionMatch ? mentionMatch[1] : null);
 
-      if (selectedConversationId && currentContact.idMiembros) {
+      if (!value.trim()) {
+        stopTyping();
+      } else if (selectedConversationId && currentContact.idMiembros) {
         const now = Date.now();
-        if (now - lastTypingSentAtRef.current > 2000) {
+        if (now - lastTypingSentAtRef.current > 1200) {
           lastTypingSentAtRef.current = now;
-          setTyping(selectedConversationId, currentContact.idMiembros);
+          queueTypingUpdate(true);
         }
+
+        if (typingStopTimeoutRef.current) clearTimeout(typingStopTimeoutRef.current);
+        typingStopTimeoutRef.current = setTimeout(stopTyping, 2500);
       }
     },
-    [currentContact.idMiembros, selectedConversationId]
+    [currentContact.idMiembros, queueTypingUpdate, selectedConversationId, stopTyping]
   );
 
   const handleInsertEmoji = useCallback((emoji) => {
@@ -260,6 +297,7 @@ export function ChatMessageInput({
     const textToSend = message;
     const attachmentsToSend = pendingAttachments;
 
+    stopTyping();
     setMessage('');
     setPendingAttachments([]);
     onClearReply?.();
@@ -401,6 +439,7 @@ export function ChatMessageInput({
     router,
     selectedConversationId,
     sendAttachmentMessages,
+    stopTyping,
   ]);
 
   const handleSendMessage = useCallback(
@@ -653,6 +692,7 @@ export function ChatMessageInput({
         value={message}
         onKeyUp={handleSendMessage}
         onChange={handleChangeMessage}
+        onBlur={stopTyping}
         placeholder="Escribe un mensaje"
         disabled={disabled}
         startAdornment={

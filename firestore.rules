@@ -288,6 +288,7 @@ service cloud.firestore {
           'tipoContenidoOriginal',
           'adjuntos',
           'adjuntosOriginales',
+          'reacciones',
           'actualizadoEn',
           'editado',
           'eliminado',

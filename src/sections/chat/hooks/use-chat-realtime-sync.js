@@ -6,16 +6,19 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
   isConversationKey,
   isConversationsKey,
+  syncRealtimeMessages,
   isChatUnreadSummaryKey,
   markConversationDelivered,
 } from 'src/actions/chat';
+
+import { getActiveTypingState } from '../utils/realtime-sync.mjs';
 
 // ----------------------------------------------------------------------
 
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
-const DEBOUNCE_MS = 250;
-const TYPING_STALE_MS = 5000;
+const DEBOUNCE_MS = 80;
+const TYPING_STALE_MS = 4000;
 const RECENT_MESSAGES_WINDOW = 50;
 
 function useDebouncedCallback(callback, delay) {
@@ -40,6 +43,11 @@ function useDebouncedCallback(callback, delay) {
  * la única fuente de verdad (permisos, enriquecimiento de participantes, etc.).
  */
 export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapshot }) {
+  const typingTimeoutRef = useRef(null);
+  const messagesInitializedRef = useRef(false);
+  const deliveredMarkersRef = useRef(new Map());
+  const conversationMarkersRef = useRef(new Map());
+  const conversationRevisionRef = useRef('');
   const revalidateConversations = useDebouncedCallback(() => {
     mutate((key) => isConversationsKey(key));
     mutate((key) => isChatUnreadSummaryKey(key));
@@ -53,6 +61,9 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
   useEffect(() => {
     if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) return undefined;
 
+    deliveredMarkersRef.current.clear();
+    conversationMarkersRef.current.clear();
+
     const conversationsQuery = query(
       collection(FIRESTORE, COLECCION_CONVERSACIONES),
       where('participantesIds', 'array-contains', Number(idMiembros)),
@@ -62,15 +73,47 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
     const unsubscribe = onSnapshot(
       conversationsQuery,
       (snapshot) => {
-        revalidateConversations();
+        let shouldRevalidate = false;
 
         snapshot.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            deliveredMarkersRef.current.delete(change.doc.id);
+            conversationMarkersRef.current.delete(change.doc.id);
+            shouldRevalidate = true;
+            return;
+          }
           if (!['added', 'modified'].includes(change.type)) return;
+
+          const conversation = change.doc.data();
+          const conversationMarker = JSON.stringify([
+            conversation.actualizadoEn,
+            conversation.ultimoMensaje,
+            conversation.nombreGrupo,
+            conversation.avatarGrupoUrl,
+            conversation.participantesIds,
+            conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
+            conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
+          ]);
+          const deliveryMarker = `${conversation.ultimoMensaje?.idMensaje ?? ''}:${
+            conversation.ultimoMensaje?.enviadoEn ?? conversation.actualizadoEn ?? ''
+          }`;
+
+          if (conversationMarkersRef.current.get(change.doc.id) !== conversationMarker) {
+            conversationMarkersRef.current.set(change.doc.id, conversationMarker);
+            shouldRevalidate = true;
+          }
+
+          if (!conversation.ultimoMensaje?.idMensaje) return;
+
+          if (deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) return;
+          deliveredMarkersRef.current.set(change.doc.id, deliveryMarker);
 
           markConversationDelivered(change.doc.id).catch((error) => {
             console.error('[chat] no se pudo confirmar la entrega de la conversación', error);
           });
         });
+
+        if (shouldRevalidate) revalidateConversations();
       },
       (error) => {
         console.error('[chat] error en el listener de conversaciones', error);
@@ -92,9 +135,29 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
     );
     const receiptsQuery = query(collection(conversationRef, 'recibos'));
 
-    const unsubscribeMessages = onSnapshot(messagesQuery, revalidateConversation, (error) => {
-      console.error('[chat] error en el listener de mensajes', error);
-    });
+    messagesInitializedRef.current = false;
+    conversationRevisionRef.current = '';
+
+    const unsubscribeMessages = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        const allowInsert = messagesInitializedRef.current;
+        const changes = snapshot.docChanges().map((change) => ({
+          id: change.doc.id,
+          type: change.type,
+          data: change.doc.data(),
+        }));
+
+        syncRealtimeMessages(conversationId, changes, { allowInsert }).catch((error) => {
+          console.error('[chat] no se pudo aplicar el cambio de mensaje en tiempo real', error);
+        });
+        messagesInitializedRef.current = true;
+        revalidateConversation();
+      },
+      (error) => {
+        console.error('[chat] error en el listener de mensajes', error);
+      }
+    );
     const unsubscribeReceipts = onSnapshot(receiptsQuery, revalidateConversation, (error) => {
       console.error('[chat] error en el listener de recibos', error);
     });
@@ -102,18 +165,39 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
     const unsubscribeConversation = onSnapshot(
       conversationRef,
       (snapshot) => {
-        revalidateConversation();
+        const conversation = snapshot.data() ?? {};
+        const revision = JSON.stringify([
+          conversation.actualizadoEn,
+          conversation.ultimoMensaje,
+          conversation.participantesIds,
+          conversation.nombreGrupo,
+          conversation.avatarGrupoUrl,
+          conversation.administradoresIds,
+          conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
+          conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
+        ]);
 
-        const escribiendoPorIdMiembros = snapshot.data()?.escribiendoPorIdMiembros ?? {};
-        const now = Date.now();
-        const typingIds = Object.entries(escribiendoPorIdMiembros)
-          .filter(([id, timestamp]) => {
-            const time = new Date(timestamp).getTime();
-            return Number(id) !== Number(idMiembros) && now - time < TYPING_STALE_MS;
-          })
-          .map(([id]) => id);
+        if (revision !== conversationRevisionRef.current) {
+          conversationRevisionRef.current = revision;
+          revalidateConversation();
+        }
 
-        onTypingSnapshot?.(typingIds);
+        const publishTypingState = () => {
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+          const typingState = getActiveTypingState({
+            typingByMember: conversation.escribiendoPorIdMiembros,
+            currentMemberId: idMiembros,
+            staleMs: TYPING_STALE_MS,
+          });
+
+          onTypingSnapshot?.(typingState.ids);
+          typingTimeoutRef.current = typingState.expiresIn
+            ? setTimeout(publishTypingState, typingState.expiresIn + 25)
+            : null;
+        };
+
+        publishTypingState();
       },
       (error) => {
         console.error('[chat] error en el listener de la conversación', error);
@@ -124,6 +208,8 @@ export function useChatRealtimeSync({ idMiembros, conversationId, onTypingSnapsh
       unsubscribeMessages();
       unsubscribeReceipts();
       unsubscribeConversation();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      onTypingSnapshot?.([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, idMiembros]);

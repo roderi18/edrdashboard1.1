@@ -1005,6 +1005,13 @@ async function updateMessageAction({
   }
 
   if (action === 'react') {
+    if (messageData.eliminado) {
+      throw new ChatMessageValidationError(
+        'No se puede reaccionar a un mensaje eliminado.',
+        'CHAT_MESSAGE_ALREADY_DELETED'
+      );
+    }
+
     const normalizedReaction = normalizeChatReaction(reaction);
     const reactionKey = String(viewerIdMiembros || 'usuario');
     const currentReactions = messageData.reacciones ?? {};
@@ -1173,6 +1180,7 @@ async function updateConversationAction({
   makeAdmin = false,
   groupName = '',
   groupAvatarUrl = '',
+  isTyping = true,
   chatStore,
 }) {
   const existingConversation = await getConversationDoc(conversationId, chatStore);
@@ -1214,10 +1222,18 @@ async function updateConversationAction({
       throw new Error('No se pudo identificar el miembro que está escribiendo.');
     }
 
+    const viewerKey = String(viewerId);
+    const escribiendoPorIdMiembros = isTyping ? { [viewerKey]: nowIso() } : {};
+
     await chatStore.setDocument(
       conversationPath,
-      { escribiendoPorIdMiembros: { [String(viewerId)]: nowIso() } },
-      { merge: true }
+      { escribiendoPorIdMiembros },
+      {
+        merge: true,
+        // Actualiza únicamente la entrada de este miembro. Así dos personas
+        // pueden escribir simultáneamente sin sobrescribirse entre sí.
+        fieldPaths: [`escribiendoPorIdMiembros.\`${viewerKey}\``],
+      }
     );
 
     return null;
@@ -1822,6 +1838,7 @@ export async function PATCH(req) {
           makeAdmin: Boolean(body.makeAdmin),
           groupName: body.groupName,
           groupAvatarUrl: body.groupAvatarUrl,
+          isTyping: body.isTyping !== false,
           chatStore,
         })
       : await updateMessageAction({

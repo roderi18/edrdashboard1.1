@@ -128,3 +128,24 @@ test('confirma cambios relacionados en una sola operación atómica', async () =
   assert.deepEqual(body.writes[0].updateMask.fieldPaths, ['texto']);
   assert.match(body.writes[1].update.name, /auditoria\/evento-1$/);
 });
+
+test('permite actualizar un campo anidado sin sobrescribir el mapa completo', async () => {
+  let requestedUrl = '';
+  const client = createChatFirestoreRestClient({
+    projectId: 'demo',
+    token: 'token-firebase',
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return jsonResponse(firestoreDocument('conversaciones_chat/chat-1'));
+    },
+  });
+
+  await client.setDocument(
+    'conversaciones_chat/chat-1',
+    { escribiendoPorIdMiembros: { 42: '2026-08-06T12:00:00.000Z' } },
+    { merge: true, fieldPaths: ['escribiendoPorIdMiembros.`42`'] }
+  );
+
+  assert.match(requestedUrl, /updateMask\.fieldPaths=escribiendoPorIdMiembros/);
+  assert.match(decodeURIComponent(requestedUrl), /escribiendoPorIdMiembros\.`42`/);
+});
