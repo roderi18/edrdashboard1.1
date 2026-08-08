@@ -1,9 +1,11 @@
 'use client';
 
-import { ToggleButton, ToggleButtonGroup } from '@mui/material';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { useState, useEffect } from 'react';
+
+import { useTheme, ToggleButton , useMediaQuery, ToggleButtonGroup } from '@mui/material';
+
 import { Iconify } from 'src/components/iconify';
-import { useEffect, useState } from 'react';
+
 export function ViewModeToggle({ value, onChange, storageKey }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Popover from '@mui/material/Popover';
+
 import Box from '@mui/material/Box';
+import Popover from '@mui/material/Popover';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 export function MobileInfoPopover({ children, content }) {

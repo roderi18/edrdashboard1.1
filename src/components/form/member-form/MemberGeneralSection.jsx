@@ -114,9 +114,7 @@ export default function MemberGeneralSection({
                 <Field.Text
                     name="email"
                     label="Correo electrónico"
-                    placeholder="Sin registros"
                     disabled={readOnly}
-                    slotProps={{ inputLabel: { shrink: true } }}
                 />
             )}
         </>

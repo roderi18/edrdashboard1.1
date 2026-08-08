@@ -3,6 +3,8 @@ import { Controller, useFormContext } from 'react-hook-form';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 
+import { buildEmptyReadOnlyProps } from 'src/components/empty-readonly-field';
+
 // ----------------------------------------------------------------------
 
 const getDefaultOptionKey = (option, index) => {
@@ -27,7 +29,19 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
     <Controller
       name={name}
       control={control}
-      render={({ field, fieldState: { error } }) => (
+      render={({ field, fieldState: { error } }) => {
+        // El valor puede venir controlado desde fuera (p. ej. LocationSelect pasa
+        // su propio `value`); si no, se usa el del formulario.
+        const currentValue =
+          autocompleteProps.value !== undefined ? autocompleteProps.value : field.value;
+        const emptyReadOnly = buildEmptyReadOnlyProps({
+          notEditable: Boolean(autocompleteProps.disabled),
+          value: currentValue,
+          placeholder,
+          slotProps: textField?.slotProps,
+        });
+
+        return (
         <Autocomplete
           {...field}
           id={`${name}-rhf-autocomplete`}
@@ -55,15 +69,19 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
               {...params}
               {...textField}
               label={label}
-              placeholder={placeholder}
+              placeholder={emptyReadOnly?.placeholder ?? placeholder}
               error={!!error}
               helperText={error?.message ?? helperText}
               slotProps={{
                 ...textField?.slotProps,
+                ...emptyReadOnly?.slotProps,
                 htmlInput: {
                   ...params.inputProps,
                   ...textField?.slotProps?.htmlInput,
                   autoComplete: 'new-password', // Disable autocomplete and autofill
+                  ...(emptyReadOnly && {
+                    sx: { ...textField?.slotProps?.htmlInput?.sx, ...emptyReadOnly.inputSx },
+                  }),
                 },
               }}
             />
@@ -79,7 +97,8 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
           {...autocompleteProps}
           forcePopupIcon={hidePopupIcon ? false : autocompleteProps.forcePopupIcon}
         />
-      )}
+        );
+      }}
     />
   );
 }

@@ -4,6 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import { MaskedField } from 'src/components/masked-field';
+import { EmptyReadOnlyField } from 'src/components/empty-readonly-field';
 
 // 🔥 BUILDER
 const buildSectores = (distritos, secciones, barrios) => {
@@ -70,7 +71,7 @@ export default function LocationSelect({ disabled = false, masked = false }) {
         <>
             {/* PROVINCIA */}
             {masked && !hasRegisteredValue(provinceId) ? (
-                <MaskedField label="Provincia" mask="Sin registros" />
+                <EmptyReadOnlyField label="Provincia" />
             ) : (
                 <Field.Autocomplete
                     name="provinceId"
@@ -92,7 +93,7 @@ export default function LocationSelect({ disabled = false, masked = false }) {
 
             {/* MUNICIPIO */}
             {masked && !hasRegisteredValue(municipioId) ? (
-                <MaskedField label="Municipio" mask="Sin registros" />
+                <EmptyReadOnlyField label="Municipio" />
             ) : (
                 <Field.Autocomplete
                     name="municipioId"
@@ -120,11 +121,11 @@ export default function LocationSelect({ disabled = false, masked = false }) {
 
             {/* SECTOR */}
             {masked ? (
-                <MaskedField
-                    label="Sector"
-                    mask={hasRegisteredValue(sectorId) ? undefined : 'Sin registros'}
-                    preset={hasRegisteredValue(sectorId) ? 'text' : undefined}
-                />
+                hasRegisteredValue(sectorId) ? (
+                    <MaskedField label="Sector" preset="text" />
+                ) : (
+                    <EmptyReadOnlyField label="Sector" />
+                )
             ) : (
                 <Field.Autocomplete
                     name="sectorId"
@@ -151,11 +152,11 @@ export default function LocationSelect({ disabled = false, masked = false }) {
             )}
 
             {masked ? (
-                <MaskedField
-                    label="Calle / Número"
-                    mask={hasRegisteredValue(street) ? undefined : 'Sin registros'}
-                    preset={hasRegisteredValue(street) ? 'text' : undefined}
-                />
+                hasRegisteredValue(street) ? (
+                    <MaskedField label="Calle / Número" preset="text" />
+                ) : (
+                    <EmptyReadOnlyField label="Calle / Número" />
+                )
             ) : (
                 <NameInput
                     name="street"

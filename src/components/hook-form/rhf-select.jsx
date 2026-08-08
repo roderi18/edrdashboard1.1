@@ -10,6 +10,8 @@ import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 
+import { EMPTY_READONLY_SX, isEmptyFieldValue, EMPTY_READONLY_TEXT } from 'src/components/empty-readonly-field';
+
 import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
@@ -18,6 +20,8 @@ export function RHFSelect({ name, children, helperText, slotProps = {}, ...other
   const { control } = useFormContext();
 
   const labelId = `${name}-select`;
+  // Campo no editable: deshabilitado o marcado como solo lectura.
+  const notEditable = Boolean(other.disabled || slotProps?.input?.readOnly);
 
   const baseSlotProps = {
     select: {
@@ -38,19 +42,38 @@ export function RHFSelect({ name, children, helperText, slotProps = {}, ...other
     <Controller
       name={name}
       control={control}
-      render={({ field, fieldState: { error } }) => (
-        <TextField
-          {...field}
-          select
-          fullWidth
-          error={!!error}
-          helperText={error?.message ?? helperText}
-          slotProps={merge(baseSlotProps, slotProps)}
-          {...other}
-        >
-          {children}
-        </TextField>
-      )}
+      render={({ field, fieldState: { error } }) => {
+        // Sin valor y sin poder editarlo: el Select no admite placeholder, asi que
+        // se dibuja el texto con `renderValue` (no altera el valor del formulario).
+        const showEmptyText = notEditable && isEmptyFieldValue(field.value);
+        const emptySlotProps = showEmptyText
+          ? {
+              select: {
+                displayEmpty: true,
+                renderValue: () => (
+                  <Box component="span" sx={{ color: 'text.disabled', ...EMPTY_READONLY_SX }}>
+                    {EMPTY_READONLY_TEXT}
+                  </Box>
+                ),
+              },
+              inputLabel: { shrink: true },
+            }
+          : {};
+
+        return (
+          <TextField
+            {...field}
+            select
+            fullWidth
+            error={!!error}
+            helperText={error?.message ?? helperText}
+            slotProps={merge(merge(baseSlotProps, slotProps), emptySlotProps)}
+            {...other}
+          >
+            {children}
+          </TextField>
+        );
+      }}
     />
   );
 }

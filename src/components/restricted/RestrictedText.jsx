@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
+
 import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
+
+import { buildEmptyReadOnlyProps } from 'src/components/empty-readonly-field';
 
 export default function RestrictedText({
     label,
@@ -73,10 +76,20 @@ export default function RestrictedText({
                     ? helperText
                     : '';
 
+    // Sin valor y sin poder editarlo: se muestra "Sin información registrada" como
+    // marcador de posicion (no altera el valor real del campo).
+    const emptyReadOnly = buildEmptyReadOnlyProps({
+        notEditable: Boolean(readOnly || other.disabled),
+        value,
+        placeholder: other.placeholder,
+    });
+
     return (
         <div ref={fieldRef} style={{ display: 'contents' }}>
             <TextField
                 {...other}
+                {...(emptyReadOnly?.placeholder && { placeholder: emptyReadOnly.placeholder })}
+                {...(emptyReadOnly && { slotProps: emptyReadOnly.slotProps })}
                 label={label}
                 value={value}
                 onChange={handleChange}
@@ -97,6 +110,7 @@ export default function RestrictedText({
                 }}
                 inputProps={{
                     maxLength,
+                    ...(emptyReadOnly && { sx: emptyReadOnly.inputSx }),
                 }}
             />
         </div>

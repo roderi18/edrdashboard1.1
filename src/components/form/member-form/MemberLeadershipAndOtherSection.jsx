@@ -11,12 +11,9 @@ import {
 } from 'src/catalogs/member-catalogs';
 
 import { Field } from 'src/components/hook-form';
-import { MaskedField } from 'src/components/masked-field';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import { EmptyReadOnlyField } from 'src/components/empty-readonly-field';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
-
-// Texto para campos sin dato registrado (en solo lectura).
-const NO_REGISTRADO = 'Sin registros';
 
 const getRowsFromApi = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -52,7 +49,7 @@ export default function MemberLeadershipAndOtherSection({
     readOnly = false,
 }) {
     const disabledCore = lockCoreFields || readOnly;
-    // En solo lectura, un campo sin valor se muestra como "Sin registros".
+    // En solo lectura, un campo sin valor se muestra como "Sin informacion registrada".
     const emptyInReadOnly = (value) => readOnly && !value;
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
@@ -85,7 +82,7 @@ export default function MemberLeadershipAndOtherSection({
         >
             {/* Ocupación */}
             {emptyInReadOnly(watch('ocupation')) ? (
-                <MaskedField label="Ocupación" mask={NO_REGISTRADO} />
+                <EmptyReadOnlyField label="Ocupación" />
             ) : (
                 <Field.Autocomplete
                     name="ocupation"
@@ -117,7 +114,7 @@ export default function MemberLeadershipAndOtherSection({
 
             {/* Destacamento */}
             {emptyInReadOnly(watch('destId')) ? (
-                <MaskedField label="Tu Destacamento" mask={NO_REGISTRADO} />
+                <EmptyReadOnlyField label="Tu Destacamento" />
             ) : (
                 <Field.Autocomplete
                     name="destId"
@@ -150,7 +147,7 @@ export default function MemberLeadershipAndOtherSection({
 
             {/* Sexo */}
             {emptyInReadOnly(watch('gender')) ? (
-                <MaskedField label="Sexo" mask={NO_REGISTRADO} />
+                <EmptyReadOnlyField label="Sexo" />
             ) : (
                 <Field.Autocomplete
                     name="gender"
@@ -168,7 +165,7 @@ export default function MemberLeadershipAndOtherSection({
 
             {/* T-shirt */}
             {emptyInReadOnly(watch('shirtSize')) ? (
-                <MaskedField label="Size T-Shirt" mask={NO_REGISTRADO} />
+                <EmptyReadOnlyField label="Size T-Shirt" />
             ) : (
                 <Field.Select name="shirtSize" label="Size T-Shirt" disabled={readOnly}>
                     {MEMBER_SHIRT_SIZES.map((size) => (
