@@ -28,11 +28,16 @@ export function UploadAvatar({
   slotProps,
   helperText,
   loading = false,
+  readOnly = false,
   hideFilesRejected = false,
   ...dropzoneOptions
 }) {
+  // `readOnly` = el usuario no puede subir foto: se oculta el marcador de "Subir
+  // foto" y no se acepta el archivo. A diferencia de `disabled`, NO atenua el
+  // avatar ni altera el circulo (borde, tamaño y posicion se mantienen igual): la
+  // foto del miembro se sigue viendo con normalidad.
   const { getRootProps, getInputProps, isDragActive, isDragReject, fileRejections } = useDropzone({
-    disabled,
+    disabled: disabled || readOnly,
     multiple: false,
     accept: { 'image/*': [] },
     ...dropzoneOptions,
@@ -82,7 +87,7 @@ export function UploadAvatar({
         <input {...getInputProps()} />
         <UploadContent>
           {renderPreview()}
-          {renderPlaceholder()}
+          {!readOnly && renderPlaceholder()}
         </UploadContent>
         {renderLoading()}
       </UploadArea>

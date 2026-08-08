@@ -101,6 +101,7 @@ export default function MemberGeneralSection({
                             {...field}
                             label="Núm. Teléfono"
                             defaultCountry="DO"
+                            disabled={readOnly}
                             inputProps={{ maxLength: 14 }}
                         />
                     )}
@@ -114,6 +115,7 @@ export default function MemberGeneralSection({
                     name="email"
                     label="Correo electrónico"
                     placeholder="Sin registros"
+                    disabled={readOnly}
                     slotProps={{ inputLabel: { shrink: true } }}
                 />
             )}

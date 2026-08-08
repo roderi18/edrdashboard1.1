@@ -45,7 +45,7 @@ const NAV_ITEMS = [
   },
   {
     value: 'gallery',
-    label: 'Galeria',
+    label: 'Galería',
     icon: <Iconify width={24} icon="solar:gallery-wide-bold" />,
   },
 ];
@@ -159,7 +159,8 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
   }, [profileMemberId]);
 
   const currentDisplayName = getDisplayName(sessionUser, mockedUser?.displayName);
-  const currentPhotoURL = sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto || '';
+  const currentPhotoURL =
+    sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto || '';
   const viewerUser =
     sessionUser || useSessionProfile
       ? {
@@ -256,7 +257,13 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
         />
       )}
 
-      <Card sx={{ height: 290 }}>
+      <Card
+        sx={{
+          height: { xs: 260, md: 290 },
+          overflow: 'hidden',
+          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        }}
+      >
         <ProfileCover
           role={profileInfo.role}
           name={user?.displayName}
@@ -276,7 +283,14 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
             justifyContent: { xs: 'center', md: 'flex-end' },
           }}
         >
-          <Tabs value={selectedTab}>
+          <Tabs
+            value={selectedTab}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            aria-label="Secciones del perfil"
+            sx={{ maxWidth: 1 }}
+          >
             {NAV_ITEMS.map((tab) => (
               <Tab
                 component={RouterLink}

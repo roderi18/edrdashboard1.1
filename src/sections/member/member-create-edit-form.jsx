@@ -31,6 +31,7 @@ import { useRouter } from 'src/routes/hooks';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
+import { isGlobalOrgManager } from 'src/utils/org-level-access';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   calcularEstatusCI,
@@ -43,6 +44,7 @@ import {
   normalizeMemberUsername,
 } from 'src/utils/member-auth-credentials';
 import {
+  getOwnDestIdsForUser,
   canApproveMemberChanges,
   isDestacamentoApprovalRole,
   canViewMemberSensitiveData,
@@ -679,6 +681,18 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const [step, setStep] = useState(1);
   const isCreateView = !currentMember;
   const [formErrorMessage, setFormErrorMessage] = useState(false);
+
+  // Subir la foto del miembro queda reservado a los cargos de destacamento y solo
+  // sobre los miembros de SU PROPIO destacamento. Para el resto no se muestra la
+  // opción (el avatar se ve normal, sin atenuar). Los administradores global y
+  // funcional la conservan por ser los responsables del sistema.
+  const isDestacamentoCargo =
+    isCoordinadorDestacamentoRole(user) || isDestacamentoApprovalRole(user);
+  const memberDestId = String(currentMember?.destId ?? currentMember?.idDestacamento ?? '').trim();
+  const isOwnDestMember =
+    Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
+  const canUploadMemberPhoto =
+    isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
 
   const totalSteps = 2;
   const nextStep = () => setStep(2);
@@ -1844,6 +1858,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                   name="avatarUrl"
                   loading={uploadingPhoto}
                   disabled={uploadingPhoto}
+                  readOnly={!canUploadMemberPhoto}
                   onDrop={handleUploadMemberPhoto}
                   optimizationToast={false}
                   onDropRejected={handlePhotoDropRejected}
@@ -2004,6 +2019,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     fullName={memberFullName}
                     destName={destName}
                     avatarUrl={currentMember?.avatarUrl}
+                    // El PDF hereda el mismo enmascarado que la ficha en pantalla.
+                    masked={maskSensitive}
+                    maskBirthdate={maskBirthdate}
                   />
                 </Stack>
               )}

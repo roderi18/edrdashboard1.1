@@ -31,7 +31,16 @@ const getRegionalName = (sectional) => {
 
 // ----------------------------------------------------------------------
 
-export function SectionalCard({ sectional, disabled = false, canViewRegionalDests = false, sx, ...other }) {
+export function SectionalCard({
+  sectional,
+  disabled = false,
+  canViewRegionalDests = false,
+  disabledDestCount = false,
+  sx,
+  ...other
+}) {
+  // Los cargos seccionales solo abren los destacamentos de su propia region.
+  const destCountDisabled = sectional?.disabledDestCount ?? disabledDestCount;
   const sectionalId = getSectionalId(sectional);
   const directorId = getDirectorId(sectional);
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
@@ -70,8 +79,11 @@ export function SectionalCard({ sectional, disabled = false, canViewRegionalDest
               {
                 icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
-                href: sectionalId ? `/dashboard/level/dest?sectional=${sectionalId}` : '',
-                allowWhenDisabled: canViewRegionalDests,
+                href:
+                  sectionalId && !destCountDisabled
+                    ? `/dashboard/level/dest?sectional=${sectionalId}`
+                    : '',
+                allowWhenDisabled: canViewRegionalDests && !destCountDisabled,
               },
             ]
           : []),

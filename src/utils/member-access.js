@@ -7,8 +7,8 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole } from 'src/auth/permissions/can';
-import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+import { PERMISOS_POR_ROL, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
@@ -345,6 +345,17 @@ const resolveSectionIdsForUser = (user = {}, { dests = [], churches = [] } = {})
   }
 
   if (roleId !== ROLES.USUARIO_DESTACAMENTO && scopeMode !== ALCANCES.DESTACAMENTO) {
+    // Cargos seccionales sin seccion explicita en el alcance: se deriva de su
+    // perfil (seccion directa o su propio destacamento -> iglesia -> seccion),
+    // igual que hace `getMemberAllowedDestIds` para acotar la LISTA. Sin esto la
+    // seccion propia quedaba vacia y todo destacamento se trataba como ajeno, lo
+    // que bloqueaba el contador de miembros incluso en la seccion del usuario.
+    if (!sectionIds.size && isSectionScopedMemberViewer(user)) {
+      deriveOwnSectionIds(user, { dests, churches }).forEach((sectionId) =>
+        sectionIds.add(sectionId)
+      );
+    }
+
     return sectionIds;
   }
 
@@ -613,13 +624,25 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
     });
   }
 
-  // Cargos seccionales: consulta acotada a los miembros de SU sección (por sección
-  // directa del miembro, o por su destacamento dentro de la sección).
+  // Cargos seccionales: consulta acotada a los miembros de su REGION (por sección
+  // directa del miembro, o por su destacamento dentro de esas secciones). Va en
+  // par con `getMemberAllowedDestIds`: si vieran los destacamentos de la región
+  // pero solo los miembros de su sección, el contador de Miembros los llevaría a
+  // una lista vacía.
   if (isSectionScopedMemberViewer(user)) {
-    const { dests = [], churches = [] } = context;
+    const { dests = [], churches = [], sectionals = [] } = context;
 
-    // Sección del alcance explícito; si no hay, se deriva de la propia membresía.
-    let sectionIds = new Set(getScopeSectionIds(getMemberScope(user)));
+    const regionIds = getOwnRegionIdsForUser(user, { dests, churches, sectionals });
+    let sectionIds =
+      regionIds.size && sectionals.length
+        ? getSectionIdsInRegions(sectionals, regionIds)
+        : new Set();
+
+    // Sin datos para resolver la región: sección del alcance explícito y, si
+    // tampoco hay, la derivada de la propia membresía.
+    if (!sectionIds.size) {
+      sectionIds = new Set(getScopeSectionIds(getMemberScope(user)));
+    }
     if (!sectionIds.size) {
       sectionIds = new Set(deriveOwnSectionIds(user, { dests, churches }));
     }
@@ -705,13 +728,26 @@ export const getMemberAllowedDestIds = (user, context = {}) => {
     return getDestIdsInSections(dests, churches, getSectionIdsInRegions(sectionals, regionIds));
   }
 
-  // Cargos seccionales: la lista de destacamentos se acota a su sección.
+  // Cargos seccionales: consultan los destacamentos de toda su REGION (no solo los
+  // de su seccion). Fuera de su region no ven nada.
   if (isSectionScopedMemberViewer(user)) {
-    const { dests = [], churches = [] } = context;
+    const { dests = [], churches = [], sectionals = [] } = context;
 
     // Sin lista de destacamentos en el contexto no podemos acotar; no sobre-restringir.
     if (!dests.length) return null;
 
+    const regionIds = getOwnRegionIdsForUser(user, { dests, churches, sectionals });
+
+    if (regionIds.size && sectionals.length) {
+      return getDestIdsInSections(
+        dests,
+        churches,
+        getSectionIdsInRegions(sectionals, regionIds)
+      );
+    }
+
+    // Sin datos para resolver la region (p. ej. secciones aun sin cargar), se cae
+    // al alcance mas estrecho de la seccion propia en vez de abrir la lista entera.
     let sectionIds = new Set(getScopeSectionIds(getMemberScope(user)));
     if (!sectionIds.size) {
       sectionIds = new Set(deriveOwnSectionIds(user, { dests, churches }));
@@ -861,21 +897,22 @@ const puedeEditarPorCatalogo = (user = {}, permiso) =>
 
 export const canViewHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_VER);
 
-const CONSEJO_NACIONAL_HEALTH_VIEWER_ROLE_IDS = new Set([
-  ROLES.MINISTERIOS_INFANTILES_NACIONAL,
-  ROLES.DIRECTOR_NACIONAL,
-  ROLES.CAPELLAN_NACIONAL,
-  ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
-  ROLES.SUBDIRECTOR_NACIONAL,
-  ROLES.COORDINADOR_PROMOCION_NACIONAL,
-  ROLES.COORDINADOR_PRODUCCION_NACIONAL,
-  ROLES.COORDINADOR_PROGRAMA_NACIONAL,
-  ROLES.COMITES_ESPECIALES_NACIONAL,
-  ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
-]);
+// Cargos de SUPERVISION (seccion, region y Consejo Nacional). Consultan la ficha
+// del miembro pero NUNCA la modifican, y en Dispensa Medica tienen el expediente
+// deshabilitado: piden acceso al Coordinador de Destacamento desde el aviso de la
+// ficha. Se derivan de ALCANCE_PREDETERMINADO_ROL (alcances seccion/region/
+// nacional) para que un rol nuevo de esos niveles quede cubierto automaticamente;
+// los cargos de destacamento y los administradores globales no entran aqui.
+const SUPERVISORY_SCOPES = new Set([ALCANCES.SECCION, ALCANCES.REGION, ALCANCES.NACIONAL]);
 
-export const isConsejoNacionalHealthViewer = (user = {}) =>
-  CONSEJO_NACIONAL_HEALTH_VIEWER_ROLE_IDS.has(
+const SUPERVISORY_ROLE_IDS = new Set(
+  Object.entries(ALCANCE_PREDETERMINADO_ROL)
+    .filter(([, alcance]) => SUPERVISORY_SCOPES.has(alcance))
+    .map(([rolId]) => rolId)
+);
+
+export const isSupervisoryMemberViewer = (user = {}) =>
+  SUPERVISORY_ROLE_IDS.has(
     String(
       user?.rolId ||
         user?.roleId ||
@@ -890,18 +927,25 @@ export const isConsejoNacionalHealthViewer = (user = {}) =>
       .toLowerCase()
   );
 
-// Los cargos del Consejo Nacional tienen acceso completo de consulta a Salud,
-// pero nunca modifican el expediente ni gestionan sus documentos.
+// Los cargos de supervision consultan Salud, pero nunca modifican el expediente
+// ni gestionan sus documentos.
 export const canEditHealth = (user = {}) =>
-  !isConsejoNacionalHealthViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.SALUD_EDITAR);
+  !isSupervisoryMemberViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.SALUD_EDITAR);
 
 export const canUploadHealthDocuments = (user = {}) =>
-  !isConsejoNacionalHealthViewer(user) &&
+  !isSupervisoryMemberViewer(user) &&
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
 
 export const canDeleteHealthDocuments = (user = {}) =>
-  !isConsejoNacionalHealthViewer(user) &&
+  !isSupervisoryMemberViewer(user) &&
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
+
+// Edicion de la ficha del miembro (pestaña General). Los cargos de supervision
+// quedan bloqueados por ROL: el catalogo por si solo no basta, porque
+// `normalizarAccesoUsuario` une los permisos del rol con los guardados en el
+// documento del usuario.
+export const canEditMembers = (user = {}) =>
+  !isSupervisoryMemberViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_EDITAR);
 
 export const canAuthorizeMinorHealthAccess = (user = {}) =>
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
@@ -951,9 +995,10 @@ export const canViewMemberSensitiveData = (user = {}) => {
     return true;
   }
 
-  // Para los cargos de solo lectura del destacamento, decide únicamente el
-  // catálogo del rol (ignora el permiso heredado del token).
-  if (SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS.has(roleId)) {
+  // Para los cargos de solo lectura del destacamento y los de supervisión
+  // (sección, región y Consejo Nacional), decide únicamente el catálogo del rol
+  // (ignora el permiso heredado del token).
+  if (SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS.has(roleId) || isSupervisoryMemberViewer(user)) {
     return (PERMISOS_POR_ROL[roleId] ?? []).includes(PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES);
   }
 
@@ -1444,20 +1489,32 @@ const buildCustomerShopNavItem = (item = {}) => ({
   deepMatch: true,
 });
 
-const MODULE_PERMISSION_BY_KEY = {
-  asistencia: 'asistencia.ver',
-  destacamentos: 'destacamentos.ver',
-  miembros: 'miembros.ver',
-  secciones: 'secciones.ver',
-  regiones: 'reportes.ver_regionales',
-  productos: 'tienda.ver',
+// Codigos del catalogo que habilitan cada modulo del menu. Se admite MAS DE UNO
+// por modulo: `regiones` agrupa las entradas "Regiones" y "Consejo Nacional", y
+// hay cargos que llegan por el permiso de estructura (`regiones.ver`) y otros por
+// el de reportes (`reportes.ver_regionales`). Basta con tener cualquiera.
+const MODULE_PERMISSION_CODES_BY_KEY = {
+  asistencia: ['asistencia.ver'],
+  destacamentos: ['destacamentos.ver'],
+  miembros: ['miembros.ver'],
+  secciones: ['secciones.ver'],
+  regiones: ['reportes.ver_regionales', 'regiones.ver'],
+  productos: ['tienda.ver'],
+};
+
+const hasAnyModulePermissionCode = (user, moduleKey) => {
+  const permissionCodes = MODULE_PERMISSION_CODES_BY_KEY[moduleKey];
+
+  if (!permissionCodes) return null;
+
+  const granted = getAuthorizationPermissionCodes(user);
+
+  return permissionCodes.some((permissionCode) => granted.includes(permissionCode));
 };
 
 const canViewAdminModule = (permissions = {}, moduleKey, user = {}) => {
   if (!hasExplicitPermissions(permissions)) {
-    const permissionCode = MODULE_PERMISSION_BY_KEY[moduleKey];
-
-    return permissionCode ? getAuthorizationPermissionCodes(user).includes(permissionCode) : true;
+    return hasAnyModulePermissionCode(user, moduleKey) ?? true;
   }
 
   if (!moduleKey) {
@@ -1468,9 +1525,7 @@ const canViewAdminModule = (permissions = {}, moduleKey, user = {}) => {
     return true;
   }
 
-  const permissionCode = MODULE_PERMISSION_BY_KEY[moduleKey];
-
-  return permissionCode ? getAuthorizationPermissionCodes(user).includes(permissionCode) : false;
+  return hasAnyModulePermissionCode(user, moduleKey) ?? false;
 };
 
 const adminModuleByItem = (item) => {

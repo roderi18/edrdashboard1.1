@@ -57,6 +57,10 @@ const CARGOS_SECCIONALES_CONSULTA = [
 // eliminan niveles, no editan miembros, no ven datos sensibles ni menores.
 // Pueden ver (nunca editar) el Sistema de Ascenso y Padres.
 const PERMISOS_COORDINADOR_AREA_SECCION = [
+  // Consulta de la estructura completa de Niveles Organizacionales (Regiones y
+  // Consejo Nacional incluidos), igual que el Coordinador Seccional titular. No
+  // habilita edicion: estos cargos no tienen REGIONES_EDITAR.
+  PERMISOS.REGIONES_VER,
   PERMISOS.SECCIONES_VER,
   PERMISOS.DESTACAMENTOS_VER,
   PERMISOS.MIEMBROS_VER,

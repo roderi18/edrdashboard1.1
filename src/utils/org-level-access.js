@@ -1,4 +1,5 @@
-import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+import { ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
 
 // ----------------------------------------------------------------------
 // Predicados de alcance para niveles organizacionales (regiones, secciones,
@@ -290,6 +291,44 @@ export const canDeleteOrgLevel = (user = {}) => isAdminGlobal(user);
 // ----------------------------------------------------------------------
 
 export const isUnrestrictedOrgViewer = (user = {}) => isFullOrgManager(user);
+
+// Cargos de nivel SECCION y REGION (Coordinador Seccional y Regional, sus
+// asistentes, los coordinadores de area de ambos niveles y los cargos de consulta
+// —capellanes, Secretario Regional, Zonas, Grupos Locales—). Se derivan de
+// ALCANCE_PREDETERMINADO_ROL para que cualquier rol que se agregue a esos niveles
+// quede incluido sin tocar esta lista.
+const SECTION_OR_REGION_LEVEL_ROLES = new Set(
+  Object.entries(ALCANCE_PREDETERMINADO_ROL)
+    .filter(([, alcance]) => alcance === ALCANCES.SECCION || alcance === ALCANCES.REGION)
+    .map(([rolId]) => rolId)
+);
+
+// Navegacion de la ESTRUCTURA (contadores de secciones y destacamentos) en las
+// listas de niveles: los cargos seccionales y regionales pueden abrirla para
+// CUALQUIER entidad, no solo la propia. Es consulta de estructura, no de personas:
+// el contador de MIEMBROS sigue acotado por `isForeign*ForMembers`.
+export const canBrowseOrgStructureCounts = (user = {}) =>
+  isUnrestrictedOrgViewer(user) || SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user));
+
+// Cargo de nivel seccion o region (sin incluir los nacionales). Se usa para los
+// textos de la ficha del miembro, donde el motivo de la restriccion es distinto
+// al del Consejo Nacional.
+export const isSectionOrRegionLevelRole = (user = {}) =>
+  SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user));
+
+// Cargos de nivel SECCION (Coordinador Seccional, su asistente, los coordinadores
+// de area seccional y los cargos de consulta seccional).
+const SECTION_LEVEL_ROLES = new Set(
+  Object.entries(ALCANCE_PREDETERMINADO_ROL)
+    .filter(([, alcance]) => alcance === ALCANCES.SECCION)
+    .map(([rolId]) => rolId)
+);
+
+// Excepcion sobre `canBrowseOrgStructureCounts`: los cargos seccionales navegan
+// las SECCIONES de cualquier region, pero los DESTACAMENTOS solo los de su propia
+// region. Los cargos regionales y los supervisores plenos no tienen este limite.
+export const isSectionLevelRole = (user = {}) =>
+  !isUnrestrictedOrgViewer(user) && SECTION_LEVEL_ROLES.has(getOrgRoleId(user));
 
 // Los `ownRegionIds`/`ownSectionIds`/`ownDestIds` son opcionales: cuando la vista
 // los calcula (incluyendo la DERIVACION desde el destacamento/seccion del

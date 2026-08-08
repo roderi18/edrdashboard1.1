@@ -24,7 +24,9 @@ import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import {
   canEditRegional,
   canDeleteOrgLevel,
+  isSectionLevelRole,
   isForeignRegionForMembers,
+  canBrowseOrgStructureCounts,
 } from 'src/utils/org-level-access';
 
 import { _roles } from 'src/_mock';
@@ -141,6 +143,14 @@ export function RegionalListView() {
   const [tableData, setTableData] = useState([]);
   const [tableLoading, setTableLoading] = useState(true);
   const [ownRegionIds, setOwnRegionIds] = useState(() => new Set());
+
+  // Los cargos seccionales y regionales navegan la ESTRUCTURA de cualquier región
+  // (contadores de Secciones y Destacamentos). El contador de Miembros sigue
+  // acotado a su propia región.
+  const canBrowseStructure = canBrowseOrgStructureCounts(user);
+  // Excepción: los cargos de nivel sección solo entran a los Destacamentos de su
+  // propia región (las Secciones sí las ven en todas).
+  const destCountLimitedToOwnRegion = isSectionLevelRole(user);
 
   useEffect(() => {
     async function loadRegionals() {
@@ -435,10 +445,20 @@ export function RegionalListView() {
                         editHref={paths.dashboard.level.regional.edit(row.id)}
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
-                        disabledCounts={isForeignRegionForMembers(user, {
-                          regionId: row.id,
-                          ownRegionIds,
-                        })}
+                        disabledCounts={
+                          !canBrowseStructure &&
+                          isForeignRegionForMembers(user, {
+                            regionId: row.id,
+                            ownRegionIds,
+                          })
+                        }
+                        disabledDestCount={
+                          (!canBrowseStructure || destCountLimitedToOwnRegion) &&
+                          isForeignRegionForMembers(user, {
+                            regionId: row.id,
+                            ownRegionIds,
+                          })
+                        }
                         lockMemberCount={isForeignRegionForMembers(user, {
                           regionId: row.id,
                           ownRegionIds,
@@ -473,10 +493,18 @@ export function RegionalListView() {
           <RegionalCardList
             regionals={dataFiltered.map((row) => ({
               ...row,
-              disabledCounts: isForeignRegionForMembers(user, {
-                regionId: row.id,
-                ownRegionIds,
-              }),
+              disabledCounts:
+                !canBrowseStructure &&
+                isForeignRegionForMembers(user, {
+                  regionId: row.id,
+                  ownRegionIds,
+                }),
+              disabledDestCount:
+                (!canBrowseStructure || destCountLimitedToOwnRegion) &&
+                isForeignRegionForMembers(user, {
+                  regionId: row.id,
+                  ownRegionIds,
+                }),
             }))}
           />
         )}

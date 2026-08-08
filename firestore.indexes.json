@@ -9,6 +9,14 @@
         { "fieldPath": "actualizadoEn", "order": "DESCENDING" },
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "publicaciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "autorIdMiembros", "order": "ASCENDING" },
+        { "fieldPath": "fechaCreacion", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

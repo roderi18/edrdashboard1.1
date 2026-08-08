@@ -2,11 +2,11 @@ import {
   doc,
   query,
   where,
-  setDoc,
   getDoc,
   getDocs,
   updateDoc,
   collection,
+  writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -227,18 +227,33 @@ export async function aceptarSolicitudAmistadPrincipal({ solicitud, usuario = {}
   const idsMiembros = [solicitanteIdMiembros, usuarioIdMiembros].sort((a, b) => a - b);
   const idAmistad = `amistad_${idsMiembros.join('_')}`;
   const fechaRespuesta = new Date().toISOString();
-
-  await updateDoc(
-    doc(FIRESTORE, COLECCIONES_SOCIALES.solicitudesAmistad, solicitud.idSolicitudAmistad),
-    {
-      estado: ESTADO_ACEPTADA,
-      fechaRespuesta,
-      fechaActualizacion: fechaRespuesta,
-      actualizadoEnServidor: serverTimestamp(),
-    }
+  const solicitudRef = doc(
+    FIRESTORE,
+    COLECCIONES_SOCIALES.solicitudesAmistad,
+    solicitud.idSolicitudAmistad
   );
+  const solicitudSnapshot = await getDoc(solicitudRef);
 
-  await setDoc(
+  if (!solicitudSnapshot.exists()) throw new Error('La solicitud ya no está disponible.');
+
+  const solicitudActual = solicitudSnapshot.data() || {};
+
+  if (Number(solicitudActual.destinatarioIdMiembros) !== Number(usuarioIdMiembros)) {
+    throw new Error('No puedes responder una solicitud dirigida a otra persona.');
+  }
+
+  if ((solicitudActual.estado || ESTADO_PENDIENTE) !== ESTADO_PENDIENTE) {
+    throw new Error('Esta solicitud ya fue respondida.');
+  }
+
+  const batch = writeBatch(FIRESTORE);
+  batch.update(solicitudRef, {
+    estado: ESTADO_ACEPTADA,
+    fechaRespuesta,
+    fechaActualizacion: fechaRespuesta,
+    actualizadoEnServidor: serverTimestamp(),
+  });
+  batch.set(
     doc(FIRESTORE, COLECCIONES_SOCIALES.amistades, idAmistad),
     {
       idAmistad,
@@ -254,24 +269,35 @@ export async function aceptarSolicitudAmistadPrincipal({ solicitud, usuario = {}
     },
     { merge: true }
   );
+  await batch.commit();
 
   return { idAmistad, idsMiembros, estado: ESTADO_ACTIVO };
 }
 
-export async function eliminarSolicitudAmistadPrincipal({ solicitud }) {
+export async function eliminarSolicitudAmistadPrincipal({ solicitud, usuario = {} }) {
   if (!isFirebaseConfigured || !FIRESTORE || !solicitud?.idSolicitudAmistad) return null;
+
+  const usuarioIdMiembros = getIdMiembros(usuario);
+  const solicitudRef = doc(
+    FIRESTORE,
+    COLECCIONES_SOCIALES.solicitudesAmistad,
+    solicitud.idSolicitudAmistad
+  );
+  const solicitudSnapshot = await getDoc(solicitudRef);
+
+  if (!solicitudSnapshot.exists()) throw new Error('La solicitud ya no está disponible.');
+  if (Number(solicitudSnapshot.data()?.destinatarioIdMiembros) !== Number(usuarioIdMiembros)) {
+    throw new Error('No puedes responder una solicitud dirigida a otra persona.');
+  }
 
   const fechaRespuesta = new Date().toISOString();
 
-  await updateDoc(
-    doc(FIRESTORE, COLECCIONES_SOCIALES.solicitudesAmistad, solicitud.idSolicitudAmistad),
-    {
-      estado: ESTADO_ELIMINADA,
-      fechaRespuesta,
-      fechaActualizacion: fechaRespuesta,
-      actualizadoEnServidor: serverTimestamp(),
-    }
-  );
+  await updateDoc(solicitudRef, {
+    estado: ESTADO_ELIMINADA,
+    fechaRespuesta,
+    fechaActualizacion: fechaRespuesta,
+    actualizadoEnServidor: serverTimestamp(),
+  });
 
   return { idSolicitudAmistad: solicitud.idSolicitudAmistad, estado: ESTADO_ELIMINADA };
 }

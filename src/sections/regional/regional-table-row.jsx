@@ -26,8 +26,13 @@ export function RegionalTableRow({
   canManage = true,
   canDelete = true,
   disabledCounts = false,
+  disabledDestCount,
   lockMemberCount = false,
 }) {
+  // Los destacamentos pueden estar bloqueados aparte de las secciones (p. ej. los
+  // cargos seccionales solo entran a los de su propia region). Si no se especifica,
+  // sigue el mismo estado que el resto de los contadores de estructura.
+  const destCountDisabled = disabledDestCount ?? disabledCounts;
   const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
     (l) =>
       l.level === 'regional' &&
@@ -45,8 +50,8 @@ export function RegionalTableRow({
   // Para cargos con visibilidad de solo lectura (p. ej. Lider de Grupo) los
   // contadores de secciones/destacamentos/miembros se muestran atenuados y sin
   // enlace.
-  const renderCount = (value, href) =>
-    disabledCounts ? (
+  const renderCount = (value, href, disabled = disabledCounts) =>
+    disabled ? (
       <Box component="span" sx={{ color: 'text.disabled' }}>
         {value}
       </Box>
@@ -100,7 +105,11 @@ export function RegionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {renderCount(row.regionalXSectionalXDestCount, `/dashboard/level/dest?region=${row.id}`)}
+          {renderCount(
+            row.regionalXSectionalXDestCount,
+            `/dashboard/level/dest?region=${row.id}`,
+            destCountDisabled
+          )}
         </Box>
       </TableCell>
 

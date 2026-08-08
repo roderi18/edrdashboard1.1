@@ -11,10 +11,7 @@ import {
   markConversationDelivered,
 } from 'src/actions/chat';
 
-import {
-  getActiveTypingState,
-  getConversationDeliveryMarker,
-} from '../utils/realtime-sync.mjs';
+import { getActiveTypingState, getConversationDeliveryMarker } from '../utils/realtime-sync.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -73,64 +70,97 @@ export function useChatRealtimeSync({
     deliveredMarkersRef.current.clear();
     conversationMarkersRef.current.clear();
 
-    const conversationsQuery = query(
-      collection(FIRESTORE, COLECCION_CONVERSACIONES),
-      where('participantesIds', 'array-contains', Number(idMiembros)),
+    const conversationsRef = collection(FIRESTORE, COLECCION_CONVERSACIONES);
+    const viewerFilter = where('participantesIds', 'array-contains', Number(idMiembros));
+
+    // Consulta preferida: acota la escucha a la ventana reciente, pero exige el
+    // indice compuesto (participantesIds + eliminada + actualizadoEn) declarado en
+    // firestore.indexes.json.
+    const indexedQuery = query(
+      conversationsRef,
+      viewerFilter,
       where('eliminada', '==', false),
       orderBy('actualizadoEn', 'desc'),
       limit(RECENT_CONVERSATIONS_WINDOW)
     );
 
-    const unsubscribe = onSnapshot(
-      conversationsQuery,
-      (snapshot) => {
-        let shouldRevalidate = false;
+    // Reserva mientras ese indice no este publicado: `array-contains` por si sola
+    // se resuelve con el indice de campo automatico. Escucha TODAS las
+    // conversaciones del usuario y descarta las eliminadas en el handler.
+    const fallbackQuery = query(conversationsRef, viewerFilter);
 
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'removed') {
-            deliveredMarkersRef.current.delete(change.doc.id);
-            conversationMarkersRef.current.delete(change.doc.id);
-            shouldRevalidate = true;
-            return;
-          }
-          if (!['added', 'modified'].includes(change.type)) return;
+    const handleSnapshot = (snapshot) => {
+      let shouldRevalidate = false;
 
-          const conversation = change.doc.data();
-          const conversationMarker = JSON.stringify([
-            conversation.actualizadoEn,
-            conversation.ultimoMensaje,
-            conversation.nombreGrupo,
-            conversation.avatarGrupoUrl,
-            conversation.participantesIds,
-            conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
-            conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
-          ]);
-          const deliveryMarker = getConversationDeliveryMarker({
-            conversation,
-            currentMemberId: idMiembros,
-          });
+      snapshot.docChanges().forEach((change) => {
+        // Con la consulta de reserva, una conversacion eliminada llega como
+        // 'modified' (no sale del resultado); se trata igual que un 'removed'.
+        if (change.type === 'removed' || change.doc.data()?.eliminada === true) {
+          deliveredMarkersRef.current.delete(change.doc.id);
+          conversationMarkersRef.current.delete(change.doc.id);
+          shouldRevalidate = true;
+          return;
+        }
+        if (!['added', 'modified'].includes(change.type)) return;
 
-          if (conversationMarkersRef.current.get(change.doc.id) !== conversationMarker) {
-            conversationMarkersRef.current.set(change.doc.id, conversationMarker);
-            shouldRevalidate = true;
-          }
-
-          if (!deliveryMarker) return;
-
-          if (deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) return;
-          deliveredMarkersRef.current.set(change.doc.id, deliveryMarker);
-
-          void markConversationDelivered(change.doc.id);
+        const conversation = change.doc.data();
+        const conversationMarker = JSON.stringify([
+          conversation.actualizadoEn,
+          conversation.ultimoMensaje,
+          conversation.nombreGrupo,
+          conversation.avatarGrupoUrl,
+          conversation.participantesIds,
+          conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
+          conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
+        ]);
+        const deliveryMarker = getConversationDeliveryMarker({
+          conversation,
+          currentMemberId: idMiembros,
         });
 
-        if (shouldRevalidate) revalidateConversations();
-      },
-      (error) => {
-        console.error('[chat] error en el listener de conversaciones', error);
-      }
-    );
+        if (conversationMarkersRef.current.get(change.doc.id) !== conversationMarker) {
+          conversationMarkersRef.current.set(change.doc.id, conversationMarker);
+          shouldRevalidate = true;
+        }
 
-    return () => unsubscribe();
+        if (!deliveryMarker) return;
+
+        if (deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) return;
+        deliveredMarkersRef.current.set(change.doc.id, deliveryMarker);
+
+        void markConversationDelivered(change.doc.id);
+      });
+
+      if (shouldRevalidate) revalidateConversations();
+    };
+
+    let active = true;
+    let unsubscribe = () => {};
+
+    const subscribe = (chatQuery, { allowFallback }) =>
+      onSnapshot(chatQuery, handleSnapshot, (error) => {
+        // `failed-precondition` = el indice compuesto todavia no esta publicado en
+        // el proyecto. En vez de dejar el chat sin tiempo real (y con un error en
+        // consola), se reintenta con la consulta que no lo necesita.
+        if (allowFallback && error?.code === 'failed-precondition') {
+          console.warn(
+            '[chat] falta el indice compuesto de conversaciones; se escucha sin acotar la ventana. Publicalo con: firebase deploy --only firestore:indexes'
+          );
+          unsubscribe();
+          if (!active) return;
+          unsubscribe = subscribe(fallbackQuery, { allowFallback: false });
+          return;
+        }
+
+        console.error('[chat] error en el listener de conversaciones', error);
+      });
+
+    unsubscribe = subscribe(indexedQuery, { allowFallback: true });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, idMiembros]);
 

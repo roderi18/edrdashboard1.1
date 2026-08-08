@@ -20,8 +20,11 @@ const getDirectorName = (regional) =>
 
 // ----------------------------------------------------------------------
 
-export function RegionalCard({ regional, disabledCounts = false, sx, ...other }) {
+export function RegionalCard({ regional, disabledCounts = false, disabledDestCount, sx, ...other }) {
   const countsDisabled = regional?.disabledCounts ?? disabledCounts;
+  // Los destacamentos pueden bloquearse aparte de las secciones (los cargos
+  // seccionales solo entran a los de su propia region).
+  const destCountDisabled = regional?.disabledDestCount ?? disabledDestCount ?? countsDisabled;
   const regionalId = getRegionalId(regional);
   const directorId = getDirectorId(regional);
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
@@ -61,7 +64,10 @@ export function RegionalCard({ regional, disabledCounts = false, sx, ...other })
               {
                 icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
-                href: countsDisabled || !regionalId ? '' : `/dashboard/level/dest?region=${regionalId}`,
+                href:
+                  destCountDisabled || !regionalId
+                    ? ''
+                    : `/dashboard/level/dest?region=${regionalId}`,
               },
             ]
           : []),

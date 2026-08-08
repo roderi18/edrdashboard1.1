@@ -28,10 +28,10 @@ import {
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
   isPastorDestacamentoRole,
+  isSupervisoryMemberViewer,
   isDestacamentoApprovalRole,
   isCoordinadorDestacamentoRole,
   canAuthorizeMinorHealthAccess,
-  isConsejoNacionalHealthViewer,
 } from 'src/utils/member-access';
 
 import { crearNotificacionAdmin } from 'src/services/notification-service';
@@ -135,11 +135,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // los campos básicos permitidos; el resto (seguro, medicación, alergias,
     // condiciones y documentos) se muestra ENMASCARADO con asteriscos.
     const limitedHealth = !canViewHealth(user);
-    const isConsejoNacionalHealthViewerRole = isConsejoNacionalHealthViewer(user);
+    const isSupervisoryViewerRole = isSupervisoryMemberViewer(user);
     // Los cargos del Consejo Nacional ven las secciones médicas normalmente,
     // pero los datos del seguro de un menor permanecen enmascarados hasta
     // obtener autorización.
-    const requiresMaskedInsuranceAccess = isMinor && isConsejoNacionalHealthViewerRole;
+    const requiresMaskedInsuranceAccess = isMinor && isSupervisoryViewerRole;
     // Cargos del destacamento que NO entran al flujo de acceso temporal de menores:
     // - Pastor: ve todas las secciones médicas en solo lectura (los desplegables se
     //   abren pero no edita); solo la sección de Documentos queda deshabilitada.
@@ -151,10 +151,16 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     const requiresTemporaryAccess =
         isMinor &&
         !puedeAutorizarAccesoMenores &&
-        !isConsejoNacionalHealthViewerRole &&
+        !isSupervisoryViewerRole &&
         !isPastor &&
         !isGroupLeader;
-    const shouldCheckAccess = requiresTemporaryAccess || requiresMaskedInsuranceAccess;
+    // Cargos de supervisión (sección, región y Consejo Nacional): la Dispensa
+    // Médica les queda BLOQUEADA por completo —secciones sin desplegar y campos
+    // deshabilitados— hasta que un Coordinador de Destacamento les conceda acceso
+    // desde el aviso de la ficha. No depende de que el miembro sea menor.
+    const supervisoryNeedsHealthAccess = isSupervisoryViewerRole;
+    const shouldCheckAccess =
+        requiresTemporaryAccess || requiresMaskedInsuranceAccess || supervisoryNeedsHealthAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;
     const puedeEliminarDocumentos = canDeleteHealthDocuments(user);
     const puedeSubirDocumentos = canUploadHealthDocuments(user);
@@ -189,9 +195,10 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     const maskHealthInsurance =
         limitedHealth || (requiresMaskedInsuranceAccess && !accessPermission);
-    const baseHealthSections = requiresTemporaryAccess
-        ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
-        : TODAS_SECCIONES_ACCESO_SALUD;
+    const baseHealthSections =
+        requiresTemporaryAccess || supervisoryNeedsHealthAccess
+            ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
+            : TODAS_SECCIONES_ACCESO_SALUD;
     // El Pastor no accede a la sección de Documentos (se deshabilita/enmascara con
     // el mismo mecanismo de secciones); usa el banner de costumbre para solicitar
     // acceso al Coordinador de Destacamento.
@@ -1020,7 +1027,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
                         readOnly={
                             readOnly || !canAccessSection('documentos') || !puedeSubirDocumentos
                         }
-                        compactEmptyState={isConsejoNacionalHealthViewerRole}
+                        compactEmptyState={isSupervisoryViewerRole}
                     />
                 </Box>
 

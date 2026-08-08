@@ -20,17 +20,19 @@ import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import {
-  canEditSectional,
-  canDeleteOrgLevel,
-  isForeignSectionForMembers,
-  canCreateSectionalInRegion,
-} from 'src/utils/org-level-access';
-import {
   getOwnRegionIdsForUser,
   getOwnSectionIdsForUser,
   isRegionWideSectionViewer,
   filterSectionalsByMemberScope,
 } from 'src/utils/member-access';
+import {
+  canEditSectional,
+  canDeleteOrgLevel,
+  isSectionLevelRole,
+  isForeignRegionForMembers,
+  isForeignSectionForMembers,
+  canCreateSectionalInRegion,
+} from 'src/utils/org-level-access';
 
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
@@ -396,6 +398,19 @@ export function SectionalListView() {
     [restrictSections, ownSectionIds]
   );
 
+  // Los cargos de nivel sección solo entran a los Destacamentos de las secciones
+  // de su PROPIA región; en las de otras regiones el contador queda atenuado.
+  const destCountLimitedToOwnRegion = isSectionLevelRole(user);
+  const isDestCountBlocked = useCallback(
+    (row) =>
+      destCountLimitedToOwnRegion &&
+      isForeignRegionForMembers(user, {
+        regionId: row.regionalId,
+        ownRegionIds: ownScope.regionIds,
+      }),
+    [destCountLimitedToOwnRegion, user, ownScope.regionIds]
+  );
+
   return (
     <>
       <DashboardContent>
@@ -548,6 +563,7 @@ export function SectionalListView() {
                         canViewRegionalDests={
                           !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId))
                         }
+                        disabledDestCount={isDestCountBlocked(row)}
                         lockMemberCount={isForeignSectionForMembers(user, {
                           sectionId: row.id,
                           regionId: row.regionalId,
@@ -587,6 +603,7 @@ export function SectionalListView() {
               disabled: isRowDisabled(row),
               canViewRegionalDests:
                 !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId)),
+              disabledDestCount: isDestCountBlocked(row),
             }))}
           />
         )}

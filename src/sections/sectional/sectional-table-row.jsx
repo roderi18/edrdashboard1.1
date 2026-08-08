@@ -26,6 +26,7 @@ export function SectionalTableRow({
   disabled = false,
   lockMemberCount = false,
   canViewRegionalDests = false,
+  disabledDestCount = false,
 }) {
   const directorName = row.memberFullName || 'Desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
@@ -38,9 +39,10 @@ export function SectionalTableRow({
 
   // Cuando la seccion no es la propia del usuario (cargos con visibilidad de
   // toda la region), se muestra en modo consulta: sin enlaces y con el texto
-  // atenuado en todas las celdas.
+  // atenuado en todas las celdas. `disabledDestCount` bloquea aparte el contador
+  // de destacamentos (los cargos seccionales solo abren los de su propia region).
   const renderCount = (value, href) =>
-    disabled && !canViewRegionalDests ? (
+    (disabled && !canViewRegionalDests) || disabledDestCount ? (
       <Box component="span" sx={{ color: 'text.disabled' }}>
         {value}
       </Box>

@@ -3,14 +3,15 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-import { canMemberManageMembers } from 'src/utils/member-access';
+import { canEditMembers, canMemberManageMembers } from 'src/utils/member-access';
 
 import {
-  getResolvedMemberByIdentifier,
   getMemberDirectoryMetadata,
+  getResolvedMemberByIdentifier,
 } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
+
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 
@@ -23,7 +24,12 @@ export default function Page() {
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
   const [availableDests, setAvailableDests] = useState([]);
-  const canManage = !user || user.role !== 'member' ? true : canMemberManageMembers(user);
+  // Editar la ficha exige `miembros.editar` del catálogo, igual que Dispensa
+  // Médica con `salud.editar` y Ascenso con `ascenso.editar`. Sin esta condición
+  // toda sesión de administrador editaba, incluidos los cargos de supervisión
+  // (sección, región y Consejo Nacional), que son de solo consulta.
+  const canManage =
+    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) && canEditMembers(user);
 
   useEffect(() => {
     let cancelled = false;

@@ -10,9 +10,24 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import ListItemText from '@mui/material/ListItemText';
 
+import {
+  canViewMemberAwardsTab,
+  canViewMemberHealthTab,
+  canViewMemberParentsTab,
+  canViewMemberHistoryTab,
+} from 'src/utils/member-access';
+
 import { Iconify } from 'src/components/iconify';
+import { MASK_PRESETS } from 'src/components/masked-field';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { useAuthContext } from 'src/auth/hooks';
+
+// ----------------------------------------------------------------------
+// El PDF refleja EXACTAMENTE lo que el usuario ve en la ficha: si un dato está
+// enmascarado en pantalla (dirección, teléfono, correo, fecha de nacimiento),
+// sale enmascarado en el documento, y las secciones sin permiso ni se ofrecen.
+// El valor real nunca llega al PDF.
 // ----------------------------------------------------------------------
 
 const SECTION_OPTIONS = [
@@ -146,7 +161,16 @@ function Section({ title, children }) {
   );
 }
 
-function MemberInfoPdfDocument({ values, memberCode, fullName, destName, avatarSrc, selectedSections }) {
+function MemberInfoPdfDocument({
+  values,
+  memberCode,
+  fullName,
+  destName,
+  avatarSrc,
+  selectedSections,
+  masked = false,
+  maskBirthdate = false,
+}) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -162,10 +186,17 @@ function MemberInfoPdfDocument({ values, memberCode, fullName, destName, avatarS
         <Section title="General">
           <InfoRow label="Nombres" value={values.firstName} />
           <InfoRow label="Apellidos" value={values.lastName} />
-          <InfoRow label="Fecha de nacimiento" value={values.birthdate} />
+          <InfoRow
+            label="Fecha de nacimiento"
+            value={maskBirthdate ? MASK_PRESETS.date : values.birthdate}
+          />
           <InfoRow label="División" value={values.memberDivision} />
-          <InfoRow label="Teléfono" value={values.phoneNumber} />
-          <InfoRow label="Correo" value={values.email} />
+          <InfoRow
+            label="Dirección"
+            value={masked ? MASK_PRESETS.text : values.address || values.street}
+          />
+          <InfoRow label="Teléfono" value={masked ? MASK_PRESETS.phone : values.phoneNumber} />
+          <InfoRow label="Correo" value={masked ? MASK_PRESETS.text : values.email} />
           <InfoRow label="Destacamento" value={destName} />
           <InfoRow label="Sexo" value={values.gender?.label || values.gender} />
         </Section>
@@ -198,12 +229,31 @@ function MemberInfoPdfDocument({ values, memberCode, fullName, destName, avatarS
   );
 }
 
-export function MemberInfoPdfMenu({ values, memberCode, fullName, destName, avatarUrl }) {
+export function MemberInfoPdfMenu({
+  values,
+  memberCode,
+  fullName,
+  destName,
+  avatarUrl,
+  masked = false,
+  maskBirthdate = false,
+}) {
+  const { user } = useAuthContext();
   const menuActions = usePopover();
   const [selectedSections, setSelectedSections] = useState(['general']);
 
+  // Cada pestaña de la ficha se ofrece en el PDF solo si el usuario puede verla.
+  const canExportSection = {
+    general: true,
+    health: canViewMemberHealthTab(user),
+    awards: canViewMemberAwardsTab(user),
+    parents: canViewMemberParentsTab(user),
+    history: canViewMemberHistoryTab(user),
+  };
+  const availableSections = SECTION_OPTIONS.filter((option) => canExportSection[option.value]);
+
   const handleToggle = (value) => {
-    if (value === 'general') return;
+    if (value === 'general' || !canExportSection[value]) return;
 
     setSelectedSections((current) =>
       current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
@@ -219,7 +269,11 @@ export function MemberInfoPdfMenu({ values, memberCode, fullName, destName, avat
         fullName={fullName}
         destName={destName}
         avatarSrc={avatarSrc}
-        selectedSections={selectedSections}
+        // Doble filtro: aunque el estado arrastrara una sección, solo se exportan
+        // las que el usuario puede ver.
+        selectedSections={selectedSections.filter((section) => canExportSection[section])}
+        masked={masked}
+        maskBirthdate={maskBirthdate}
       />
     ).toBlob();
     const url = URL.createObjectURL(blob);
@@ -250,7 +304,7 @@ export function MemberInfoPdfMenu({ values, memberCode, fullName, destName, avat
         slotProps={{ arrow: { placement: 'top-center' } }}
       >
         <MenuList sx={{ minWidth: 260 }}>
-          {SECTION_OPTIONS.map((option) => (
+          {availableSections.map((option) => (
             <MenuItem key={option.value} onClick={() => handleToggle(option.value)}>
               <Checkbox checked={selectedSections.includes(option.value)} disabled={option.required} />
               <ListItemText primary={option.label} />

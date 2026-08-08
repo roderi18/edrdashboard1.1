@@ -12,24 +12,24 @@ import Typography from '@mui/material/Typography';
 
 import { usePathname } from 'src/routes/hooks';
 
+import { isSectionOrRegionLevelRole } from 'src/utils/org-level-access';
 import {
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
   isPastorDestacamentoRole,
+  isSupervisoryMemberViewer,
   canViewMemberSensitiveData,
-  isConsejoNacionalHealthViewer,
 } from 'src/utils/member-access';
 
+import {
+  obtenerEstadoAccesoSalud,
+  crearSolicitudAccesoSalud,
+} from 'src/services/member-health-access-service';
 import {
   solicitarAccesoInformacionMiembro,
   obtenerCoordinadorDestacamentoInfo,
 } from 'src/services/member-info-access-service';
-import {
-  esMiembroMenorDeEdad,
-  obtenerEstadoAccesoSalud,
-  crearSolicitudAccesoSalud,
-} from 'src/services/member-health-access-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -47,6 +47,15 @@ import { useAuthContext } from 'src/auth/hooks';
 
 const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta por motivos de seguridad, ya que es menor de edad.';
 
+// Para los cargos de sección y región el motivo no es la edad del miembro, sino su
+// nivel de acceso: la información personal queda reservada a los Coordinadores de
+// Destacamento, a quienes pueden solicitarla desde este mismo aviso.
+const SUPERVISORY_HIDDEN_INFO_TEXT =
+  'Por motivos de seguridad, la información personal de los miembros está reservada a los Coordinadores de Destacamento. Puedes solicitar acceso indicando el motivo.';
+
+const getHiddenInfoText = (user) =>
+  isSectionOrRegionLevelRole(user) ? SUPERVISORY_HIDDEN_INFO_TEXT : HIDDEN_INFO_TEXT;
+
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
 const isRestrictedForRoute = (user, pathname = '') => {
@@ -54,7 +63,7 @@ const isRestrictedForRoute = (user, pathname = '') => {
   // datos del seguro enmascarados de menores; el Pastor solicita acceso a la
   // sección de Documentos, que tiene deshabilitada.
   if (pathname.includes('/edit/health')) {
-    return isConsejoNacionalHealthViewer(user) || isPastorDestacamentoRole(user);
+    return isSupervisoryMemberViewer(user) || isPastorDestacamentoRole(user);
   }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
@@ -127,10 +136,11 @@ export function MemberSensitiveInfoBanner({ member }) {
 
   const destId = member?.destId || member?.idDestacamento || null;
   const isHealthRoute = pathname.includes('/edit/health');
-  const isHealthAccessRequest =
-    isHealthRoute &&
-    isConsejoNacionalHealthViewer(user) &&
-    esMiembroMenorDeEdad(member);
+  // Cargos de supervisión (sección, región y Consejo Nacional): tienen la Dispensa
+  // Médica deshabilitada y solicitan acceso al Coordinador de Destacamento. Aplica
+  // a cualquier miembro, no solo a los menores: el expediente completo les queda
+  // en consulta restringida hasta que el Coordinador les conceda el acceso.
+  const isHealthAccessRequest = isHealthRoute && isSupervisoryMemberViewer(user);
   // El Pastor tiene deshabilitada la sección de Documentos de la Dispensa Médica y
   // solicita acceso al Coordinador (flujo de notificación, no el de menores).
   const isPastorDocsRestricted = isHealthRoute && isPastorDestacamentoRole(user);
@@ -245,7 +255,7 @@ export function MemberSensitiveInfoBanner({ member }) {
         sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
       >
         <Typography variant="body2" sx={{ color: 'inherit' }}>
-          {HIDDEN_INFO_TEXT}
+          {getHiddenInfoText(user)}
         </Typography>
 
         <Button

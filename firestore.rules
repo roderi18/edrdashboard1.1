@@ -334,6 +334,95 @@ service cloud.firestore {
         && estadoPresenciaValido();
     }
 
+    // Identidad y autorizacion para la red social de /principal.
+    function tieneIdentidadSocial() {
+      return estaAutenticado()
+        && 'idMiembros' in request.auth.token
+        && request.auth.token.idMiembros is int;
+    }
+
+    function esMiembroSocial(valor) {
+      return tieneIdentidadSocial() && valor == request.auth.token.idMiembros;
+    }
+
+    function esAdministradorSocial() {
+      return estaAutenticado()
+        && (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+          || (
+            exists(rutaAsignacion())
+            && (
+              (
+                'rolId' in get(rutaAsignacion()).data
+                && get(rutaAsignacion()).data.rolId in [
+                  'admin',
+                  'administrador',
+                  'administrador_global',
+                  'administrador_funcional',
+                  'administrador_destacamento',
+                  'administrador_seccion',
+                  'administrador_region'
+                ]
+              )
+              || (
+                'rol' in get(rutaAsignacion()).data
+                && get(rutaAsignacion()).data.rol in [
+                  'admin',
+                  'administrador',
+                  'administrador_global',
+                  'administrador_funcional'
+                ]
+              )
+            )
+          )
+        );
+    }
+
+    function textoSocialValido(valor, maximo, permiteVacio) {
+      return valor is string
+        && valor.size() <= maximo
+        && (permiteVacio || valor.size() > 0);
+    }
+
+    function actualizacionContadoresPublicacionValida() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'cantidadLikes',
+          'cantidadComentarios',
+          'cantidadCompartidos',
+          'cantidadReportes',
+          'fechaActualizacion',
+          'actualizadoEnServidor'
+        ])
+        && request.resource.data.cantidadLikes is int
+        && request.resource.data.cantidadLikes >= 0
+        && request.resource.data.cantidadLikes >= resource.data.cantidadLikes - 1
+        && request.resource.data.cantidadLikes <= resource.data.cantidadLikes + 1
+        && request.resource.data.cantidadComentarios is int
+        && request.resource.data.cantidadComentarios >= resource.data.cantidadComentarios
+        && request.resource.data.cantidadComentarios <= resource.data.cantidadComentarios + 1
+        && request.resource.data.cantidadCompartidos is int
+        && request.resource.data.cantidadCompartidos >= resource.data.cantidadCompartidos
+        && request.resource.data.cantidadCompartidos <= resource.data.cantidadCompartidos + 1
+        && request.resource.data.cantidadReportes is int
+        && request.resource.data.cantidadReportes >= resource.data.cantidadReportes
+        && request.resource.data.cantidadReportes <= resource.data.cantidadReportes + 1;
+    }
+
+    function eliminacionPropiaPublicacionValida() {
+      return esMiembroSocial(resource.data.autorIdMiembros)
+        && request.resource.data.estado == 'eliminado'
+        && request.resource.data.autorIdMiembros == resource.data.autorIdMiembros
+        && request.resource.data.uidAutor == resource.data.uidAutor
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'eliminadoPorIdMiembros',
+          'codigoMiembroEliminadoPor',
+          'fechaEliminacion',
+          'fechaActualizacion',
+          'actualizadoEnServidor'
+        ]);
+    }
+
     match /conversaciones_chat/{idConversacion} {
       allow get: if esParticipante(resource.data);
       allow list: if estaAutenticado()
@@ -420,12 +509,180 @@ service cloud.firestore {
       allow delete: if puedeUsarChat() && resource.data.idMiembros == idMiembro();
     }
 
+    match /publicaciones/{idPublicacion} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idPublicacion == idPublicacion
+        && request.resource.data.uidAutor == request.auth.uid
+        && esMiembroSocial(request.resource.data.autorIdMiembros)
+        && request.resource.data.archivosMultimedia is list
+        && textoSocialValido(request.resource.data.mensaje, 5000,
+          request.resource.data.archivosMultimedia.size() > 0)
+        && request.resource.data.archivosMultimedia.size() <= 10
+        && request.resource.data.visibilidad in ['publico', 'amigos']
+        && request.resource.data.estado == 'activo'
+        && request.resource.data.cantidadLikes == 0
+        && request.resource.data.cantidadComentarios == 0
+        && request.resource.data.cantidadCompartidos == 0
+        && request.resource.data.cantidadReportes == 0;
+      allow update: if tieneIdentidadSocial()
+        && (actualizacionContadoresPublicacionValida() || eliminacionPropiaPublicacionValida());
+      allow delete: if false;
+    }
+
+    match /comentarios_publicaciones/{idComentario} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idComentario == idComentario
+        && request.resource.data.uidAutor == request.auth.uid
+        && esMiembroSocial(request.resource.data.autorIdMiembros)
+        && request.resource.data.idPublicacion is string
+        && exists(/databases/$(database)/documents/publicaciones/$(request.resource.data.idPublicacion))
+        && request.resource.data.imagenURL is string
+        && textoSocialValido(request.resource.data.mensaje, 2000,
+          request.resource.data.imagenURL.size() > 0)
+        && request.resource.data.estado == 'activo';
+      allow update, delete: if false;
+    }
+
+    match /reacciones_publicaciones/{idReaccion} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idReaccion == idReaccion
+        && request.resource.data.idPublicacion is string
+        && exists(/databases/$(database)/documents/publicaciones/$(request.resource.data.idPublicacion))
+        && esMiembroSocial(request.resource.data.usuarioIdMiembros)
+        && request.resource.data.tipoReaccion == 'like'
+        && request.resource.data.estado == 'activo';
+      allow update: if false;
+      allow delete: if esMiembroSocial(resource.data.usuarioIdMiembros);
+    }
+
+    match /publicaciones_ocultas/{idOculta} {
+      allow get, list: if esMiembroSocial(resource.data.usuarioIdMiembros);
+      allow create: if esMiembroSocial(request.resource.data.usuarioIdMiembros)
+        && request.resource.data.idPublicacionOculta == idOculta
+        && request.resource.data.idPublicacion is string;
+      allow update: if false;
+      allow delete: if esMiembroSocial(resource.data.usuarioIdMiembros);
+    }
+
+    match /compartidos_publicaciones/{idCompartido} {
+      allow get: if esMiembroSocial(resource.data.compartidoPorIdMiembros);
+      allow list: if false;
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idCompartido == idCompartido
+        && esMiembroSocial(request.resource.data.compartidoPorIdMiembros)
+        && request.resource.data.idPublicacion is string
+        && exists(/databases/$(database)/documents/publicaciones/$(request.resource.data.idPublicacion))
+        && request.resource.data.tipoDestino in ['enlace', 'chat', 'nativo'];
+      allow update, delete: if false;
+    }
+
+    match /reportes_publicaciones/{idReporte} {
+      allow get: if esAdministradorSocial()
+        || esMiembroSocial(resource.data.reportadoPorIdMiembros);
+      allow list: if esAdministradorSocial();
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idReporte == idReporte
+        && esMiembroSocial(request.resource.data.reportadoPorIdMiembros)
+        && request.resource.data.idPublicacion is string
+        && exists(/databases/$(database)/documents/publicaciones/$(request.resource.data.idPublicacion))
+        && textoSocialValido(request.resource.data.razon, 500, false)
+        && request.resource.data.estado == 'pendiente_revision';
+      allow update: if esAdministradorSocial()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'administradorIdMiembros',
+          'notaAdministrador',
+          'fechaResolucion',
+          'actualizadoEnServidor'
+        ]);
+      allow delete: if false;
+    }
+
+    match /galeria_usuarios/{idImagen} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idImagen == idImagen
+        && esMiembroSocial(request.resource.data.usuarioIdMiembros)
+        && request.resource.data.imagenURL is string
+        && request.resource.data.imagenURL.size() > 0
+        && request.resource.data.estado == 'activo';
+      allow update, delete: if esMiembroSocial(resource.data.usuarioIdMiembros);
+    }
+
+    match /solicitudes_amistad/{idSolicitud} {
+      allow get, list: if tieneIdentidadSocial()
+        && (
+          resource.data.solicitanteIdMiembros == request.auth.token.idMiembros
+          || resource.data.destinatarioIdMiembros == request.auth.token.idMiembros
+        );
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idSolicitudAmistad == idSolicitud
+        && esMiembroSocial(request.resource.data.solicitanteIdMiembros)
+        && request.resource.data.destinatarioIdMiembros is int
+        && request.resource.data.destinatarioIdMiembros != request.auth.token.idMiembros
+        && request.resource.data.estado == 'pendiente';
+      allow update: if esMiembroSocial(resource.data.destinatarioIdMiembros)
+        && resource.data.estado == 'pendiente'
+        && request.resource.data.estado in ['aceptada', 'eliminada']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'fechaRespuesta',
+          'fechaActualizacion',
+          'actualizadoEnServidor'
+        ]);
+      allow delete: if false;
+    }
+
+    match /amistades/{idAmistad} {
+      allow get, list: if tieneIdentidadSocial()
+        && request.auth.token.idMiembros in resource.data.idsMiembros;
+      allow create: if tieneIdentidadSocial()
+        && request.resource.data.idAmistad == idAmistad
+        && request.resource.data.idsMiembros is list
+        && request.resource.data.idsMiembros.size() == 2
+        && request.auth.token.idMiembros in request.resource.data.idsMiembros
+        && request.resource.data.estado == 'activo'
+        && request.resource.data.solicitudOrigenId is string
+        && getAfter(/databases/$(database)/documents/solicitudes_amistad/$(request.resource.data.solicitudOrigenId)).data.estado
+          == 'aceptada';
+      allow update, delete: if false;
+    }
+
+    match /seguidores/{idSeguimiento} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create: if tieneIdentidadSocial()
+        && esMiembroSocial(request.resource.data.seguidorIdMiembros)
+        && request.resource.data.seguidoIdMiembros is int
+        && request.resource.data.seguidoIdMiembros != request.auth.token.idMiembros;
+      allow update: if false;
+      allow delete: if esMiembroSocial(resource.data.seguidorIdMiembros);
+    }
+
+    match /anuncios_principal/{idAnuncio} {
+      allow get, list: if tieneIdentidadSocial();
+      allow create, update, delete: if esAdministradorSocial();
+    }
+
     // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar
     // el acceso especial del chat. Las reglas específicas de otros módulos deben
     // continuar endureciéndose en sus propias fases.
     match /{coleccion}/{documento=**} {
       allow read, write: if coleccion != 'conversaciones_chat'
         && coleccion != 'presencia_chat'
+        && coleccion != 'publicaciones'
+        && coleccion != 'comentarios_publicaciones'
+        && coleccion != 'reacciones_publicaciones'
+        && coleccion != 'reportes_publicaciones'
+        && coleccion != 'publicaciones_ocultas'
+        && coleccion != 'compartidos_publicaciones'
+        && coleccion != 'seguidores'
+        && coleccion != 'amistades'
+        && coleccion != 'solicitudes_amistad'
+        && coleccion != 'galeria_usuarios'
+        && coleccion != 'anuncios_principal'
         && estaAutenticado();
     }
   }

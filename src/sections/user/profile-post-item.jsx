@@ -33,6 +33,11 @@ import { useRouter } from 'src/routes/hooks';
 
 import { fShortenNumber } from 'src/utils/format-number';
 import { fDate, fTime, fTimestamp } from 'src/utils/format-time';
+import {
+  PRINCIPAL_LIMITS,
+  PRINCIPAL_IMAGE_ACCEPT,
+  getPrincipalImageValidationError,
+} from 'src/utils/principal-content';
 
 import { CONFIG } from 'src/global-config';
 import { crearNotificacionReportePublicacion } from 'src/services/notification-service';
@@ -70,7 +75,8 @@ const COMMENT_FILTERS = [
   {
     value: 'recientes',
     label: 'Más recientes',
-    description: 'Se muestran todos los comentarios. Los comentarios más recientes aparecerán en primer lugar.',
+    description:
+      'Se muestran todos los comentarios. Los comentarios más recientes aparecerán en primer lugar.',
   },
   {
     value: 'todos',
@@ -79,7 +85,13 @@ const COMMENT_FILTERS = [
   },
 ];
 
-const createPendingComment = ({ message, image, user, idComentarioPadre = '', replyToName = '' }) => ({
+const createPendingComment = ({
+  message,
+  image,
+  user,
+  idComentarioPadre = '',
+  replyToName = '',
+}) => ({
   id: uuidv4(),
   idComentarioPadre,
   replyToName,
@@ -222,6 +234,7 @@ export function ProfilePostItem({
   const [replyMessage, setReplyMessage] = useState('');
   const [replySending, setReplySending] = useState(false);
   const [liked, setLiked] = useState(Boolean(post.isLikedByMe));
+  const [likeSending, setLikeSending] = useState(false);
   const [commentImage, setCommentImage] = useState(null);
   const [commentSending, setCommentSending] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
@@ -291,7 +304,9 @@ export function ProfilePostItem({
   const postLikes = post.personLikes || [];
   const currentUserAlreadyListed = postLikes.some(
     (person) =>
-      (person.idMiembros && user?.idMiembros && Number(person.idMiembros) === Number(user.idMiembros)) ||
+      (person.idMiembros &&
+        user?.idMiembros &&
+        Number(person.idMiembros) === Number(user.idMiembros)) ||
       (person.name && user?.displayName && person.name === user.displayName)
   );
   const displayedLikes =
@@ -304,8 +319,8 @@ export function ProfilePostItem({
     Boolean(authorIdMiembros && userIdMiembros && authorIdMiembros === userIdMiembros) ||
     Boolean(
       author?.codigoMiembro &&
-        user?.codigoMiembro &&
-        String(author.codigoMiembro) === String(user.codigoMiembro)
+      user?.codigoMiembro &&
+      String(author.codigoMiembro) === String(user.codigoMiembro)
     );
 
   useEffect(() => {
@@ -323,7 +338,8 @@ export function ProfilePostItem({
     (commentId) =>
       comments.some(
         (comment) =>
-          comment.id === commentId || (comment.replies || []).some((reply) => reply.id === commentId)
+          comment.id === commentId ||
+          (comment.replies || []).some((reply) => reply.id === commentId)
       ),
     [comments]
   );
@@ -332,7 +348,8 @@ export function ProfilePostItem({
     (commentId) =>
       filteredComments.findIndex(
         (comment) =>
-          comment.id === commentId || (comment.replies || []).some((reply) => reply.id === commentId)
+          comment.id === commentId ||
+          (comment.replies || []).some((reply) => reply.id === commentId)
       ),
     [filteredComments]
   );
@@ -424,7 +441,9 @@ export function ProfilePostItem({
   }, []);
 
   const handleInsertEmoji = useCallback((emoji) => {
-    setMessage((currentMessage) => `${currentMessage}${emoji}`);
+    setMessage((currentMessage) =>
+      `${currentMessage}${emoji}`.slice(0, PRINCIPAL_LIMITS.commentMessage)
+    );
   }, []);
 
   const handleAttach = useCallback(() => {
@@ -448,7 +467,14 @@ export function ProfilePostItem({
       const file = event.target.files?.[0];
       event.target.value = '';
 
-      if (!file || !String(file.type || '').startsWith('image/')) return;
+      if (!file) return;
+
+      const validationError = getPrincipalImageValidationError(file);
+
+      if (validationError) {
+        toast.error(validationError);
+        return;
+      }
 
       if (commentImage?.previewUrl) {
         URL.revokeObjectURL(commentImage.previewUrl);
@@ -505,11 +531,14 @@ export function ProfilePostItem({
           comment.id === optimisticComment.id ? { ...nextComment, pending: false } : comment
         )
       );
+      if (commentImage?.previewUrl) URL.revokeObjectURL(commentImage.previewUrl);
     } catch (error) {
       console.error(error);
       setComments((currentComments) =>
         currentComments.map((comment) =>
-          comment.id === optimisticComment.id ? { ...comment, failed: true, pending: false } : comment
+          comment.id === optimisticComment.id
+            ? { ...comment, failed: true, pending: false }
+            : comment
         )
       );
       toast.error('No se pudo enviar el comentario.');
@@ -651,20 +680,21 @@ export function ProfilePostItem({
         },
         razon: nextReason,
         usuario: user,
-      });
+      }).catch(() => null);
 
       if (!notification) {
         saveLocalReportNotification({ post, reason: nextReason, user, url: shareUrl });
       }
-    } catch (error) {
-      console.error(error);
-      saveLocalReportNotification({ post, reason: nextReason, user, url: shareUrl });
-    } finally {
+
       setReported(true);
       setReportReason('');
       setReportDialogOpen(false);
+      toast.success('Reporte enviado al equipo de moderación.');
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.message || 'No se pudo enviar el reporte.');
+    } finally {
       setReportSending(false);
-      toast.success('Reporte enviado al administrador.');
     }
   }, [getPostShareUrl, onReportPost, post, reportReason, user]);
 
@@ -674,8 +704,8 @@ export function ProfilePostItem({
     setShareAnchorEl(null);
 
     try {
-      await onSharePost?.(post, { tipoDestino: 'enlace', urlCompartida: shareUrl }).catch(
-        (error) => console.error(error)
+      await onSharePost?.(post, { tipoDestino: 'enlace', urlCompartida: shareUrl }).catch((error) =>
+        console.error(error)
       );
       await navigator.clipboard?.writeText(shareUrl);
       toast.success('Enlace copiado.');
@@ -853,12 +883,14 @@ export function ProfilePostItem({
     reminderPointerRef.current = { x: event.clientX, y: event.clientY };
   }, []);
 
-  const isPointInsideRect = useCallback((point, rect, tolerance = 4) => (
-    point.x >= rect.left - tolerance &&
-    point.x <= rect.right + tolerance &&
-    point.y >= rect.top - tolerance &&
-    point.y <= rect.bottom + tolerance
-  ), []);
+  const isPointInsideRect = useCallback(
+    (point, rect, tolerance = 4) =>
+      point.x >= rect.left - tolerance &&
+      point.x <= rect.right + tolerance &&
+      point.y >= rect.top - tolerance &&
+      point.y <= rect.bottom + tolerance,
+    []
+  );
 
   const isPointInsideReminderArea = useCallback(
     (point) => {
@@ -874,7 +906,8 @@ export function ProfilePostItem({
         left: Math.min(reminderRect.right, submenuRect.left),
         right: Math.max(reminderRect.right, submenuRect.left),
         top: Math.min(reminderRect.top, submenuRect.top) - 8,
-        bottom: Math.max(reminderRect.bottom, Math.min(submenuRect.bottom, reminderRect.bottom)) + 8,
+        bottom:
+          Math.max(reminderRect.bottom, Math.min(submenuRect.bottom, reminderRect.bottom)) + 8,
       };
 
       return isPointInsideRect(point, bridgeRect, 0);
@@ -887,23 +920,26 @@ export function ProfilePostItem({
     [isPointInsideReminderArea]
   );
 
-  const handleCloseReminderMenuSoon = useCallback((event) => {
-    if (typeof window === 'undefined') {
-      setReminderAnchorEl(null);
-      return;
-    }
+  const handleCloseReminderMenuSoon = useCallback(
+    (event) => {
+      if (typeof window === 'undefined') {
+        setReminderAnchorEl(null);
+        return;
+      }
 
-    if (event?.clientX !== undefined && event?.clientY !== undefined) {
-      reminderPointerRef.current = { x: event.clientX, y: event.clientY };
-    }
+      if (event?.clientX !== undefined && event?.clientY !== undefined) {
+        reminderPointerRef.current = { x: event.clientX, y: event.clientY };
+      }
 
-    clearReminderOpenTimeout();
-    clearReminderCloseTimeout();
+      clearReminderOpenTimeout();
+      clearReminderCloseTimeout();
 
-    if (!isPointerInsideReminderArea()) {
-      setReminderAnchorEl(null);
-    }
-  }, [clearReminderCloseTimeout, clearReminderOpenTimeout, isPointerInsideReminderArea]);
+      if (!isPointerInsideReminderArea()) {
+        setReminderAnchorEl(null);
+      }
+    },
+    [clearReminderCloseTimeout, clearReminderOpenTimeout, isPointerInsideReminderArea]
+  );
 
   const handleOpenReminderMenu = useCallback(
     (event) => {
@@ -1050,18 +1086,12 @@ export function ProfilePostItem({
             <Iconify icon="eva:arrow-ios-forward-fill" width={16} sx={{ ml: 'auto' }} />
           </MenuItem>
 
-          <MenuItem
-            onMouseEnter={handleCloseReminderMenu}
-            onClick={handleHidePost}
-          >
+          <MenuItem onMouseEnter={handleCloseReminderMenu} onClick={handleHidePost}>
             <Iconify icon="solar:eye-closed-bold" />
             Ocultar anuncio
           </MenuItem>
 
-          <MenuItem
-            onMouseEnter={handleCloseReminderMenu}
-            onClick={handleOpenReportDialog}
-          >
+          <MenuItem onMouseEnter={handleCloseReminderMenu} onClick={handleOpenReportDialog}>
             <Iconify icon="solar:flag-bold" />
             Reportar anuncio
           </MenuItem>
@@ -1145,10 +1175,7 @@ export function ProfilePostItem({
       )}
 
       {comment.failed && (
-        <Typography
-          variant="caption"
-          sx={{ mb: 0.5, display: 'block', color: 'error.main' }}
-        >
+        <Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'error.main' }}>
           No se pudo enviar
         </Typography>
       )}
@@ -1204,6 +1231,10 @@ export function ProfilePostItem({
               </IconButton>
             </InputAdornment>
           }
+          inputProps={{
+            maxLength: PRINCIPAL_LIMITS.commentMessage,
+            'aria-label': `Responder a ${comment.author.name}`,
+          }}
           sx={[
             (theme) => ({
               pl: 1.5,
@@ -1391,6 +1422,7 @@ export function ProfilePostItem({
           }
           inputProps={{
             id: `comment-${post.id}-input`,
+            maxLength: PRINCIPAL_LIMITS.commentMessage,
             'aria-label': `Comentario ${post.id}`,
           }}
           sx={[
@@ -1415,7 +1447,7 @@ export function ProfilePostItem({
 
       <input
         type="file"
-        accept="image/*"
+        accept={PRINCIPAL_IMAGE_ACCEPT}
         ref={fileRef}
         style={{ display: 'none' }}
         onChange={handleUploadCommentImage}
@@ -1549,6 +1581,7 @@ export function ProfilePostItem({
           control={
             <Checkbox
               checked={liked}
+              disabled={likeSending}
               color="error"
               icon={<Iconify icon="solar:heart-bold" />}
               checkedIcon={<Iconify icon="solar:heart-bold" />}
@@ -1557,6 +1590,7 @@ export function ProfilePostItem({
                 const previousLiked = liked;
 
                 setLiked(nextLiked);
+                setLikeSending(true);
 
                 try {
                   await onToggleLike?.(post, nextLiked);
@@ -1564,6 +1598,8 @@ export function ProfilePostItem({
                   console.error(error);
                   setLiked(previousLiked);
                   toast.error('No se pudo actualizar el like.');
+                } finally {
+                  setLikeSending(false);
                 }
               }}
               slotProps={{
@@ -1681,11 +1717,11 @@ export function ProfilePostItem({
 
   const renderReportDialog = () => (
     <Dialog fullWidth maxWidth="xs" open={reportDialogOpen} onClose={handleCloseReportDialog}>
-      <DialogTitle>Reportar anuncio</DialogTitle>
+      <DialogTitle>Reportar publicación</DialogTitle>
 
       <DialogContent sx={{ pt: 1 }}>
         <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-          Escribe la razon del reporte. Se enviara una notificacion a los administradores.
+          Explica brevemente el problema. El equipo de moderación revisará el contenido.
         </Typography>
 
         <TextField
@@ -1693,10 +1729,12 @@ export function ProfilePostItem({
           fullWidth
           multiline
           minRows={4}
-          label="Razon"
+          label="Motivo"
           value={reportReason}
           disabled={reportSending}
           onChange={(event) => setReportReason(event.target.value)}
+          slotProps={{ htmlInput: { maxLength: 500 } }}
+          helperText={`${reportReason.length} / 500`}
         />
       </DialogContent>
 
@@ -1718,11 +1756,11 @@ export function ProfilePostItem({
 
   const renderDeleteDialog = () => (
     <Dialog fullWidth maxWidth="xs" open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
-      <DialogTitle>Borrar publicacion</DialogTitle>
+      <DialogTitle>Eliminar publicación</DialogTitle>
 
       <DialogContent sx={{ pt: 1 }}>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Esta accion ocultara la publicacion para todos. Deseas continuar?
+          Esta acción ocultará la publicación para todos. ¿Deseas continuar?
         </Typography>
       </DialogContent>
 
@@ -1764,11 +1802,7 @@ export function ProfilePostItem({
           <Stack>
             <FormControlLabel
               control={
-                <Checkbox
-                  checked
-                  disabled
-                  slotProps={{ input: { 'aria-label': 'Campanita' } }}
-                />
+                <Checkbox checked disabled slotProps={{ input: { 'aria-label': 'Campanita' } }} />
               }
               label="Campanita"
             />
@@ -1851,7 +1885,6 @@ export function ProfilePostItem({
         }}
       >
         Publicación de {authorName}
-
         <IconButton
           onClick={handleClosePreview}
           sx={{
@@ -1895,10 +1928,7 @@ export function ProfilePostItem({
         />
 
         {post.message && (
-          <Typography
-            variant="body2"
-            sx={[(theme) => ({ px: 3, pb: 2, whiteSpace: 'pre-wrap' })]}
-          >
+          <Typography variant="body2" sx={[(theme) => ({ px: 3, pb: 2, whiteSpace: 'pre-wrap' })]}>
             {renderTextWithHashtags(post.message)}
           </Typography>
         )}

@@ -10,6 +10,7 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Popover from '@mui/material/Popover';
+import Skeleton from '@mui/material/Skeleton';
 import InputBase from '@mui/material/InputBase';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -20,6 +21,11 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fNumber } from 'src/utils/format-number';
+import {
+  PRINCIPAL_LIMITS,
+  PRINCIPAL_IMAGE_ACCEPT,
+  getPrincipalImageValidationError,
+} from 'src/utils/principal-content';
 
 import { _appFeatured } from 'src/_mock';
 import {
@@ -51,7 +57,7 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 
 // ----------------------------------------------------------------------
 
-const MAX_POST_IMAGES = 10;
+const MAX_POST_IMAGES = PRINCIPAL_LIMITS.imagesPerPost;
 const BIRTHDAY_PRESET_MESSAGES = [
   'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
   'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
@@ -65,8 +71,12 @@ const getBirthdayDefaultMessage = (friend) =>
 export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ...other }) {
   const router = useRouter();
   const fileRef = useRef(null);
+  const postImagesRef = useRef([]);
   const [feedPosts, setFeedPosts] = useState(posts);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [postsCursor, setPostsCursor] = useState(null);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
   const [publishingPost, setPublishingPost] = useState(false);
   const [postMessage, setPostMessage] = useState('');
   const [postImages, setPostImages] = useState([]);
@@ -91,6 +101,16 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   const friendRequests = socialData.solicitudesAmistad;
   const birthdayFriends = socialData.cumpleanerosHoy;
   const upcomingBirthdays = socialData.proximosCumpleanos;
+  postImagesRef.current = postImages;
+
+  useEffect(
+    () => () => {
+      postImagesRef.current.forEach((image) => {
+        if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
+      });
+    },
+    []
+  );
 
   const loadSocialData = useCallback(async () => {
     try {
@@ -114,14 +134,16 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       setLoadingPosts(true);
 
       try {
-        const nextPosts = await obtenerPublicacionesPrincipal({
+        const page = await obtenerPublicacionesPrincipal({
           usuarioIdMiembros,
           autorIdMiembros,
           mocks: posts,
         });
 
         if (active) {
-          setFeedPosts(nextPosts);
+          setFeedPosts(page.items);
+          setPostsCursor(page.nextCursor);
+          setHasMorePosts(page.hasMore);
         }
       } catch (error) {
         console.error(error);
@@ -142,6 +164,33 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       active = false;
     };
   }, [autorIdMiembros, posts, usuarioIdMiembros]);
+
+  const handleLoadMorePosts = useCallback(async () => {
+    if (!postsCursor || loadingMorePosts) return;
+
+    setLoadingMorePosts(true);
+
+    try {
+      const page = await obtenerPublicacionesPrincipal({
+        usuarioIdMiembros,
+        autorIdMiembros,
+        cursorFecha: postsCursor,
+        mocks: [],
+      });
+
+      setFeedPosts((currentPosts) => {
+        const existingIds = new Set(currentPosts.map((post) => post.id));
+        return [...currentPosts, ...page.items.filter((post) => !existingIds.has(post.id))];
+      });
+      setPostsCursor(page.nextCursor);
+      setHasMorePosts(page.hasMore);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudieron cargar más publicaciones.');
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  }, [autorIdMiembros, loadingMorePosts, postsCursor, usuarioIdMiembros]);
 
   useEffect(() => {
     loadSocialData();
@@ -169,38 +218,56 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   }, []);
 
   const handleInsertEmoji = useCallback((emoji) => {
-    setPostMessage((currentMessage) => `${currentMessage}${emoji}`);
+    setPostMessage((currentMessage) =>
+      `${currentMessage}${emoji}`.slice(0, PRINCIPAL_LIMITS.postMessage)
+    );
   }, []);
 
-  const handleUploadImages = useCallback((event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = '';
+  const handleUploadImages = useCallback(
+    (event) => {
+      const files = Array.from(event.target.files || []);
+      event.target.value = '';
 
-    if (!files.length) return;
+      if (!files.length) return;
 
-    const imageFiles = files.filter((file) => String(file.type || '').startsWith('image/'));
-    const remainingSlots = MAX_POST_IMAGES - postImages.length;
+      const validFiles = files.filter((file) => {
+        const validationError = getPrincipalImageValidationError(file);
 
-    if (remainingSlots <= 0) {
-      toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
-      return;
-    }
+        if (validationError) toast.error(`${file.name}: ${validationError}`);
+        return !validationError;
+      });
+      const remainingSlots = MAX_POST_IMAGES - postImages.length;
 
-    const acceptedFiles = imageFiles.slice(0, remainingSlots);
+      if (remainingSlots <= 0) {
+        toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
+        return;
+      }
 
-    if (acceptedFiles.length < imageFiles.length) {
-      toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
-    }
+      const currentFileKeys = new Set(
+        postImages.map(
+          (image) => `${image.file.name}-${image.file.size}-${image.file.lastModified}`
+        )
+      );
+      const uniqueFiles = validFiles.filter(
+        (file) => !currentFileKeys.has(`${file.name}-${file.size}-${file.lastModified}`)
+      );
+      const acceptedFiles = uniqueFiles.slice(0, remainingSlots);
 
-    setPostImages((currentImages) => [
-      ...currentImages,
-      ...acceptedFiles.map((file, index) => ({
-        id: `post-image-${file.name}-${file.size}-${file.lastModified}-${index}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-      })),
-    ]);
-  }, [postImages.length]);
+      if (acceptedFiles.length < uniqueFiles.length) {
+        toast.error(`Puedes cargar un máximo de ${MAX_POST_IMAGES} imágenes por publicación.`);
+      }
+
+      setPostImages((currentImages) => [
+        ...currentImages,
+        ...acceptedFiles.map((file, index) => ({
+          id: `post-image-${file.name}-${file.size}-${file.lastModified}-${index}`,
+          file,
+          previewUrl: URL.createObjectURL(file),
+        })),
+      ]);
+    },
+    [postImages]
+  );
 
   const handleRemoveImage = useCallback((imageId) => {
     setPostImages((currentImages) =>
@@ -235,8 +302,10 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
       });
       setPostImages([]);
+      toast.success('Publicación creada.');
     } catch (error) {
       console.error(error);
+      toast.error(error?.message || 'No se pudo crear la publicación.');
     } finally {
       setPublishingPost(false);
     }
@@ -394,12 +463,13 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         if (action === 'aceptar') {
           await aceptarSolicitudAmistadPrincipal({ solicitud: request, usuario: user });
         } else {
-          await eliminarSolicitudAmistadPrincipal({ solicitud: request });
+          await eliminarSolicitudAmistadPrincipal({ solicitud: request, usuario: user });
         }
 
         await loadSocialData();
       } catch (error) {
         console.error(error);
+        toast.error(error?.message || 'No se pudo responder la solicitud.');
       }
     },
     [loadSocialData, user]
@@ -679,31 +749,59 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   );
 
   const renderPostInput = () => (
-    <Card sx={{ p: 3 }}>
-      <InputBase
-        multiline
-        fullWidth
-        rows={2}
-        value={postMessage}
-        onChange={handleChangePostMessage}
-        placeholder="Comparte lo que estas pensando..."
-        inputProps={{ id: 'post-input' }}
-        endAdornment={
-          <InputAdornment position="end" sx={{ alignSelf: 'flex-start' }}>
-            <IconButton onClick={(event) => setEmojiAnchorEl(event.currentTarget)}>
-              <Iconify icon="eva:smiling-face-fill" />
-            </IconButton>
-          </InputAdornment>
-        }
-        sx={[
-          (theme) => ({
-            p: 1.5,
-            mb: 2,
-            borderRadius: 1,
-            border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
-          }),
-        ]}
-      />
+    <Card
+      sx={{ p: { xs: 2, sm: 3 }, border: (theme) => `solid 1px ${theme.vars.palette.divider}` }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+        <Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 44, height: 44 }}>
+          {user?.displayName?.charAt(0).toUpperCase()}
+        </Avatar>
+
+        <InputBase
+          multiline
+          fullWidth
+          minRows={2}
+          maxRows={7}
+          value={postMessage}
+          onChange={handleChangePostMessage}
+          placeholder="Comparte una novedad con la comunidad..."
+          inputProps={{
+            id: 'post-input',
+            maxLength: PRINCIPAL_LIMITS.postMessage,
+            'aria-label': 'Texto de la publicación',
+          }}
+          endAdornment={
+            <InputAdornment position="end" sx={{ alignSelf: 'flex-start' }}>
+              <IconButton
+                aria-label="Agregar emoji"
+                onClick={(event) => setEmojiAnchorEl(event.currentTarget)}
+              >
+                <Iconify icon="eva:smiling-face-fill" />
+              </IconButton>
+            </InputAdornment>
+          }
+          sx={[
+            (theme) => ({
+              p: 1.5,
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+              border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
+              '&:focus-within': {
+                borderColor: 'primary.main',
+                boxShadow: `0 0 0 3px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.12)}`,
+              },
+            }),
+          ]}
+        />
+      </Stack>
+
+      <Typography
+        variant="caption"
+        sx={{ mt: 0.75, mb: 2, display: 'block', textAlign: 'right', color: 'text.disabled' }}
+      >
+        {postMessage.length.toLocaleString('es')} /{' '}
+        {PRINCIPAL_LIMITS.postMessage.toLocaleString('es')}
+      </Typography>
 
       {!!postImages.length && (
         <Box sx={{ gap: 1, mb: 3, display: 'flex', flexWrap: 'wrap' }}>
@@ -739,7 +837,13 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-          <Fab size="small" color="inherit" variant="softExtended" onClick={handleAttach}>
+          <Fab
+            size="small"
+            color="inherit"
+            variant="softExtended"
+            aria-label="Adjuntar fotos"
+            onClick={handleAttach}
+          >
             <Iconify icon="solar:gallery-wide-bold" width={24} sx={{ color: 'success.main' }} />
             Fotos
             <Box component="span" sx={{ ml: 0.75, color: 'text.secondary', typography: 'caption' }}>
@@ -750,10 +854,11 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
         <Button
           variant="contained"
+          loading={publishingPost}
           disabled={publishingPost || (!postMessage.trim() && !postImages.length)}
           onClick={handlePublishPost}
         >
-          {publishingPost ? 'Publicando...' : 'Publicar'}
+          Publicar
         </Button>
       </Box>
 
@@ -770,7 +875,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         multiple
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={PRINCIPAL_IMAGE_ACCEPT}
         style={{ display: 'none' }}
         onChange={handleUploadImages}
       />
@@ -782,27 +887,67 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       <Grid size={{ xs: 12, md: 8 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
         {canPublish && renderPostInput()}
 
-        {loadingPosts && (
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Cargando publicaciones...
-          </Typography>
+        {loadingPosts &&
+          Array.from({ length: 2 }, (_, index) => (
+            <Card key={`post-skeleton-${index}`} sx={{ p: 3 }} aria-label="Cargando publicación">
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Skeleton variant="circular" width={44} height={44} />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Skeleton width="38%" />
+                  <Skeleton width="24%" />
+                </Box>
+              </Stack>
+              <Skeleton sx={{ mt: 2 }} />
+              <Skeleton width="72%" />
+              <Skeleton variant="rounded" height={260} sx={{ mt: 2 }} />
+            </Card>
+          ))}
+
+        {!loadingPosts && !feedPosts.length && (
+          <Card sx={{ p: 5, textAlign: 'center' }}>
+            <Iconify
+              icon="solar:posts-carousel-horizontal-bold-duotone"
+              width={52}
+              sx={{ color: 'text.disabled' }}
+            />
+            <Typography variant="h6" sx={{ mt: 1 }}>
+              Aún no hay publicaciones
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
+              Comparte la primera novedad con la comunidad.
+            </Typography>
+          </Card>
         )}
 
-        {feedPosts.map((post) => (
-          <ProfilePostItem
-            key={post.id}
-            post={post}
-            user={user}
-            onAddComment={handleAddComment}
-            onToggleLike={handleToggleLike}
-            onHidePost={handleHidePost}
-            onUndoHidePost={handleUndoHidePost}
-            onSharePost={handleSharePost}
-            onReportPost={handleReportPost}
-            onDeletePost={handleDeletePost}
-            onRememberPost={handleRememberPost}
-          />
-        ))}
+        {!loadingPosts &&
+          feedPosts.map((post) => (
+            <ProfilePostItem
+              key={post.id}
+              post={post}
+              user={user}
+              onAddComment={handleAddComment}
+              onToggleLike={handleToggleLike}
+              onHidePost={handleHidePost}
+              onUndoHidePost={handleUndoHidePost}
+              onSharePost={handleSharePost}
+              onReportPost={handleReportPost}
+              onDeletePost={handleDeletePost}
+              onRememberPost={handleRememberPost}
+            />
+          ))}
+
+        {!loadingPosts && hasMorePosts && (
+          <Button
+            fullWidth
+            size="large"
+            color="inherit"
+            variant="outlined"
+            loading={loadingMorePosts}
+            onClick={handleLoadMorePosts}
+          >
+            Ver más publicaciones
+          </Button>
+        )}
       </Grid>
 
       <Grid size={{ xs: 12, md: 4 }}>
