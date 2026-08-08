@@ -24,6 +24,7 @@ import {
   getSectionScopeIds,
   canCreateDestInSection,
   isSectionScopedManager,
+  canEditDest as canGestionarDestPorAlcance,
 } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
@@ -323,13 +324,19 @@ export function DestCreateEditForm({ currentDest }) {
         ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
         estaDentroDelAlcance(user, currentDestResource)));
+  // Alcance sobre ESTE destacamento para la foto de perfil. Ademas del alcance del
+  // token (`estaDentroDelAlcance`), se acepta `canEditDest`, que resuelve la
+  // seccion del Coordinador Seccional y de su Sub-Coordinador aunque la sesion no
+  // exponga el alcance completo. Sigue acotado: solo los destacamentos de su
+  // seccion, nunca los ajenos.
   const canUploadDestPhoto =
     !isDestacamentoAdmin &&
     (isLegacyAdmin ||
       (isCreateView
         ? canCreateDestInSection(user) || canCreateDestByRole
         : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-        estaDentroDelAlcance(user, currentDestResource)));
+        (estaDentroDelAlcance(user, currentDestResource) ||
+          canGestionarDestPorAlcance(user, currentDestResource))));
   const canEditMeetingSchedule =
     isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
   const canSaveDest = canEditDest || canEditMeetingSchedule;

@@ -92,6 +92,7 @@ service firebase.storage {
             && documentoUsuario('usuarios_roles').data.rolId in [
               'usuario_destacamento',
               'usuario_seccion',
+              'usuario_seccion_asistente',
               'administrador_global'
             ]
           )
