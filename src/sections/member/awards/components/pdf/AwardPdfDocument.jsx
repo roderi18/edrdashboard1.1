@@ -1,10 +1,7 @@
 import {
     Page,
     Text,
-    View,
     Document,
-    PDFViewer,
-    StyleSheet,
 } from '@react-pdf/renderer';
 
 export function AwardPdfDocument({ title, subtitle, fileBase64 }) {

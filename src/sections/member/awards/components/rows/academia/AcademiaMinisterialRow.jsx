@@ -1,8 +1,10 @@
+import dayjs from 'dayjs';
+
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+
 import { getCompletedAwards } from '../../../utils/get-awards-count';
 import { getLastUpdatedFromStorage } from '../../../utils/get-last-updated-from-storage';
-import dayjs from 'dayjs';
 
 export function AcademiaMinisterialRow({ memberId, row, allData = [], onClick, showTarget = false }) {
 

@@ -3,6 +3,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Button from '@mui/material/Button';
 
+import { isDestacamentoApprovalRole } from 'src/utils/member-access';
+
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
@@ -38,6 +40,7 @@ export function SistemaAscensoDeepRow({
   readOnly = false,
 }) {
   const { user } = useAuthContext();
+  const needsApproval = isDestacamentoApprovalRole(user);
   const [status, setLocalStatus] = useState('no_iniciado');
   const [certificateFile, setCertificateFile] = useState(null);
   const [hasCertificate, setHasCertificate] = useState(false);
@@ -61,6 +64,10 @@ export function SistemaAscensoDeepRow({
     },
     metadata,
     user,
+    // El Coordinador de Destacamento y su Asistente cambian el estado directo:
+    // no tienen a quien pedirle aprobacion. Solo la piden los cargos que dependen
+    // de ellos (Pastor, Consejo, Capellan y los Lideres de Grupo).
+    requiresStatusChangeApproval: needsApproval,
     onRequireStatusChangeApproval: (change) => {
       setPendingStatus(change);
       confirmDeleteForStatus.onTrue();
@@ -125,7 +132,13 @@ export function SistemaAscensoDeepRow({
           setPendingStatus(null);
         }}
         title="Solicitar cambio de estado"
-        content="¿Estás seguro de que deseas cambiar un registro que ya está Completado? Si existe un documento anexo, se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación."
+        // La advertencia del documento solo aparece si de verdad hay uno adjunto;
+        // sin archivo no hay nada que eliminar y el aviso confundia.
+        content={
+          (pendingStatus?.hasCertificate ?? hasCertificate)
+            ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El documento anexo se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
+            : '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El estado no cambiará hasta recibir la aprobación.'
+        }
         action={
           <Button
             variant="contained"

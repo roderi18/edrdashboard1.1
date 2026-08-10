@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export function useAwardsFolderNavigation({ table, awardFolders }) {

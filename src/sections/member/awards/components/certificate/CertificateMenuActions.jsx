@@ -1,7 +1,9 @@
-import MenuList from '@mui/material/MenuList';
 import Divider from '@mui/material/Divider';
+import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
+
 import { Iconify } from 'src/components/iconify';
+
 import { DownloadCertificateMenuItem } from './DownloadCertificateMenuItem';
 
 export function CertificateMenuActions({

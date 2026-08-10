@@ -961,6 +961,52 @@ export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCE
 export const canEditAwards = (user = {}) =>
   !isPastorDestacamentoRole(user) && puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
+// --- Academia Ministerial -----------------------------------------------------
+// La Academia Ministerial tiene sus PROPIOS permisos de edicion, distintos del
+// Sistema de Ascenso: la editan los cargos de destacamento, de seccion y de
+// region indicados abajo. Se resuelve con una lista explicita de roles (y no con
+// `puedeEditarPorCatalogo`) a proposito, porque varios de esos cargos son de
+// consulta para los DATOS DEL MIEMBRO (`soloLectura`) y aun asi deben registrar
+// adiestramientos aqui. `soloLectura` sigue protegiendo el resto de la ficha.
+const ACADEMIA_MINISTERIAL_EDITOR_ROLE_IDS = new Set([
+  // Nivel destacamento: los siete cargos de la rama.
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.CONSEJO_DESTACAMENTO,
+  ROLES.CAPELLAN_DESTACAMENTO,
+  ROLES.LIDER_GRUPO,
+  ROLES.LIDER_ASISTENTE_GRUPO,
+  // Nivel seccion, EXCEPTO Zonas y Grupos Locales (quedan como consulta).
+  ROLES.USUARIO_SECCION,
+  ROLES.USUARIO_SECCION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION,
+  ROLES.COORDINADOR_PROMOCION_SECCION,
+  ROLES.COORDINADOR_PRODUCCION_SECCION,
+  ROLES.COORDINADOR_PROGRAMA_SECCION,
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.SECRETARIO_REGIONAL,
+  // Nivel region: todos.
+  ROLES.USUARIO_REGION,
+  ROLES.USUARIO_REGION_ASISTENTE,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_REGION,
+  ROLES.COORDINADOR_PROMOCION_REGION,
+  ROLES.COORDINADOR_PRODUCCION_REGION,
+  ROLES.COORDINADOR_PROGRAMA_REGION,
+  ROLES.CAPELLAN_REGIONAL,
+]);
+
+export const canEditAcademiaMinisterial = (user = {}) =>
+  isLegacyFullDashboardAdmin(user) ||
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL ||
+  ACADEMIA_MINISTERIAL_EDITOR_ROLE_IDS.has(getUserRoleId(user));
+
+// Dentro de la rama de destacamento, todos menos el Coordinador y su Asistente
+// envian sus cambios de Academia Ministerial a APROBACION de ambos. Los cargos de
+// seccion y region registran directo (supervisan, no dependen del destacamento).
+export const academiaMinisterialRequiresApproval = (user = {}) =>
+  isDestacamentoApprovalRole(user);
+
 export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PADRES_VER);
 
 // Roles de administración que ven SIEMPRE la información personal completa del

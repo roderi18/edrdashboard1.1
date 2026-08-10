@@ -1,7 +1,9 @@
+import dayjs from 'dayjs';
+
 import TableCell from '@mui/material/TableCell';
 import ListItemText from '@mui/material/ListItemText';
+
 import { getCompletedAwards } from '../../utils/get-awards-count';
-import dayjs from 'dayjs';
 import { getLastUpdatedFromStorage } from '../../utils/get-last-updated-from-storage';
 
 export function DefaultRow({ memberId, row, allData = [], onClick }) {

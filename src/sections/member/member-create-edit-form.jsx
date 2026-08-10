@@ -899,6 +899,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
   const age = birthdate ? dayjs().diff(dayjs(birthdate), 'year') : null;
 
+  // Todos los Instructores CI son mayores de edad, asi que a un miembro menor de
+  // 18 no se le muestra la seccion de Instructor CI ni se le guarda ningun dato
+  // de certificacion (ver el efecto que fuerza `InstructorCertificadoCI` a 0).
+  const isMinorForInstructorCI = age !== null && age < 18;
+
   // Menores de edad: por defecto su ocupación es "Estudiante" (solo si aún no
   // tienen una ocupación asignada).
   useEffect(() => {
@@ -980,6 +985,18 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       methods.setValue('EstatusVigenciaCI', calcularEstatusCI(vencimiento));
     }
   }, [fechaInicioCI, instructorCI]);
+
+  // Menor de edad: se fuerza "no es Instructor Certificado". El efecto de arriba
+  // se encarga de limpiar en cascada fecha de inicio, vencimiento y estatus, asi
+  // que el dato nunca llega al guardado aunque el campo se hubiera rellenado
+  // antes de corregir la fecha de nacimiento.
+  useEffect(() => {
+    if (!isMinorForInstructorCI) return;
+
+    if (methods.getValues('InstructorCertificadoCI') !== 0) {
+      methods.setValue('InstructorCertificadoCI', 0, { shouldDirty: false });
+    }
+  }, [isMinorForInstructorCI, methods]);
 
   useEffect(() => {
     if (!fechaVencimientoCI) {
@@ -1323,6 +1340,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
         const codigoMiembro = currentMember?.memberId || (await generateMemberId());
         const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
+        // Se recalcula con la fecha que se esta enviando (no con la del render),
+        // para que el bloqueo de Instructor CI valga aunque acaben de cambiarla.
+        const edadAlGuardar = formData.birthdate
+          ? dayjs().diff(dayjs(formData.birthdate), 'year')
+          : null;
+        const esMenorAlGuardar = edadAlGuardar !== null && edadAlGuardar < 18;
 
         if (!currentMember) {
           const existingMembers = await getMembers();
@@ -1378,25 +1401,32 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
               ? legacyCargoInstitucional
               : null,
           idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
-          instructorCertificadoCi:
-            formData.InstructorCertificadoCI === 1
+          // Un menor de edad nunca es Instructor CI: se guarda siempre en blanco,
+          // aunque el formulario trajera valores previos.
+          instructorCertificadoCi: esMenorAlGuardar
+            ? false
+            : formData.InstructorCertificadoCI === 1
               ? true
               : formData.InstructorCertificadoCI === 0
                 ? false
                 : null,
 
           estatusVigenciaCi:
-            formData.EstatusVigenciaCI === 1
-              ? true
-              : formData.EstatusVigenciaCI === 0
-                ? false
-                : null,
-          fechaInicioCertificado: formData.FechaInicioCI
-            ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')
-            : null,
-          fechaFinCertificado: formData.FechaVencimientoCI
-            ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
-            : null,
+            esMenorAlGuardar || formData.EstatusVigenciaCI === 'na'
+              ? null
+              : formData.EstatusVigenciaCI === 1
+                ? true
+                : formData.EstatusVigenciaCI === 0
+                  ? false
+                  : null,
+          fechaInicioCertificado:
+            !esMenorAlGuardar && formData.FechaInicioCI
+              ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')
+              : null,
+          fechaFinCertificado:
+            !esMenorAlGuardar && formData.FechaVencimientoCI
+              ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
+              : null,
         };
 
         const res = await fetch(currentMember ? '/api/members/put/' : '/api/members/post/', {
@@ -2100,8 +2130,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     />
 
                     {/* Instructor CI: oculto por completo para Lider de Grupo /
-                        Lider Asistente de Grupo. */}
-                    {!lockGroupLeaderFields && (
+                        Lider Asistente de Grupo, y para los miembros menores de
+                        18 anos (todos los Instructores CI son mayores de edad). */}
+                    {!lockGroupLeaderFields && !isMinorForInstructorCI && (
                       <MemberInstructorCISection
                         instructorCI={instructorCI}
                         diasRestantesCI={diasRestantesCI}
@@ -2170,8 +2201,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                       lockCoreFields={lockGroupLeaderFields}
                     />
                     {/* Instructor CI: oculto por completo para Lider de Grupo /
-                        Lider Asistente de Grupo. */}
-                    {!lockGroupLeaderFields && (
+                        Lider Asistente de Grupo, y para los miembros menores de
+                        18 anos (todos los Instructores CI son mayores de edad). */}
+                    {!lockGroupLeaderFields && !isMinorForInstructorCI && (
                       <>
                         <Box
                           sx={{

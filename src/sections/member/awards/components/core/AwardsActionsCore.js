@@ -14,6 +14,10 @@ export function createAwardsActions({
   metadata = {},
   user,
   onRequireStatusChangeApproval,
+  // Sacar un premio de "Completado" pasa por aprobacion SOLO para los cargos que
+  // dependen del Coordinador de Destacamento. El propio Coordinador, su Asistente
+  // y los administradores lo cambian directo, sin pedirse permiso a si mismos.
+  requiresStatusChangeApproval = true,
 }) {
   if (
     !system ||
@@ -108,6 +112,7 @@ export function createAwardsActions({
     const existing = getNode(data);
 
     if (
+      requiresStatusChangeApproval &&
       system === 'sistemaAscenso' &&
       existing.status === 'completado' &&
       nextStatus !== 'completado'
@@ -269,7 +274,7 @@ export function createAwardsActions({
     const safe = Math.min(10, Math.max(0, value));
     const existing = getNode(data);
 
-    if (existing.status === 'completado' && safe === 0) {
+    if (requiresStatusChangeApproval && existing.status === 'completado' && safe === 0) {
       onRequireStatusChangeApproval?.({
         nextStatus: 'no_iniciado',
         nextTimesCompleted: 0,

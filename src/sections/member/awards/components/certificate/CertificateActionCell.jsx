@@ -12,8 +12,16 @@ export function CertificateActionCell({
     onView,
     inputId,
     readOnly = false,
+    // Academia Ministerial: el certificado es OBLIGATORIO para dar por completado
+    // un adiestramiento. Por eso hay que poder subirlo ANTES de completarlo (subir
+    // el archivo es justo lo que lo marca como completado); si no, el registro
+    // seria imposible: no se puede completar sin certificado ni subir sin estar
+    // completado.
+    allowUploadBeforeCompleted = false,
 }) {
-    if (!isCompleted) {
+    const canUploadNow = !readOnly && (isCompleted || allowUploadBeforeCompleted);
+
+    if (!isCompleted && !canUploadNow) {
         return (
             <Button size="small" variant="outlined" disabled>
                 N/A
@@ -33,7 +41,7 @@ export function CertificateActionCell({
         );
     }
 
-    if (isCompleted && !hasCertificate) {
+    if (!hasCertificate) {
         return (
             <Box>
                 <Button
@@ -47,7 +55,9 @@ export function CertificateActionCell({
                             : undefined,
                     }}
                     onClick={() => {
-                        if (!completedDate) return;
+                        // Cuando el certificado es obligatorio se sube antes de
+                        // completar, asi que en ese caso no se exige la fecha.
+                        if (!allowUploadBeforeCompleted && !completedDate) return;
                         document.getElementById(inputId)?.click();
                     }}
                 >

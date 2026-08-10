@@ -6,8 +6,11 @@ import Button from '@mui/material/Button';
 import TableCell from '@mui/material/TableCell';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
 import { CertificateActionCell } from 'src/sections/member/awards/components/certificate/CertificateActionCell';
+import {
+  StatusSelectCell,
+  ACADEMIA_STATUS_OPTIONS,
+} from 'src/sections/member/awards/components/status/StatusSelectCell';
 
 export function AwardsActionCells({
   state, // { status, completedDate, hasCertificate, timesCompleted }
@@ -19,6 +22,11 @@ export function AwardsActionCells({
   showTimesCompleted = true,
   onRequireDeleteCertificate,
   readOnly = false, // Usuario Común: solo lectura (no puede agregar/cambiar).
+  // Academia Ministerial: sin certificado adjunto NO se registra el estado
+  // "Completado"; el cambio se descarta y se avisa al usuario.
+  requireCertificateToComplete = false,
+  onMissingCertificate,
+  highlightUpload = false,
 }) {
   const isCompleted = state.status === 'completado';
 
@@ -29,10 +37,22 @@ export function AwardsActionCells({
          ========================= */}
       <StatusSelectCell
         value={state.status}
-        disabled={readOnly}
+        // Sin certificado el estado no se puede tocar: lo determina el documento.
+        // Al adjuntarlo el adiestramiento queda completado y el desplegable se
+        // habilita (para poder volver a "No iniciado", que exige borrar el archivo).
+        disabled={readOnly || (requireCertificateToComplete && !state.hasCertificate)}
+        // En Academia solo caben dos estados: acreditado o no.
+        options={requireCertificateToComplete ? ACADEMIA_STATUS_OPTIONS : undefined}
         hasCertificate={state.hasCertificate}
         onRequireDeleteCertificate={onRequireDeleteCertificate}
         onChange={(value) => {
+          // Sin certificado no se registra "Completado": se descarta el cambio y
+          // se le indica al usuario que primero adjunte el documento.
+          if (requireCertificateToComplete && value === 'completado' && !state.hasCertificate) {
+            onMissingCertificate?.();
+            return;
+          }
+
           actions.setStatus(value);
 
           if (value === 'completado' && !state.completedDate) {
@@ -157,6 +177,8 @@ export function AwardsActionCells({
           onUpload={(cert) => actions.uploadCertificate(cert)}
           onDelete={actions.deleteCertificate}
           readOnly={readOnly}
+          highlightUpload={highlightUpload}
+          allowUploadBeforeCompleted={requireCertificateToComplete}
         />
       </TableCell>
     </>

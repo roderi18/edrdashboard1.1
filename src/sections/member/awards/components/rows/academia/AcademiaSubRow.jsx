@@ -3,6 +3,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Button from '@mui/material/Button';
 
+import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
@@ -102,6 +103,17 @@ export function AcademiaSubRow({
         certificateFile={certificateFile}
         showTimesCompleted={false}
         readOnly={readOnly}
+        // Academia Ministerial: el certificado es obligatorio para registrar el
+        // adiestramiento como completado.
+        requireCertificateToComplete={!readOnly}
+        highlightUpload={highlightUpload}
+        onMissingCertificate={() => {
+          toast.error(
+            'Adjunta el certificado para registrar este adiestramiento como completado.'
+          );
+          setHighlightUpload(true);
+          setTimeout(() => setHighlightUpload(false), 2000);
+        }}
         onRequireDeleteCertificate={(nextStatus) => {
           setPendingStatus(nextStatus);
           confirmDeleteForStatus.onTrue();

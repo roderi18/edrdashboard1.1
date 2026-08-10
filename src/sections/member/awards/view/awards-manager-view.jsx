@@ -1,9 +1,10 @@
 'use client';
 
-import { useState , useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -13,6 +14,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import {
   isDestacamentoApprovalRole,
+  canEditAcademiaMinisterial,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
 
@@ -58,6 +60,22 @@ const ASCENSO_AUDIT_NOTICE = (
   </>
 );
 
+// Aviso de auditoría de Academia Ministerial. No menciona el certificado
+// obligatorio: eso se comunica aparte, en el aviso fijo bajo el buscador.
+const ACADEMIA_AUDIT_NOTICE = (
+  <>
+    Cada cambio en Academia Ministerial queda registrado en el historial del miembro:{' '}
+    <Box component="span" sx={{ textDecoration: 'underline' }}>
+      quién lo hizo, qué se agregó y cuándo
+    </Box>
+    . Es visible para administradores y coordinadores{' '}
+    <Box component="span" sx={{ textDecoration: 'underline' }}>
+      con fines de auditoría y veracidad
+    </Box>
+    , y se notificará a los Coordinadores de Adiestramiento y al Coordinador de Destacamento.
+  </>
+);
+
 const normalizeSearchText = (value) =>
   String(value || '')
     .normalize('NFD')
@@ -100,6 +118,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
 
   const dateRange = useBoolean();
   const confirmDialog = useBoolean();
+  // Aviso del certificado: en movil se muestra recortado y se despliega al pulsarlo.
+  const noticeExpanded = useBoolean();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   useEffect(() => {
@@ -228,6 +248,18 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   const showAscensoAuditNotice =
     isCoordinadorDestacamentoRole(user) || isDestacamentoApprovalRole(user);
 
+  // Academia Ministerial tiene permisos de edicion PROPIOS (cargos de
+  // destacamento, seccion y region), distintos de los del Sistema de Ascenso. Por
+  // eso el `readOnly` que llega de la pagina solo manda fuera de Academia.
+  const isAcademiaContext = isAcademiaMinisterial || isAcademiaSubFolder;
+  const canEditAcademia = canEditAcademiaMinisterial(user);
+  const effectiveReadOnly = isAcademiaContext ? !canEditAcademia : readOnly;
+  // Dentro de la rama de destacamento, todos menos el Coordinador y su Asistente
+  // envian los cambios de Academia a aprobacion de ambos.
+  // El aviso del certificado obligatorio solo tiene sentido donde se registran los
+  // adiestramientos (subcarpeta de Academia) y para quien puede editarlos.
+  const showCertificateRequiredNotice = isAcademiaSubFolder && canEditAcademia;
+
   useEffect(() => {
     if (!showStatusFilter && currentFilters.status?.length) {
       filters.setState({ status: [] });
@@ -250,24 +282,24 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
       ? SISTEMA_ASCENSO_SUBFOLDER_HEAD
       : isSistemaAscenso
         ? [
-            { id: 'division', label: 'División', width: 180 },
-            // { id: 'target', label: 'Dirigidos a', width: 120 },
-            { id: 'total', label: 'Cantidad Premios', width: 180 },
-            { id: 'completed', label: 'Completados', width: 160 },
-            { id: 'updatedAt', label: 'Última actualización', width: 200 },
-            { id: '', width: 88 },
-          ]
+          { id: 'division', label: 'División', width: 180 },
+          // { id: 'target', label: 'Dirigidos a', width: 120 },
+          { id: 'total', label: 'Cantidad Premios', width: 180 },
+          { id: 'completed', label: 'Completados', width: 160 },
+          { id: 'updatedAt', label: 'Última actualización', width: 200 },
+          { id: '', width: 88 },
+        ]
         : isAcademiaSubFolder
           ? ACADEMIA_SUBFOLDER_HEAD
           : isAcademiaMinisterial
             ? [
-                { id: 'program', label: 'Programa' },
-                // target en acaMinow{ id: 'required', label: 'Requerido', width: 140 },
-                { id: 'total', label: 'Cantidad adiestramientos', width: 240 },
-                { id: 'completed', label: 'Completados', width: 180 },
-                { id: 'updatedAt', label: 'Última actualización', width: 200 },
-                { id: '', width: 88 },
-              ]
+              { id: 'program', label: 'Programa' },
+              // target en acaMinow{ id: 'required', label: 'Requerido', width: 140 },
+              { id: 'total', label: 'Cantidad adiestramientos', width: 240 },
+              { id: 'completed', label: 'Completados', width: 180 },
+              { id: 'updatedAt', label: 'Última actualización', width: 200 },
+              { id: '', width: 88 },
+            ]
             : isRootFolder
               ? ROOT_TABLE_HEAD
               : undefined;
@@ -398,7 +430,15 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
           setActiveInput={setActiveInput}
           showStatusFilter={showStatusFilter}
           statusCounts={statusCounts}
-          auditNotice={showAscensoAuditNotice ? ASCENSO_AUDIT_NOTICE : null}
+          auditNotice={
+            isAcademiaContext
+              ? canEditAcademia
+                ? ACADEMIA_AUDIT_NOTICE
+                : null
+              : showAscensoAuditNotice
+                ? ASCENSO_AUDIT_NOTICE
+                : null
+          }
         />
       </Box>
 
@@ -466,6 +506,53 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     />
   );
 
+  // Aviso permanente bajo el buscador: en Academia Ministerial el certificado es
+  // obligatorio para dar por completado un adiestramiento. Se muestra solo a quien
+  // puede editar (a un cargo de consulta no le aporta nada).
+  const renderCertificateRequiredNotice = () => (
+    <Alert
+      severity="info"
+      // En movil se omite el icono: el ancho es escaso y el texto ya recortado
+      // gana el espacio que ocupaba.
+      icon={isMobile ? false : <Iconify icon="solar:diploma-verified-bold" />}
+      sx={{ alignItems: 'center' }}
+    >
+      <Box
+        // En movil el aviso ocupa demasiado alto, asi que se recorta a tres
+        // lineas con puntos suspensivos y se despliega/pliega al pulsarlo. En
+        // escritorio cabe entero, asi que no se recorta ni es pulsable.
+        onClick={isMobile ? noticeExpanded.onToggle : undefined}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
+        aria-expanded={isMobile ? noticeExpanded.value : undefined}
+        onKeyDown={
+          isMobile
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  noticeExpanded.onToggle();
+                }
+              }
+            : undefined
+        }
+        sx={{
+          ...(isMobile && {
+            cursor: 'pointer',
+            ...(!noticeExpanded.value && {
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 3,
+              overflow: 'hidden',
+            }),
+          }),
+        }}
+      >
+        Para registrar un adiestramiento de Academia Ministerial como <strong>Completado</strong> primero debes adjuntar
+        el certificado. Adicionalmente, se enviará una notificación con el <strong>primer documento</strong> cargado.
+      </Box>
+    </Alert>
+  );
+
   const renderUploadAwardsDialog = () =>
     readOnly ? null : (
       <AwardsManagerCreateFolderDialog
@@ -502,66 +589,66 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
     );
 
   const renderFolderContent = () => (
-      <Box sx={{ position: 'relative' }}>
-        <Box
-          sx={{
-            opacity: displayMode === 'list' ? 1 : 0,
-            transform: displayMode === 'list' ? 'translateX(0)' : 'translateX(-10px)',
-            transition: 'opacity 300ms ease, transform 300ms ease',
-            position: displayMode === 'list' ? 'relative' : 'absolute',
-            width: 1,
-          }}
-        >
-          <AwardsManagerTable
-            memberId={memberId}
-            table={table}
-            dataFiltered={dataFiltered}
-            allData={tableData}
-            headCells={tableHead}
-            isRootFolder={isRootFolder}
-            isAcademiaSubFolder={isAcademiaSubFolder}
-            isSistemaAscensoSubFolder={isSistemaAscensoSubFolder}
-            isSistemaAscensoDeepSubFolder={isSistemaAscensoDeepSubFolder}
-            isSistemaAscenso={isSistemaAscenso}
-            onDeleteRow={handleDeleteItem}
-            notFound={notFound}
-            onOpenConfirm={confirmDialog.onTrue}
-            readOnly={readOnly}
-          />
-        </Box>
-
-        <Box
-          sx={{
-            opacity: displayMode === 'grid' ? 1 : 0,
-            transform: displayMode === 'grid' ? 'translateX(0)' : 'translateX(10px)',
-            transition: 'opacity 300ms ease, transform 300ms ease',
-            position: displayMode === 'grid' ? 'relative' : 'absolute',
-            width: 1,
-          }}
-        >
-          <AwardsManagerGridView
-            table={{
-              ...table,
-              memberId,
-              parentId: normalizedFolder,
-              systemSent:
-                isSistemaAscenso || isSistemaAscensoSubFolder || isSistemaAscensoDeepSubFolder
-                  ? 'sistemaAscenso'
-                  : 'academia',
-              sectionId: isSistemaAscensoDeepSubFolder
-                ? folderBreadcrumbs[sistemaAscensoIndex + 1]?.id
-                : undefined,
-            }}
-            dataFiltered={dataWithStats}
-            allData={tableData}
-            onDeleteItem={handleDeleteItem}
-            onOpenConfirm={confirmDialog.onTrue}
-            onOpenFolder={openFolder}
-            readOnly={readOnly}
-          />
-        </Box>
+    <Box sx={{ position: 'relative' }}>
+      <Box
+        sx={{
+          opacity: displayMode === 'list' ? 1 : 0,
+          transform: displayMode === 'list' ? 'translateX(0)' : 'translateX(-10px)',
+          transition: 'opacity 300ms ease, transform 300ms ease',
+          position: displayMode === 'list' ? 'relative' : 'absolute',
+          width: 1,
+        }}
+      >
+        <AwardsManagerTable
+          memberId={memberId}
+          table={table}
+          dataFiltered={dataFiltered}
+          allData={tableData}
+          headCells={tableHead}
+          isRootFolder={isRootFolder}
+          isAcademiaSubFolder={isAcademiaSubFolder}
+          isSistemaAscensoSubFolder={isSistemaAscensoSubFolder}
+          isSistemaAscensoDeepSubFolder={isSistemaAscensoDeepSubFolder}
+          isSistemaAscenso={isSistemaAscenso}
+          onDeleteRow={handleDeleteItem}
+          notFound={notFound}
+          onOpenConfirm={confirmDialog.onTrue}
+          readOnly={effectiveReadOnly}
+        />
       </Box>
-    );
+
+      <Box
+        sx={{
+          opacity: displayMode === 'grid' ? 1 : 0,
+          transform: displayMode === 'grid' ? 'translateX(0)' : 'translateX(10px)',
+          transition: 'opacity 300ms ease, transform 300ms ease',
+          position: displayMode === 'grid' ? 'relative' : 'absolute',
+          width: 1,
+        }}
+      >
+        <AwardsManagerGridView
+          table={{
+            ...table,
+            memberId,
+            parentId: normalizedFolder,
+            systemSent:
+              isSistemaAscenso || isSistemaAscensoSubFolder || isSistemaAscensoDeepSubFolder
+                ? 'sistemaAscenso'
+                : 'academia',
+            sectionId: isSistemaAscensoDeepSubFolder
+              ? folderBreadcrumbs[sistemaAscensoIndex + 1]?.id
+              : undefined,
+          }}
+          dataFiltered={dataWithStats}
+          allData={tableData}
+          onDeleteItem={handleDeleteItem}
+          onOpenConfirm={confirmDialog.onTrue}
+          onOpenFolder={openFolder}
+          readOnly={effectiveReadOnly}
+        />
+      </Box>
+    </Box>
+  );
 
   const getSearchResultContext = (item) => {
     let current = item;
@@ -608,8 +695,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
             key={resultKey}
             folder={{ ...item, memberId, allData: tableData }}
             selected={false}
-            onSelect={() => {}}
-            onDelete={() => {}}
+            onSelect={() => { }}
+            onDelete={() => { }}
             onOpen={() => {
               filters.setState({ name: '' });
               openFolder(item.id);
@@ -621,8 +708,8 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
             key={resultKey}
             file={{ ...item, memberId, ...context }}
             selected={false}
-            onSelect={() => {}}
-            onDelete={() => {}}
+            onSelect={() => { }}
+            onDelete={() => { }}
             readOnly={readOnly}
             inlineDetails={displayMode === 'list'}
           />
@@ -642,6 +729,7 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
 
         <Stack spacing={2.5} sx={{ my: { xs: 3, md: 5 } }}>
           {renderFilters()}
+          {showCertificateRequiredNotice && renderCertificateRequiredNotice()}
           {canReset && renderResults()}
         </Stack>
 

@@ -12,6 +12,8 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
+import { isDestacamentoApprovalRole } from 'src/utils/member-access';
+
 import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
 
 import { toast } from 'src/components/snackbar';
@@ -46,6 +48,7 @@ export function FileManagerFileDetails({
   ...other
 }) {
   const { user } = useAuthContext();
+  const needsApproval = isDestacamentoApprovalRole(user);
   const shareDialog = useBoolean();
   const showDescription = useBoolean(true);
   const showAwardsStatus = useBoolean(true);
@@ -91,6 +94,9 @@ export function FileManagerFileDetails({
       idDivision: file?.sectionId || '',
     },
     user,
+    // El Coordinador de Destacamento y su Asistente cambian el estado directo;
+    // solo piden aprobacion los cargos que dependen de ellos.
+    requiresStatusChangeApproval: needsApproval,
     onRequireStatusChangeApproval:
       resolvedSystem === 'sistemaAscenso'
         ? (change) => {
@@ -606,7 +612,9 @@ export function FileManagerFileDetails({
         }
         content={
           resolvedSystem === 'sistemaAscenso'
-            ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? Si existe un documento anexo, se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
+            ? (pendingStatus?.hasCertificate ?? hasCertificate)
+              ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El documento anexo se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
+              : '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El estado no cambiará hasta recibir la aprobación.'
             : 'Has cargado un certificado. Para cambiar el estado debes eliminarlo primero. ¿Deseas eliminarlo?'
         }
         action={

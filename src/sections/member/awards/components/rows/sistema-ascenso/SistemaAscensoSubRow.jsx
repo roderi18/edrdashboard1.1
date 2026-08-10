@@ -1,7 +1,9 @@
+import dayjs from 'dayjs';
+
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+
 import { getCompletedAwards } from '../../../utils/get-awards-count';
-import dayjs from 'dayjs';
 import { getLastUpdatedFromStorage } from '../../../utils/get-last-updated-from-storage';
 
 export function SistemaAscensoSubRow({ memberId, row, allData = [], onClick }) {
