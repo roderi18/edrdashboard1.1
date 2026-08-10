@@ -14,10 +14,6 @@ export function createAwardsActions({
   metadata = {},
   user,
   onRequireStatusChangeApproval,
-  // Sacar un premio de "Completado" pasa por aprobacion SOLO para los cargos que
-  // dependen del Coordinador de Destacamento. El propio Coordinador, su Asistente
-  // y los administradores lo cambian directo, sin pedirse permiso a si mismos.
-  requiresStatusChangeApproval = true,
 }) {
   if (
     !system ||
@@ -105,14 +101,14 @@ export function createAwardsActions({
     }).catch(() => null);
   };
 
-  const setStatus = (nextStatus) => {
+  const setStatus = (nextStatus, { skipApproval = false } = {}) => {
     const now = new Date().toISOString();
     const status = readStatus();
     const data = readData();
     const existing = getNode(data);
 
     if (
-      requiresStatusChangeApproval &&
+      !skipApproval &&
       system === 'sistemaAscenso' &&
       existing.status === 'completado' &&
       nextStatus !== 'completado'
@@ -274,7 +270,7 @@ export function createAwardsActions({
     const safe = Math.min(10, Math.max(0, value));
     const existing = getNode(data);
 
-    if (requiresStatusChangeApproval && existing.status === 'completado' && safe === 0) {
+    if (existing.status === 'completado' && safe === 0) {
       onRequireStatusChangeApproval?.({
         nextStatus: 'no_iniciado',
         nextTimesCompleted: 0,
@@ -326,8 +322,18 @@ export function createAwardsActions({
       user,
     });
 
+  // Aplica el cambio de estado en el acto, sin solicitud de aprobacion. Lo usan
+  // el Coordinador de Destacamento y su Asistente: ven el mismo aviso, pero
+  // confirman y se aplica (no tienen a quien pedirle permiso).
+  const applyStatusChange = ({ nextStatus, removeCertificate = false } = {}) => {
+    if (!nextStatus) return;
+    if (removeCertificate) deleteCertificate();
+    setStatus(nextStatus, { skipApproval: true });
+  };
+
   return {
     setStatus,
+    applyStatusChange,
     setCompletedDate,
     uploadCertificate,
     deleteCertificate,

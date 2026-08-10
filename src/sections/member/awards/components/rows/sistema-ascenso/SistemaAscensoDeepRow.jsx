@@ -11,6 +11,7 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { useAwardsSync } from 'src/sections/member/awards/hooks/useAwardsSync';
 import { AwardsActionCells } from 'src/sections/member/awards/components/AwardsActionCells';
 import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
+import { buildStatusChangeMessage } from 'src/sections/member/awards/utils/status-change-message';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -64,10 +65,6 @@ export function SistemaAscensoDeepRow({
     },
     metadata,
     user,
-    // El Coordinador de Destacamento y su Asistente cambian el estado directo:
-    // no tienen a quien pedirle aprobacion. Solo la piden los cargos que dependen
-    // de ellos (Pastor, Consejo, Capellan y los Lideres de Grupo).
-    requiresStatusChangeApproval: needsApproval,
     onRequireStatusChangeApproval: (change) => {
       setPendingStatus(change);
       confirmDeleteForStatus.onTrue();
@@ -131,20 +128,34 @@ export function SistemaAscensoDeepRow({
           confirmDeleteForStatus.onFalse();
           setPendingStatus(null);
         }}
-        title="Solicitar cambio de estado"
+        // El aviso lo ven todos, pero el Coordinador y su Asistente confirman y
+        // el cambio se aplica en el acto; el resto envia una solicitud.
+        title={needsApproval ? 'Solicitar cambio de estado' : 'Cambiar estado'}
         // La advertencia del documento solo aparece si de verdad hay uno adjunto;
         // sin archivo no hay nada que eliminar y el aviso confundia.
-        content={
-          (pendingStatus?.hasCertificate ?? hasCertificate)
-            ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El documento anexo se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
-            : '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El estado no cambiará hasta recibir la aprobación.'
-        }
+        content={buildStatusChangeMessage({
+          needsApproval,
+          hasCertificate: pendingStatus?.hasCertificate ?? hasCertificate,
+        })}
         action={
           <Button
             variant="contained"
             loading={sendingRequest}
             onClick={async () => {
               if (!pendingStatus?.nextStatus) return;
+
+              // Coordinador de Destacamento y Asistente: aplican el cambio en el
+              // acto (no tienen a quien pedirle aprobacion).
+              if (!needsApproval) {
+                actions.applyStatusChange({
+                  nextStatus: pendingStatus.nextStatus,
+                  removeCertificate: Boolean(pendingStatus.hasCertificate ?? hasCertificate),
+                });
+                confirmDeleteForStatus.onFalse();
+                setPendingStatus(null);
+                return;
+              }
+
               setSendingRequest(true);
               try {
                 await actions.requestStatusChange(pendingStatus);
@@ -158,7 +169,7 @@ export function SistemaAscensoDeepRow({
               }
             }}
           >
-            Enviar solicitud
+            {needsApproval ? 'Enviar solicitud' : 'De acuerdo'}
           </Button>
         }
       />

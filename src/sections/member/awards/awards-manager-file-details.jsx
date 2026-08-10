@@ -24,6 +24,7 @@ import { FileThumbnail } from 'src/components/file-thumbnail';
 
 import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
 import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
+import { buildStatusChangeMessage } from 'src/sections/member/awards/utils/status-change-message';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -94,9 +95,6 @@ export function FileManagerFileDetails({
       idDivision: file?.sectionId || '',
     },
     user,
-    // El Coordinador de Destacamento y su Asistente cambian el estado directo;
-    // solo piden aprobacion los cargos que dependen de ellos.
-    requiresStatusChangeApproval: needsApproval,
     onRequireStatusChangeApproval:
       resolvedSystem === 'sistemaAscenso'
         ? (change) => {
@@ -607,14 +605,17 @@ export function FileManagerFileDetails({
         }}
         title={
           resolvedSystem === 'sistemaAscenso'
-            ? 'Solicitar cambio de estado'
+            ? needsApproval
+              ? 'Solicitar cambio de estado'
+              : 'Cambiar estado'
             : 'Eliminar certificado'
         }
         content={
           resolvedSystem === 'sistemaAscenso'
-            ? (pendingStatus?.hasCertificate ?? hasCertificate)
-              ? '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El documento anexo se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.'
-              : '¿Estás seguro de que deseas cambiar un registro que ya está Completado? El estado no cambiará hasta recibir la aprobación.'
+            ? buildStatusChangeMessage({
+                needsApproval,
+                hasCertificate: pendingStatus?.hasCertificate ?? hasCertificate,
+              })
             : 'Has cargado un certificado. Para cambiar el estado debes eliminarlo primero. ¿Deseas eliminarlo?'
         }
         action={
@@ -625,6 +626,20 @@ export function FileManagerFileDetails({
             onClick={async () => {
               if (resolvedSystem === 'sistemaAscenso') {
                 if (!pendingStatus?.nextStatus) return;
+
+                // Coordinador de Destacamento y Asistente: aplican el cambio en
+                // el acto, sin solicitud de aprobacion.
+                if (!needsApproval) {
+                  actions.applyStatusChange({
+                    nextStatus: pendingStatus.nextStatus,
+                    removeCertificate: Boolean(pendingStatus.hasCertificate ?? hasCertificate),
+                  });
+                  setLocalStatus(pendingStatus.nextStatus);
+                  setPendingStatus(null);
+                  confirmDeleteForStatus.onFalse();
+                  return;
+                }
+
                 setSendingStatusRequest(true);
                 try {
                   await actions.requestStatusChange(pendingStatus);
