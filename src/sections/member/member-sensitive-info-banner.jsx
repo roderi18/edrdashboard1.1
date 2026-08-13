@@ -53,12 +53,21 @@ const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta 
 const SUPERVISORY_HIDDEN_INFO_TEXT =
   'Por motivos de seguridad, la información personal de los miembros está reservada a los Coordinadores de Destacamento. Puedes solicitar acceso indicando el motivo.';
 
-const getHiddenInfoText = (user) =>
-  isSectionOrRegionLevelRole(user) ? SUPERVISORY_HIDDEN_INFO_TEXT : HIDDEN_INFO_TEXT;
+// El Historial solo lo ven el Coordinador de Destacamento (y su Asistente) y el
+// Lider de Grupo, y unicamente de su propio destacamento. El resto de cargos
+// (aunque no sean de seccion/region) ven este aviso en vez del texto de "menor
+// de edad", que no aplica aqui.
+const HISTORY_HIDDEN_INFO_TEXT =
+  'Por motivos de seguridad, el historial de cambios está reservado al Coordinador de Destacamento, su Asistente y el Líder de Grupo del propio destacamento. Puedes solicitar acceso indicando el motivo.';
+
+const getHiddenInfoText = (user, pathname = '') => {
+  if (pathname.includes('/edit/history')) return HISTORY_HIDDEN_INFO_TEXT;
+  return isSectionOrRegionLevelRole(user) ? SUPERVISORY_HIDDEN_INFO_TEXT : HIDDEN_INFO_TEXT;
+};
 
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
-const isRestrictedForRoute = (user, pathname = '') => {
+const isRestrictedForRoute = (user, pathname = '', member) => {
   // En Dispensa Médica, los cargos del Consejo Nacional solicitan acceso a los
   // datos del seguro enmascarados de menores; el Pastor solicita acceso a la
   // sección de Documentos, que tiene deshabilitada.
@@ -67,7 +76,7 @@ const isRestrictedForRoute = (user, pathname = '') => {
   }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
-  if (pathname.includes('/edit/history')) return !canViewMemberHistoryTab(user);
+  if (pathname.includes('/edit/history')) return !canViewMemberHistoryTab(user, member);
   // General (ficha principal): depende del acceso a los datos sensibles.
   return !canViewMemberSensitiveData(user);
 };
@@ -146,7 +155,7 @@ export function MemberSensitiveInfoBanner({ member }) {
   const isPastorDocsRestricted = isHealthRoute && isPastorDestacamentoRole(user);
   const shouldShow =
     Boolean(member) &&
-    isRestrictedForRoute(user, pathname) &&
+    isRestrictedForRoute(user, pathname, member) &&
     (!isHealthRoute ||
       isPastorDocsRestricted ||
       (isHealthAccessRequest && !healthAccessLoading && !healthAccessState.permiso));
@@ -255,7 +264,7 @@ export function MemberSensitiveInfoBanner({ member }) {
         sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
       >
         <Typography variant="body2" sx={{ color: 'inherit' }}>
-          {getHiddenInfoText(user)}
+          {getHiddenInfoText(user, pathname)}
         </Typography>
 
         <Button

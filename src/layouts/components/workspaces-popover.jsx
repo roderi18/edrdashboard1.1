@@ -94,6 +94,20 @@ const SUBROLES_POR_ROL = {
 // cargos (deshabilitados) y NO incluye el item que cambia de sesion.
 const ROLES_SOLO_AGRUPADOR = new Set([ROLES.CONSEJO_NACIONAL]);
 
+// ¿El rol activo es este item o alguno de sus cargos hijos? El padre debe quedar
+// resaltado tambien cuando la sesion esta en un sub-rol (p. ej. "Coordinador de
+// Adiestramiento" marca ademas a "Coordinador Seccional"), para que el menu
+// principal refleje la rama en la que estas y no solo la hoja.
+// Un cargo puede colgar de mas de un padre (Secretario Regional aparece bajo
+// Seccional y bajo Regional); en ese caso se resaltan ambos, que es lo correcto:
+// pertenece a las dos ramas.
+const isRoleBranchSelected = (optionId, activeRoleId) => {
+  if (!activeRoleId) return false;
+  if (optionId === activeRoleId) return true;
+
+  return (SUBROLES_POR_ROL[optionId] ?? []).some((sub) => sub.rolCodigo === activeRoleId);
+};
+
 export function WorkspacesPopover({ data = [], sx, ...other }) {
   const mediaQuery = 'sm';
 
@@ -389,7 +403,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       <Scrollbar sx={{ maxHeight: 'calc(100vh - 96px)' }}>
         <MenuList>
           {data.map((option) => {
-            const selected = option.id === workspace?.id;
+            const selected = isRoleBranchSelected(option.id, workspace?.id);
             const loading = option.id === loadingRoleId;
             const hasSubmenu = Boolean(SUBROLES_POR_ROL[option.id]);
 

@@ -176,7 +176,7 @@ export default function Page() {
 
   // Sin acceso al Historial (p. ej. el Director Nacional): tabs y aviso de
   // "información oculta" (con solicitud de acceso) visibles, pero sin el contenido.
-  if (!canViewMemberHistoryTab(user)) {
+  if (!canViewMemberHistoryTab(user, currentMember)) {
     return <MemberEditLayout member={currentMember} />;
   }
 
