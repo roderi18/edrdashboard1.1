@@ -14,6 +14,7 @@ import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { obtenerAdministradores, quitarAdministradorAMiembro } from 'src/utils/firebase-admins';
 
 import { getMembers } from 'src/services/member-service';
+import { getDests, getDestsApi } from 'src/services/dest-service';
 
 import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -99,6 +100,26 @@ export function AdminListView() {
   const [removeAdminRow, setRemoveAdminRow] = useState(null);
   const [isRemovingAdmin, setIsRemovingAdmin] = useState(false);
   const [displayMode, setDisplayMode] = useState('panel');
+  // Destacamentos, para mostrar el NÚMERO del destacamento (no su id interno) en
+  // la etiqueta del rol. Se lee una vez aquí y se pasa a filas/tarjetas.
+  const [dests, setDests] = useState(() => getDests());
+
+  useEffect(() => {
+    if (dests.length) return undefined;
+
+    let cancelled = false;
+
+    getDestsApi({ includePhotos: false })
+      .then((data) => {
+        if (!cancelled) setDests(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dests.length]);
+
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
 
@@ -216,6 +237,7 @@ export function AdminListView() {
                 <AdminTableRow
                   key={row.adminId || row.id}
                   row={row}
+                  dests={dests}
                   selected={table.selected.includes(row.id)}
                   onSelectRow={() => table.onSelectRow(row.id)}
                   onRemoveAdmin={setRemoveAdminRow}
@@ -229,7 +251,7 @@ export function AdminListView() {
           </Table>
         </Scrollbar>
       ) : (
-        <AdminCardList admins={dataFiltered} />
+        <AdminCardList admins={dataFiltered} dests={dests} />
       )}
 
       <ConfirmDialog

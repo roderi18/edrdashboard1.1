@@ -17,11 +17,13 @@ import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
+import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   isFullOrgManager,
   getSectionScopeIds,
+  isRegionScopedCreator,
   canCreateDestInSection,
   isSectionScopedManager,
   canEditDest as canGestionarDestPorAlcance,
@@ -415,6 +417,33 @@ export function DestCreateEditForm({ currentDest }) {
     return findSectional(userChurch?.idSeccion ?? userChurch?.sectionId);
   })();
 
+  // Coordinador Regional y Sub-Director Regional: crean destacamentos en
+  // CUALQUIER sección de su región (no en una sola, como el cargo seccional), así
+  // que en vez de fijar la sección se acota el desplegable a las de su región.
+  const ownRegionIdsForCreation = (() => {
+    if (!isCreateView || !isRegionScopedCreator(user)) return null;
+
+    const ids = new Set(
+      [...getOwnRegionIdsForUser(user, { dests, churches, sectionals })].map(String)
+    );
+
+    // Fallback: la región cuyo director es este usuario (cuando la sesión no trae
+    // el alcance resuelto), igual que hace el formulario de secciones.
+    const userKeys = [user?.idMiembros, user?.id, user?.memberId, user?.codigoMiembro]
+      .filter((value) => value !== null && value !== undefined && value !== '')
+      .map((value) => String(value));
+
+    regionals.forEach((item) => {
+      if (item?.directorId && userKeys.includes(String(item.directorId))) {
+        [item?.regionId, item?.id]
+          .filter((value) => value !== null && value !== undefined && value !== '')
+          .forEach((value) => ids.add(String(value)));
+      }
+    });
+
+    return ids.size ? ids : null;
+  })();
+
   const resolveDestId = async (destNameValue, destNumberValue) => {
     if (currentDest?.id) return currentDest.id;
 
@@ -581,7 +610,9 @@ export function DestCreateEditForm({ currentDest }) {
       router.refresh();
     } catch (error) {
       console.error(error);
-      toast.error('Error creando destacamento');
+      // El bloqueo por alcance ("solo puedes crear en tu sección o región") llega
+      // como Error con mensaje propio: se muestra tal cual en vez del genérico.
+      toast.error(error?.message || 'Error creando destacamento');
     }
   });
 
@@ -843,6 +874,7 @@ export function DestCreateEditForm({ currentDest }) {
                         isCreateView
                         disabled={!canEditDest}
                         lockedSectional={ownSectionalForCreation}
+                        allowedRegionIds={ownRegionIdsForCreation}
                       />
                     </Box>
                   )}

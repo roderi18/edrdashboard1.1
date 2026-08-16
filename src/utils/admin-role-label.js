@@ -28,12 +28,12 @@ export const ADMIN_ROLE_IDS = [
   ROLES.COORDINADOR_PROMOCION_REGION,
   ROLES.COORDINADOR_PRODUCCION_REGION,
   ROLES.COORDINADOR_PROGRAMA_REGION,
-  // Cargos de consulta (solo lectura): Capellán Regional es de nivel región; los
-  // demás de nivel sección. Comparten la construcción de sesión admin con sus
-  // hermanos de nivel.
+  // Cargos de consulta (solo lectura): Capellán Regional y Secretario Regional son
+  // de nivel región; los demás de nivel sección. Comparten la construcción de
+  // sesión admin con sus hermanos de nivel.
   ROLES.CAPELLAN_REGIONAL,
-  ROLES.CAPELLAN_SECCIONAL,
   ROLES.SECRETARIO_REGIONAL,
+  ROLES.CAPELLAN_SECCIONAL,
   ROLES.ZONAS,
   ROLES.GRUPOS_LOCALES,
   // Administradores.
@@ -116,19 +116,40 @@ const getScopeValue = (scope = {}, type) => {
   return '';
 };
 
-export const getAdminRoleLabel = (user = {}) => {
+// Numero del destacamento (el que ve el usuario, p. ej. 875) a partir de su id
+// interno (219). Devuelve '' si no se puede resolver.
+const getDestNumberById = (destId, dests = []) => {
+  const id = String(destId ?? '').trim();
+
+  if (!id || !Array.isArray(dests)) return '';
+
+  const dest = dests.find((item) =>
+    [item?.id, item?.idDestacamento, item?.destId].some((value) => String(value ?? '') === id)
+  );
+
+  return String(dest?.destNumber ?? dest?.numero ?? '').trim();
+};
+
+// `dests` es opcional: sin el catalogo no se puede traducir el id a numero y se
+// mantiene el comportamiento anterior (mostrar el id).
+export const getAdminRoleLabel = (user = {}, { dests = [] } = {}) => {
   const roleName = getAdminRoleName(user);
   const normalizedRole = normalizeText(roleName);
   const scope = user?.alcance || {};
   const scopeType = scope?.tipo || scope?.modo || '';
 
   if (normalizedRole.includes('destacamento')) {
-    const value =
+    const destId =
       getScopeValue(scope, 'destacamento') ||
       user?.destacamentoId ||
       user?.idDestacamento ||
       user?.destId ||
       '';
+
+    // Se muestra el NUMERO del destacamento, no su id interno: el id no significa
+    // nada para el usuario y se confundia con un cargo ("Coordinador de
+    // Destacamento 219"). Si no se puede resolver, se cae al id como antes.
+    const value = getDestNumberById(destId, dests) || destId;
 
     return value ? `${roleName} ${value}` : roleName;
   }

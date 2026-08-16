@@ -18,6 +18,7 @@ import { getImageOptimizationMessage } from 'src/utils/upload-optimization-messa
 import {
   canEditSectional,
   getRegionScopeIds,
+  isRegionScopedCreator,
   isRegionScopedManager,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
@@ -94,7 +95,16 @@ export function SectionalCreateEditForm({ currentSectional }) {
   // resuelve, en orden: por director, por alcance, y por su membresía
   // (destacamento → iglesia → sección → región). Con ella se bloquea el campo.
   const ownRegional = (() => {
-    if (currentSectional || !isRegionScopedManager(user) || !regionals.length) return null;
+    // `isRegionScopedCreator` cubre al Coordinador Regional y al Sub-Director
+    // Regional, que crean secciones únicamente dentro de su propia región: el
+    // campo se muestra fijado a ella, sin desplegable.
+    if (
+      currentSectional ||
+      !(isRegionScopedManager(user) || isRegionScopedCreator(user)) ||
+      !regionals.length
+    ) {
+      return null;
+    }
 
     const findRegional = (regionId) =>
       regionId !== null && regionId !== undefined && regionId !== ''

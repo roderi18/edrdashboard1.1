@@ -18,6 +18,11 @@ export function useTable(props) {
 
   const [selected, setSelected] = useState(props?.defaultSelected ?? []);
 
+  // ¿El usuario ya ordenó la tabla a mano? Mientras sea `false`, la vista puede
+  // aplicar su orden por defecto (p. ej. mostrar primero las entidades del
+  // alcance del usuario). En cuanto pulsa una cabecera, manda su criterio.
+  const [hasUserSorted, setHasUserSorted] = useState(false);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -27,6 +32,7 @@ export function useTable(props) {
       if (id !== '') {
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(id);
+        setHasUserSorted(true);
       }
     },
     [order, orderBy]
@@ -110,6 +116,7 @@ export function useTable(props) {
     order,
     page,
     orderBy,
+    hasUserSorted,
     rowsPerPage,
     /********/
     selected,
@@ -130,5 +137,6 @@ export function useTable(props) {
     setOrderBy,
     setSelected,
     setRowsPerPage,
+    setHasUserSorted,
   };
 }

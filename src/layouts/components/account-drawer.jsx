@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean } from 'minimal-shared/hooks';
 
@@ -25,6 +26,7 @@ import {
 } from 'src/utils/member-access';
 
 import { _mock } from 'src/_mock';
+import { getDests, getDestsApi } from 'src/services/dest-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -45,7 +47,28 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const { user } = useAuthContext();
   const memberCode = getMemberCodeForDisplay(user);
   const realEmail = getRealMemberEmail(user);
-  const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user) : '';
+  // Destacamentos, para traducir el id del alcance a su NÚMERO en la etiqueta del
+  // rol. Se parte de la caché local (ya poblada por las listas) y solo se pide a
+  // la API si está vacía, p. ej. al entrar directo sin pasar por la lista.
+  const [dests, setDests] = useState(() => getDests());
+
+  useEffect(() => {
+    if (dests.length) return undefined;
+
+    let cancelled = false;
+
+    getDestsApi({ includePhotos: false })
+      .then((rows) => {
+        if (!cancelled) setDests(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dests.length]);
+
+  const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user, { dests }) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
   const accountPhotoURL = user?.photoURL || '';
 

@@ -18,10 +18,16 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
-import { canEditDest, isAdminGlobal, isForeignDestForMembers } from 'src/utils/org-level-access';
+import {
+  canEditDest,
+  isAdminGlobal,
+  canCreateDestInSection,
+  isForeignDestForMembers,
+} from 'src/utils/org-level-access';
 import {
   getOwnDestIdsForUser,
   getOwnRegionIdsForUser,
@@ -91,6 +97,8 @@ const mapDestToBaseRow = (dest) => ({
   regionalId: null,
   regionalName: '-',
 });
+
+const normalizeDestId = (value) => String(value ?? '').trim();
 
 const hasAdminRole = (user) =>
   ['admin', 'administrador'].includes(String(user?.role || user?.rol || '').trim().toLowerCase());
@@ -266,7 +274,11 @@ export function DestListView() {
     }),
     [user, tableData, churches, sectionals]
   );
-  const canCreateDest = canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
+  // Coordinador Regional y Sub-Director Regional dan de alta destacamentos en las
+  // secciones de su región. No pasan por `canModifyDest` porque son cargos
+  // `soloLectura` y `puedeModificar` los descartaría.
+  const canCreateDest =
+    canCreateDestInSection(user) || canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
   // Eliminar destacamentos: solo el Administrador Global.
   const canDeleteDest = isAdminGlobal(user);
 
@@ -447,12 +459,38 @@ export function DestListView() {
     appliedFromUrl.current = true;
   }, [memberFromUrl, updateFilters, table]);
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
+  // Orden inicial: primero los destacamentos del alcance del usuario (el propio
+  // y, para los cargos seccionales/regionales, los de su sección o región). Si el
+  // usuario ordena por una columna, manda su criterio (ver `sortOwnFirst`).
+  const dataFiltered = useMemo(() => {
+    const filtered = applyFilter({
+      inputData: tableData,
+      comparator: getComparator(table.order, table.orderBy),
+      filters: currentFilters,
+      members,
+    });
+
+    const hasOwnScope =
+      ownScope.destIds.size || ownScope.sectionIds.size || ownScope.regionIds.size;
+
+    if (table.hasUserSorted || !hasOwnScope) return filtered;
+
+    return sortOwnFirst(
+      filtered,
+      (row) =>
+        ownScope.destIds.has(normalizeDestId(row.id)) ||
+        ownScope.sectionIds.has(normalizeDestId(row.sectionalId)) ||
+        ownScope.regionIds.has(normalizeDestId(row.regionalId))
+    );
+  }, [
+    tableData,
+    table.order,
+    table.orderBy,
+    table.hasUserSorted,
+    currentFilters,
     members,
-  });
+    ownScope,
+  ]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 

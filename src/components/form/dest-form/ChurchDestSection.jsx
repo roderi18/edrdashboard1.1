@@ -21,8 +21,12 @@ export default function ChurchDestSection({
     methods,
     disabled = false,
     lockedSectional = null,
+    // Ids de region a los que se acota el desplegable de Sección (Coordinador
+    // Regional y Sub-Director Regional: solo las secciones de su propia región).
+    // `null` = sin acotar.
+    allowedRegionIds = null,
 }) {
-    const [sectionals, setSectionals] = useState([]);
+    const [allSectionals, setAllSectionals] = useState([]);
     const { watch, setValue, control } = useFormContext();
     const { user } = useAuthContext();
 
@@ -31,6 +35,17 @@ export default function ChurchDestSection({
     // deshabilitado y se fija `sectionId` a ella.
     const lockToOwnSection = isSectionScopedManager(user);
     const ownSectionId = lockToOwnSection ? [...getSectionScopeIds(user)][0] : null;
+
+    // Secciones ofrecidas. Un cargo regional solo puede crear dentro de su región,
+    // así que las de otras regiones ni siquiera aparecen como opción.
+    const sectionals =
+        allowedRegionIds instanceof Set && allowedRegionIds.size
+            ? allSectionals.filter((sectional) =>
+                allowedRegionIds.has(
+                    String(sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId ?? '')
+                )
+            )
+            : allSectionals;
 
     // Identificadores del propio usuario, para resolver su sección cuando el
     // alcance de la sesión no la trae (se deriva de la sección cuyo director es
@@ -61,7 +76,7 @@ export default function ChurchDestSection({
     useEffect(() => {
         const loadSectionals = async () => {
             const data = await getSectionals();
-            setSectionals(Array.isArray(data) ? data : []);
+            setAllSectionals(Array.isArray(data) ? data : []);
         };
 
         loadSectionals();

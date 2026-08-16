@@ -41,14 +41,17 @@ const CARGOS_REGIONALES_PERFIL_DIRECTOR = [
   ...COORDINADORES_AREA_REGION,
   // Capellán Regional: consulta de solo lectura de nivel región.
   ROLES.CAPELLAN_REGIONAL,
+  // Secretario Regional: cargo de nivel REGIÓN, no de sección. Consulta toda su
+  // región con el mismo perfil de solo lectura que los coordinadores de área
+  // regional (p. ej. el Coordinador de Programa).
+  ROLES.SECRETARIO_REGIONAL,
 ];
 
-// Cargos de consulta de solo lectura de nivel sección (Capellán Seccional,
-// Secretario Regional, Zonas, Grupos Locales): mismo perfil que los coordinadores
-// de área seccional (ven adultos, menores enmascarados/restringidos, sin editar).
+// Cargos de consulta de solo lectura de nivel sección (Capellán Seccional, Zonas,
+// Grupos Locales): mismo perfil que los coordinadores de área seccional (ven
+// adultos, menores enmascarados/restringidos, sin editar).
 const CARGOS_SECCIONALES_CONSULTA = [
   ROLES.CAPELLAN_SECCIONAL,
-  ROLES.SECRETARIO_REGIONAL,
   ROLES.ZONAS,
   ROLES.GRUPOS_LOCALES,
 ];
@@ -326,9 +329,11 @@ export const ALCANCE_PREDETERMINADO_ROL = {
   [ROLES.USUARIO_REGION]: ALCANCES.REGION,
   [ROLES.USUARIO_REGION_ASISTENTE]: ALCANCES.REGION,
   ...fromCodes(COORDINADORES_AREA_SECCION, ALCANCES.SECCION),
-  ...fromCodes(COORDINADORES_AREA_REGION, ALCANCES.REGION),
   ...fromCodes(CARGOS_SECCIONALES_CONSULTA, ALCANCES.SECCION),
-  [ROLES.CAPELLAN_REGIONAL]: ALCANCES.REGION,
+  // Todos los cargos de nivel región (titular, asistente, coordinadores de área,
+  // Capellán Regional y Secretario Regional) comparten el alcance regional. Se
+  // deriva de la lista para que agregar un cargo regional no exija tocar esto.
+  ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, ALCANCES.REGION),
   [ROLES.CONSEJO_NACIONAL]: ALCANCES.NACIONAL,
   ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, ALCANCES.NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: ALCANCES.NACIONAL,

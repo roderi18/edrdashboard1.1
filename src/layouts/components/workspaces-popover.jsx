@@ -53,7 +53,6 @@ const SUBROLES_POR_ROL = {
     { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_SECCION },
     { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_SECCION },
     { label: 'Coordinador de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_SECCION },
-    { label: 'Secretario Regional', rolCodigo: ROLES.SECRETARIO_REGIONAL },
     { label: 'Zonas', rolCodigo: ROLES.ZONAS },
     { label: 'Grupos Locales', rolCodigo: ROLES.GRUPOS_LOCALES },
   ],

@@ -23,6 +23,7 @@ import {
 
 import { getMembers } from 'src/services/member-service';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getDests, getDestsApi } from 'src/services/dest-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -73,6 +74,26 @@ export function AdminCreateView() {
   const table = useTable();
   const [members, setMembers] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
+  // Destacamentos, para mostrar el NÚMERO del destacamento (no su id interno) en
+  // la etiqueta del rol. Se lee una vez aquí y se pasa a filas/tarjetas.
+  const [dests, setDests] = useState(() => getDests());
+
+  useEffect(() => {
+    if (dests.length) return undefined;
+
+    let cancelled = false;
+
+    getDestsApi({ includePhotos: false })
+      .then((data) => {
+        if (!cancelled) setDests(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dests.length]);
+
   const [assignRows, setAssignRows] = useState([]);
   const [removeAdminRow, setRemoveAdminRow] = useState(null);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -299,6 +320,7 @@ export function AdminCreateView() {
                       <AdminTableRow
                         key={row.id}
                         row={row}
+                        dests={dests}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onAssignAdmin={handleOpenAssignDialog}
@@ -330,7 +352,7 @@ export function AdminCreateView() {
             />
           </>
         ) : (
-          <AdminCardList admins={dataFiltered} />
+          <AdminCardList admins={dataFiltered} dests={dests} />
         )}
       </Card>
 

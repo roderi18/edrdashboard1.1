@@ -3,7 +3,7 @@
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -18,6 +18,7 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import {
   getOwnRegionIdsForUser,
@@ -245,11 +246,27 @@ export function SectionalListView() {
   const regionFromUrl = searchParams.get('region');
   const hasAppliedUrlFilter = useRef(false);
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // Orden inicial: primero las secciones del alcance del usuario (su propia
+  // sección y, para los cargos regionales, las de su región). Si el usuario
+  // ordena por una columna, manda su criterio (ver `sortOwnFirst`).
+  const dataFiltered = useMemo(() => {
+    const filtered = applyFilter({
+      inputData: tableData,
+      comparator: getComparator(table.order, table.orderBy),
+      filters: currentFilters,
+    });
+
+    if (table.hasUserSorted || (!ownScope.sectionIds.size && !ownScope.regionIds.size)) {
+      return filtered;
+    }
+
+    return sortOwnFirst(
+      filtered,
+      (row) =>
+        ownScope.sectionIds.has(normalizeId(row.id)) ||
+        ownScope.regionIds.has(normalizeId(row.regionalId))
+    );
+  }, [tableData, table.order, table.orderBy, table.hasUserSorted, currentFilters, ownScope]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 

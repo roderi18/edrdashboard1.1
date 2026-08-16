@@ -7,7 +7,7 @@ import { AdminCard } from './admin-card';
 
 // ----------------------------------------------------------------------
 
-export function AdminCardList({ admins }) {
+export function AdminCardList({ admins, dests = [] }) {
   const [page, setPage] = useState(1);
 
   const rowsPerPage = 12;
@@ -30,7 +30,7 @@ export function AdminCardList({ admins }) {
         {admins
           .slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage)
           .map((admin) => (
-            <AdminCard key={admin.id} admin={admin} />
+            <AdminCard key={admin.id} admin={admin} dests={dests} />
           ))}
       </Box>
 

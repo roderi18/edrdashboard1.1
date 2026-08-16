@@ -128,7 +128,12 @@ const buildLocalPositionMap = () =>
 const cargosDirectivaCache = new Map();
 
 const mergePositionWithApiCargo = ({ position, apiCargo, localPosition }) => {
-  const nombreCargo = apiCargo?.nombre || localPosition?.nombreCargo || '';
+  // El nombre de PRESENTACION es el del catalogo local. En la API el mismo cargo
+  // se guarda cualificado con su nivel/division ("Pastor (Destacamento)", "Lider
+  // de Grupo (Navegantes)") porque alli el nombre es la unica clave y hay
+  // colisiones entre niveles; dentro del organigrama de un nivel ese sufijo
+  // sobra, y la division ya se anade abajo en `label`.
+  const nombreCargo = localPosition?.nombreCargo || apiCargo?.nombre || '';
   const nombreDivision = position.division ? NOMBRES_DIVISION[position.division] || '' : '';
 
   return {
@@ -255,9 +260,19 @@ export async function obtenerCargosDirectiva({
     posiciones
       .map((position) => {
         const localPosition = localPositionMap.get(String(position.idPosicionDirectiva));
-        const apiCargo = position.idCargo
-          ? apiCargoMap.get(String(position.idCargo))
-          : apiCargoNameMap.get(normalizarClaveTexto(localPosition?.nombreCargo));
+        // Orden de resolucion del cargo en la API:
+        //   1) el idCargo guardado en la posicion (Firestore),
+        //   2) el `idCargoApi` fijado en el catalogo local — es lo que cubre a las
+        //      posiciones ya guardadas en Firestore SIN idCargo, que de otro modo
+        //      caerian al fallback por nombre y no casarian con el nombre
+        //      cualificado con el que se sembraron ("Pastor (Destacamento)"),
+        //   3) por nombre, para cargos creados a mano fuera del catalogo.
+        const apiCargo =
+          (position.idCargo ? apiCargoMap.get(String(position.idCargo)) : null) ||
+          (localPosition?.idCargoApi
+            ? apiCargoMap.get(String(localPosition.idCargoApi))
+            : null) ||
+          apiCargoNameMap.get(normalizarClaveTexto(localPosition?.nombreCargo));
 
         return mergePositionWithApiCargo({ position, apiCargo, localPosition });
       })
@@ -480,4 +495,47 @@ export async function guardarAsignacionDirectiva({
   });
 
   return asignacion;
+}
+
+// Da de BAJA las asignaciones activas que el miembro tenga en un nivel, salvo la
+// que se acaba de guardar. Un miembro ocupa UNA posicion por nivel: al cambiarlo
+// de cargo, `guardarAsignacionDirectiva` crea un documento nuevo (su id incluye
+// el cargo) y el anterior quedaba activo, de modo que la ficha seguia leyendo el
+// viejo y el miembro aparecia en dos casillas a la vez.
+export async function desactivarAsignacionesDirectivaPorNivel({
+  idMiembro,
+  nivel,
+  conservarIdAsignacion = '',
+  fechaFin = new Date().toISOString().slice(0, 10),
+} = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!idMiembro || !nivel) {
+    return 0;
+  }
+
+  const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
+  const aDesactivar = asignaciones.filter(
+    (asignacion) =>
+      asignacion.nivel === nivel &&
+      String(asignacion.idAsignacion || asignacion.id) !== String(conservarIdAsignacion)
+  );
+
+  if (!aDesactivar.length) {
+    return 0;
+  }
+
+  const batch = writeBatch(FIRESTORE);
+
+  aDesactivar.forEach((asignacion) => {
+    batch.set(
+      doc(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA, String(asignacion.idAsignacion || asignacion.id)),
+      { activo: false, fechaFin, fechaActualizacion: serverTimestamp() },
+      { merge: true }
+    );
+  });
+
+  await batch.commit();
+
+  return aDesactivar.length;
 }

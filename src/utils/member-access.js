@@ -254,7 +254,8 @@ const isSectionWideRole = (user = {}) =>
 const isOrgWideViewerRole = () => false;
 
 // Cargos regionales que consultan miembros SOLO dentro de su región: Coordinador
-// Regional, Sub-Director Regional y los 4 coordinadores de área regional.
+// Regional, Sub-Director Regional, los 4 coordinadores de área regional, el
+// Capellán Regional y el Secretario Regional.
 const REGION_SCOPED_MEMBER_VIEW_ROLE_IDS = [
   ROLES.USUARIO_REGION,
   ROLES.USUARIO_REGION_ASISTENTE,
@@ -263,6 +264,7 @@ const REGION_SCOPED_MEMBER_VIEW_ROLE_IDS = [
   ROLES.COORDINADOR_PRODUCCION_REGION,
   ROLES.COORDINADOR_PROGRAMA_REGION,
   ROLES.CAPELLAN_REGIONAL,
+  ROLES.SECRETARIO_REGIONAL,
 ];
 
 export const isRegionScopedMemberViewer = (user = {}) =>
@@ -278,9 +280,9 @@ const SECTION_SCOPED_MEMBER_VIEW_ROLE_IDS = [
   ROLES.COORDINADOR_PROMOCION_SECCION,
   ROLES.COORDINADOR_PRODUCCION_SECCION,
   ROLES.COORDINADOR_PROGRAMA_SECCION,
-  // Cargos de consulta de nivel sección.
+  // Cargos de consulta de nivel sección. (El Secretario Regional NO va aquí: es
+  // un cargo de nivel región, ver REGION_SCOPED_MEMBER_VIEW_ROLE_IDS.)
   ROLES.CAPELLAN_SECCIONAL,
-  ROLES.SECRETARIO_REGIONAL,
   ROLES.ZONAS,
   ROLES.GRUPOS_LOCALES,
 ];
@@ -985,8 +987,8 @@ const ACADEMIA_MINISTERIAL_EDITOR_ROLE_IDS = new Set([
   ROLES.COORDINADOR_PRODUCCION_SECCION,
   ROLES.COORDINADOR_PROGRAMA_SECCION,
   ROLES.CAPELLAN_SECCIONAL,
-  ROLES.SECRETARIO_REGIONAL,
   // Nivel region: todos.
+  ROLES.SECRETARIO_REGIONAL,
   ROLES.USUARIO_REGION,
   ROLES.USUARIO_REGION_ASISTENTE,
   ROLES.COORDINADOR_ADIESTRAMIENTO_REGION,
@@ -1067,6 +1069,51 @@ const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
 
 export const canViewMemberBirthdateWhenMasked = (user = {}) =>
   BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS.has(getUserRoleId(user));
+
+// Edad a partir de la cual un miembro deja de considerarse menor de edad. El
+// enmascarado de la ficha existe para proteger a los MENORES, por lo que los
+// cargos de abajo ven en texto plano los datos de contacto de los adultos.
+export const EDAD_MAYORIA = 18;
+
+// Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
+// EDAD ven en texto plano la fecha de nacimiento, el telefono y el correo. El
+// resto de la informacion personal (direccion) sigue enmascarada, y con los
+// menores de edad se les enmascara todo como hasta ahora.
+const ADULT_CONTACT_VISIBLE_ROLE_IDS = new Set([ROLES.USUARIO_SECCION, ROLES.USUARIO_REGION]);
+
+export const canViewAdultMemberContactData = (user = {}) =>
+  ADULT_CONTACT_VISIBLE_ROLE_IDS.has(getUserRoleId(user));
+
+// Edad del miembro a partir de su fecha de nacimiento (null si no la tiene).
+export const getMemberAge = (member = {}) => {
+  const birthDate = member?.birthDate ?? member?.fechaNacimiento ?? member?.birth ?? member?.dateOfBirth;
+
+  if (!birthDate) return null;
+
+  const parsed = new Date(birthDate);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const monthDiff = today.getMonth() - parsed.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+};
+
+// ¿Al usuario se le deben mostrar en texto plano la fecha de nacimiento, el
+// telefono y el correo de ESTE miembro por ser mayor de edad?
+export const canViewMemberContactDataByAge = (user = {}, member = {}) => {
+  if (!canViewAdultMemberContactData(user)) return false;
+
+  const age = getMemberAge(member);
+
+  return age !== null && age >= EDAD_MAYORIA;
+};
 
 // "Visor completo" de la ficha del miembro: puede editar miembros o ver sus
 // datos sensibles. Estos cargos ven habilitados todos los tabs de la ficha.

@@ -59,11 +59,11 @@ const getSectionalHref = (admin) => {
 
 // ----------------------------------------------------------------------
 
-export function AdminCard({ admin, sx, ...other }) {
+export function AdminCard({ admin, dests = [], sx, ...other }) {
   const adminEditId = getAdminEditId(admin);
   const editHref = adminEditId ? `/dashboard/level/member/${adminEditId}/edit` : '#';
   const adminName = admin?.name || admin?.displayName || admin?.email || 'Administrador';
-  const roleLabel = getAdminRoleLabel(admin);
+  const roleLabel = getAdminRoleLabel(admin, { dests });
 
   return (
     <CompactEntityCard

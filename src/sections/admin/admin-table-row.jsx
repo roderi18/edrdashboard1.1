@@ -27,6 +27,9 @@ import { AdminRoleAssignmentDialog } from './admin-role-assignment-dialog';
 
 export function AdminTableRow({
   row,
+  // Destacamentos, para mostrar el NÚMERO del destacamento en la etiqueta del
+  // rol en vez de su id interno. La vista los lee una vez y los pasa por props.
+  dests = [],
   selected,
   onSelectRow,
   onAssignAdmin,
@@ -44,7 +47,7 @@ export function AdminTableRow({
     Boolean(row.adminId || row.esAdministrador) ||
     ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase()) ||
     ADMIN_ROLE_IDS.includes(row.rolId || row.roleId || row.role);
-  const roleLabel = getAdminRoleLabel(row);
+  const roleLabel = getAdminRoleLabel(row, { dests });
 
   const renderMenuActions = () => (
     <CustomPopover

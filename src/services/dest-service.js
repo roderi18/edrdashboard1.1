@@ -1,11 +1,14 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
+import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
 import {
     saveItem,
     getStorageCollection,
     setStorageCollection,
 } from 'src/utils/storage-service';
 
+import { getChurches } from './church-service';
+import { getSectionals } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 
 // Verificacion de alcance del lado del cliente (defensa en profundidad), aplicada
@@ -14,6 +17,41 @@ import { registrarAuditoriaSilenciosa } from './audit-log-service';
 const assertScope = (usuario, allowed, mensaje) => {
     if (usuario && !allowed) {
         throw new Error(mensaje);
+    }
+};
+
+// Alcance propio del usuario + region de la seccion destino, para validar un alta
+// de destacamento contra el destino REAL. Los ids propios se DERIVAN (membresia,
+// destacamento -> iglesia -> seccion -> region), no solo del token, porque muchas
+// sesiones no traen el alcance resuelto y sin esto se denegarian altas legitimas.
+const resolveDestCreationScope = async (usuario, sectionId) => {
+    try {
+        const [sectionals, churches, dests] = await Promise.all([
+            getSectionals({ includePhotos: false }),
+            getChurches(),
+            getDestsApi(),
+        ]);
+
+        const sectional =
+            sectionId === null || sectionId === undefined || sectionId === ''
+                ? null
+                : (Array.isArray(sectionals) ? sectionals : []).find((item) =>
+                      [item?.id, item?.idSeccion].some(
+                          (value) => String(value) === String(sectionId)
+                      )
+                  );
+
+        return {
+            regionId: sectional?.regionalId ?? sectional?.idRegion ?? sectional?.regionId ?? null,
+            ownSectionIds: getOwnSectionIdsForUser(usuario, { dests, churches }),
+            ownRegionIds: getOwnRegionIdsForUser(usuario, { dests, churches, sectionals }),
+        };
+    } catch (error) {
+        // Sin los catalogos no se puede comprobar el destino. No poder verificar no
+        // autoriza: se devuelven alcances vacios y la validacion deniega.
+        console.warn('[dest-service] no se pudo resolver el alcance del alta', error);
+
+        return { regionId: null, ownSectionIds: new Set(), ownRegionIds: new Set() };
     }
 };
 
@@ -203,13 +241,23 @@ const registrarAuditoriaDestacamento = ({ accion, descripcion, data, response, u
 };
 
 export const createDestApi = async (data, { usuario } = {}) => {
-    // Crear destacamentos: admin de seccion (su seccion) o admin pleno. El admin
-    // de region no crea destacamentos (solo los edita).
-    assertScope(
-        usuario,
-        isFullOrgManager(usuario) || canCreateDestInSection(usuario),
-        'No tienes permiso para crear destacamentos.'
-    );
+    // Crear destacamentos: admin de seccion (su seccion), Coordinador/Sub-Director
+    // Regional (secciones de su region) o admin pleno. Se valida contra la SECCION
+    // DESTINO concreta: sin ella, un payload manipulado podia crear el
+    // destacamento en una seccion ajena aunque el formulario tuviera el campo fijo.
+    if (usuario && !isFullOrgManager(usuario)) {
+        const sectionId = data?.sectionId ?? data?.idSeccion ?? data?.seccionId ?? null;
+        const { regionId, ownSectionIds, ownRegionIds } = await resolveDestCreationScope(
+            usuario,
+            sectionId
+        );
+
+        assertScope(
+            usuario,
+            canCreateDestInSection(usuario, sectionId, { regionId, ownSectionIds, ownRegionIds }),
+            'Solo puedes crear destacamentos dentro de tu sección o región.'
+        );
+    }
 
     const payload = buildDestPayload(data);
 

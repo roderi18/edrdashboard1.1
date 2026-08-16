@@ -3,7 +3,7 @@
 import { varAlpha } from 'minimal-shared/utils';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -18,6 +18,7 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
@@ -299,11 +300,19 @@ export function RegionalListView() {
     hasAppliedUrlFilter.current = true;
   }, [sectionParam, updateFilters, table]);
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // Orden inicial: la región del alcance del usuario primero. Si el usuario
+  // ordena por una columna, manda su criterio (ver `sortOwnFirst`).
+  const dataFiltered = useMemo(() => {
+    const filtered = applyFilter({
+      inputData: tableData,
+      comparator: getComparator(table.order, table.orderBy),
+      filters: currentFilters,
+    });
+
+    if (table.hasUserSorted || !ownRegionIds.size) return filtered;
+
+    return sortOwnFirst(filtered, (row) => ownRegionIds.has(normalizeId(row.id)));
+  }, [tableData, table.order, table.orderBy, table.hasUserSorted, currentFilters, ownRegionIds]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 

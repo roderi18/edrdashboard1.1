@@ -1,3 +1,4 @@
+import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 import {
@@ -7,6 +8,7 @@ import {
   canCreateSectionalInRegion,
 } from 'src/utils/org-level-access';
 
+import { getChurches } from './church-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 
 // Verificacion de alcance del lado del cliente (defensa en profundidad). Solo se
@@ -15,6 +17,35 @@ import { registrarAuditoriaSilenciosa } from './audit-log-service';
 const assertScope = (usuario, allowed, mensaje) => {
   if (usuario && !allowed) {
     throw new Error(mensaje);
+  }
+};
+
+// Region(es) propias del usuario, DERIVADAS (no solo el alcance del token, que
+// muchas sesiones no traen resuelto). Los destacamentos se piden por fetch y no
+// via dest-service para no crear un ciclo de importacion entre ambos servicios.
+const resolveOwnRegionIds = async (usuario) => {
+  try {
+    const [sectionals, churches] = await Promise.all([
+      getSectionals({ includePhotos: false }),
+      getChurches(),
+    ]);
+
+    let dests = [];
+
+    try {
+      const res = await fetch('/api/dest');
+      const json = await res.json();
+      dests = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
+    } catch {
+      dests = [];
+    }
+
+    return getOwnRegionIdsForUser(usuario, { dests, churches, sectionals });
+  } catch (error) {
+    // No poder comprobar el alcance no autoriza: se devuelve vacio y se deniega.
+    console.warn('[sectional-service] no se pudo resolver la region propia', error);
+
+    return new Set();
   }
 };
 
@@ -121,11 +152,19 @@ const registrarAuditoriaSeccion = ({
 };
 
 export const saveSectional = async (payload, { usuario } = {}) => {
-    assertScope(
-        usuario,
-        canCreateSectionalInRegion(usuario, payload?.idRegion ?? payload?.regionalId),
-        'No tienes permiso para crear secciones en esa región.'
-    );
+    // Se valida contra la REGION DESTINO del payload, con el alcance propio ya
+    // derivado (el token de un Coordinador Regional puede no traer su region).
+    if (usuario) {
+        const ownRegionIds = await resolveOwnRegionIds(usuario);
+
+        assertScope(
+            usuario,
+            canCreateSectionalInRegion(usuario, payload?.idRegion ?? payload?.regionalId, {
+                ownRegionIds,
+            }),
+            'Solo puedes crear secciones dentro de tu región.'
+        );
+    }
 
     const res = await fetch('/api/sectional/post', {
         method: 'POST',
@@ -148,12 +187,18 @@ export const saveSectional = async (payload, { usuario } = {}) => {
 };
 
 export const updateSectional = async (sectional, { usuario, antes = null } = {}) => {
-    assertScope(
-        usuario,
-        canEditSectional(usuario, antes ?? sectional) &&
-            canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId),
-        'No tienes permiso para editar esta sección.'
-    );
+    if (usuario) {
+        const ownRegionIds = await resolveOwnRegionIds(usuario);
+
+        assertScope(
+            usuario,
+            canEditSectional(usuario, antes ?? sectional) &&
+                canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId, {
+                    ownRegionIds,
+                }),
+            'No tienes permiso para editar esta sección.'
+        );
+    }
 
     try {
         const res = await fetch('/api/sectional/put', {

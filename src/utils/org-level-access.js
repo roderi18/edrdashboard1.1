@@ -94,6 +94,16 @@ export const isSectionScopedManager = (user = {}) =>
 export const isRegionScopedManager = (user = {}) =>
   REGION_SCOPED_ROLES.includes(getOrgRoleId(user));
 
+// Coordinador Regional y Sub-Director Regional: pueden dar de ALTA secciones y
+// destacamentos, siempre dentro de SU PROPIA REGION. Es una excepcion acotada a
+// la creacion: siguen siendo cargos de consulta (`soloLectura`), por lo que no
+// editan ni eliminan lo ya existente. Va en una lista propia y no en
+// REGION_SCOPED_ROLES precisamente para no reabrirles la edicion.
+const REGION_CREATOR_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENTE];
+
+export const isRegionScopedCreator = (user = {}) =>
+  REGION_CREATOR_ROLES.includes(getOrgRoleId(user));
+
 const isAdminSession = (user = {}) =>
   ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
 
@@ -228,27 +238,67 @@ export const canEditDest = (user = {}, dest = {}) => {
 // Creacion
 // ----------------------------------------------------------------------
 
-// Admin de region crea secciones dentro de su region. Si no se pasa regionId,
-// responde si el rol tiene alguna region en su alcance (para mostrar el boton).
-export const canCreateSectionalInRegion = (user = {}, regionId = null) => {
+// Toda alta queda DENTRO del alcance de quien la hace; la unica excepcion es el
+// Administrador Global (y el Funcional), que crean en cualquier nivel.
+//
+// Dos modos de pregunta:
+//   - Sin destino (`regionId`/`sectionId` en null): "¿le muestro el boton?". Se
+//     responde por ROL, sin exigir que el alcance ya este resuelto, porque el
+//     boton solo lleva al formulario y este acota las opciones.
+//   - Con destino concreto: se valida de verdad y, si el destino no cae en su
+//     alcance, se DENIEGA. Si el alcance no se pudo resolver tampoco se permite:
+//     no poder comprobarlo no es lo mismo que estar autorizado.
+//
+// `ownRegionIds`/`ownSectionIds` permiten pasar el alcance ya DERIVADO (por
+// membresia o por direccion de la entidad), que es mas completo que el del token;
+// si no se pasan, se cae al alcance explicito de la sesion.
+
+// Admin de region crea secciones dentro de su region.
+export const canCreateSectionalInRegion = (user = {}, regionId = null, { ownRegionIds } = {}) => {
   if (isGlobalOrgManager(user)) return true;
 
-  if (REGION_SCOPED_ROLES.includes(getOrgRoleId(user))) {
-    const scope = getRegionScopeIds(user);
-    return regionId === null ? scope.size > 0 : scope.has(normalizeId(regionId));
-  }
+  const roleId = getOrgRoleId(user);
+  const esCreadorRegional =
+    REGION_SCOPED_ROLES.includes(roleId) || REGION_CREATOR_ROLES.includes(roleId);
 
-  return false;
+  if (!esCreadorRegional) return false;
+
+  if (regionId === null) return true;
+
+  const scope = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+
+  return scope.has(normalizeId(regionId));
 };
 
-// Admin de seccion crea destacamentos dentro de su seccion. El admin de region
-// NO crea destacamentos (solo los edita).
-export const canCreateDestInSection = (user = {}, sectionId = null) => {
+// Admin de seccion crea destacamentos dentro de su seccion; los cargos regionales,
+// en cualquier seccion de su region. `regionId` es la region a la que pertenece la
+// seccion destino: la necesitan los regionales, cuyo alcance se expresa por region.
+export const canCreateDestInSection = (
+  user = {},
+  sectionId = null,
+  { regionId, ownSectionIds, ownRegionIds } = {}
+) => {
   if (isGlobalOrgManager(user)) return true;
 
-  if (SECTION_SCOPED_ROLES.includes(getOrgRoleId(user))) {
-    const scope = getSectionScopeIds(user);
-    return sectionId === null ? scope.size > 0 : scope.has(normalizeId(sectionId));
+  const roleId = getOrgRoleId(user);
+
+  if (SECTION_SCOPED_ROLES.includes(roleId)) {
+    if (sectionId === null) return true;
+
+    const scope = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
+
+    return scope.has(normalizeId(sectionId));
+  }
+
+  if (REGION_CREATOR_ROLES.includes(roleId)) {
+    if (sectionId === null && (regionId === null || regionId === undefined)) return true;
+
+    // La seccion destino tiene que resolverse a una region para poder comprobarla.
+    if (regionId === null || regionId === undefined) return false;
+
+    const scope = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+
+    return scope.has(normalizeId(regionId));
   }
 
   return false;
@@ -257,13 +307,15 @@ export const canCreateDestInSection = (user = {}, sectionId = null) => {
 // Valida el destino al guardar una seccion: el admin de region solo puede
 // asignarla a una region de su alcance; el admin de seccion edita su propia
 // seccion sin reasignarla fuera (su alcance es por id de seccion, no por region).
-export const canAssignSectionalToRegion = (user = {}, regionId = null) => {
+export const canAssignSectionalToRegion = (user = {}, regionId = null, { ownRegionIds } = {}) => {
   if (isFullOrgManager(user)) return true;
 
   const roleId = getOrgRoleId(user);
 
-  if (REGION_SCOPED_ROLES.includes(roleId)) {
-    return getRegionScopeIds(user).has(normalizeId(regionId));
+  if (REGION_SCOPED_ROLES.includes(roleId) || REGION_CREATOR_ROLES.includes(roleId)) {
+    const scope = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+
+    return scope.has(normalizeId(regionId));
   }
 
   if (roleId === ROLES.USUARIO_SECCION) {

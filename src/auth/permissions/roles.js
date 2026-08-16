@@ -235,8 +235,8 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.SECRETARIO_REGIONAL,
     nombre: 'Secretario Regional',
-    descripcion: 'Consulta de solo lectura de los miembros y destacamentos de su seccion (datos sensibles enmascarados).',
-    alcancePredeterminado: ALCANCES.SECCION,
+    descripcion: 'Consulta de solo lectura de los miembros y destacamentos de su region (datos sensibles enmascarados).',
+    alcancePredeterminado: ALCANCES.REGION,
     asignableDesdeAdministradores: true,
     activo: true,
   },

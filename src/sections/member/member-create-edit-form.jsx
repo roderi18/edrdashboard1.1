@@ -32,6 +32,8 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { isGlobalOrgManager } from 'src/utils/org-level-access';
+// services
+import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   calcularEstatusCI,
@@ -50,6 +52,7 @@ import {
   canViewMemberSensitiveData,
   buildDefaultMemberPermissions,
   isCoordinadorDestacamentoRole,
+  canViewMemberContactDataByAge,
   canViewMemberBirthdateWhenMasked,
 } from 'src/utils/member-access';
 
@@ -63,9 +66,7 @@ import { getDivisions } from 'src/services/division-service';
 import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
-import { NATIONAL_LEADERSHIP_LEVELS } from 'src/catalogs/directiva-positions';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
-// services
 import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
@@ -75,17 +76,15 @@ import {
   asegurarCargoApi,
   guardarCargoMiembroApi,
   obtenerCargosMiembroApi,
+  eliminarCargoMiembroApi,
 } from 'src/services/cargos-api-service';
 import {
-  CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO,
-  obtenerAsignacionesOrganigramaPorDestacamento,
-} from 'src/services/organigrama-directiva-destacamentos-service';
-import {
-  DIVISIONES_DIRECTIVA,
-  guardarAsignacionDirectiva,
-  obtenerCargosDirectivaCached,
-  obtenerAsignacionesDirectivaPorMiembro,
-} from 'src/services/directivas-organizacionales-service';
+  getNivelesARetirar,
+  CARGOS_DIRECTIVA_BASE,
+  getOrganigramaDestSlot,
+  NATIONAL_LEADERSHIP_LEVELS,
+  AMBITO_CARGO_UNICO_POR_NIVEL,
+} from 'src/catalogs/directiva-positions';
 import {
   crearNotificacionAdmin,
   crearNotificacionCuentaCreada,
@@ -93,6 +92,21 @@ import {
   crearNotificacionMiembroActualizado,
   crearNotificacionErrorSubidaArchivoImagen,
 } from 'src/services/notification-service';
+import {
+  CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO,
+  obtenerAsignacionesOrganigramaPorDestacamento,
+  guardarAsignacionOrganigramaDirectivaDestacamento,
+  desactivarAsignacionOrganigramaDirectivaDestacamento,
+} from 'src/services/organigrama-directiva-destacamentos-service';
+import {
+  NIVELES_DIRECTIVA,
+  DIVISIONES_DIRECTIVA,
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+  obtenerCargosDirectivaCached,
+  obtenerAsignacionesDirectivaPorMiembro,
+  desactivarAsignacionesDirectivaPorNivel,
+} from 'src/services/directivas-organizacionales-service';
 import {
   getModuloSolicitud,
   ESTADOS_SOLICITUD_CAMBIO,
@@ -110,6 +124,7 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { ContextInfo } from 'src/components/info/context-info';
 import { UnderlineLink } from 'src/components/link/underline-link';
 // form sections
@@ -414,9 +429,17 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // consejo de destacamento, líderes de grupo, etc.): la información personal se
   // muestra ENMASCARADA (dirección, teléfono y correo).
   const maskSensitive = Boolean(currentMember) && !canViewMemberSensitiveData(user);
+  // Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
+  // EDAD ven fecha de nacimiento, teléfono y correo en texto plano (el
+  // enmascarado protege a los menores). La dirección sigue enmascarada.
+  const adultContactVisible = canViewMemberContactDataByAge(user, currentMember ?? {});
+  // Teléfono y correo. Se separa de `maskSensitive` (que sigue rigiendo la
+  // dirección) para poder destaparlos solo en los miembros adultos.
+  const maskContact = maskSensitive && !adultContactVisible;
   // La fecha de nacimiento es la única excepción al enmascarado para los cargos
   // del destacamento que la necesitan (edad y división del miembro).
-  const maskBirthdate = maskSensitive && !canViewMemberBirthdateWhenMasked(user);
+  const maskBirthdate =
+    maskSensitive && !adultContactVisible && !canViewMemberBirthdateWhenMasked(user);
   // Enmascarar NO implica solo lectura: quién puede editar ya lo decide el prop
   // `readOnly` (derivado de `miembros.editar`). Acoplarlos dejaba sin el botón de
   // "Enviar cambios a aprobación" a los líderes de grupo, que sí editan aunque
@@ -428,6 +451,23 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // Solicitud pendiente enviada por el propio lider de grupo (para el boton
   // "Ver cambios pendientes" y su modal de solo lectura).
   const [leaderPendingRequest, setLeaderPendingRequest] = useState(null);
+
+  // Aviso de "esta posición ya está ocupada". Guarda al ocupante para el texto y
+  // el `resolve` de la promesa que deja el guardado en espera de la decisión.
+  const [posicionOcupada, setPosicionOcupada] = useState(null);
+  const decisionReemplazoRef = useRef(null);
+
+  const pedirConfirmacionDeReemplazo = (ocupante) =>
+    new Promise((resolve) => {
+      decisionReemplazoRef.current = resolve;
+      setPosicionOcupada(ocupante);
+    });
+
+  const responderReemplazo = (aceptado) => {
+    setPosicionOcupada(null);
+    decisionReemplazoRef.current?.(aceptado);
+    decisionReemplazoRef.current = null;
+  };
 
   // Solicitud de cambio abierta desde la notificacion (?solicitud=<id>). Solo se
   // muestra a los coordinadores (no a los propios lideres de grupo).
@@ -767,7 +807,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           return;
         }
 
-        const cargoIds = cargosMiembro
+        // Ids de cargo del miembro, EL MAS RECIENTE PRIMERO. El orden importa:
+        // si arrastra varios cargos del mismo nivel (de asignaciones anteriores
+        // que no se dieron de baja), el formulario debe mostrar el ultimo, no uno
+        // cualquiera.
+        const cargoIds = [...cargosMiembro]
+          .sort((a, b) =>
+            String(b?.fechaInicio || '').localeCompare(String(a?.fechaInicio || ''))
+          )
           .map((cargoMiembro) => Number(cargoMiembro.idCargo))
           .filter((idCargo) => Number.isFinite(idCargo) && idCargo > 0);
         const positionsByAssignment = asignacionesDirectiva
@@ -786,9 +833,15 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
             )
           )
           .filter(Boolean);
-        const positionsByCargoApi = cargosDirectiva.filter((cargo) =>
-          cargoIds.includes(Number(cargo.idCargo || cargo.idCargoApi))
-        );
+        // Se recorren los ids en su orden (mas reciente primero) en vez de
+        // filtrar el catalogo, que los devolveria en orden de catalogo.
+        const positionsByCargoApi = cargoIds
+          .map((idCargoMiembro) =>
+            cargosDirectiva.find(
+              (cargo) => Number(cargo.idCargo || cargo.idCargoApi) === idCargoMiembro
+            )
+          )
+          .filter(Boolean);
         const memberDivisionKey = getDirectivaDivisionByMemberDivisionId(
           currentMember?.idDivision || currentMember?.divisionId
         );
@@ -1093,14 +1146,54 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     const fechaInicio = dayjs().format('YYYY-MM-DD');
     const idEntidad = getCargoEntityId(cargo);
 
-    await guardarCargoMiembroApi({
-      idCargo,
-      idMiembro,
-      fechaInicio,
-      fechaFin: null,
-    });
+    // `CargosMiembros` tiene clave compuesta (idCargo, idMiembro, fechaInicio) y
+    // el backend inserta sin comprobar duplicados: repetir el POST con la misma
+    // terna devuelve 500. Por eso, antes de guardar:
+    //   a) se retiran las posiciones ANTERIORES de los niveles afectados (el
+    //      propio, para no acumular dos cargos del mismo nivel, y los excluyentes
+    //      si es de supervision: nadie es seccional y regional a la vez), y
+    //   b) se omite el POST si la asignacion ya existe tal cual.
+    const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
+    const nivelesARetirar = getNivelesARetirar(cargo.nivel);
+    const idsCargoDelNivel = new Set(
+      CARGOS_DIRECTIVA_BASE.filter(
+        (position) => nivelesARetirar.includes(position.nivel) && position.idCargoApi
+      ).map((position) => Number(position.idCargoApi))
+    );
 
-    await guardarAsignacionDirectiva({
+    const yaAsignado = cargosActuales.some(
+      (item) =>
+        Number(item?.idCargo) === idCargo &&
+        String(item?.fechaInicio || '').slice(0, 10) === fechaInicio
+    );
+
+    const aRetirar = cargosActuales.filter(
+      (item) => Number(item?.idCargo) !== idCargo && idsCargoDelNivel.has(Number(item?.idCargo))
+    );
+
+    await Promise.all(
+      aRetirar.map((item) =>
+        eliminarCargoMiembroApi({
+          idCargo: Number(item.idCargo),
+          idMiembro,
+          fechaInicio: String(item.fechaInicio || '').slice(0, 10),
+          fechaFin: item.fechaFin ?? null,
+        }).catch((error) => {
+          console.warn('[member form] no se pudo retirar el cargo anterior', error);
+        })
+      )
+    );
+
+    if (!yaAsignado) {
+      await guardarCargoMiembroApi({
+        idCargo,
+        idMiembro,
+        fechaInicio,
+        fechaFin: null,
+      });
+    }
+
+    const asignacionGuardada = await guardarAsignacionDirectiva({
       nivel: cargo.nivel,
       idEntidad,
       nombreEntidad: '',
@@ -1115,6 +1208,64 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       activo: true,
       usuario: user,
     });
+
+    // Baja de las asignaciones ANTERIORES. Se retiran las del propio nivel (el id
+    // del documento incluye el cargo, asi que cambiar de posicion crea uno nuevo y
+    // el viejo quedaba activo) y, si es un cargo de supervision, tambien las de los
+    // otros niveles excluyentes: nadie es seccional y regional a la vez.
+    await Promise.all(
+      getNivelesARetirar(cargo.nivel).map((nivel) =>
+        desactivarAsignacionesDirectivaPorNivel({
+          idMiembro,
+          nivel,
+          conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+        }).catch((error) => {
+          console.warn('[member form] no se pudo dar de baja el cargo anterior', error);
+        })
+      )
+    );
+
+    // La Directiva del destacamento (cuadro jerarquico) se alimenta de SU PROPIA
+    // coleccion, distinta de CargosMiembros y de asignaciones_directiva. Sin
+    // esto, asignar la posicion en la ficha no movia nada en el organigrama y el
+    // nodo seguia mostrando su ocupante anterior (o el de ejemplo).
+    const slotOrganigrama = getOrganigramaDestSlot(cargo);
+    const idDestacamentoMiembro = Number(idEntidad) || null;
+
+    if (slotOrganigrama && idDestacamentoMiembro) {
+      try {
+        // Primero se libera cualquier OTRA casilla que el miembro ocupara en este
+        // destacamento; si no, seguiria dibujado tambien en la anterior.
+        const asignacionesDest =
+          await obtenerAsignacionesOrganigramaPorDestacamento(idDestacamentoMiembro);
+
+        await Promise.all(
+          asignacionesDest
+            .filter(
+              (asignacion) =>
+                String(asignacion.idMiembros) === String(idMiembro) &&
+                !(
+                  asignacion.cargo === slotOrganigrama.cargo &&
+                  (asignacion.division ?? null) === (slotOrganigrama.division ?? null)
+                )
+            )
+            .map((asignacion) =>
+              desactivarAsignacionOrganigramaDirectivaDestacamento(asignacion.id)
+            )
+        );
+
+        await guardarAsignacionOrganigramaDirectivaDestacamento({
+          idDestacamento: idDestacamentoMiembro,
+          idMiembros: Number(idMiembro),
+          ...slotOrganigrama,
+          activo: true,
+        });
+      } catch (error) {
+        // No se aborta el guardado del miembro: el cargo ya quedo registrado en
+        // la API y en asignaciones_directiva; solo se pierde el reflejo visual.
+        console.warn('[member form] no se pudo sincronizar la Directiva del destacamento', error);
+      }
+    }
   };
 
   const saveSelectedMemberCargos = async ({ idMiembro, formData }) => {
@@ -1122,6 +1273,113 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       saveSelectedCargo({ value: formData.nationalLeadershipRole, idMiembro }),
       saveSelectedCargo({ value: formData.memberPosition, idMiembro }),
     ]);
+  };
+
+  // --- Una posicion del destacamento, un solo ocupante -------------------------
+  // Cada casilla del organigrama la ocupa UNA persona. Antes de asignar un cargo
+  // ya ocupado hay que avisar de a quien se va a desplazar: el guardado sobrescribe
+  // la casilla, y sin este aviso el cambio ocurriria en silencio.
+
+  // Id del miembro que ya ocupa el cargo en la misma entidad, o null si esta libre.
+  // El destacamento se consulta contra el organigrama (que es quien dibuja las
+  // casillas); seccion y region, contra las asignaciones de su directiva.
+  const buscarIdOcupanteDelCargo = async ({ cargo, idEntidad, idMiembro }) => {
+    if (cargo.nivel === NIVELES_DIRECTIVA.destacamento) {
+      const slot = getOrganigramaDestSlot(cargo);
+      const idDestacamento = Number(idEntidad) || null;
+
+      if (!slot || !idDestacamento) return null;
+
+      const asignaciones = await obtenerAsignacionesOrganigramaPorDestacamento(
+        idDestacamento
+      ).catch(() => []);
+
+      return (
+        asignaciones.find(
+          (asignacion) =>
+            asignacion.cargo === slot.cargo &&
+            (asignacion.division ?? null) === (slot.division ?? null) &&
+            String(asignacion.idMiembros) !== String(idMiembro)
+        )?.idMiembros ?? null
+      );
+    }
+
+    if (!idEntidad || idEntidad === 'general') return null;
+
+    const asignaciones = await obtenerAsignacionesDirectiva({
+      nivel: cargo.nivel,
+      idEntidad,
+    }).catch(() => []);
+
+    const idPosicion = String(cargo.idPosicionDirectiva || cargo.id || '');
+    const idCargoApi = Number(cargo.idCargoApi || cargo.idCargo) || null;
+
+    return (
+      asignaciones.find(
+        (asignacion) =>
+          (String(asignacion.idPosicionDirectiva || '') === idPosicion ||
+            (idCargoApi && Number(asignacion.idCargo) === idCargoApi)) &&
+          String(asignacion.idMiembro) !== String(idMiembro)
+      )?.idMiembro ?? null
+    );
+  };
+
+  // Ocupante actual de la posicion que se va a asignar, o null si esta libre.
+  const buscarOcupanteDePosicion = async ({ value, idMiembro }) => {
+    const cargo = await getCargoOptionByValue(value);
+
+    if (!cargo || !AMBITO_CARGO_UNICO_POR_NIVEL[cargo.nivel]) {
+      return null;
+    }
+
+    const idEntidad = getCargoEntityId(cargo);
+    const idOcupante = await buscarIdOcupanteDelCargo({ cargo, idEntidad, idMiembro });
+
+    if (!idOcupante) {
+      return null;
+    }
+
+    const miembros = await getMembers().catch(() => []);
+    const ocupante = miembros.find(
+      (item) => String(item?.id ?? item?.idMiembros ?? '') === String(idOcupante)
+    );
+
+    return {
+      idMiembros: idOcupante,
+      nombre: ocupante ? getMemberFullName(ocupante) : `el miembro #${idOcupante}`,
+      cargoLabel: cargo.nombreCargo || cargo.nombre || 'este cargo',
+      division: cargo.nombreDivision || '',
+      ambito: AMBITO_CARGO_UNICO_POR_NIVEL[cargo.nivel],
+      idCargoApi: Number(cargo.idCargoApi || cargo.idCargo) || null,
+      nivel: cargo.nivel,
+    };
+  };
+
+  // Retira el cargo al ocupante anterior en los tres almacenes. La casilla del
+  // organigrama se sobrescribe sola (su id es dest+cargo+division), pero en la API
+  // y en asignacionesDirectiva el cargo se le quedaria pegado, y la lista de
+  // miembros mostraria a dos personas con la misma posicion.
+  const retirarPosicionAlOcupante = async ({ idMiembros, idCargoApi, nivel }) => {
+    if (!idMiembros || !idCargoApi) return;
+
+    const cargosDelOcupante = await obtenerCargosMiembroApi(idMiembros).catch(() => []);
+
+    await Promise.all(
+      cargosDelOcupante
+        .filter((item) => Number(item?.idCargo) === Number(idCargoApi))
+        .map((item) =>
+          eliminarCargoMiembroApi({
+            idCargo: Number(item.idCargo),
+            idMiembro: idMiembros,
+            fechaInicio: String(item.fechaInicio || '').slice(0, 10),
+            fechaFin: item.fechaFin ?? null,
+          }).catch(() => null)
+        )
+    );
+
+    await desactivarAsignacionesDirectivaPorNivel({ idMiembro: idMiembros, nivel }).catch(
+      () => null
+    );
   };
 
   const leaderships = LEADERSHIP_ASSIGNMENTS.filter(
@@ -1332,6 +1590,36 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
       const memberUUID = currentMember?.id || crypto.randomUUID();
       const formData = data;
+
+      // Cada posición de destacamento, sección y región la ocupa una sola persona.
+      // Si alguno de los cargos elegidos ya lo tiene otro miembro, se pide
+      // confirmación ANTES de guardar nada: al aceptar se le retira a esa persona;
+      // al cancelar no se toca nada. Se revisan los dos campos de cargo del
+      // formulario (el del destacamento y el de nivel superior).
+      const idMiembroActual = currentMember?.id || currentMember?.idMiembros || null;
+      const ocupantes = (
+        await Promise.all(
+          [formData.memberPosition, formData.nationalLeadershipRole].map((value) =>
+            buscarOcupanteDePosicion({ value, idMiembro: idMiembroActual }).catch(() => null)
+          )
+        )
+      ).filter(Boolean);
+
+      for (const ocupante of ocupantes) {
+        // En serie: cada aviso espera la decisión del anterior.
+         
+        const confirmado = await pedirConfirmacionDeReemplazo(ocupante);
+
+        if (!confirmado) {
+          return;
+        }
+
+         
+        await retirarPosicionAlOcupante(ocupante).catch((error) => {
+          console.warn('[member form] no se pudo retirar la posición al ocupante', error);
+        });
+      }
+
       try {
         const submittedFirstName = formData.firstName;
         const submittedLastName = formData.lastName;
@@ -2051,6 +2339,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     avatarUrl={currentMember?.avatarUrl}
                     // El PDF hereda el mismo enmascarado que la ficha en pantalla.
                     masked={maskSensitive}
+                    maskContact={maskContact}
                     maskBirthdate={maskBirthdate}
                   />
                 </Stack>
@@ -2076,7 +2365,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                     control={control}
                     minBirthdate={minBirthdate}
                     maxBirthdate={maxBirthdate}
-                    masked={maskSensitive}
+                    masked={maskContact}
                     maskBirthdate={maskBirthdate}
                     readOnly={readOnlyEffective}
                   />
@@ -2397,6 +2686,32 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         open={changeResultOpen}
         solicitud={changeResult}
         onClose={cerrarResultado}
+      />
+
+      {/* Esta posición del destacamento ya la ocupa otra persona. */}
+      <ConfirmDialog
+        open={Boolean(posicionOcupada)}
+        onClose={() => responderReemplazo(false)}
+        title="Cambiar posición"
+        content={
+          posicionOcupada ? (
+            <>
+              <strong> {posicionOcupada.nombre} </strong> ya ocupa el cargo de
+              <strong>
+                {' '}
+                {posicionOcupada.cargoLabel}
+                {posicionOcupada.division ? ` (${posicionOcupada.division})` : ''}{' '}
+              </strong>
+              {posicionOcupada.ambito}. Al confirmar se le retirará la posición y pasará a
+              <strong> {memberFullName || 'este miembro'}</strong>.
+            </>
+          ) : null
+        }
+        action={
+          <Button variant="contained" color="error" onClick={() => responderReemplazo(true)}>
+            Cambiar posición
+          </Button>
+        }
       />
     </Form>
   );
