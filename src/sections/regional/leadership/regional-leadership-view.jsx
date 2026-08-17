@@ -308,8 +308,11 @@ export function RegionalLeadershipView() {
   }, []);
 
   const handlePointerDown = (event) => {
+    // Los dialogos y el desplegable del Autocomplete se renderizan en un Portal,
+    // pero React propaga sus eventos por el arbol de componentes: sin excluirlos,
+    // este handler capturaba el puntero y el clic nunca llegaba a la opcion.
     const interactiveElement = event.target.closest?.(
-      '.MuiCard-root, button, a, input, textarea, select, [role="button"]'
+      '.MuiCard-root, .MuiDialog-root, .MuiAutocomplete-popper, [role="option"], button, a, input, textarea, select, [role="button"]'
     );
 
     if (skipNextDragRef.current) {
@@ -373,7 +376,8 @@ export function RegionalLeadershipView() {
   });
 
   return (
-    <Box
+    <>
+      <Box
       ref={containerRef}
       aria-label="Mover organigrama regional"
       onPointerDown={handlePointerDown}
@@ -637,6 +641,8 @@ export function RegionalLeadershipView() {
         />
       )}
 
+    </Box>
+
       <LeadershipAssignDialog
         open={Boolean(leadership.selectedNode)}
         node={leadership.selectedNode}
@@ -651,6 +657,6 @@ export function RegionalLeadershipView() {
         onClose={leadership.closeAssign}
         onSubmit={leadership.asignarMiembro}
       />
-    </Box>
+    </>
   );
 }
