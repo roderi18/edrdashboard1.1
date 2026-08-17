@@ -2,10 +2,14 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
+import { buildOrgIndex, buildLeadershipMemberOptions } from 'src/utils/leadership-member-options';
 import {
-  buildOrgIndex,
-  buildLeadershipMemberOptions,
-} from 'src/utils/leadership-member-options';
+  buscarPosicionPorNodo,
+  normalizarIdAsignacion,
+  construirResumenMiembro,
+  resolverMiembroAsignado,
+  indexarAsignacionesPorPosicion,
+} from 'src/utils/leadership-assignments';
 
 import { getDestsApi } from 'src/services/dest-service';
 import { getMembers } from 'src/services/member-service';
@@ -15,52 +19,36 @@ import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
+  desactivarAsignacionesDirectivaPorNivel,
 } from 'src/services/directivas-organizacionales-service';
-import {
-  guardarCargoMiembroApi,
-  obtenerCargosMiembroApi,
-  eliminarCargoMiembroApi,
-} from 'src/services/cargos-api-service';
 
 import { toast } from 'src/components/snackbar';
 
 // ----------------------------------------------------------------------
-// Asignacion de miembros en las Directivas de SECCION y REGION.
+// Asignacion de miembros en las Directivas de SECCION, REGION y NACION.
 //
-// El organigrama del destacamento tiene su propia coleccion; seccion y region se
+// El organigrama del destacamento tiene su propia coleccion; los demas niveles se
 // apoyan en `asignacionesDirectiva`, que ya es generica por nivel + entidad. Cada
 // nodo del diagrama se casa con una posicion del catalogo por `idNodoDiagrama`,
 // que es lo que da el `idPosicionDirectiva` con el que se guarda.
+//
+// FIRESTORE ES LA UNICA FUENTE. Antes cada cambio se escribia tambien en la API
+// .NET (`CargosMiembros`) para alimentar la columna "Posicion" de la lista de
+// miembros. Eran dos escrituras sin transaccion y el fallo de la segunda se
+// descartaba, asi que las bases divergian mientras la pantalla confirmaba el
+// guardado. La lista ya resuelve la posicion desde las asignaciones, de modo que
+// esa segunda escritura sobraba.
 // ----------------------------------------------------------------------
 
-const normalizeId = (value) => String(value ?? '').trim();
+const findPositionByNode = (nivel, nodeId) =>
+  buscarPosicionPorNodo(DIRECTIVA_POSITIONS, nivel, nodeId);
 
-// Los ids de nodo de los diagramas y los del catalogo describen lo mismo pero no
-// siempre se escriben igual ("sub-director-regional" frente a
-// "subdirector-regional"), asi que se comparan sin guiones ni acentos.
-const nodeKey = (value) =>
-  String(value ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]/g, '');
-
-// Posicion del catalogo que corresponde a un nodo del diagrama.
-const findPositionByNode = (nivel, nodeId) => {
-  const key = nodeKey(nodeId);
-
-  if (!key) return null;
-
-  return (
-    DIRECTIVA_POSITIONS.find(
-      (position) =>
-        position.nivel === nivel &&
-        (nodeKey(position.idNodoDiagrama) === key || nodeKey(position.idCargo) === key)
-    ) || null
-  );
-};
-
-export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' }) {
+export function useLeadershipAssignments({
+  nivel,
+  idEntidad,
+  nombreEntidad = '',
+  canManage = true,
+}) {
   const [members, setMembers] = useState([]);
   const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
   // Asignaciones activas de esta directiva, indexadas por idPosicionDirectiva.
@@ -95,17 +83,11 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
   }, []);
 
   const loadAssignments = useCallback(async () => {
-    if (!idEntidad) return;
+    if (!idEntidad && nivel !== 'nacional') return;
 
     const rows = await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => []);
 
-    setAssignments(
-      rows.reduce((acc, asignacion) => {
-        const key = normalizeId(asignacion.idPosicionDirectiva);
-        if (key) acc[key] = asignacion;
-        return acc;
-      }, {})
-    );
+    setAssignments(indexarAsignacionesPorPosicion(rows));
   }, [nivel, idEntidad]);
 
   useEffect(() => {
@@ -116,15 +98,11 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
   const getAssignedMember = useCallback(
     (nodeId) => {
       const position = findPositionByNode(nivel, nodeId);
-      const asignacion = position ? assignments[normalizeId(position.idCargo)] : null;
+      const asignacion = position
+        ? assignments[normalizarIdAsignacion(position.idCargo)]
+        : null;
 
-      if (!asignacion?.idMiembro) return null;
-
-      return (
-        members.find(
-          (member) => normalizeId(member?.id ?? member?.idMiembros) === normalizeId(asignacion.idMiembro)
-        ) || null
-      );
+      return resolverMiembroAsignado({ asignacion, members });
     },
     [assignments, members, nivel]
   );
@@ -138,11 +116,13 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
       if (!asignacion?.idMiembro) return;
 
       const position = DIRECTIVA_POSITIONS.find(
-        (item) => normalizeId(item.idCargo) === normalizeId(asignacion.idPosicionDirectiva)
+        (item) =>
+          normalizarIdAsignacion(item.idCargo) ===
+          normalizarIdAsignacion(asignacion.idPosicionDirectiva)
       );
 
       porMiembro.set(
-        normalizeId(asignacion.idMiembro),
+        normalizarIdAsignacion(asignacion.idMiembro),
         position?.nombreCargo || 'un cargo de esta directiva'
       );
     });
@@ -161,16 +141,18 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
       idEntidad,
       index: orgIndex,
       ocupantesPorMiembro,
-      idMiembroActual: normalizeId(asignado?.id ?? asignado?.idMiembros) || null,
+      idMiembroActual: normalizarIdAsignacion(asignado?.id ?? asignado?.idMiembros) || null,
     });
   }, [members, nivel, idEntidad, orgIndex, ocupantesPorMiembro, selectedNode, getAssignedMember]);
 
   const openAssign = useCallback(
     (node) => {
+      if (!canManage) return;
+
       setSelectedNode(node);
       setSelectedMember(getAssignedMember(node?.id) || null);
     },
-    [getAssignedMember]
+    [canManage, getAssignedMember]
   );
 
   const closeAssign = useCallback(() => {
@@ -184,7 +166,14 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
   // sobre un nodo distinto del que tenga abierto el dialogo, y leerlo del estado
   // daria el valor anterior al render.
   const guardar = useCallback(
-    async ({ node, idMiembro, activo }) => {
+    async ({ node, idMiembro, miembro, activo }) => {
+      // La comprobacion de verdad esta en firestore.rules; esta solo evita
+      // lanzar una escritura que el servidor va a rechazar.
+      if (!canManage) {
+        toast.error('Solo el administrador global puede modificar la directiva.');
+        return false;
+      }
+
       const position = findPositionByNode(nivel, node?.id);
 
       if (!position) {
@@ -195,49 +184,29 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
       setIsSaving(true);
 
       try {
-        const idCargo = Number(position.idCargoApi) || null;
-
-        await guardarAsignacionDirectiva({
+        const asignacionGuardada = await guardarAsignacionDirectiva({
           nivel,
           idEntidad,
           nombreEntidad,
-          idCargo,
+          idCargo: Number(position.idCargoApi) || null,
           idMiembro,
           idPosicionDirectiva: position.idCargo,
           division: position.division ?? null,
           orden: position.orden || 1,
           origen: 'organigrama-directiva',
           activo,
+          ...construirResumenMiembro(miembro || {}),
         });
 
-        // El cargo se refleja también en la API, que es de donde sale la columna
-        // "Posición" de la lista de miembros: si no, el organigrama y la lista
-        // dirían cosas distintas. Al remover hay que RETIRARLO de allí, no basta
-        // con dar de baja la asignación de Firestore.
-        if (idCargo && idMiembro) {
-          if (activo) {
-            await guardarCargoMiembroApi({
-              idCargo,
-              idMiembro,
-              fechaInicio: new Date().toISOString().slice(0, 10),
-              fechaFin: null,
-            }).catch(() => null);
-          } else {
-            const cargosDelMiembro = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
-
-            await Promise.all(
-              cargosDelMiembro
-                .filter((item) => Number(item?.idCargo) === Number(idCargo))
-                .map((item) =>
-                  eliminarCargoMiembroApi({
-                    idCargo: Number(item.idCargo),
-                    idMiembro,
-                    fechaInicio: String(item.fechaInicio || '').slice(0, 10),
-                    fechaFin: item.fechaFin ?? null,
-                  }).catch(() => null)
-                )
-            );
-          }
+        // Un miembro ocupa UNA posicion por nivel. El formulario de miembro ya lo
+        // aplicaba; el organigrama no, y asignar desde el diagrama dejaba a la
+        // persona con cargos activos en dos secciones a la vez.
+        if (activo && idMiembro) {
+          await desactivarAsignacionesDirectivaPorNivel({
+            idMiembro,
+            nivel,
+            conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+          }).catch(() => 0);
         }
 
         await loadAssignments();
@@ -254,18 +223,18 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
         setIsSaving(false);
       }
     },
-    [nivel, idEntidad, nombreEntidad, loadAssignments]
+    [canManage, nivel, idEntidad, nombreEntidad, loadAssignments]
   );
 
   const asignarMiembro = useCallback(async () => {
-    const idMiembro = normalizeId(selectedMember?.id ?? selectedMember?.idMiembros);
+    const idMiembro = normalizarIdAsignacion(selectedMember?.id ?? selectedMember?.idMiembros);
 
     if (!idMiembro) {
       toast.warning('Selecciona un miembro para asignarlo al cargo.');
       return;
     }
 
-    if (await guardar({ node: selectedNode, idMiembro, activo: true })) {
+    if (await guardar({ node: selectedNode, idMiembro, miembro: selectedMember, activo: true })) {
       toast.success('Miembro asignado correctamente.');
     }
   }, [guardar, selectedMember, selectedNode]);
@@ -274,6 +243,8 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
 
   const pedirRemoverMiembro = useCallback(
     (node) => {
+      if (!canManage) return;
+
       if (!getAssignedMember(node?.id)) {
         toast.info('Este cargo no tiene un miembro asignado.');
         return;
@@ -281,7 +252,7 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
 
       setNodoARemover(node);
     },
-    [getAssignedMember]
+    [canManage, getAssignedMember]
   );
 
   const cancelarRemover = useCallback(() => {
@@ -292,14 +263,14 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
 
   const confirmarRemover = useCallback(async () => {
     const asignado = getAssignedMember(nodoARemover?.id);
-    const idMiembro = normalizeId(asignado?.id ?? asignado?.idMiembros);
+    const idMiembro = normalizarIdAsignacion(asignado?.id ?? asignado?.idMiembros);
 
     if (!idMiembro) {
       setNodoARemover(null);
       return;
     }
 
-    if (await guardar({ node: nodoARemover, idMiembro, activo: false })) {
+    if (await guardar({ node: nodoARemover, idMiembro, miembro: asignado, activo: false })) {
       toast.success('Miembro removido del cargo.');
     }
 

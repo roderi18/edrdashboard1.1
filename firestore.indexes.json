@@ -17,6 +17,22 @@
         { "fieldPath": "autorIdMiembros", "order": "ASCENDING" },
         { "fieldPath": "fechaCreacion", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "asignacionesDirectiva",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idDirectiva", "order": "ASCENDING" },
+        { "fieldPath": "activo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "asignacionesDirectiva",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idMiembro", "order": "ASCENDING" },
+        { "fieldPath": "activo", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

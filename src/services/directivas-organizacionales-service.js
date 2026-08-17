@@ -1,4 +1,13 @@
-import { doc, getDocs, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  where,
+  query,
+  getDoc,
+  getDocs,
+  writeBatch,
+  collection,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { obtenerCargosApi } from 'src/services/cargos-api-service';
@@ -154,11 +163,16 @@ const mergePositionWithApiCargo = ({ position, apiCargo, localPosition }) => {
 export const crearIdDirectivaOrganizacional = ({ nivel, idEntidad }) =>
   `${normalizarId(nivel)}_${normalizarId(idEntidad || 'general')}`;
 
+// El id identifica la POSICION, no al ocupante. Cuando incluia al miembro, cada
+// cambio de ocupante estrenaba documento y el del anterior quedaba activo: la
+// posicion acababa con dos asignaciones y al releer ganaba la que ordenara
+// ultima por id, de modo que el cambio parecia no guardarse. Con esta clave, un
+// cargo es un documento y cambiar de ocupante lo sobrescribe, que es como
+// funciona el organigrama del destacamento desde el principio.
 export const crearIdAsignacionDirectiva = ({
   nivel,
   idEntidad,
   idCargo,
-  idMiembro,
   idPosicionDirectiva = '',
   division = null,
   orden = 1,
@@ -166,7 +180,6 @@ export const crearIdAsignacionDirectiva = ({
   [
     normalizarId(nivel),
     normalizarId(idEntidad || 'general'),
-    normalizarId(idMiembro || 'miembro'),
     normalizarId(idPosicionDirectiva || idCargo),
     normalizarId(division || 'general'),
     normalizarId(orden || 1),
@@ -358,6 +371,17 @@ export async function guardarDirectivaOrganizacional({
   return directiva;
 }
 
+// Las tres lecturas de abajo filtran en el SERVIDOR. Antes se traian la
+// coleccion entera y descartaban en el cliente: cada apertura del organigrama
+// descargaba las asignaciones de todas las secciones y regiones del pais, y
+// obligaba a conceder lectura global en las reglas. Los indices compuestos que
+// necesitan estan en firestore.indexes.json.
+const mapearDocumentos = (snapshot) =>
+  snapshot.docs.map((documentSnapshot) => ({
+    id: documentSnapshot.id,
+    ...documentSnapshot.data(),
+  }));
+
 export async function obtenerAsignacionesDirectiva({
   nivel,
   idEntidad,
@@ -366,15 +390,17 @@ export async function obtenerAsignacionesDirectiva({
   asegurarFirebaseDirectivas();
 
   const idDirectiva = crearIdDirectivaOrganizacional({ nivel, idEntidad });
-  const snapshot = await getDocs(collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA));
+  const restricciones = [where('idDirectiva', '==', idDirectiva)];
 
-  return snapshot.docs
-    .map((documentSnapshot) => ({
-      id: documentSnapshot.id,
-      ...documentSnapshot.data(),
-    }))
-    .filter((asignacion) => asignacion.idDirectiva === idDirectiva)
-    .filter((asignacion) => (incluirInactivas ? true : asignacion.activo !== false));
+  if (!incluirInactivas) {
+    restricciones.push(where('activo', '==', true));
+  }
+
+  const snapshot = await getDocs(
+    query(collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA), ...restricciones)
+  );
+
+  return mapearDocumentos(snapshot);
 }
 
 export async function obtenerAsignacionesDirectivaPorMiembro({
@@ -387,29 +413,31 @@ export async function obtenerAsignacionesDirectivaPorMiembro({
     return [];
   }
 
-  const snapshot = await getDocs(collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA));
+  const restricciones = [where('idMiembro', '==', String(idMiembro))];
 
-  return snapshot.docs
-    .map((documentSnapshot) => ({
-      id: documentSnapshot.id,
-      ...documentSnapshot.data(),
-    }))
-    .filter((asignacion) => String(asignacion.idMiembro) === String(idMiembro))
-    .filter((asignacion) => (incluirInactivas ? true : asignacion.activo !== false));
+  if (!incluirInactivas) {
+    restricciones.push(where('activo', '==', true));
+  }
+
+  const snapshot = await getDocs(
+    query(collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA), ...restricciones)
+  );
+
+  return mapearDocumentos(snapshot);
 }
 
 export async function obtenerAsignacionesDirectivaMiembros({ incluirInactivas = false } = {}) {
   asegurarFirebaseDirectivas();
 
-  const snapshot = await getDocs(collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA));
+  // Esta si recorre la coleccion: alimenta la columna "Posicion" de la lista de
+  // miembros, que necesita todas las directivas a la vez. Al menos el estado se
+  // filtra en el servidor.
+  const asignacionesRef = collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA);
+  const snapshot = await getDocs(
+    incluirInactivas ? asignacionesRef : query(asignacionesRef, where('activo', '==', true))
+  );
 
-  return snapshot.docs
-    .map((documentSnapshot) => ({
-      id: documentSnapshot.id,
-      ...documentSnapshot.data(),
-    }))
-    .filter((asignacion) => asignacion.idMiembro)
-    .filter((asignacion) => (incluirInactivas ? true : asignacion.activo !== false));
+  return mapearDocumentos(snapshot).filter((asignacion) => asignacion.idMiembro);
 }
 
 export async function guardarAsignacionDirectiva({
@@ -427,6 +455,9 @@ export async function guardarAsignacionDirectiva({
   fechaInicio = new Date().toISOString().slice(0, 10),
   fechaFin = null,
   activo = true,
+  nombreMiembro = '',
+  codigoMiembro = '',
+  fotoMiembro = '',
 } = {}) {
   asegurarFirebaseDirectivas();
 
@@ -436,7 +467,6 @@ export async function guardarAsignacionDirectiva({
     nivel,
     idEntidad,
     idCargo,
-    idMiembro: idMiembroResolved,
     idPosicionDirectiva,
     division,
     orden,
@@ -455,10 +485,37 @@ export async function guardarAsignacionDirectiva({
     fechaInicio,
     fechaFin,
     activo,
+    // Copia del ocupante: si el miembro no viene en el listado que carga el
+    // organigrama, el nodo se pintaba vacio aunque la asignacion existiera.
+    nombreMiembro: normalizarTexto(nombreMiembro),
+    codigoMiembro: normalizarTexto(codigoMiembro),
+    fotoMiembro: normalizarTexto(fotoMiembro),
     fechaActualizacion: serverTimestamp(),
     fechaCreacion: serverTimestamp(),
   };
+  // Documentos de la MISMA posicion con otra clave: los que quedaron del esquema
+  // anterior, cuando el id incluia al miembro. Se dan de baja en el mismo lote
+  // para que la posicion no acabe con dos ocupantes activos.
+  const asignacionesPrevias = (
+    await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => [])
+  ).filter(
+    (previa) =>
+      normalizarTexto(previa.idPosicionDirectiva) === normalizarTexto(idPosicionDirectiva) &&
+      String(previa.idAsignacion || previa.id) !== idAsignacion
+  );
   const batch = writeBatch(FIRESTORE);
+
+  asignacionesPrevias.forEach((previa) => {
+    batch.set(
+      doc(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA, String(previa.idAsignacion || previa.id)),
+      {
+        activo: false,
+        fechaFin: fechaInicio,
+        fechaActualizacion: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
 
   batch.set(
     doc(FIRESTORE, COLECCION_DIRECTIVAS_ORGANIZACIONALES, idDirectiva),
@@ -494,14 +551,13 @@ export async function guardarAsignacionDirectiva({
     origen: 'directivas',
   });
 
-  return asignacion;
+  return { ...asignacion, asignacionesLiberadas: asignacionesPrevias };
 }
 
 // Da de BAJA las asignaciones activas que el miembro tenga en un nivel, salvo la
-// que se acaba de guardar. Un miembro ocupa UNA posicion por nivel: al cambiarlo
-// de cargo, `guardarAsignacionDirectiva` crea un documento nuevo (su id incluye
-// el cargo) y el anterior quedaba activo, de modo que la ficha seguia leyendo el
-// viejo y el miembro aparecia en dos casillas a la vez.
+// que se acaba de guardar. Un miembro ocupa UNA posicion por nivel: sin esto,
+// cambiarlo de cargo dejaba viva la anterior y el miembro aparecia en dos
+// casillas a la vez.
 export async function desactivarAsignacionesDirectivaPorNivel({
   idMiembro,
   nivel,
@@ -538,4 +594,90 @@ export async function desactivarAsignacionesDirectivaPorNivel({
   await batch.commit();
 
   return aDesactivar.length;
+}
+
+// ----------------------------------------------------------------------
+// Diseno del organigrama (posiciones de los nodos y alto del lienzo).
+//
+// La coleccion estaba declarada desde el principio y nunca se escribio: el
+// editor visual guardaba los desplazamientos en memoria y se perdian al
+// recargar. Se guarda por nivel + entidad, igual que la directiva.
+// ----------------------------------------------------------------------
+
+export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!nivel) return null;
+
+  const idDiseno = crearIdDirectivaOrganizacional({ nivel, idEntidad });
+  const snapshot = await getDoc(doc(FIRESTORE, COLECCION_DISENOS_DIRECTIVA, idDiseno));
+
+  if (!snapshot.exists()) return null;
+
+  const data = snapshot.data();
+
+  return {
+    idDiseno,
+    nodeOffsets: data?.nodeOffsets && typeof data.nodeOffsets === 'object' ? data.nodeOffsets : {},
+    containerHeightOffset: Number(data?.containerHeightOffset) || 0,
+  };
+}
+
+export async function guardarDisenoDirectiva({
+  nivel,
+  idEntidad,
+  nombreEntidad = '',
+  nodeOffsets = {},
+  containerHeightOffset = 0,
+  usuario = {},
+} = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!nivel) {
+    throw new Error('El nivel es obligatorio para guardar el diseño del organigrama.');
+  }
+
+  const idDiseno = crearIdDirectivaOrganizacional({ nivel, idEntidad });
+  // Solo pares de numeros: el mapa de desplazamientos se arma en el navegador y
+  // no puede acabar guardando lo que llegue.
+  const offsetsNormalizados = Object.entries(nodeOffsets).reduce((acc, [id, offset]) => {
+    const x = Number(offset?.x);
+    const y = Number(offset?.y);
+
+    if (id && Number.isFinite(x) && Number.isFinite(y)) {
+      acc[id] = { x: Math.round(x), y: Math.round(y) };
+    }
+
+    return acc;
+  }, {});
+  const diseno = {
+    idDiseno,
+    nivel,
+    idEntidad: String(idEntidad || ''),
+    nombreEntidad: normalizarTexto(nombreEntidad),
+    nodeOffsets: offsetsNormalizados,
+    containerHeightOffset: Math.round(Number(containerHeightOffset) || 0),
+    fechaActualizacion: serverTimestamp(),
+  };
+
+  await writeBatch(FIRESTORE)
+    .set(doc(FIRESTORE, COLECCION_DISENOS_DIRECTIVA, idDiseno), diseno, { merge: true })
+    .commit();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'diseno_directiva_guardado',
+    descripcion: `Se guardó el diseño del organigrama de ${diseno.nombreEntidad || idDiseno}.`,
+    entidad: {
+      tipo: 'diseno_directiva',
+      id: idDiseno,
+      nombre: diseno.nombreEntidad || idDiseno,
+      ruta: '/dashboard/level/member',
+    },
+    despues: diseno,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
+
+  return diseno;
 }

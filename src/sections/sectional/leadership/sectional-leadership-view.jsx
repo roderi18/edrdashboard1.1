@@ -7,7 +7,6 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -16,9 +15,8 @@ import Typography from '@mui/material/Typography';
 
 import { useParams } from 'src/routes/hooks';
 
-import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { canManageDirectiva } from 'src/utils/admin-role-label';
 
-import { _mock } from 'src/_mock';
 import { getSectionalById } from 'src/services/sectional-service';
 
 import { Iconify } from 'src/components/iconify';
@@ -28,6 +26,13 @@ import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
+import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import {
+  LeadershipNodeName,
+  LeadershipNodeAvatar,
+  getMemberDisplayName,
+  getLeadershipNodeIdentity,
+} from 'src/sections/common/leadership-node-identity';
 import {
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
@@ -58,43 +63,28 @@ const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
-const getMemberDisplayName = (member = {}) =>
-  [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() ||
-  member?.name ||
-  member?.codigoMiembro ||
-  '';
+// El nodo no trae nombre ni foto: los pone el ocupante real, y si no hay
+// ocupante el cargo se dibuja como vacante.
+const createNode = (id, role, children) => ({ id, role, children });
 
-const createNode = (index, id, role, children) => ({
-  id,
-  name: _mock.fullName(index),
-  avatarUrl: _mock.image.avatar(index),
-  role,
-  children,
-});
-
-const SECTIONAL_LEADERSHIP_DATA = createNode(1, 'directiva-regional', 'Directiva Regional', [
-  createNode(2, 'coordinador-seccional', 'Coordinador Seccional', [
-    createNode(4, 'sub-coordinador-seccional', 'Sub-Coordinador Seccional'),
-    createNode(5, 'coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
-    createNode(6, 'coordinador-promocion', 'Coordinador de Promoción'),
-    createNode(7, 'coordinador-produccion', 'Coordinador de Producción'),
-    createNode(8, 'coordinador-programa', 'Coordinador de Programa'),
-    createNode(9, 'secretario-regional', 'Secretario Regional'),
-    createNode(10, 'zonas', 'Zonas', [createNode(11, 'grupos-locales', 'Grupos Locales')]),
+const SECTIONAL_LEADERSHIP_DATA = createNode('directiva-regional', 'Directiva Regional', [
+  createNode('coordinador-seccional', 'Coordinador Seccional', [
+    createNode('sub-coordinador-seccional', 'Sub-Coordinador Seccional'),
+    createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
+    createNode('coordinador-promocion', 'Coordinador de Promoción'),
+    createNode('coordinador-produccion', 'Coordinador de Producción'),
+    createNode('coordinador-programa', 'Coordinador de Programa'),
+    createNode('secretario-regional', 'Secretario Regional'),
+    createNode('zonas', 'Zonas', [createNode('grupos-locales', 'Grupos Locales')]),
   ]),
-  createNode(3, 'capellan-seccional', 'Capellán Seccional'),
+  createNode('capellan-seccional', 'Capellán Seccional'),
 ]);
 
 // ----------------------------------------------------------------------
 
 function SectionalLeadershipNode({
   id,
-  name,
   depth,
-  avatarUrl,
   role,
   layoutEditor,
   canManage = true,
@@ -103,12 +93,8 @@ function SectionalLeadershipNode({
   onRemoverMiembro,
 }) {
   const menuActions = usePopover();
-  // Con miembro asignado manda su nombre y su foto; si no, el marcador del nodo.
-  const displayName = miembroAsignado ? getMemberDisplayName(miembroAsignado) : name;
-  const displayAvatar = miembroAsignado
-    ? miembroAsignado.avatarUrl || miembroAsignado.photoURL || ''
-    : avatarUrl;
-  const editProps = layoutEditor.getNodeEditProps({ id, name: displayName, role });
+  const identity = getLeadershipNodeIdentity(miembroAsignado);
+  const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
   const isRootNode = depth === undefined;
 
   const renderMenuActions = () => (
@@ -123,7 +109,7 @@ function SectionalLeadershipNode({
           <MenuItem
             onClick={() => {
               menuActions.onClose();
-              onAsignarMiembro?.({ id, role, name });
+              onAsignarMiembro?.({ id, role });
             }}
           >
             <Iconify icon="solar:user-plus-bold" />
@@ -136,7 +122,7 @@ function SectionalLeadershipNode({
           <MenuItem
             onClick={() => {
               menuActions.onClose();
-              onRemoverMiembro?.({ id, role, name });
+              onRemoverMiembro?.({ id, role });
             }}
             sx={{ color: 'error.main' }}
           >
@@ -192,14 +178,10 @@ function SectionalLeadershipNode({
             borderRadius: '50%',
           }}
         >
-          <Avatar alt={displayName} src={displayAvatar} sx={{ width: 1, height: 1 }}>
-            {String(displayName || '?').charAt(0)}
-          </Avatar>
+          <LeadershipNodeAvatar identity={identity} />
         </Box>
 
-        <Typography variant="subtitle2" noWrap sx={{ mb: 0.5, pr: 3 }}>
-          {displayName}
-        </Typography>
+        <LeadershipNodeName identity={identity} />
 
         <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
           {role}
@@ -216,9 +198,10 @@ function SectionalLeadershipNode({
 export function SectionalLeadershipView() {
   const params = useParams();
   const { user } = useAuthContext();
-  // El administrador de destacamento consulta el organigrama en solo lectura:
-  // sin cambiar/remover miembros ni edicion visual del layout.
-  const canManageLeadership = !isDestacamentoAdminRole(user);
+  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
+  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
+  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
+  const canManageLeadership = canManageDirectiva(user);
   const sectionalId = params?.id;
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -234,6 +217,18 @@ export function SectionalLeadershipView() {
     nivel: 'seccional',
     idEntidad: sectionalId,
     nombreEntidad: sectionalName,
+    canManage: canManageLeadership,
+  });
+  // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
+  // recolocacion se perdia al recargar.
+  const layoutStorage = useLeadershipLayoutStorage({
+    editor: layoutEditor,
+    nivel: 'seccional',
+    idEntidad: sectionalId,
+    nombreEntidad: sectionalName,
+    canManage: canManageLeadership,
+    defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
+    defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
   });
   const [pan, setPan] = useState(DEFAULT_PAN);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -640,6 +635,8 @@ export function SectionalLeadershipView() {
           editor={layoutEditor}
           title={structureTitle}
           containerMinHeight={containerMinHeight}
+          onSaveLayout={layoutStorage.guardar}
+          savingLayout={layoutStorage.guardando}
         />
       )}
 

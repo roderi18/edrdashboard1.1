@@ -6,19 +6,29 @@ import { useRef, useMemo, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import { _mock } from 'src/_mock';
+import { canManageDirectiva } from 'src/utils/admin-role-label';
 
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
+import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
+import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
+import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import {
+  LeadershipNodeName,
+  LeadershipNodeAvatar,
+  getMemberDisplayName,
+  getLeadershipNodeIdentity,
+} from 'src/sections/common/leadership-node-identity';
 import {
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
@@ -30,6 +40,8 @@ import {
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -48,30 +60,26 @@ const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
-const createNode = (index, id, role, children) => ({
-  id,
-  name: _mock.fullName(index),
-  avatarUrl: _mock.image.avatar(index),
-  role,
-  children,
-});
+// El nodo no trae nombre ni foto: los pone el ocupante real, y si no hay
+// ocupante el cargo se dibuja como vacante.
+const createNode = (id, role, children) => ({ id, role, children });
 
 const NATIONAL_LEADERSHIP_DATA = {
-  ...createNode(1, 'asambleas-de-dios', 'Concilio de las Asambleas de Dios, INC.', [
-  createNode(2, 'ministerios-infantiles', 'Ministerios infantiles', [
-    createNode(3, 'consejo-nacional', 'Consejo Nacional', [
-      createNode(4, 'director-nacional', 'Director Nacional', [
-        createNode(5, 'consejo-ejecutivo', 'Consejo Ejecutivo', [
-          createNode(6, 'coordinador-nacional-adiestramiento', 'Coordinador Nacional de Adiestramiento', [
-            createNode(7, 'oficiales-adiestramientos-especiales', 'Oficiales de Adiestramientos Especiales'),
+  ...createNode('asambleas-de-dios', 'Concilio de las Asambleas de Dios, INC.', [
+  createNode('ministerios-infantiles', 'Ministerios infantiles', [
+    createNode('consejo-nacional', 'Consejo Nacional', [
+      createNode('director-nacional', 'Director Nacional', [
+        createNode('consejo-ejecutivo', 'Consejo Ejecutivo', [
+          createNode('coordinador-nacional-adiestramiento', 'Coordinador Nacional de Adiestramiento', [
+            createNode('oficiales-adiestramientos-especiales', 'Oficiales de Adiestramientos Especiales'),
           ]),
-          createNode(8, 'sub-director-nacional', 'Sub-Director Nacional'),
-          createNode(9, 'coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
-          createNode(10, 'coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
-          createNode(11, 'coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
-          createNode(12, 'comites-especiales', 'Comités Especiales'),
+          createNode('sub-director-nacional', 'Sub-Director Nacional'),
+          createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
+          createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
+          createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
+          createNode('comites-especiales', 'Comités Especiales'),
         ]),
-        createNode(13, 'capellan-nacional', 'Capellán Nacional'),
+        createNode('capellan-nacional', 'Capellán Nacional'),
       ]),
     ]),
   ]),
@@ -132,9 +140,22 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
   );
 }
 
-function NationalLeadershipNode({ id, name, depth, avatarUrl, role, isDivision, layoutEditor }) {
+function NationalLeadershipNode({
+  id,
+  name,
+  depth,
+  avatarUrl,
+  role,
+  isDivision,
+  layoutEditor,
+  canManage = false,
+  miembroAsignado = null,
+  onAsignarMiembro,
+  onRemoverMiembro,
+}) {
   const menuActions = usePopover();
   const isRootNode = depth === undefined;
+  const identity = getLeadershipNodeIdentity(miembroAsignado);
 
   if (isDivision) {
     return (
@@ -149,7 +170,7 @@ function NationalLeadershipNode({ id, name, depth, avatarUrl, role, isDivision, 
     );
   }
 
-  const editProps = layoutEditor.getNodeEditProps({ id, name, role });
+  const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -159,15 +180,31 @@ function NationalLeadershipNode({ id, name, depth, avatarUrl, role, isDivision, 
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
-        <MenuItem onClick={menuActions.onClose}>
-          <Iconify icon="solar:user-plus-bold" />
-          Cambiar miembro
-        </MenuItem>
+        {canManage && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onAsignarMiembro?.({ id, role });
+            }}
+          >
+            <Iconify icon="solar:user-plus-bold" />
+            {/* Sin ocupante el nodo no se "cambia": se asigna por primera vez. */}
+            {miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
-          <Iconify icon="solar:user-cross-bold" />
-          Remover miembro
-        </MenuItem>
+        {canManage && miembroAsignado && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onRemoverMiembro?.({ id, role });
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:user-cross-bold" />
+            Remover miembro
+          </MenuItem>
+        )}
 
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="solar:info-circle-bold" />
@@ -215,21 +252,10 @@ function NationalLeadershipNode({ id, name, depth, avatarUrl, role, isDivision, 
             borderRadius: '50%',
           }}
         >
-          <Avatar
-            alt={name}
-            src={avatarUrl}
-            sx={{
-              width: 1,
-              height: 1,
-            }}
-          >
-            {String(name || '?').charAt(0)}
-          </Avatar>
+          <LeadershipNodeAvatar identity={identity} />
         </Box>
 
-        <Typography variant="subtitle2" noWrap sx={{ mb: 0.5, pr: 3 }}>
-          {name}
-        </Typography>
+        <LeadershipNodeName identity={identity} />
 
         <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
           {role}
@@ -244,6 +270,11 @@ function NationalLeadershipNode({ id, name, depth, avatarUrl, role, isDivision, 
 // ----------------------------------------------------------------------
 
 export function NationalLeadershipView() {
+  const { user } = useAuthContext();
+  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
+  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
+  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
+  const canManageLeadership = canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -252,6 +283,23 @@ export function NationalLeadershipView() {
     initialContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
   });
   const [isDragging, setIsDragging] = useState(false);
+  // La directiva nacional es unica: no hay entidad que la distinga, asi que se
+  // guarda bajo la clave general del nivel.
+  const leadership = useLeadershipAssignments({
+    nivel: 'nacional',
+    idEntidad: '',
+    nombreEntidad: 'Directiva nacional',
+    canManage: canManageLeadership,
+  });
+  const layoutStorage = useLeadershipLayoutStorage({
+    editor: layoutEditor,
+    nivel: 'nacional',
+    idEntidad: '',
+    nombreEntidad: 'Directiva nacional',
+    canManage: canManageLeadership,
+    defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
+    defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
+  });
   const [pan, setPan] = useState(DEFAULT_PAN);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
@@ -365,6 +413,7 @@ export function NationalLeadershipView() {
   });
 
   return (
+    <>
     <Box
       ref={containerRef}
       aria-label="Mover organigrama"
@@ -596,7 +645,14 @@ export function NationalLeadershipView() {
           data={NATIONAL_LEADERSHIP_DATA}
           nodeClassName={layoutEditor.getNodeTreeClassName}
           nodeItem={(props) => (
-            <NationalLeadershipNode {...props} layoutEditor={layoutEditor} />
+            <NationalLeadershipNode
+              {...props}
+              layoutEditor={layoutEditor}
+              canManage={canManageLeadership}
+              miembroAsignado={leadership.getAssignedMember(props.id)}
+              onAsignarMiembro={leadership.openAssign}
+              onRemoverMiembro={leadership.pedirRemoverMiembro}
+            />
           )}
         />
       </Box>
@@ -611,14 +667,61 @@ export function NationalLeadershipView() {
 
       <LeadershipLayoutOffsetStyles editor={layoutEditor} />
 
-      <LeadershipLayoutEditor
-        pan={pan}
-        zoom={zoom}
-        chartWidth={1440}
-        title="Directiva nacional"
-        editor={layoutEditor}
-        containerMinHeight={containerMinHeight}
-      />
+      {canManageLeadership && (
+        <LeadershipLayoutEditor
+          pan={pan}
+          zoom={zoom}
+          chartWidth={1440}
+          title="Directiva nacional"
+          editor={layoutEditor}
+          containerMinHeight={containerMinHeight}
+          onSaveLayout={layoutStorage.guardar}
+          savingLayout={layoutStorage.guardando}
+        />
+      )}
     </Box>
+
+      <LeadershipAssignDialog
+        open={Boolean(leadership.selectedNode)}
+        node={leadership.selectedNode}
+        nivel="nacional"
+        nombreEntidad="Directiva nacional"
+        options={leadership.memberOptions}
+        loading={!leadership.members.length}
+        value={leadership.selectedMember}
+        saving={leadership.isSaving}
+        yaAsignado={Boolean(leadership.getAssignedMember(leadership.selectedNode?.id))}
+        onChange={leadership.setSelectedMember}
+        onClose={leadership.closeAssign}
+        onSubmit={leadership.asignarMiembro}
+      />
+
+      <ConfirmDialog
+        open={Boolean(leadership.nodoARemover)}
+        onClose={leadership.cancelarRemover}
+        title="Remover miembro"
+        content={
+          <>
+            ¿Realmente quieres remover a
+            <strong>
+              {' '}
+              {getMemberDisplayName(leadership.getAssignedMember(leadership.nodoARemover?.id)) ||
+                'este miembro'}{' '}
+            </strong>
+            del cargo de {leadership.nodoARemover?.role || 'la directiva'}?
+          </>
+        }
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            disabled={leadership.isSaving}
+            onClick={leadership.confirmarRemover}
+          >
+            Remover
+          </Button>
+        }
+      />
+    </>
   );
 }

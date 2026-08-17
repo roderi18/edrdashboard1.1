@@ -1,5 +1,10 @@
 import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
+import { requireRole, ROLES_ADMINISTRACION_CARGOS } from 'src/server/require-role';
+
+// firebase-admin necesita el runtime de Node para verificar el ID token.
+export const runtime = 'nodejs';
+
 const CARGOS_MIEMBROS_ENDPOINT = 'https://systexploradores.somee.com/api/CargosMiembros';
 
 const jsonResponse = (payload, status = 200) =>
@@ -115,6 +120,11 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  // Escribir el catalogo de cargos es competencia del administrador global.
+  const noAutorizado = await requireRole(req, ROLES_ADMINISTRACION_CARGOS);
+
+  if (noAutorizado) return noAutorizado;
+
   try {
     const body = await req.json();
 
@@ -138,6 +148,10 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
+  const noAutorizado = await requireRole(req, ROLES_ADMINISTRACION_CARGOS);
+
+  if (noAutorizado) return noAutorizado;
+
   try {
     const body = await req.json();
 

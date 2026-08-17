@@ -62,6 +62,14 @@ const getRoleId = (user = {}) => {
 export const canManageOrgLevels = (user = {}) =>
   [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL].includes(getRoleId(user));
 
+// La composicion de las directivas (asignar, cambiar y remover miembros, y el
+// diseno del organigrama) es competencia EXCLUSIVA del administrador global. El
+// resto de los roles, incluido el administrador funcional, la consulta en solo
+// lectura. Esta misma condicion esta replicada en firestore.rules, que es donde
+// de verdad se aplica: lo de aqui solo evita ofrecer una accion que el servidor
+// va a rechazar.
+export const canManageDirectiva = (user = {}) => getRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL;
+
 export const isDestacamentoAdminRole = (user = {}) => {
   const rawRole = String(user?.rol || user?.role || '').trim();
   const roleId =

@@ -666,9 +666,113 @@ service cloud.firestore {
       allow create, update, delete: if esAdministradorSocial();
     }
 
+    // ------------------------------------------------------------------
+    // Directivas organizacionales.
+    //
+    // La composición de las directivas es competencia EXCLUSIVA del
+    // administrador global. El rol se lee del TOKEN (lo emite el Admin SDK en
+    // /api/admin/set-user-claims), no de un documento que el propio usuario
+    // pudiera reescribir. Todos los roles pueden CONSULTAR el organigrama.
+    // ------------------------------------------------------------------
+
+    function rolDelToken() {
+      return request.auth != null && 'rol' in request.auth.token
+        ? request.auth.token.rol
+        : '';
+    }
+
+    // Respaldo para las cuentas cuyo claim aún no se ha emitido (los claims solo
+    // se escriben al guardar el rol, y el endpoint degrada en silencio si el
+    // servidor no tiene service account). Leer el rol del documento es fiable
+    // AHORA porque `usuarios_roles` pasó a ser de solo lectura para el cliente:
+    // antes cualquiera podía reescribir el suyo y concederse el rol.
+    function rolDelDocumento() {
+      return request.auth != null
+        && exists(rutaAsignacion())
+        && 'rolId' in get(rutaAsignacion()).data
+        ? get(rutaAsignacion()).data.rolId
+        : '';
+    }
+
+    function esAdministradorGlobal() {
+      return rolDelToken() == 'administrador_global'
+        || rolDelDocumento() == 'administrador_global';
+    }
+
+    function nivelDirectivaValido(nivel) {
+      return nivel in ['nacional', 'regional', 'seccional', 'destacamento'];
+    }
+
+    match /asignacionesDirectiva/{idAsignacion} {
+      allow read: if estaAutenticado();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource.data.idAsignacion == idAsignacion
+        && nivelDirectivaValido(request.resource.data.nivel)
+        && request.resource.data.idPosicionDirectiva is string
+        && request.resource.data.idPosicionDirectiva.size() > 0
+        && request.resource.data.idMiembro is string
+        && request.resource.data.activo is bool;
+      // Nunca se borra: liberar un cargo es dar de baja la asignación
+      // (activo=false con fechaFin), que es lo que conserva el histórico.
+      allow delete: if false;
+    }
+
+    match /directivasOrganizacionales/{idDirectiva} {
+      allow read: if estaAutenticado();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource.data.idDirectiva == idDirectiva
+        && nivelDirectivaValido(request.resource.data.nivel);
+      allow delete: if false;
+    }
+
+    match /posicionesDirectiva/{idPosicion} {
+      allow read: if estaAutenticado();
+      allow write: if esAdministradorGlobal();
+    }
+
+    match /disenosDirectiva/{idDiseno} {
+      allow read: if estaAutenticado();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource.data.nodeOffsets is map
+        && request.resource.data.containerHeightOffset is int;
+      allow delete: if false;
+    }
+
+    match /organigramaDirectivaDestacamentos/{idAsignacion} {
+      allow read: if estaAutenticado();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // El rol de cada usuario y la lista de administradores solo los escribe el
+    // Admin SDK. Eran escribibles por el comodín de abajo, así que cualquiera
+    // podía concederse el rol que quisiera — y `admins/{uid}` es justo lo que
+    // consulta esAdministradorSocial().
+    match /usuarios_roles/{idUsuario} {
+      allow read: if estaAutenticado();
+      allow write: if false;
+    }
+
+    match /admins/{idUsuario} {
+      allow read: if estaAutenticado();
+      allow write: if false;
+    }
+
+    // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
+    // ni se borra desde el cliente.
+    match /auditoria_sistema/{idEvento} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado();
+      allow update, delete: if false;
+    }
+
     // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar
     // el acceso especial del chat. Las reglas específicas de otros módulos deben
     // continuar endureciéndose en sus propias fases.
+    //
+    // PENDIENTE: este comodín sigue concediendo escritura a cualquier usuario
+    // autenticado sobre toda colección no listada arriba. Cerrarlo exige
+    // inventariar el resto de los módulos y darles su propio bloque; hacerlo de
+    // golpe rompería la aplicación.
     match /{coleccion}/{documento=**} {
       allow read, write: if coleccion != 'conversaciones_chat'
         && coleccion != 'presencia_chat'
@@ -683,6 +787,17 @@ service cloud.firestore {
         && coleccion != 'solicitudes_amistad'
         && coleccion != 'galeria_usuarios'
         && coleccion != 'anuncios_principal'
+        // Las reglas de Firestore se SUMAN: sin excluir estas colecciones, el
+        // comodín volvería a conceder la escritura que los bloques de arriba
+        // reservan al administrador global.
+        && coleccion != 'asignacionesDirectiva'
+        && coleccion != 'directivasOrganizacionales'
+        && coleccion != 'posicionesDirectiva'
+        && coleccion != 'disenosDirectiva'
+        && coleccion != 'organigramaDirectivaDestacamentos'
+        && coleccion != 'usuarios_roles'
+        && coleccion != 'admins'
+        && coleccion != 'auditoria_sistema'
         && estaAutenticado();
     }
   }

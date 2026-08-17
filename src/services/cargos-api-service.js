@@ -1,4 +1,18 @@
+import { AUTH } from 'src/lib/firebase';
+
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+
+// Los proxys /api/cargos* exigen el ID token de Firebase para escribir: sin el,
+// responden 401. La verificacion y el rol se comprueban en el servidor.
+async function cabecerasAutenticadas(extra = {}) {
+  try {
+    const token = AUTH?.currentUser ? await AUTH.currentUser.getIdToken() : '';
+
+    return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+  } catch {
+    return { ...extra };
+  }
+}
 
 const getRowsFromApi = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -60,7 +74,7 @@ export async function obtenerCargosApi() {
 export async function guardarCargoApi({ idCargo, nombre }) {
   const res = await fetch('/api/cargos/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await cabecerasAutenticadas({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ idCargo, nombre }),
   });
 
@@ -86,7 +100,7 @@ export async function guardarCargoApi({ idCargo, nombre }) {
 export async function actualizarCargoApi({ idCargo, nombre }) {
   const res = await fetch('/api/cargos/', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await cabecerasAutenticadas({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ idCargo, nombre }),
   });
 
@@ -151,7 +165,7 @@ export async function obtenerCargosMiembroApi(idMiembro) {
 export async function guardarCargoMiembroApi({ idCargo, idMiembro, fechaInicio, fechaFin = null }) {
   const res = await fetch('/api/cargos-miembros/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await cabecerasAutenticadas({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ idCargo, idMiembro, fechaInicio, fechaFin }),
   });
 
@@ -182,7 +196,7 @@ export async function eliminarCargoMiembroApi({
 }) {
   const res = await fetch('/api/cargos-miembros/', {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await cabecerasAutenticadas({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ idCargo, idMiembro, fechaInicio, fechaFin }),
   });
 

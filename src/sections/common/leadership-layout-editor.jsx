@@ -5,6 +5,7 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import { alpha } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
@@ -139,12 +140,27 @@ export function useLeadershipLayoutEditor({
     setContainerHeightOffset((currentValue) => Math.max(-520, currentValue + delta));
   }, []);
 
+  // Hidrata el diagrama con el diseno guardado en Firestore.
+  const applyLayout = useCallback(
+    ({ nodeOffsets: offsets, containerHeightOffset: heightOffset } = {}) => {
+      if (offsets && typeof offsets === 'object') {
+        setNodeOffsets(offsets);
+      }
+
+      if (Number.isFinite(Number(heightOffset))) {
+        setContainerHeightOffset(Number(heightOffset));
+      }
+    },
+    []
+  );
+
   return useMemo(
     () => ({
       editMode,
       selectedNode,
       nodeOffsets,
       containerHeightOffset,
+      applyLayout,
       resizeContainer,
       toggleEditMode,
       getNodeEditProps,
@@ -154,6 +170,7 @@ export function useLeadershipLayoutEditor({
       editMode,
       selectedNode,
       nodeOffsets,
+      applyLayout,
       resizeContainer,
       toggleEditMode,
       getNodeEditProps,
@@ -387,7 +404,16 @@ export function LeadershipLayoutConnectorLayer({
   );
 }
 
-export function LeadershipLayoutEditor({ editor, title, pan, zoom, chartWidth, containerMinHeight }) {
+export function LeadershipLayoutEditor({
+  editor,
+  title,
+  pan,
+  zoom,
+  chartWidth,
+  containerMinHeight,
+  onSaveLayout,
+  savingLayout = false,
+}) {
   const selectedOffset = editor.selectedNode
     ? (editor.nodeOffsets[editor.selectedNode.id] ?? EMPTY_OFFSET)
     : EMPTY_OFFSET;
@@ -474,6 +500,19 @@ export function LeadershipLayoutEditor({ editor, title, pan, zoom, chartWidth, c
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Selecciona y arrastra un nodo para ver su movimiento.
               </Typography>
+            )}
+
+            {onSaveLayout && (
+              <Button
+                size="small"
+                variant="contained"
+                disabled={savingLayout}
+                onClick={onSaveLayout}
+                startIcon={<Iconify width={16} icon="solar:diskette-bold" />}
+                sx={{ mt: 0.5 }}
+              >
+                {savingLayout ? 'Guardando…' : 'Guardar diseño'}
+              </Button>
             )}
           </Stack>
         </Paper>
