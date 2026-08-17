@@ -7,6 +7,7 @@ import {
   buscarPosicionPorNodo,
   resolverMiembroAsignado,
   construirResumenMiembro,
+  getLeadershipShortName,
   indexarAsignacionesPorPosicion,
 } from '../../src/utils/leadership-assignments.js';
 
@@ -119,10 +120,60 @@ test('un cargo sin ocupante devuelve null', () => {
   assert.equal(resolverMiembroAsignado({ asignacion: { idMiembro: '9' }, members: [] }), null);
 });
 
-test('el resumen del miembro arma el nombre completo', () => {
+test('el resumen del miembro guarda el nombre completo y sus partes', () => {
   assert.deepEqual(
     construirResumenMiembro({ nombres: 'Oliver', apellidos: 'Feliz', codigoMiembro: 'EX-1' }),
-    { nombreMiembro: 'Oliver Feliz', codigoMiembro: 'EX-1', fotoMiembro: '' }
+    {
+      nombreMiembro: 'Oliver Feliz',
+      nombresMiembro: 'Oliver',
+      apellidosMiembro: 'Feliz',
+      codigoMiembro: 'EX-1',
+      fotoMiembro: '',
+    }
   );
   assert.equal(construirResumenMiembro({}).nombreMiembro, '');
+});
+
+// ----------------------------------------------------------------------
+// Nombre abreviado de las tarjetas del organigrama.
+// ----------------------------------------------------------------------
+
+test('el segundo nombre se abrevia a inicial con punto', () => {
+  assert.equal(
+    getLeadershipShortName({ nombres: 'Mario Alejandro', apellidos: 'Peña Felix' }),
+    'Mario A. Peña'
+  );
+});
+
+test('sin segundo nombre se muestra nombre y primer apellido', () => {
+  assert.equal(getLeadershipShortName({ nombres: 'Oliver', apellidos: 'Feliz Reyes' }), 'Oliver Feliz');
+});
+
+test('el tercer nombre no aparece', () => {
+  assert.equal(
+    getLeadershipShortName({ nombres: 'Mario Alejandro Luis', apellidos: 'Peña' }),
+    'Mario A. Peña'
+  );
+});
+
+test('las particulas viajan con el apellido', () => {
+  assert.equal(
+    getLeadershipShortName({ nombres: 'Ana María', apellidos: 'De los Santos Cruz' }),
+    'Ana M. De los Santos'
+  );
+});
+
+test('sin apellido no se deja la inicial suelta', () => {
+  assert.equal(getLeadershipShortName({ nombres: 'Mario Alejandro', apellidos: '' }), 'Mario');
+});
+
+test('con la cadena completa se asumen dos nombres y dos apellidos', () => {
+  assert.equal(getLeadershipShortName({ name: 'Mario Alejandro Peña Felix' }), 'Mario A. Peña');
+  assert.equal(getLeadershipShortName({ name: 'Oliver Feliz' }), 'Oliver Feliz');
+  assert.equal(getLeadershipShortName({ name: 'Oliver Feliz Reyes' }), 'Oliver Feliz');
+});
+
+test('sin nombre utilizable no se inventa nada', () => {
+  assert.equal(getLeadershipShortName({}), '');
+  assert.equal(getLeadershipShortName({ codigoMiembro: 'EX-1' }), 'EX-1');
 });

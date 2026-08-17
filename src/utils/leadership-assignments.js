@@ -73,16 +73,17 @@ export const indexarAsignacionesPorPosicion = (filas = []) =>
 // ocupante que no venga en el listado de miembros (baja, filtro, paginacion)
 // dejaba el nodo en blanco aunque la asignacion existiera.
 export const construirResumenMiembro = (member = {}) => {
-  const nombre =
-    [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim() ||
-    member?.name ||
-    '';
+  const nombres = String(member?.nombres ?? member?.firstName ?? '').trim();
+  const apellidos = String(member?.apellidos ?? member?.lastName ?? '').trim();
+  const nombre = [nombres, apellidos].filter(Boolean).join(' ').trim() || member?.name || '';
 
   return {
     nombreMiembro: nombre,
+    // Nombres y apellidos se guardan TAMBIEN por separado: el organigrama
+    // abrevia el nombre y con la cadena entera no se puede saber donde acaban
+    // los nombres y empiezan los apellidos.
+    nombresMiembro: nombres,
+    apellidosMiembro: apellidos,
     codigoMiembro: String(member?.codigoMiembro ?? member?.memberCode ?? '').trim(),
     fotoMiembro: String(member?.avatarUrl ?? member?.photoURL ?? '').trim(),
   };
@@ -106,8 +107,80 @@ export const resolverMiembroAsignado = ({ asignacion, members = [] }) => {
     id: idMiembro,
     idMiembros: idMiembro,
     name: asignacion.nombreMiembro || '',
+    nombres: asignacion.nombresMiembro || '',
+    apellidos: asignacion.apellidosMiembro || '',
     codigoMiembro: asignacion.codigoMiembro || '',
     avatarUrl: asignacion.fotoMiembro || '',
     soloDesdeAsignacion: true,
   };
+};
+
+// Nombre COMPLETO del miembro, tal como se registro.
+export const getNombreCompletoMiembro = (member = {}) =>
+  [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() ||
+  member?.name ||
+  member?.codigoMiembro ||
+  '';
+
+// Partículas que forman parte del apellido: "De los Santos" es un apellido, no
+// tres, y quedarse con "De" no identifica a nadie.
+const PARTICULAS_APELLIDO = ['de', 'del', 'la', 'las', 'los', 'da', 'di', 'van', 'von'];
+
+const partirPalabras = (value) => String(value ?? '').trim().split(/\s+/).filter(Boolean);
+
+// Primer apellido, respetando las partículas que lo acompañan.
+const getPrimerApellido = (palabras = []) => {
+  if (!palabras.length) return '';
+
+  const primerApellido = [palabras[0]];
+  let indice = 1;
+
+  while (
+    indice < palabras.length &&
+    PARTICULAS_APELLIDO.includes(primerApellido[primerApellido.length - 1].toLowerCase())
+  ) {
+    primerApellido.push(palabras[indice]);
+    indice += 1;
+  }
+
+  return primerApellido.join(' ');
+};
+
+// Nombre ABREVIADO para las tarjetas del organigrama: primer nombre, inicial del
+// segundo si lo hay, y primer apellido. "Mario Alejandro Peña Felix" se muestra
+// como "Mario A. Peña", que cabe en la tarjeta sin recortarse.
+export const getLeadershipShortName = (member = {}) => {
+  const nombres = partirPalabras(member?.nombres ?? member?.firstName);
+  let apellidos = partirPalabras(member?.apellidos ?? member?.lastName);
+  let primerNombre = nombres[0] || '';
+  let segundoNombre = nombres[1] || '';
+
+  // Sin los campos separados solo queda la cadena completa. Se asume la forma
+  // más habitual del registro: dos nombres y dos apellidos.
+  if (!primerNombre && !apellidos.length) {
+    const palabras = partirPalabras(member?.name);
+
+    if (palabras.length >= 4) {
+      [primerNombre, segundoNombre] = palabras;
+      apellidos = palabras.slice(2);
+    } else {
+      [primerNombre] = palabras;
+      apellidos = palabras.slice(1);
+    }
+  }
+
+  const primerApellido = getPrimerApellido(apellidos);
+
+  if (!primerNombre) {
+    return primerApellido || getNombreCompletoMiembro(member);
+  }
+
+  // La inicial acompaña al apellido; sin apellido, "Mario A." se lee peor que
+  // "Mario".
+  const inicial = primerApellido && segundoNombre ? `${segundoNombre.charAt(0).toUpperCase()}.` : '';
+
+  return [primerNombre, inicial, primerApellido].filter(Boolean).join(' ');
 };

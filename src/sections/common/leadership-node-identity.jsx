@@ -1,6 +1,8 @@
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
+import { getLeadershipShortName } from 'src/utils/leadership-assignments';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -15,6 +17,10 @@ import { Iconify } from 'src/components/iconify';
 
 export const ETIQUETA_VACANTE = 'Vacante';
 
+export { getLeadershipShortName };
+
+// Nombre COMPLETO. Es el que va en los diálogos y en los avisos: abreviar ahí
+// perdería información justo cuando hace falta identificar a la persona.
 export const getMemberDisplayName = (member = {}) =>
   [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
     .filter(Boolean)
@@ -26,11 +32,14 @@ export const getMemberDisplayName = (member = {}) =>
 
 // `miembroAsignado` es null cuando el cargo esta libre.
 export const getLeadershipNodeIdentity = (miembroAsignado) => {
-  const displayName = miembroAsignado ? getMemberDisplayName(miembroAsignado) : '';
+  const displayName = miembroAsignado ? getLeadershipShortName(miembroAsignado) : '';
 
   return {
     vacante: !displayName,
     displayName: displayName || ETIQUETA_VACANTE,
+    // El nombre completo queda en el tooltip: la tarjeta abrevia, pero saber de
+    // quién se trata no debería obligar a abrir la ficha.
+    nombreCompleto: miembroAsignado ? getMemberDisplayName(miembroAsignado) : '',
     avatarUrl: miembroAsignado
       ? miembroAsignado.avatarUrl || miembroAsignado.photoURL || ''
       : '',
@@ -69,6 +78,7 @@ export function LeadershipNodeName({ identity, children, ...other }) {
     <Typography
       variant="subtitle2"
       noWrap
+      title={identity.nombreCompleto || undefined}
       sx={{
         mb: 0.5,
         pr: 3,
