@@ -24,6 +24,8 @@ import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
+import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
+import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import {
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
@@ -54,6 +56,15 @@ const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
+const getMemberDisplayName = (member = {}) =>
+  [member?.nombres ?? member?.firstName, member?.apellidos ?? member?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() ||
+  member?.name ||
+  member?.codigoMiembro ||
+  '';
+
 const createNode = (index, id, role, children) => ({
   id,
   name: _mock.fullName(index),
@@ -76,9 +87,25 @@ const REGIONAL_LEADERSHIP_DATA = createNode(1, 'consejo-ejecutivo', 'Consejo Eje
 
 // ----------------------------------------------------------------------
 
-function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor, canManage = true }) {
+function RegionalLeadershipNode({
+  id,
+  name,
+  depth,
+  avatarUrl,
+  role,
+  layoutEditor,
+  canManage = true,
+  miembroAsignado = null,
+  onAsignarMiembro,
+  onRemoverMiembro,
+}) {
   const menuActions = usePopover();
-  const editProps = layoutEditor.getNodeEditProps({ id, name, role });
+  // Con miembro asignado manda su nombre y su foto; si no, el marcador del nodo.
+  const displayName = miembroAsignado ? getMemberDisplayName(miembroAsignado) : name;
+  const displayAvatar = miembroAsignado
+    ? miembroAsignado.avatarUrl || miembroAsignado.photoURL || ''
+    : avatarUrl;
+  const editProps = layoutEditor.getNodeEditProps({ id, name: displayName, role });
   const isRootNode = depth === undefined;
 
   const renderMenuActions = () => (
@@ -90,14 +117,26 @@ function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
         {canManage && (
-          <MenuItem onClick={menuActions.onClose}>
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onAsignarMiembro?.({ id, role, name });
+            }}
+          >
             <Iconify icon="solar:user-plus-bold" />
-            Cambiar miembro
+            {/* Sin ocupante el nodo no se "cambia": se asigna por primera vez. */}
+            {miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
           </MenuItem>
         )}
 
-        {canManage && (
-          <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
+        {canManage && miembroAsignado && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onRemoverMiembro?.({ id, role, name });
+            }}
+            sx={{ color: 'error.main' }}
+          >
             <Iconify icon="solar:user-cross-bold" />
             Remover miembro
           </MenuItem>
@@ -149,13 +188,13 @@ function RegionalLeadershipNode({ id, name, depth, avatarUrl, role, layoutEditor
             borderRadius: '50%',
           }}
         >
-          <Avatar alt={name} src={avatarUrl} sx={{ width: 1, height: 1 }}>
-            {String(name || '?').charAt(0)}
+          <Avatar alt={displayName} src={displayAvatar} sx={{ width: 1, height: 1 }}>
+            {String(displayName || '?').charAt(0)}
           </Avatar>
         </Box>
 
         <Typography variant="subtitle2" noWrap sx={{ mb: 0.5, pr: 3 }}>
-          {name}
+          {displayName}
         </Typography>
 
         <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
@@ -185,6 +224,12 @@ export function RegionalLeadershipView() {
   });
   const [isDragging, setIsDragging] = useState(false);
   const [regionalName, setRegionalName] = useState('');
+  // Asignacion de miembros: mismo flujo que el organigrama del destacamento.
+  const leadership = useLeadershipAssignments({
+    nivel: 'regional',
+    idEntidad: regionalId,
+    nombreEntidad: regionalName,
+  });
   const [pan, setPan] = useState(DEFAULT_PAN);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
@@ -556,6 +601,9 @@ export function RegionalLeadershipView() {
               {...props}
               layoutEditor={layoutEditor}
               canManage={canManageLeadership}
+              miembroAsignado={leadership.getAssignedMember(props.id)}
+              onAsignarMiembro={leadership.openAssign}
+              onRemoverMiembro={leadership.removerMiembro}
             />
           )}
         />
@@ -581,6 +629,21 @@ export function RegionalLeadershipView() {
           containerMinHeight={containerMinHeight}
         />
       )}
+
+      <LeadershipAssignDialog
+        open={Boolean(leadership.selectedNode)}
+        node={leadership.selectedNode}
+        nivel="regional"
+        nombreEntidad={regionalName}
+        options={leadership.memberOptions}
+        loading={!leadership.members.length}
+        value={leadership.selectedMember}
+        saving={leadership.isSaving}
+        yaAsignado={Boolean(leadership.getAssignedMember(leadership.selectedNode?.id))}
+        onChange={leadership.setSelectedMember}
+        onClose={leadership.closeAssign}
+        onSubmit={leadership.asignarMiembro}
+      />
     </Box>
   );
 }

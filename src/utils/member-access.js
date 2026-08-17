@@ -12,9 +12,14 @@ import { PERMISOS_POR_ROL, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissio
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
+import { EDAD_MAYORIA, getMemberAge } from './member-age';
 import { MEMBER_AUTH_DOMAIN, normalizeMemberUsername } from './member-auth-credentials';
 
 // ----------------------------------------------------------------------
+
+// La edad vive en `member-age` (modulo puro, sin Firebase); se reexporta aqui
+// para no romper a quien ya la importaba desde member-access.
+export { EDAD_MAYORIA, getMemberAge };
 
 export const isMemberSessionUser = (user) =>
   Boolean(user) && user?.role !== 'admin' && user?.role !== 'administrador';
@@ -1070,11 +1075,6 @@ const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
 export const canViewMemberBirthdateWhenMasked = (user = {}) =>
   BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS.has(getUserRoleId(user));
 
-// Edad a partir de la cual un miembro deja de considerarse menor de edad. El
-// enmascarado de la ficha existe para proteger a los MENORES, por lo que los
-// cargos de abajo ven en texto plano los datos de contacto de los adultos.
-export const EDAD_MAYORIA = 18;
-
 // Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
 // EDAD ven en texto plano la fecha de nacimiento, el telefono y el correo. El
 // resto de la informacion personal (direccion) sigue enmascarada, y con los
@@ -1083,27 +1083,6 @@ const ADULT_CONTACT_VISIBLE_ROLE_IDS = new Set([ROLES.USUARIO_SECCION, ROLES.USU
 
 export const canViewAdultMemberContactData = (user = {}) =>
   ADULT_CONTACT_VISIBLE_ROLE_IDS.has(getUserRoleId(user));
-
-// Edad del miembro a partir de su fecha de nacimiento (null si no la tiene).
-export const getMemberAge = (member = {}) => {
-  const birthDate = member?.birthDate ?? member?.fechaNacimiento ?? member?.birth ?? member?.dateOfBirth;
-
-  if (!birthDate) return null;
-
-  const parsed = new Date(birthDate);
-
-  if (Number.isNaN(parsed.getTime())) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - parsed.getFullYear();
-  const monthDiff = today.getMonth() - parsed.getMonth();
-
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
-    age -= 1;
-  }
-
-  return age;
-};
 
 // ¿Al usuario se le deben mostrar en texto plano la fecha de nacimiento, el
 // telefono y el correo de ESTE miembro por ser mayor de edad?

@@ -35,6 +35,11 @@ import { RouterLink } from 'src/routes/components';
 
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import {
+  buildOrgIndex,
+  getLeadershipScopeLabel,
+  buildLeadershipMemberOptions,
+} from 'src/utils/leadership-member-options';
 
 import {
   obtenerAsignacionesOrganigramaPorDestacamento,
@@ -507,7 +512,7 @@ function LeadershipNode({
 
   const handleCambiarMiembro = () => {
     menuActions.onClose();
-    onCambiarMiembro?.({ name, role, avatarUrl, asignacionOrganigrama });
+    onCambiarMiembro?.({ name, role, avatarUrl, asignacionOrganigrama, miembroAsignado });
   };
 
   const handleRemoverMiembro = () => {
@@ -546,11 +551,12 @@ function LeadershipNode({
         {canManage && (
           <MenuItem {...getMenuItemActionProps(handleCambiarMiembro)}>
             <Iconify icon="solar:user-plus-bold" />
-            Cambiar miembro
+            {/* Sin ocupante el nodo no se "cambia": se asigna por primera vez. */}
+            {miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
           </MenuItem>
         )}
 
-        {canManage && (
+        {canManage && miembroAsignado && (
           <MenuItem {...getMenuItemActionProps(handleRemoverMiembro)} sx={{ color: 'error.main' }}>
             <Iconify icon="solar:user-cross-bold" />
             Remover miembro
@@ -750,6 +756,7 @@ export default function Page() {
   const skipNextDragRef = useRef(false);
   const layoutEditor = useLeadershipLayoutEditor();
   const [destName, setDestName] = useState('Destacamento');
+  const [destNumber, setDestNumber] = useState('');
   const [members, setMembers] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [roleInfoNode, setRoleInfoNode] = useState(null);
@@ -788,6 +795,43 @@ export default function Page() {
         return acc;
       }, {}),
     [members]
+  );
+
+  // Rol que ocupa cada miembro dentro de ESTE organigrama: se recorre el arbol de
+  // nodos y se cruza con las asignaciones guardadas. Alimenta el desplegable, que
+  // muestra a los ya asignados al final y deshabilitados.
+  const ocupantesPorMiembro = useMemo(() => {
+    const porMiembro = new Map();
+
+    const recorrer = (node) => {
+      if (!node) return;
+
+      const asignacion = assignments[getAssignmentKey(node.asignacionOrganigrama)];
+
+      if (asignacion?.idMiembros) {
+        porMiembro.set(String(asignacion.idMiembros), node.role || 'un cargo del organigrama');
+      }
+
+      (node.children || []).forEach(recorrer);
+    };
+
+    [SIMPLE_DATA, ...LEADER_GROUP_DATA].forEach(recorrer);
+
+    return porMiembro;
+  }, [assignments]);
+
+  // Miembros que se ofrecen en el desplegable: SOLO los de este destacamento.
+  const memberOptions = useMemo(
+    () =>
+      buildLeadershipMemberOptions({
+        members,
+        nivel: 'destacamento',
+        idEntidad: destId,
+        index: buildOrgIndex({}),
+        ocupantesPorMiembro,
+        idMiembroActual: getMemberId(selectedNode?.miembroAsignado),
+      }),
+    [members, destId, ocupantesPorMiembro, selectedNode]
   );
 
   useEffect(() => {
@@ -879,6 +923,11 @@ export default function Page() {
 
         if (found?.nombre || found?.name) {
           setDestName(found.nombre || found.name);
+        }
+
+        // El numero es como el usuario identifica el destacamento (875, no 219).
+        if (found?.numero || found?.destNumber) {
+          setDestNumber(String(found.numero || found.destNumber));
         }
       } catch (error) {
         console.error('Error cargando destacamento:', error);
@@ -1391,38 +1440,51 @@ export default function Page() {
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>Cambiar miembro</DialogTitle>
+        <DialogTitle>
+          {selectedNode?.miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
+        </DialogTitle>
 
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {selectedNode?.role || 'Rol del organigrama'}
-            </Typography>
+            <Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {selectedNode?.role || 'Rol del organigrama'}
+              </Typography>
+
+              {/* De donde salen los miembros de la lista. */}
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                {getLeadershipScopeLabel({
+                  nivel: 'destacamento',
+                  nombreEntidad: [destName, destNumber].filter(Boolean).join(' '),
+                })}
+              </Typography>
+            </Box>
 
             <Autocomplete
-              options={members}
-              value={selectedMember}
+              options={memberOptions}
+              value={memberOptions.find((option) => option.member === selectedMember) || null}
               loading={!members.length}
-              onChange={(event, value) => setSelectedMember(value)}
-              getOptionLabel={(option) => getMemberName(option)}
-              getOptionKey={(option) => getMemberOptionKey(option)}
-              isOptionEqualToValue={(option, value) =>
-                getMemberOptionKey(option) === getMemberOptionKey(value)
-              }
+              onChange={(event, option) => setSelectedMember(option?.member ?? null)}
+              getOptionLabel={(option) => option?.nombre || ''}
+              getOptionKey={(option) => option?.id}
+              // Quien ya ocupa otro cargo se lista, pero no se puede elegir.
+              getOptionDisabled={(option) => Boolean(option?.disabled)}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              noOptionsText="No hay miembros en este destacamento"
               renderOption={(optionProps, option) => {
                 const { key, ...liProps } = optionProps;
 
                 return (
                   <Box key={key} component="li" {...liProps}>
                     <Avatar
-                      alt={getMemberName(option)}
-                      src={getMemberAvatar(option)}
+                      alt={option.nombre}
+                      src={getMemberAvatar(option.member)}
                       sx={{ width: 36, height: 36, mr: 1.5 }}
                     />
 
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle2" noWrap>
-                        {getMemberName(option)}
+                        {option.nombre}
                       </Typography>
 
                       <Typography
@@ -1431,7 +1493,7 @@ export default function Page() {
                         noWrap
                         sx={{ color: 'text.secondary' }}
                       >
-                        {option.codigoMiembro || option.memberId || `ID ${getMemberId(option)}`}
+                        {option.rolActual ? `Ya es ${option.rolActual}` : option.subtitulo}
                       </Typography>
                     </Box>
                   </Box>
