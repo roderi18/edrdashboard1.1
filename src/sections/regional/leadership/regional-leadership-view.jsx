@@ -274,6 +274,13 @@ export function RegionalLeadershipView() {
 
   useEffect(() => {
     const handleClickAwayPopover = (event) => {
+      // Los dialogos y el desplegable del Autocomplete viven en un Portal fuera
+      // del organigrama: sin esta salida, un clic sobre una opcion disparaba el
+      // Escape de abajo y cerraba el desplegable antes de registrar la seleccion.
+      if (event.target?.closest?.('.MuiDialog-root, .MuiAutocomplete-popper')) {
+        return;
+      }
+
       const popoverPapers = Array.from(document.querySelectorAll('.MuiPopover-paper'));
 
       if (

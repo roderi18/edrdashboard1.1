@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import {
   buildOrgIndex,
@@ -126,30 +126,39 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
 
   // Cargo que ya ocupa cada miembro dentro de ESTA directiva, para deshabilitarlo
   // en el desplegable.
-  const ocupantesPorMiembro = new Map();
-  Object.values(assignments).forEach((asignacion) => {
-    const position = DIRECTIVA_POSITIONS.find(
-      (item) => normalizeId(item.idCargo) === normalizeId(asignacion.idPosicionDirectiva)
-    );
+  const ocupantesPorMiembro = useMemo(() => {
+    const porMiembro = new Map();
 
-    if (asignacion?.idMiembro) {
-      ocupantesPorMiembro.set(
+    Object.values(assignments).forEach((asignacion) => {
+      if (!asignacion?.idMiembro) return;
+
+      const position = DIRECTIVA_POSITIONS.find(
+        (item) => normalizeId(item.idCargo) === normalizeId(asignacion.idPosicionDirectiva)
+      );
+
+      porMiembro.set(
         normalizeId(asignacion.idMiembro),
         position?.nombreCargo || 'un cargo de esta directiva'
       );
-    }
-  });
+    });
 
-  const memberOptions = buildLeadershipMemberOptions({
-    members,
-    nivel,
-    idEntidad,
-    index: orgIndex,
-    ocupantesPorMiembro,
-    idMiembroActual: selectedNode
-      ? normalizeId(getAssignedMember(selectedNode.id)?.id ?? getAssignedMember(selectedNode.id)?.idMiembros)
-      : null,
-  });
+    return porMiembro;
+  }, [assignments]);
+
+  // Memoizado a proposito: sin esto las opciones se recreaban en cada render y el
+  // Autocomplete perdia la seleccion recien hecha.
+  const memberOptions = useMemo(() => {
+    const asignado = selectedNode ? getAssignedMember(selectedNode.id) : null;
+
+    return buildLeadershipMemberOptions({
+      members,
+      nivel,
+      idEntidad,
+      index: orgIndex,
+      ocupantesPorMiembro,
+      idMiembroActual: normalizeId(asignado?.id ?? asignado?.idMiembros) || null,
+    });
+  }, [members, nivel, idEntidad, orgIndex, ocupantesPorMiembro, selectedNode, getAssignedMember]);
 
   const openAssign = useCallback(
     (node) => {

@@ -22,6 +22,8 @@ import { getLeadershipScopeLabel } from 'src/utils/leadership-member-options';
 
 const getMemberAvatar = (member) => member?.avatarUrl || member?.photoURL || '';
 
+const memberKey = (member) => String(member?.id ?? member?.idMiembros ?? '').trim();
+
 export function LeadershipAssignDialog({
   open,
   node,
@@ -55,7 +57,9 @@ export function LeadershipAssignDialog({
 
           <Autocomplete
             options={options}
-            value={options.find((option) => option.member === value) || null}
+            // Se compara por id, no por identidad de objeto: los miembros llegan
+            // de servicios distintos y una misma persona puede ser dos objetos.
+            value={options.find((option) => option.id === memberKey(value)) || null}
             loading={loading}
             onChange={(event, option) => onChange?.(option?.member ?? null)}
             getOptionLabel={(option) => option?.nombre || ''}
