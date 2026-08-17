@@ -252,15 +252,24 @@ export function hasLeadershipLayoutOffsets(editor) {
   return Object.values(editor.nodeOffsets).some(hasOffsetValue);
 }
 
+// Las lineas nativas del arbol solo se apagan cuando la capa SVG ya esta
+// dibujada. Antes se apagaban en cuanto habia desplazamientos, asi que entre el
+// primer render y el calculo de las rutas el diagrama se quedaba SIN lineas: solo
+// aparecian al arrastrar el organigrama o hacer scroll, que es lo que forzaba el
+// recalculo. Si el navegador no entiende :has(), el selector se ignora y se
+// quedan las nativas — nunca ninguna.
 export function getLeadershipConnectorOverrideSx(active) {
   if (!active) {
     return {};
   }
 
+  const conCapaDibujada = '&:has([data-leadership-connectors])';
+
   return {
-    '& ul::before, & li::before, & li::after': {
-      borderColor: 'transparent !important',
-    },
+    [`${conCapaDibujada} ul::before, ${conCapaDibujada} li::before, ${conCapaDibujada} li::after`]:
+      {
+        borderColor: 'transparent !important',
+      },
   };
 }
 
@@ -316,11 +325,15 @@ export function LeadershipLayoutConnectorLayer({
   const [paths, setPaths] = useState([]);
 
   useEffect(() => {
+    const mismasRutas = (anteriores, siguientes) =>
+      anteriores.length === siguientes.length &&
+      anteriores.every((ruta, indice) => ruta.d === siguientes[indice].d);
+
     const updatePaths = () => {
       const container = containerRef.current;
 
       if (!active || !container || !connections.length) {
-        setPaths([]);
+        setPaths((actuales) => (actuales.length ? [] : actuales));
         return;
       }
 
@@ -355,18 +368,75 @@ export function LeadershipLayoutConnectorLayer({
         })
         .filter(Boolean);
 
-      setPaths(nextPaths);
+      setPaths((actuales) => (mismasRutas(actuales, nextPaths) ? actuales : nextPaths));
     };
 
-    const frame = window.requestAnimationFrame(updatePaths);
+    let frame = 0;
+    let temporizador = 0;
 
-    window.addEventListener('resize', updatePaths);
-    window.addEventListener('scroll', updatePaths, true);
+    const ejecutar = () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(temporizador);
+      updatePaths();
+    };
+
+    const programarActualizacion = () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(temporizador);
+      // Dos fotogramas: en el primero el arbol todavia puede estar colocandose
+      // (estilos de los desplazamientos, tipografia, tarjetas que crecen cuando
+      // llega el nombre del ocupante) y las medidas saldrian de un layout a
+      // medio hacer.
+      frame = window.requestAnimationFrame(() => {
+        frame = window.requestAnimationFrame(ejecutar);
+      });
+      // El navegador NO ejecuta requestAnimationFrame mientras la pestaña esta
+      // en segundo plano. Sin este respaldo, un organigrama que se carga en una
+      // pestaña de fondo se queda sin lineas hasta que el usuario interactua.
+      temporizador = window.setTimeout(ejecutar, 120);
+    };
+
+    programarActualizacion();
+
+    const container = containerRef.current;
+    // El contenido del organigrama llega despues que el diagrama: los nombres de
+    // los ocupantes se cargan de Firestore y cambian el ancho de las tarjetas. Sin
+    // observar esos cambios, las lineas se quedaban con las medidas del primer
+    // render.
+    const resizeObserver = new ResizeObserver(programarActualizacion);
+    // Las mutaciones de la propia capa SVG se ignoran: dibujar las rutas
+    // provocaria otro recalculo y este se llamaria a si mismo sin parar.
+    const esDeLaCapa = (nodo) => {
+      const elemento = nodo?.nodeType === 1 ? nodo : nodo?.parentElement;
+
+      return Boolean(elemento?.closest?.('[data-leadership-connectors]'));
+    };
+    const mutationObserver = new MutationObserver((mutaciones) => {
+      if (mutaciones.some((mutacion) => !esDeLaCapa(mutacion.target))) {
+        programarActualizacion();
+      }
+    });
+
+    if (container) {
+      resizeObserver.observe(container);
+      container
+        .querySelectorAll('[data-leadership-node-id]')
+        .forEach((nodo) => resizeObserver.observe(nodo));
+      mutationObserver.observe(container, { subtree: true, childList: true, characterData: true });
+    }
+
+    window.addEventListener('resize', programarActualizacion);
+    window.addEventListener('scroll', programarActualizacion, true);
+    // Las tipografias cambian las medidas al terminar de cargar.
+    document.fonts?.ready?.then(programarActualizacion).catch(() => {});
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', updatePaths);
-      window.removeEventListener('scroll', updatePaths, true);
+      window.clearTimeout(temporizador);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('resize', programarActualizacion);
+      window.removeEventListener('scroll', programarActualizacion, true);
     };
   }, [active, connections, watchKey, containerRef]);
 
@@ -378,6 +448,7 @@ export function LeadershipLayoutConnectorLayer({
     <Box
       component="svg"
       data-pdf-hidden="true"
+      data-leadership-connectors="true"
       sx={{
         inset: 0,
         zIndex: 1,
