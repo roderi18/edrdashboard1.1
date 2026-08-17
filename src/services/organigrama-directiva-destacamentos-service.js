@@ -106,6 +106,11 @@ export const normalizarAsignacionOrganigrama = (asignacion = {}) => {
     division,
     orden,
     activo: asignacion.activo !== false,
+    // Copia del ocupante: si el miembro no viene en el listado que carga el
+    // organigrama, el nodo se pintaba vacio aunque la asignacion existiera.
+    nombreMiembro: String(asignacion.nombreMiembro || '').trim(),
+    codigoMiembro: String(asignacion.codigoMiembro || '').trim(),
+    fotoMiembro: String(asignacion.fotoMiembro || '').trim(),
   };
 };
 

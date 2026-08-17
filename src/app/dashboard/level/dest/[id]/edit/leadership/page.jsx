@@ -33,7 +33,8 @@ import DialogContent from '@mui/material/DialogContent';
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
-import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   buildOrgIndex,
@@ -53,7 +54,17 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
-import { SIMPLE_DATA, LEADER_GROUP_DATA } from 'src/sections/_examples/extra/organizational-chart-view/data';
+import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import {
+  DEST_LEADERSHIP_DATA,
+  DEST_DIVISION_GROUPS,
+} from 'src/sections/dest/leadership/dest-leadership-data';
+import {
+  ETIQUETA_VACANTE,
+  LeadershipNodeName,
+  LeadershipNodeAvatar,
+  getLeadershipNodeIdentity,
+} from 'src/sections/common/leadership-node-identity';
 import {
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
@@ -496,8 +507,14 @@ function LeadershipNode({
   canManage = true,
 }) {
   const menuActions = usePopover();
-  const displayName = miembroAsignado ? getMemberName(miembroAsignado) : name;
-  const displayAvatar = miembroAsignado ? getMemberAvatar(miembroAsignado) : avatarUrl;
+  // El nodo describe el CARGO: nombre y foto los pone el ocupante, y sin
+  // ocupante el cargo se dibuja como vacante.
+  const identity = getLeadershipNodeIdentity(
+    miembroAsignado
+      ? { ...miembroAsignado, avatarUrl: getMemberAvatar(miembroAsignado) }
+      : null
+  );
+  const displayName = identity.displayName;
   const miembroAsignadoId = getMemberId(miembroAsignado);
   const memberProfileHref = miembroAsignadoId
     ? `/dashboard/level/member/${miembroAsignadoId}/edit`
@@ -617,17 +634,10 @@ function LeadershipNode({
             borderRadius: '50%',
           }}
         >
-          <Avatar
-            alt={displayName}
-            src={displayAvatar}
-            sx={{
-              width: 1,
-              height: 1,
-            }}
-          />
+          <LeadershipNodeAvatar identity={identity} />
         </Box>
 
-        <Typography variant="subtitle2" noWrap sx={{ mb: 0.5, pr: 3 }}>
+        <LeadershipNodeName identity={identity}>
           {memberProfileHref ? (
             <Link
               component={RouterLink}
@@ -642,7 +652,7 @@ function LeadershipNode({
           ) : (
             displayName
           )}
-        </Typography>
+        </LeadershipNodeName>
 
         <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
           {role}
@@ -704,23 +714,23 @@ const getPdfImageSrc = async (src) => {
 
 const getPdfPersonNode = async (node, getAssignedMember) => {
   const assignedMember = getAssignedMember(node);
-  const displayName = assignedMember ? getMemberName(assignedMember) : node?.name;
-  const displayAvatar = assignedMember ? getMemberAvatar(assignedMember) : node?.avatarUrl;
+  const displayName = assignedMember ? getMemberName(assignedMember) : ETIQUETA_VACANTE;
+  const displayAvatar = assignedMember ? getMemberAvatar(assignedMember) : '';
 
   return {
-    name: displayName || '',
+    name: displayName || ETIQUETA_VACANTE,
     role: node?.role || '',
     avatarUrl: await getPdfImageSrc(displayAvatar),
   };
 };
 
 const getLeadershipPdfChartData = async (getAssignedMember) => {
-  const coordinator = SIMPLE_DATA.children?.[0] || {};
+  const coordinator = DEST_LEADERSHIP_DATA.children?.[0] || {};
   const assistantCoordinator = coordinator.children?.[0] || {};
   const council = assistantCoordinator.children?.[0] || {};
   const chaplain = assistantCoordinator.children?.[1] || {};
   const divisions = await Promise.all(
-    LEADER_GROUP_DATA.map(async (division) => {
+    DEST_DIVISION_GROUPS.map(async (division) => {
       const leader = division.children?.[0] || {};
       const assistant = leader.children?.[0] || {};
 
@@ -735,7 +745,7 @@ const getLeadershipPdfChartData = async (getAssignedMember) => {
   );
 
   return {
-    pastor: await getPdfPersonNode(SIMPLE_DATA, getAssignedMember),
+    pastor: await getPdfPersonNode(DEST_LEADERSHIP_DATA, getAssignedMember),
     coordinator: await getPdfPersonNode(coordinator, getAssignedMember),
     assistantCoordinator: await getPdfPersonNode(assistantCoordinator, getAssignedMember),
     council: await getPdfPersonNode(council, getAssignedMember),
@@ -749,19 +759,31 @@ export default function Page() {
   const { user } = useAuthContext();
   // El administrador de destacamento consulta el organigrama en solo lectura:
   // sin cambiar/remover miembros ni edicion visual del layout.
-  const canManageLeadership = !isDestacamentoAdminRole(user);
+  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
+  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
+  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
+  const canManageLeadership = canManageDirectiva(user);
   const destId = params?.id;
   const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
   const layoutEditor = useLeadershipLayoutEditor();
   const [destName, setDestName] = useState('Destacamento');
+  // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
+  // recolocacion se perdia al recargar.
   const [destNumber, setDestNumber] = useState('');
   const [members, setMembers] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [roleInfoNode, setRoleInfoNode] = useState(null);
   const [removeMemberNode, setRemoveMemberNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+  const layoutStorage = useLeadershipLayoutStorage({
+    editor: layoutEditor,
+    nivel: 'destacamento',
+    idEntidad: destId,
+    nombreEntidad: destName,
+    canManage: canManageLeadership,
+  });
   const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSavingMember, setIsSavingMember] = useState(false);
@@ -778,7 +800,7 @@ export default function Page() {
     role: 'Titulo del diagrama',
   });
   const connections = useMemo(
-    () => getLeadershipConnections([SIMPLE_DATA, ...LEADER_GROUP_DATA]),
+    () => getLeadershipConnections([DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS]),
     []
   );
   const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
@@ -815,7 +837,7 @@ export default function Page() {
       (node.children || []).forEach(recorrer);
     };
 
-    [SIMPLE_DATA, ...LEADER_GROUP_DATA].forEach(recorrer);
+    [DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS].forEach(recorrer);
 
     return porMiembro;
   }, [assignments]);
@@ -1008,7 +1030,20 @@ export default function Page() {
   const getAssignedMember = (node) => {
     const assignment = assignments[getAssignmentKey(node?.asignacionOrganigrama)];
 
-    return assignment?.idMiembros ? membersById[String(assignment.idMiembros)] : null;
+    if (!assignment?.idMiembros) {
+      return null;
+    }
+
+    // Si el ocupante no viene en el listado de miembros (baja, filtro), se usa
+    // la copia guardada en la asignacion: el cargo esta ocupado y el nodo no
+    // debe pintarse como vacante.
+    return (
+      membersById[String(assignment.idMiembros)] ||
+      resolverMiembroAsignado({
+        asignacion: { ...assignment, idMiembro: assignment.idMiembros },
+        members: [],
+      })
+    );
   };
 
   const handleOpenChangeMember = (node) => {
@@ -1041,6 +1076,7 @@ export default function Page() {
         idDestacamento: destId,
         idMiembros: memberId,
         ...assignmentInfo,
+        ...construirResumenMiembro(selectedMember || {}),
       });
 
       setAssignments((current) => ({
@@ -1366,7 +1402,7 @@ export default function Page() {
             lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
-            data={SIMPLE_DATA}
+            data={DEST_LEADERSHIP_DATA}
             nodeClassName={layoutEditor.getNodeTreeClassName}
             nodeItem={(props) => (
               <LeadershipNode
@@ -1390,7 +1426,7 @@ export default function Page() {
               justifyContent: 'center',
             }}
           >
-            {LEADER_GROUP_DATA.map((node) => (
+            {DEST_DIVISION_GROUPS.map((node) => (
               <OrganizationalChart
                 key={node.id}
                 lineWidth="2px"
@@ -1437,6 +1473,8 @@ export default function Page() {
             title={titleText}
             editor={layoutEditor}
             containerMinHeight={containerMinHeight}
+            onSaveLayout={layoutStorage.guardar}
+            savingLayout={layoutStorage.guardando}
           />
         )}
       </Box>

@@ -61,7 +61,10 @@ export function LeadershipNodeAvatar({ identity, size = 48 }) {
   );
 }
 
-export function LeadershipNodeName({ identity, ...other }) {
+// `children` permite envolver el nombre (el organigrama del destacamento lo
+// enlaza a la ficha del miembro). Sin ocupante nunca hay enlace, asi que la
+// marca de vacante manda.
+export function LeadershipNodeName({ identity, children, ...other }) {
   return (
     <Typography
       variant="subtitle2"
@@ -77,7 +80,7 @@ export function LeadershipNodeName({ identity, ...other }) {
       }}
       {...other}
     >
-      {identity.displayName}
+      {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
     </Typography>
   );
 }
