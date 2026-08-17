@@ -12,11 +12,15 @@ import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
-import { guardarCargoMiembroApi } from 'src/services/cargos-api-service';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
 } from 'src/services/directivas-organizacionales-service';
+import {
+  guardarCargoMiembroApi,
+  obtenerCargosMiembroApi,
+  eliminarCargoMiembroApi,
+} from 'src/services/cargos-api-service';
 
 import { toast } from 'src/components/snackbar';
 
@@ -63,6 +67,7 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
   const [assignments, setAssignments] = useState({});
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [nodoARemover, setNodoARemover] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -175,9 +180,12 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
     setSelectedMember(null);
   }, [isSaving]);
 
+  // El nodo llega por parametro y no desde `selectedNode`: al remover se actua
+  // sobre un nodo distinto del que tenga abierto el dialogo, y leerlo del estado
+  // daria el valor anterior al render.
   const guardar = useCallback(
-    async ({ idMiembro, activo }) => {
-      const position = findPositionByNode(nivel, selectedNode?.id);
+    async ({ node, idMiembro, activo }) => {
+      const position = findPositionByNode(nivel, node?.id);
 
       if (!position) {
         toast.error('Este nodo no está en el catálogo de cargos.');
@@ -202,16 +210,34 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
           activo,
         });
 
-        // El cargo también se registra en la API, que es de donde sale la columna
+        // El cargo se refleja también en la API, que es de donde sale la columna
         // "Posición" de la lista de miembros: si no, el organigrama y la lista
-        // dirían cosas distintas.
-        if (activo && idCargo && idMiembro) {
-          await guardarCargoMiembroApi({
-            idCargo,
-            idMiembro,
-            fechaInicio: new Date().toISOString().slice(0, 10),
-            fechaFin: null,
-          }).catch(() => null);
+        // dirían cosas distintas. Al remover hay que RETIRARLO de allí, no basta
+        // con dar de baja la asignación de Firestore.
+        if (idCargo && idMiembro) {
+          if (activo) {
+            await guardarCargoMiembroApi({
+              idCargo,
+              idMiembro,
+              fechaInicio: new Date().toISOString().slice(0, 10),
+              fechaFin: null,
+            }).catch(() => null);
+          } else {
+            const cargosDelMiembro = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
+
+            await Promise.all(
+              cargosDelMiembro
+                .filter((item) => Number(item?.idCargo) === Number(idCargo))
+                .map((item) =>
+                  eliminarCargoMiembroApi({
+                    idCargo: Number(item.idCargo),
+                    idMiembro,
+                    fechaInicio: String(item.fechaInicio || '').slice(0, 10),
+                    fechaFin: item.fechaFin ?? null,
+                  }).catch(() => null)
+                )
+            );
+          }
         }
 
         await loadAssignments();
@@ -228,7 +254,7 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
         setIsSaving(false);
       }
     },
-    [nivel, idEntidad, nombreEntidad, selectedNode, loadAssignments]
+    [nivel, idEntidad, nombreEntidad, loadAssignments]
   );
 
   const asignarMiembro = useCallback(async () => {
@@ -239,26 +265,46 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
       return;
     }
 
-    if (await guardar({ idMiembro, activo: true })) {
+    if (await guardar({ node: selectedNode, idMiembro, activo: true })) {
       toast.success('Miembro asignado correctamente.');
     }
-  }, [guardar, selectedMember]);
+  }, [guardar, selectedMember, selectedNode]);
 
-  const removerMiembro = useCallback(
-    async (node) => {
-      const asignado = getAssignedMember(node?.id);
-      const idMiembro = normalizeId(asignado?.id ?? asignado?.idMiembros);
+  // --- Remover: se pide confirmacion antes de liberar el cargo ---
 
-      if (!idMiembro) return;
-
-      setSelectedNode(node);
-
-      if (await guardar({ idMiembro, activo: false })) {
-        toast.success('Miembro removido del cargo.');
+  const pedirRemoverMiembro = useCallback(
+    (node) => {
+      if (!getAssignedMember(node?.id)) {
+        toast.info('Este cargo no tiene un miembro asignado.');
+        return;
       }
+
+      setNodoARemover(node);
     },
-    [getAssignedMember, guardar]
+    [getAssignedMember]
   );
+
+  const cancelarRemover = useCallback(() => {
+    if (isSaving) return;
+
+    setNodoARemover(null);
+  }, [isSaving]);
+
+  const confirmarRemover = useCallback(async () => {
+    const asignado = getAssignedMember(nodoARemover?.id);
+    const idMiembro = normalizeId(asignado?.id ?? asignado?.idMiembros);
+
+    if (!idMiembro) {
+      setNodoARemover(null);
+      return;
+    }
+
+    if (await guardar({ node: nodoARemover, idMiembro, activo: false })) {
+      toast.success('Miembro removido del cargo.');
+    }
+
+    setNodoARemover(null);
+  }, [getAssignedMember, guardar, nodoARemover]);
 
   return {
     members,
@@ -271,6 +317,9 @@ export function useLeadershipAssignments({ nivel, idEntidad, nombreEntidad = '' 
     openAssign,
     closeAssign,
     asignarMiembro,
-    removerMiembro,
+    nodoARemover,
+    pedirRemoverMiembro,
+    cancelarRemover,
+    confirmarRemover,
   };
 }

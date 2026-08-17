@@ -6,6 +6,7 @@ import { useRef, useMemo, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
@@ -21,6 +22,7 @@ import { _mock } from 'src/_mock';
 import { getRegionals } from 'src/services/regional-service';
 
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
@@ -614,7 +616,7 @@ export function RegionalLeadershipView() {
               canManage={canManageLeadership}
               miembroAsignado={leadership.getAssignedMember(props.id)}
               onAsignarMiembro={leadership.openAssign}
-              onRemoverMiembro={leadership.removerMiembro}
+              onRemoverMiembro={leadership.pedirRemoverMiembro}
             />
           )}
         />
@@ -656,6 +658,34 @@ export function RegionalLeadershipView() {
         onChange={leadership.setSelectedMember}
         onClose={leadership.closeAssign}
         onSubmit={leadership.asignarMiembro}
+      />
+
+      <ConfirmDialog
+        open={Boolean(leadership.nodoARemover)}
+        onClose={leadership.cancelarRemover}
+        title="Remover miembro"
+        content={
+          <>
+            ¿Realmente quieres remover a
+            <strong>
+              {' '}
+              {getMemberDisplayName(
+                leadership.getAssignedMember(leadership.nodoARemover?.id)
+              ) || 'este miembro'}{' '}
+            </strong>
+            del cargo de {leadership.nodoARemover?.role || 'la directiva'}?
+          </>
+        }
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            disabled={leadership.isSaving}
+            onClick={leadership.confirmarRemover}
+          >
+            Remover
+          </Button>
+        }
       />
     </>
   );
