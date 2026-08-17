@@ -17,6 +17,10 @@ import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
+  asegurarCargoMiembroApi,
+  retirarCargoMiembroApiPorCargo,
+} from 'src/services/cargos-api-service';
+import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
   desactivarAsignacionesDirectivaPorNivel,
@@ -32,12 +36,16 @@ import { toast } from 'src/components/snackbar';
 // nodo del diagrama se casa con una posicion del catalogo por `idNodoDiagrama`,
 // que es lo que da el `idPosicionDirectiva` con el que se guarda.
 //
-// FIRESTORE ES LA UNICA FUENTE. Antes cada cambio se escribia tambien en la API
-// .NET (`CargosMiembros`) para alimentar la columna "Posicion" de la lista de
-// miembros. Eran dos escrituras sin transaccion y el fallo de la segunda se
-// descartaba, asi que las bases divergian mientras la pantalla confirmaba el
-// guardado. La lista ya resuelve la posicion desde las asignaciones, de modo que
-// esa segunda escritura sobraba.
+// FIRESTORE MANDA, PERO LA API .NET SE MANTIENE AL DIA. La lista de miembros
+// resuelve la posicion desde las asignaciones, pero la FICHA del miembro tambien
+// lee `CargosMiembros` (ver `positionsByCargoApi` en member-create-edit-form): si
+// aqui solo se tocaba Firestore, remover a alguien del organigrama lo dejaba con
+// el cargo puesto en su perfil. Por eso cada cambio se replica en la API.
+//
+// La escritura sigue sin ser transaccional, que fue el motivo por el que en su dia
+// se quito: la diferencia es que ahora el fallo de la segunda escritura SE AVISA
+// en pantalla en vez de descartarse, que era lo que dejaba divergir las bases
+// mientras la pantalla confirmaba el guardado.
 // ----------------------------------------------------------------------
 
 const findPositionByNode = (nivel, nodeId) =>
@@ -207,6 +215,25 @@ export function useLeadershipAssignments({
             nivel,
             conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
           }).catch(() => 0);
+        }
+
+        // Espejo en la API .NET, que es de donde la ficha del miembro lee sus
+        // cargos. Sin esto el cambio hecho aqui no llegaba al perfil.
+        const idCargoApi = Number(position.idCargoApi) || null;
+
+        if (idCargoApi && idMiembro) {
+          try {
+            if (activo) {
+              await asegurarCargoMiembroApi({ idCargo: idCargoApi, idMiembro });
+            } else {
+              await retirarCargoMiembroApiPorCargo({ idMiembro, idCargoApi });
+            }
+          } catch (error) {
+            console.error('[directiva] no se pudo sincronizar el cargo con la ficha', error);
+            toast.warning(
+              'La directiva se actualizó, pero la ficha del miembro no pudo sincronizarse. Vuelve a guardar para reintentarlo.'
+            );
+          }
         }
 
         await loadAssignments();

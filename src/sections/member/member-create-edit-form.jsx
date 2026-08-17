@@ -1126,10 +1126,81 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return 'nacional';
   };
 
-  const saveSelectedCargo = async ({ value, idMiembro }) => {
+  // Retira lo que el miembro tuviera en estos niveles, en los TRES almacenes:
+  // las filas de `CargosMiembros` (que es lo que lee esta misma ficha), las
+  // asignaciones de directiva y, si el nivel incluye destacamento, su casilla del
+  // organigrama. Es la operacion inversa de `saveSelectedCargo`.
+  const retirarCargosDeNiveles = async ({ idMiembro, niveles = [] }) => {
+    if (!idMiembro || !niveles.length) {
+      return;
+    }
+
+    const idsCargoApi = new Set(
+      CARGOS_DIRECTIVA_BASE.filter(
+        (position) => niveles.includes(position.nivel) && position.idCargoApi
+      ).map((position) => Number(position.idCargoApi))
+    );
+
+    const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
+
+    await Promise.all(
+      cargosActuales
+        .filter((item) => idsCargoApi.has(Number(item?.idCargo)))
+        .map((item) =>
+          eliminarCargoMiembroApi({
+            idCargo: Number(item.idCargo),
+            idMiembro,
+            fechaInicio: String(item.fechaInicio || '').slice(0, 10),
+            fechaFin: item.fechaFin ?? null,
+          }).catch((error) => {
+            console.warn('[member form] no se pudo retirar el cargo en la API', error);
+          })
+        )
+    );
+
+    await Promise.all(
+      niveles.map((nivel) =>
+        desactivarAsignacionesDirectivaPorNivel({ idMiembro, nivel }).catch(() => 0)
+      )
+    );
+
+    if (!niveles.includes(NIVELES_DIRECTIVA.destacamento)) {
+      return;
+    }
+
+    const idDestacamentoMiembro =
+      Number(selectedDestId || currentMember?.destId || currentMember?.idDestacamento) || null;
+
+    if (!idDestacamentoMiembro) {
+      return;
+    }
+
+    const asignacionesDest = await obtenerAsignacionesOrganigramaPorDestacamento(
+      idDestacamentoMiembro
+    ).catch(() => []);
+
+    await Promise.all(
+      asignacionesDest
+        .filter((asignacion) => String(asignacion.idMiembros) === String(idMiembro))
+        .map((asignacion) =>
+          desactivarAsignacionOrganigramaDirectivaDestacamento(asignacion.id).catch(() => null)
+        )
+    );
+  };
+
+  const saveSelectedCargo = async ({ value, idMiembro, nivelesDelCampo = [] }) => {
     const cargo = await getCargoOptionByValue(value);
 
-    if (!cargo || !idMiembro) {
+    if (!idMiembro) {
+      return;
+    }
+
+    // "Ninguno" (o el campo vacio) significa RETIRAR. Antes se salia sin tocar
+    // nada, asi que vaciar el desplegable no quitaba el cargo de ningun lado: la
+    // ficha lo seguia mostrando y el organigrama tambien.
+    if (!cargo) {
+      await retirarCargosDeNiveles({ idMiembro, niveles: nivelesDelCampo });
+
       return;
     }
 
@@ -1270,8 +1341,23 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
   const saveSelectedMemberCargos = async ({ idMiembro, formData }) => {
     await Promise.all([
-      saveSelectedCargo({ value: formData.nationalLeadershipRole, idMiembro }),
-      saveSelectedCargo({ value: formData.memberPosition, idMiembro }),
+      saveSelectedCargo({
+        value: formData.nationalLeadershipRole,
+        idMiembro,
+        // Los mismos niveles que alimenta el desplegable "Cargo Nacional"
+        // (ver MemberLeadershipAndOtherSection): son los que hay que limpiar si
+        // se deja en "Ninguno".
+        nivelesDelCampo: [
+          NIVELES_DIRECTIVA.nacional,
+          NIVELES_DIRECTIVA.regional,
+          NIVELES_DIRECTIVA.seccional,
+        ],
+      }),
+      saveSelectedCargo({
+        value: formData.memberPosition,
+        idMiembro,
+        nivelesDelCampo: [NIVELES_DIRECTIVA.destacamento],
+      }),
     ]);
   };
 

@@ -188,6 +188,50 @@ export async function guardarCargoMiembroApi({ idCargo, idMiembro, fechaInicio, 
   return payload;
 }
 
+// Alta idempotente. `CargosMiembros` tiene clave compuesta (idCargo, idMiembro,
+// fechaInicio) y el backend inserta sin comprobar duplicados: repetir la misma
+// terna devuelve 500. Se omite el POST si el miembro ya tiene ese cargo.
+export async function asegurarCargoMiembroApi({ idCargo, idMiembro, fechaInicio }) {
+  if (!idCargo || !idMiembro) return null;
+
+  const fecha = fechaInicio || new Date().toISOString().slice(0, 10);
+  const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
+  const yaAsignado = cargosActuales.some((item) => Number(item?.idCargo) === Number(idCargo));
+
+  if (yaAsignado) return null;
+
+  return guardarCargoMiembroApi({
+    idCargo: Number(idCargo),
+    idMiembro,
+    fechaInicio: fecha,
+    fechaFin: null,
+  });
+}
+
+// Retira TODAS las filas que el miembro tenga de un cargo. Por la clave compuesta,
+// un mismo cargo puede tener varias filas si se asigno en fechas distintas; borrar
+// solo una dejaria el cargo vivo. Los errores se propagan a proposito para que
+// quien llama pueda avisar en pantalla en vez de divergir en silencio.
+export async function retirarCargoMiembroApiPorCargo({ idMiembro, idCargoApi }) {
+  if (!idMiembro || !idCargoApi) return 0;
+
+  const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
+  const aRetirar = cargosActuales.filter((item) => Number(item?.idCargo) === Number(idCargoApi));
+
+  await Promise.all(
+    aRetirar.map((item) =>
+      eliminarCargoMiembroApi({
+        idCargo: Number(item.idCargo),
+        idMiembro,
+        fechaInicio: String(item.fechaInicio || '').slice(0, 10),
+        fechaFin: item.fechaFin ?? null,
+      })
+    )
+  );
+
+  return aRetirar.length;
+}
+
 export async function eliminarCargoMiembroApi({
   idCargo,
   idMiembro,
