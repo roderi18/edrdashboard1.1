@@ -252,7 +252,7 @@ export function MemberInfoPdfMenu({
     health: canViewMemberHealthTab(user),
     awards: canViewMemberAwardsTab(user),
     parents: canViewMemberParentsTab(user),
-    history: canViewMemberHistoryTab(user),
+    history: canViewMemberHistoryTab(user, values),
   };
   const availableSections = SECTION_OPTIONS.filter((option) => canExportSection[option.value]);
 
