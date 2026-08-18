@@ -19,6 +19,7 @@ import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   isFullOrgManager,
@@ -38,6 +39,7 @@ import { ChurchSchema } from 'src/models/church-schema';
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { getChurches, createChurchApi, updateChurchApi } from 'src/services/church-service';
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
@@ -51,11 +53,15 @@ import {
   mapApiDestToUI,
 } from 'src/services/dest-service';
 import {
-  CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO,
-  obtenerAsignacionesOrganigramaPorDestacamento,
-  guardarAsignacionOrganigramaDirectivaDestacamento,
-  eliminarAsignacionOrganigramaDirectivaDestacamento,
-} from 'src/services/organigrama-directiva-destacamentos-service';
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+} from 'src/services/directivas-organizacionales-service';
+
+// Posicion del catalogo que corresponde al Coordinador de Destacamento: de ella
+// salen el id de cargo y el orden con los que se guarda la asignacion.
+const POSICION_COORDINADOR_DEST = DIRECTIVA_POSITIONS.find(
+  (position) => position.idCargo === 'destacamento-coordinador-destacamento'
+);
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -237,17 +243,16 @@ export function DestCreateEditForm({ currentDest }) {
       // el idMiembros numerico guardado al `memberId` (codigo) que usa el form.
       if (currentDest?.id) {
         try {
-          const asignaciones = await obtenerAsignacionesOrganigramaPorDestacamento(
-            Number(currentDest.id)
-          );
+          const asignaciones = await obtenerAsignacionesDirectiva({
+            nivel: 'destacamento',
+            idEntidad: Number(currentDest.id),
+          });
           const coordinador = asignaciones.find(
-            (asignacion) =>
-              asignacion.cargo ===
-              CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento
+            (asignacion) => asignacion.idPosicionDirectiva === POSICION_COORDINADOR_DEST?.idCargo
           );
           const coordinatorMember = coordinador
             ? normalizedMembers.find(
-              (member) => String(member.id) === String(coordinador.idMiembros)
+              (member) => String(member.id) === String(coordinador.idMiembro)
             )
             : null;
 
@@ -546,29 +551,48 @@ export function DestCreateEditForm({ currentDest }) {
 
       if (destIdForCoordinator) {
         try {
-          const asignacionesActuales =
-            await obtenerAsignacionesOrganigramaPorDestacamento(destIdForCoordinator);
+          const asignacionesActuales = await obtenerAsignacionesDirectiva({
+            nivel: 'destacamento',
+            idEntidad: destIdForCoordinator,
+          });
           const coordinadorActual = asignacionesActuales.find(
             (asignacion) =>
-              asignacion.cargo ===
-              CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento
+              asignacion.idPosicionDirectiva === POSICION_COORDINADOR_DEST?.idCargo
           );
           const miembroSeleccionado = data.coordinatorId
             ? allMembers.find((member) => member.memberId === data.coordinatorId)
             : null;
 
+          // El coordinador se guarda en `asignacionesDirectiva`, que es de donde
+          // lo leen el organigrama del destacamento, la ficha del miembro y la
+          // lista. Escribir solo en la coleccion del organigrama dejaba al
+          // coordinador invisible para las otras dos pantallas.
+          const datosAsignacion = {
+            nivel: 'destacamento',
+            idEntidad: destIdForCoordinator,
+            nombreEntidad: data.name || '',
+            idCargo: Number(POSICION_COORDINADOR_DEST?.idCargoApi) || null,
+            idPosicionDirectiva: POSICION_COORDINADOR_DEST?.idCargo || '',
+            division: null,
+            orden: POSICION_COORDINADOR_DEST?.orden || 1,
+            origen: 'form-destacamento',
+          };
+
           if (miembroSeleccionado?.id) {
-            await guardarAsignacionOrganigramaDirectivaDestacamento({
-              id: coordinadorActual?.id,
-              idDestacamento: destIdForCoordinator,
-              cargo: CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento,
-              idMiembros: Number(miembroSeleccionado.id),
-              orden: 1,
+            await guardarAsignacionDirectiva({
+              ...datosAsignacion,
+              idMiembro: Number(miembroSeleccionado.id),
+              activo: true,
+              ...construirResumenMiembro(miembroSeleccionado),
             });
             setCoordinatorFromDb(miembroSeleccionado.memberId);
-          } else if (coordinadorActual) {
-            // Se limpio el coordinador: eliminar la asignacion existente.
-            await eliminarAsignacionOrganigramaDirectivaDestacamento(coordinadorActual.id);
+          } else if (coordinadorActual?.idMiembro) {
+            // Se limpio el coordinador: dar de baja la asignacion existente.
+            await guardarAsignacionDirectiva({
+              ...datosAsignacion,
+              idMiembro: coordinadorActual.idMiembro,
+              activo: false,
+            });
             setCoordinatorFromDb(null);
           }
         } catch (coordError) {

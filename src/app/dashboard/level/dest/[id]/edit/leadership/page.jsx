@@ -43,11 +43,12 @@ import {
   buildLeadershipMemberOptions,
 } from 'src/utils/leadership-member-options';
 
+import { DIRECTIVA_POSITIONS, getOrganigramaDestSlot } from 'src/catalogs/directiva-positions';
 import {
-  obtenerAsignacionesOrganigramaPorDestacamento,
-  guardarAsignacionOrganigramaDirectivaDestacamento,
-  desactivarAsignacionOrganigramaDirectivaDestacamento,
-} from 'src/services/organigrama-directiva-destacamentos-service';
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+  desactivarAsignacionesDirectivaPorNivel,
+} from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -494,6 +495,52 @@ const getAssignmentKey = (asignacion) =>
     asignacion?.orden || 1,
   ].join('|');
 
+// ----------------------------------------------------------------------
+// El organigrama del destacamento se apoya en `asignacionesDirectiva`, la misma
+// coleccion que las Directivas de seccion, region y nacion — y la misma que leen
+// la ficha del miembro y la lista.
+//
+// Antes tenia su propia coleccion (`organigrama_directiva_destacamentos`) y era
+// el unico que la escribia: asignar aqui no llegaba ni al perfil ni a la lista,
+// asi que habia gente dibujada en el cuadro cuya ficha decia "Ninguna". Se
+// conserva la CLAVE de casilla (cargo|division|orden) para no tocar el resto de
+// la pantalla: las asignaciones se traducen a esa forma al cargarlas.
+// ----------------------------------------------------------------------
+
+const NIVEL_DESTACAMENTO = 'destacamento';
+
+// Casilla del organigrama -> posicion del catalogo. Es el inverso de
+// `getOrganigramaDestSlot`, que hace el camino contrario.
+const POSICION_POR_CASILLA = new Map(
+  DIRECTIVA_POSITIONS.filter((position) => position.nivel === NIVEL_DESTACAMENTO)
+    .map((position) => [position, getOrganigramaDestSlot(position)])
+    .filter(([, slot]) => slot)
+    .map(([position, slot]) => [getAssignmentKey(slot), position])
+);
+
+// Traduce una asignacion de directiva a la forma que espera esta pantalla
+// (`cargo`, `division`, `orden`, `idMiembros`). Devuelve null si la posicion no
+// tiene casilla en el cuadro del destacamento.
+const asignacionDirectivaACasilla = (asignacion) => {
+  const position = DIRECTIVA_POSITIONS.find(
+    (item) => item.idCargo === asignacion?.idPosicionDirectiva
+  );
+  const slot = position ? getOrganigramaDestSlot(position) : null;
+
+  if (!slot) return null;
+
+  return {
+    ...slot,
+    id: asignacion.idAsignacion || asignacion.id,
+    idMiembros: asignacion.idMiembro,
+    nombreMiembro: asignacion.nombreMiembro || '',
+    nombresMiembro: asignacion.nombresMiembro || '',
+    apellidosMiembro: asignacion.apellidosMiembro || '',
+    codigoMiembro: asignacion.codigoMiembro || '',
+    fotoMiembro: asignacion.fotoMiembro || '',
+  };
+};
+
 function LeadershipNode({
   id,
   name,
@@ -890,11 +937,17 @@ export default function Page() {
   useEffect(() => {
     const loadAssignments = async () => {
       try {
-        const data = await obtenerAsignacionesOrganigramaPorDestacamento(destId);
+        const data = await obtenerAsignacionesDirectiva({
+          nivel: NIVEL_DESTACAMENTO,
+          idEntidad: destId,
+        });
 
         setAssignments(
-          data.reduce((acc, assignment) => {
-            acc[getAssignmentKey(assignment)] = assignment;
+          data.reduce((acc, asignacion) => {
+            const casilla = asignacionDirectivaACasilla(asignacion);
+
+            if (casilla) acc[getAssignmentKey(casilla)] = casilla;
+
             return acc;
           }, {})
         );
@@ -1079,11 +1132,23 @@ export default function Page() {
       // paralelo, asi que una escritura rapida no se salta el acuse de recibo y
       // una lenta tampoco suma la espera encima. El tiempo se cambia en
       // `use-leadership-assignments`, que es de donde sale la constante.
-      const [savedAssignment] = await Promise.all([
-        guardarAsignacionOrganigramaDirectivaDestacamento({
-          idDestacamento: destId,
-          idMiembros: memberId,
-          ...assignmentInfo,
+      const position = POSICION_POR_CASILLA.get(getAssignmentKey(assignmentInfo));
+
+      if (!position) {
+        throw new Error('Este nodo no está en el catálogo de cargos.');
+      }
+
+      const [asignacionGuardada] = await Promise.all([
+        guardarAsignacionDirectiva({
+          nivel: NIVEL_DESTACAMENTO,
+          idEntidad: destId,
+          idCargo: Number(position.idCargoApi) || null,
+          idMiembro: memberId,
+          idPosicionDirectiva: position.idCargo,
+          division: position.division ?? null,
+          orden: position.orden || 1,
+          origen: 'organigrama-destacamento',
+          activo: true,
           ...construirResumenMiembro(selectedMember || {}),
         }),
         new Promise((resolve) => {
@@ -1091,10 +1156,29 @@ export default function Page() {
         }),
       ]);
 
-      setAssignments((current) => ({
-        ...current,
-        [getAssignmentKey(savedAssignment)]: savedAssignment,
-      }));
+      // Un miembro ocupa UNA casilla por destacamento: sin esto, moverlo de rol
+      // lo dejaba dibujado tambien en el anterior.
+      await desactivarAsignacionesDirectivaPorNivel({
+        idMiembro: memberId,
+        nivel: NIVEL_DESTACAMENTO,
+        conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+      }).catch(() => 0);
+
+      const casilla = asignacionDirectivaACasilla(asignacionGuardada);
+
+      setAssignments((current) => {
+        const siguientes = { ...current };
+
+        // Fuera cualquier OTRA casilla del mismo miembro, que acaba de quedar
+        // liberada arriba.
+        Object.entries(siguientes).forEach(([clave, valor]) => {
+          if (String(valor?.idMiembros) === String(memberId)) delete siguientes[clave];
+        });
+
+        if (casilla) siguientes[getAssignmentKey(casilla)] = casilla;
+
+        return siguientes;
+      });
       setSelectedNode(null);
       setSelectedMember(null);
       toast.success('Miembro asignado correctamente.');
@@ -1134,8 +1218,22 @@ export default function Page() {
       return;
     }
 
+    const position = POSICION_POR_CASILLA.get(assignmentKey);
+
     try {
-      await desactivarAsignacionOrganigramaDirectivaDestacamento(assignment.id);
+      // Se da de baja escribiendo la misma asignacion con activo=false, igual que
+      // hacen las Directivas de seccion, region y nacion.
+      await guardarAsignacionDirectiva({
+        nivel: NIVEL_DESTACAMENTO,
+        idEntidad: destId,
+        idCargo: Number(position?.idCargoApi) || null,
+        idMiembro: assignment.idMiembros,
+        idPosicionDirectiva: position?.idCargo || '',
+        division: position?.division ?? null,
+        orden: position?.orden || 1,
+        origen: 'organigrama-destacamento',
+        activo: false,
+      });
 
       setAssignments((current) => {
         const nextAssignments = { ...current };
