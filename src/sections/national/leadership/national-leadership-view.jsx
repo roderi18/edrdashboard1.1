@@ -29,6 +29,7 @@ import {
   LeadershipNodeName,
   LeadershipNodeAvatar,
   getMemberDisplayName,
+  LEADERSHIP_NODE_SIZE_SX,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
@@ -62,8 +63,6 @@ const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
-// El nodo no trae nombre ni foto: los pone el ocupante real, y si no hay
-// ocupante el cargo se dibuja como vacante.
 // El arbol vive en `src/catalogs/directiva-diagrams`: es la misma fuente con la
 // que el catalogo decide que cargos se pueden asignar desde la ficha del miembro.
 
@@ -85,7 +84,7 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
         px: 1.5,
         py: 1,
         gap: 1,
-        minWidth: 200,
+        ...LEADERSHIP_NODE_SIZE_SX,
         borderRadius: 1.5,
         textAlign: 'left',
         alignItems: 'center',
@@ -110,7 +109,7 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
           {name}
         </Typography>
 
-        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
           {role}
         </Typography>
       </Box>
@@ -203,7 +202,7 @@ function NationalLeadershipNode({
         onPointerCancel={editProps.onPointerCancel}
         sx={{
           p: 2,
-          minWidth: 200,
+          ...LEADERSHIP_NODE_SIZE_SX,
           borderRadius: 1.5,
           textAlign: 'left',
           position: 'relative',
@@ -235,7 +234,7 @@ function NationalLeadershipNode({
 
         <LeadershipNodeName identity={identity} />
 
-        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
           {role}
         </Typography>
       </Card>

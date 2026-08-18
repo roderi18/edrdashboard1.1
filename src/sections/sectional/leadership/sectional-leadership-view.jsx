@@ -32,6 +32,7 @@ import {
   LeadershipNodeName,
   LeadershipNodeAvatar,
   getMemberDisplayName,
+  LEADERSHIP_NODE_SIZE_SX,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
@@ -137,7 +138,7 @@ function SectionalLeadershipNode({
         onPointerCancel={editProps.onPointerCancel}
         sx={{
           p: 2,
-          minWidth: 200,
+          ...LEADERSHIP_NODE_SIZE_SX,
           borderRadius: 1.5,
           textAlign: 'left',
           position: 'relative',
@@ -170,7 +171,7 @@ function SectionalLeadershipNode({
 
         <LeadershipNodeName identity={identity} />
 
-        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
           {role}
         </Typography>
       </Card>

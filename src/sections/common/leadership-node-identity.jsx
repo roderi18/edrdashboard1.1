@@ -17,6 +17,29 @@ import { Iconify } from 'src/components/iconify';
 
 export const ETIQUETA_VACANTE = 'Vacante';
 
+// ----------------------------------------------------------------------
+// Tamano de la tarjeta del organigrama.
+//
+// ANCHO FIJO, no minimo. Con `minWidth` la tarjeta se ensanchaba para que cupiera
+// el nombre del ocupante, empujaba a sus hermanas y arrastraba las lineas del
+// diagrama: el organigrama cambiaba de forma segun a quien se asignara, y con un
+// nombre largo la fila se salia del contenedor. Con el ancho fijo la reticula no
+// depende del contenido — las tarjetas y las lineas se quedan donde estan — y lo
+// que no cabe se recorta DENTRO de la tarjeta, que ya lleva `noWrap` en el nombre
+// y en el cargo (el nombre completo sigue disponible en el tooltip).
+//
+// Se comparte entre los cuatro organigramas (nacion, region, seccion y
+// destacamento) para que todos tengan la misma reticula y el mismo hueco.
+// ----------------------------------------------------------------------
+export const LEADERSHIP_NODE_WIDTH = 200;
+
+export const LEADERSHIP_NODE_SIZE_SX = {
+  width: LEADERSHIP_NODE_WIDTH,
+  // Por si el contenedor es mas estrecho que la tarjeta: antes que desbordar,
+  // se encoge.
+  maxWidth: '100%',
+};
+
 export { getLeadershipShortName };
 
 // Nombre COMPLETO. Es el que va en los diálogos y en los avisos: abreviar ahí

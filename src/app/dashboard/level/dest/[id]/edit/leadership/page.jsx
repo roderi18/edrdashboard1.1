@@ -63,6 +63,7 @@ import {
   ETIQUETA_VACANTE,
   LeadershipNodeName,
   LeadershipNodeAvatar,
+  LEADERSHIP_NODE_SIZE_SX,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
@@ -382,7 +383,7 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
           px: 1.5,
           py: 1,
           gap: 1,
-          minWidth: 200,
+          ...LEADERSHIP_NODE_SIZE_SX,
           borderRadius: 1.5,
           textAlign: 'left',
           alignItems: 'center',
@@ -409,7 +410,7 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
           {name}
         </Typography>
 
-        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
           {role}
         </Typography>
       </Box>
@@ -601,7 +602,7 @@ function LeadershipNode({
         sx={[
           () => ({
             p: 2,
-            minWidth: 200,
+            ...LEADERSHIP_NODE_SIZE_SX,
             borderRadius: 1.5,
             textAlign: 'left',
             position: 'relative',
@@ -654,7 +655,7 @@ function LeadershipNode({
           )}
         </LeadershipNodeName>
 
-        <Typography variant="caption" component="div" noWrap sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
           {role}
         </Typography>
       </Card>
