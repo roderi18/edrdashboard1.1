@@ -64,7 +64,6 @@ export function useLeadershipAssignments({
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [nodoARemover, setNodoARemover] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,17 +163,15 @@ export function useLeadershipAssignments({
   );
 
   const closeAssign = useCallback(() => {
-    if (isSaving) return;
-
     setSelectedNode(null);
     setSelectedMember(null);
-  }, [isSaving]);
+  }, []);
 
   // El nodo llega por parametro y no desde `selectedNode`: al remover se actua
   // sobre un nodo distinto del que tenga abierto el dialogo, y leerlo del estado
   // daria el valor anterior al render.
   const guardar = useCallback(
-    async ({ node, idMiembro, miembro, activo }) => {
+    ({ node, idMiembro, miembro, activo }) => {
       // La comprobacion de verdad esta en firestore.rules; esta solo evita
       // lanzar una escritura que el servidor va a rechazar.
       if (!canManage) {
@@ -189,68 +186,106 @@ export function useLeadershipAssignments({
         return false;
       }
 
-      setIsSaving(true);
+      const clavePosicion = normalizarIdAsignacion(position.idCargo);
+      // Estado al que se vuelve si la escritura acaba fallando.
+      const asignacionesPrevias = assignments;
 
-      try {
-        const asignacionGuardada = await guardarAsignacionDirectiva({
-          nivel,
-          idEntidad,
-          nombreEntidad,
-          idCargo: Number(position.idCargoApi) || null,
-          idMiembro,
-          idPosicionDirectiva: position.idCargo,
-          division: position.division ?? null,
-          orden: position.orden || 1,
-          origen: 'organigrama-directiva',
-          activo,
-          ...construirResumenMiembro(miembro || {}),
-        });
+      // PINTADO OPTIMISTA. La casilla cambia en el acto, sin esperar a Firestore
+      // ni a la API: el organigrama se redibuja al instante y la escritura viaja
+      // por detras. Si falla se revierte y se avisa, mas abajo.
+      setAssignments((previas) => {
+        const siguientes = { ...previas };
 
-        // Un miembro ocupa UNA posicion por nivel. El formulario de miembro ya lo
-        // aplicaba; el organigrama no, y asignar desde el diagrama dejaba a la
-        // persona con cargos activos en dos secciones a la vez.
         if (activo && idMiembro) {
-          await desactivarAsignacionesDirectivaPorNivel({
-            idMiembro,
+          siguientes[clavePosicion] = {
+            idPosicionDirectiva: position.idCargo,
+            idMiembro: normalizarIdAsignacion(idMiembro),
+            idCargo: Number(position.idCargoApi) || null,
             nivel,
-            conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
-          }).catch(() => 0);
+            idEntidad,
+            division: position.division ?? null,
+            orden: position.orden || 1,
+            activo: true,
+            // Numero, no Timestamp: `aMilisegundos` lo entiende igual y evita
+            // depender de Firestore para una entrada que aun no se ha escrito.
+            fechaActualizacion: Date.now(),
+            ...construirResumenMiembro(miembro || {}),
+          };
+        } else {
+          delete siguientes[clavePosicion];
         }
 
-        // Espejo en la API .NET, que es de donde la ficha del miembro lee sus
-        // cargos. Sin esto el cambio hecho aqui no llegaba al perfil.
-        const idCargoApi = Number(position.idCargoApi) || null;
+        return siguientes;
+      });
 
-        if (idCargoApi && idMiembro) {
-          try {
-            if (activo) {
-              await asegurarCargoMiembroApi({ idCargo: idCargoApi, idMiembro });
-            } else {
-              await retirarCargoMiembroApiPorCargo({ idMiembro, idCargoApi });
-            }
-          } catch (error) {
-            console.error('[directiva] no se pudo sincronizar el cargo con la ficha', error);
-            toast.warning(
-              'La directiva se actualizó, pero la ficha del miembro no pudo sincronizarse. Vuelve a guardar para reintentarlo.'
-            );
+      setSelectedNode(null);
+      setSelectedMember(null);
+
+      (async () => {
+        try {
+          const asignacionGuardada = await guardarAsignacionDirectiva({
+            nivel,
+            idEntidad,
+            nombreEntidad,
+            idCargo: Number(position.idCargoApi) || null,
+            idMiembro,
+            idPosicionDirectiva: position.idCargo,
+            division: position.division ?? null,
+            orden: position.orden || 1,
+            origen: 'organigrama-directiva',
+            activo,
+            ...construirResumenMiembro(miembro || {}),
+          });
+
+          // Un miembro ocupa UNA posicion por nivel. El formulario de miembro ya
+          // lo aplicaba; el organigrama no, y asignar desde el diagrama dejaba a
+          // la persona con cargos activos en dos secciones a la vez.
+          if (activo && idMiembro) {
+            await desactivarAsignacionesDirectivaPorNivel({
+              idMiembro,
+              nivel,
+              conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+            }).catch(() => 0);
           }
+
+          // Espejo en la API .NET, que es de donde la ficha del miembro lee sus
+          // cargos. Sin esto el cambio hecho aqui no llegaba al perfil.
+          const idCargoApi = Number(position.idCargoApi) || null;
+
+          if (idCargoApi && idMiembro) {
+            try {
+              if (activo) {
+                await asegurarCargoMiembroApi({ idCargo: idCargoApi, idMiembro });
+              } else {
+                await retirarCargoMiembroApiPorCargo({ idMiembro, idCargoApi });
+              }
+            } catch (error) {
+              console.error('[directiva] no se pudo sincronizar el cargo con la ficha', error);
+              toast.warning(
+                'La directiva se actualizó, pero la ficha del miembro no pudo sincronizarse. Vuelve a guardar para reintentarlo.'
+              );
+            }
+          }
+
+          // Reconcilia el pintado optimista con lo que quedo escrito de verdad.
+          await loadAssignments();
+        } catch (error) {
+          console.error('[directiva] no se pudo guardar la asignación', error);
+
+          // Se deshace el cambio y se relee el servidor, que es la version
+          // buena: la instantanea local podria haberse quedado atras.
+          setAssignments(asignacionesPrevias);
+          loadAssignments().catch(() => {});
+
+          toast.error(
+            error?.message || 'No se pudo guardar la asignación. Se deshizo el cambio.'
+          );
         }
+      })();
 
-        await loadAssignments();
-        setSelectedNode(null);
-        setSelectedMember(null);
-
-        return true;
-      } catch (error) {
-        console.error('[directiva] no se pudo guardar la asignación', error);
-        toast.error(error?.message || 'No se pudo guardar la asignación.');
-
-        return false;
-      } finally {
-        setIsSaving(false);
-      }
+      return true;
     },
-    [canManage, nivel, idEntidad, nombreEntidad, loadAssignments]
+    [canManage, nivel, idEntidad, nombreEntidad, loadAssignments, assignments]
   );
 
   const asignarMiembro = useCallback(async () => {
@@ -283,10 +318,8 @@ export function useLeadershipAssignments({
   );
 
   const cancelarRemover = useCallback(() => {
-    if (isSaving) return;
-
     setNodoARemover(null);
-  }, [isSaving]);
+  }, []);
 
   const confirmarRemover = useCallback(async () => {
     const asignado = getAssignedMember(nodoARemover?.id);
@@ -311,7 +344,10 @@ export function useLeadershipAssignments({
     selectedNode,
     selectedMember,
     setSelectedMember,
-    isSaving,
+    // Se conserva por los tres organigramas que lo consumen, pero ya nunca se
+    // pone a true: con el pintado optimista no hay espera que mostrar ni dialogo
+    // que bloquear, porque se cierra en el acto.
+    isSaving: false,
     openAssign,
     closeAssign,
     asignarMiembro,
