@@ -34,7 +34,6 @@ import {
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
-import { obtenerCargosMiembroApi } from 'src/services/cargos-api-service';
 import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
 import {
   getMembers,
@@ -203,23 +202,15 @@ export function MemberListView() {
   const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [membersLoading, setMembersLoading] = useState(true);
 
+  // FIRESTORE ES LA UNICA FUENTE, igual que en la ficha del miembro. Antes esta
+  // lista mezclaba `CargosMiembros` (API .NET) con las asignaciones, asi que una
+  // fila huerfana alla pintaba en la columna "Posicion" un cargo que la Directiva
+  // ya le habia dado a otro.
   const hydrateMemberPositions = useCallback(async (members) => {
-    const [cargosMiembros, cargosDirectiva, asignacionesDirectiva] = await Promise.all([
-      obtenerCargosMiembroApi(),
+    const [cargosDirectiva, asignacionesDirectiva] = await Promise.all([
       obtenerCargosDirectiva({ incluirNoAsignables: false }),
       obtenerAsignacionesDirectivaMiembros(),
     ]);
-
-    const cargosByMember = new Map();
-    cargosMiembros.forEach((cargoMiembro) => {
-      const memberId = String(cargoMiembro.idMiembro || cargoMiembro.idMiembros || '');
-
-      if (!memberId) return;
-
-      const current = cargosByMember.get(memberId) || [];
-      current.push(Number(cargoMiembro.idCargo));
-      cargosByMember.set(memberId, current);
-    });
 
     const assignmentsByMember = new Map();
     asignacionesDirectiva.forEach((asignacion) => {
@@ -234,11 +225,10 @@ export function MemberListView() {
 
     return members.map((member) => {
       const memberId = String(member.id || member.idMiembros || '');
-      const cargoIds = cargosByMember.get(memberId) || [];
       const assignments = assignmentsByMember.get(memberId) || [];
       const memberDivisionKey = getDirectivaDivisionByMemberDivision(member.memberDivision);
 
-      const positionsByAssignment = assignments
+      const mergedPositions = assignments
         .map((asignacion) =>
           cargosDirectiva.find((cargo) =>
             [cargo.idPosicionDirectiva, cargo.id, cargo.idCargo, cargo.idCargoApi].some(
@@ -248,18 +238,15 @@ export function MemberListView() {
             )
           )
         )
-        .filter(Boolean);
-      const positionsByApi = cargosDirectiva.filter((cargo) =>
-        cargoIds.includes(Number(cargo.idCargo || cargo.idCargoApi))
-      );
-      const mergedPositions = [...positionsByAssignment, ...positionsByApi].filter(
-        (cargo, index, list) =>
-          index ===
-          list.findIndex(
-            (item) =>
-              String(getCargoOptionValue(item) || '') === String(getCargoOptionValue(cargo) || '')
-          )
-      );
+        .filter(Boolean)
+        .filter(
+          (cargo, index, list) =>
+            index ===
+            list.findIndex(
+              (item) =>
+                String(getCargoOptionValue(item) || '') === String(getCargoOptionValue(cargo) || '')
+            )
+        );
       const destPosition =
         mergedPositions.find(
           (cargo) => cargo.nivel === 'destacamento' && cargo.division === memberDivisionKey

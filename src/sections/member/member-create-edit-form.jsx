@@ -74,14 +74,7 @@ import { registrarCambiosHistorialMiembro } from 'src/services/member-history-se
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
 import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
-  asegurarCargoApi,
-  guardarCargoMiembroApi,
-  obtenerCargosMiembroApi,
-  eliminarCargoMiembroApi,
-} from 'src/services/cargos-api-service';
-import {
   getNivelesARetirar,
-  CARGOS_DIRECTIVA_BASE,
   getOrganigramaDestSlot,
   NATIONAL_LEADERSHIP_LEVELS,
   AMBITO_CARGO_UNICO_POR_NIVEL,
@@ -803,8 +796,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       }
 
       try {
-        const [cargosMiembro, cargosDirectiva, asignacionesDirectiva] = await Promise.all([
-          obtenerCargosMiembroApi(memberId),
+        const [cargosDirectiva, asignacionesDirectiva] = await Promise.all([
           obtenerCargosDirectivaCached({ incluirNoAsignables: false }),
           obtenerAsignacionesDirectivaPorMiembro({ idMiembro: memberId }),
         ]);
@@ -813,25 +805,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           return;
         }
 
-        // Ids de cargo del miembro, EL MAS RECIENTE PRIMERO. El orden importa:
-        // si arrastra varios cargos del mismo nivel (de asignaciones anteriores
-        // que no se dieron de baja), el formulario debe mostrar el ultimo, no uno
-        // cualquiera.
-        const cargoIds = [...cargosMiembro]
-          .sort((a, b) =>
-            String(b?.fechaInicio || '').localeCompare(String(a?.fechaInicio || ''))
-          )
-          .map((cargoMiembro) => Number(cargoMiembro.idCargo))
-          .filter((idCargo) => Number.isFinite(idCargo) && idCargo > 0);
-        const positionsByAssignment = asignacionesDirectiva
+        // FIRESTORE ES LA UNICA FUENTE. Antes se leia ADEMAS `CargosMiembros`
+        // (API .NET) y se concatenaban las dos listas: una fila que sobreviviera
+        // alli resucitaba en la ficha un cargo que la Directiva ya le habia dado
+        // a otra persona. `obtenerAsignacionesDirectivaPorMiembro` devuelve solo
+        // las ACTIVAS, que es exactamente lo que el organigrama dibuja, asi que
+        // ficha y Directiva no pueden discrepar.
+        const posiciones = asignacionesDirectiva
           .map((asignacion) =>
             cargosDirectiva.find((cargo) =>
-              [
-                cargo.idPosicionDirectiva,
-                cargo.id,
-                cargo.idCargo,
-                cargo.idCargoApi,
-              ].some(
+              [cargo.idPosicionDirectiva, cargo.id, cargo.idCargo, cargo.idCargoApi].some(
                 (value) =>
                   String(value || '') === String(asignacion.idPosicionDirectiva || '') ||
                   String(value || '') === String(asignacion.idCargo || '')
@@ -839,50 +822,28 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
             )
           )
           .filter(Boolean);
-        // Se recorren los ids en su orden (mas reciente primero) en vez de
-        // filtrar el catalogo, que los devolveria en orden de catalogo.
-        const positionsByCargoApi = cargoIds
-          .map((idCargoMiembro) =>
-            cargosDirectiva.find(
-              (cargo) => Number(cargo.idCargo || cargo.idCargoApi) === idCargoMiembro
-            )
-          )
-          .filter(Boolean);
-        const memberDivisionKey = getDirectivaDivisionByMemberDivisionId(
-          currentMember?.idDivision || currentMember?.divisionId
-        );
-        const selectedPositions = [...positionsByAssignment, ...positionsByCargoApi];
-        const nationalCargo = selectedPositions.find((cargo) => cargo.nivel !== 'destacamento');
-        const destCargoFromAssignment = positionsByAssignment.find(
-          (cargo) => cargo.nivel === 'destacamento'
-        );
-        const destCargoFromApi =
-          positionsByCargoApi.find(
-            (cargo) => cargo.nivel === 'destacamento' && cargo.division === memberDivisionKey
-          ) || positionsByCargoApi.find((cargo) => cargo.nivel === 'destacamento');
-        const destCargo = destCargoFromAssignment || destCargoFromApi;
 
-        if (nationalCargo) {
-          methods.setValue(
-            'nationalLeadershipRole',
-            nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo,
-            {
-              shouldDirty: false,
-            }
-          );
-        }
+        const nationalCargo = posiciones.find((cargo) => cargo.nivel !== 'destacamento');
+        const destCargo = posiciones.find((cargo) => cargo.nivel === 'destacamento');
 
-        if (destCargo) {
-          methods.setValue(
-            'memberPosition',
-            destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo,
-            {
-              shouldDirty: false,
-            }
-          );
-        }
+        // Se escriben SIEMPRE, tambien en vacio: si el cargo se retiro desde la
+        // Directiva, la ficha tiene que quedarse vacia en vez de conservar lo que
+        // trajera el formulario.
+        methods.setValue(
+          'nationalLeadershipRole',
+          nationalCargo
+            ? nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo
+            : '',
+          { shouldDirty: false }
+        );
+
+        methods.setValue(
+          'memberPosition',
+          destCargo ? destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo : '',
+          { shouldDirty: false }
+        );
       } catch {
-        // Si el API de cargos no responde, no bloquea la edicion del miembro.
+        // Si Firestore no responde, no bloquea la edicion del miembro.
       }
     };
 
@@ -1139,37 +1100,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return 'nacional';
   };
 
-  // Retira lo que el miembro tuviera en estos niveles, en los TRES almacenes:
-  // las filas de `CargosMiembros` (que es lo que lee esta misma ficha), las
-  // asignaciones de directiva y, si el nivel incluye destacamento, su casilla del
-  // organigrama. Es la operacion inversa de `saveSelectedCargo`.
+  // Retira lo que el miembro tuviera en estos niveles: las asignaciones de
+  // directiva y, si el nivel incluye destacamento, su casilla del organigrama.
+  // Es la operacion inversa de `saveSelectedCargo`.
   const retirarCargosDeNiveles = async ({ idMiembro, niveles = [] }) => {
     if (!idMiembro || !niveles.length) {
       return;
     }
-
-    const idsCargoApi = new Set(
-      CARGOS_DIRECTIVA_BASE.filter(
-        (position) => niveles.includes(position.nivel) && position.idCargoApi
-      ).map((position) => Number(position.idCargoApi))
-    );
-
-    const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
-
-    await Promise.all(
-      cargosActuales
-        .filter((item) => idsCargoApi.has(Number(item?.idCargo)))
-        .map((item) =>
-          eliminarCargoMiembroApi({
-            idCargo: Number(item.idCargo),
-            idMiembro,
-            fechaInicio: String(item.fechaInicio || '').slice(0, 10),
-            fechaFin: item.fechaFin ?? null,
-          }).catch((error) => {
-            console.warn('[member form] no se pudo retirar el cargo en la API', error);
-          })
-        )
-    );
 
     await Promise.all(
       niveles.map((nivel) =>
@@ -1217,65 +1154,13 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       return;
     }
 
-    const cargoApi = await asegurarCargoApi({
-      idCargo: cargo?.idCargo || cargo?.idCargoApi || 0,
-      nombre: cargo?.nombreCargo || cargo?.nombre || cargo?.label,
-    });
-    const idCargo = Number(cargoApi?.idCargo || cargo?.idCargo || cargo?.idCargoApi || 0);
-
-    if (!Number.isFinite(idCargo) || idCargo <= 0) {
-      throw new Error(`No se pudo resolver el idCargo para ${cargo?.nombreCargo || 'el cargo'}.`);
-    }
-
+    // El id de la tabla `Cargos` se sigue guardando DENTRO de la asignacion: es
+    // lo que identifica al cargo y lo que permitiria volver a cruzarlo con la API
+    // si algun dia hiciera falta. Lo que ya no se hace es escribir en
+    // `CargosMiembros`, que era el segundo almacen del que discrepaba la ficha.
+    const idCargo = Number(cargo?.idCargoApi || cargo?.idCargo || 0);
     const fechaInicio = dayjs().format('YYYY-MM-DD');
     const idEntidad = getCargoEntityId(cargo);
-
-    // `CargosMiembros` tiene clave compuesta (idCargo, idMiembro, fechaInicio) y
-    // el backend inserta sin comprobar duplicados: repetir el POST con la misma
-    // terna devuelve 500. Por eso, antes de guardar:
-    //   a) se retiran las posiciones ANTERIORES de los niveles afectados (el
-    //      propio, para no acumular dos cargos del mismo nivel, y los excluyentes
-    //      si es de supervision: nadie es seccional y regional a la vez), y
-    //   b) se omite el POST si la asignacion ya existe tal cual.
-    const cargosActuales = await obtenerCargosMiembroApi(idMiembro).catch(() => []);
-    const nivelesARetirar = getNivelesARetirar(cargo.nivel);
-    const idsCargoDelNivel = new Set(
-      CARGOS_DIRECTIVA_BASE.filter(
-        (position) => nivelesARetirar.includes(position.nivel) && position.idCargoApi
-      ).map((position) => Number(position.idCargoApi))
-    );
-
-    const yaAsignado = cargosActuales.some(
-      (item) =>
-        Number(item?.idCargo) === idCargo &&
-        String(item?.fechaInicio || '').slice(0, 10) === fechaInicio
-    );
-
-    const aRetirar = cargosActuales.filter(
-      (item) => Number(item?.idCargo) !== idCargo && idsCargoDelNivel.has(Number(item?.idCargo))
-    );
-
-    await Promise.all(
-      aRetirar.map((item) =>
-        eliminarCargoMiembroApi({
-          idCargo: Number(item.idCargo),
-          idMiembro,
-          fechaInicio: String(item.fechaInicio || '').slice(0, 10),
-          fechaFin: item.fechaFin ?? null,
-        }).catch((error) => {
-          console.warn('[member form] no se pudo retirar el cargo anterior', error);
-        })
-      )
-    );
-
-    if (!yaAsignado) {
-      await guardarCargoMiembroApi({
-        idCargo,
-        idMiembro,
-        fechaInicio,
-        fechaFin: null,
-      });
-    }
 
     const asignacionGuardada = await guardarAsignacionDirectiva({
       nivel: cargo.nivel,
@@ -1469,23 +1354,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // organigrama se sobrescribe sola (su id es dest+cargo+division), pero en la API
   // y en asignacionesDirectiva el cargo se le quedaria pegado, y la lista de
   // miembros mostraria a dos personas con la misma posicion.
-  const retirarPosicionAlOcupante = async ({ idMiembros, idCargoApi, nivel }) => {
-    if (!idMiembros || !idCargoApi) return;
-
-    const cargosDelOcupante = await obtenerCargosMiembroApi(idMiembros).catch(() => []);
-
-    await Promise.all(
-      cargosDelOcupante
-        .filter((item) => Number(item?.idCargo) === Number(idCargoApi))
-        .map((item) =>
-          eliminarCargoMiembroApi({
-            idCargo: Number(item.idCargo),
-            idMiembro: idMiembros,
-            fechaInicio: String(item.fechaInicio || '').slice(0, 10),
-            fechaFin: item.fechaFin ?? null,
-          }).catch(() => null)
-        )
-    );
+  const retirarPosicionAlOcupante = async ({ idMiembros, nivel }) => {
+    if (!idMiembros || !nivel) return;
 
     await desactivarAsignacionesDirectivaPorNivel({ idMiembro: idMiembros, nivel }).catch(
       () => null

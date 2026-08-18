@@ -17,10 +17,6 @@ import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
-  asegurarCargoMiembroApi,
-  retirarCargoMiembroApiPorCargo,
-} from 'src/services/cargos-api-service';
-import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
   desactivarAsignacionesDirectivaPorNivel,
@@ -36,17 +32,40 @@ import { toast } from 'src/components/snackbar';
 // nodo del diagrama se casa con una posicion del catalogo por `idNodoDiagrama`,
 // que es lo que da el `idPosicionDirectiva` con el que se guarda.
 //
-// FIRESTORE MANDA, PERO LA API .NET SE MANTIENE AL DIA. La lista de miembros
-// resuelve la posicion desde las asignaciones, pero la FICHA del miembro tambien
-// lee `CargosMiembros` (ver `positionsByCargoApi` en member-create-edit-form): si
-// aqui solo se tocaba Firestore, remover a alguien del organigrama lo dejaba con
-// el cargo puesto en su perfil. Por eso cada cambio se replica en la API.
+// FIRESTORE ES LA UNICA FUENTE. `asignacionesDirectiva` es lo que leen las TRES
+// pantallas que hablan de cargos: este organigrama, la ficha del miembro y la
+// columna "Posicion" de la lista. Escribir aqui basta para que las tres digan lo
+// mismo.
 //
-// La escritura sigue sin ser transaccional, que fue el motivo por el que en su dia
-// se quito: la diferencia es que ahora el fallo de la segunda escritura SE AVISA
-// en pantalla en vez de descartarse, que era lo que dejaba divergir las bases
-// mientras la pantalla confirmaba el guardado.
+// Hubo una epoca en que cada cambio se replicaba ademas en `CargosMiembros` (la
+// API .NET) porque la ficha leia de alli. Eran dos escrituras sin transaccion
+// sobre un endpoint con clave compuesta que ni comprueba duplicados, y bastaba
+// que una fallara — o que a alguien se le olvidara un caso, como el ocupante
+// desplazado — para que la ficha y el organigrama mostraran cosas distintas. Ya
+// nadie lee esa API para cargos, asi que la segunda escritura desaparecio.
 // ----------------------------------------------------------------------
+
+// ----------------------------------------------------------------------
+// AQUI SE CAMBIA EL TIEMPO DE LA ESPERA DE "Asignando...".
+//
+// Espera deliberada entre el clic en "Asignar" y el pintado de la casilla. NO es
+// tiempo de trabajo: la escritura viaja por detras y el organigrama podria
+// cambiar en el mismo frame del clic — tan rapido que la accion se quedaba sin
+// acuse de recibo y no daba la sensacion de haber hecho nada. Estos
+// milisegundos, con la barra "Asignando..." del dialogo, son ese acuse.
+//
+// Solo aplica al ASIGNAR. Remover sigue siendo inmediato.
+//
+// Rige los CUATRO organigramas: nacion, region y seccion por este hook, y el del
+// destacamento importando esta misma constante. Cambiar el numero de abajo los
+// cambia todos.
+// ----------------------------------------------------------------------
+export const RETARDO_ASIGNACION_MS = 600;
+
+const esperar = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 const findPositionByNode = (nivel, nodeId) =>
   buscarPosicionPorNodo(DIRECTIVA_POSITIONS, nivel, nodeId);
@@ -64,6 +83,9 @@ export function useLeadershipAssignments({
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [nodoARemover, setNodoARemover] = useState(null);
+  // Solo esta en alto durante la espera de `RETARDO_ASIGNACION_MS`, no mientras
+  // se escribe: la escritura va por detras y no bloquea la interfaz.
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,15 +185,19 @@ export function useLeadershipAssignments({
   );
 
   const closeAssign = useCallback(() => {
+    // Durante la espera de "Asignando..." el dialogo no se cierra: son 400 ms y
+    // cerrarlo a medias dejaria la barra huerfana.
+    if (isSaving) return;
+
     setSelectedNode(null);
     setSelectedMember(null);
-  }, []);
+  }, [isSaving]);
 
   // El nodo llega por parametro y no desde `selectedNode`: al remover se actua
   // sobre un nodo distinto del que tenga abierto el dialogo, y leerlo del estado
   // daria el valor anterior al render.
   const guardar = useCallback(
-    ({ node, idMiembro, miembro, activo }) => {
+    async ({ node, idMiembro, miembro, activo }) => {
       // La comprobacion de verdad esta en firestore.rules; esta solo evita
       // lanzar una escritura que el servidor va a rechazar.
       if (!canManage) {
@@ -190,8 +216,17 @@ export function useLeadershipAssignments({
       // Estado al que se vuelve si la escritura acaba fallando.
       const asignacionesPrevias = assignments;
 
-      // PINTADO OPTIMISTA. La casilla cambia en el acto, sin esperar a Firestore
-      // ni a la API: el organigrama se redibuja al instante y la escritura viaja
+      // Espera de cortesia con la barra "Asignando...". Ver RETARDO_ASIGNACION_MS
+      // arriba, que es donde se cambia el tiempo. Remover no la lleva: retirar a
+      // alguien no necesita que se note el esfuerzo.
+      if (activo && idMiembro) {
+        setIsSaving(true);
+        await esperar(RETARDO_ASIGNACION_MS);
+        setIsSaving(false);
+      }
+
+      // PINTADO OPTIMISTA. Pasada la espera, la casilla cambia sin aguardar a
+      // Firestore ni a la API: el organigrama se redibuja y la escritura viaja
       // por detras. Si falla se revierte y se avisa, mas abajo.
       setAssignments((previas) => {
         const siguientes = { ...previas };
@@ -248,24 +283,9 @@ export function useLeadershipAssignments({
             }).catch(() => 0);
           }
 
-          // Espejo en la API .NET, que es de donde la ficha del miembro lee sus
-          // cargos. Sin esto el cambio hecho aqui no llegaba al perfil.
-          const idCargoApi = Number(position.idCargoApi) || null;
-
-          if (idCargoApi && idMiembro) {
-            try {
-              if (activo) {
-                await asegurarCargoMiembroApi({ idCargo: idCargoApi, idMiembro });
-              } else {
-                await retirarCargoMiembroApiPorCargo({ idMiembro, idCargoApi });
-              }
-            } catch (error) {
-              console.error('[directiva] no se pudo sincronizar el cargo con la ficha', error);
-              toast.warning(
-                'La directiva se actualizó, pero la ficha del miembro no pudo sincronizarse. Vuelve a guardar para reintentarlo.'
-              );
-            }
-          }
+          // Ya no hay espejo en la API .NET: la ficha del miembro y la lista leen
+          // estas mismas asignaciones, asi que escribir aqui es suficiente para
+          // que las tres pantallas digan lo mismo.
 
           // Reconcilia el pintado optimista con lo que quedo escrito de verdad.
           await loadAssignments();
@@ -275,7 +295,7 @@ export function useLeadershipAssignments({
           // Se deshace el cambio y se relee el servidor, que es la version
           // buena: la instantanea local podria haberse quedado atras.
           setAssignments(asignacionesPrevias);
-          loadAssignments().catch(() => {});
+          loadAssignments().catch(() => { });
 
           toast.error(
             error?.message || 'No se pudo guardar la asignación. Se deshizo el cambio.'
@@ -344,10 +364,7 @@ export function useLeadershipAssignments({
     selectedNode,
     selectedMember,
     setSelectedMember,
-    // Se conserva por los tres organigramas que lo consumen, pero ya nunca se
-    // pone a true: con el pintado optimista no hay espera que mostrar ni dialogo
-    // que bloquear, porque se cierra en el acto.
-    isSaving: false,
+    isSaving,
     openAssign,
     closeAssign,
     asignarMiembro,
