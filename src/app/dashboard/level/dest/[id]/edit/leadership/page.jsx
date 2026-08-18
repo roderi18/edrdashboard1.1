@@ -29,6 +29,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import LinearProgress from '@mui/material/LinearProgress';
 
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
@@ -54,6 +55,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
+import { RETARDO_ASIGNACION_MS } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
   DEST_LEADERSHIP_DATA,
@@ -1073,12 +1075,21 @@ export default function Page() {
     setIsSavingMember(true);
 
     try {
-      const savedAssignment = await guardarAsignacionOrganigramaDirectivaDestacamento({
-        idDestacamento: destId,
-        idMiembros: memberId,
-        ...assignmentInfo,
-        ...construirResumenMiembro(selectedMember || {}),
-      });
+      // La barra "Asignando..." dura AL MENOS RETARDO_ASIGNACION_MS: van en
+      // paralelo, asi que una escritura rapida no se salta el acuse de recibo y
+      // una lenta tampoco suma la espera encima. El tiempo se cambia en
+      // `use-leadership-assignments`, que es de donde sale la constante.
+      const [savedAssignment] = await Promise.all([
+        guardarAsignacionOrganigramaDirectivaDestacamento({
+          idDestacamento: destId,
+          idMiembros: memberId,
+          ...assignmentInfo,
+          ...construirResumenMiembro(selectedMember || {}),
+        }),
+        new Promise((resolve) => {
+          setTimeout(resolve, RETARDO_ASIGNACION_MS);
+        }),
+      ]);
 
       setAssignments((current) => ({
         ...current,
@@ -1554,6 +1565,20 @@ export default function Page() {
                 <TextField {...autocompleteParams} label="Miembro" placeholder="Buscar miembro" />
               )}
             />
+
+            {/* Acuse de recibo del clic, igual que en seccion, region y nacion.
+                El hueco se reserva siempre para que el dialogo no salte. */}
+            <Box sx={{ minHeight: 28 }}>
+              {isSavingMember && (
+                <>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Asignando...
+                  </Typography>
+
+                  <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
+                </>
+              )}
+            </Box>
           </Stack>
         </DialogContent>
 

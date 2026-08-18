@@ -11,6 +11,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import LinearProgress from '@mui/material/LinearProgress';
 
 import { getLeadershipScopeLabel } from 'src/utils/leadership-member-options';
 
@@ -100,6 +101,20 @@ export function LeadershipAssignDialog({
               <TextField {...autocompleteParams} label="Miembro" placeholder="Buscar miembro" />
             )}
           />
+
+          {/* Acuse de recibo del clic. El hueco se reserva siempre para que el
+              dialogo no pegue un salto al aparecer la barra. */}
+          <Box sx={{ minHeight: 28 }}>
+            {saving && (
+              <>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Asignando...
+                </Typography>
+
+                <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
+              </>
+            )}
+          </Box>
         </Stack>
       </DialogContent>
 
