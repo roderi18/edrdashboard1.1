@@ -18,6 +18,7 @@ import { useParams } from 'src/routes/hooks';
 import { canManageDirectiva } from 'src/utils/admin-role-label';
 
 import { getSectionalById } from 'src/services/sectional-service';
+import { SECTIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -63,22 +64,8 @@ const CONTROL_BUTTON_SIZE = 36;
 const CONTROL_BUTTON_GAP = 6;
 const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
-// El nodo no trae nombre ni foto: los pone el ocupante real, y si no hay
-// ocupante el cargo se dibuja como vacante.
-const createNode = (id, role, children) => ({ id, role, children });
-
-const SECTIONAL_LEADERSHIP_DATA = createNode('directiva-regional', 'Directiva Regional', [
-  createNode('coordinador-seccional', 'Coordinador Seccional', [
-    createNode('sub-coordinador-seccional', 'Sub-Coordinador Seccional'),
-    createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
-    createNode('coordinador-promocion', 'Coordinador de Promoción'),
-    createNode('coordinador-produccion', 'Coordinador de Producción'),
-    createNode('coordinador-programa', 'Coordinador de Programa'),
-    createNode('secretario-regional', 'Secretario Regional'),
-    createNode('zonas', 'Zonas', [createNode('grupos-locales', 'Grupos Locales')]),
-  ]),
-  createNode('capellan-seccional', 'Capellán Seccional'),
-]);
+// El arbol vive en `src/catalogs/directiva-diagrams`: es la misma fuente con la
+// que el catalogo decide que cargos se pueden asignar desde la ficha del miembro.
 
 // ----------------------------------------------------------------------
 

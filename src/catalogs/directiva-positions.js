@@ -1,3 +1,7 @@
+// Con extension explicita: este modulo se carga tambien desde `node --test`, y
+// el resolvedor de ESM no la deduce.
+import { tieneCasillaEnOrganigrama } from './directiva-diagrams.js';
+
 export const DIRECTIVA_LEVELS = {
   nacional: 'nacional',
   regional: 'regional',
@@ -187,7 +191,7 @@ const createDestDivisionPositions = (division, ordenBase) => {
   ];
 };
 
-export const DIRECTIVA_POSITIONS = [
+const DIRECTIVA_POSITIONS_DECLARADAS = [
   createPosition({
     idCargo: 'nacional-asambleas-de-dios',
     nivel: DIRECTIVA_LEVELS.nacional,
@@ -692,6 +696,21 @@ export const DIRECTIVA_POSITIONS = [
     activo: false,
   }),
 ];
+
+// UN CARGO ES ASIGNABLE SOLO SI EL ORGANIGRAMA LO DIBUJA. `asignable` declara la
+// intencion (un cargo de verdad y no una caja de estructura como "Zonas" o
+// "Consejo Ejecutivo"), pero la ultima palabra la tiene el arbol del nivel: si no
+// hay casilla donde colocar a la persona, ofrecerlo en la ficha del miembro
+// produce un cargo fantasma que despues no aparece en ninguna Directiva.
+//
+// Las posiciones siguen en la lista aunque dejen de ser asignables: conservan su
+// `idCargoApi`, y con el se resuelve el NOMBRE de un cargo que algun miembro ya
+// arrastre de antes. Quitarlas del catalogo dejaria esos registros sin traducir.
+export const DIRECTIVA_POSITIONS = DIRECTIVA_POSITIONS_DECLARADAS.map((position) => ({
+  ...position,
+  asignable:
+    position.asignable && tieneCasillaEnOrganigrama(position.nivel, position.idNodoDiagrama),
+}));
 
 export const CARGOS_DIRECTIVA_BASE = DIRECTIVA_POSITIONS;
 

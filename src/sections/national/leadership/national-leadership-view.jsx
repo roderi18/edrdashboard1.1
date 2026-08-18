@@ -15,6 +15,8 @@ import Typography from '@mui/material/Typography';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
 
+import { NATIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
+
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -62,32 +64,8 @@ const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
 // El nodo no trae nombre ni foto: los pone el ocupante real, y si no hay
 // ocupante el cargo se dibuja como vacante.
-const createNode = (id, role, children) => ({ id, role, children });
-
-const NATIONAL_LEADERSHIP_DATA = {
-  ...createNode('asambleas-de-dios', 'Concilio de las Asambleas de Dios, INC.', [
-  createNode('ministerios-infantiles', 'Ministerios infantiles', [
-    createNode('consejo-nacional', 'Consejo Nacional', [
-      createNode('director-nacional', 'Director Nacional', [
-        createNode('consejo-ejecutivo', 'Consejo Ejecutivo', [
-          createNode('coordinador-nacional-adiestramiento', 'Coordinador Nacional de Adiestramiento', [
-            createNode('oficiales-adiestramientos-especiales', 'Oficiales de Adiestramientos Especiales'),
-          ]),
-          createNode('sub-director-nacional', 'Sub-Director Nacional'),
-          createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
-          createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
-          createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
-          createNode('comites-especiales', 'Comités Especiales'),
-        ]),
-        createNode('capellan-nacional', 'Capellán Nacional'),
-      ]),
-    ]),
-  ]),
-  ]),
-  name: 'Concilio de las Asambleas de Dios',
-  avatarUrl: '/logo/asambleas-de-dios.png',
-  isDivision: true,
-};
+// El arbol vive en `src/catalogs/directiva-diagrams`: es la misma fuente con la
+// que el catalogo decide que cargos se pueden asignar desde la ficha del miembro.
 
 // ----------------------------------------------------------------------
 
