@@ -17,6 +17,7 @@ import { useRouter } from 'src/routes/hooks';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { canEditRegional } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { AUTH } from 'src/lib/firebase';
@@ -127,11 +128,17 @@ export function RegionalCreateEditForm({ currentRegional }) {
         idCargoInstitucional: Number(data.idCargoInstitucional) || null,
       };
 
+      // Espera de cortesia, en paralelo con el guardado. Arranca DESPUES de las
+      // validaciones para que un error salga al instante. Ver `ui-delays`.
+      const espera = esperar(RETARDO_GUARDADO_MS);
+
       if (currentRegional) {
         await updateRegional(payload, { usuario: user, antes: currentRegional });
       } else {
         await saveRegional(payload, { usuario: user });
       }
+
+      await espera;
 
       toast.success(
         currentRegional

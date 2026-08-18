@@ -18,6 +18,7 @@ import { useRouter } from 'src/routes/hooks';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
+import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
@@ -506,6 +507,10 @@ export function DestCreateEditForm({ currentDest }) {
         return;
       }
 
+      // Espera de cortesia, en paralelo con el guardado. Arranca DESPUES de las
+      // validaciones para que un error salga al instante. Ver `ui-delays`.
+      const espera = esperar(RETARDO_GUARDADO_MS);
+
       const destPayloadData = {
         ...data,
         idDestacamento: currentDest?.id,
@@ -613,6 +618,8 @@ export function DestCreateEditForm({ currentDest }) {
           avatarUrl: data.avatarUrl ?? currentDest?.avatarUrl ?? null,
         });
       }
+
+      await espera;
 
       if (churchUpdateFailed) {
         toast.warning(

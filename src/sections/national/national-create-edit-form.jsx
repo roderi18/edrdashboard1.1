@@ -15,6 +15,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
@@ -80,7 +82,7 @@ export function NationalCreateEditForm({ currentNational }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await esperar(RETARDO_GUARDADO_MS);
       reset();
       toast.success(currentNational ? 'Actualización exitosa!' : 'Create success!');
       router.push(paths.dashboard.level.national); //anteriormente .list

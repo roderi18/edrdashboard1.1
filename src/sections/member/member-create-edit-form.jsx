@@ -35,6 +35,7 @@ import { generateMemberId } from 'src/utils/generate-member-id';
 import { isGlobalOrgManager } from 'src/utils/org-level-access';
 // services
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   calcularEstatusCI,
@@ -1600,6 +1601,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         });
       }
 
+      // Espera de cortesia, en paralelo con el guardado. Arranca aqui y no antes:
+      // las confirmaciones de reemplazo de arriba pueden quedarse esperando al
+      // usuario, y ese tiempo no cuenta. Ver `ui-delays`.
+      const espera = esperar(RETARDO_GUARDADO_MS);
+
       try {
         const submittedFirstName = formData.firstName;
         const submittedLastName = formData.lastName;
@@ -1757,6 +1763,8 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
             responseData?.message || responseData?.Message || 'Error guardando en API'
           );
         }
+
+        await espera;
 
         toast.success(
           currentMember ? 'Actualizacion exitosa!' : `Miembro ${codigoMiembro} creado!`

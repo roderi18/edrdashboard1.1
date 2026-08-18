@@ -14,6 +14,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
+import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   canEditSectional,
@@ -25,9 +26,9 @@ import {
 } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
-import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
+import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
 import { getSectionals, saveSectional, updateSectional } from 'src/services/sectional-service';
 
@@ -188,8 +189,10 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const resolveSectionalId = async (sectionalName, regionalId) => {
     if (currentSectional?.id) return currentSectional.id;
 
-    const sectionals = await getSectionals();
-    const savedSectional = sectionals.find(
+    // Nombre propio: `sectionals` ya existe en el componente y tapaba al de
+    // arriba dentro de esta funcion.
+    const seccionesGuardadas = await getSectionals();
+    const savedSectional = seccionesGuardadas.find(
       (sectional) =>
         String(sectional?.sectionalName || '').trim().toLowerCase() === String(sectionalName || '').trim().toLowerCase() &&
         String(sectional?.regionalId || '') === String(regionalId || '')
@@ -258,11 +261,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
         idRegion: Number(data.regionalId),
       };
 
+      // Espera de cortesia, en paralelo con el guardado. Arranca DESPUES de las
+      // validaciones para que un error salga al instante. Ver `ui-delays`.
+      const espera = esperar(RETARDO_GUARDADO_MS);
+
       if (currentSectional) {
         await updateSectional(payload, { usuario: user, antes: currentSectional });
       } else {
         await saveSectional(payload, { usuario: user });
       }
+
+      await espera;
 
       toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
 
