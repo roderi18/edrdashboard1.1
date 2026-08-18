@@ -28,6 +28,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 // utils
+import { EDAD_MAYORIA } from 'src/utils/member-age';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
@@ -697,6 +698,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   const [divisions, setDivisions] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUploadErrorMessage, setPhotoUploadErrorMessage] = useState('');
+  // Se incrementa tras guardar para releer los cargos desde la API. El `reset`
+  // posterior al guardado repuebla el formulario con `mapMemberToForm`, que saca
+  // el cargo de LEADERSHIP_ASSIGNMENTS (datos estaticos) y por tanto lo deja
+  // vacio: sin esto el campo volvia a "Ninguno" hasta recargar la pagina.
+  const [cargosVersion, setCargosVersion] = useState(0);
   const lastCalculatedBirthdateRef = useRef('');
   const skippedInitialDivisionFetchRef = useRef(false);
 
@@ -885,7 +891,14 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return () => {
       isMounted = false;
     };
-  }, [currentMember?.divisionId, currentMember?.id, currentMember?.idDivision, currentMember?.idMiembros, methods]);
+  }, [
+    cargosVersion,
+    currentMember?.divisionId,
+    currentMember?.id,
+    currentMember?.idDivision,
+    currentMember?.idMiembros,
+    methods,
+  ]);
 
   const {
     reset,
@@ -1340,9 +1353,20 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   };
 
   const saveSelectedMemberCargos = async ({ idMiembro, formData }) => {
+    // La misma regla que aplica el desplegable, repetida aqui a proposito: los
+    // cargos de seccion, region y nacion son de supervision y los ocupan mayores
+    // de edad. Comprobarlo solo en la UI dejaria la regla al alcance de cualquier
+    // ruta que no pase por el campo deshabilitado. No la levanta ningun rol.
+    const edadAlGuardar = formData.birthdate
+      ? dayjs().diff(dayjs(formData.birthdate), 'year')
+      : null;
+    const esMenorDeEdad = edadAlGuardar !== null && edadAlGuardar < EDAD_MAYORIA;
+
     await Promise.all([
       saveSelectedCargo({
-        value: formData.nationalLeadershipRole,
+        // Un menor equivale a "Ninguno": ademas de no poder elegirlo, si arrastra
+        // uno de antes se le retira al guardar.
+        value: esMenorDeEdad ? '' : formData.nationalLeadershipRole,
         idMiembro,
         // Los mismos niveles que alimenta el desplegable "Cargo Nacional"
         // (ver MemberLeadershipAndOtherSection): son los que hay que limpiar si
@@ -2045,6 +2069,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           if (updatedMember) {
             reset(mapMemberToForm(updatedMember));
           }
+
+          // Despues del reset, para que el cargo recien guardado se relea de la
+          // API y vuelva a pintarse. Va fuera del `if`: el cargo pudo cambiar
+          // aunque la ficha del miembro no se haya podido recuperar.
+          setCargosVersion((version) => version + 1);
         } else {
           router.push(paths.dashboard.level.member.root);
         }

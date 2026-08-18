@@ -1,7 +1,10 @@
+import dayjs from 'dayjs';
 import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
+
+import { EDAD_MAYORIA } from 'src/utils/member-age';
 
 import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
 import {
@@ -51,6 +54,26 @@ export default function MemberLeadershipAndOtherSection({
     const disabledCore = lockCoreFields || readOnly;
     // En solo lectura, un campo sin valor se muestra como "Sin informacion registrada".
     const emptyInReadOnly = (value) => readOnly && !value;
+
+    // Los cargos de seccion, region y nacion son de supervision y los ocupan
+    // mayores de edad: es la misma regla con la que el desplegable de la Directiva
+    // filtra a quien ofrece (EDAD_MINIMA_CARGO_SUPERVISION). Aqui no se
+    // comprobaba, asi que desde la ficha SI se le podia poner uno a un menor y el
+    // organigrama acababa dibujandolo. Es una regla de la organizacion, no un
+    // permiso: no la levanta ningun rol, tampoco el administrador global.
+    const fechaNacimiento = watch('birthdate');
+    const edadMiembro = fechaNacimiento ? dayjs().diff(dayjs(fechaNacimiento), 'year') : null;
+    const esMenorDeEdad = edadMiembro !== null && edadMiembro < EDAD_MAYORIA;
+
+    // Un menor no puede arrastrar un cargo de estos niveles: si lo tenia de antes
+    // (se pudo asignar mientras la ficha no comprobaba la edad), el campo se vacia
+    // para que muestre "Ninguno (menor de edad)". No se marca como sucio, de modo
+    // que la baja solo se materializa si se guarda la ficha.
+    useEffect(() => {
+        if (esMenorDeEdad && watch('nationalLeadershipRole')) {
+            methods.setValue('nationalLeadershipRole', '', { shouldDirty: false });
+        }
+    }, [esMenorDeEdad, methods, watch]);
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
 
@@ -108,8 +131,9 @@ export default function MemberLeadershipAndOtherSection({
                 ]}
                 groupByLevel
                 includeNone
-                noneLabel="Ninguno"
-                disabled={disabledCore}
+                noneLabel={esMenorDeEdad ? 'Ninguno (menor de edad)' : 'Ninguno'}
+                disabled={disabledCore || esMenorDeEdad}
+
             />
 
             {/* Destacamento */}
