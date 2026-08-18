@@ -1601,11 +1601,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         });
       }
 
-      // Espera de cortesia, en paralelo con el guardado. Arranca aqui y no antes:
-      // las confirmaciones de reemplazo de arriba pueden quedarse esperando al
-      // usuario, y ese tiempo no cuenta. Ver `ui-delays`.
-      const espera = esperar(RETARDO_GUARDADO_MS);
-
+      // GUARDADO EN SEGUNDO PLANO (solo al EDITAR).
+      //
+      // La escritura arranca aqui pero no se espera: la interfaz se libera a los
+      // RETARDO_GUARDADO_MS y el boton deja de girar aunque la base de datos
+      // tarde mas. Si algo falla, el aviso llega cuando llegue el fallo.
+      //
+      // Al CREAR si se espera de verdad: despues vienen la redireccion, el alta
+      // del usuario de acceso y las notificaciones, y soltar la pantalla a medias
+      // dejaria al miembro sin cuenta y al usuario en otra pagina sin saberlo.
+      const tareaGuardado = (async () => {
       try {
         const submittedFirstName = formData.firstName;
         const submittedLastName = formData.lastName;
@@ -1764,11 +1769,11 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
           );
         }
 
-        await espera;
-
-        toast.success(
-          currentMember ? 'Actualizacion exitosa!' : `Miembro ${codigoMiembro} creado!`
-        );
+        // Al editar, el aviso de exito ya salio al liberar la pantalla; repetirlo
+        // aqui lo mostraria dos veces.
+        if (!currentMember) {
+          toast.success(`Miembro ${codigoMiembro} creado!`);
+        }
 
         let savedMember = null;
         let authCredentials = null;
@@ -1958,6 +1963,19 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       } catch (error) {
         toast.error(error.message || 'Error guardando en API');
       }
+      })();
+
+      if (currentMember) {
+        // La pantalla vuelve a la normalidad aqui, pase lo que pase con la
+        // escritura. El "exito" se anuncia en este punto y no cuando termine de
+        // guardarse: es el compromiso de mostrar el guardado como instantaneo.
+        await esperar(RETARDO_GUARDADO_MS);
+        toast.success('Actualizacion exitosa!');
+
+        return;
+      }
+
+      await tareaGuardado;
     },
 
     (validationErrors) => {
