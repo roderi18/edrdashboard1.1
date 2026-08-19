@@ -13,18 +13,20 @@ export async function PUT(req) {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
+                // El cuerpo es el `IglesiasDTO` DIRECTO, sin envoltorio. Iba
+                // dentro de un `obj` que ni el swagger del backend declara ni usa
+                // ningun otro proxy: Secciones, Regiones y la propia creacion de
+                // iglesias mandan el DTO plano, y esos si responden 200.
                 body: JSON.stringify({
-                    obj: {
-                        idIglesia: body.id,
-                        nombre: body.name || body.churchName,
-                        pastor: body.pastor || '',
-                        direccion: body.address || '',
-                        correo: body.correo || '',
-                        // El telefono viaja siempre: al omitirlo, el update lo
-                        // dejaba en blanco en cada guardado.
-                        telefono: body.telefono || '',
-                        idSeccion: body.sectionId || body.idSeccion || null,
-                    },
+                    idIglesia: body.id,
+                    nombre: body.name || body.churchName,
+                    pastor: body.pastor || '',
+                    direccion: body.address || '',
+                    correo: body.correo || '',
+                    // El telefono viaja siempre: al omitirlo, el update lo dejaba
+                    // en blanco en cada guardado.
+                    telefono: body.telefono || '',
+                    idSeccion: body.sectionId || body.idSeccion || null,
                 }),
             }
         );
