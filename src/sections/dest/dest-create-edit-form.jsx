@@ -41,7 +41,12 @@ import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
-import { getChurches, createChurchApi, updateChurchApi } from 'src/services/church-service';
+import {
+  getChurches,
+  createChurchApi,
+  updateChurchApi,
+  buildChurchPayload,
+} from 'src/services/church-service';
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
@@ -63,6 +68,26 @@ import {
 const POSICION_COORDINADOR_DEST = DIRECTIVA_POSITIONS.find(
   (position) => position.idCargo === 'destacamento-coordinador-destacamento'
 );
+
+// ¿Cambio algo de la IGLESIA respecto a lo que ya esta guardado?
+//
+// Se compara por VALOR y no por "campo tocado" del formulario: asi, escribir algo
+// y deshacerlo tampoco dispara una escritura. La direccion se compara ya armada,
+// que es como viaja al backend (provincia, municipio, sector y calle van juntas
+// en un solo texto).
+const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
+  // Sin registro previo no hay con que comparar: se intenta la actualizacion.
+  if (!iglesiaActual) return true;
+
+  const payload = buildChurchPayload(datosIglesia);
+
+  return (
+    payload.nombre !== (iglesiaActual.name ?? '') ||
+    payload.pastor !== (iglesiaActual.pastor ?? '') ||
+    payload.direccion !== (iglesiaActual.address ?? '') ||
+    String(payload.idSeccion) !== String(iglesiaActual.idSeccion ?? '')
+  );
+};
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -528,19 +553,39 @@ export function DestCreateEditForm({ currentDest }) {
       let churchUpdateFailed = false;
 
       if (currentDest) {
-        try {
-          await updateChurchApi({
-            ...data,
-            id: data.churchId,
-            churchId: data.churchId,
-            sectionId: data.sectionId,
-          });
-        } catch (churchUpdateError) {
-          // El backend de Iglesias puede fallar (p. ej. 500 de Somee). No creamos
-          // una iglesia de reemplazo —generaría duplicados—: avisamos y seguimos
-          // guardando el resto del destacamento, conservando la iglesia actual.
-          churchUpdateFailed = true;
-          console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
+        // LA IGLESIA SOLO SE ESCRIBE SI CAMBIO ALGO SUYO.
+        //
+        // Antes se llamaba a `UpdateIglesia` en CADA guardado del destacamento,
+        // aunque no se hubiera tocado un solo dato de la iglesia: una escritura
+        // inutil que, con el endpoint caido, sacaba el aviso de fallo sin que
+        // hubiera nada que actualizar.
+        //
+        // El correo y el telefono se toman del REGISTRO DE LA IGLESIA y no del
+        // formulario: esos dos campos se ven bajo el titulo "Iglesia" pero
+        // pertenecen al destacamento (de ahi se cargan y ahi se guardan), asi que
+        // enviarlos aqui pisaba los de la iglesia con datos ajenos.
+        const iglesiaActual = churches.find(
+          (church) => String(church.id) === String(data.churchId)
+        );
+        const datosIglesia = {
+          ...data,
+          id: data.churchId,
+          churchId: data.churchId,
+          sectionId: data.sectionId,
+          correo: iglesiaActual?.correo ?? '',
+          telefono: iglesiaActual?.telefono ?? '',
+        };
+
+        if (hayCambiosDeIglesia(datosIglesia, iglesiaActual)) {
+          try {
+            await updateChurchApi(datosIglesia);
+          } catch (churchUpdateError) {
+            // El backend de Iglesias puede fallar (p. ej. 500 de Somee). No creamos
+            // una iglesia de reemplazo —generaría duplicados—: avisamos y seguimos
+            // guardando el resto del destacamento, conservando la iglesia actual.
+            churchUpdateFailed = true;
+            console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
+          }
         }
         await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
       } else {

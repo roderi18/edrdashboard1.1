@@ -98,7 +98,11 @@ export const updateChurchApi = async (data) => {
             name: data?.churchName,
             pastor: data?.pastor,
             address: payload.direccion,
+            // Correo y telefono los pone quien llama a partir del registro de la
+            // iglesia. No se toman del formulario del destacamento: alli esos dos
+            // campos son del destacamento, y enviarlos pisaba los de la iglesia.
             correo: data?.correo,
+            telefono: data?.telefono,
             sectionId: data?.sectionId || data?.idSeccion,
         }),
         cache: 'no-store',

@@ -20,6 +20,9 @@ export async function PUT(req) {
                         pastor: body.pastor || '',
                         direccion: body.address || '',
                         correo: body.correo || '',
+                        // El telefono viaja siempre: al omitirlo, el update lo
+                        // dejaba en blanco en cada guardado.
+                        telefono: body.telefono || '',
                         idSeccion: body.sectionId || body.idSeccion || null,
                     },
                 }),
