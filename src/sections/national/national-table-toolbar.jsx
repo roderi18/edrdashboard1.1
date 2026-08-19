@@ -10,8 +10,8 @@ import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
-import InputAdornment from '@mui/material/InputAdornment';
 import { useTheme, useMediaQuery } from '@mui/material';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -264,13 +264,11 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
 
         {/* 🖥 Desktop */}
         {!isMobile && (
-          <>
-            <ViewModeToggle
+          <ViewModeToggle
               value={displayMode}
               onChange={setDisplayMode}
               storageKey="global-display-mode"
             />
-          </>
         )}
         {!isMobile && (
           <IconButton

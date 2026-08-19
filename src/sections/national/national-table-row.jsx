@@ -1,11 +1,10 @@
+import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
-
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -39,21 +38,18 @@ export function NationalTableRow({
   allMembers = [],
   leadershipAssignments = [],
 }) {
-  const assignment = leadershipAssignments.find(
-    (l) =>
-      l.memberId === row.memberId &&
-      ['national', 'regional', 'sectional'].includes(l.level) &&
-      l.status === 'active'
+  // La vista ya resolvio posicion, ambito y estructura contra el catalogo y
+  // Firestore: aqui no se vuelve a deducir nada de los mocks, que era de donde
+  // salian etiquetas que no correspondian con la asignacion real.
+  const member = allMembers.find(
+    (m) => String(m.id) === String(row.memberId) || String(m.memberId) === String(row.memberId)
   );
-  const roleValue = assignment?.role || row.nationalXMemberPosition;
-  const roleConfig = _allLeadershipRoles.find((r) => r.value === roleValue);
-  const member = allMembers.find((m) => m.id === row.memberId || m.memberId === row.memberId);
-  const memberName = member?.fullName || row.nationalXname || 'Desconocido';
+  const memberName = row.nationalXname || member?.fullName || 'Desconocido';
   const memberHref = member ? `/dashboard/level/member/${member.id}/edit` : '';
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
-  const positionLabel = roleConfig?.label || row.nationalXMemberPositionLabel || '-';
-  const structureLabel =
-    NATIONAL_STRUCTURES[roleConfig?.structure] || row.nationalEstructureLabel || '-';
+  const positionLabel = row.nationalXMemberPositionLabel || '-';
+  const positionScope = row.nationalXMemberPositionScope || '';
+  const structureLabel = row.nationalEstructureLabel || '-';
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -89,13 +85,21 @@ export function NationalTableRow({
         )}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{positionLabel}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {positionLabel}
+
+        {positionScope && (
+          <Box component="span" sx={{ display: 'block', color: 'text.secondary', typography: 'caption' }}>
+            {positionScope}
+          </Box>
+        )}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{structureLabel}</TableCell>
 
       <CompactEntityRowActions
         canManage={canManage}
-        allowDelete={canDelete && !row.isLocalhostTest}
+        allowDelete={canDelete}
         allowQuickEdit={false}
         editHref={editHref}
         onDelete={canDelete ? onDeleteRow : undefined}

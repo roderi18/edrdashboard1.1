@@ -1,6 +1,5 @@
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
-import { isLocalhostNationalTestId } from './national-localhost-test-user';
 
 // ----------------------------------------------------------------------
 
@@ -9,11 +8,7 @@ const getNationalName = (national) => national?.nationalXname || 'Desconocido';
 const getNationalAvatar = (national) => national?.avatarUrl ?? national?.photoURL ?? '';
 
 const getNationalHref = (national) =>
-  isLocalhostNationalTestId(national?.id)
-    ? `/dashboard/level/national/${national.id}/edit`
-    : national?.memberId
-      ? `/dashboard/level/member/${national.memberId}/edit`
-      : '#';
+  national?.memberId ? `/dashboard/level/member/${national.memberId}/edit` : '#';
 
 const getStructureHref = (national) => {
   if (national?.level === 'regional' && national?.entityId) {
@@ -41,10 +36,7 @@ const getStructureHref = (national) => {
 
 export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
-  // El enlace de edición del nivel nacional solo se ofrece a quien puede gestionarlo;
-  // los enlaces hacia el miembro siguen disponibles en modo de solo lectura.
-  const nationalHref =
-    !canManage && isLocalhostNationalTestId(national?.id) ? '' : getNationalHref(national);
+  const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
   const position =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';

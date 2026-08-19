@@ -15,18 +15,10 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import {
-  isLocalhostNationalTestId,
-  LOCALHOST_NATIONAL_TEST_EDIT_RECORD,
-} from '../national-localhost-test-user';
 
 // ----------------------------------------------------------------------
 
 function getNationalName(nationalId) {
-  if (isLocalhostNationalTestId(nationalId)) {
-    return LOCALHOST_NATIONAL_TEST_EDIT_RECORD.name;
-  }
-
   const national = _nationalList.find((item) => String(item.id) === String(nationalId));
 
   return national?.name || national?.nationalXname || 'Nacional';

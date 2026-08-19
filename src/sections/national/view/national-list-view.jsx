@@ -20,12 +20,17 @@ import { RouterLink } from 'src/routes/components';
 import { normalizeText } from 'src/utils/normalize-text';
 import { canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
-import { getStorageCollection } from 'src/utils/storage-service';
-import { resolveRegionalFromMember } from 'src/utils/resolve-regional-from-member';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _leadershipRolesByLevel } from 'src/_mock/_leadership';
+import { getMembers } from 'src/services/member-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import {
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectivaMiembros,
+} from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -50,10 +55,6 @@ import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
 import { NationalTableToolbar } from '../national-table-toolbar';
 import { NationalTableFiltersResult } from '../national-table-filters-result';
-import {
-  LOCALHOST_NATIONAL_TEST_MEMBER,
-  LOCALHOST_NATIONAL_TEST_ASSIGNMENT,
-} from '../national-localhost-test-user';
 
 // ----------------------------------------------------------------------
 
@@ -67,31 +68,46 @@ const TABLE_HEAD = [
   { id: '', width: 88 },
 ];
 
-function isLocalhost() {
-  if (typeof window === 'undefined') return false;
+// Niveles que componen esta lista. El destacamento queda fuera: tiene su propia
+// pantalla y no forma parte de las directivas de supervision.
+const NIVELES_DE_LA_LISTA = ['nacional', 'regional', 'seccional'];
 
-  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
-}
+// Estructura a la que pertenece cada nivel, para la columna del mismo nombre.
+const ESTRUCTURA_POR_NIVEL = {
+  nacional: 'consejo_ejecutivo',
+  regional: 'directivas_regionales',
+  seccional: 'directivas_seccionales',
+};
 
-function withLocalhostNationalTestUser({ members, assignments }) {
-  if (!isLocalhost()) {
-    return { members, assignments };
+// Ambito que se muestra BAJO la posicion: la seccion o la region a la que
+// pertenece el cargo. Los nombres de region ya suelen venir con la palabra
+// "Región" incluida ("Región Este"), asi que anteponerla otra vez daria "Región
+// Región Este"; se comprueba antes de componerla.
+const conPrefijo = (prefijo, nombre) => {
+  const limpio = String(nombre || '').trim();
+
+  if (!limpio) return '';
+
+  return normalizeText(limpio).startsWith(normalizeText(prefijo))
+    ? limpio
+    : `${prefijo} ${limpio}`;
+};
+
+const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) => {
+  if (nivel === 'nacional') return 'Consejo Nacional';
+
+  const id = String(idEntidad || '');
+
+  if (nivel === 'seccional') {
+    return conPrefijo('Sección', seccionesPorId.get(id)) || 'Sección sin asignar';
   }
 
-  const nextMembers = members.some(
-    (member) => String(member?.id) === LOCALHOST_NATIONAL_TEST_MEMBER.id
-  )
-    ? members
-    : [LOCALHOST_NATIONAL_TEST_MEMBER, ...members];
+  if (nivel === 'regional') {
+    return conPrefijo('Región', regionesPorId.get(id)) || 'Región sin asignar';
+  }
 
-  const nextAssignments = assignments.some(
-    (assignment) => String(assignment?.id) === LOCALHOST_NATIONAL_TEST_ASSIGNMENT.id
-  )
-    ? assignments
-    : [LOCALHOST_NATIONAL_TEST_ASSIGNMENT, ...assignments];
-
-  return { members: nextMembers, assignments: nextAssignments };
-}
+  return '';
+};
 
 // ----------------------------------------------------------------------
 
@@ -111,18 +127,59 @@ export function NationalListView() {
     setHydrated(true);
   }, []);
 
-  const storedMembers = getStorageCollection('members') || [];
-  const storedLeadershipAssignments = getStorageCollection('leadershipAssignments') || [];
-  const { members: allMembers, assignments: leadershipAssignments } = withLocalhostNationalTestUser(
-    {
-      members: storedMembers,
-      assignments: storedLeadershipAssignments,
-    }
-  );
+  // FIRESTORE ES LA FUENTE. Antes esta lista se armaba con `_mock/_leadership` y
+  // un usuario de prueba escrito en el codigo, asi que no reflejaba a nadie real.
+  // Ahora sale de `asignacionesDirectiva`, la misma coleccion que alimenta los
+  // organigramas y la ficha del miembro: asignar un cargo en cualquiera de esas
+  // pantallas aparece aqui solo.
+  const [allMembers, setAllMembers] = useState([]);
+  const [nationalAssignments, setNationalAssignments] = useState([]);
+  const [seccionesPorId, setSeccionesPorId] = useState(() => new Map());
+  const [regionesPorId, setRegionesPorId] = useState(() => new Map());
 
-  const nationalAssignments = leadershipAssignments.filter(
-    (l) => ['national', 'regional', 'sectional'].includes(l.level) && l.status === 'active'
-  );
+  useEffect(() => {
+    let cancelado = false;
+
+    const cargar = async () => {
+      const [miembros, asignaciones, secciones, regiones] = await Promise.all([
+        getMembers().catch(() => []),
+        obtenerAsignacionesDirectivaMiembros().catch(() => []),
+        getSectionals({ includePhotos: false }).catch(() => []),
+        getRegionals().catch(() => []),
+      ]);
+
+      if (cancelado) return;
+
+      setAllMembers(Array.isArray(miembros) ? miembros : []);
+      setNationalAssignments(
+        (Array.isArray(asignaciones) ? asignaciones : []).filter((asignacion) =>
+          NIVELES_DE_LA_LISTA.includes(asignacion?.nivel)
+        )
+      );
+      setSeccionesPorId(
+        new Map(
+          (Array.isArray(secciones) ? secciones : []).map((seccion) => [
+            String(seccion.id ?? seccion.idSeccion),
+            seccion.sectionalName ?? seccion.nombre ?? seccion.name ?? '',
+          ])
+        )
+      );
+      setRegionesPorId(
+        new Map(
+          (Array.isArray(regiones) ? regiones : []).map((region) => [
+            String(region.regionId ?? region.id ?? region.idRegion),
+            region.name ?? region.nombre ?? '',
+          ])
+        )
+      );
+    };
+
+    cargar();
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
@@ -149,39 +206,45 @@ export function NationalListView() {
     // directiva_local: 'Directiva Local',
   };
 
-  const tableData = nationalAssignments.map((assignment, index) => {
-    const member = allMembers.find((m) => m.id === assignment.memberId);
-
-    const roleConfig =
-      _leadershipRolesByLevel[assignment.level]?.find((r) => r.value === assignment.role) ||
-      Object.values(_leadershipRolesByLevel)
-        .flat()
-        .find((r) => r.value === assignment.role);
-
-    const regional = resolveRegionalFromMember(member);
-    const regionalName = regional?.name || '-';
+  const tableData = nationalAssignments.map((assignment) => {
+    const member = allMembers.find(
+      (m) => String(m.id ?? m.idMiembros) === String(assignment.idMiembro)
+    );
+    const position = DIRECTIVA_POSITIONS.find(
+      (item) => item.idCargo === assignment.idPosicionDirectiva
+    );
+    const estructura = ESTRUCTURA_POR_NIVEL[assignment.nivel] || '-';
+    const ambito = construirAmbito({
+      nivel: assignment.nivel,
+      idEntidad: assignment.idEntidad,
+      seccionesPorId,
+      regionesPorId,
+    });
 
     return {
-      id: assignment.id,
-      entityId: assignment.entityId,
-      memberId: member?.id,
-      level: assignment.level,
+      id: assignment.idAsignacion || assignment.id,
+      entityId: assignment.idEntidad,
+      memberId: member?.id ?? assignment.idMiembro,
+      level: assignment.nivel,
+      // El nombre del listado manda; si el miembro no viene (baja, filtro), se usa
+      // la copia guardada dentro de la propia asignacion.
       nationalXname:
-        member?.fullName || `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim(),
+        `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
+        member?.fullName ||
+        assignment.nombreMiembro ||
+        'Desconocido',
       email: member?.email,
       phoneNumber: member?.phoneNumber,
-
-      //  Avatar aleatorio
-      // avatarUrl: _mock.image.avatar(index),
       avatarUrl: member?.avatarUrl,
 
-      nationalXMemberPosition: roleConfig?.value,
-      nationalXMemberPositionLabel: roleConfig?.label,
-      nationalEstructure: roleConfig?.structure || '-',
-      nationalEstructureLabel: NATIONAL_STRUCTURES[roleConfig?.structure] || '-',
+      nationalXMemberPosition: assignment.idPosicionDirectiva,
+      nationalXMemberPositionLabel: position?.nombreCargo || '-',
+      // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
+      nationalXMemberPositionScope: ambito,
+      nationalEstructure: estructura,
+      nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
 
-      nationalXAssignedRegional: regionalName,
-      isLocalhostTest: assignment.id === LOCALHOST_NATIONAL_TEST_ASSIGNMENT.id,
+      nationalXAssignedRegional: ambito || '-',
     };
   });
 
@@ -213,28 +276,64 @@ export function NationalListView() {
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const handleDeleteRow = useCallback(
-    (id) => {
-      const updatedAssignments = leadershipAssignments.filter((a) => a.id !== id);
+  // Quitar a alguien de la lista es DAR DE BAJA su asignacion en Firestore, con
+  // el mismo mecanismo que usan los organigramas (activo=false). Antes se
+  // reescribia `localStorage` y se recargaba la pagina, asi que el cargo seguia
+  // intacto en la base y volvia a aparecer.
+  const darDeBajaAsignaciones = useCallback(
+    async (ids) => {
+      const objetivo = nationalAssignments.filter((asignacion) =>
+        ids.includes(asignacion.idAsignacion || asignacion.id)
+      );
 
-      localStorage.setItem('leadershipAssignments', JSON.stringify(updatedAssignments));
+      if (!objetivo.length) return;
 
-      toast.success('Eliminado correctamente');
+      await Promise.all(
+        objetivo.map((asignacion) =>
+          guardarAsignacionDirectiva({
+            nivel: asignacion.nivel,
+            idEntidad: asignacion.idEntidad,
+            idCargo: asignacion.idCargo,
+            idMiembro: asignacion.idMiembro,
+            idPosicionDirectiva: asignacion.idPosicionDirectiva,
+            division: asignacion.division ?? null,
+            orden: asignacion.orden || 1,
+            origen: 'lista-nacional',
+            activo: false,
+          })
+        )
+      );
 
-      window.location.reload();
+      setNationalAssignments((previas) =>
+        previas.filter((asignacion) => !ids.includes(asignacion.idAsignacion || asignacion.id))
+      );
     },
-    [leadershipAssignments]
+    [nationalAssignments]
   );
 
-  const handleDeleteRows = useCallback(() => {
-    const updatedAssignments = leadershipAssignments.filter((a) => !table.selected.includes(a.id));
+  const handleDeleteRow = useCallback(
+    async (id) => {
+      try {
+        await darDeBajaAsignaciones([id]);
+        toast.success('Eliminado correctamente');
+      } catch (error) {
+        console.error('[lista nacional] no se pudo dar de baja la asignación', error);
+        toast.error(error?.message || 'No se pudo eliminar.');
+      }
+    },
+    [darDeBajaAsignaciones]
+  );
 
-    localStorage.setItem('leadershipAssignments', JSON.stringify(updatedAssignments));
-
-    toast.success('Eliminados correctamente');
-
-    window.location.reload();
-  }, [leadershipAssignments, table.selected]);
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      await darDeBajaAsignaciones(table.selected);
+      table.onSelectAllRows(false, []);
+      toast.success('Eliminados correctamente');
+    } catch (error) {
+      console.error('[lista nacional] no se pudieron dar de baja las asignaciones', error);
+      toast.error(error?.message || 'No se pudieron eliminar.');
+    }
+  }, [darDeBajaAsignaciones, table]);
 
   if (!hydrated) {
     return null;
@@ -361,8 +460,7 @@ export function NationalListView() {
                         editHref={paths.dashboard.level.national.edit(row.id)}
                         canManage={canManage}
                         canDelete={canDelete}
-                        allMembers={allMembers}
-                        leadershipAssignments={leadershipAssignments}
+                        allMembers={allMembers}
                       />
                     )}
                     notFound={notFound}
