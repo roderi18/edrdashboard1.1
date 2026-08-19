@@ -38,8 +38,13 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
-  const position =
+  // El cargo se acompaña de su ambito y enlaza a la Directiva de esa entidad,
+  // igual que en la tabla: "Coordinador de Producción — Sección La Romana".
+  const positionLabel =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';
+  const positionScope = national?.nationalXMemberPositionScope || '';
+  const position = positionScope ? `${positionLabel} — ${positionScope}` : positionLabel;
+  const positionHref = national?.nationalXMemberPositionHref || '';
   const structure =
     national?.nationalEstructureLabel || national?.nationalEstructure || 'Desconocida';
 
@@ -50,7 +55,7 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
       avatarUrl={getNationalAvatar(national)}
       fallbackText={nationalName}
       lines={[
-        { icon: 'solar:user-bold', text: position },
+        { icon: 'solar:user-bold', text: position, href: positionHref },
         { icon: 'mingcute:location-fill', text: structure, href: structureHref },
       ]}
       sx={sx}

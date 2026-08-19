@@ -4,6 +4,8 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 
+import { RouterLink } from 'src/routes/components';
+
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
@@ -49,6 +51,7 @@ export function NationalTableRow({
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
   const positionLabel = row.nationalXMemberPositionLabel || '-';
   const positionScope = row.nationalXMemberPositionScope || '';
+  const positionHref = row.nationalXMemberPositionHref || '';
   const structureLabel = row.nationalEstructureLabel || '-';
 
   return (
@@ -86,7 +89,21 @@ export function NationalTableRow({
       </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {positionLabel}
+        {/* El cargo lleva a la Directiva de SU entidad. Sin entidad resoluble se
+            queda como texto: mejor eso que un enlace a una pagina inexistente. */}
+        {positionHref ? (
+          <Link
+            component={RouterLink}
+            href={positionHref}
+            underline="always"
+            color="inherit"
+            sx={{ cursor: 'pointer' }}
+          >
+            {positionLabel}
+          </Link>
+        ) : (
+          positionLabel
+        )}
 
         {positionScope && (
           <Box component="span" sx={{ display: 'block', color: 'text.secondary', typography: 'caption' }}>

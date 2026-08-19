@@ -93,6 +93,30 @@ const conPrefijo = (prefijo, nombre) => {
     : `${prefijo} ${limpio}`;
 };
 
+// Organigrama al que lleva el cargo: el de SU entidad, no el del nivel en
+// abstracto. Un Coordinador de Producción de La Romana abre la Directiva de La
+// Romana, no un listado de secciones.
+const RUTA_DIRECTIVA_POR_NIVEL = {
+  nacional: (id) => `/dashboard/level/national/${id || 'nacional'}/edit/leadership`,
+  regional: (id) => `/dashboard/level/regional/${id}/edit/leadership`,
+  seccional: (id) => `/dashboard/level/sectional/${id}/edit/leadership`,
+};
+
+const construirHrefDirectiva = ({ nivel, idEntidad }) => {
+  const construirRuta = RUTA_DIRECTIVA_POR_NIVEL[nivel];
+
+  if (!construirRuta) return '';
+
+  const id = String(idEntidad || '').trim();
+
+  // Sin entidad concreta no hay organigrama al que ir: se deja sin enlace en vez
+  // de mandar a una pagina que no existe. Pasa con las asignaciones que quedaron
+  // con la entidad en "general".
+  if (nivel !== 'nacional' && (!id || id === 'general')) return '';
+
+  return construirRuta(id);
+};
+
 const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) => {
   if (nivel === 'nacional') return 'Consejo Nacional';
 
@@ -241,6 +265,10 @@ export function NationalListView() {
       nationalXMemberPositionLabel: position?.nombreCargo || '-',
       // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
       nationalXMemberPositionScope: ambito,
+      nationalXMemberPositionHref: construirHrefDirectiva({
+        nivel: assignment.nivel,
+        idEntidad: assignment.idEntidad,
+      }),
       nationalEstructure: estructura,
       nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
 
@@ -460,7 +488,7 @@ export function NationalListView() {
                         editHref={paths.dashboard.level.national.edit(row.id)}
                         canManage={canManage}
                         canDelete={canDelete}
-                        allMembers={allMembers}
+                        allMembers={allMembers}
                       />
                     )}
                     notFound={notFound}
