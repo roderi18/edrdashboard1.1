@@ -41,6 +41,7 @@ import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { asegurarPastorDelDestacamento } from 'src/services/pastor-destacamento-service';
 import {
   getChurches,
   createChurchApi,
@@ -598,6 +599,30 @@ export function DestCreateEditForm({ currentDest }) {
       // en la coleccion de directiva del destacamento. El form guarda el codigo
       // de miembro (`memberId`); Firestore requiere el `idMiembros` numerico.
       const destIdForCoordinator = Number(resolvedDestId || currentDest?.id) || null;
+
+      // EL PASTOR ES UNA PERSONA. Del formulario solo se conoce su nombre, asi
+      // que se le da de alta como miembro (o se reutiliza el que ya este en este
+      // destacamento con ese nombre) y se le asigna la casilla "Pastor" del
+      // organigrama. El resto de su ficha queda por completar, y de eso avisa el
+      // propio organigrama con un icono.
+      //
+      // Va aparte del guardado del destacamento: si falla, el destacamento ya
+      // quedo guardado y no tiene sentido perderlo por esto.
+      if (destIdForCoordinator && data.pastor) {
+        try {
+          await asegurarPastorDelDestacamento({
+            nombrePastor: data.pastor,
+            idDestacamento: destIdForCoordinator,
+            nombreDestacamento: data.name || '',
+            usuario: user,
+          });
+        } catch (pastorError) {
+          console.warn('[dest form] no se pudo registrar al pastor', pastorError);
+          toast.warning(
+            'El destacamento se guardó, pero no se pudo registrar al pastor en la Directiva.'
+          );
+        }
+      }
 
       if (destIdForCoordinator) {
         try {

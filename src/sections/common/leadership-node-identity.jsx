@@ -5,6 +5,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { getLeadershipShortName } from 'src/utils/leadership-assignments';
+import { getAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -66,6 +67,8 @@ export const getLeadershipNodeIdentity = (miembroAsignado) => {
     // El nombre completo queda en el tooltip: la tarjeta abrevia, pero saber de
     // quién se trata no debería obligar a abrir la ficha.
     nombreCompleto: miembroAsignado ? getMemberDisplayName(miembroAsignado) : '',
+    // Vacio cuando la ficha esta completa, y entonces no se pinta el aviso.
+    avisoDatosPendientes: miembroAsignado ? getAvisoDatosPendientes(miembroAsignado) : '',
     avatarUrl: miembroAsignado
       ? miembroAsignado.avatarUrl || miembroAsignado.photoURL || ''
       : '',
@@ -108,6 +111,9 @@ export function LeadershipNodeName({ identity, children, ...other }) {
       sx={{
         mb: 0.5,
         pr: 3,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
         ...(identity.vacante && {
           fontStyle: 'italic',
           fontWeight: 'fontWeightRegular',
@@ -116,7 +122,25 @@ export function LeadershipNodeName({ identity, children, ...other }) {
       }}
       {...other}
     >
-      {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
+      <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
+      </Box>
+
+      {/* Aviso de ficha incompleta. Lo llevan sobre todo las altas hechas de
+          pasada —el pastor que se registra al crear la iglesia, del que solo se
+          conoce el nombre— para que se vea en el organigrama que esa persona
+          esta a medio registrar, sin tener que abrir su ficha. */}
+      {identity.avisoDatosPendientes && (
+        <Tooltip title={identity.avisoDatosPendientes} placement="top" arrow>
+          <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+            <Iconify
+              width={16}
+              icon="solar:danger-triangle-bold"
+              sx={{ color: 'warning.main' }}
+            />
+          </Box>
+        </Tooltip>
+      )}
     </Typography>
   );
 }
