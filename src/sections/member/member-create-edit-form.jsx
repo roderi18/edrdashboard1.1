@@ -39,6 +39,10 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
 import {
+  getAvisoDatosPendientes,
+  puedeVerAvisoDatosPendientes,
+} from 'src/utils/member-datos-pendientes';
+import {
   calcularEstatusCI,
   calcularVencimientoCI,
   calcularDiasRestantesCI,
@@ -2292,6 +2296,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                           {
                             show: !isCreateView && !!currentMember?.memberId,
                             text: `Miembro ${currentMember?.memberId}`,
+                            // Mismo aviso que en la Directiva, y con las mismas
+                            // reglas: solo lo ven los cargos del destacamento y
+                            // los administradores.
+                            aviso: puedeVerAvisoDatosPendientes(user)
+                              ? getAvisoDatosPendientes(currentMember)
+                              : '',
                           },
                           {
                             show: isCreateView && !!selectedDest?.name,

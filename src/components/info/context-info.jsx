@@ -1,9 +1,17 @@
+import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+
+import { Iconify } from 'src/components/iconify';
 
 /**
  * ContextInfo
  * Muestra una lista de textos centrados debajo de un bloque (ej: avatar).
  * Se puede usar en miembros, destacamentos, regiones, etc.
+ *
+ * `aviso` pinta un triangulo de advertencia a la derecha del texto, con su
+ * explicacion al pasar por encima. Es el mismo que usa la Directiva para señalar
+ * una ficha a medio completar.
  */
 
 export function ContextInfo({ items = [] }) {
@@ -20,13 +28,28 @@ export function ContextInfo({ items = [] }) {
                         sx={{
                             mt: item.mt ?? 0,
                             mx: 'auto',
-                            display: 'block',
+                            gap: 0.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             textAlign: 'center',
                             color: item.color || 'text.secondary',
                             fontWeight: item.bold ? 700 : 'normal',
                         }}
                     >
                         {item.text}
+
+                        {item.aviso && (
+                            <Tooltip title={item.aviso} placement="top" arrow>
+                                <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+                                    <Iconify
+                                        width={16}
+                                        icon="solar:danger-triangle-bold"
+                                        sx={{ color: 'warning.main' }}
+                                    />
+                                </Box>
+                            </Tooltip>
+                        )}
                     </Typography>
                 ))}
         </>

@@ -35,6 +35,7 @@ import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
@@ -554,6 +555,7 @@ function LeadershipNode({
   onCambiarMiembro,
   onRemoverMiembro,
   onInformacionRol,
+  mostrarAvisoDatos = false,
   canManage = true,
 }) {
   const menuActions = usePopover();
@@ -684,7 +686,15 @@ function LeadershipNode({
             borderRadius: '50%',
           }}
         >
-          <LeadershipNodeAvatar identity={identity} />
+          <LeadershipNodeAvatar
+            identity={identity}
+            /* Solo en la casilla del PASTOR. Es la unica persona que el sistema da
+               de alta por su cuenta, con el nombre como unico dato: el aviso le
+               dice a quien mira el organigrama que esa ficha esta a medias. Al
+               resto se les registra desde su propio formulario, asi que marcarlos
+               seria senalar algo que nadie pidio arreglar aqui. */
+            mostrarAvisoDatos={mostrarAvisoDatos && id === 'pastor'}
+          />
         </Box>
 
         <LeadershipNodeName identity={identity}>
@@ -813,6 +823,9 @@ export default function Page() {
   // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
   // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
   const canManageLeadership = canManageDirectiva(user);
+  // El aviso de ficha incompleta solo lo ven los cargos del destacamento y los
+  // administradores: para el resto es ruido sobre datos que no les toca completar.
+  const mostrarAvisoDatos = puedeVerAvisoDatosPendientes(user);
   const destId = params?.id;
   const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -1519,6 +1532,7 @@ export default function Page() {
                 sx={{}}
                 {...props}
                 layoutEditor={layoutEditor}
+                mostrarAvisoDatos={mostrarAvisoDatos}
                 canManage={canManageLeadership}
                 miembroAsignado={getAssignedMember(props)}
                 onCambiarMiembro={handleOpenChangeMember}
@@ -1552,6 +1566,7 @@ export default function Page() {
                       sx={{}}
                       {...props}
                       layoutEditor={layoutEditor}
+                      mostrarAvisoDatos={mostrarAvisoDatos}
                       canManage={canManageLeadership}
                       miembroAsignado={getAssignedMember(props)}
                       onCambiarMiembro={handleOpenChangeMember}
