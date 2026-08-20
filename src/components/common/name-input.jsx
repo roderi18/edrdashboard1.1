@@ -74,6 +74,14 @@ export default function NameInput({
 
                 // ✅ Capitalizar cada palabra correctamente
 
+                // Lo escrito ANTES de normalizar mayusculas. Se conserva para
+                // poder devolver tal cual la letra que sigue a un punto: en
+                // "A.D" o "Inc.SA" el usuario decide si va en mayuscula, y
+                // forzarla a minuscula le corregia lo que acababa de teclear.
+                // Los pasos anteriores ya no cambian la longitud, asi que las
+                // posiciones de esta copia siguen valiendo.
+                const escrito = value;
+
                 // ✅ Capitalizar palabras pero permitir minúsculas después de tildes
                 value = value
                     .toLocaleLowerCase()
@@ -92,6 +100,12 @@ export default function NameInput({
 
                 // 👉 corregir "de" solo si está entre espacios
                 value = value.replace(/\bDe\b/g, 'de');
+
+                // 👉 Tras un punto se respeta lo tecleado, mayuscula o minuscula.
+                value = value.replace(
+                    /\.(.)/g,
+                    (coincidencia, caracter, posicion) => `.${escrito[posicion + 1] ?? caracter}`
+                );
                 // 📌 Actualiza valor en react-hook-form
                 // shouldDirty marca el campo como modificado al instante (para
                 // que el boton de guardar/enviar se habilite sin esperar al blur).
