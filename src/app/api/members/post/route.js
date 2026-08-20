@@ -75,28 +75,54 @@ const getCreatedMemberId = (payload) =>
   payload?.member?.idMiembros ||
   payload?.miembro?.idMiembros;
 
-const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = '' }) => {
-  const membersRes = await fetch(`${GET_ALL_ENDPOINT}?t=${Date.now()}`, {
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      'Cache-Control': 'no-cache',
-      ...(authHeader ? { Authorization: authHeader } : {}),
-    },
+const esperar = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 
-  if (!membersRes.ok) return null;
+// El miembro recien creado no siempre aparece en el listado al instante. Se
+// reintenta un par de veces antes de darlo por perdido: sin esto, la correccion
+// de la division se saltaba en silencio y el miembro se quedaba sin ella.
+const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = '', intentos = 3 }) => {
+  for (let intento = 0; intento < intentos; intento += 1) {
+    if (intento > 0) {
+       
+      await esperar(600);
+    }
 
-  const membersJson = await membersRes.json();
-  const members = getRowsFromApi(membersJson);
+     
+    const membersRes = await fetch(`${GET_ALL_ENDPOINT}?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+    });
 
-  return (
-    members.find((member) => Number(member.idMiembros) === Number(createdMemberId)) ||
-    members.find((member) => String(member.codigoMiembro) === String(codigoMiembro)) ||
-    null
-  );
+    if (membersRes.ok) {
+       
+      const membersJson = await membersRes.json();
+      const members = getRowsFromApi(membersJson);
+      const encontrado =
+        members.find((member) => Number(member.idMiembros) === Number(createdMemberId)) ||
+        members.find((member) => String(member.codigoMiembro) === String(codigoMiembro));
+
+      if (encontrado) return encontrado;
+    }
+  }
+
+  return null;
 };
 
+// `SetMiembros` DESCARTA la division: se le envia y el miembro queda con
+// idDivision nulo. Esta correccion la vuelve a poner con `UpdateMiembros`, que si
+// la acepta.
+//
+// Corria completamente a ciegas: si no encontraba al miembro salia sin decir
+// nada, y ni siquiera miraba si el update habia funcionado. Cuando fallaba —y
+// fallaba— el miembro se quedaba sin division y nadie se enteraba. Ahora los dos
+// casos se registran.
 const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload, authHeader = '' }) => {
   try {
     const divisionId = toPositiveNumberOrNull(memberPayload.idDivision);
@@ -109,9 +135,16 @@ const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload, aut
       authHeader,
     });
 
-    if (!createdMember?.idMiembros || toPositiveNumberOrNull(createdMember.idDivision)) return;
+    if (!createdMember?.idMiembros) {
+      console.warn(
+        `[members/post] no se encontro el miembro recien creado (${memberPayload.codigoMiembro}): se queda sin division`
+      );
+      return;
+    }
 
-    await fetch(UPDATE_ENDPOINT, {
+    if (toPositiveNumberOrNull(createdMember.idDivision)) return;
+
+    const updateRes = await fetch(UPDATE_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -146,8 +179,18 @@ const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload, aut
         estatusMiembro: createdMember.estatusMiembro ?? memberPayload.estatusMiembro ?? null,
       }),
     });
-  } catch {
-    // La creacion ya termino; la correccion de division no debe romper el alta del miembro.
+
+    if (!updateRes.ok) {
+      const detalle = await updateRes.text().catch(() => '');
+
+      console.warn(
+        `[members/post] UpdateMiembros rechazo la division del miembro ${createdMember.idMiembros} (${updateRes.status}): ${detalle.slice(0, 200)}`
+      );
+    }
+  } catch (error) {
+    // La creacion ya termino: que falle la division no debe romper el alta, pero
+    // tampoco puede desaparecer sin dejar rastro.
+    console.warn('[members/post] no se pudo asignar la division al crear el miembro', error);
   }
 };
 
