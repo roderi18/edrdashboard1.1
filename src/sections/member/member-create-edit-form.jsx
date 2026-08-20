@@ -55,6 +55,7 @@ import {
 import {
   getOwnDestIdsForUser,
   canApproveMemberChanges,
+  puedeEditarSuPropiaFicha,
   isDestacamentoApprovalRole,
   canViewMemberSensitiveData,
   buildDefaultMemberPermissions,
@@ -449,13 +450,22 @@ export function MemberCreateEditForm({
   // pastor, consejo, capellán): no pueden editar destacamento, posición en el
   // destacamento, sexo ni Instructor CI (se muestran deshabilitados) y sus cambios
   // van a aprobación del Coordinador de Destacamento.
-  const lockGroupLeaderFields = isDestacamentoApprovalRole(user);
   const isCoordinador = isCoordinadorDestacamentoRole(user);
+  // El propio miembro, en SU ficha, entra en ese mismo flujo: ve todos sus datos
+  // y puede tocarlos, pero lo que escriba pasa por el Coordinador de Destacamento
+  // y su Asistente. Los dos coordinadores quedan fuera —son quienes aprueban— y
+  // guardan directamente, tambien en su propia ficha.
+  const esFichaPropia = puedeEditarSuPropiaFicha(user, currentMember);
+  const editaSuPropiaFicha = esFichaPropia && !isCoordinador;
+  const lockGroupLeaderFields = isDestacamentoApprovalRole(user) || editaSuPropiaFicha;
   const puedeAprobarCambios = canApproveMemberChanges(user);
   // Usuarios sin acceso a los datos sensibles (sección, región, consejo nacional,
   // consejo de destacamento, líderes de grupo, etc.): la información personal se
   // muestra ENMASCARADA (dirección, teléfono y correo).
-  const maskSensitive = Boolean(currentMember) && !canViewMemberSensitiveData(user);
+  // Nadie se oculta a si mismo: en su propia ficha ve telefono, correo, direccion
+  // y fecha de nacimiento en claro.
+  const maskSensitive =
+    Boolean(currentMember) && !canViewMemberSensitiveData(user) && !esFichaPropia;
   // Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
   // EDAD ven fecha de nacimiento, teléfono y correo en texto plano (el
   // enmascarado protege a los menores). La dirección sigue enmascarada.

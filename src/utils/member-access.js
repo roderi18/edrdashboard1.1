@@ -101,6 +101,46 @@ const getMemberIdentityKeys = (user = {}) =>
       .map((value) => String(value).trim().toLowerCase().replace(/\s+/g, ''))
   );
 
+// ¿La ficha abierta es la del propio usuario de la sesion?
+//
+// Se compara SOLO por id de miembro y por codigo, que son unicos. El correo se
+// deja fuera a proposito: hay fichas con correos de relleno repetidos, y una
+// coincidencia ahi abriria la ficha de otra persona como si fuera la propia.
+export const esFichaDelPropioMiembro = (user = {}, member = {}) => {
+  if (!user || !member) {
+    return false;
+  }
+
+  const clave = (valor) =>
+    valor === null || valor === undefined || valor === ''
+      ? null
+      : String(valor).trim().toLowerCase();
+
+  const clavesUsuario = new Set(
+    [user?.idMiembros, user?.memberId, user?.codigoMiembro, user?.codigo].map(clave).filter(Boolean)
+  );
+
+  if (!clavesUsuario.size) {
+    return false;
+  }
+
+  return [member?.id, member?.idMiembros, member?.memberId, member?.codigoMiembro]
+    .map(clave)
+    .filter(Boolean)
+    .some((valor) => clavesUsuario.has(valor));
+};
+
+/**
+ * Un miembro siempre puede abrir SU ficha con todos los datos a la vista.
+ *
+ * Antes se le enmascaraba su propia informacion —fecha de nacimiento, telefono,
+ * correo, direccion— igual que la de un desconocido. Sus cambios no se guardan
+ * directamente: pasan por el Coordinador de Destacamento y su Asistente, que son
+ * los unicos que editan sin aprobacion.
+ */
+export const puedeEditarSuPropiaFicha = (user = {}, member = {}) =>
+  isMemberSessionUser(user) && esFichaDelPropioMiembro(user, member);
+
 export const buildDefaultMemberPermissions = () => ({
   miembros: {
     ver: true,

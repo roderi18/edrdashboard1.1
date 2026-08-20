@@ -3,7 +3,11 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
-import { canEditMembers, canMemberManageMembers } from 'src/utils/member-access';
+import {
+  canEditMembers,
+  canMemberManageMembers,
+  puedeEditarSuPropiaFicha,
+} from 'src/utils/member-access';
 
 import {
   getMemberDirectoryMetadata,
@@ -74,7 +78,9 @@ export default function Page() {
     <MemberEditLayout member={currentMember}>
       <MemberCreateEditForm
         currentMember={currentMember}
-        readOnly={!canManage}
+        // Su propia ficha nunca se le enmascara, aunque no gestione miembros.
+        // Lo que cambie ahi va a aprobacion, no directo a la base de datos.
+        readOnly={!canManage && !puedeEditarSuPropiaFicha(user, currentMember)}
         availableDests={availableDests}
       />
     </MemberEditLayout>
