@@ -838,7 +838,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
         // que el sistema da de alta por su cuenta, con el nombre como unico dato.
         // Al resto se les registra desde este mismo formulario, asi que marcarlos
         // seria senalar algo que nadie pidio arreglar.
-        setEsPastor(posiciones.some((cargo) => cargo.idCargo === 'destacamento-pastor'));
+        // Se comprueban los tres identificadores: segun de donde venga el
+        // catalogo, la posicion expone `idPosicionDirectiva`, `id` o `idCargo`, y
+        // mirar solo uno dejaba el aviso apagado aunque el cargo fuera Pastor.
+        setEsPastor(
+          posiciones.some((cargo) =>
+            [cargo.idPosicionDirectiva, cargo.id, cargo.idCargo].some(
+              (valor) => String(valor || '') === 'destacamento-pastor'
+            )
+          )
+        );
 
         // Se escriben SIEMPRE, tambien en vacio: si el cargo se retiro desde la
         // Directiva, la ficha tiene que quedarse vacia en vez de conservar lo que

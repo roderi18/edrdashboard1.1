@@ -22,7 +22,12 @@ import { guardarAsignacionDirectiva } from './directivas-organizacionales-servic
 // Valores que se ven a simple vista como pendientes de rellenar. Solo se ponen
 // donde la aplicacion los necesita; el resto de campos se dejan vacios, que ya
 // se lee como "falta".
-export const TELEFONO_PENDIENTE = '0000000000';
+
+// En E.164, que es como se guardan los telefonos reales (+18292545465) y lo que
+// el campo de telefono espera: con "0000000000" a secas protestaba en consola
+// —"Expected the initial value to be a E.164 phone number"— y no lo pintaba. Asi
+// se muestra como "(809) 000-0000", que se lee de inmediato como un relleno.
+export const TELEFONO_PENDIENTE = '+18090000000';
 
 // Fecha inventada de forma evidente. Ademas de marcar, CUMPLE UNA FUNCION: la
 // division se deduce de la edad y, sin fecha, el servidor asigna la primera de la
