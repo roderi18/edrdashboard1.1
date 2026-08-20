@@ -701,6 +701,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // vacio: sin esto el campo volvia a "Ninguno" hasta recargar la pagina.
   const [cargosVersion, setCargosVersion] = useState(0);
   const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
+  // ¿Ocupa la casilla de Pastor? Solo a el se le muestra el aviso de ficha
+  // incompleta.
+  const [esPastor, setEsPastor] = useState(false);
   const lastCalculatedBirthdateRef = useRef('');
   const skippedInitialDivisionFetchRef = useRef(false);
 
@@ -830,6 +833,12 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
 
         const nationalCargo = posiciones.find((cargo) => cargo.nivel !== 'destacamento');
         const destCargo = posiciones.find((cargo) => cargo.nivel === 'destacamento');
+
+        // El aviso de ficha incompleta es SOLO para el pastor: es la unica persona
+        // que el sistema da de alta por su cuenta, con el nombre como unico dato.
+        // Al resto se les registra desde este mismo formulario, asi que marcarlos
+        // seria senalar algo que nadie pidio arreglar.
+        setEsPastor(posiciones.some((cargo) => cargo.idCargo === 'destacamento-pastor'));
 
         // Se escriben SIEMPRE, tambien en vacio: si el cargo se retiro desde la
         // Directiva, la ficha tiene que quedarse vacia en vez de conservar lo que
@@ -2299,9 +2308,10 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
                             // Mismo aviso que en la Directiva, y con las mismas
                             // reglas: solo lo ven los cargos del destacamento y
                             // los administradores.
-                            aviso: puedeVerAvisoDatosPendientes(user)
-                              ? getAvisoDatosPendientes(currentMember)
-                              : '',
+                            aviso:
+                              esPastor && puedeVerAvisoDatosPendientes(user)
+                                ? getAvisoDatosPendientes(currentMember)
+                                : '',
                           },
                           {
                             show: isCreateView && !!selectedDest?.name,
