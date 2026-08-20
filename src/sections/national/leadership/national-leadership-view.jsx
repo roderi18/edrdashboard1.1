@@ -92,26 +92,41 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
         ...getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }),
       }}
     >
-      <Box
-        component="img"
-        alt={name}
-        src={avatarUrl}
-        sx={{
-          width: 36,
-          height: 36,
-          flexShrink: 0,
-          objectFit: 'contain',
-        }}
-      />
+      {/* Sin imagen no se pinta el hueco: un `img` sin `src` deja el icono de
+          imagen rota. Las cajas de estructura que aun no tienen logo se ven
+          limpias, y basta rellenar `avatarUrl` en el arbol para que aparezca. */}
+      {avatarUrl && (
+        <Box
+          component="img"
+          alt={name}
+          src={avatarUrl}
+          sx={{
+            width: 36,
+            height: 36,
+            flexShrink: 0,
+            objectFit: 'contain',
+          }}
+        />
+      )}
 
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="subtitle2" noWrap>
           {name}
         </Typography>
 
-        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
-          {role}
-        </Typography>
+        {/* El subtitulo solo cuando aporta algo: repetir el nombre debajo del
+            nombre no dice nada. */}
+        {role && role !== name && (
+          <Typography
+            variant="caption"
+            component="div"
+            noWrap
+            title={role}
+            sx={{ color: 'text.secondary' }}
+          >
+            {role}
+          </Typography>
+        )}
       </Box>
     </Card>
   );

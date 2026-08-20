@@ -29,7 +29,15 @@ export const createNode = (id, role, children) => ({ id, role, children });
 export const NATIONAL_LEADERSHIP_DATA = {
   ...createNode('asambleas-de-dios', 'Concilio de las Asambleas de Dios, INC.', [
     createNode('ministerios-infantiles', 'Ministerios infantiles', [
-      createNode('consejo-nacional', 'Consejo Nacional', [
+      {
+        // El Consejo Nacional NO es un cargo: es el cuerpo del que cuelga la
+        // direccion, igual que el Concilio. Se dibuja como caja de estructura
+        // —sin "Vacante" y sin menu de asignar— en vez de como una casilla que
+        // invita a poner a alguien dentro.
+        //
+        // `avatarUrl` queda pendiente: en cuanto haya imagen, se rellena aqui y
+        // la tarjeta la muestra sola.
+        ...createNode('consejo-nacional', '', [
         createNode('director-nacional', 'Director Nacional', [
           // De IZQUIERDA A DERECHA POR RANGO. El Sub-Director Nacional encabeza
           // la fila: es el segundo de la direccion, por encima de los
@@ -59,7 +67,10 @@ export const NATIONAL_LEADERSHIP_DATA = {
           ]),
           createNode('capellan-nacional', 'Capellán Nacional'),
         ]),
-      ]),
+        ]),
+        name: 'Consejo Nacional',
+        isDivision: true,
+      },
     ]),
   ]),
   name: 'Concilio de las Asambleas de Dios',
