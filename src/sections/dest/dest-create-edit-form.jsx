@@ -15,6 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { normalizeText } from 'src/utils/normalize-text';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
@@ -476,17 +477,36 @@ export function DestCreateEditForm({ currentDest }) {
     return ids.size ? ids : null;
   })();
 
-  const resolveDestId = async (destNameValue, destNumberValue) => {
+  // Id del destacamento RECIEN creado. La API no lo devuelve, asi que hay que
+  // reconocerlo en el listado — y ahi esta la trampa: buscar por nombre y numero
+  // y quedarse con el PRIMERO devolvia otro destacamento cuando ya habia alguno
+  // con el mismo nombre. Paso de verdad: el pastor de "Tribu de Judá 18" acabo
+  // asignado a un homonimo creado en pruebas anteriores.
+  //
+  // Se acota con la iglesia, que es lo que de verdad lo distingue, y entre los
+  // que queden gana el de id mas alto: el ultimo en crearse.
+  const resolveDestId = async (destNameValue, destNumberValue, churchIdValue) => {
     if (currentDest?.id) return currentDest.id;
 
     const destsData = await getDestsApi();
-    const savedDest = destsData.find(
+    const candidatos = destsData.filter(
       (dest) =>
-        String(dest?.name || '').trim().toLowerCase() === String(destNameValue || '').trim().toLowerCase() &&
+        String(dest?.name || '').trim().toLowerCase() ===
+          String(destNameValue || '').trim().toLowerCase() &&
         String(dest?.destNumber || '').trim() === String(destNumberValue || '').trim()
     );
 
-    return savedDest?.id || null;
+    const porIglesia = churchIdValue
+      ? candidatos.filter(
+          (dest) => String(dest?.churchId ?? dest?.idIglesia ?? '') === String(churchIdValue)
+        )
+      : [];
+
+    const elegibles = porIglesia.length ? porIglesia : candidatos;
+
+    return (
+      elegibles.sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0))[0]?.id || null
+    );
   };
 
   const handleUploadDestPhoto = async (acceptedFiles) => {
@@ -593,7 +613,7 @@ export function DestCreateEditForm({ currentDest }) {
         await createDestApi(destPayloadData, { usuario: user });
       }
 
-      const resolvedDestId = await resolveDestId(data.name, data.destNumber);
+      const resolvedDestId = await resolveDestId(data.name, data.destNumber, data.churchId);
 
       // Persistir el coordinador de destacamento en la base de datos (Firestore),
       // en la coleccion de directiva del destacamento. El form guarda el codigo
@@ -1028,25 +1048,52 @@ export function DestCreateEditForm({ currentDest }) {
                       onClick={handleSubmit(async (data) => {
                         try {
 
-                          const churchRes = await createChurchApi({
-                            churchName: data.churchName,
-                            pastor: data.pastor,
-                            street: data.street,
-                            provinceId: data.provinceId,
-                            municipioId: data.municipioId,
-                            sectorId: data.sectorId,
-                            correo: methods.getValues('correo'),
-                            sectionId: data.sectionId,
-                          });
+                          // La MISMA iglesia en la MISMA seccion se reutiliza en
+                          // vez de crear otra: repetir el alta dejaba duplicados
+                          // indistinguibles (hay varios "Aposento Alto" en la
+                          // seccion 1 de esa forma).
+                          const mismaIglesia = (iglesia) =>
+                            normalizeText(iglesia?.name ?? iglesia?.nombre) ===
+                              normalizeText(data.churchName) &&
+                            String(iglesia?.idSeccion ?? iglesia?.sectionId ?? '') ===
+                              String(data.sectionId);
+
+                          const iglesiasPrevias = await getChurches();
+                          const yaExiste = (Array.isArray(iglesiasPrevias) ? iglesiasPrevias : [])
+                            .find(mismaIglesia);
+
+                          const churchRes = yaExiste
+                            ? null
+                            : await createChurchApi({
+                                churchName: data.churchName,
+                                pastor: data.pastor,
+                                street: data.street,
+                                provinceId: data.provinceId,
+                                municipioId: data.municipioId,
+                                sectorId: data.sectorId,
+                                correo: methods.getValues('correo'),
+                                sectionId: data.sectionId,
+                              });
 
                           const churchesData = await getChurches();
                           setChurches(Array.isArray(churchesData) ? churchesData : []);
 
+                          // El id se busca en `data` ADEMAS de en `Data`: la API lo
+                          // devuelve en minuscula y solo se miraba la mayuscula, asi
+                          // que el alta funcionaba pero se abortaba justo despues con
+                          // "No se pudo obtener idIglesia" — la iglesia quedaba
+                          // creada y el formulario atascado en el paso 1.
+                          //
+                          // Y si aun asi no viene, se resuelve contra el listado
+                          // recien recargado, que es donde con seguridad esta.
                           const churchId =
+                            yaExiste?.id ??
+                            churchRes?.data?.idIglesia ??
                             churchRes?.Data?.idIglesia ??
                             churchRes?.Data?.IdIglesia ??
                             churchRes?.idIglesia ??
-                            churchRes?.IdIglesia;
+                            churchRes?.IdIglesia ??
+                            (Array.isArray(churchesData) ? churchesData : []).find(mismaIglesia)?.id;
 
                           if (!churchId) {
                             throw new Error('No se pudo obtener idIglesia');
