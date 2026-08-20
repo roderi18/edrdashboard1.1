@@ -800,6 +800,19 @@ export function MemberCreateEditForm({
     }
   }, [currentMember]);
 
+  // Al crear, la pantalla empieza SIEMPRE por el paso 1.
+  //
+  // No basta con el estado inicial: si se entra desde "Agregar nuevo miembro" de
+  // un destacamento y despues desde el de otro, la direccion solo cambia en la
+  // parte de consulta y la pantalla no se vuelve a montar. Sin esto se quedaria
+  // en el paso donde estuviera, y ademas con el destacamento del anterior.
+  useEffect(() => {
+    if (currentMember) return;
+
+    setStep(1);
+    methods.setValue('destId', destIdInicial || '');
+  }, [destIdInicial, currentMember]);
+
   useEffect(() => {
     let isMounted = true;
 

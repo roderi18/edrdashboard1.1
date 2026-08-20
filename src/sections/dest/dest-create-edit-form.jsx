@@ -944,7 +944,27 @@ export function DestCreateEditForm({ currentDest }) {
 
 
             {currentDest && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
+              // `stretch` con un ancho comun: los dos botones miden lo mismo sin
+              // fijarle un tamaño a ninguno, que se romperia con textos mas largos.
+              <Stack
+                spacing={1.5}
+                sx={{ mt: 3, width: 1, maxWidth: 260, mx: 'auto', alignItems: 'stretch' }}
+              >
+                {/* Atajo para dar de alta a alguien en ESTE destacamento: lleva
+                    a la pantalla de creacion de siempre, pero con el
+                    destacamento —y con el, su seccion y su region— ya puesto. */}
+                {canCreateMembers && (
+                  <Button
+                    component={RouterLink}
+                    href={`${paths.dashboard.level.member.new}?destId=${currentDest?.id || currentDest?.idDestacamento || ''}`}
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                  >
+                    Agregar nuevo miembro
+                  </Button>
+                )}
+
                 <EntityInfoPdfMenu
                   title={`${values.name || currentDest?.name || 'Destacamento'} ${values.destNumber || ''}`.trim()}
                   subtitle={`Destacamento ${currentDest?.id || currentDest?.idDestacamento || ''}`}
@@ -980,22 +1000,6 @@ export function DestCreateEditForm({ currentDest }) {
                       : []),
                   ]}
                 />
-
-                {/* Atajo para dar de alta a alguien en ESTE destacamento: lleva
-                    a la pantalla de creacion de siempre, pero con el
-                    destacamento —y con el, su seccion y su region— ya puesto. */}
-                {canCreateMembers && (
-                  <Button
-                    component={RouterLink}
-                    href={`${paths.dashboard.level.member.new}?destId=${currentDest?.id || currentDest?.idDestacamento || ''}`}
-                    variant="outlined"
-                    color="inherit"
-                    startIcon={<Iconify icon="mingcute:add-line" />}
-                    sx={{ mt: 2 }}
-                  >
-                    Agregar nuevo miembro
-                  </Button>
-                )}
               </Stack>
             )}
 
