@@ -11,6 +11,10 @@ export default function NameInput({
     allowNumbers = false,
     allowSpecialChars = false,
     allowDash = false,
+    // Punto y coma. Los nombres propios de entidades los llevan con normalidad
+    // ("Iglesia Aposento Alto, Inc.", "Asambleas de Dios, INC."), y sin esto el
+    // campo los borraba segun se escribian.
+    allowPunctuation = false,
     disabled = false,
     InputProps: externalInputProps = {},
 }) {
@@ -53,6 +57,7 @@ export default function NameInput({
                 if (allowNumbers) regex += '0-9';
                 if (allowDash) regex += '\\-';
                 if (allowSpecialChars) regex += '#./';
+                if (allowPunctuation) regex += '.,';
 
                 const pattern = new RegExp(`[^${regex}]`, 'g');
 
