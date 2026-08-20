@@ -33,6 +33,24 @@ export const getOrgRoleId = (user = {}) => {
     .toLowerCase();
 };
 
+// Un miembro sin cargo es un Usuario Comun: su sesion guarda `rol: 'miembro'`,
+// que no es un codigo del catalogo, asi que getOrgRoleId devuelve vacio. Se
+// resuelve aqui en vez de importar member-access, que no depende de este modulo
+// y conviene que siga sin hacerlo.
+const esUsuarioComun = (user = {}) => {
+  const roleId = getOrgRoleId(user);
+
+  if (roleId === ROLES.USUARIO_COMUN) return true;
+
+  const esAdmin = ['admin', 'administrador'].includes(
+    String(user?.role ?? user?.rol ?? '').trim().toLowerCase()
+  );
+
+  // Se compara contra el catalogo y no contra la cadena vacia: la sesion sin
+  // cargo guarda 'miembro' en `rol` y `memberRole`, que no es un codigo valido.
+  return Boolean(user) && !esAdmin && !ROLES_POR_CODIGO[roleId];
+};
+
 export const isGlobalOrgManager = (user = {}) => GLOBAL_MANAGER_ROLES.includes(getOrgRoleId(user));
 
 // Solo el Administrador Global. Es el unico rol autorizado a ELIMINAR entidades
@@ -408,10 +426,19 @@ export const isForeignDestForMembers = (
   { destId, sectionId, regionId, ownRegionIds, ownSectionIds, ownDestIds } = {}
 ) => {
   if (isUnrestrictedOrgViewer(user)) return false;
-  const ownRegion = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
-  if (ownRegion.has(normalizeId(regionId))) return false;
-  const ownSection = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
-  if (ownSection.has(normalizeId(sectionId))) return false;
+
+  // El Usuario Comun consulta los destacamentos de toda su seccion, pero los
+  // MIEMBROS solo los del suyo. Para el, entonces, que la seccion coincida no
+  // abre el contador: se compara unicamente por destacamento. Sin esta salvedad
+  // el contador de un destacamento vecino quedaba pulsable y llevaba a una lista
+  // vacia, que es peor que verlo deshabilitado.
+  if (!esUsuarioComun(user)) {
+    const ownRegion = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+    if (ownRegion.has(normalizeId(regionId))) return false;
+    const ownSection = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
+    if (ownSection.has(normalizeId(sectionId))) return false;
+  }
+
   const ownDest = ownDestIds instanceof Set ? ownDestIds : getDestScopeIds(user);
   return !ownDest.has(normalizeId(destId));
 };

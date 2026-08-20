@@ -1494,9 +1494,17 @@ const getUserRoleId = (user = {}) => {
  * los niveles organizacionales le seguian sin aparecer en el menu por mucho que
  * el catalogo de USUARIO_COMUN los permitiera: a esa entrada no llegaba nadie.
  */
-export const isUsuarioComunRole = (user = {}) =>
-  getUserRoleId(user) === ROLES.USUARIO_COMUN ||
-  (isMemberSessionUser(user) && !getUserRoleId(user) && !getScopeUserRoleId(user));
+export const isUsuarioComunRole = (user = {}) => {
+  const roleId = getUserRoleId(user) || getScopeUserRoleId(user);
+
+  if (roleId === ROLES.USUARIO_COMUN) return true;
+
+  // No basta con mirar si el rol viene vacio: la sesion de un miembro sin cargo
+  // guarda `rol` y `memberRole` con el valor 'miembro', que NO es ningun codigo
+  // del catalogo pero tampoco es cadena vacia. Se compara contra el catalogo:
+  // lo que no esta en el no es un cargo.
+  return isMemberSessionUser(user) && !ROLES_POR_CODIGO[roleId];
+};
 
 // Posiciones que ven la lista de miembros pero NO pueden acceder a la ficha de
 // los menores: estos aparecen en la lista pero DESHABILITADOS. Aplica a los
