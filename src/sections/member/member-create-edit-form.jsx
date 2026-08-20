@@ -414,6 +414,16 @@ const mapMemberToForm = (member) => {
   };
 };
 
+// Valor por defecto de `availableDests`, a proposito fuera del componente.
+//
+// Escrito como `availableDests = []` en la firma, JavaScript crea un array NUEVO
+// en cada render. Dos efectos lo llevan en su lista de dependencias, asi que se
+// disparaban siempre: uno de ellos pedia los destacamentos y hacia `setDests`,
+// lo que provocaba otro render, y vuelta a empezar. Un bucle infinito pidiendo
+// al servidor sin parar. Con una sola constante compartida, la identidad no
+// cambia y los efectos corren cuando toca.
+const SIN_DESTACAMENTOS_PROPIOS = [];
+
 // Campos que viven en el primer paso del alta. Se usan para devolver ahi al
 // usuario cuando la validacion falla desde el segundo.
 const CAMPOS_PASO_1 = new Set([
@@ -431,7 +441,7 @@ const CAMPOS_PASO_1 = new Set([
 export function MemberCreateEditForm({
   currentMember,
   readOnly = false,
-  availableDests = [],
+  availableDests = SIN_DESTACAMENTOS_PROPIOS,
   destIdInicial = '',
 }) {
   const { user } = useAuthContext();

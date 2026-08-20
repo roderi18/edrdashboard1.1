@@ -5,6 +5,7 @@ import { getStorageCollection, setStorageCollection } from 'src/utils/storage-se
 import { AUTH } from 'src/lib/firebase';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { desactivarAsignacionesDirectivaDelMiembro } from './directivas-organizacionales-service';
 
 // Cabecera de identidad: adjunta el ID token de Firebase para que el proxy /api
 // lo reenvíe al backend, que autoriza/filtra por alcance. Sin sesión, no agrega
@@ -344,6 +345,13 @@ export async function deleteMember(memberId, { usuario, antes = null } = {}) {
     (m) => String(m.id) !== String(memberId)
   );
   setStorageCollection(MEMBERS_KEY, members);
+
+  // La persona ya no esta: sus cargos tampoco pueden seguir en pie. Si se dejan,
+  // la casilla queda ocupada por un id que no existe y no hay forma de liberarla
+  // desde la interfaz. Que falle esto no debe deshacer el borrado, que ya ocurrio.
+  await desactivarAsignacionesDirectivaDelMiembro({ idMiembro: memberId }).catch((error) => {
+    console.warn(`[miembros] no se pudieron retirar los cargos del miembro ${memberId}`, error);
+  });
 
   if (!text) {
     registrarAuditoriaSilenciosa({

@@ -596,6 +596,51 @@ export async function desactivarAsignacionesDirectivaPorNivel({
   return aDesactivar.length;
 }
 
+/**
+ * Retira TODAS las asignaciones activas de un miembro, sea del nivel que sea.
+ *
+ * Se usa al darlo de baja. Antes, borrar a una persona dejaba sus cargos
+ * apuntando a un id que ya no existe: la casilla seguia ocupada por un fantasma
+ * y, al intentar dársela a otro, el aviso de "ya la ocupa fulano" salia sin
+ * nombre, diciendo que se le retiraba a la misma persona a la que se le daba.
+ *
+ * No se borran los documentos: quedan inactivos, para conservar el historico.
+ */
+export async function desactivarAsignacionesDirectivaDelMiembro({
+  idMiembro,
+  fechaFin = new Date().toISOString().slice(0, 10),
+} = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!idMiembro) {
+    return 0;
+  }
+
+  const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
+
+  if (!asignaciones.length) {
+    return 0;
+  }
+
+  const batch = writeBatch(FIRESTORE);
+
+  asignaciones.forEach((asignacion) => {
+    batch.set(
+      doc(
+        FIRESTORE,
+        COLECCION_ASIGNACIONES_DIRECTIVA,
+        String(asignacion.idAsignacion || asignacion.id)
+      ),
+      { activo: false, fechaFin, fechaActualizacion: serverTimestamp() },
+      { merge: true }
+    );
+  });
+
+  await batch.commit();
+
+  return asignaciones.length;
+}
+
 // ----------------------------------------------------------------------
 // Diseno del organigrama (posiciones de los nodos y alto del lienzo).
 //
