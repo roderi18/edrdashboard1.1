@@ -304,8 +304,14 @@ const getScopeUserRoleId = (user = {}) => {
   return roleId;
 };
 
+// Ven la lista de destacamentos de TODA su seccion, no solo el suyo. El Usuario
+// Comun va con ellos: es lo que su propia ficha de rol viene prometiendo desde
+// el principio —"datos publicos de destacamentos de su seccion"—. Solo abre la
+// LISTA: no lleva permisos de edicion, y los miembros de esos destacamentos
+// siguen acotados por filterMembersByMemberScope.
 const isSectionWideRole = (user = {}) =>
-  [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user));
+  [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_SECCION].includes(getScopeUserRoleId(user)) ||
+  isUsuarioComunRole(user);
 
 // Ya ningún cargo ve la lista COMPLETA por ser "de nivel": los regionales ven su
 // región (isRegionScopedMemberViewer) y los seccionales su sección
