@@ -58,7 +58,12 @@ export const fNaturalColor = (value) => {
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    // `\p{L}` y no `\w`: con `\w`, que es solo ASCII, una tilde contaba como
+    // frontera de palabra y la letra de detras salia en mayuscula ("MarróN").
+    .replace(
+      /(^|[\s.])(\p{L})/gu,
+      (coincidencia, separador, letra) => separador + letra.toLocaleUpperCase()
+    );
 };
 
 export const fVariantDescription = (size, color) => {

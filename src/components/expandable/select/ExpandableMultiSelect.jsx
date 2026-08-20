@@ -15,7 +15,11 @@ const defaultFormatLabel = (value) => {
     return value
         .toString()
         .replace(/_/g, ' ')
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+        // `\p{L}` y no `\w`: con `\w`, que es solo ASCII, una tilde contaba como
+        // frontera de palabra y la letra de detras salia en mayuscula ("PeñA").
+        .replace(/(^|[\s.])(\p{L})/gu, (coincidencia, separador, letra) =>
+            separador + letra.toLocaleUpperCase()
+        );
 };
 
 export function ExpandableMultiSelect({

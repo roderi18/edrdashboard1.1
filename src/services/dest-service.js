@@ -398,7 +398,18 @@ export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
     const text = await res.text();
 
     if (!res.ok) {
-        throw new Error(text || `Error eliminando destacamento (${res.status})`);
+        // El cuerpo viene en JSON: se saca el mensaje en vez de soltarle al
+        // usuario las llaves y las comillas por pantalla.
+        let mensaje = '';
+
+        try {
+            const cuerpo = text ? JSON.parse(text) : null;
+            mensaje = cuerpo?.error || cuerpo?.message || cuerpo?.Message || '';
+        } catch {
+            mensaje = text;
+        }
+
+        throw new Error(mensaje || `Error eliminando destacamento (${res.status})`);
     }
 
     const auditPayload = {

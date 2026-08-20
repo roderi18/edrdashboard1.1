@@ -1,7 +1,22 @@
 // ----------------------------------------------------------------------
 
+/**
+ * Pone en mayuscula la primera letra de cada palabra.
+ *
+ * Se apoya en `\p{L}` con la bandera unicode y NO en `\b\w`, que fue como estaba:
+ * `\w` solo cubre ASCII, asi que una vocal con tilde o una eñe contaban como
+ * frontera de palabra y la letra siguiente se tomaba por un comienzo. De ahi
+ * salian "GuilléN", "PeñA" o "RamíRez".
+ *
+ * Se capitaliza al principio del texto, tras un espacio y tras un punto —el
+ * punto hace falta para las siglas de los nombres de iglesia, "A.D."—, pero no
+ * dentro de la palabra, que es donde viven las tildes.
+ */
 export function capitalizeWords(text = '') {
   return String(text)
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .toLocaleLowerCase()
+    .replace(
+      /(^|[\s.])(\p{L})/gu,
+      (coincidencia, separador, letra) => separador + letra.toLocaleUpperCase()
+    );
 }

@@ -26,6 +26,26 @@ export async function GET() {
     }
 }
 
+const contarMiembrosDelDestacamento = async (id) => {
+    try {
+        const res = await fetch(
+            `https://systexploradores.somee.com/api/Miembros/GetAllMiembroByDestacamento?id=${encodeURIComponent(id)}`,
+            { cache: 'no-store', headers: { Accept: 'application/json' } }
+        );
+
+        if (!res.ok) return [];
+
+        const json = await res.json();
+        const filas = Array.isArray(json) ? json : (json?.data ?? json?.Data ?? []);
+
+        return Array.isArray(filas) ? filas : [];
+    } catch {
+        // Si no se puede consultar, no se bloquea el borrado: que lo decida el
+        // backend, como hasta ahora.
+        return [];
+    }
+};
+
 export async function DELETE(req) {
     try {
         const { searchParams } = new URL(req.url);
@@ -33,6 +53,32 @@ export async function DELETE(req) {
 
         if (!id) {
             return Response.json({ error: 'id es requerido' }, { status: 400 });
+        }
+
+        // El backend borra el destacamento sin mirar quien depende de el: si
+        // todavia tiene miembros, la restriccion de la base de datos lo tumba y
+        // la respuesta que llega es un 500 con el cuerpo vacio, que no explica
+        // nada. Se comprueba antes para poder decir lo que pasa de verdad.
+        const miembros = await contarMiembrosDelDestacamento(id);
+
+        if (miembros.length) {
+            const nombres = miembros
+                .slice(0, 5)
+                .map((miembro) => `${miembro?.nombres ?? ''} ${miembro?.apellidos ?? ''}`.trim())
+                .filter(Boolean)
+                .join(', ');
+            const resto = miembros.length > 5 ? ` y ${miembros.length - 5} más` : '';
+
+            return Response.json(
+                {
+                    error:
+                        miembros.length === 1
+                            ? `No se puede eliminar: el destacamento todavía tiene 1 miembro (${nombres}). Muévelo a otro destacamento o elimínalo primero.`
+                            : `No se puede eliminar: el destacamento todavía tiene ${miembros.length} miembros (${nombres}${resto}). Muévelos a otro destacamento o elimínalos primero.`,
+                    miembros: miembros.length,
+                },
+                { status: 409 }
+            );
         }
 
         const res = await fetch(
@@ -55,10 +101,15 @@ export async function DELETE(req) {
         }
 
         if (!res.ok) {
-            return Response.json(
-                { error: 'Error eliminando destacamento', status: res.status, data },
-                { status: res.status }
-            );
+            // Un 500 sin cuerpo es el servidor tropezando con algo que sigue
+            // apuntando al destacamento. Ya se descartaron los miembros, asi que
+            // se dice lo que se sabe en vez de soltar el codigo pelado.
+            const detalle =
+                res.status >= 500 && !text
+                    ? 'El servidor rechazó la eliminación, probablemente porque otros registros siguen enlazados al destacamento.'
+                    : 'Error eliminando destacamento';
+
+            return Response.json({ error: detalle, status: res.status, data }, { status: res.status });
         }
 
         return Response.json(normalizeApiResponse(data ?? { success: true }));
