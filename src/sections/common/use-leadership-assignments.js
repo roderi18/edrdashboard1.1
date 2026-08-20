@@ -14,6 +14,7 @@ import {
 import { getDestsApi } from 'src/services/dest-service';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
+import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
@@ -91,17 +92,18 @@ export function useLeadershipAssignments({
     let cancelled = false;
 
     const load = async () => {
-      const [memberRows, dests, churches, sectionals] = await Promise.all([
+      const [memberRows, dests, churches, sectionals, regionals] = await Promise.all([
         getMembers().catch(() => []),
         getDestsApi({ includePhotos: false }).catch(() => []),
         getChurches().catch(() => []),
         getSectionals({ includePhotos: false }).catch(() => []),
+        getRegionals().catch(() => []),
       ]);
 
       if (cancelled) return;
 
       setMembers(Array.isArray(memberRows) ? memberRows : []);
-      setOrgIndex(buildOrgIndex({ dests, churches, sectionals }));
+      setOrgIndex(buildOrgIndex({ dests, churches, sectionals, regionals }));
     };
 
     load();

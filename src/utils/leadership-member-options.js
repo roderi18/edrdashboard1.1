@@ -61,7 +61,20 @@ const getSectionalName = (sectional = {}) =>
 
 // Indice destacamento -> seccion -> region, resuelto una sola vez por render.
 // La cadena real es destacamento -> iglesia -> seccion -> region.
-export const buildOrgIndex = ({ dests = [], churches = [], sectionals = [] } = {}) => {
+const getRegionalOwnIds = (regional = {}) =>
+  [regional?.idRegion, regional?.id, regional?.regionId].filter(Boolean).map(normalizeId);
+
+const getRegionalName = (regional = {}) =>
+  String(regional?.nombre ?? regional?.name ?? '').trim() || 'Región desconocida';
+
+export const buildOrgIndex = ({
+  dests = [],
+  churches = [],
+  sectionals = [],
+  // Las regiones se indexan para poder nombrarlas bajo el miembro en la Directiva
+  // nacional, donde conviene saber de donde viene cada persona.
+  regionals = [],
+} = {}) => {
   const sectionIdByChurchId = new Map();
   churches.forEach((church) => {
     const sectionId = getChurchSectionId(church);
@@ -93,7 +106,12 @@ export const buildOrgIndex = ({ dests = [], churches = [], sectionals = [] } = {
     });
   });
 
-  return { destById, sectionalById, sectionIdByDestId, regionIdBySectionId };
+  const regionalById = new Map();
+  regionals.forEach((regional) => {
+    getRegionalOwnIds(regional).forEach((regionId) => regionalById.set(regionId, regional));
+  });
+
+  return { destById, sectionalById, sectionIdByDestId, regionIdBySectionId, regionalById };
 };
 
 // Destacamento, seccion y region a los que pertenece un miembro.
@@ -103,12 +121,19 @@ export const getMemberOrgPath = (member, index) => {
   const sectionId = index.sectionIdByDestId.get(destId) || '';
   const sectional = sectionId ? index.sectionalById.get(sectionId) || null : null;
   const regionId = sectionId ? index.regionIdBySectionId.get(sectionId) || '' : '';
+  const regional = regionId ? index.regionalById?.get(regionId) || null : null;
 
-  return { destId, dest, sectionId, sectional, regionId };
+  return { destId, dest, sectionId, sectional, regionId, regional };
 };
 
 // ¿El miembro pertenece a la entidad para la que se esta asignando el cargo?
 const perteneceAlAmbito = ({ nivel, idEntidad, path }) => {
+  // NACIONAL PRIMERO, antes de exigir entidad: la Directiva nacional se nutre de
+  // toda la organizacion, asi que no hay entidad contra la que comparar. La vista
+  // nacional no pasa `idEntidad`, y con la comprobacion de entidad por delante el
+  // desplegable se quedaba VACIO: se descartaba a todo el mundo.
+  if (nivel === 'nacional') return true;
+
   const entidad = normalizeId(idEntidad);
 
   if (!entidad) return false;
@@ -116,8 +141,7 @@ const perteneceAlAmbito = ({ nivel, idEntidad, path }) => {
   if (nivel === 'seccional') return path.sectionId === entidad;
   if (nivel === 'regional') return path.regionId === entidad;
 
-  // Nivel nacional: cualquier miembro de la organizacion.
-  return true;
+  return false;
 };
 
 // Texto bajo el nombre: en seccion se indica el destacamento; en region, el
@@ -127,7 +151,15 @@ const buildSubtitulo = ({ nivel, member, path }) => {
     return getDestName(path.dest);
   }
 
-  if (nivel === 'regional' || nivel === 'nacional') {
+  // En la Directiva NACIONAL se ofrece a toda la organizacion, asi que hace falta
+  // situar a cada persona: region, seccion y destacamento.
+  if (nivel === 'nacional') {
+    return [getRegionalName(path.regional), getSectionalName(path.sectional), getDestName(path.dest)]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  if (nivel === 'regional') {
     return [getDestName(path.dest), getSectionalName(path.sectional)].join(' · ');
   }
 

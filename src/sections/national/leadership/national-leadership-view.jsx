@@ -260,11 +260,12 @@ export function NationalLeadershipView() {
     initialContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
   });
   const [isDragging, setIsDragging] = useState(false);
-  // La directiva nacional es unica: no hay entidad que la distinga, asi que se
-  // guarda bajo la clave general del nivel.
+  // La directiva nacional es unica, pero su entidad NO es la cadena vacia:
+  // sus asignaciones estan guardadas bajo "nacional". Con '' se consultaba la
+  // directiva "nacional_general" y el organigrama no encontraba a sus ocupantes.
   const leadership = useLeadershipAssignments({
     nivel: 'nacional',
-    idEntidad: '',
+    idEntidad: 'nacional',
     nombreEntidad: 'Directiva nacional',
     canManage: canManageLeadership,
   });
