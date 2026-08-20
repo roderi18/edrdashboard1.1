@@ -75,63 +75,41 @@ export const getLeadershipNodeIdentity = (miembroAsignado) => {
   };
 };
 
-export function LeadershipNodeAvatar({ identity, size = 48, mostrarAvisoDatos = false }) {
-  const avatar = identity.vacante ? (
-    <Avatar
-      alt={ETIQUETA_VACANTE}
-      sx={{
-        width: 1,
-        height: 1,
-        color: 'text.disabled',
-        bgcolor: 'action.selected',
-      }}
-    >
-      <Iconify icon="solar:user-bold" width={Math.round(size * 0.58)} />
-    </Avatar>
-  ) : (
+export function LeadershipNodeAvatar({ identity, size = 48 }) {
+  if (identity.vacante) {
+    return (
+      <Avatar
+        alt={ETIQUETA_VACANTE}
+        sx={{
+          width: 1,
+          height: 1,
+          color: 'text.disabled',
+          bgcolor: 'action.selected',
+        }}
+      >
+        <Iconify icon="solar:user-bold" width={Math.round(size * 0.58)} />
+      </Avatar>
+    );
+  }
+
+  return (
     <Avatar alt={identity.displayName} src={identity.avatarUrl} sx={{ width: 1, height: 1 }}>
       {String(identity.displayName || '?').charAt(0)}
     </Avatar>
-  );
-
-  // Un cargo vacante no tiene ficha que completar.
-  const aviso = !identity.vacante && mostrarAvisoDatos ? identity.avisoDatosPendientes : '';
-
-  if (!aviso) return avatar;
-
-  return (
-    <Box sx={{ width: 1, height: 1, position: 'relative' }}>
-      {avatar}
-
-      {/* Esquina superior derecha de la foto. El circulo de fondo lo despega del
-          avatar: sobre una foto oscura, el triangulo solo se perdia. */}
-      <Tooltip title={aviso} placement="top" arrow>
-        <Box
-          component="span"
-          sx={{
-            top: -2,
-            right: -2,
-            width: 18,
-            height: 18,
-            display: 'inline-flex',
-            position: 'absolute',
-            alignItems: 'center',
-            borderRadius: '50%',
-            justifyContent: 'center',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Iconify width={16} icon="solar:danger-triangle-bold" sx={{ color: 'warning.main' }} />
-        </Box>
-      </Tooltip>
-    </Box>
   );
 }
 
 // `children` permite envolver el nombre (el organigrama del destacamento lo
 // enlaza a la ficha del miembro). Sin ocupante nunca hay enlace, asi que la
 // marca de vacante manda.
-export function LeadershipNodeName({ identity, children, ...other }) {
+export function LeadershipNodeName({ identity, children, mostrarAvisoDatos = false, ...other }) {
+  // Un cargo vacante no tiene ficha que completar.
+  const aviso = !identity.vacante && mostrarAvisoDatos ? identity.avisoDatosPendientes : '';
+
+  return renderNombre({ identity, children, aviso, other });
+}
+
+function renderNombre({ identity, children, aviso, other }) {
   return (
     <Typography
       variant="subtitle2"
@@ -151,11 +129,18 @@ export function LeadershipNodeName({ identity, children, ...other }) {
       }}
       {...other}
     >
-      {/* El aviso de ficha incompleta va sobre la FOTO, no aqui: ver
-          `LeadershipNodeAvatar`. */}
       <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
       </Box>
+
+      {/* Aviso de ficha incompleta, a la derecha del nombre. */}
+      {aviso && (
+        <Tooltip title={aviso} placement="top" arrow>
+          <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+            <Iconify width={16} icon="solar:danger-triangle-bold" sx={{ color: 'warning.main' }} />
+          </Box>
+        </Tooltip>
+      )}
     </Typography>
   );
 }

@@ -686,18 +686,16 @@ function LeadershipNode({
             borderRadius: '50%',
           }}
         >
-          <LeadershipNodeAvatar
-            identity={identity}
-            /* Solo en la casilla del PASTOR. Es la unica persona que el sistema da
-               de alta por su cuenta, con el nombre como unico dato: el aviso le
-               dice a quien mira el organigrama que esa ficha esta a medias. Al
-               resto se les registra desde su propio formulario, asi que marcarlos
-               seria senalar algo que nadie pidio arreglar aqui. */
-            mostrarAvisoDatos={mostrarAvisoDatos && id === 'pastor'}
-          />
+          <LeadershipNodeAvatar identity={identity} />
         </Box>
 
-        <LeadershipNodeName identity={identity}>
+        {/* El aviso de ficha incompleta, solo en la casilla del PASTOR: es la
+            unica persona que el sistema da de alta por su cuenta, con el nombre
+            como unico dato. Al resto se les registra desde su propio formulario. */}
+        <LeadershipNodeName
+          identity={identity}
+          mostrarAvisoDatos={mostrarAvisoDatos && id === 'pastor'}
+        >
           {memberProfileHref ? (
             <Link
               component={RouterLink}
