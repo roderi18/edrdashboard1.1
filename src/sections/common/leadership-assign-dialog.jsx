@@ -73,24 +73,28 @@ export function LeadershipAssignDialog({
               const { key, ...liProps } = optionProps;
 
               return (
-                <Box key={key} component="li" {...liProps}>
+                // El texto que no cabe BAJA DE LINEA en vez de recortarse: la
+                // procedencia ("Región Central · Este Oriental I · Casa Dios")
+                // no cabe de una vez y truncarla dejaba el destacamento en
+                // puntos suspensivos, que es justo el dato que distingue a dos
+                // personas con el mismo nombre. El avatar se alinea arriba para
+                // que no quede centrado respecto a un texto de varias lineas.
+                <Box
+                  key={key}
+                  component="li"
+                  {...liProps}
+                  sx={{ alignItems: 'flex-start', ...liProps.sx }}
+                >
                   <Avatar
                     alt={option.nombre}
                     src={getMemberAvatar(option.member)}
-                    sx={{ width: 36, height: 36, mr: 1.5 }}
+                    sx={{ width: 36, height: 36, mr: 1.5, mt: 0.25, flexShrink: 0 }}
                   />
 
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle2" noWrap>
-                      {option.nombre}
-                    </Typography>
+                    <Typography variant="subtitle2">{option.nombre}</Typography>
 
-                    <Typography
-                      variant="caption"
-                      component="div"
-                      noWrap
-                      sx={{ color: 'text.secondary' }}
-                    >
+                    <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
                       {option.rolActual ? `Ya es ${option.rolActual}` : option.subtitulo}
                     </Typography>
                   </Box>
