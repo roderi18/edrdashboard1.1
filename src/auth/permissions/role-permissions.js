@@ -344,7 +344,14 @@ export const ALCANCE_PREDETERMINADO_ROL = {
 
 export const PERMISOS_POR_ROL = {
   [ROLES.USUARIO_COMUN]: [
+    // Ve TODOS los niveles organizacionales, igual que el resto de cargos de
+    // destacamento. Son permisos de CONSULTA: no lleva ninguno de edicion, asi
+    // que la estructura ajena se le muestra sin poder tocarla, y los datos
+    // personales de quien no es de su destacamento siguen enmascarados por los
+    // predicados de siempre.
     PERMISOS.DESTACAMENTOS_VER,
+    PERMISOS.SECCIONES_VER,
+    PERMISOS.REGIONES_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.REPORTES_VER_LOCALES,

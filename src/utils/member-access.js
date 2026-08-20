@@ -1260,9 +1260,11 @@ export const filterSectionalsByMemberScope = (
   // El administrador de destacamento puede consultar todas las secciones (solo
   // lectura); los cargos seccionales y regionales TAMBIÉN ven todas las secciones
   // (su acotamiento es solo sobre miembros/destacamentos, no sobre la lista de
-  // secciones).
+  // secciones). El Usuario Comun va con ellos: la estructura de la organizacion
+  // no es un dato reservado, y no lleva ningun permiso de edicion con el que
+  // pudiera tocar una seccion ajena.
   if (
-    getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO ||
+    [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_COMUN].includes(getScopeUserRoleId(user)) ||
     isOrgWideViewerRole(user) ||
     isSectionScopedMemberViewer(user) ||
     isRegionScopedMemberViewer(user)
