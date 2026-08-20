@@ -25,6 +25,9 @@ export const MEMBER_SHIRT_SIZES = [
   { value: 'XXL', label: 'XXL' },
 ];
 
+// Los `value` que ya existian NO se tocan: es lo que hay guardado en las fichas.
+// Se muestran ordenados alfabeticamente (MEMBER_OCUPATIONS_SORTED), asi que el
+// orden de esta lista solo importa para leerla.
 export const MEMBER_OCUPATIONS = [
   { value: 'software_engineer', label: 'Ing. Software' },
   { value: 'teacher', label: 'Profesor' },
@@ -43,6 +46,49 @@ export const MEMBER_OCUPATIONS = [
   { value: 'police', label: 'Policía' },
   { value: 'military', label: 'Militar' },
   { value: 'retired', label: 'Pensionado' },
+
+  // Ministerio.
+  { value: 'pastor', label: 'Pastor' },
+  { value: 'missionary', label: 'Misionero' },
+
+  // Carreras universitarias.
+  { value: 'lawyer', label: 'Abogado' },
+  { value: 'accountant', label: 'Contador' },
+  { value: 'business_admin', label: 'Administrador de Empresas' },
+  { value: 'economist', label: 'Economista' },
+  { value: 'civil_engineer', label: 'Ing. Civil' },
+  { value: 'engineer', label: 'Ingeniero (otra área)' },
+  { value: 'architect', label: 'Arquitecto' },
+  { value: 'psychologist', label: 'Psicólogo' },
+  { value: 'social_worker', label: 'Trabajador Social' },
+  { value: 'pharmacist', label: 'Farmacéutico' },
+  { value: 'lab_analyst', label: 'Bioanalista' },
+  { value: 'veterinarian', label: 'Veterinario' },
+  { value: 'agronomist', label: 'Agrónomo' },
+  { value: 'journalist', label: 'Comunicador Social' },
+  { value: 'graphic_designer', label: 'Diseñador Gráfico' },
+  { value: 'musician', label: 'Músico' },
+
+  // Oficios.
+  { value: 'mechanic', label: 'Mecánico' },
+  { value: 'plumber', label: 'Plomero' },
+  { value: 'carpenter', label: 'Carpintero' },
+  { value: 'welder', label: 'Soldador' },
+  { value: 'barber', label: 'Barbero' },
+  { value: 'stylist', label: 'Estilista' },
+  { value: 'tailor', label: 'Sastre o Costurera' },
+  { value: 'farmer', label: 'Agricultor' },
+  { value: 'security_guard', label: 'Seguridad o Vigilante' },
+  { value: 'salesperson', label: 'Vendedor' },
+  { value: 'secretary', label: 'Secretario(a)' },
+
+  // Genericas, para quien no se reconoce en ninguna de las anteriores.
+  { value: 'private_employee', label: 'Empleado Privado' },
+  { value: 'public_employee', label: 'Empleado Público' },
+  { value: 'self_employed', label: 'Trabajador Independiente' },
+  { value: 'entrepreneur', label: 'Emprendedor' },
+  { value: 'unemployed', label: 'Desempleado' },
+
   { value: 'other', label: 'Otro' },
 ];
 
