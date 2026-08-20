@@ -69,12 +69,14 @@ export async function DELETE(req) {
                 .join(', ');
             const resto = miembros.length > 5 ? ` y ${miembros.length - 5} más` : '';
 
+            const detalle =
+                miembros.length === 1
+                    ? `Todavía tiene 1 miembro: ${nombres}.`
+                    : `Todavía tiene ${miembros.length} miembros: ${nombres}${resto}.`;
+
             return Response.json(
                 {
-                    error:
-                        miembros.length === 1
-                            ? `No se puede eliminar: el destacamento todavía tiene 1 miembro (${nombres}). Muévelo a otro destacamento o elimínalo primero.`
-                            : `No se puede eliminar: el destacamento todavía tiene ${miembros.length} miembros (${nombres}${resto}). Muévelos a otro destacamento o elimínalos primero.`,
+                    error: `Para eliminar un destacamento, primero hay que mover sus miembros a otro destacamento. ${detalle}`,
                     miembros: miembros.length,
                 },
                 { status: 409 }
