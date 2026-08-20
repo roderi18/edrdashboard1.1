@@ -33,7 +33,7 @@ import {
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { getMemberDirectoryMetadata } from 'src/services/member-context-service';
 import {
   getMembers,
@@ -544,11 +544,14 @@ export function MemberListView() {
       )
     ),
   ].map((role) => {
-    const roleInfo = _allLeadershipRoles.find((r) => r.value === role);
+    // Etiqueta desde el CATALOGO real. Antes se buscaba en los roles de ejemplo,
+    // que no contienen los ids del catalogo, asi que el filtro mostraba el valor
+    // crudo ("seccional-coordinador-produccion") en vez del nombre del cargo.
+    const roleInfo = DIRECTIVA_POSITIONS.find((p) => p.idCargo === role);
 
     return {
       value: role,
-      label: roleInfo?.label || role,
+      label: roleInfo ? getCargoLabel(roleInfo) : role,
     };
   });
   const distinctSectionals = getAvailableOptionsFromData({

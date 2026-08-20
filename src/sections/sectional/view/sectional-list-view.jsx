@@ -38,10 +38,10 @@ import {
 import { REGIONALS } from 'src/_mock/assets';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
-import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { getSectionals, deleteSectional, getCachedSectionals } from 'src/services/sectional-service';
 
 import { Label } from 'src/components/label';
@@ -120,17 +120,6 @@ const getDestChurchId = (dest = {}) => dest?.churchId ?? dest?.idIglesia ?? dest
 
 const getMemberDestId = (member = {}) =>
   member?.idDestacamento ?? member?.destId ?? member?.destacamentoId;
-
-const getLeadershipBySectional = (sectionalId, role) => {
-  const leaderships = getLeadershipAssignments();
-  const members = getMembers();
-
-  const assignment = leaderships.find(
-    (a) => a.level === 'sectional' && a.entityId === sectionalId && a.role === role && a.memberId
-  );
-
-  return members.find((m) => m.id === assignment?.memberId) || null;
-};
 
 const buildSectionalList = ({
   sectionals = [],

@@ -37,11 +37,11 @@ import {
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getDests, getDestsApi, deleteDestApi } from 'src/services/dest-service';
-import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -167,15 +167,6 @@ export function DestListView() {
 
     return allDests.map((dest) => {
       const allMembers = members;
-      const leadershipAssignments = getLeadershipAssignments();
-
-      const leadership = leadershipAssignments.find(
-        (l) =>
-          l.level === 'dest' &&
-          l.entityId === dest.id &&
-          l.role === 'coordinador_dest' &&
-          l.status === 'active'
-      );
 
       const coordinatorByDestField = dest.coordinatorId
         ? members.find(
@@ -185,15 +176,6 @@ export function DestListView() {
           )
         : null;
 
-      const coordinatorByLeadership =
-        leadership && leadership.memberId
-          ? members.find(
-              (m) =>
-                String(m.memberId) === String(leadership.memberId) ||
-                String(m.id) === String(leadership.memberId)
-            )
-          : null;
-
       const realMembersInDest = allMembers.filter(
         (member) =>
           String(member.destId || member.idDestacamento || '') === String(dest.id) &&
@@ -202,11 +184,14 @@ export function DestListView() {
 
       const fallbackCoordinator = realMembersInDest.length === 1 ? realMembersInDest[0] : null;
 
+      // El coordinador sale del propio destacamento; si no lo trae, del unico
+      // miembro con perfil de coordinador que haya dentro. Habia en medio una
+      // busqueda contra `leadershipAssignments` (datos de ejemplo) que no podia
+      // acertar nunca: sus entidades son 'dest-018' y sus miembros 'member-01',
+      // mientras los reales son numeros.
       const coordinator = isValidCoordinator(coordinatorByDestField)
         ? coordinatorByDestField
-        : isValidCoordinator(coordinatorByLeadership)
-          ? coordinatorByLeadership
-          : fallbackCoordinator;
+        : fallbackCoordinator;
 
       const church = churches.find(
         (c) =>

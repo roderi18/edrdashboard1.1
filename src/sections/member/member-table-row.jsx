@@ -14,7 +14,7 @@ import { resolveById } from 'src/utils/resolve-display-name';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { SECTIONALS } from 'src/_mock/assets';
-import { _allLeadershipRoles } from 'src/_mock/_leadership';
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 
 import { UnderlineLink } from 'src/components/link/underline-link';
 
@@ -61,8 +61,11 @@ export function MemberTableRow({
 
     if (!normalizedRole) return 'Posición desconocida';
 
-    const role = _allLeadershipRoles.find((r) => r.value === normalizedRole);
-    return role?.label || normalizedRole;
+    // Se traduce contra el CATALOGO real. Antes se buscaba en los roles de
+    // ejemplo, que no contienen los ids del catalogo, asi que caia siempre en el
+    // valor crudo ("seccional-coordinador-produccion").
+    const role = DIRECTIVA_POSITIONS.find((p) => p.idCargo === normalizedRole);
+    return role?.nombreCargo || normalizedRole;
   };
 
   const memberPositionLabel = (() => {

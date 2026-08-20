@@ -337,16 +337,10 @@ const getDirectivaDivisionByMemberDivisionId = (idDivision) => {
 };
 
 const mapMemberToForm = (member) => {
-  const leadershipAssignments = getLeadershipAssignments();
-  const memberLeaderships = leadershipAssignments.filter(
-    (l) =>
-      member &&
-      (l.memberId === member?.id || l.member_id === member?.id) &&
-      (l.status === 'active' || !l.status)
-  );
-
-  const nationalLeadership = memberLeaderships.find((l) => l.level === 'national');
-  const destLeadership = memberLeaderships.find((l) => l.level === 'dest');
+  // Los cargos NO salen de aqui: los rellena el efecto que lee las asignaciones
+  // de directiva en Firestore. Antes se buscaban en "leadershipAssignments"
+  // (datos de ejemplo, con ids como 'member-01'), que ademas de no acertar nunca
+  // dejaba los campos vacios y pisaba el cargo recien guardado en cada reset.
 
   const provinces = provinciasData;
 
@@ -396,7 +390,7 @@ const mapMemberToForm = (member) => {
       MEMBER_OCUPATIONS_SORTED.find((o) =>
         [o.label, o.value].some((value) => String(value) === String(member.ocupation))
       ) || null,
-    memberPosition: destLeadership?.role ?? 'none',
+    memberPosition: '',
 
     gender: member.gender === 'M' ? 'Masculino' : member.gender === 'F' ? 'Femenino' : '',
     shirtSize: MEMBER_SHIRT_SIZES.find((s) => s.value === member.shirtSize)?.value || '',
@@ -411,8 +405,8 @@ const mapMemberToForm = (member) => {
     status: member.status ?? 'active',
     avatarUrl: member.avatarUrl ?? null,
     isVerified: member.isVerified ?? true,
-    nationalLeadershipLevel: nationalLeadership?.level ?? 'none',
-    nationalLeadershipRole: nationalLeadership?.role ?? '',
+    nationalLeadershipLevel: 'none',
+    nationalLeadershipRole: '',
   };
 };
 

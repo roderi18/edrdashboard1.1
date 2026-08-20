@@ -37,7 +37,6 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
 import { getRegionals, deleteRegional, getCachedRegionals } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
@@ -129,18 +128,6 @@ export function RegionalListView() {
 
   const confirmDialog = useBoolean();
 
-  const getLeadershipByRegional = (regionalId, role) => {
-    const assignment = LEADERSHIP_ASSIGNMENTS.find(
-      (a) =>
-        a.level === 'regional' &&
-        a.entityId === regionalId &&
-        a.role === role &&
-        a.status === 'active'
-    );
-
-    return MEMBERS.find((m) => m.id === assignment?.memberId) || null;
-  };
-
   const [tableData, setTableData] = useState([]);
   const [tableLoading, setTableLoading] = useState(true);
   const [ownRegionIds, setOwnRegionIds] = useState(() => new Set());
@@ -184,16 +171,11 @@ export function RegionalListView() {
         );
 
         const newData = regionals.map((regional) => {
-          const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
-            (a) =>
-              a.level === 'regional' &&
-              a.entityId === regional.id &&
-              a.role === 'director_regional' &&
-              a.status === 'active'
-          );
-          const director =
-            memberById.get(String(directorAssignment?.memberId || '')) ||
-            getLeadershipByRegional(regional.id, 'director_regional');
+          // El director sale de la propia region. La busqueda contra
+          // `LEADERSHIP_ASSIGNMENTS` (datos de ejemplo) que habia aqui no podia
+          // acertar: sus entidades son 'reg-este' y sus miembros 'member-01',
+          // mientras los reales son numeros.
+          const director = memberById.get(String(regional.directorId || ''));
           const directorName =
             director?.fullName ||
             [director?.firstName, director?.lastName].filter(Boolean).join(' ').trim() ||

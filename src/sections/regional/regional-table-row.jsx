@@ -8,8 +8,6 @@ import { RouterLink } from 'src/routes/components';
 
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
-import { LEADERSHIP_ASSIGNMENTS } from 'src/_mock/leadershipAssignments';
-
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
 
@@ -33,15 +31,11 @@ export function RegionalTableRow({
   // cargos seccionales solo entran a los de su propia region). Si no se especifica,
   // sigue el mismo estado que el resto de los contadores de estructura.
   const destCountDisabled = disabledDestCount ?? disabledCounts;
-  const directorAssignment = LEADERSHIP_ASSIGNMENTS.find(
-    (l) =>
-      l.level === 'regional' &&
-      l.entityId === row.id &&
-      l.role === 'director_regional' &&
-      l.status === 'active'
-  );
-
-  const directorId = row.directorId || directorAssignment?.memberId;
+  // El director sale de la propia region. Habia aqui una busqueda de respaldo
+  // contra `LEADERSHIP_ASSIGNMENTS` (datos de ejemplo) que no podia acertar: sus
+  // entidades son 'reg-este' y sus miembros 'member-01', mientras los reales son
+  // numeros.
+  const directorId = row.directorId;
   const directorName = row.memberFullName || 'Director desconocido';
   const directorAvatarUrl = row.directorAvatarUrl;
   const directorPhoneNumber = row.directorPhoneNumber || '';
