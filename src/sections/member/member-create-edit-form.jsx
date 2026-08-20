@@ -37,6 +37,7 @@ import { isGlobalOrgManager } from 'src/utils/org-level-access';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
@@ -63,7 +64,11 @@ import { FIRESTORE } from 'src/lib/firebase';
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
+import { getDestsApi } from 'src/services/dest-service';
+import { getChurches } from 'src/services/church-service';
 import { getDivisions } from 'src/services/division-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
 // models
 import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
@@ -697,6 +702,7 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // el cargo de LEADERSHIP_ASSIGNMENTS (datos estaticos) y por tanto lo deja
   // vacio: sin esto el campo volvia a "Ninguno" hasta recargar la pagina.
   const [cargosVersion, setCargosVersion] = useState(0);
+  const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
   const lastCalculatedBirthdateRef = useRef('');
   const skippedInitialDivisionFetchRef = useRef(false);
 
@@ -984,6 +990,32 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     return undefined;
   }, [availableDests]);
 
+  // Indice destacamento → iglesia → seccion → region con datos REALES. Es el
+  // mismo que usan los organigramas, para que la entidad con la que se guarda un
+  // cargo desde la ficha sea exactamente la que el organigrama consulta.
+  useEffect(() => {
+    let cancelado = false;
+
+    const cargar = async () => {
+      const [destsApi, churches, sectionals, regionals] = await Promise.all([
+        getDestsApi({ includePhotos: false }).catch(() => []),
+        getChurches().catch(() => []),
+        getSectionals({ includePhotos: false }).catch(() => []),
+        getRegionals().catch(() => []),
+      ]);
+
+      if (cancelado) return;
+
+      setOrgIndex(buildOrgIndex({ dests: destsApi, churches, sectionals, regionals }));
+    };
+
+    cargar();
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   const values = watch();
   const firstName = watch('firstName');
   const lastName = watch('lastName');
@@ -1055,8 +1087,22 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
   // );
 
   const selectedDest = dests.find((d) => getDestId(d) === selectedDestId);
-  const selectedSectional = SECTIONALS.find((s) => s.id === selectedDest?.sectionalId);
-  const selectedRegional = REGIONALS.find((r) => r.id === selectedSectional?.regionalId);
+  // SECCION Y REGION REALES, no las de `_mock/assets`.
+  //
+  // Se resolvian con `SECTIONALS.find((s) => s.id === selectedDest?.sectionalId)`,
+  // y eso no podia funcionar por dos motivos: los ids del mock son cadenas
+  // ('sec-este-01') mientras los reales son numeros, y el destacamento mapeado ni
+  // siquiera trae `sectionalId` — la cadena real es destacamento → iglesia →
+  // seccion → region. El `find` devolvia siempre undefined y `getCargoEntityId`
+  // caia en su ultimo recurso, 'general': un cargo seccional o regional asignado
+  // desde la ficha se guardaba en una entidad FANTASMA, invisible para todos los
+  // organigramas.
+  const orgPath = getMemberOrgPath(
+    { idDestacamento: selectedDestId || currentMember?.destId || currentMember?.idDestacamento },
+    orgIndex
+  );
+  const selectedSectional = orgPath.sectional;
+  const selectedRegional = orgPath.regional;
   const destChurch = CHURCHES.find((c) => c.id === selectedDest?.churchId);
   const destId =
     selectedDestId || currentMember?.destId || currentMember?.dest_id || currentMember?.dest;
@@ -1090,12 +1136,16 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
       return selectedDestId || currentMember?.destId || currentMember?.idDestacamento || '';
     }
 
+    // Sin entidad NO se inventa una. El valor 'general' que habia aqui creaba
+    // una directiva fantasma ("regional_general") que ningun organigrama
+    // consulta: el cargo quedaba guardado y era invisible en todas partes. Es
+    // preferible avisar de que falta el dato, y de eso se encarga quien llama.
     if (cargo?.nivel === 'seccional') {
-      return selectedSectional?.id || currentMember?.sectionalId || 'general';
+      return orgPath.sectionId || currentMember?.sectionalId || '';
     }
 
     if (cargo?.nivel === 'regional') {
-      return selectedRegional?.id || currentMember?.regionalId || 'general';
+      return orgPath.regionId || currentMember?.regionalId || '';
     }
 
     return 'nacional';
@@ -1162,6 +1212,17 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     const idCargo = Number(cargo?.idCargoApi || cargo?.idCargo || 0);
     const fechaInicio = dayjs().format('YYYY-MM-DD');
     const idEntidad = getCargoEntityId(cargo);
+
+    // Un cargo pertenece a una entidad concreta. Si no se puede resolver —el
+    // miembro no tiene destacamento, o su destacamento no llega a seccion— se
+    // aborta con un aviso en vez de guardar una asignacion que nadie veria.
+    if (!idEntidad) {
+      throw new Error(
+        `No se pudo determinar la ${cargo.nivel === 'regional' ? 'región' : 'sección'} de ${
+          currentMember?.firstName || 'este miembro'
+        }. Asígnale primero un destacamento.`
+      );
+    }
 
     const asignacionGuardada = await guardarAsignacionDirectiva({
       nivel: cargo.nivel,
