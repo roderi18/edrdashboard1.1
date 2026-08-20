@@ -18,6 +18,7 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
@@ -25,8 +26,10 @@ import { isAdminGlobal, isFullOrgManager } from 'src/utils/org-level-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
+  isUsuarioComunRole,
   isMemberSessionUser,
   canMemberManageMembers,
+  esFichaDelPropioMiembro,
   filterMembersByMemberScope,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
@@ -597,11 +600,22 @@ export function MemberListView() {
     ? visibleMembers.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
     : null;
 
-  const dataFiltered = applyFilter({
-    inputData: visibleMembers,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // El Usuario Comun se encuentra a si mismo arriba del todo. Es solo el orden
+  // INICIAL: en cuanto ordena por una columna manda su criterio, igual que en las
+  // listas de niveles organizacionales.
+  const dataFiltered = (() => {
+    const filtrados = applyFilter({
+      inputData: visibleMembers,
+      comparator: getComparator(table.order, table.orderBy),
+      filters: currentFilters,
+    });
+
+    if (table.hasUserSorted || !isUsuarioComunRole(user)) {
+      return filtrados;
+    }
+
+    return sortOwnFirst(filtrados, (row) => esFichaDelPropioMiembro(user, row));
+  })();
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 

@@ -29,6 +29,7 @@ import {
   isForeignDestForMembers,
 } from 'src/utils/org-level-access';
 import {
+  isUsuarioComunRole,
   getOwnDestIdsForUser,
   getOwnRegionIdsForUser,
   getOwnSectionIdsForUser,
@@ -459,6 +460,13 @@ export function DestListView() {
       ownScope.destIds.size || ownScope.sectionIds.size || ownScope.regionIds.size;
 
     if (table.hasUserSorted || !hasOwnScope) return filtered;
+
+    // Para el Usuario Comun, propio es SU destacamento y nada mas. Emparejar
+    // tambien por seccion los marcaria todos —ve la seccion entera— y el orden
+    // se quedaria igual, que es justo lo que no se quiere: el suyo va primero.
+    if (isUsuarioComunRole(user)) {
+      return sortOwnFirst(filtered, (row) => ownScope.destIds.has(normalizeDestId(row.id)));
+    }
 
     return sortOwnFirst(
       filtered,
