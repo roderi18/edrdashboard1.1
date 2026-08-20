@@ -31,7 +31,17 @@ export const NATIONAL_LEADERSHIP_DATA = {
     createNode('ministerios-infantiles', 'Ministerios infantiles', [
       createNode('consejo-nacional', 'Consejo Nacional', [
         createNode('director-nacional', 'Director Nacional', [
+          // De IZQUIERDA A DERECHA POR RANGO. El Sub-Director Nacional encabeza
+          // la fila: es el segundo de la direccion, por encima de los
+          // coordinadores funcionales, y quedaba en segundo lugar solo porque el
+          // `orden` del catalogo lo situa despues de Adiestramiento.
+          //
+          // Ese `orden` NO se toca: forma parte del id del documento de asignacion
+          // (nivel_entidad_posicion_division_orden), asi que cambiarlo dejaria
+          // huerfanas las asignaciones ya guardadas. El orden visual lo decide
+          // este arbol; el del catalogo solo identifica.
           createNode('consejo-ejecutivo', 'Consejo Ejecutivo', [
+            createNode('sub-director-nacional', 'Sub-Director Nacional'),
             createNode(
               'coordinador-nacional-adiestramiento',
               'Coordinador Nacional de Adiestramiento',
@@ -42,7 +52,6 @@ export const NATIONAL_LEADERSHIP_DATA = {
                 ),
               ]
             ),
-            createNode('sub-director-nacional', 'Sub-Director Nacional'),
             createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
             createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
             createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
