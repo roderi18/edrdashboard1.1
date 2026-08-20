@@ -27,7 +27,10 @@ import { claveNodo } from '../utils/leadership-assignments.js';
 export const createNode = (id, role, children) => ({ id, role, children });
 
 export const NATIONAL_LEADERSHIP_DATA = {
-  ...createNode('asambleas-de-dios', 'Concilio de las Asambleas de Dios, INC.', [
+  // Sin subtitulo: el nombre de la tarjeta ya lo dice, y repetirlo debajo
+  // ("Concilio de las Asambleas de Dios" sobre "Concilio de las Asambleas de
+  // Dios, INC.") solo gastaba una linea para decir lo mismo.
+  ...createNode('asambleas-de-dios', '', [
     createNode('ministerios-infantiles', 'Ministerios infantiles', [
       {
         // El Consejo Nacional NO es un cargo: es el cuerpo del que cuelga la
