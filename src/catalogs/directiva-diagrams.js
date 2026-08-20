@@ -34,9 +34,6 @@ export const NATIONAL_LEADERSHIP_DATA = {
         // direccion, igual que el Concilio. Se dibuja como caja de estructura
         // —sin "Vacante" y sin menu de asignar— en vez de como una casilla que
         // invita a poner a alguien dentro.
-        //
-        // `avatarUrl` queda pendiente: en cuanto haya imagen, se rellena aqui y
-        // la tarjeta la muestra sola.
         ...createNode('consejo-nacional', '', [
         createNode('director-nacional', 'Director Nacional', [
           // De IZQUIERDA A DERECHA POR RANGO. El Sub-Director Nacional encabeza
@@ -69,6 +66,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
         ]),
         ]),
         name: 'Consejo Nacional',
+        avatarUrl: '/exploradores-del-rey-icono.ico',
         isDivision: true,
       },
     ]),
