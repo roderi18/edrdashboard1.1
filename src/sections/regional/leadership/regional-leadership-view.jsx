@@ -32,6 +32,7 @@ import {
   LeadershipNodeName,
   LeadershipNodeAvatar,
   getMemberDisplayName,
+  LeadershipStructureNode,
   LEADERSHIP_NODE_SIZE_SX,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
@@ -72,8 +73,11 @@ const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
 function RegionalLeadershipNode({
   id,
+  name,
   depth,
   role,
+  avatarUrl,
+  isDivision,
   layoutEditor,
   canManage = true,
   miembroAsignado = null,
@@ -82,8 +86,32 @@ function RegionalLeadershipNode({
 }) {
   const menuActions = usePopover();
   const identity = getLeadershipNodeIdentity(miembroAsignado);
-  const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
+  const editProps = layoutEditor.getNodeEditProps({
+    id,
+    name: isDivision ? name : identity.displayName,
+    role,
+  });
   const isRootNode = depth === undefined;
+
+  // El Consejo Ejecutivo es el cuerpo del que cuelga la Directiva Regional, no un
+  // cargo que alguien ocupe: se dibuja como caja de estructura, igual que el
+  // Consejo Nacional y el Concilio.
+  if (isDivision) {
+    return (
+      <LeadershipStructureNode
+        name={name}
+        role={role}
+        avatarUrl={avatarUrl}
+        data-leadership-node-id={id}
+        data-leadership-editable="true"
+        onPointerUp={editProps.onPointerUp}
+        onPointerMove={editProps.onPointerMove}
+        onPointerDown={editProps.onPointerDown}
+        onPointerCancel={editProps.onPointerCancel}
+        sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
+      />
+    );
+  }
 
   const renderMenuActions = () => (
     <CustomPopover

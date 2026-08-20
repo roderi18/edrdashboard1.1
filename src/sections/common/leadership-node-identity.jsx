@@ -1,4 +1,7 @@
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { getLeadershipShortName } from 'src/utils/leadership-assignments';
@@ -115,5 +118,70 @@ export function LeadershipNodeName({ identity, children, ...other }) {
     >
       {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
     </Typography>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Tarjeta de ESTRUCTURA: el Concilio, el Consejo Nacional, el Consejo Ejecutivo
+// de una region... Cuerpos de los que cuelga la directiva, no cargos que alguien
+// ocupe. Se dibujan con su logo y su nombre, sin "Vacante" y sin menu de
+// asignar, para que no inviten a poner a nadie dentro.
+//
+// Vive aqui porque la usan los organigramas de nacion y de region; tenerla dos
+// veces era garantia de que acabaran distintas.
+// ----------------------------------------------------------------------
+export function LeadershipStructureNode({ name, role, avatarUrl, sx, ...other }) {
+  return (
+    <Card
+      sx={{
+        px: 1.5,
+        py: 1,
+        gap: 1,
+        ...LEADERSHIP_NODE_SIZE_SX,
+        borderRadius: 1.5,
+        textAlign: 'left',
+        alignItems: 'center',
+        display: 'inline-flex',
+        ...sx,
+      }}
+      {...other}
+    >
+      {/* Sin logo no se pinta el hueco: un `img` sin `src` deja el icono de
+          imagen rota. */}
+      {avatarUrl && (
+        <Box
+          component="img"
+          alt={name}
+          src={avatarUrl}
+          sx={{ width: 36, height: 36, flexShrink: 0, objectFit: 'contain' }}
+        />
+      )}
+
+      <Box sx={{ minWidth: 0 }}>
+        {/* El nombre se recorta para no ensanchar la tarjeta, asi que al pasar
+            por encima se muestra entero. Tooltip de MUI y no el `title` del
+            navegador: aquel tarda un segundo largo en aparecer, se ve distinto en
+            cada sistema y no sigue el tema de la aplicacion. */}
+        <Tooltip title={name} placement="top" arrow>
+          <Typography variant="subtitle2" noWrap>
+            {name}
+          </Typography>
+        </Tooltip>
+
+        {/* El subtitulo solo cuando aporta algo: repetir el nombre debajo del
+            nombre gasta una linea para no decir nada. */}
+        {role && role !== name && (
+          <Typography
+            variant="caption"
+            component="div"
+            noWrap
+            title={role}
+            sx={{ color: 'text.secondary' }}
+          >
+            {role}
+          </Typography>
+        )}
+      </Box>
+    </Card>
   );
 }

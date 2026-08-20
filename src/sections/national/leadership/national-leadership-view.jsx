@@ -30,6 +30,7 @@ import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
   LEADERSHIP_NODE_SIZE_SX,
+  LeadershipStructureNode,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
@@ -73,62 +74,18 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
   const isRootNode = depth === undefined;
 
   return (
-    <Card
+    <LeadershipStructureNode
+      name={name}
+      role={role}
+      avatarUrl={avatarUrl}
       data-leadership-node-id={id}
       data-leadership-editable="true"
       onPointerUp={editProps.onPointerUp}
       onPointerMove={editProps.onPointerMove}
       onPointerDown={editProps.onPointerDown}
       onPointerCancel={editProps.onPointerCancel}
-      sx={{
-        px: 1.5,
-        py: 1,
-        gap: 1,
-        ...LEADERSHIP_NODE_SIZE_SX,
-        borderRadius: 1.5,
-        textAlign: 'left',
-        alignItems: 'center',
-        display: 'inline-flex',
-        ...getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }),
-      }}
-    >
-      {/* Sin imagen no se pinta el hueco: un `img` sin `src` deja el icono de
-          imagen rota. Las cajas de estructura que aun no tienen logo se ven
-          limpias, y basta rellenar `avatarUrl` en el arbol para que aparezca. */}
-      {avatarUrl && (
-        <Box
-          component="img"
-          alt={name}
-          src={avatarUrl}
-          sx={{
-            width: 36,
-            height: 36,
-            flexShrink: 0,
-            objectFit: 'contain',
-          }}
-        />
-      )}
-
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2" noWrap>
-          {name}
-        </Typography>
-
-        {/* El subtitulo solo cuando aporta algo: repetir el nombre debajo del
-            nombre no dice nada. */}
-        {role && role !== name && (
-          <Typography
-            variant="caption"
-            component="div"
-            noWrap
-            title={role}
-            sx={{ color: 'text.secondary' }}
-          >
-            {role}
-          </Typography>
-        )}
-      </Box>
-    </Card>
+      sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
+    />
   );
 }
 

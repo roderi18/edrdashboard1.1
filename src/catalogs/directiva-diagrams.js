@@ -79,8 +79,11 @@ export const NATIONAL_LEADERSHIP_DATA = {
   isDivision: true,
 };
 
-export const REGIONAL_LEADERSHIP_DATA = createNode('consejo-ejecutivo', 'Consejo Ejecutivo', [
-  createNode('directiva-regional', 'Directiva Regional', [
+export const REGIONAL_LEADERSHIP_DATA = {
+  // Caja de estructura, como el Consejo Nacional: es el cuerpo del que cuelga la
+  // Directiva Regional, no un cargo que alguien ocupe.
+  ...createNode('consejo-ejecutivo', '', [
+    createNode('directiva-regional', 'Directiva Regional', [
     createNode('sub-director-regional', 'Sub-Director Regional'),
     createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
     createNode('coordinador-promocion', 'Coordinador de Promoción'),
@@ -88,8 +91,12 @@ export const REGIONAL_LEADERSHIP_DATA = createNode('consejo-ejecutivo', 'Consejo
     createNode('coordinador-programa', 'Coordinador de Programa'),
     createNode('secretario-regional', 'Secretario Regional'),
   ]),
-  createNode('capellan-regional', 'Capellán Regional'),
-]);
+    createNode('capellan-regional', 'Capellán Regional'),
+  ]),
+  name: 'Consejo Ejecutivo',
+  avatarUrl: '/exploradores-del-rey-icono.ico',
+  isDivision: true,
+};
 
 export const SECTIONAL_LEADERSHIP_DATA = createNode('directiva-regional', 'Directiva Regional', [
   createNode('coordinador-seccional', 'Coordinador Seccional', [
