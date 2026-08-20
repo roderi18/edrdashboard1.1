@@ -414,6 +414,20 @@ const mapMemberToForm = (member) => {
   };
 };
 
+// Campos que viven en el primer paso del alta. Se usan para devolver ahi al
+// usuario cuando la validacion falla desde el segundo.
+const CAMPOS_PASO_1 = new Set([
+  'firstName',
+  'lastName',
+  'birthdate',
+  'phoneNumber',
+  'email',
+  'provinceId',
+  'municipioId',
+  'sectorId',
+  'street',
+]);
+
 export function MemberCreateEditForm({
   currentMember,
   readOnly = false,
@@ -2077,6 +2091,13 @@ export function MemberCreateEditForm({
 
     (validationErrors) => {
       if (Object.keys(validationErrors).length > 0) {
+        // Al crear, el campo que falla puede estar en el paso anterior: sin esto
+        // el aviso salta pero el error no se ve por ninguna parte, y parece que
+        // el boton no hace nada.
+        if (!currentMember && Object.keys(validationErrors).some((campo) => CAMPOS_PASO_1.has(campo))) {
+          setStep(1);
+        }
+
         setFormErrorMessage(true);
 
         setTimeout(() => {

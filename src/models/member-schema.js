@@ -125,8 +125,11 @@ const getMaximumBirthdate = () => {
 
 // });
 export const MemberValidationSchema = z.object({
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
+    // Obligatorios. Estaban como opcionales y el formulario dejaba guardar una
+    // ficha entera en blanco: quedaba una fila sin nombre en el listado, con su
+    // codigo de miembro gastado, y sin forma de saber a quien pertenecia.
+    firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
+    lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
 
     email: z.string().optional().or(z.literal('')),
 
