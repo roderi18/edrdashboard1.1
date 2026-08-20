@@ -155,6 +155,21 @@ export const buildDefaultMemberPermissions = () => ({
     editar: false,
     eliminar: false,
   },
+  // Los niveles organizacionales son de consulta para cualquier miembro: ve la
+  // estructura, no la toca. Faltaban las dos claves, y sin ellas el menu ocultaba
+  // Secciones, Regiones y Consejo Nacional.
+  secciones: {
+    ver: true,
+    crear: false,
+    editar: false,
+    eliminar: false,
+  },
+  regiones: {
+    ver: true,
+    crear: false,
+    editar: false,
+    eliminar: false,
+  },
   asistencia: {
     ver: false,
     crear: false,
@@ -1265,6 +1280,7 @@ export const filterSectionalsByMemberScope = (
   // pudiera tocar una seccion ajena.
   if (
     [ROLES.USUARIO_DESTACAMENTO, ROLES.USUARIO_COMUN].includes(getScopeUserRoleId(user)) ||
+    isUsuarioComunRole(user) ||
     isOrgWideViewerRole(user) ||
     isSectionScopedMemberViewer(user) ||
     isRegionScopedMemberViewer(user)
@@ -1357,14 +1373,23 @@ const navPermissionByItem = (item, user) => {
   // no viven en el objeto `permisos` del miembro, así que además del objeto se
   // consulta el catálogo por rol (`can`). Esto permite que cargos de consulta
   // nacional —p. ej. el Director Nacional— vean todos los niveles en el menú.
+  // El Usuario Comun entra por su propia via: su documento de sesion guarda un
+  // objeto `permisos` que no trae las claves `secciones` ni `regiones`, y su rol
+  // ('miembro') no existe en el catalogo, asi que ninguna de las dos
+  // comprobaciones de abajo podia darle acceso.
   if (title.includes('seccion')) {
-    return Boolean(permissions.secciones?.ver) || can(user, PERMISOS.SECCIONES_VER);
+    return (
+      Boolean(permissions.secciones?.ver) ||
+      can(user, PERMISOS.SECCIONES_VER) ||
+      isUsuarioComunRole(user)
+    );
   }
   if (title.includes('region') || title.includes('consejo nacional')) {
     return (
       Boolean(permissions.regiones?.ver || permissions.nacional?.ver) ||
       can(user, PERMISOS.REGIONES_VER) ||
-      can(user, PERMISOS.REPORTES_VER_NACIONALES)
+      can(user, PERMISOS.REPORTES_VER_NACIONALES) ||
+      isUsuarioComunRole(user)
     );
   }
   if (title.includes('compra') || path.includes('checkout'))
@@ -1453,10 +1478,19 @@ const getUserRoleId = (user = {}) => {
   return '';
 };
 
-// El Usuario Común solo tiene acceso de lectura al Sistema de Ascenso: no puede
-// agregar ni cambiar nada (los demas cargos del destacamento con acceso si).
+/**
+ * El Usuario Común solo tiene acceso de lectura al Sistema de Ascenso: no puede
+ * agregar ni cambiar nada (los demas cargos del destacamento con acceso si).
+ *
+ * Se reconoce tambien al miembro SIN cargo, que es un Usuario Comun aunque nada
+ * lo diga con esas palabras: su sesion se guarda con `rol: 'miembro'`, que no es
+ * un codigo del catalogo, y ni `getUserRoleId` ni `can()` daban con el. Por eso
+ * los niveles organizacionales le seguian sin aparecer en el menu por mucho que
+ * el catalogo de USUARIO_COMUN los permitiera: a esa entrada no llegaba nadie.
+ */
 export const isUsuarioComunRole = (user = {}) =>
-  getUserRoleId(user) === ROLES.USUARIO_COMUN;
+  getUserRoleId(user) === ROLES.USUARIO_COMUN ||
+  (isMemberSessionUser(user) && !getUserRoleId(user) && !getScopeUserRoleId(user));
 
 // Posiciones que ven la lista de miembros pero NO pueden acceder a la ficha de
 // los menores: estos aparecen en la lista pero DESHABILITADOS. Aplica a los
