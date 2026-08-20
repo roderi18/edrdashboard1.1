@@ -14,15 +14,16 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
-import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { getOwnRegionIdsForUser, canMemberManageMembers } from 'src/utils/member-access';
 import {
   isFullOrgManager,
   getSectionScopeIds,
@@ -92,6 +93,7 @@ const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
 };
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import StatusLabel from 'src/components/common/status-label';
 import { ContextInfo } from 'src/components/info/context-info';
@@ -101,7 +103,7 @@ import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
 import DestGeneralSection from 'src/components/form/dest-form/DestGeneralSection';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { PERMISOS, puedeModificar, estaDentroDelAlcance } from 'src/auth/permissions';
+import { can, PERMISOS, puedeModificar, estaDentroDelAlcance } from 'src/auth/permissions';
 // ----------------------------------------------------------------------
 const provinces = provinciasData;
 
@@ -379,6 +381,13 @@ export function DestCreateEditForm({ currentDest }) {
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
   const canDownloadMembersInfo =
     !isDestacamentoAdmin || estaDentroDelAlcance(user, currentDestResource);
+
+  // El mismo criterio que aplica la pantalla de creacion de miembros. Se repite
+  // aqui para no ofrecer un atajo que termine en un "no tienes permisos".
+  const canCreateMembers =
+    user?.role === 'member'
+      ? canMemberManageMembers(user)
+      : isFullOrgManager(user) || can(user, PERMISOS.MIEMBROS_CREAR);
 
   // Sección con la que está registrado el usuario que crea el destacamento
   // (coordinador/sub-coordinador seccional). Se resuelve, en orden: sección
@@ -971,6 +980,22 @@ export function DestCreateEditForm({ currentDest }) {
                       : []),
                   ]}
                 />
+
+                {/* Atajo para dar de alta a alguien en ESTE destacamento: lleva
+                    a la pantalla de creacion de siempre, pero con el
+                    destacamento —y con el, su seccion y su region— ya puesto. */}
+                {canCreateMembers && (
+                  <Button
+                    component={RouterLink}
+                    href={`${paths.dashboard.level.member.new}?destId=${currentDest?.id || currentDest?.idDestacamento || ''}`}
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    sx={{ mt: 2 }}
+                  >
+                    Agregar nuevo miembro
+                  </Button>
+                )}
               </Stack>
             )}
 

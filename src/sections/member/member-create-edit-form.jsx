@@ -414,7 +414,12 @@ const mapMemberToForm = (member) => {
   };
 };
 
-export function MemberCreateEditForm({ currentMember, readOnly = false, availableDests = [] }) {
+export function MemberCreateEditForm({
+  currentMember,
+  readOnly = false,
+  availableDests = [],
+  destIdInicial = '',
+}) {
   const { user } = useAuthContext();
   // Cargos del destacamento que no son coordinadores (líder de grupo/asistente,
   // pastor, consejo, capellán): no pueden editar destacamento, posición en el
@@ -769,7 +774,9 @@ export function MemberCreateEditForm({ currentMember, readOnly = false, availabl
     memberPosition: '',
     gender: 'Masculino',
     shirtSize: '',
-    destId: '',
+    // Viene puesto cuando se entra desde la ficha de un destacamento. De el
+    // cuelgan la seccion, la region y la iglesia, que se resuelven solas.
+    destId: destIdInicial || '',
     InstructorCertificadoCI: 0,
     EstatusVigenciaCI: 'na',
     FechaVencimientoCI: null,

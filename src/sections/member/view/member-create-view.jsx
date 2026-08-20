@@ -3,6 +3,7 @@
 import Alert from '@mui/material/Alert';
 
 import { paths } from 'src/routes/paths';
+import { useSearchParams } from 'src/routes/hooks';
 
 import { isFullOrgManager } from 'src/utils/org-level-access';
 import { canMemberManageMembers } from 'src/utils/member-access';
@@ -20,6 +21,10 @@ import { MemberCreateEditForm } from '../member-create-edit-form';
 
 export function MemberCreateView() {
   const { user, loading } = useAuthContext();
+  const searchParams = useSearchParams();
+  // Se llega aqui desde la ficha de un destacamento con "Agregar nuevo miembro":
+  // el destacamento viene en la direccion para no obligar a buscarlo a mano.
+  const destIdInicial = searchParams.get('destId') || '';
 
   if (loading) {
     return null;
@@ -61,7 +66,7 @@ export function MemberCreateView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <MemberCreateEditForm />
+      <MemberCreateEditForm destIdInicial={destIdInicial} />
     </DashboardContent>
   );
 }
