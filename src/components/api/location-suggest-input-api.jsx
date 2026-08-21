@@ -79,19 +79,20 @@ export default function LocationSuggestInput({
         value = value.replace(/\s{2,}/g, ' ');
         value = value.slice(0, maxLength);
 
+        // Se capitaliza al principio, tras espacio y tambien tras "(" y ".".
+        //
+        // Antes solo se partia por espacios, asi que lo que venia detras de un
+        // parentesis o de un punto se quedaba en minuscula: "(Zona Urbana)"
+        // acababa como "(zona urbana)" y "A.D." como "A.d.". Se usa `\p{L}` con
+        // la bandera unicode para que la letra acentuada tras un espacio tambien
+        // se capitalice, y para que una tilde DENTRO de la palabra no cuente
+        // como frontera.
         value = value
             .toLocaleLowerCase()
-            .split(' ')
-            .map((word) => {
-                if (!word) return word;
-
-                const lowerWords = ['de'];
-
-                if (lowerWords.includes(word)) return word;
-
-                return word.charAt(0).toLocaleUpperCase() + word.slice(1);
-            })
-            .join(' ');
+            .replace(
+                /(^|[\s(.])(\p{L})/gu,
+                (coincidencia, separador, letra) => separador + letra.toLocaleUpperCase()
+            );
 
         value = value.replace(/\bDe\b/g, 'de');
 

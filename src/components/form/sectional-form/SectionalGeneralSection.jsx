@@ -73,11 +73,14 @@ export default function SectionalGeneralSection({
             </Box>
 
             {/* Nombre de la Sección */}
+            {/* `allowSpecialChars` abre parentesis y puntos —"Este Oriental I
+                (Zona Urbana)"— ademas de "#" y "/". */}
             <LocationSuggestInput
                 name="sectionalName"
                 label="Nombre de la Sección"
                 allowNumbers
                 allowDash
+                allowSpecialChars
                 disabled={disabled}
             />
 

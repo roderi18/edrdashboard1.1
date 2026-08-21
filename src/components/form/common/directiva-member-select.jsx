@@ -174,6 +174,34 @@ export default function DirectivaMemberSelect({
         getOptionKey={(opcion) => opcion?.id}
         isOptionEqualToValue={(opcion, valor) => opcion?.id === valor?.id}
         noOptionsText="No hay miembros disponibles"
+        // Salida para cuando la persona no esta en la lista. Va pegada al final
+        // del desplegable, no dentro de las opciones, para que no se pueda elegir
+        // por error ni la alcance el buscador.
+        PaperComponent={(paperProps) => (
+          <Box {...paperProps}>
+            {paperProps.children}
+
+            <Box
+              component="li"
+              onMouseDown={(evento) => evento.preventDefault()}
+              onClick={() => {
+                window.location.href = '/dashboard/level/member/new';
+              }}
+              sx={{
+                px: 2,
+                py: 1,
+                fontSize: '0.875rem',
+                color: 'primary.main',
+                cursor: 'pointer',
+                listStyle: 'none',
+                borderTop: (theme) => `1px solid ${theme.vars.palette.divider}`,
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              + Agregar nuevo miembro
+            </Box>
+          </Box>
+        )}
         renderInput={(params) => (
           <TextField {...params} label={label} placeholder="Buscar miembro" />
         )}

@@ -13,6 +13,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { useRouter } from 'src/routes/hooks';
 
+import { contarSeccion } from 'src/utils/org-counts';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
@@ -26,6 +27,7 @@ import {
 } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
+import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
@@ -60,15 +62,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const [churches, setChurches] = useState([]);
   const [sectionals, setSectionals] = useState([]);
   const [regionals, setRegionals] = useState([]);
+  const [members, setMembers] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadCatalogs = async () => {
-      const [regionalsData, sectionalsData, churchesData] = await Promise.all([
+      const [regionalsData, sectionalsData, churchesData, membersData] = await Promise.all([
         getRegionals(),
         getSectionals(),
         getChurches(),
+        getMembers().catch(() => []),
       ]);
       let destsData = [];
       try {
@@ -84,6 +88,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
       setSectionals(Array.isArray(sectionalsData) ? sectionalsData : []);
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setDests(destsData);
+      setMembers(Array.isArray(membersData) ? membersData : []);
     };
 
     loadCatalogs();
@@ -183,6 +188,27 @@ export function SectionalCreateEditForm({ currentSectional }) {
       });
     }
   }, [currentSectional, reset]);
+
+  // Destacamentos y miembros de la seccion. La API devuelve estos campos vacios,
+  // asi que la ficha mostraba 0 mientras el listado —que si los calculaba—
+  // mostraba el numero bueno. Se recalculan aqui con la misma funcion que usa el
+  // listado, para que no vuelvan a decir cosas distintas.
+  useEffect(() => {
+    const idSeccion = currentSectional?.idSeccion ?? currentSectional?.id;
+
+    if (!idSeccion || !churches.length || !dests.length) return;
+
+    const { destacamentos, miembros } = contarSeccion({
+      idSeccion,
+      churches,
+      dests,
+      members,
+    });
+
+    methods.setValue('sectionalDestCount', destacamentos);
+    methods.setValue('sectionalXDestMemberCount', miembros);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSectional, churches, dests, members]);
 
   const values = watch();
 

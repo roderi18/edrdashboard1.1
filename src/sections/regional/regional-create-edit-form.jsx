@@ -14,6 +14,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { useRouter } from 'src/routes/hooks';
 
+import { contarRegion } from 'src/utils/org-counts';
 import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { canEditRegional } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
@@ -21,7 +22,10 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 
 import { AUTH } from 'src/lib/firebase';
+import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
 import { RegionalSchema } from 'src/models/regional-schema';
+import { getSectionals } from 'src/services/sectional-service';
 import { saveRegional, updateRegional } from 'src/services/regional-service';
 
 import { Label } from 'src/components/label';
@@ -114,6 +118,50 @@ export function RegionalCreateEditForm({ currentRegional }) {
       });
     }
   }, [currentRegional, reset]);
+
+  // Secciones, destacamentos y miembros de la region. La API devuelve estos tres
+  // campos vacios, asi que la ficha mostraba 0. Se cuentan recorriendo la cadena
+  // region -> secciones -> iglesias -> destacamentos -> miembros.
+  useEffect(() => {
+    let cancelado = false;
+
+    const contar = async () => {
+      const idRegion = currentRegional?.regionId ?? currentRegional?.id;
+
+      if (!idRegion) return;
+
+      const [sectionals, churches, members] = await Promise.all([
+        getSectionals({ includePhotos: false }).catch(() => []),
+        getChurches().catch(() => []),
+        getMembers().catch(() => []),
+      ]);
+
+      let dests = [];
+
+      try {
+        const res = await fetch('/api/dest');
+        const json = await res.json();
+        dests = Array.isArray(json?.data) ? json.data : (json?.Data ?? []);
+      } catch {
+        dests = [];
+      }
+
+      if (cancelado) return;
+
+      const totales = contarRegion({ idRegion, sectionals, churches, dests, members });
+
+      methods.setValue('regionalXSectionalCount', totales.secciones);
+      methods.setValue('regionalXSectionalXDestCount', totales.destacamentos);
+      methods.setValue('regionalXSectionalMemberCount', totales.miembros);
+    };
+
+    contar();
+
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRegional]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
