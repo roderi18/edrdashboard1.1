@@ -33,9 +33,20 @@ export const mapApiChurchesToUI = (apiChurch) => {
     };
 };
 
+// Se envia LO QUE HAY en el formulario, sin rellenos.
+//
+// Antes este payload fabricaba lo que faltaba: "Iglesia sin nombre", "Pastor no
+// especificado", "Dirección no especificada" y, lo mas peligroso, `idSeccion: 1`
+// —que metia la iglesia en la primera seccion del pais sin avisar—. Ninguno de
+// esos valores se distingue de un dato real hasta que alguien intenta usarlo.
+//
+// Ahora nombre, pastor, direccion y seccion son obligatorios en el formulario
+// (ChurchSchema), asi que siempre llegan con contenido y no hacen falta
+// sustitutos.
 export const buildChurchPayload = (data) => ({
-    nombre: data?.churchName?.trim() || 'Iglesia sin nombre',
-    pastor: data?.pastor?.trim() || 'Pastor no especificado',
+    nombre: data?.churchName?.trim() ?? '',
+    pastor: data?.pastor?.trim() ?? '',
+    telefono: data?.telefono?.trim() ?? '',
     direccion: [
         provinces?.find(p => String(p.id) === String(data?.provinceId))?.nombre,
         municipios?.find(m => String(m.id) === String(data?.municipioId))?.nombre,
@@ -43,11 +54,13 @@ export const buildChurchPayload = (data) => ({
         data?.street,
     ]
         .filter(Boolean)
-        .join(', ') || 'Dirección no especificada',
+        .join(', '),
+    // El correo no es obligatorio, pero el backend no admite el campo vacio: se
+    // deja el marcador con fecha, que al menos se ve a simple vista que lo es.
     correo:
         data?.correo?.trim() ||
         `nomail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}_${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}@mail.com`,
-    idSeccion: Number(data?.sectionId || data?.idSeccion || data?.sectionalName) || 1,
+    idSeccion: Number(data?.sectionId || data?.idSeccion) || null,
 });
 
 export const createChurchApi = async (data) => {

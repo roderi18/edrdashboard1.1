@@ -4,12 +4,19 @@ export async function POST(req) {
     try {
         const body = await req.json();
 
+        // El proxy TRANSPORTA, no decide. Antes volvia a rellenar por su cuenta
+        // —incluido un `test@demo2.com` y un `idSeccion: 1`—, asi que aunque el
+        // formulario mandara los datos bien, cualquier hueco se tapaba aqui otra
+        // vez sin que nadie lo viera. Lo que falte debe fallar arriba, en la
+        // validacion, no arreglarse a escondidas en el camino.
         const payload = {
-            nombre: body.nombre?.trim() || 'Iglesia sin nombre',
-            pastor: body.pastor?.trim() || 'Pastor no especificado',
-            direccion: body.direccion?.trim() || 'Dirección no especificada',
-            correo: body.correo?.trim() || 'test@demo2.com',
-            idSeccion: Number(body.idSeccion) || 1,
+            idIglesia: Number(body.idIglesia) || 0,
+            nombre: body.nombre?.trim() ?? '',
+            pastor: body.pastor?.trim() ?? '',
+            telefono: body.telefono?.trim() ?? '',
+            direccion: body.direccion?.trim() ?? '',
+            correo: body.correo?.trim() ?? '',
+            idSeccion: Number(body.idSeccion) || null,
         };
 
 
