@@ -301,18 +301,22 @@ const buscarPosicionDirectiva = (nivel, texto) => {
   );
 };
 
+// Orden de las columnas. Es el mismo al bajar y al subir, y tambien el que se
+// usa para leer una hoja que no traiga cabeceras: ahi la posicion es lo unico
+// que identifica a cada columna.
+//
+// Seccion y Region NO estan: las dos se deducen del destacamento, y repetirlas
+// abria la puerta a que el archivo dijera una cosa y la base de datos otra.
 const CABECERAS_MIEMBROS = [
   'Nombre',
   'Fecha_Nacimiento',
   'Teléfono',
   'Correo',
   'Destacamento',
-  'Sección',
-  'Región',
-  'Size_T-Shirt',
-  'Sexo',
   'Posición_Destacamento',
   'Posición_Nacional',
+  'Size_T-Shirt',
+  'Sexo',
 ];
 
 const filaDeMiembro = (member) => [
@@ -321,12 +325,10 @@ const filaDeMiembro = (member) => [
   member.phoneNumber || '',
   member.email || '',
   nombreDestacamentoConNumero(member),
-  member.sectionalName || '',
-  member.regionalName || '',
-  member.sizeCamisas || member.shirtSize || '',
-  member.gender || member.genero || '',
   member.destLeadershipPosition || '',
   member.nationalLeadershipPosition || '',
+  member.sizeCamisas || member.shirtSize || '',
+  member.gender || member.genero || '',
 ];
 
 const downloadMembersCsv = (membersToDownload) => {
@@ -694,36 +696,45 @@ export function MemberTableToolbar({
     const result = await uploadExcelRows({
       file,
       processRow: async (row) => {
+        // Si la hoja no trae las cabeceras esperadas se leen por POSICION, en el
+        // orden de CABECERAS_MIEMBROS. Asi vale igual un Excel exportado de otro
+        // sitio o un txt con barras: lo que importa es el orden de las columnas.
+        const celdas = Object.values(row);
+        const porPosicion = (indice) => String(celdas[indice] ?? "").trim();
+        const traeCabeceras = CABECERAS_MIEMBROS.some(
+          (cabecera) => row[cabecera] !== undefined
+        );
+        const leer = (indice, claves) =>
+          traeCabeceras ? getCell(row, claves) : porPosicion(indice);
+
         const valores = {
-          Nombre: getCell(row, ['Nombre', 'nombre', 'Nombre completo']),
+          Nombre: leer(0, ['Nombre', 'nombre', 'Nombre completo']),
           Fecha_Nacimiento: formatExcelDate(
-            getCell(row, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
+            leer(1, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
           ),
-          'Teléfono': getCell(row, ['Teléfono', 'telefono', 'Telefono']),
-          Correo: getCell(row, ['Correo', 'correo']),
-          Destacamento: getCell(row, ['Destacamento', 'destacamento']),
-          'Sección': getCell(row, ['Sección', 'Seccion', 'seccion']),
-          'Región': getCell(row, ['Región', 'Region', 'region']),
-          'Size_T-Shirt': getCell(row, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
-          Sexo: getCell(row, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
-          Posicion_Destacamento: getCell(row, [
+          'Teléfono': leer(2, ['Teléfono', 'telefono', 'Telefono']),
+          Correo: leer(3, ['Correo', 'correo']),
+          Destacamento: leer(4, ['Destacamento', 'destacamento']),
+          Posicion_Destacamento: leer(5, [
             'Posición_Destacamento',
             'Posicion_Destacamento',
             'Posición en destacamento',
           ]),
-          Posicion_Nacional: getCell(row, [
+          Posicion_Nacional: leer(6, [
             'Posición_Nacional',
             'Posicion_Nacional',
             'Posición nacional',
           ]),
+          'Size_T-Shirt': leer(7, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
+          Sexo: leer(8, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
         };
 
-        // Se revisan TODAS las columnas de una vez y se dice cuales faltan. Fallar
-        // en la primera obligaria a subir el archivo tantas veces como huecos
-        // tenga la fila.
-        const faltantes = Object.entries(valores)
-          .filter(([, valor]) => !String(valor ?? '').trim())
-          .map(([columna]) => columna.replace('_', ' '));
+        // Obligatorios solo los dos que identifican a la persona y la colocan. Con
+        // todo obligatorio se rechazaba el archivo entero, porque casi nadie tiene
+        // aun fecha de nacimiento ni correo registrados.
+        const faltantes = ['Nombre', 'Destacamento'].filter(
+          (columna) => !String(valores[columna] ?? '').trim()
+        );
 
         if (faltantes.length) {
           throw new Error(`Faltan: ${faltantes.join(', ')}.`);
@@ -752,11 +763,15 @@ export function MemberTableToolbar({
         const cargoDestacamento = buscarPosicionDirectiva('destacamento', valores.Posicion_Destacamento);
         const cargoNacional = buscarPosicionDirectiva('nacional', valores.Posicion_Nacional);
 
-        if (!cargoDestacamento) {
-          throw new Error(`No existe la posición de destacamento "${valores.Posicion_Destacamento}".`);
+        // Vacio significa "sin cargo". Solo se protesta cuando viene escrito algo
+        // que no existe, que si es un error de quien rellena la hoja.
+        if (valores.Posicion_Destacamento && !cargoDestacamento) {
+          throw new Error(
+            `No existe la posición de destacamento "${valores.Posicion_Destacamento}".`
+          );
         }
 
-        if (!cargoNacional) {
+        if (valores.Posicion_Nacional && !cargoNacional) {
           throw new Error(`No existe la posición nacional "${valores.Posicion_Nacional}".`);
         }
 
@@ -774,13 +789,16 @@ export function MemberTableToolbar({
             codigoMiembro,
             nombres,
             apellidos,
-            genero: valores.Sexo,
-            fechaNacimiento: valores.Fecha_Nacimiento,
+            // Vacio va como null, no como "": el backend rechaza la cadena vacia
+            // en fecha y division ("The JSON value could not be converted to
+            // DateOnly"), y toda la fila se perdia sin decir por que.
+            genero: valores.Sexo || null,
+            fechaNacimiento: valores.Fecha_Nacimiento || null,
             idDestacamento,
-            telefono: valores['Teléfono'],
+            telefono: valores['Teléfono'] || null,
             direccion: getCell(row, ['Dirección', 'direccion', 'Direccion']),
-            correo: valores.Correo,
-            sizeCamisas: valores['Size_T-Shirt'],
+            correo: valores.Correo || null,
+            sizeCamisas: valores['Size_T-Shirt'] || null,
             idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
             idCargoInstitucional: Number(getCell(row, ['idCargoInstitucional'])) || null,
             idDivision: Number(getCell(row, ['idDivision'])) || null,
@@ -830,33 +848,42 @@ export function MemberTableToolbar({
           throw new Error('El miembro se creó, pero el API no devolvió su id y quedó sin cargos.');
         }
 
-        await guardarAsignacionDirectiva({
-          nivel: 'destacamento',
-          idEntidad: idDestacamento,
-          nombreEntidad: valores.Destacamento,
-          idCargo: cargoDestacamento.idCargo,
-          idPosicionDirectiva: cargoDestacamento.idCargo,
-          division: cargoDestacamento.division ?? null,
-          orden: cargoDestacamento.orden ?? 1,
-          idMiembro: idCreado,
-          nombreMiembro: `${nombres} ${apellidos}`.trim(),
-          codigoMiembro,
-          usuario: user,
-        });
+        // Un cargo por nivel, y solo si la hoja lo trae: sin esta guarda, subir a
+        // alguien sin cargo reventaba al leer `idCargo` de null.
+        const asignaciones = [
+          cargoDestacamento && {
+            nivel: 'destacamento',
+            idEntidad: idDestacamento,
+            nombreEntidad: valores.Destacamento,
+            cargo: cargoDestacamento,
+          },
+          cargoNacional && {
+            nivel: 'nacional',
+            idEntidad: 'general',
+            nombreEntidad: 'Consejo Nacional',
+            cargo: cargoNacional,
+          },
+        ].filter(Boolean);
 
-        await guardarAsignacionDirectiva({
-          nivel: 'nacional',
-          idEntidad: 'general',
-          nombreEntidad: 'Consejo Nacional',
-          idCargo: cargoNacional.idCargo,
-          idPosicionDirectiva: cargoNacional.idCargo,
-          division: cargoNacional.division ?? null,
-          orden: cargoNacional.orden ?? 1,
-          idMiembro: idCreado,
-          nombreMiembro: `${nombres} ${apellidos}`.trim(),
-          codigoMiembro,
-          usuario: user,
-        });
+        for (const asignacion of asignaciones) {
+          // En serie: son dos como mucho, y a la vez se pisarian al escribir el
+          // mismo documento de directiva.
+           
+          await guardarAsignacionDirectiva({
+            nivel: asignacion.nivel,
+            idEntidad: asignacion.idEntidad,
+            nombreEntidad: asignacion.nombreEntidad,
+            idCargo: asignacion.cargo.idCargo,
+            idPosicionDirectiva: asignacion.cargo.idCargo,
+            division: asignacion.cargo.division ?? null,
+            orden: asignacion.cargo.orden ?? 1,
+            idMiembro: idCreado,
+            nombreMiembro: `${nombres} ${apellidos}`.trim(),
+            codigoMiembro,
+            usuario: user,
+          });
+        }
+
       },
     });
 
