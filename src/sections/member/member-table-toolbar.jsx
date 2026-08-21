@@ -1,5 +1,5 @@
 import { usePopover } from 'minimal-shared/hooks';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { pdf, Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
 
 import Box from '@mui/material/Box';
@@ -493,6 +493,41 @@ export function MemberTableToolbar({
       />
     );
   };
+
+  // Un desplegable con una sola opcion no es una eleccion: obligar a abrirlo,
+  // marcar la casilla y cerrar fuera para llegar al unico resultado posible es
+  // trabajo sin recompensa. Se aplica solo.
+  //
+  // Solo la PRIMERA vez para cada opcion. Sin el registro de lo ya aplicado, al
+  // desmarcar la casilla el efecto la volvia a marcar en el acto y el filtro no
+  // se podia quitar.
+  const filtrosAutoAplicados = useRef(new Set());
+
+  useEffect(() => {
+    const candidatos = [
+      ['destName', options.destName, currentFilters.destName],
+      ['memberPosition', options.memberPosition, currentFilters.memberPosition],
+      ['sectionalId', options.sectionalId, currentFilters.sectionalId],
+      ['regionalId', options.regionalId, currentFilters.regionalId],
+    ];
+
+    const cambios = {};
+
+    candidatos.forEach(([clave, items, seleccionado]) => {
+      if ((items || []).length !== 1) return;
+      if ((seleccionado || []).length !== 0) return;
+
+      const valor = getFilterOptionValue(items[0]);
+      const marca = `${clave}:${valor}`;
+
+      if (filtrosAutoAplicados.current.has(marca)) return;
+
+      filtrosAutoAplicados.current.add(marca);
+      cambios[clave] = [valor];
+    });
+
+    if (Object.keys(cambios).length) updateFilters(cambios);
+  }, [options, currentFilters, updateFilters]);
 
   const renderFilterSelect = (key, label, items, value, onChange) => (
     <FormControl sx={{ flexShrink: 0, width: { md: 180 } }}>
