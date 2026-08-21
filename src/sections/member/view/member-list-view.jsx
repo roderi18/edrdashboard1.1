@@ -26,7 +26,6 @@ import { isAdminGlobal, isFullOrgManager } from 'src/utils/org-level-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
-  isUsuarioComunRole,
   isMemberSessionUser,
   canMemberManageMembers,
   esFichaDelPropioMiembro,
@@ -610,7 +609,7 @@ export function MemberListView() {
       filters: currentFilters,
     });
 
-    if (table.hasUserSorted || !isUsuarioComunRole(user)) {
+    if (table.hasUserSorted) {
       return filtrados;
     }
 

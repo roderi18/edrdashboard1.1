@@ -29,7 +29,6 @@ import {
   isForeignDestForMembers,
 } from 'src/utils/org-level-access';
 import {
-  isUsuarioComunRole,
   getOwnDestIdsForUser,
   getOwnRegionIdsForUser,
   getOwnSectionIdsForUser,
@@ -43,6 +42,7 @@ import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getDests, getDestsApi, deleteDestApi } from 'src/services/dest-service';
+import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -72,6 +72,9 @@ import { DestTableFiltersResult } from '../dest-table-filters-result';
 // ----------------------------------------------------------------------
 
 const REGIONAL_FULL_NAME = [{ value: 'all', label: 'Todos' }, ...REGIONAL_FULL_NAME_OPTIONS];
+
+// Casilla del organigrama de la que sale el Coordinador de Destacamento.
+const POSICION_COORDINADOR_DEST = 'destacamento-coordinador-destacamento';
 
 const TABLE_HEAD = [
   { id: 'destName', label: 'Destacamento' },
@@ -139,7 +142,25 @@ export function DestListView() {
   const [regionals, setRegionals] = useState([]);
   const [churches, setChurches] = useState([]);
   const [members, setMembers] = useState([]);
+  // Asignaciones de la Directiva: de aqui sale el Coordinador de cada
+  // destacamento, para que la lista diga lo mismo que el organigrama y que la
+  // ficha del destacamento.
+  const [asignaciones, setAsignaciones] = useState([]);
   const [tableLoading, setTableLoading] = useState(true);
+
+  const coordinadorPorDestacamento = useMemo(() => {
+    const mapa = new Map();
+
+    asignaciones.forEach((asignacion) => {
+      if (asignacion?.nivel !== 'destacamento') return;
+      if (asignacion?.idPosicionDirectiva !== POSICION_COORDINADOR_DEST) return;
+      if (!asignacion?.idEntidad || !asignacion?.idMiembro) return;
+
+      mapa.set(String(asignacion.idEntidad), String(asignacion.idMiembro));
+    });
+
+    return mapa;
+  }, [asignaciones]);
 
   const isValidCoordinator = (member) => {
     if (!member) return false;
@@ -185,14 +206,25 @@ export function DestListView() {
 
       const fallbackCoordinator = realMembersInDest.length === 1 ? realMembersInDest[0] : null;
 
-      // El coordinador sale del propio destacamento; si no lo trae, del unico
-      // miembro con perfil de coordinador que haya dentro. Habia en medio una
-      // busqueda contra `leadershipAssignments` (datos de ejemplo) que no podia
-      // acertar nunca: sus entidades son 'dest-018' y sus miembros 'member-01',
-      // mientras los reales son numeros.
-      const coordinator = isValidCoordinator(coordinatorByDestField)
-        ? coordinatorByDestField
-        : fallbackCoordinator;
+      // MANDA la Directiva: quien ocupa la casilla "Coordinador de Destacamento"
+      // en el organigrama es el coordinador, y punto. Es la misma fuente que lee
+      // la ficha del destacamento, asi que los tres sitios dicen lo mismo.
+      //
+      // Detras quedan los dos criterios de antes, para los destacamentos que
+      // todavia no tienen esa casilla asignada: el campo del propio destacamento
+      // y, si tampoco, el unico miembro que haya dentro.
+      const idCoordinadorDirectiva = coordinadorPorDestacamento.get(String(dest.id));
+      const coordinatorByDirectiva = idCoordinadorDirectiva
+        ? members.find(
+            (m) =>
+              String(m.id) === idCoordinadorDirectiva ||
+              String(m.idMiembros) === idCoordinadorDirectiva
+          )
+        : null;
+
+      const coordinator =
+        coordinatorByDirectiva ||
+        (isValidCoordinator(coordinatorByDestField) ? coordinatorByDestField : fallbackCoordinator);
 
       const church = churches.find(
         (c) =>
@@ -334,7 +366,10 @@ export function DestListView() {
     };
 
     load();
-  }, [members, churches, sectionals, regionals, user, tableLoading]);
+    // `coordinadorPorDestacamento` entra en las dependencias para que las filas se
+    // reconstruyan cuando llegan las asignaciones de la Directiva; si no, la
+    // columna del coordinador se quedaria con lo que hubiera en el primer render.
+  }, [members, churches, sectionals, regionals, user, tableLoading, coordinadorPorDestacamento]);
 
   useEffect(() => {
     let cancelled = false;
@@ -344,12 +379,14 @@ export function DestListView() {
     // Solo iglesias necesita resolverse para el alcance; secciones/regiones se
     // usan para nombres y conteos, sin fotos.
     async function load() {
-      const [sectionalsData, regionalsData, churchesData, membersData] = await Promise.all([
-        getSectionals({ includePhotos: false }),
-        getRegionals({ includePhotos: false }),
-        getChurches(),
-        getMembers(),
-      ]);
+      const [sectionalsData, regionalsData, churchesData, membersData, asignacionesData] =
+        await Promise.all([
+          getSectionals({ includePhotos: false }),
+          getRegionals({ includePhotos: false }),
+          getChurches(),
+          getMembers(),
+          obtenerAsignacionesDirectivaMiembros().catch(() => []),
+        ]);
 
       if (cancelled) return;
 
@@ -357,6 +394,7 @@ export function DestListView() {
       setRegionals(Array.isArray(regionalsData) ? regionalsData : []);
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setMembers(Array.isArray(membersData) ? membersData : []);
+      setAsignaciones(Array.isArray(asignacionesData) ? asignacionesData : []);
     }
 
     load();
@@ -461,17 +499,19 @@ export function DestListView() {
 
     if (table.hasUserSorted || !hasOwnScope) return filtered;
 
-    // Para el Usuario Comun, propio es SU destacamento y nada mas. Emparejar
-    // tambien por seccion los marcaria todos —ve la seccion entera— y el orden
-    // se quedaria igual, que es justo lo que no se quiere: el suyo va primero.
-    if (isUsuarioComunRole(user)) {
+    // Manda el alcance MAS ESTRECHO que tenga la persona. Si se sabe a que
+    // destacamento pertenece, ese va primero y punto: emparejar tambien por
+    // seccion marcaria como propios todos los de su seccion, y entonces no habria
+    // nada que separar y el suyo podia acabar el ultimo. Solo cuando no hay
+    // destacamento propio —cargos seccionales y regionales— se ordena por
+    // seccion o por region.
+    if (ownScope.destIds.size) {
       return sortOwnFirst(filtered, (row) => ownScope.destIds.has(normalizeDestId(row.id)));
     }
 
     return sortOwnFirst(
       filtered,
       (row) =>
-        ownScope.destIds.has(normalizeDestId(row.id)) ||
         ownScope.sectionIds.has(normalizeDestId(row.sectionalId)) ||
         ownScope.regionIds.has(normalizeDestId(row.regionalId))
     );
