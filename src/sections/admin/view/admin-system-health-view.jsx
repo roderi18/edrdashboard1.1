@@ -338,7 +338,18 @@ export function AdminSystemHealthView() {
               <TableBody>
                 {checksInPage.map((item) => (
                   <TableRow key={item.id} hover>
-                    <TableCell>{item.area}</TableCell>
+                    <TableCell>
+                      {item.area}
+                      {/* Cuando se genero el chequeo. Va debajo del area porque un
+                          dato de estado sin su momento no dice gran cosa: no se
+                          sabe si es de hace un minuto o de ayer. */}
+                      <Typography
+                        variant="caption"
+                        sx={{ display: 'block', color: 'text.disabled' }}
+                      >
+                        {health?.generatedAt ? fDateTime(health.generatedAt) : 'Sin fecha'}
+                      </Typography>
+                    </TableCell>
                     <TableCell>
                       <Typography variant="subtitle2">{item.name}</Typography>
                     </TableCell>
