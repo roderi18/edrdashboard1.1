@@ -228,6 +228,10 @@ const createFirebaseAuthForMember = async ({
           nombre: displayName,
           rol: 'miembro',
           estado: 'activo',
+          // La clave inicial se deduce del codigo, asi que la sabe cualquiera que lo
+          // vea: no es un secreto, es un pase de un solo uso. Hasta que la cambie, la
+          // sesion no le deja pasar del formulario de cambio.
+          debeCambiarClave: true,
           alcance: {
             modo: 'destacamento',
             destacamentos: destId ? [Number(destId)] : [],

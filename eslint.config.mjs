@@ -216,6 +216,9 @@ export default [
       // nivel sobre el que la puerta se apoya.
       'src/services/solicitudes-cambio-service.js',
       'src/services/audit-log-service.js',
+      // Solo contiene la funcion que `proponerCambio` ejecuta DESPUES de haber
+      // registrado el cambio: es el brazo que aplica, no una puerta paralela.
+      'src/services/primer-acceso-service.js',
       // Las rutas de `src/app/api/**` son el proxy hacia el backend .NET: la
       // puerta esta del lado de quien decide el cambio, no del transporte.
       'src/app/api/**',

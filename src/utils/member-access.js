@@ -2177,6 +2177,9 @@ export const buildMemberSessionUser = (authUser, access = {}) => {
     rolNombre: profile?.rolNombre ?? '',
     memberRole: profile?.rolId ?? profile?.rol ?? 'miembro',
     status: profile?.estado ?? member?.status ?? 'activo',
+    // Pase de un solo uso: mientras este puesto, la sesion no pasa del formulario
+    // de cambio de clave.
+    debeCambiarClave: profile?.debeCambiarClave === true,
     idMiembros: Number(member?.id ?? profile?.idMiembros ?? 0) || '',
     memberId: member?.memberId ?? '',
     codigoMiembro: memberCode,

@@ -1,36 +1,40 @@
 'use client';
 
 import * as z from 'zod';
-import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
+
+import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
+import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
+import { resolverCorreoDeMiembroPorNumero } from 'src/utils/member-sign-in';
 
 import { CONFIG } from 'src/global-config';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
+
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
-import { RouterLink } from 'src/routes/components';
-import { useRouter } from 'src/routes/hooks';
-import { paths } from 'src/routes/paths';
-import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
-import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 
-import { FormHead } from '../../components/form-head';
-import { signInWithGoogle, signInWithPassword } from '../../components/context/firebase';
 import { useAuthContext } from '../../hooks';
 import { getErrorMessage } from '../../utils';
+import { FormHead } from '../../components/form-head';
+import { signInWithGoogle, signInWithPassword } from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -143,9 +147,12 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       const userNumber = String(data.userNumber || '').replace(/\D/g, '');
       const loginValue = isAdminMode ? data.loginValue.trim() : `${DEFAULT_PREFIX}${userNumber}`;
+      // El prefijo del codigo depende de la provincia de la iglesia, asi que ya no
+      // se puede componer anteponiendo "DO-SD-": se busca a quien tenga ese numero y
+      // se usa su codigo real. El compuesto queda de reserva para los antiguos.
       const authEmail = isAdminMode
         ? await resolveAdminSignInEmail(loginValue)
-        : resolveSignInEmail(loginValue);
+        : (await resolverCorreoDeMiembroPorNumero(userNumber)) || resolveSignInEmail(loginValue);
 
       if (!authEmail) {
         throw new Error(
