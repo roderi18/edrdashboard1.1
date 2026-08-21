@@ -138,7 +138,19 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     setSubmenuOption(null);
   }, []);
 
-  const puedeCambiarDeRol = isAdminGlobal(user);
+  // El desplegable pertenece a la CUENTA, no al rol que tenga puesto en ese
+  // momento. Mirando solo el rol activo, el Administrador Global que se cambiaba
+  // a Oficina Nacional perdia el desplegable y se quedaba encerrado sin forma de
+  // volver.
+  //
+  // Una cuenta de administrador de verdad (admin001) llega con `role: 'admin'`;
+  // una sesion que es administrativa por ocupar un cargo del organigrama llega
+  // con `'administrador'`, y esa no debe tenerlo.
+  const esCuentaDeAdministrador =
+    String(user?.role ?? '').trim().toLowerCase() === 'admin' ||
+    String(user?.rol ?? '').trim().toLowerCase() === 'admin';
+
+  const puedeCambiarDeRol = isAdminGlobal(user) || esCuentaDeAdministrador;
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
   const selectedWorkspace = useMemo(() => {
     const match = data.find((option) => option.id === currentRoleId);
