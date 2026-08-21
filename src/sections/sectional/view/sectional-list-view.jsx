@@ -20,6 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   getOwnRegionIdsForUser,
   getOwnSectionIdsForUser,
@@ -127,6 +128,7 @@ const buildSectionalList = ({
   members = [],
   dests = [],
   churches = [],
+  fotosMiembros = {},
 }) =>
   sectionals.map((sectional) => {
     const sectionalId = getSectionalId(sectional);
@@ -178,7 +180,8 @@ const buildSectionalList = ({
         : 'Desconocido',
 
       directorId: director?.id ?? null,
-      directorAvatarUrl: director?.avatarUrl || '',
+      directorAvatarUrl:
+        fotosMiembros[String(director?.id)]?.urlFoto || director?.avatarUrl || '',
       directorPhoneNumber: director?.phoneNumber || '',
     };
   });
@@ -306,13 +309,17 @@ export function SectionalListView() {
         // Fase 1: una sola tanda en paralelo, cada dataset una vez (antes se
         // pedian secciones/regiones/iglesias/destacamentos hasta 3 veces y en
         // serie dentro de buildSectionalList).
-        const [sectionalsData, destsData, churchesData, regionalsData, membersData] =
+        const [sectionalsData, destsData, churchesData, regionalsData, membersData, fotosMiembros] =
           await Promise.all([
             getSectionals(),
             getDestsApi({ includePhotos: false }),
             getChurches(),
             getRegionals({ includePhotos: false }),
             getMembers(),
+            // Las fotos de los miembros viven en Firebase, no en la lista que
+            // devuelve la API: sin pedirlas aparte, el director salia siempre con
+            // el avatar generico aunque tuviera foto.
+            obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
           ]);
 
         setRegionals(regionalsData);
@@ -345,6 +352,7 @@ export function SectionalListView() {
           members: membersData,
           dests: destsData,
           churches: churchesData,
+          fotosMiembros,
         });
         setTableData(
           filterSectionalsByMemberScope(data, user, { dests: destsData, churches: churchesData })

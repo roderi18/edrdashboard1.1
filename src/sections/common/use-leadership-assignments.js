@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { buildOrgIndex, buildLeadershipMemberOptions } from 'src/utils/leadership-member-options';
 import {
   buscarPosicionPorNodo,
@@ -92,17 +93,25 @@ export function useLeadershipAssignments({
     let cancelled = false;
 
     const load = async () => {
-      const [memberRows, dests, churches, sectionals, regionals] = await Promise.all([
+      const [memberRows, dests, churches, sectionals, regionals, fotos] = await Promise.all([
         getMembers().catch(() => []),
         getDestsApi({ includePhotos: false }).catch(() => []),
         getChurches().catch(() => []),
         getSectionals({ includePhotos: false }).catch(() => []),
         getRegionals().catch(() => []),
+        // Las fotos viven en Firebase, no en la lista que devuelve la API: sin
+        // pedirlas aparte, toda persona salia con el avatar generico.
+        obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
       ]);
 
       if (cancelled) return;
 
-      setMembers(Array.isArray(memberRows) ? memberRows : []);
+      setMembers(
+        (Array.isArray(memberRows) ? memberRows : []).map((member) => ({
+          ...member,
+          avatarUrl: fotos[String(member?.id)]?.urlFoto || member?.avatarUrl || '',
+        }))
+      );
       setOrgIndex(buildOrgIndex({ dests, churches, sectionals, regionals }));
     };
 

@@ -17,13 +17,13 @@ import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { getOwnRegionIdsForUser, canMemberManageMembers } from 'src/utils/member-access';
+import { subirFotoEntidad , obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   isFullOrgManager,
   getSectionScopeIds,
@@ -265,8 +265,16 @@ export function DestCreateEditForm({ currentDest }) {
 
   useEffect(() => {
     const loadData = async () => {
-      const membersData = await getMembers();
-      const normalizedMembers = Array.isArray(membersData) ? membersData : [];
+      // Las fotos viven en Firebase, no en la lista que devuelve la API: sin
+      // pedirlas aparte, toda persona salia con el avatar generico.
+      const [membersData, fotos] = await Promise.all([
+        getMembers(),
+        obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
+      ]);
+      const normalizedMembers = (Array.isArray(membersData) ? membersData : []).map((member) => ({
+        ...member,
+        avatarUrl: fotos[String(member?.id)]?.urlFoto || member?.avatarUrl || '',
+      }));
       setAllMembers(normalizedMembers);
 
       // Coordinador de destacamento desde la base de datos (Firestore). Se mapea

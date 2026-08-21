@@ -22,6 +22,7 @@ import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   canEditRegional,
   canDeleteOrgLevel,
@@ -154,12 +155,16 @@ export function RegionalListView() {
       try {
         // Fase 1: una sola tanda en paralelo (antes getRegionals se resolvia
         // en serie antes del resto, sumando su latencia al total).
-        const [regionals, sectionals, churches, dests, members] = await Promise.all([
+        const [regionals, sectionals, churches, dests, members, fotosMiembros] = await Promise.all([
           getRegionals(),
           getSectionals({ includePhotos: false }),
           getChurches(),
           getDestsApi({ includePhotos: false }),
           getMembers(),
+          // Las fotos de los miembros viven en Firebase, no en la lista que
+          // devuelve la API: sin pedirlas aparte, el director salia siempre con
+          // el avatar generico aunque tuviera foto.
+          obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
         ]);
         setTableData(regionals.map(mapRegionalToBaseRow));
         setTableLoading(false);
@@ -208,7 +213,8 @@ export function RegionalListView() {
             ...regional,
             memberFullName: directorName,
             directorId: director?.id ?? director?.memberId ?? null,
-            directorAvatarUrl: director?.avatarUrl || '',
+            directorAvatarUrl:
+              fotosMiembros[String(director?.id)]?.urlFoto || director?.avatarUrl || '',
             directorPhoneNumber: director?.phoneNumber || '',
             regionalXSectionalCount: seccionesDeRegion.length,
             regionalXSectionalXDestCount: destCount,

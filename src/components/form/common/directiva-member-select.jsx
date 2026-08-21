@@ -16,6 +16,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContentText from '@mui/material/DialogContentText';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
@@ -61,16 +62,25 @@ export default function DirectivaMemberSelect({
     let cancelado = false;
 
     const cargar = async () => {
-      const [listaMiembros, listaAsignaciones, listaSecciones, listaRegiones] = await Promise.all([
-        getMembers().catch(() => []),
-        obtenerAsignacionesDirectivaMiembros().catch(() => []),
-        getSectionals({ includePhotos: false }).catch(() => []),
-        getRegionals({ includePhotos: false }).catch(() => []),
-      ]);
+      const [listaMiembros, listaAsignaciones, listaSecciones, listaRegiones, fotos] =
+        await Promise.all([
+          getMembers().catch(() => []),
+          obtenerAsignacionesDirectivaMiembros().catch(() => []),
+          getSectionals({ includePhotos: false }).catch(() => []),
+          getRegionals({ includePhotos: false }).catch(() => []),
+          // Las fotos viven en Firebase, no en la lista que devuelve la API: sin
+          // pedirlas aparte, toda persona salia con el avatar generico.
+          obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
+        ]);
 
       if (cancelado) return;
 
-      setMembers(Array.isArray(listaMiembros) ? listaMiembros : []);
+      setMembers(
+        (Array.isArray(listaMiembros) ? listaMiembros : []).map((member) => ({
+          ...member,
+          avatarUrl: fotos[String(member?.id)]?.urlFoto || member?.avatarUrl || '',
+        }))
+      );
       setAsignaciones(Array.isArray(listaAsignaciones) ? listaAsignaciones : []);
       setEntidades({
         seccional: Array.isArray(listaSecciones) ? listaSecciones : [],
