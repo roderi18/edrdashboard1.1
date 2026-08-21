@@ -22,6 +22,7 @@ import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   canEditDest,
   isAdminGlobal,
@@ -146,6 +147,7 @@ export function DestListView() {
   // destacamento, para que la lista diga lo mismo que el organigrama y que la
   // ficha del destacamento.
   const [asignaciones, setAsignaciones] = useState([]);
+  const [fotosMiembros, setFotosMiembros] = useState({});
   const [tableLoading, setTableLoading] = useState(true);
 
   const coordinadorPorDestacamento = useMemo(() => {
@@ -261,7 +263,8 @@ export function DestListView() {
           ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
           : 'Desconocido',
         coordinatorId: coordinator?.memberId || coordinator?.id || null,
-        coordinatorAvatarUrl: coordinator?.avatarUrl || '',
+        coordinatorAvatarUrl:
+          fotosMiembros[String(coordinator?.id)]?.urlFoto || coordinator?.avatarUrl || '',
 
         memberFirstName: coordinator?.firstName ?? '',
         memberLastName: coordinator?.lastName ?? '',
@@ -369,7 +372,7 @@ export function DestListView() {
     // `coordinadorPorDestacamento` entra en las dependencias para que las filas se
     // reconstruyan cuando llegan las asignaciones de la Directiva; si no, la
     // columna del coordinador se quedaria con lo que hubiera en el primer render.
-  }, [members, churches, sectionals, regionals, user, tableLoading, coordinadorPorDestacamento]);
+  }, [members, churches, sectionals, regionals, user, tableLoading, coordinadorPorDestacamento, fotosMiembros]);
 
   useEffect(() => {
     let cancelled = false;
@@ -379,13 +382,18 @@ export function DestListView() {
     // Solo iglesias necesita resolverse para el alcance; secciones/regiones se
     // usan para nombres y conteos, sin fotos.
     async function load() {
-      const [sectionalsData, regionalsData, churchesData, membersData, asignacionesData] =
+      const [sectionalsData, regionalsData, churchesData, membersData, asignacionesData, fotosData] =
         await Promise.all([
           getSectionals({ includePhotos: false }),
           getRegionals({ includePhotos: false }),
           getChurches(),
           getMembers(),
           obtenerAsignacionesDirectivaMiembros().catch(() => []),
+          // Las fotos de los miembros viven en Firebase, no en la lista que
+          // devuelve la API: sin pedirlas aparte, el coordinador salia siempre
+          // con el avatar generico aunque tuviera foto. Es lo que ya hace la
+          // lista de miembros.
+          obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
         ]);
 
       if (cancelled) return;
@@ -395,6 +403,7 @@ export function DestListView() {
       setChurches(Array.isArray(churchesData) ? churchesData : []);
       setMembers(Array.isArray(membersData) ? membersData : []);
       setAsignaciones(Array.isArray(asignacionesData) ? asignacionesData : []);
+      setFotosMiembros(fotosData || {});
     }
 
     load();
