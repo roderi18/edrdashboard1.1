@@ -39,6 +39,11 @@ export const AMBITOS_CAMBIO = {
   directivaDestacamento: 'directiva_destacamento',
   tienda: 'tienda',
   miembro: 'miembro',
+  // Sistema de Ascenso y Academia Ministerial: no van a aprobacion de la Oficina
+  // Nacional —los lleva el destacamento—, pero cada movimiento queda en
+  // Historial, que es lo que se pidio.
+  sistemaAscenso: 'sistema_ascenso',
+  academiaMinisterial: 'academia_ministerial',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

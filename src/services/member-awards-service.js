@@ -14,6 +14,7 @@ import { paths } from 'src/routes/paths';
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
@@ -304,11 +305,33 @@ export const guardarProgresoAscensoMiembro = async ({
     { merge: true }
   ).catch(() => null);
 
-  await setDoc(
-    progressRef,
-    { ...document, actualizadoEnServidor: serverTimestamp() },
-    { merge: true }
-  );
+  // Pasa por la puerta de cambios: primero queda en Historial y solo despues se
+  // escribe. Sistema de Ascenso y Academia Ministerial comparten esta funcion,
+  // asi que el ambito sale del propio vinculo.
+  await proponerCambio({
+    ambito:
+      vinculo.sistema === 'sistemaAscenso'
+        ? AMBITOS_CAMBIO.sistemaAscenso
+        : AMBITOS_CAMBIO.academiaMinisterial,
+    entidad: {
+      tipo: 'miembro',
+      id: finalIdMiembro,
+      nombre: finalNombreMiembro,
+      ruta: `/dashboard/level/member/${finalCodigoMiembro || finalIdMiembro}/edit/awards`,
+    },
+    cambios: [
+      {
+        campo: vinculo.idItemAscenso,
+        etiqueta: vinculo.nombreItemAscenso || vinculo.idItemAscenso,
+        antes: previous?.estado ?? null,
+        despues: estado,
+      },
+    ],
+    usuario: user,
+    descripcion: `Se actualizó "${vinculo.nombreItemAscenso || vinculo.idItemAscenso}" de ${finalNombreMiembro}: ${previous?.estado ?? 'sin registro'} → ${estado}.`,
+    aplicar: () =>
+      setDoc(progressRef, { ...document, actualizadoEnServidor: serverTimestamp() }, { merge: true }),
+  });
 
   registrarCambiosHistorialMiembro({
     idMiembro: finalIdMiembro,

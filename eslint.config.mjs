@@ -192,4 +192,104 @@ export default [
   eslintJs.configs.recommended,
   reactPlugin.configs.flat.recommended,
   customConfig,
+  // --------------------------------------------------------------------
+  // La puerta de cambios se OBLIGA aqui, no con una norma escrita.
+  //
+  // Escribir directamente en la base de datos —Firestore o la API— queda
+  // PROHIBIDO POR DEFECTO en toda la aplicacion. Lo que no pase por
+  // `solicitudes-cambio-service` no compila el lint, y por tanto no entra.
+  //
+  // Esto es lo que hace que la garantia no dependa de que alguien se acuerde:
+  // un rol nuevo, un permiso nuevo, un modulo nuevo o un fichero nuevo chocan
+  // con la prohibicion desde el primer dia, sin que nadie tenga que anadirlos a
+  // ninguna lista. La regla mira la ESCRITURA, no quien la hace, asi que ningun
+  // rol futuro puede quedar fuera por definicion.
+  //
+  // `ignores` es la deuda: los ficheros que escribian directo desde antes de
+  // existir la puerta. Cada uno que se engancha SALE de la lista y ya no puede
+  // volver. La lista solo puede encoger.
+  // --------------------------------------------------------------------
+  {
+    files: ['src/**/*.{js,jsx}'],
+    ignores: [
+      // Infraestructura: son la puerta misma, o el registro, o el acceso de bajo
+      // nivel sobre el que la puerta se apoya.
+      'src/services/solicitudes-cambio-service.js',
+      'src/services/audit-log-service.js',
+      // Las rutas de `src/app/api/**` son el proxy hacia el backend .NET: la
+      // puerta esta del lado de quien decide el cambio, no del transporte.
+      'src/app/api/**',
+
+      // --- DEUDA: enganchar a la puerta y borrar de aqui ---
+      'src/auth/components/context/firebase/action.js',
+      'src/auth/permissions/firebase-permissions.js',
+      'src/sections/account/account-change-password.jsx',
+      'src/sections/account/account-general.jsx',
+      'src/sections/auth/signup/signup-without-email.jsx',
+      'src/sections/member/member-create-edit-form.jsx',
+      'src/sections/user-account/user-account-general.jsx',
+      'src/services/address-service.js',
+      'src/services/admin-maintenance-service.js',
+      'src/services/admin-permissions-service.js',
+      'src/services/attendance-service.js',
+      'src/services/award-status-change-request-service.js',
+      'src/services/cart-service.js',
+      'src/services/certificate-service.js',
+      'src/services/directivas-organizacionales-service.js',
+      'src/services/file-manager-service.js',
+      'src/services/inventory-service.js',
+      // Parcial: el progreso de Ascenso/Academia YA pasa por la puerta; quedan
+      // el vinculo de certificado, el favorito y dos escrituras auxiliares.
+      'src/services/member-awards-service.js',
+      'src/services/member-health-access-service.js',
+      'src/services/member-health-documents-service.js',
+      'src/services/member-health-service.js',
+      'src/services/member-history-service.js',
+      'src/services/notification-service.js',
+      'src/services/notification-settings-service.js',
+      'src/services/order-service.js',
+      'src/services/organigrama-directiva-destacamentos-service.js',
+      'src/services/principal-service.js',
+      'src/services/principal-social-service.js',
+      'src/services/product-review-service.js',
+      'src/services/product-service.js',
+      'src/services/receipt-service.js',
+      'src/services/solicitudes-cambio-miembro-service.js',
+      'src/utils/firebase-admins.js',
+      'src/utils/firebase-calendar.js',
+      'src/utils/firebase-notificaciones.js',
+      'src/utils/firebase-photos.js',
+      'src/utils/member-access.js',
+      // Servicios de nivel organizacional: se enganchan en el paso siguiente.
+      'src/services/dest-service.js',
+      'src/services/sectional-service.js',
+      'src/services/regional-service.js',
+      'src/services/church-service.js',
+      'src/services/member-service.js',
+      'src/actions/calendar.js',
+      'src/actions/mail.js',
+      'src/sections/dest/dest-table-toolbar.jsx',
+      'src/sections/member/member-table-toolbar.jsx',
+      'src/sections/regional/regional-table-toolbar.jsx',
+      'src/sections/sectional/sectional-table-toolbar.jsx',
+      'src/services/cargos-api-service.js',
+      'src/services/pastor-destacamento-service.js',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        2,
+        {
+          selector:
+            "CallExpression[callee.name=/^(setDoc|updateDoc|addDoc|deleteDoc|writeBatch)$/]",
+          message:
+            'Escritura directa en Firestore. Todo cambio debe pasar por proponerCambio() de src/services/solicitudes-cambio-service.js, que lo registra en Historial antes de aplicarlo.',
+        },
+        {
+          selector: "Property[key.name='method'][value.value=/^(POST|PUT|PATCH|DELETE)$/i]",
+          message:
+            'Escritura directa contra la API. Todo cambio debe pasar por proponerCambio() de src/services/solicitudes-cambio-service.js, que lo registra en Historial antes de aplicarlo.',
+        },
+      ],
+    },
+  },
 ];
