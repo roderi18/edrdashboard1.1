@@ -421,6 +421,14 @@ export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
             mensaje = text;
         }
 
+        // 409 no es un fallo: es la respuesta prevista cuando el destacamento aun
+        // tiene miembros. Se DEVUELVE en vez de lanzarse, porque una excepcion
+        // acaba en la consola y en la superposicion de errores de Next como si
+        // algo se hubiera roto, y aqui no se ha roto nada: falta un paso previo.
+        if (res.status === 409) {
+            return { noSePudo: true, motivo: mensaje };
+        }
+
         throw new Error(mensaje || `Error eliminando destacamento (${res.status})`);
     }
 
