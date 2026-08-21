@@ -493,6 +493,40 @@ export async function guardarAsignacionDirectiva({
     division,
     orden,
   });
+  // Copia del ocupante cuando quien llama no la trae. Sin esto la asignacion se
+  // guardaba con el nombre en blanco —le pasaba a todo llamador que solo tuviera
+  // el id a mano— y cualquier vista que confie en la copia en vez de resolverla
+  // contra el listado de miembros pintaba un hueco.
+  // El import es dinamico a proposito: `member-service` ya importa este modulo,
+  // y hacerlo estatico cerraria el ciclo.
+  let nombreCopia = normalizarTexto(nombreMiembro);
+  let codigoCopia = normalizarTexto(codigoMiembro);
+
+  if (idMiembroResolved && (!nombreCopia || !codigoCopia)) {
+    try {
+      const { getMembers } = await import('src/services/member-service');
+      const miembros = await getMembers();
+      const miembro = (Array.isArray(miembros) ? miembros : []).find(
+        (candidato) =>
+          String(candidato?.id) === idMiembroResolved ||
+          String(candidato?.idMiembros) === idMiembroResolved
+      );
+
+      if (miembro) {
+        nombreCopia =
+          nombreCopia ||
+          [miembro.firstName ?? miembro.nombres, miembro.lastName ?? miembro.apellidos]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        codigoCopia = codigoCopia || normalizarTexto(miembro.memberId || miembro.codigoMiembro);
+      }
+    } catch {
+      // Sin listado disponible se guarda igual: la copia es una ayuda, no la
+      // fuente de verdad, y bloquear el guardado por esto seria peor.
+    }
+  }
+
   const asignacion = {
     idAsignacion,
     idDirectiva,
@@ -509,8 +543,8 @@ export async function guardarAsignacionDirectiva({
     activo,
     // Copia del ocupante: si el miembro no viene en el listado que carga el
     // organigrama, el nodo se pintaba vacio aunque la asignacion existiera.
-    nombreMiembro: normalizarTexto(nombreMiembro),
-    codigoMiembro: normalizarTexto(codigoMiembro),
+    nombreMiembro: nombreCopia,
+    codigoMiembro: codigoCopia,
     fotoMiembro: normalizarTexto(fotoMiembro),
     fechaActualizacion: serverTimestamp(),
     fechaCreacion: serverTimestamp(),
