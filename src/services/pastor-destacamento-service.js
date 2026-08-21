@@ -91,7 +91,7 @@ export async function asegurarPastorDelDestacamento({
   let idMiembro = existente?.id ?? null;
 
   if (!idMiembro) {
-    const codigoMiembro = await generateMemberId();
+    const codigoMiembro = await generateMemberId({ destId: idDest });
 
     const res = await fetch('/api/members/post/', {
       method: 'POST',

@@ -1752,7 +1752,9 @@ export function MemberCreateEditForm({
         const genderValue =
           typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
-        const codigoMiembro = currentMember?.memberId || (await generateMemberId());
+        const codigoMiembro =
+          currentMember?.memberId ||
+          (await generateMemberId({ destId: formData.idDestacamento }));
         const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
         // Se recalcula con la fecha que se esta enviando (no con la del render),
         // para que el bloqueo de Instructor CI valga aunque acaben de cambiarla.
