@@ -17,6 +17,10 @@ const workspaceRoles = ROLES_CATALOGO.filter(
   (rol) =>
     rol.codigo === ROLES.USUARIO_COMUN ||
     rol.codigo === ROLES.CONSEJO_NACIONAL ||
+    // La Oficina Nacional se nombra a mano, como los administradores: no sale de
+    // ninguna casilla del organigrama, asi que sin esta linea no habria forma de
+    // asignarsela a nadie y las aprobaciones se quedarian sin quien las resuelva.
+    rol.codigo === ROLES.OFICINA_NACIONAL ||
     CODIGOS_NIVEL_ORG.includes(rol.codigo) ||
     rol.nombre.toLowerCase().includes('administrador')
 );
