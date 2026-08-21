@@ -253,6 +253,7 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
         cambios: compararCambios(antes, sectional, CAMPOS_SECCION),
         usuario,
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload: sectional,
         aplicar: () => escribirSeccion(sectional),
     });
 

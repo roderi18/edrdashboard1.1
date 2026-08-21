@@ -219,6 +219,7 @@ export const paths = {
       root: `${ROOTS.DASHBOARD}/admin`,
       new: `${ROOTS.DASHBOARD}/admin/new`,
       logs: `${ROOTS.DASHBOARD}/admin/logs`,
+      aprobaciones: `${ROOTS.DASHBOARD}/admin/aprobaciones`,
       permissions: `${ROOTS.DASHBOARD}/admin/permissions`,
       roles: `${ROOTS.DASHBOARD}/admin/roles`,
       userPermissions: `${ROOTS.DASHBOARD}/admin/user-permissions`,

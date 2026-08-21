@@ -190,6 +190,7 @@ export const updateRegional = async (payload, { usuario, antes = null } = {}) =>
         cambios: compararCambios(antes, payload, CAMPOS_REGION),
         usuario,
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload,
         aplicar: () => escribirRegion(payload),
     });
 

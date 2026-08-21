@@ -137,6 +137,7 @@ export async function proponerCambio({
   esSugerencia = false,
   descripcion = '',
   aplicarDirecto = false,
+  payload = null,
 } = {}) {
   asegurarFirebase();
 
@@ -192,6 +193,10 @@ export async function proponerCambio({
       ruta: entidad?.ruta ?? '',
     },
     cambios,
+    // Los datos con los que se escribira SI se aprueba. La funcion `aplicar` no
+    // se puede guardar —es codigo—, asi que sin esto la propuesta describiria el
+    // cambio sin poder llevarlo a cabo despues.
+    payload,
     esSugerencia,
     estado: ESTADOS_CAMBIO.pendiente,
     idAuditoria: auditoria.id,

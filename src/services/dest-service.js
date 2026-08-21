@@ -380,6 +380,7 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
         cambios: compararParaHistorial(antes, data),
         usuario,
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload: data,
         aplicar: () => escribirDestacamento(payload),
     });
 

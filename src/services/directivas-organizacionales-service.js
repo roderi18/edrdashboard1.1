@@ -590,6 +590,22 @@ export async function guardarAsignacionDirectiva({
     usuario,
     descripcion: descripcionCambio,
     aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+    // El lote de escritura no se puede guardar; los argumentos si. Al aprobar se
+    // vuelve a llamar a esta misma funcion con ellos, ya como Oficina Nacional.
+    payload: {
+      nivel,
+      idEntidad,
+      nombreEntidad,
+      idCargo,
+      idMiembro: idMiembroResolved,
+      idPosicionDirectiva,
+      division,
+      orden,
+      origen,
+      nombreMiembro,
+      codigoMiembro,
+      fotoMiembro,
+    },
     aplicar: () => batch.commit(),
   });
 

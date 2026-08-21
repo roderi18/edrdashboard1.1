@@ -30,6 +30,11 @@ const NAV_ITEMS = [
     href: paths.dashboard.admin.logs,
   },
   {
+    label: 'Aprobaciones',
+    icon: <Iconify width={24} icon="solar:check-circle-bold" />,
+    href: paths.dashboard.admin.aprobaciones,
+  },
+  {
     label: 'Roles base',
     icon: <Iconify width={24} icon="solar:users-group-two-rounded-bold" />,
     href: paths.dashboard.admin.roles,
