@@ -3,6 +3,7 @@ import { doc, query, where, setDoc, getDoc, getDocs, updateDoc, collection } fro
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSistema } from './audit-log-service';
+import { notificarCambioPropuesto } from './notificar-oficina-nacional-service';
 
 // ----------------------------------------------------------------------
 // PUERTA UNICA de cambios.
@@ -208,6 +209,15 @@ export async function proponerCambio({
     resueltoPorUid: '',
     resueltoPorNombre: '',
     comentarioResolucion: '',
+  });
+
+  // El aviso va DESPUES de guardar y sin bloquear: la propuesta ya esta a salvo
+  // y en Historial. Que falle el correo o la notificacion no puede tumbar un
+  // cambio que ya se registro.
+  const solicitudGuardada = await obtenerSolicitudCambio(solicitudRef.id);
+
+  notificarCambioPropuesto({ solicitud: solicitudGuardada, usuario }).catch((error) => {
+    console.warn('[puerta de cambios] no se pudo avisar a la Oficina Nacional', error);
   });
 
   return { estado: ESTADOS_CAMBIO.pendiente, idSolicitud: solicitudRef.id, idAuditoria: auditoria.id };

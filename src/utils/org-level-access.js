@@ -450,3 +450,11 @@ export const isOficinaNacional = (user = {}) => getOrgRoleId(user) === ROLES.OFI
 
 export const puedeAprobarCambiosDeOrganizacion = (user = {}) =>
   isOficinaNacional(user) || isAdminGlobal(user);
+
+// Quien entra al area de Administradores (incluido Historial - Logs). Es
+// informacion de gobierno de toda la organizacion: no la ve un cargo de
+// destacamento ni de seccion por muy coordinador que sea.
+export const puedeEntrarAAdministracion = (user = {}) =>
+  [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL, ROLES.OFICINA_NACIONAL].includes(
+    getOrgRoleId(user)
+  );

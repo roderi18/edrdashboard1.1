@@ -2,6 +2,8 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 
 import { paths } from 'src/routes/paths';
 
+import { puedeEntrarAAdministracion } from 'src/utils/org-level-access';
+
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { ROLES_ASIGNADOS_A_MANO, resolverRolPorAsignaciones } from 'src/catalogs/directiva-roles';
@@ -1408,7 +1410,13 @@ const navPermissionByItem = (item, user) => {
   }
 
   if (title.includes('miembro')) return Boolean(permissions.miembros?.ver);
-  if (title.includes('administrador')) return Boolean(permissions.administradores?.ver);
+  // El area de Administradores —con Historial - Logs dentro— es de gobierno de
+  // toda la organizacion. La decide el ROL, no el objeto `permisos`: una sesion
+  // de cargo puede traer `administradores.ver` heredado y colarse. El bloqueo
+  // real esta ademas en el layout; esto solo evita ensenar la puerta.
+  if (title.includes('administrador')) {
+    return puedeEntrarAAdministracion(user);
+  }
   if (title.includes('destacamento')) return Boolean(permissions.destacamentos?.ver);
   if (title.includes('asistencia') || path.includes('/dashboard/level/attendance')) {
     return canViewAdminModule(permissions, 'asistencia', user);

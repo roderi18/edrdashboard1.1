@@ -5,16 +5,21 @@ import { removeLastSlash } from 'minimal-shared/utils';
 
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { puedeEntrarAAdministracion } from 'src/utils/org-level-access';
+
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -70,6 +75,8 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
   const tabsRef = useRef(null);
   const pathname = usePathname();
   const tabValue = resolveTabValue(pathname);
+  const { user, loading } = useAuthContext();
+  const puedeEntrar = puedeEntrarAAdministracion(user);
   const resolvedAction = action ?? (
     <Button
       component={RouterLink}
@@ -90,6 +97,28 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
       behavior: 'smooth',
     });
   }, [tabValue]);
+
+  if (loading) {
+    return null;
+  }
+
+  // El bloqueo va en el LAYOUT y no en cada pagina: asi cubre todo lo que cuelga
+  // de /dashboard/admin —incluido Historial - Logs— y una pantalla nueva que se
+  // anada manana nace protegida, sin que nadie tenga que acordarse.
+  if (!puedeEntrar) {
+    return (
+      <DashboardContent {...other}>
+        <CustomBreadcrumbs
+          heading="Administradores"
+          links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Administradores' }]}
+          sx={{ mb: 3 }}
+        />
+        <Alert severity="error">
+          Esta sección es solo para la Oficina Nacional y los administradores global y funcional.
+        </Alert>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent {...other}>
