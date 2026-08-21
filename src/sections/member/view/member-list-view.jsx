@@ -186,6 +186,7 @@ const mapMemberToTableRow = (member) => ({
   memberPosition: member.memberPosition || [],
   destLeadershipPosition: member.destLeadershipPosition || '',
   directivaLeadershipPosition: member.directivaLeadershipPosition || '',
+  nationalLeadershipPosition: member.nationalLeadershipPosition || '',
 });
 
 // ----------------------------------------------------------------------
@@ -266,6 +267,10 @@ export function MemberListView() {
           (cargo) => cargo.nivel === 'destacamento' && cargo.division === memberDivisionKey
         ) || mergedPositions.find((cargo) => cargo.nivel === 'destacamento');
       const directivaPosition = mergedPositions.find((cargo) => cargo.nivel !== 'destacamento');
+      // La posicion nacional se saca aparte de `directivaPosition`, que se queda con
+      // la primera de cualquier nivel: sin esto, quien tuviera un cargo seccional Y
+      // uno nacional exportaba el seccional en la columna de nacional.
+      const nacionalPosition = mergedPositions.find((cargo) => cargo.nivel === 'nacional');
 
       return {
         ...member,
@@ -279,6 +284,7 @@ export function MemberListView() {
           ORDEN_CARGO_DEST.get(String(destPosition?.idCargo || '')) ??
           (Number(destPosition?.orden) || Infinity),
         directivaLeadershipPosition: directivaPosition ? getCargoLabel(directivaPosition) : '',
+        nationalLeadershipPosition: nacionalPosition ? getCargoLabel(nacionalPosition) : '',
       };
     });
   }, []);
@@ -401,6 +407,7 @@ export function MemberListView() {
                   memberPosition: member.memberPosition,
                   destLeadershipPosition: member.destLeadershipPosition,
                   directivaLeadershipPosition: member.directivaLeadershipPosition,
+                  nationalLeadershipPosition: member.nationalLeadershipPosition,
                   destPositionOrden: member.destPositionOrden,
                 },
               ])

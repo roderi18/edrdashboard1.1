@@ -25,9 +25,19 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
+import { descargarCsvPipe } from 'src/utils/csv-pipe';
+import { generateMemberId } from 'src/utils/generate-member-id';
+import {
+  getCell,
+  formatExcelDate,
+  uploadExcelRows,
+  normalizeTextValue,
+} from 'src/utils/excel-upload';
 
+import { getDestsApi } from 'src/services/dest-service';
 import { invalidateMembersCache } from 'src/services/member-service';
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { guardarAsignacionDirectiva } from 'src/services/directivas-organizacionales-service';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -35,6 +45,9 @@ import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
+
+import { useAuthContext } from 'src/auth/hooks';
+
 
 // ----------------------------------------------------------------------
 
@@ -222,36 +235,106 @@ const matchesCustomAgeFilter = (age, customFilter) => {
   return rules.some((rule) => matchCustomAgeRule(age, rule));
 };
 
-const escapeCsvValue = (value) => {
-  const text = String(value ?? '');
+// Nombre del destacamento CON su numero: "Tribu de Judá" a secas no distingue un
+// destacamento de otro que se llame igual, y al volver a subir el archivo habria
+// que adivinar a cual de los dos se referia.
+const nombreDestacamentoConNumero = (member = {}) => {
+  const nombre = member.destName || member.destamento || '';
+  const numero = member.destNumber || member.numero || '';
 
-  if (/[",\n\r]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-
-  return text;
+  return [nombre, numero].filter(Boolean).join(' ').trim() || String(member.idDestacamento || '');
 };
 
-const downloadMembersCsv = (membersToDownload) => {
-  const headers = ['Código', 'Nombre', 'Teléfono', 'Correo', 'Destacamento', 'Sección', 'Región'];
-  const rows = membersToDownload.map((member) => [
-    member.memberId || member.codigoMiembro || '',
-    member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
-    member.phoneNumber || '',
-    member.email || '',
-    member.destName || member.destamento || member.idDestacamento || '',
-    member.sectionalName || '',
-    member.regionalName || '',
-  ]);
-  const csv = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(',')).join('\r\n');
-  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+// El nombre viene en UNA columna y hay que partirlo. No hay regla que acierte
+// siempre —"Juan Ramón Corporán" son dos nombres y un apellido, y "Rafael Quezada
+// de León" es uno y dos—, asi que se parte por la mitad y las particulas ("de",
+// "del", "la") se pegan a lo que sigue. Quien necesite exactitud puede añadir
+// columnas Nombres y Apellidos, que mandan sobre esto.
+const PARTICULAS_DE_APELLIDO = ['de', 'del', 'la', 'las', 'los', 'y', 'san', 'santa'];
 
-  link.href = url;
-  link.download = 'lista-miembros.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+const partirNombreCompleto = (completo) => {
+  const piezas = String(completo || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!piezas.length) return { nombres: '', apellidos: '' };
+  if (piezas.length === 1) return { nombres: piezas[0], apellidos: '' };
+
+  const unidas = [];
+
+  for (let i = 0; i < piezas.length; i += 1) {
+    if (PARTICULAS_DE_APELLIDO.includes(normalizeTextValue(piezas[i])) && piezas[i + 1]) {
+      unidas.push(`${piezas[i]} ${piezas[i + 1]}`);
+      i += 1;
+    } else {
+      unidas.push(piezas[i]);
+    }
+  }
+
+  const corte = Math.ceil(unidas.length / 2);
+
+  return {
+    nombres: unidas.slice(0, corte).join(' '),
+    apellidos: unidas.slice(corte).join(' '),
+  };
+};
+
+// Del texto del cargo al cargo del catalogo. Se compara sin acentos ni
+// mayusculas, y se acepta tanto "Líder de Grupo" como "Líder de Grupo
+// (Exploradores)", que es como sale al descargar.
+const buscarPosicionDirectiva = (nivel, texto) => {
+  const buscado = normalizeTextValue(texto).replace(/\s+/g, ' ').trim();
+
+  if (!buscado) return null;
+
+  const delNivel = DIRECTIVA_POSITIONS.filter((posicion) => posicion.nivel === nivel);
+
+  return (
+    delNivel.find((posicion) => {
+      const nombre = normalizeTextValue(posicion.nombreCargo);
+      const division = normalizeTextValue(posicion.nombreDivision);
+      const conDivision = division ? `${nombre} (${division})` : nombre;
+
+      return buscado === conDivision || buscado === nombre;
+    }) || null
+  );
+};
+
+const CABECERAS_MIEMBROS = [
+  'Nombre',
+  'Fecha_Nacimiento',
+  'Teléfono',
+  'Correo',
+  'Destacamento',
+  'Sección',
+  'Región',
+  'Size_T-Shirt',
+  'Sexo',
+  'Posición_Destacamento',
+  'Posición_Nacional',
+];
+
+const filaDeMiembro = (member) => [
+  member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+  member.birthdate || member.fechaNacimiento || '',
+  member.phoneNumber || '',
+  member.email || '',
+  nombreDestacamentoConNumero(member),
+  member.sectionalName || '',
+  member.regionalName || '',
+  member.sizeCamisas || member.shirtSize || '',
+  member.gender || member.genero || '',
+  member.destLeadershipPosition || '',
+  member.nationalLeadershipPosition || '',
+];
+
+const downloadMembersCsv = (membersToDownload) => {
+  descargarCsvPipe({
+    nombreArchivo: 'lista-miembros.csv',
+    cabeceras: CABECERAS_MIEMBROS,
+    filas: membersToDownload.map(filaDeMiembro),
+  });
 };
 
 const applyDownloadFilters = (inputMembers, filters) =>
@@ -353,6 +436,7 @@ export function MemberTableToolbar({
   canManageMembers = true,
   showScopeFilters = true,
 }) {
+  const { user } = useAuthContext();
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
   const theme = useTheme();
@@ -573,55 +657,130 @@ export function MemberTableToolbar({
     downloadFilters.regionalId
   );
 
-  const getNextMemberCode = (() => {
-    let nextNumber = Math.max(
-      10000,
-      ...members.map((member) => getMemberCodeNumber(member)).filter(Boolean)
-    );
+  // Del nombre del destacamento tal como viene en el archivo al id real. Se
+  // compara sin acentos ni mayusculas y con el numero pegado o suelto, porque
+  // quien rellena la hoja escribe "Tribu de Judá 18", "tribu de juda 18" o
+  // "Tribu de Juda" indistintamente.
+  const buscarDestacamentoPorNombre = (listaDests, texto) => {
+    const buscado = normalizeTextValue(texto).replace(/\s+/g, ' ').trim();
 
-    return () => {
-      nextNumber += 1;
-      return `DO-SD-${String(nextNumber).padStart(5, '0')}`;
-    };
-  })();
+    if (!buscado) return null;
+
+    const candidatos = (listaDests || []).map((dest) => {
+      const nombre = normalizeTextValue(dest.name || dest.nombre || dest.destName || '');
+      const numero = String(dest.destNumber || dest.numero || dest.number || '').trim();
+
+      return {
+        dest,
+        conNumero: [nombre, normalizeTextValue(numero)].filter(Boolean).join(' ').trim(),
+        sinNumero: nombre,
+      };
+    });
+
+    return (
+      candidatos.find((candidato) => candidato.conNumero === buscado)?.dest ||
+      candidatos.find((candidato) => candidato.sinNumero === buscado)?.dest ||
+      null
+    );
+  };
 
   const handleUploadFile = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
 
+    const listaDests = await getDestsApi({ includePhotos: false }).catch(() => []);
+
     const result = await uploadExcelRows({
       file,
       processRow: async (row) => {
-        const nombres = getCell(row, ['nombres', 'Nombres', 'nombre', 'Nombre']);
-        const apellidos = getCell(row, ['apellidos', 'Apellidos', 'apellido', 'Apellido']);
-        const fechaNacimiento = formatExcelDate(
-          getCell(row, ['fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
-        );
-        const idDestacamento = Number(
-          getCell(row, ['idDestacamento', 'destId', 'ID Destacamento'])
-        );
+        const valores = {
+          Nombre: getCell(row, ['Nombre', 'nombre', 'Nombre completo']),
+          Fecha_Nacimiento: formatExcelDate(
+            getCell(row, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
+          ),
+          'Teléfono': getCell(row, ['Teléfono', 'telefono', 'Telefono']),
+          Correo: getCell(row, ['Correo', 'correo']),
+          Destacamento: getCell(row, ['Destacamento', 'destacamento']),
+          'Sección': getCell(row, ['Sección', 'Seccion', 'seccion']),
+          'Región': getCell(row, ['Región', 'Region', 'region']),
+          'Size_T-Shirt': getCell(row, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
+          Sexo: getCell(row, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
+          Posicion_Destacamento: getCell(row, [
+            'Posición_Destacamento',
+            'Posicion_Destacamento',
+            'Posición en destacamento',
+          ]),
+          Posicion_Nacional: getCell(row, [
+            'Posición_Nacional',
+            'Posicion_Nacional',
+            'Posición nacional',
+          ]),
+        };
 
-        if (!nombres) throw new Error('La columna nombres es requerida.');
-        if (!apellidos) throw new Error('La columna apellidos es requerida.');
-        if (!fechaNacimiento) throw new Error('La columna fechaNacimiento es requerida.');
-        if (!idDestacamento) throw new Error('La columna idDestacamento es requerida.');
+        // Se revisan TODAS las columnas de una vez y se dice cuales faltan. Fallar
+        // en la primera obligaria a subir el archivo tantas veces como huecos
+        // tenga la fila.
+        const faltantes = Object.entries(valores)
+          .filter(([, valor]) => !String(valor ?? '').trim())
+          .map(([columna]) => columna.replace('_', ' '));
+
+        if (faltantes.length) {
+          throw new Error(`Faltan: ${faltantes.join(', ')}.`);
+        }
+
+        const nombresSueltos = getCell(row, ['Nombres', 'nombres']);
+        const apellidosSueltos = getCell(row, ['Apellidos', 'apellidos', 'Apellido']);
+        const partido = partirNombreCompleto(valores.Nombre);
+        const nombres = nombresSueltos || partido.nombres;
+        const apellidos = apellidosSueltos || partido.apellidos;
+
+        if (!apellidos) {
+          throw new Error(`"${valores.Nombre}" no trae apellido.`);
+        }
+
+        const destEncontrado = buscarDestacamentoPorNombre(listaDests, valores.Destacamento);
+        const idDestacamento =
+          Number(getCell(row, ['idDestacamento', 'destId', 'ID Destacamento'])) ||
+          Number(destEncontrado?.id || destEncontrado?.idDestacamento) ||
+          null;
+
+        if (!idDestacamento) {
+          throw new Error(`No existe el destacamento "${valores.Destacamento}".`);
+        }
+
+        const cargoDestacamento = buscarPosicionDirectiva('destacamento', valores.Posicion_Destacamento);
+        const cargoNacional = buscarPosicionDirectiva('nacional', valores.Posicion_Nacional);
+
+        if (!cargoDestacamento) {
+          throw new Error(`No existe la posición de destacamento "${valores.Posicion_Destacamento}".`);
+        }
+
+        if (!cargoNacional) {
+          throw new Error(`No existe la posición nacional "${valores.Posicion_Nacional}".`);
+        }
+
+        // El codigo se genera con el destacamento delante, porque de el salen el
+        // pais y la provincia que forman el prefijo.
+        const codigoMiembro =
+          getCell(row, ['codigoMiembro', 'Código', 'Codigo']) ||
+          (await generateMemberId({ destId: idDestacamento }));
 
         const res = await fetch('/api/members/post', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             idMiembros: 0,
-            codigoMiembro:
-              getCell(row, ['codigoMiembro', 'Código', 'Codigo']) || getNextMemberCode(),
+            codigoMiembro,
             nombres,
             apellidos,
-            genero: getCell(row, ['genero', 'Género', 'Genero']) || null,
-            fechaNacimiento,
+            genero: valores.Sexo,
+            fechaNacimiento: valores.Fecha_Nacimiento,
             idDestacamento,
-            telefono: getCell(row, ['telefono', 'Teléfono', 'Telefono']),
-            direccion: getCell(row, ['direccion', 'Dirección', 'Direccion']),
-            correo: getCell(row, ['correo', 'Correo']) || null,
+            telefono: valores['Teléfono'],
+            direccion: getCell(row, ['Dirección', 'direccion', 'Direccion']),
+            correo: valores.Correo,
+            sizeCamisas: valores['Size_T-Shirt'],
             idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
             idCargoInstitucional: Number(getCell(row, ['idCargoInstitucional'])) || null,
             idDivision: Number(getCell(row, ['idDivision'])) || null,
@@ -657,6 +816,47 @@ export function MemberTableToolbar({
         if (responsePayload?.Success === false) {
           throw new Error(responseMessage || 'El API no pudo crear el miembro.');
         }
+
+        // Los cargos se asignan DESPUES de crear al miembro, que es cuando existe
+        // el id al que colgarlos. Si el API no lo devuelve, el miembro queda
+        // creado y el cargo sin poner: se avisa en vez de callarlo.
+        const idCreado =
+          responsePayload?.data?.idMiembros ??
+          responsePayload?.Data?.idMiembros ??
+          responsePayload?.idMiembros ??
+          null;
+
+        if (!idCreado) {
+          throw new Error('El miembro se creó, pero el API no devolvió su id y quedó sin cargos.');
+        }
+
+        await guardarAsignacionDirectiva({
+          nivel: 'destacamento',
+          idEntidad: idDestacamento,
+          nombreEntidad: valores.Destacamento,
+          idCargo: cargoDestacamento.idCargo,
+          idPosicionDirectiva: cargoDestacamento.idCargo,
+          division: cargoDestacamento.division ?? null,
+          orden: cargoDestacamento.orden ?? 1,
+          idMiembro: idCreado,
+          nombreMiembro: `${nombres} ${apellidos}`.trim(),
+          codigoMiembro,
+          usuario: user,
+        });
+
+        await guardarAsignacionDirectiva({
+          nivel: 'nacional',
+          idEntidad: 'general',
+          nombreEntidad: 'Consejo Nacional',
+          idCargo: cargoNacional.idCargo,
+          idPosicionDirectiva: cargoNacional.idCargo,
+          division: cargoNacional.division ?? null,
+          orden: cargoNacional.orden ?? 1,
+          idMiembro: idCreado,
+          nombreMiembro: `${nombres} ${apellidos}`.trim(),
+          codigoMiembro,
+          usuario: user,
+        });
       },
     });
 
@@ -984,7 +1184,7 @@ export function MemberTableToolbar({
         ref={uploadInputRef}
         hidden
         type="file"
-        accept=".xlsx,.xls"
+        accept=".csv,.txt,.tsv,.xlsx,.xls"
         onChange={handleUploadFile}
       />
       <ExcelUploadResultDialog

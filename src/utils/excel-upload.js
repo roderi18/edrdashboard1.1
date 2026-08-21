@@ -1,6 +1,14 @@
 import * as XLSX from 'xlsx';
 
+import { esArchivoCsv, parsearCsvPipe } from './csv-pipe';
+
 export const readExcelRows = async (file) => {
+  // El CSV va separado por barras y lo lee su propio parser: XLSX lo abriria
+  // asumiendo comas y dejaria toda la fila metida en una sola columna.
+  if (esArchivoCsv(file)) {
+    return parsearCsvPipe(await file.text());
+  }
+
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
