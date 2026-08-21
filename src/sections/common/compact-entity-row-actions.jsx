@@ -1,7 +1,6 @@
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -11,8 +10,8 @@ import IconButton from '@mui/material/IconButton';
 import { RouterLink } from 'src/routes/components';
 
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -100,23 +99,12 @@ export function CompactEntityRowActions({
       )}
 
       {canManage && allowDelete && (
-        <ConfirmDialog
+        <ConfirmEscribiendoDialog
           open={confirmDialog.value}
           onClose={confirmDialog.onFalse}
+          onConfirm={() => onDelete?.()}
           title={deleteTitle}
           content={deleteContent}
-          action={
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => {
-                onDelete?.();
-                confirmDialog.onFalse();
-              }}
-            >
-              Eliminar
-            </Button>
-          }
         />
       )}
     </TableCell>

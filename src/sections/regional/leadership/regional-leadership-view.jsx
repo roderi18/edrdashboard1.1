@@ -6,7 +6,6 @@ import { useRef, useMemo, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -21,8 +20,8 @@ import { getRegionals } from 'src/services/regional-service';
 import { REGIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
 
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
@@ -673,7 +672,7 @@ export function RegionalLeadershipView() {
         onSubmit={leadership.asignarMiembro}
       />
 
-      <ConfirmDialog
+      <ConfirmEscribiendoDialog
         open={Boolean(leadership.nodoARemover)}
         onClose={leadership.cancelarRemover}
         title="Remover miembro"
@@ -689,16 +688,9 @@ export function RegionalLeadershipView() {
             del cargo de {leadership.nodoARemover?.role || 'la directiva'}?
           </>
         }
-        action={
-          <Button
-            variant="contained"
-            color="error"
-            disabled={leadership.isSaving}
-            onClick={leadership.confirmarRemover}
-          >
-            Remover
-          </Button>
-        }
+        onConfirm={leadership.confirmarRemover}
+        palabra="Remover"
+        confirmLabel="Remover"
       />
     </>
   );

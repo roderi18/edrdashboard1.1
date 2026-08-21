@@ -1,6 +1,4 @@
-import Button from '@mui/material/Button';
-
-import { ConfirmDialog } from 'src/components/custom-dialog';
+import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -13,26 +11,15 @@ export function CompactEntityDeleteDialog({
   title = 'Eliminar',
 }) {
   return (
-    <ConfirmDialog
+    <ConfirmEscribiendoDialog
       open={open}
       onClose={onClose}
+      onConfirm={onConfirm}
       title={title}
       content={
         <>
           ¿Seguro que deseas eliminar <strong> {selectedCount} </strong> {entityLabel}?
         </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            onConfirm();
-            onClose();
-          }}
-        >
-          Eliminar
-        </Button>
       }
     />
   );
