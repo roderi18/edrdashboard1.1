@@ -11,6 +11,7 @@ import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
@@ -161,7 +162,28 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
     fechaCreacion: previous.exists() ? previous.data()?.fechaCreacion : null,
   });
 
-  await setDoc(productRef, productDoc);
+  // La tienda tambien entra por la puerta: no necesita aprobacion de la Oficina
+  // Nacional —la gestiona su administrador— pero cada cambio queda en Historial.
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.tienda,
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: productDoc?.nombre || productDoc?.titulo || productId,
+      ruta: `/dashboard/product/${productId}`,
+    },
+    cambios: [
+      {
+        campo: 'publicacion',
+        etiqueta: 'Publicación',
+        antes: previous.exists() ? (previous.data()?.publicacion ?? null) : null,
+        despues: productDoc.publicacion,
+      },
+    ],
+    usuario: user,
+    descripcion: `Producto ${productDoc?.nombre || productDoc?.titulo || productId} guardado.`,
+    aplicar: () => setDoc(productRef, productDoc),
+  });
 
   const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
   registrarAuditoriaSilenciosa({

@@ -9,9 +9,16 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { obtenerCargosApi } from 'src/services/cargos-api-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
+import {
+  AMBITOS_CAMBIO,
+  ESTADOS_CAMBIO,
+  proponerCambio,
+} from 'src/services/solicitudes-cambio-service';
 import {
   DIRECTIVA_LEVELS,
   DIRECTIVA_POSITIONS,
@@ -26,6 +33,15 @@ import {
 const POSICION_POR_ID_CARGO = new Map(
   DIRECTIVA_POSITIONS.map((position) => [position.idCargo, position])
 );
+
+// Que directivas aprueba la Oficina Nacional. La de DESTACAMENTO no: la lleva su
+// Coordinador, como siempre.
+const AMBITO_POR_NIVEL_DIRECTIVA = {
+  [DIRECTIVA_LEVELS.seccional]: AMBITOS_CAMBIO.directivaSeccion,
+  [DIRECTIVA_LEVELS.regional]: AMBITOS_CAMBIO.directivaRegion,
+  [DIRECTIVA_LEVELS.nacional]: AMBITOS_CAMBIO.directivaNacional,
+  [DIRECTIVA_LEVELS.destacamento]: AMBITOS_CAMBIO.directivaDestacamento,
+};
 
 export const COLECCION_POSICIONES_DIRECTIVA = 'posicionesDirectiva';
 export const COLECCION_CARGOS_DIRECTIVA_OBSOLETA = 'cargosDirectiva';
@@ -540,8 +556,6 @@ export async function guardarAsignacionDirectiva({
     merge: true,
   });
 
-  await batch.commit();
-
   // El registro va dirigido a una persona que lo lee, no a la base de datos: el
   // nombre y el cargo por delante, y el id solo cuando no hay nombre. Antes
   // decia "al miembro 306", que no le dice nada a nadie.
@@ -549,23 +563,44 @@ export async function guardarAsignacionDirectiva({
   const cargoAuditoria =
     POSICION_POR_ID_CARGO.get(normalizarTexto(idPosicionDirectiva))?.nombreCargo || '';
   const dondeAuditoria = normalizarTexto(nombreEntidad) || `${nivel} ${idEntidad}`;
+  const descripcionCambio = cargoAuditoria
+    ? `Se asignó a ${personaAuditoria} el cargo de ${cargoAuditoria} en ${dondeAuditoria}.`
+    : `Se asignó un cargo de directiva a ${personaAuditoria} en ${dondeAuditoria}.`;
 
-  registrarAuditoriaSilenciosa({
-    modulo: 'cargos_liderazgos',
-    accion: 'asignacion_directiva_guardada',
-    descripcion: cargoAuditoria
-      ? `Se asignó a ${personaAuditoria} el cargo de ${cargoAuditoria} en ${dondeAuditoria}.`
-      : `Se asignó un cargo de directiva a ${personaAuditoria} en ${dondeAuditoria}.`,
+  // Las directivas de seccion, region y consejo nacional las aprueba la Oficina
+  // Nacional: hasta entonces la asignacion NO se escribe. La de destacamento
+  // pasa igualmente por la puerta —para que quede en Historial— pero se aplica
+  // en el momento.
+  const resultado = await proponerCambio({
+    ambito: AMBITO_POR_NIVEL_DIRECTIVA[nivel] ?? AMBITOS_CAMBIO.directivaDestacamento,
     entidad: {
       tipo: 'asignacion_directiva',
       id: idAsignacion,
-      nombre: personaAuditoria,
+      nombre: `${cargoAuditoria || 'Cargo'} · ${dondeAuditoria}`,
       ruta: `/dashboard/level/member/${idMiembroResolved}/edit`,
     },
-    despues: asignacion,
-    realizadoPor: usuario,
-    origen: 'directivas',
+    cambios: [
+      {
+        campo: normalizarTexto(idPosicionDirectiva) || 'cargo',
+        etiqueta: cargoAuditoria || 'Cargo de directiva',
+        antes: null,
+        despues: personaAuditoria,
+      },
+    ],
+    usuario,
+    descripcion: descripcionCambio,
+    aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+    aplicar: () => batch.commit(),
   });
+
+  if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
+    return {
+      ...asignacion,
+      pendienteDeAprobacion: true,
+      idSolicitud: resultado.idSolicitud,
+      asignacionesLiberadas: [],
+    };
+  }
 
   return { ...asignacion, asignacionesLiberadas: asignacionesPrevias };
 }

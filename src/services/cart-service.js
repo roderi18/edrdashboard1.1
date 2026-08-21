@@ -1,8 +1,8 @@
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-
 import { COLECCIONES_COMERCIO, obtenerIdUsuarioComercio } from 'src/utils/firestore-commerce';
+
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { CARRITO_DEFAULT, crearDocumentoCarrito, mapearCarritoFirestoreAEstado } from 'src/models/cart-model';
 
 export const obtenerCarritoUsuario = async (user) => {

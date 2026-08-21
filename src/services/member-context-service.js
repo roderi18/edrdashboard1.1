@@ -2,9 +2,9 @@ import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 
 import { getDestsApi } from './dest-service';
 import { getChurches } from './church-service';
-import { getMembers, getCachedMembers } from './member-service';
 import { getRegionals } from './regional-service';
 import { getSectionals } from './sectional-service';
+import { getMembers, getCachedMembers } from './member-service';
 
 const buildLookupMap = (items = [], keys = []) => {
   const map = new Map();
