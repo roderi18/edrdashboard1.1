@@ -79,10 +79,14 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
-import { getMembers, getLeadershipAssignments } from 'src/services/member-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import {
+  getMembers,
+  invalidateMembersCache,
+  getLeadershipAssignments,
+} from 'src/services/member-service';
 import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getNivelesARetirar,
@@ -1910,12 +1914,37 @@ export function MemberCreateEditForm({
         let authCredentials = null;
 
         if (!currentMember) {
-          const createdMembers = await getMembers();
-          savedMember = (Array.isArray(createdMembers) ? createdMembers : []).find(
-            (member) =>
-              normalizeMemberUsername(member?.memberId || member?.codigoMiembro || member?.id) ===
-              normalizeMemberUsername(codigoMiembro)
-          );
+          // El miembro recien creado no aparece al instante: la lista se cachea
+          // 30 segundos y el formulario ya la ha calentado antes de guardar, asi
+          // que una sola lectura devuelve la lista VIEJA, sin el. Sin el id, la
+          // foto se subia a ninguna parte —por eso funcionaba al editar y no al
+          // crear—. Se invalida la cache y se reintenta, como ya hace la ruta de
+          // alta con la division.
+          const buscarMiembroCreado = async () => {
+            for (let intento = 0; intento < 3; intento += 1) {
+              if (intento > 0) {
+                 
+                await esperar(600);
+              }
+
+              invalidateMembersCache();
+
+               
+              const lista = await getMembers();
+              const encontrado = (Array.isArray(lista) ? lista : []).find(
+                (member) =>
+                  normalizeMemberUsername(
+                    member?.memberId || member?.codigoMiembro || member?.id
+                  ) === normalizeMemberUsername(codigoMiembro)
+              );
+
+              if (encontrado) return encontrado;
+            }
+
+            return null;
+          };
+
+          savedMember = await buscarMiembroCreado();
 
           try {
             authCredentials = await createFirebaseAuthForMember({
