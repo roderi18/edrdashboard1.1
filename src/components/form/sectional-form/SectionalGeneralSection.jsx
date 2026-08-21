@@ -11,6 +11,7 @@ import { getRegionals } from 'src/services/regional-service';
 
 import { Field } from 'src/components/hook-form';
 import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
+import DirectivaMemberSelect from 'src/components/form/common/directiva-member-select';
 // ----------------------------------------------------------------------
 
 export default function SectionalGeneralSection({
@@ -78,6 +79,20 @@ export default function SectionalGeneralSection({
                 allowNumbers
                 allowDash
                 disabled={disabled}
+            />
+
+            {/* Responsable de la sección. Va al lado del nombre, como el
+                Coordinador en el destacamento. */}
+            <DirectivaMemberSelect
+                label="Coordinador Seccional"
+                disabled={disabled}
+                value={watch('directorId')}
+                onChange={(idMiembro) =>
+                    methods.setValue('directorId', idMiembro ?? null, {
+                        shouldDirty: true,
+                    })
+                }
+                helperText="El cambio lo aprueba la Oficina Nacional."
             />
 
             {/* ID de la Sección */}

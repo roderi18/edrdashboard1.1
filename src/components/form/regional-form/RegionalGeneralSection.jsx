@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -8,25 +7,13 @@ import Typography from '@mui/material/Typography';
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import CountrySelectApi from 'src/components/api/country-select-api';
-import AutocompleteWithCreate from 'src/components/common/autocomplete-with-create';
+import DirectivaMemberSelect from 'src/components/form/common/directiva-member-select';
 
 export default function RegionalGeneralSection({
     isCreateView,
     disabled = false,
 }) {
     const { setValue, watch } = useFormContext();
-    const [members, setMembers] = useState([]);
-
-    useEffect(() => {
-        const load = async () => {
-            const res = await fetch('/api/members');
-            const data = await res.json();
-            setMembers(data?.Data || []);
-        };
-
-        load();
-    }, []);
-
     return (
 
         <>
@@ -63,34 +50,26 @@ export default function RegionalGeneralSection({
                 disabled={disabled}
             />
 
+            {/* Responsable de la región, al lado del nombre.
+                Sustituye al antiguo selector "Director": hace lo mismo y ademas
+                muestra que cargo ocupa ya cada persona y avisa de que se le
+                desvincula. Tener dos controles sobre `directorId` los enfrentaba. */}
+            <DirectivaMemberSelect
+                label="Director Regional"
+                disabled={disabled}
+                value={watch('directorId')}
+                onChange={(idMiembro) => {
+                    setValue('directorId', idMiembro ?? null, { shouldDirty: true });
+                    // Se conserva del selector anterior: el Director lleva su cargo
+                    // institucional.
+                    setValue('idCargoInstitucional', idMiembro ? 1 : null);
+                }}
+            />
+
             {!isCreateView && (
                 <Field.Text name="regionId" label="ID de Región" disabled />
             )}
 
-            <AutocompleteWithCreate
-                disabled={disabled}
-                options={members}
-                value={
-                    members.find(
-                        (m) => String(m.idMiembros) === String(watch('directorId'))
-                    ) || null
-                }
-                onChange={(_, newValue) => {
-                    setValue('directorId', newValue?.idMiembros || '');
-
-                    // asignar cargo institucional de Director Nacional automáticamente
-                    setValue('idCargoInstitucional', 1);
-                }}
-                getOptionLabel={(option) =>
-                    `${option?.nombres || ''} ${option?.apellidos || ''}`
-                }
-                isOptionEqualToValue={(option, value) =>
-                    String(option.idMiembros) === String(value.idMiembros)
-                }
-                label="Director"
-                createLabel="Crear Director"
-                createLink="/dashboard/level/member/new"
-            />
             <CountrySelectApi name="countryId" label="País" disabled={disabled} />
 
             {!isCreateView && (
