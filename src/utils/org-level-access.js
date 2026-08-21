@@ -442,3 +442,11 @@ export const isForeignDestForMembers = (
   const ownDest = ownDestIds instanceof Set ? ownDestIds : getDestScopeIds(user);
   return !ownDest.has(normalizeId(destId));
 };
+
+// La Oficina Nacional es quien aprueba, sugiere o rechaza los cambios propuestos
+// sobre destacamentos, secciones, regiones y las directivas de seccion, region y
+// consejo nacional. El Administrador Global entra tambien: manda sobre todo.
+export const isOficinaNacional = (user = {}) => getOrgRoleId(user) === ROLES.OFICINA_NACIONAL;
+
+export const puedeAprobarCambiosDeOrganizacion = (user = {}) =>
+  isOficinaNacional(user) || isAdminGlobal(user);

@@ -18,6 +18,10 @@ export const PERMISOS = {
   MIEMBROS_SUBIR_FOTO: 'miembros.subir_foto',
   MIEMBROS_ELIMINAR: 'miembros.eliminar',
   MIEMBROS_APROBAR_CAMBIOS: 'miembros.aprobar_cambios',
+  // Aprobacion de los cambios propuestos sobre las ENTIDADES organizacionales
+  // (destacamento, seccion, region) y sobre las directivas de seccion, region y
+  // consejo nacional. Es el permiso propio de la Oficina Nacional.
+  ORGANIZACION_APROBAR_CAMBIOS: 'organizacion.aprobar_cambios',
 
   // Dispensa Médica (salud del miembro): ver vs editar separados.
   SALUD_VER: 'salud.ver',
@@ -136,6 +140,14 @@ export const PERMISOS_CATALOGO = [
     accion: 'aprobar_cambios',
     nombre: 'Aprobar cambios de miembros',
     descripcion: 'Permite revisar y aprobar/rechazar las solicitudes de cambio enviadas por otros cargos.',
+  },
+  {
+    codigo: PERMISOS.ORGANIZACION_APROBAR_CAMBIOS,
+    modulo: 'organizacion',
+    accion: 'aprobar_cambios',
+    nombre: 'Aprobar cambios de la organización',
+    descripcion:
+      'Permite aprobar, sugerir o rechazar los cambios propuestos sobre destacamentos, secciones y regiones, y sobre las directivas de sección, región y consejo nacional.',
   },
   {
     codigo: PERMISOS.SALUD_VER,

@@ -41,6 +41,10 @@ export const ROLES = {
   COMITES_ESPECIALES_NACIONAL: 'comites_especiales_nacional',
   OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL: 'oficiales_adiestramientos_especiales_nacional',
   CONSEJO_EJECUTIVO: 'consejo_ejecutivo',
+  // Oficina Nacional: aprueba o rechaza los cambios propuestos sobre
+  // destacamentos, secciones y regiones, y sobre las directivas de seccion,
+  // region y consejo nacional. No modifica nada por su cuenta.
+  OFICINA_NACIONAL: 'oficina_nacional',
 
   ADMINISTRADOR_GLOBAL: 'administrador_global',
   ADMINISTRADOR_FUNCIONAL: 'administrador_funcional',
@@ -358,6 +362,15 @@ export const ROLES_CATALOGO = [
     codigo: ROLES.CONSEJO_EJECUTIVO,
     nombre: 'Consejo Ejecutivo',
     descripcion: 'Consulta nacional completa sin modificacion directa de informacion.',
+    alcancePredeterminado: ALCANCES.NACIONAL,
+    asignableDesdeAdministradores: true,
+    activo: true,
+  },
+  {
+    codigo: ROLES.OFICINA_NACIONAL,
+    nombre: 'Oficina Nacional',
+    descripcion:
+      'Aprueba, sugiere o rechaza los cambios propuestos sobre destacamentos, secciones, regiones y las directivas de seccion, region y consejo nacional. No modifica informacion por su cuenta.',
     alcancePredeterminado: ALCANCES.NACIONAL,
     asignableDesdeAdministradores: true,
     activo: true,

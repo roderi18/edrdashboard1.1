@@ -305,6 +305,13 @@ export const RESTRICCIONES_ROL = {
     ...RESTRICCIONES_BASE,
     soloLectura: true,
   },
+  // Solo lectura de forma deliberada: la Oficina Nacional aprueba, sugiere o
+  // rechaza, pero no edita. Aprobar no pasa por `puedeModificar`, asi que esta
+  // marca no le estorba para su trabajo.
+  [ROLES.OFICINA_NACIONAL]: {
+    ...RESTRICCIONES_BASE,
+    soloLectura: true,
+  },
   [ROLES.ADMINISTRADOR_GLOBAL]: {
     ...RESTRICCIONES_BASE,
     eliminarDocumentosRequiereAprobacion: false,
@@ -337,12 +344,29 @@ export const ALCANCE_PREDETERMINADO_ROL = {
   [ROLES.CONSEJO_NACIONAL]: ALCANCES.NACIONAL,
   ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, ALCANCES.NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: ALCANCES.NACIONAL,
+  [ROLES.OFICINA_NACIONAL]: ALCANCES.NACIONAL,
   [ROLES.ADMINISTRADOR_GLOBAL]: ALCANCES.GLOBAL,
   [ROLES.ADMINISTRADOR_FUNCIONAL]: ALCANCES.GLOBAL,
   [ROLES.ADMINISTRADOR_TIENDA]: ALCANCES.GLOBAL,
 };
 
+// Oficina Nacional: ve toda la estructura y aprueba lo que se le propone. No
+// lleva NI UN permiso de edicion, y ademas va marcada como soloLectura, para que
+// `puedeModificar` la descarte en cualquier pantalla aunque el dia de manana
+// alguien le anada un permiso por error.
+const PERMISOS_OFICINA_NACIONAL = [
+  PERMISOS.ORGANIZACION_APROBAR_CAMBIOS,
+  PERMISOS.DESTACAMENTOS_VER,
+  PERMISOS.SECCIONES_VER,
+  PERMISOS.REGIONES_VER,
+  PERMISOS.MIEMBROS_VER_ADULTOS,
+  PERMISOS.MIEMBROS_VER_MENORES,
+  PERMISOS.REPORTES_VER_NACIONALES,
+  PERMISOS.ADMINISTRACION_VER_AUDITORIA,
+];
+
 export const PERMISOS_POR_ROL = {
+  [ROLES.OFICINA_NACIONAL]: PERMISOS_OFICINA_NACIONAL,
   [ROLES.USUARIO_COMUN]: [
     // Ve TODOS los niveles organizacionales, igual que el resto de cargos de
     // destacamento. Son permisos de CONSULTA: no lleva ninguno de edicion, asi
