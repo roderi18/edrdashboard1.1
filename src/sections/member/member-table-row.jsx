@@ -8,9 +8,9 @@ import TableCell from '@mui/material/TableCell';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { capitalizeWords } from 'src/utils/text-format';
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 import { resolveById } from 'src/utils/resolve-display-name';
+import { capitalizeWords, formatChurchName } from 'src/utils/text-format';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { SECTIONALS } from 'src/_mock/assets';
@@ -173,7 +173,7 @@ export function MemberTableRow({
       <CompactEntityTableCell
         title={`${capitalizeWords(destName)} ${destNumber}`.trim()}
         href={`/dashboard/level/dest?name=${encodeURIComponent(destName)}`}
-        subtitle={`Iglesia ${capitalizeWords(churchName)}`}
+        subtitle={formatChurchName(churchName)}
         avatarAlt={capitalizeWords(destName)}
         avatarUrl={destAvatarUrl}
         avatarSx={{ width: 40, height: 40 }}

@@ -75,6 +75,18 @@ import { MemberTableToolbar } from '../member-table-toolbar';
 import { MemberTableFiltersResult } from '../member-table-filters-result';
 // ----------------------------------------------------------------------
 
+// Rango de cada cargo de destacamento segun el catalogo local. El `orden` que
+// llega de Firestore puede venir en 0 —y entonces todos los cargos empatan—, asi
+// que el catalogo hace de respaldo.
+const ORDEN_CARGO_DEST = new Map(
+  DIRECTIVA_POSITIONS.filter((position) => position.nivel === 'destacamento').flatMap(
+    (position) =>
+      [position.idPosicionDirectiva, position.idCargo, position.idCargoApi]
+        .filter(Boolean)
+        .map((id) => [String(id), Number(position.orden) || Infinity])
+  )
+);
+
 const TABLE_HEAD = [
   { id: 'name', label: 'Nombre' },
   { id: 'destName', label: 'Destacamento', width: 250 },
@@ -259,6 +271,13 @@ export function MemberListView() {
         ...member,
         memberPosition: mergedPositions.map((cargo) => getCargoOptionValue(cargo)).filter(Boolean),
         destLeadershipPosition: destPosition ? getCargoLabel(destPosition) : '',
+        // Rango dentro del destacamento (Pastor, Coordinador, Asistente...). Se
+        // guarda aqui, donde ya tenemos el cargo resuelto, para poder ordenar
+        // la lista por jerarquia sin volver a buscarlo.
+        destPositionOrden:
+          ORDEN_CARGO_DEST.get(String(destPosition?.idPosicionDirectiva || '')) ??
+          ORDEN_CARGO_DEST.get(String(destPosition?.idCargo || '')) ??
+          (Number(destPosition?.orden) || Infinity),
         directivaLeadershipPosition: directivaPosition ? getCargoLabel(directivaPosition) : '',
       };
     });
@@ -382,6 +401,7 @@ export function MemberListView() {
                   memberPosition: member.memberPosition,
                   destLeadershipPosition: member.destLeadershipPosition,
                   directivaLeadershipPosition: member.directivaLeadershipPosition,
+                  destPositionOrden: member.destPositionOrden,
                 },
               ])
             );
@@ -532,7 +552,18 @@ export function MemberListView() {
   const distinctdestName = getAvailableOptionsFromData({
     inputData: visibleMembers,
     property: 'destId',
-    labelResolver: (id) => dests.find((d) => d.id === id)?.name || id,
+    // Con el numero: "Tribu de Judá" a secas no distingue un destacamento de otro
+    // que se llame igual, que es justo lo que el numero resuelve.
+    labelResolver: (id) => {
+      const dest = dests.find((d) => String(d.id) === String(id));
+
+      if (!dest) return id;
+
+      const nombre = dest.name || dest.nombre || dest.destName || '';
+      const numero = dest.destNumber || dest.numero || dest.number || '';
+
+      return [nombre, numero].filter(Boolean).join(' ') || id;
+    },
   });
 
   const distinctPositions = [
@@ -613,7 +644,16 @@ export function MemberListView() {
       return filtrados;
     }
 
-    return sortOwnFirst(filtrados, (row) => esFichaDelPropioMiembro(user, row));
+    // Al mirar UN destacamento lo natural es verlo por rango —Pastor, Coordinador
+    // de Destacamento, Coordinador Asistente...— y no en orden alfabetico, que no
+    // dice nada de quien responde ante quien.
+    const porJerarquia = currentFilters.destName.length
+      ? [...filtrados].sort(
+          (a, b) => (a.destPositionOrden ?? Infinity) - (b.destPositionOrden ?? Infinity)
+        )
+      : filtrados;
+
+    return sortOwnFirst(porJerarquia, (row) => esFichaDelPropioMiembro(user, row));
   })();
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
