@@ -132,19 +132,26 @@ export function RegionalCreateEditForm({ currentRegional }) {
       // validaciones para que un error salga al instante. Ver `ui-delays`.
       const espera = esperar(RETARDO_GUARDADO_MS);
 
+      let resultado = null;
+
       if (currentRegional) {
-        await updateRegional(payload, { usuario: user, antes: currentRegional });
+        resultado = await updateRegional(payload, { usuario: user, antes: currentRegional });
       } else {
         await saveRegional(payload, { usuario: user });
       }
 
       await espera;
 
-      toast.success(
-        currentRegional
-          ? 'Actualizado correctamente!'
-          : 'Región creada exitosamente!'
-      );
+      if (resultado?.pendienteDeAprobacion) {
+        // Todavia no se ha guardado nada: el cambio espera a la Oficina Nacional.
+        toast.info('Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.');
+      } else {
+        toast.success(
+          currentRegional
+            ? 'Actualizado correctamente!'
+            : 'Región creada exitosamente!'
+        );
+      }
 
       if (currentRegional) {
         router.refresh();

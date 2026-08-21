@@ -14,12 +14,18 @@ import { obtenerCargosApi } from 'src/services/cargos-api-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import {
   DIRECTIVA_LEVELS,
+  DIRECTIVA_POSITIONS,
   DIRECTIVA_DIVISIONS,
   CARGOS_DIRECTIVA_BASE,
   DIRECTIVA_DIVISION_NAMES,
 } from 'src/catalogs/directiva-positions';
 
 // ----------------------------------------------------------------------
+
+// Para poner el NOMBRE del cargo en el registro de auditoria, no su id.
+const POSICION_POR_ID_CARGO = new Map(
+  DIRECTIVA_POSITIONS.map((position) => [position.idCargo, position])
+);
 
 export const COLECCION_POSICIONES_DIRECTIVA = 'posicionesDirectiva';
 export const COLECCION_CARGOS_DIRECTIVA_OBSOLETA = 'cargosDirectiva';
@@ -536,14 +542,24 @@ export async function guardarAsignacionDirectiva({
 
   await batch.commit();
 
+  // El registro va dirigido a una persona que lo lee, no a la base de datos: el
+  // nombre y el cargo por delante, y el id solo cuando no hay nombre. Antes
+  // decia "al miembro 306", que no le dice nada a nadie.
+  const personaAuditoria = normalizarTexto(nombreMiembro) || `el miembro ${idMiembroResolved}`;
+  const cargoAuditoria =
+    POSICION_POR_ID_CARGO.get(normalizarTexto(idPosicionDirectiva))?.nombreCargo || '';
+  const dondeAuditoria = normalizarTexto(nombreEntidad) || `${nivel} ${idEntidad}`;
+
   registrarAuditoriaSilenciosa({
     modulo: 'cargos_liderazgos',
     accion: 'asignacion_directiva_guardada',
-    descripcion: `Se asignó un cargo de directiva al miembro ${idMiembroResolved}.`,
+    descripcion: cargoAuditoria
+      ? `Se asignó a ${personaAuditoria} el cargo de ${cargoAuditoria} en ${dondeAuditoria}.`
+      : `Se asignó un cargo de directiva a ${personaAuditoria} en ${dondeAuditoria}.`,
     entidad: {
       tipo: 'asignacion_directiva',
       id: idAsignacion,
-      nombre: idMiembroResolved,
+      nombre: personaAuditoria,
       ruta: `/dashboard/level/member/${idMiembroResolved}/edit`,
     },
     despues: asignacion,

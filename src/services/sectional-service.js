@@ -6,10 +6,50 @@ import {
   canDeleteOrgLevel,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
+  puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
 import { getChurches } from './church-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
+
+// Campos que se listan en la propuesta, para que quien apruebe vea QUE cambia.
+const CAMPOS_SECCION = {
+  nombre: 'Nombre',
+  sectionalName: 'Nombre',
+  idRegion: 'Región',
+  regionalId: 'Región',
+  correo: 'Correo',
+  telefono: 'Teléfono',
+  direccion: 'Dirección',
+};
+
+export const compararCambios = (antes, despues, campos) =>
+  Object.entries(campos)
+    .map(([campo, etiqueta]) => ({
+      campo,
+      etiqueta,
+      antes: antes?.[campo] ?? null,
+      despues: despues?.[campo] ?? null,
+    }))
+    .filter((cambio) => String(cambio.antes ?? '') !== String(cambio.despues ?? ''));
+
+// Escritura real. No se llama a pelo: entra por la puerta de cambios.
+const escribirSeccion = async (sectional) => {
+  const res = await fetch('/api/sectional/put', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sectional),
+  });
+
+  const texto = await res.text();
+
+  if (!res.ok) {
+    throw new Error(texto || `Error actualizando la sección (${res.status})`);
+  }
+
+  return texto;
+};
 
 // Verificacion de alcance del lado del cliente (defensa en profundidad). Solo se
 // aplica cuando el llamador pasa `usuario`; es una mitigacion parcial: la API
@@ -200,53 +240,27 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
         );
     }
 
-    try {
-        const res = await fetch('/api/sectional/put', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(sectional),
-        });
+    // Modificar una seccion lo aprueba la Oficina Nacional: no se escribe nada
+    // hasta entonces.
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.seccion,
+        entidad: {
+            tipo: 'seccion',
+            id: sectional?.idSeccion ?? sectional?.id ?? null,
+            nombre: getSectionalAuditName(sectional),
+            ruta: '/dashboard/level/sectional',
+        },
+        cambios: compararCambios(antes, sectional, CAMPOS_SECCION),
+        usuario,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        aplicar: () => escribirSeccion(sectional),
+    });
 
-        const text = await res.text();
-
-        if (!text) {
-            registrarAuditoriaSeccion({
-                accion: 'seccion_actualizada',
-                descripcion: `Se actualizó la sección ${getSectionalAuditName(sectional)}.`,
-                payload: sectional,
-                usuario,
-                antes,
-            });
-            return {};
-        }
-
-        if (text.startsWith('<')) {
-            registrarAuditoriaSeccion({
-                accion: 'seccion_actualizada',
-                descripcion: `Se actualizó la sección ${getSectionalAuditName(sectional)}.`,
-                payload: sectional,
-                usuario,
-                antes,
-            });
-            return {};
-        }
-
-        const data = JSON.parse(text);
-        registrarAuditoriaSeccion({
-            accion: 'seccion_actualizada',
-            descripcion: `Se actualizó la sección ${getSectionalAuditName(sectional)}.`,
-            payload: { ...sectional, ...data },
-            usuario,
-            antes,
-        });
-
-        return data;
-    } catch (error) {
-        console.error('Error actualizando seccional:', error);
-        return {};
+    if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
+        return { pendienteDeAprobacion: true, idSolicitud: resultado.idSolicitud };
     }
+
+    return { pendienteDeAprobacion: false };
 };
 
 export const deleteSectional = async (id, { usuario, antes = null } = {}) => {

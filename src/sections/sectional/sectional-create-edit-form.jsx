@@ -265,15 +265,22 @@ export function SectionalCreateEditForm({ currentSectional }) {
       // validaciones para que un error salga al instante. Ver `ui-delays`.
       const espera = esperar(RETARDO_GUARDADO_MS);
 
+      let resultado = null;
+
       if (currentSectional) {
-        await updateSectional(payload, { usuario: user, antes: currentSectional });
+        resultado = await updateSectional(payload, { usuario: user, antes: currentSectional });
       } else {
         await saveSectional(payload, { usuario: user });
       }
 
       await espera;
 
-      toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
+      if (resultado?.pendienteDeAprobacion) {
+        // Todavia no se ha guardado nada: el cambio espera a la Oficina Nacional.
+        toast.info('Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.');
+      } else {
+        toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
+      }
 
       if (currentSectional) {
         router.refresh();
