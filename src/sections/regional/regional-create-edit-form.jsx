@@ -27,6 +27,10 @@ import { getChurches } from 'src/services/church-service';
 import { RegionalSchema } from 'src/models/regional-schema';
 import { getSectionals } from 'src/services/sectional-service';
 import { saveRegional, updateRegional } from 'src/services/regional-service';
+import {
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+} from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -36,6 +40,12 @@ import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGe
 
 import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
+
+// El director de una region NO es un campo de la tabla Regiones en la API: es una
+// asignacion de directiva, igual que el coordinador de un destacamento. Por eso
+// hay que guardarlo aparte; mandarlo dentro del payload no lo persistia en ningun
+// sitio y el desplegable aparecia vacio al volver a entrar.
+const CARGO_DIRECTOR_REGIONAL = 'regional-director-regional';
 
 const DEFAULT_VALUES = {
   name: '',
@@ -68,6 +78,8 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const {
     reset,
     watch,
+    setValue,
+    getValues,
     control,
     handleSubmit,
     formState: { isSubmitting },
@@ -163,6 +175,55 @@ export function RegionalCreateEditForm({ currentRegional }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRegional]);
 
+  // La asignacion pasa por la puerta unica de cambios, asi que queda en el
+  // historial y, si quien edita no puede aplicar directo, va a la Oficina Nacional.
+  const guardarDirectorRegional = async ({ idRegion, nombreRegion, idMiembro }) => {
+    if (!idMiembro) return;
+
+    await guardarAsignacionDirectiva({
+      nivel: 'regional',
+      idEntidad: idRegion,
+      nombreEntidad: nombreRegion || '',
+      idCargo: CARGO_DIRECTOR_REGIONAL,
+      idPosicionDirectiva: CARGO_DIRECTOR_REGIONAL,
+      idMiembro,
+      usuario: user,
+    });
+  };
+
+  // El director no viene en la ficha que devuelve la API: se lee de las
+  // asignaciones para que el desplegable aparezca relleno al abrir la region.
+  useEffect(() => {
+    let cancelado = false;
+
+    const cargarDirector = async () => {
+      if (!currentRegional?.id) return;
+
+      const asignaciones = await obtenerAsignacionesDirectiva({
+        nivel: 'regional',
+        idEntidad: Number(currentRegional.id),
+      }).catch(() => []);
+
+      if (cancelado) return;
+
+      const director = asignaciones.find(
+        (asignacion) =>
+          String(asignacion.idPosicionDirectiva || asignacion.idCargo || '') ===
+          CARGO_DIRECTOR_REGIONAL
+      );
+
+      if (director?.idMiembro) {
+        setValue('directorId', String(director.idMiembro));
+      }
+    };
+
+    cargarDirector();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [currentRegional?.id, setValue]);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (!canEdit) {
@@ -185,7 +246,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
       if (currentRegional) {
         resultado = await updateRegional(payload, { usuario: user, antes: currentRegional });
       } else {
-        await saveRegional(payload, { usuario: user });
+        resultado = await saveRegional(payload, { usuario: user });
       }
 
       await espera;
@@ -199,6 +260,16 @@ export function RegionalCreateEditForm({ currentRegional }) {
             ? 'Actualizado correctamente!'
             : 'Región creada exitosamente!'
         );
+      }
+
+      const idRegion =
+        currentRegional?.id ||
+        resultado?.data?.idRegion ||
+        resultado?.idRegion ||
+        null;
+
+      if (idRegion) {
+        await guardarDirectorRegional({ idRegion, nombreRegion: data.name, idMiembro: getValues('directorId') });
       }
 
       if (currentRegional) {

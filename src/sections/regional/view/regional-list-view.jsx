@@ -39,6 +39,7 @@ import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals, deleteRegional, getCachedRegionals } from 'src/services/regional-service';
+import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -155,7 +156,8 @@ export function RegionalListView() {
       try {
         // Fase 1: una sola tanda en paralelo (antes getRegionals se resolvia
         // en serie antes del resto, sumando su latencia al total).
-        const [regionals, sectionals, churches, dests, members, fotosMiembros] = await Promise.all([
+        const [regionals, sectionals, churches, dests, members, fotosMiembros, asignaciones] =
+          await Promise.all([
           getRegionals(),
           getSectionals({ includePhotos: false }),
           getChurches(),
@@ -165,6 +167,9 @@ export function RegionalListView() {
           // devuelve la API: sin pedirlas aparte, el director salia siempre con
           // el avatar generico aunque tuviera foto.
           obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
+          // La API de Regiones no tiene columna de director: el cargo vive en las
+          // asignaciones de directiva, igual que el coordinador de un destacamento.
+          obtenerAsignacionesDirectivaMiembros().catch(() => []),
         ]);
         setTableData(regionals.map(mapRegionalToBaseRow));
         setTableLoading(false);
@@ -175,12 +180,25 @@ export function RegionalListView() {
           )
         );
 
+        const directorPorRegion = new Map(
+          asignaciones
+            .filter(
+              (asignacion) =>
+                asignacion?.nivel === 'regional' &&
+                String(asignacion.idPosicionDirectiva || asignacion.idCargo || '') ===
+                  'regional-director-regional'
+            )
+            .map((asignacion) => [String(asignacion.idEntidad), String(asignacion.idMiembro || '')])
+        );
+
         const newData = regionals.map((regional) => {
           // El director sale de la propia region. La busqueda contra
           // `LEADERSHIP_ASSIGNMENTS` (datos de ejemplo) que habia aqui no podia
           // acertar: sus entidades son 'reg-este' y sus miembros 'member-01',
           // mientras los reales son numeros.
-          const director = memberById.get(String(regional.directorId || ''));
+          const idDirector =
+            directorPorRegion.get(String(getRegionalId(regional))) || regional.directorId || '';
+          const director = memberById.get(String(idDirector));
           const directorName =
             director?.fullName ||
             [director?.firstName, director?.lastName].filter(Boolean).join(' ').trim() ||
