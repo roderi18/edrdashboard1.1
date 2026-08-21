@@ -247,7 +247,11 @@ const loadAuthorizationAccess = async (authUser, profile, memberAccess) => {
 const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
   if (!access) return {};
 
-  const roleId = access.rolId || access.roleId || '';
+  // El rol deducido del cargo en la directiva viaja en el perfil del miembro. Si
+  // el documento de autorizacion no trae uno propio, se conserva ese en vez de
+  // vaciarlo: sin esto la sesion se quedaba sin rolId y el usuario aparecia como
+  // Usuario Comun aunque ocupara una casilla del organigrama.
+  const roleId = access.rolId || access.roleId || memberAccess?.profile?.rolId || '';
   const roleScopeType =
     access?.rol?.alcancePredeterminado || ALCANCE_PREDETERMINADO_ROL[roleId] || '';
   const alcance = mergeDestScopeWithMemberAccess(access.alcance, memberAccess, roleScopeType);

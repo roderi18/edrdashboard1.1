@@ -14,6 +14,8 @@ import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -136,6 +138,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     setSubmenuOption(null);
   }, []);
 
+  const puedeCambiarDeRol = isAdminGlobal(user);
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
   const selectedWorkspace = useMemo(() => {
     const match = data.find((option) => option.id === currentRoleId);
@@ -250,32 +253,65 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
       <Avatar alt={option?.name} src={option?.logo} sx={{ width: 24, height: 24 }} />
     );
 
-  const renderButton = () => (
-    <ButtonBase
-      disableRipple
-      onClick={onOpen}
-      sx={[
-        {
-          py: 0.5,
-          gap: { xs: 0.5, [mediaQuery]: 1 },
-          '&::before': buttonBg,
-        },
-        ...(Array.isArray(sx) ? sx : [sx]),
-      ]}
-      {...other}
-    >
-      {renderWorkspaceIcon(workspace, { bgcolor: 'transparent', color: 'primary.main' })}
+  const renderButton = () => {
+    // Solo el Administrador Global cambia de rol desde aqui. Para el resto, el
+    // rol NO se elige: sale del cargo que ocupan en la directiva. Se deja el
+    // nombre a la vista —es informacion util— pero sin boton, sin flecha y sin
+    // menu: un desplegable que permitiera cambiarse el rol a uno mismo seria una
+    // via de escalada de privilegios abierta a cualquiera.
+    if (!puedeCambiarDeRol) {
+      return (
+        <Box
+          sx={[
+            {
+              py: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 0.5, [mediaQuery]: 1 },
+            },
+            ...(Array.isArray(sx) ? sx : [sx]),
+          ]}
+          {...other}
+        >
+          {renderWorkspaceIcon(workspace, { bgcolor: 'transparent', color: 'primary.main' })}
 
-      <Box
-        component="span"
-        sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}
+          <Box
+            component="span"
+            sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}
+          >
+            {workspace?.name}
+          </Box>
+        </Box>
+      );
+    }
+
+    return (
+      <ButtonBase
+        disableRipple
+        onClick={onOpen}
+        sx={[
+          {
+            py: 0.5,
+            gap: { xs: 0.5, [mediaQuery]: 1 },
+            '&::before': buttonBg,
+          },
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
+        {...other}
       >
-        {workspace?.name}
-      </Box>
+        {renderWorkspaceIcon(workspace, { bgcolor: 'transparent', color: 'primary.main' })}
 
-      <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
-    </ButtonBase>
-  );
+        <Box
+          component="span"
+          sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}
+        >
+          {workspace?.name}
+        </Box>
+
+        <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
+      </ButtonBase>
+    );
+  };
 
   const handleCloseAll = useCallback(() => {
     closeSubmenu();

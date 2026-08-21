@@ -4,6 +4,8 @@ import { paths } from 'src/routes/paths';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { ROLES_ASIGNADOS_A_MANO, resolverRolPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole } from 'src/auth/permissions/can';
@@ -517,6 +519,42 @@ const normalizeMemberProfile = (profile = {}, member = {}, authUser = {}) => ({
   alcance: mergeMemberScope(profile?.alcance, member),
   permisos: mergeMemberPermissions(profile?.permisos),
 });
+
+/**
+ * Pone en el perfil el rol que le corresponde por su CARGO en la directiva.
+ *
+ * El rol deja de ser un campo suelto que se elegia en un desplegable: sale de la
+ * casilla que la persona ocupa en el organigrama, y quien no ocupa ninguna queda
+ * como Usuario Comun. Los administradores —global, funcional y de tienda— se
+ * nombran a mano y no se tocan: no hay ninguna casilla de la que deducirlos.
+ */
+const aplicarRolPorCargo = async (profile = {}) => {
+  const rolGuardado = String(profile?.rolId || profile?.rol || '')
+    .trim()
+    .toLowerCase();
+
+  if (ROLES_ASIGNADOS_A_MANO.includes(rolGuardado)) {
+    return profile;
+  }
+
+  const idMiembro = profile?.idMiembros;
+  const asignaciones = idMiembro
+    ? await obtenerAsignacionesDirectivaPorMiembro({ idMiembro }).catch((error) => {
+        // Si no se pueden leer los cargos no se inventa un rol: queda el comun,
+        // que es el de menos permisos.
+        console.warn('[member-access] no se pudieron leer los cargos del miembro', error);
+        return [];
+      })
+    : [];
+
+  const rol = resolverRolPorAsignaciones(asignaciones);
+
+  return {
+    ...profile,
+    rolId: rol,
+    rolNombre: ROLES_POR_CODIGO[rol]?.nombre ?? '',
+  };
+};
 
 const syncRoleProfileByAuthUid = async ({
   authUser = {},
@@ -1989,7 +2027,9 @@ export const loadMemberAccessProfile = async (authUser) => {
       name: profileByUid?.nombre ?? '',
       memberId: profileByUid?.codigoMiembro ?? '',
     };
-    const profile = normalizeMemberProfile(profileByUid, minimalMember, authUser);
+    const profile = await aplicarRolPorCargo(
+      normalizeMemberProfile(profileByUid, minimalMember, authUser)
+    );
     const photoURL = await getActiveMemberPhotoUrl(idMiembros);
 
     // Sincronización de usuarios_roles fuera de la ruta crítica (no se espera).
@@ -2084,7 +2124,9 @@ export const loadMemberAccessProfile = async (authUser) => {
         ...buildDefaultMemberPermissions(),
       },
     };
-  const profile = normalizeMemberProfile(sourceProfile, member, authUser);
+  const profile = await aplicarRolPorCargo(
+    normalizeMemberProfile(sourceProfile, member, authUser)
+  );
   const photoURL = await getActiveMemberPhotoUrl(profile.idMiembros ?? member.id);
 
   // Sincronización fuera de la ruta crítica (no se espera): no debe retrasar el login.
@@ -2120,7 +2162,12 @@ export const buildMemberSessionUser = (authUser, access = {}) => {
     email: member?.email || profile?.correo || authUser?.email || '',
     photoURL: profile?.photoURL || member?.avatarUrl || authUser?.photoURL || '',
     role: 'member',
-    memberRole: profile?.rol ?? 'miembro',
+    // El rol viene del cargo en la directiva (`rolId`); `rol` es el campo antiguo
+    // del documento, que para todos los miembros vale 'miembro' y no distingue
+    // nada.
+    rolId: profile?.rolId ?? '',
+    rolNombre: profile?.rolNombre ?? '',
+    memberRole: profile?.rolId ?? profile?.rol ?? 'miembro',
     status: profile?.estado ?? member?.status ?? 'activo',
     idMiembros: Number(member?.id ?? profile?.idMiembros ?? 0) || '',
     memberId: member?.memberId ?? '',
