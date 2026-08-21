@@ -6,7 +6,7 @@ import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
 
-import { capitalizeWords } from 'src/utils/text-format';
+import { capitalizeWords, formatChurchName } from 'src/utils/text-format';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
@@ -37,7 +37,7 @@ export function DestTableRow({
   const coordinatorAvatarUrl = row.coordinatorAvatarUrl;
   const coordinatorPhoneNumber = row.coordinatorPhoneNumber || '';
   const destMemberCount = row.destMemberCount || 0;
-  const churchName = row?.churchName || 'Iglesia desconocida';
+  const churchName = row?.churchName || '';
   const coordinatorPhoneLabel = formatPhoneNumber(coordinatorPhoneNumber);
 
   return (
@@ -58,7 +58,7 @@ export function DestTableRow({
       <CompactEntityTableCell
         title={`${capitalizeWords(row.nombre)} ${row.numero || ''}`}
         href={`/dashboard/level/dest/${id}/edit`}
-        subtitle={`Iglesia ${capitalizeWords(churchName)}`}
+        subtitle={formatChurchName(churchName)}
         avatarAlt={row.nombre}
         avatarUrl={row.avatarUrl}
       />
