@@ -136,6 +136,7 @@ export async function proponerCambio({
   aplicar = null,
   esSugerencia = false,
   descripcion = '',
+  aplicarDirecto = false,
 } = {}) {
   asegurarFirebase();
 
@@ -143,7 +144,15 @@ export async function proponerCambio({
     throw new Error('Todo cambio necesita un ámbito: no se puede registrar de otro modo.');
   }
 
-  const necesitaAprobacion = esSugerencia || requiereAprobacionDeOficinaNacional(ambito);
+  // `aplicarDirecto` lo pone quien llama para el Administrador Global y para la
+  // propia Oficina Nacional: no tiene sentido que esperen una aprobacion que se
+  // darian a si mismos, y sin esta salida un cambio suyo se quedaria pendiente
+  // para siempre si no hay nadie mas con el rol. Salta la aprobacion, NO el
+  // registro: su cambio queda en Historial igual que cualquier otro.
+  //
+  // Una sugerencia nunca se aplica sola, ni siquiera con este permiso.
+  const necesitaAprobacion =
+    esSugerencia || (requiereAprobacionDeOficinaNacional(ambito) && !aplicarDirecto);
   const actor = describirActor(usuario);
   const textoEntidad = entidad?.nombre ? ` ${entidad.nombre}` : '';
   const detalle =

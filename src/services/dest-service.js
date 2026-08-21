@@ -1,15 +1,49 @@
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
-import { isFullOrgManager, canCreateDestInSection } from 'src/utils/org-level-access';
 import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
 import {
     saveItem,
     getStorageCollection,
     setStorageCollection,
 } from 'src/utils/storage-service';
+import {
+    isFullOrgManager,
+    canCreateDestInSection,
+    puedeAprobarCambiosDeOrganizacion,
+} from 'src/utils/org-level-access';
 
 import { getChurches } from './church-service';
 import { getSectionals } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import {
+    AMBITOS_CAMBIO,
+    ESTADOS_CAMBIO,
+    proponerCambio,
+} from './solicitudes-cambio-service';
+
+// Campos del destacamento que se listan en la propuesta, para que quien la
+// apruebe vea QUE cambia y no solo que "hubo cambios".
+const CAMPOS_DESTACAMENTO = {
+    name: 'Nombre',
+    destNumber: 'Número',
+    churchId: 'Iglesia',
+    correo: 'Correo',
+    telefono: 'Teléfono',
+    direccion: 'Dirección',
+    destMeetingDays: 'Día de reunión',
+    destMeetingTimes: 'Hora de reunión',
+    registradoOfnc: 'Registrado en Oficina Nacional',
+    rritrackActivo: 'RRITrack activo',
+};
+
+const compararParaHistorial = (antes, despues, campos = CAMPOS_DESTACAMENTO) =>
+    Object.entries(campos)
+        .map(([campo, etiqueta]) => ({
+            campo,
+            etiqueta,
+            antes: antes?.[campo] ?? null,
+            despues: despues?.[campo] ?? null,
+        }))
+        .filter((cambio) => String(cambio.antes ?? '') !== String(cambio.despues ?? ''));
 
 // Verificacion de alcance del lado del cliente (defensa en profundidad), aplicada
 // solo cuando el llamador pasa `usuario`. La edicion fina por alcance vive en el
@@ -309,9 +343,10 @@ export const createDestApi = async (data, { usuario } = {}) => {
     }
 };
 
-export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
-    const payload = buildDestPayload(data);
-
+// Escritura real contra el backend. Se aisla aqui porque no se llama nunca a
+// pelo: entra por la puerta de cambios, que decide si se ejecuta ahora o si
+// espera a que la Oficina Nacional la apruebe.
+const escribirDestacamento = async (payload) => {
     const res = await fetch('/api/dest/put', {
         method: 'PUT',
         headers: {
@@ -320,68 +355,44 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
         body: JSON.stringify(payload),
     });
 
-    const text = await res.text();
-
+    const texto = await res.text();
 
     if (!res.ok) {
-        throw new Error(text || `Error actualizando destacamento (${res.status})`);
+        throw new Error(texto || `Error actualizando destacamento (${res.status})`);
     }
 
-    if (!text) {
-        registrarAuditoriaSilenciosa({
-            modulo: 'destacamentos',
-            accion: 'destacamento_actualizado',
-            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
-            entidad: {
-                tipo: 'destacamento',
-                id: data?.idDestacamento || data?.id,
-                nombre: getDestAuditName(data),
-                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
-            },
-            antes,
-            despues: data,
-            realizadoPor: usuario,
-            origen: 'niveles_organizacionales',
-        });
-        return {};
+    return texto;
+};
+
+export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
+    const payload = buildDestPayload(data);
+
+    // Modificar un destacamento lo aprueba la Oficina Nacional. Mientras no lo
+    // haga, el cambio NO se escribe: queda como propuesta.
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.destacamento,
+        entidad: {
+            tipo: 'destacamento',
+            id: data?.id ?? data?.idDestacamento ?? null,
+            nombre: getDestAuditName(data),
+            ruta: '/dashboard/level/dest',
+        },
+        cambios: compararParaHistorial(antes, data),
+        usuario,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        aplicar: () => escribirDestacamento(payload),
+    });
+
+    if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
+        return {
+            pendienteDeAprobacion: true,
+            idSolicitud: resultado.idSolicitud,
+        };
     }
 
-    try {
-        const response = JSON.parse(text);
-        registrarAuditoriaSilenciosa({
-            modulo: 'destacamentos',
-            accion: 'destacamento_actualizado',
-            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
-            entidad: {
-                tipo: 'destacamento',
-                id: data?.idDestacamento || data?.id,
-                nombre: getDestAuditName(data),
-                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
-            },
-            antes,
-            despues: data,
-            realizadoPor: usuario,
-            origen: 'niveles_organizacionales',
-        });
-        return response;
-    } catch {
-        registrarAuditoriaSilenciosa({
-            modulo: 'destacamentos',
-            accion: 'destacamento_actualizado',
-            descripcion: `Se actualizó el destacamento ${getDestAuditName(data)}.`,
-            entidad: {
-                tipo: 'destacamento',
-                id: data?.idDestacamento || data?.id,
-                nombre: getDestAuditName(data),
-                ruta: `/dashboard/level/dest/${data?.idDestacamento || data?.id || ''}/edit`,
-            },
-            antes,
-            despues: data,
-            realizadoPor: usuario,
-            origen: 'niveles_organizacionales',
-        });
-        return { raw: text };
-    }
+    // La puerta ya dejo constancia en Historial; no hace falta un segundo
+    // registro aqui.
+    return { pendienteDeAprobacion: false };
 };
 
 export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {

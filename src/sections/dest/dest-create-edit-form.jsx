@@ -581,6 +581,9 @@ export function DestCreateEditForm({ currentDest }) {
       };
 
       let churchUpdateFailed = false;
+      // Lo que devuelve la puerta de cambios: si el cambio quedo pendiente de la
+      // Oficina Nacional, el mensaje final no puede ser el de guardado.
+      let resultadoDest = null;
 
       if (currentDest) {
         // LA IGLESIA SOLO SE ESCRIBE SI CAMBIO ALGO SUYO.
@@ -617,7 +620,7 @@ export function DestCreateEditForm({ currentDest }) {
             console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
           }
         }
-        await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
+        resultadoDest = await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
       } else {
         await createDestApi(destPayloadData, { usuario: user });
       }
@@ -724,6 +727,10 @@ export function DestCreateEditForm({ currentDest }) {
         toast.warning(
           'Destacamento guardado, pero no se pudo actualizar la información de la iglesia. Intenta de nuevo más tarde.'
         );
+      } else if (resultadoDest?.pendienteDeAprobacion) {
+        // No se guardo nada todavia: el cambio espera a la Oficina Nacional.
+        // Decirlo tal cual, porque un "Actualizacion exitosa" aqui seria mentira.
+        toast.info('Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.');
       } else {
         toast.success(
           currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
