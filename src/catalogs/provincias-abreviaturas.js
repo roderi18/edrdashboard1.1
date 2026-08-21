@@ -47,6 +47,19 @@ export const ABREVIATURAS_PROVINCIA = {
 // tiene direccion, o el miembro todavia no pertenece a ningun destacamento.
 export const PREFIJO_PROVINCIA_DESCONOCIDA = 'SD';
 
+// El codigo empieza por el pais: hoy solo hay Republica Dominicana, pero la
+// organizacion se abrira a otros y entonces RD-SD-10001 y PA-SD-10001 tienen que
+// poder convivir. Se guarda como dato, no fijo en el codigo.
+//
+// La abreviatura NO es el codigo ISO: la Republica Dominicana es "DO" en ISO y
+// aqui se escribe RD, que es como se la nombra. Por eso hay tabla propia; para
+// los paises que no esten, sirve el ISO que devuelve la API.
+export const ABREVIATURAS_PAIS = {
+  1: 'RD',
+};
+
+export const PREFIJO_PAIS_POR_DEFECTO = 'RD';
+
 export const PRIMER_NUMERO_MIEMBRO = 10001;
 
 // "Santo Domingo Este" no es la provincia Santo Domingo, y "santo domingo" con

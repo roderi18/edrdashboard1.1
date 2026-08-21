@@ -1,7 +1,7 @@
 import { getDocs, collection } from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { ABREVIATURAS_PROVINCIA } from 'src/catalogs/provincias-abreviaturas';
+import { ABREVIATURAS_PAIS, ABREVIATURAS_PROVINCIA } from 'src/catalogs/provincias-abreviaturas';
 
 // ----------------------------------------------------------------------
 // Tabla de abreviaturas de provincia. Vive en Firestore para que se pueda
@@ -10,6 +10,7 @@ import { ABREVIATURAS_PROVINCIA } from 'src/catalogs/provincias-abreviaturas';
 // ----------------------------------------------------------------------
 
 export const COLECCION_PROVINCIAS = 'catalogo_provincias';
+export const COLECCION_PAISES = 'catalogo_paises';
 
 let cache = null;
 
@@ -43,5 +44,41 @@ export async function obtenerAbreviaturasProvincia({ recargar = false } = {}) {
   } catch {
     cache = ABREVIATURAS_PROVINCIA;
     return cache;
+  }
+}
+
+let cachePaises = null;
+
+// Abreviatura del pais por su id. Misma idea que las provincias: la fuente viva
+// esta en Firestore para poder corregirla sin desplegar, y el catalogo local
+// responde si Firestore no contesta.
+export async function obtenerAbreviaturasPais({ recargar = false } = {}) {
+  if (cachePaises && !recargar) return cachePaises;
+
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    cachePaises = ABREVIATURAS_PAIS;
+    return cachePaises;
+  }
+
+  try {
+    const snap = await getDocs(collection(FIRESTORE, COLECCION_PAISES));
+
+    if (snap.empty) {
+      cachePaises = ABREVIATURAS_PAIS;
+      return cachePaises;
+    }
+
+    const tabla = {};
+    snap.forEach((documento) => {
+      const abreviatura = documento.data()?.abreviatura || '';
+
+      if (abreviatura) tabla[documento.id] = abreviatura;
+    });
+
+    cachePaises = Object.keys(tabla).length ? tabla : ABREVIATURAS_PAIS;
+    return cachePaises;
+  } catch {
+    cachePaises = ABREVIATURAS_PAIS;
+    return cachePaises;
   }
 }
