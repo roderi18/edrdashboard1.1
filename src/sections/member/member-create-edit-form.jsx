@@ -176,7 +176,7 @@ const getRowsFromApi = (payload) => {
 };
 
 // Lo que dura en pantalla la clave temporal antes de desaparecer.
-const SEGUNDOS_CLAVE_TEMPORAL = 15;
+const SEGUNDOS_CLAVE_TEMPORAL = 30;
 
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
@@ -1241,8 +1241,7 @@ export function MemberCreateEditForm({
     // aborta con un aviso en vez de guardar una asignacion que nadie veria.
     if (!idEntidad) {
       throw new Error(
-        `No se pudo determinar la ${cargo.nivel === 'regional' ? 'región' : 'sección'} de ${
-          currentMember?.firstName || 'este miembro'
+        `No se pudo determinar la ${cargo.nivel === 'regional' ? 'región' : 'sección'} de ${currentMember?.firstName || 'este miembro'
         }. Asígnale primero un destacamento.`
       );
     }
@@ -1916,10 +1915,10 @@ export function MemberCreateEditForm({
           if (!res.ok) {
             throw new Error(
               responseData?.message ||
-                responseData?.Message ||
-                responseData?.error ||
-                text ||
-                `Error de red o servidor (${res.status})`
+              responseData?.Message ||
+              responseData?.error ||
+              text ||
+              `Error de red o servidor (${res.status})`
             );
           }
 
@@ -2663,8 +2662,7 @@ export function MemberCreateEditForm({
                   {!!claveTemporal && (
                     <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
-                        Cópiala y entrégasela al miembro. Con ella podrá entrar una vez, y la
-                        aplicación le pedirá crear su propia contraseña.
+                        Entrégala al miembro. Podrá usarla una vez y deberá crear una nueva contraseña al ingresar.
                       </Typography>
 
                       <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
@@ -2901,15 +2899,13 @@ export function MemberCreateEditForm({
                             />
                             <Field.DatePicker
                               name="FechaVencimientoCI"
-                              label={`Fecha vencimiento CI${
-                                diasRestantesCI !== null && diasRestantesCI <= 365
-                                  ? ` (${
-                                      diasRestantesCI >= 0
-                                        ? `${diasRestantesCI} d?as restantes`
-                                        : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
-                                    })`
-                                  : ''
-                              }`}
+                              label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
+                                ? ` (${diasRestantesCI >= 0
+                                  ? `${diasRestantesCI} d?as restantes`
+                                  : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
+                                })`
+                                : ''
+                                }`}
                               format="DD/MM/YYYY"
                               views={['year', 'month', 'day']}
                               disabled

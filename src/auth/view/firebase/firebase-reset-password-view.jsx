@@ -151,7 +151,11 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         // eslint-disable-next-line no-restricted-syntax
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo: loginValue, correo: member.correo }),
+        body: JSON.stringify({
+          codigo: loginValue,
+          correo: member.correo,
+          idMiembros: member.idMiembros ?? member.id ?? null,
+        }),
       })
         .then((respuesta) => respuesta.json())
         .catch(() => null);

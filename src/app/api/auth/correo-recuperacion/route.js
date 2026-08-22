@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { isAdminConfigured } from 'src/server/firebase-admin';
+import { esCorreoInterno, buscarCuentaMiembro } from 'src/server/claves-miembro';
 
 // ----------------------------------------------------------------------
 // ¿Le puede llegar a un miembro el enlace de recuperacion a ese correo?
@@ -36,15 +37,20 @@ export async function POST(req) {
       );
     }
 
-    const { codigo, correo } = await req.json();
+    const { codigo, correo, idMiembros } = await req.json();
     const usuario = normalizarCodigo(codigo);
 
     if (!usuario) {
       return Response.json({ error: 'Falta el código de miembro.' }, { status: 400 });
     }
 
-    const auth = getAdminAuth();
-    const cuenta = await auth.getUserByEmail(`${usuario}@${DOMINIO_INTERNO}`).catch(() => null);
+    // Se busca por todos los caminos: en cuanto el miembro registra un correo
+    // propio, el interno deja de existir y buscarla por ahi no encuentra nada.
+    const cuenta = await buscarCuentaMiembro({
+      idMiembros,
+      codigoMiembro: codigo,
+      correo,
+    });
 
     // Sin cuenta no hay nada que restablecer. La respuesta es la misma que la de
     // "existe pero no tiene correo propio": quien pregunta no tiene por que
@@ -54,7 +60,7 @@ export async function POST(req) {
     }
 
     const correoCuenta = normalizarCorreo(cuenta.email);
-    const tieneCorreoPropio = Boolean(correoCuenta) && !correoCuenta.endsWith(`@${DOMINIO_INTERNO}`);
+    const tieneCorreoPropio = Boolean(correoCuenta) && !esCorreoInterno(correoCuenta);
 
     return Response.json({
       tieneCorreoPropio,
