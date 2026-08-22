@@ -21,6 +21,7 @@ import IconButton from '@mui/material/IconButton';
 import LoadingButton from '@mui/lab/LoadingButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { MEMBER_AUTH_DOMAIN, clavesInicialesMiembro } from 'src/utils/member-auth-credentials';
@@ -32,6 +33,7 @@ import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from '../../hooks';
 import { FormHead } from '../../components/form-head';
@@ -70,7 +72,7 @@ const PrimerAccesoSchema = zod
 
 export function FirebasePrimerAccesoView() {
   const router = useRouter();
-  const { user, checkUserSession } = useAuthContext();
+  const { user, loading, authenticated, checkUserSession } = useAuthContext();
   const mostrarClave = useBoolean();
   const [errorMessage, setErrorMessage] = useState(null);
   const [avisoCorreo, setAvisoCorreo] = useState(null);
@@ -83,6 +85,49 @@ export function FirebasePrimerAccesoView() {
     : correoDelMiembro;
 
   const [comprobandoCorreo, setComprobandoCorreo] = useState(false);
+  // Cambio ya hecho en esta visita: a partir de ahi la pantalla se queda para
+  // que le de tiempo a leer el aviso del correo, sin que el guardia la eche.
+  const [claveCambiada, setClaveCambiada] = useState(false);
+
+  // Esta pantalla no cuelga de AuthGuard, asi que se vigila sola. Sin sesion no
+  // hay nada que cambiar —se va al inicio de sesion— y quien ya eligio su clave
+  // no tiene por que volver a verla.
+  const debeEstarAqui = authenticated && user?.debeCambiarClave === true;
+  const puedeMostrarse = debeEstarAqui || claveCambiada;
+
+  useEffect(() => {
+    if (loading || claveCambiada) return;
+
+    if (!authenticated) {
+      router.replace(paths.auth.firebase.signIn);
+      return;
+    }
+
+    if (!user?.debeCambiarClave) {
+      router.replace(CONFIG.auth.redirectPath);
+    }
+  }, [loading, authenticated, user?.debeCambiarClave, claveCambiada, router]);
+
+  // El boton "atras" del navegador no puede devolverle al panel —la sesion sigue
+  // con la clave publica y el guardia le traeria de vuelta aqui, en bucle—, asi
+  // que retroceder sale al inicio de sesion y cierra la sesion.
+  //
+  // Se anade una entrada propia al historial para poder atrapar ese "atras" sin
+  // que se vea de paso la pantalla anterior. Solo cuando la pantalla se queda:
+  // hacerlo antes deja al router sin poder redirigir a quien no pinta nada aqui.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !puedeMostrarse) return undefined;
+
+    window.history.pushState(null, '', window.location.href);
+
+    const alRetroceder = () => {
+      window.location.replace(`${paths.auth.firebase.signIn}?forceSignOut=1`);
+    };
+
+    window.addEventListener('popstate', alRetroceder);
+
+    return () => window.removeEventListener('popstate', alRetroceder);
+  }, [puedeMostrarse]);
 
   // Bienvenida: su nombre, y debajo el codigo con el que acaba de entrar.
   const nombreDeSaludo = String(
@@ -265,6 +310,8 @@ export function FirebasePrimerAccesoView() {
           }),
       });
 
+      setClaveCambiada(true);
+
       await checkUserSession?.();
 
       // Con correo se espera: si redirige de inmediato, el aviso de "revisa tu
@@ -281,6 +328,16 @@ export function FirebasePrimerAccesoView() {
       );
     }
   });
+
+  if (loading || !puedeMostrarse) {
+    return (
+      <SplashScreen
+        portal={false}
+        title="Verificando tu acceso"
+        description="Estamos preparando tu sesión para llevarte al panel correcto."
+      />
+    );
+  }
 
   return (
     <>
