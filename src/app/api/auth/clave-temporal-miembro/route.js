@@ -45,13 +45,13 @@ export async function POST(req) {
       );
     }
 
-    const { idMiembros, codigoMiembro } = await req.json();
+    const { idMiembros, codigoMiembro, correo } = await req.json();
 
     if (!idMiembros && !codigoMiembro) {
       return Response.json({ error: 'Falta identificar al miembro.' }, { status: 400 });
     }
 
-    const cuenta = await buscarCuentaMiembro({ idMiembros, codigoMiembro });
+    const cuenta = await buscarCuentaMiembro({ idMiembros, codigoMiembro, correo });
 
     if (!cuenta) {
       return Response.json(

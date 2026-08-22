@@ -96,7 +96,12 @@ export async function POST(req) {
     const datosPerfil = perfil?.data() ?? {};
 
     await Promise.all([
-      referencia.set({ correo: correoNuevo, correoPersonal: correoNuevo }, { merge: true }),
+      // Con el uid dentro: al dejar de existir el correo interno, es lo unico
+      // que permite volver a encontrar la cuenta.
+      referencia.set(
+        { correo: correoNuevo, correoPersonal: correoNuevo, uid: cuenta.uid },
+        { merge: true }
+      ),
       db.collection('users').doc(cuenta.uid).set({ email: correoNuevo }, { merge: true }),
       // Tambien bajo el uid: al dejar de ser un correo `@exploradores.app`, la
       // sesion ya no puede reconocerlo como miembro por el correo y lo busca por

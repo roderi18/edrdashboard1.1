@@ -94,20 +94,63 @@ export const buscarPerfilMiembro = async ({ idMiembros, uid }) => {
   return null;
 };
 
-/** Cuenta de Firebase del miembro: por el uid guardado o por su correo interno. */
-export const buscarCuentaMiembro = async ({ idMiembros, codigoMiembro }) => {
+/**
+ * Cuenta de Firebase del miembro.
+ *
+ * Se busca por todos los caminos porque ninguno vale siempre: el perfil puede
+ * estar guardado con el id del miembro o con el uid de la cuenta, puede no
+ * llevar el uid dentro, y el correo interno deja de existir en cuanto el miembro
+ * registra uno propio —justo cuando mas falta hace encontrarlo—.
+ */
+export const buscarCuentaMiembro = async ({ idMiembros, codigoMiembro, correo }) => {
   const auth = getAdminAuth();
-  const perfil = await buscarPerfilMiembro({ idMiembros });
-  const uidGuardado = perfil?.data()?.uid;
+  const db = getAdminDb();
+  const uids = new Set();
 
-  if (uidGuardado) {
-    const cuenta = await auth.getUser(String(uidGuardado)).catch(() => null);
+  const anotarUid = (documento) => {
+    const datos = documento.data() || {};
+
+    [datos.uid, datos.idUsuario, documento.id].filter(Boolean).forEach((valor) => uids.add(String(valor)));
+  };
+
+  const perfil = await buscarPerfilMiembro({ idMiembros });
+
+  if (perfil) anotarUid(perfil);
+
+  // Documentos que apuntan al miembro aunque no se llamen como el: son los que
+  // crea la sesion, guardados con el uid por nombre.
+  if (idMiembros) {
+    await Promise.all(
+      [COLECCION, 'users'].map(async (coleccion) => {
+        const encontrados = await db
+          .collection(coleccion)
+          .where('idMiembros', '==', Number(idMiembros))
+          .get()
+          .catch(() => null);
+
+        encontrados?.docs?.forEach(anotarUid);
+      })
+    );
+  }
+
+  for (const uid of uids) {
+    // En serie: en cuanto una vale, no hay que probar la siguiente.
+
+    const cuenta = await auth.getUser(uid).catch(() => null);
 
     if (cuenta) return cuenta;
   }
 
-  if (codigoMiembro) {
-    return auth.getUserByEmail(correoInternoDe(codigoMiembro)).catch(() => null);
+  const correos = [correo, codigoMiembro ? correoInternoDe(codigoMiembro) : '']
+    .map((valor) => String(valor || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const direccion of correos) {
+    // Idem: se prueban en orden.
+
+    const cuenta = await auth.getUserByEmail(direccion).catch(() => null);
+
+    if (cuenta) return cuenta;
   }
 
   return null;

@@ -1586,6 +1586,9 @@ export function MemberCreateEditForm({
       const { clave } = await generarClaveTemporalMiembro({
         idMiembros: currentMember.id,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+        // Si ya registro un correo propio, su cuenta entra con el y el interno
+        // dejo de existir: sin esto no habria por donde encontrarla.
+        correo: currentMember?.email || '',
       });
 
       setClaveTemporal(clave);

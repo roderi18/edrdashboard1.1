@@ -69,11 +69,11 @@ export async function guardarCorreoDeAcceso({ idMiembros, codigoMiembro, correo 
 }
 
 /** Clave temporal de ocho caracteres que el coordinador le dicta al miembro. */
-export async function generarClaveTemporalMiembro({ idMiembros, codigoMiembro }) {
+export async function generarClaveTemporalMiembro({ idMiembros, codigoMiembro, correo }) {
   const respuesta = await fetch('/api/auth/clave-temporal-miembro', {
     method: 'POST',
     headers: await cabecerasConToken(),
-    body: JSON.stringify({ idMiembros, codigoMiembro }),
+    body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
   });
   const resultado = await respuesta.json().catch(() => ({}));
 
