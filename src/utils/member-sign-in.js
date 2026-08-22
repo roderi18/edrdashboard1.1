@@ -45,11 +45,34 @@ export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
         numeroDeCodigoMiembro(candidato?.codigoMiembro || candidato?.memberId) === numero
     );
 
+    if (!miembro) return [];
+
     const codigo = miembro?.codigoMiembro || miembro?.memberId || '';
     const correoPersonal = String(miembro?.correo || miembro?.email || '').trim();
     const correoInterno = codigo ? buildMemberAuthEmail(normalizeMemberUsername(codigo)) : '';
 
-    return [correoInterno, correoPersonal].filter(Boolean);
+    // Se le pregunta al servidor con cual entra de verdad: la cuenta usa el
+    // interno hasta que registra uno propio, y probar el que no es gasta un
+    // intento fallido —Firebase acaba bloqueando por exceso— y hace que el
+    // primer intento parezca fallar.
+    const correoDeLaCuenta = await fetch('/api/auth/correo-acceso', {
+      // No cambia nada: es una consulta. Va por POST para no llevar el correo
+      // en la direccion, donde acabaria en los registros del servidor.
+      // eslint-disable-next-line no-restricted-syntax
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idMiembros: miembro?.idMiembros ?? miembro?.id ?? null,
+        codigoMiembro: codigo,
+        correo: correoPersonal,
+      }),
+    })
+      .then((respuesta) => respuesta.json())
+      .then((datos) => String(datos?.correo || '').trim())
+      .catch(() => '');
+
+    // El resto quedan de reserva, por si el servidor no pudo responder.
+    return [...new Set([correoDeLaCuenta, correoInterno, correoPersonal])].filter(Boolean);
   } catch {
     return [];
   }

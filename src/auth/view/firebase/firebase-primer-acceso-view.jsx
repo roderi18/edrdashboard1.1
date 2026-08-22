@@ -2,8 +2,8 @@
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -24,6 +24,7 @@ import { AUTH } from 'src/lib/firebase';
 import { CONFIG } from 'src/global-config';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
+  revisarEstadoClave,
   cambiarClaveMiembro,
   guardarCorreoDeAcceso,
 } from 'src/services/primer-acceso-service';
@@ -91,6 +92,9 @@ export function FirebasePrimerAccesoView() {
   // no tiene por que volver a verla.
   const puedeMostrarse = user?.debeCambiarClave === true || claveCambiada;
 
+  // Solo se pregunta una vez por visita.
+  const estadoRevisadoRef = useRef(false);
+
   useEffect(() => {
     if (loading || claveCambiada) return;
 
@@ -108,8 +112,26 @@ export function FirebasePrimerAccesoView() {
 
     if (user.debeCambiarClave !== true) {
       router.replace(CONFIG.auth.redirectPath);
+      return;
     }
-  }, [loading, authenticated, user, claveCambiada, router]);
+
+    // La marca dice que debe cambiarla, pero pudo cambiarla POR FUERA, con el
+    // enlace que Firebase manda al correo. El servidor lo sabe —al cambiarla,
+    // Firebase invalida las sesiones anteriores— y retira la marca. Se pregunta
+    // aqui, que es donde importa, y no en cada inicio de sesion.
+    if (estadoRevisadoRef.current) return;
+
+    estadoRevisadoRef.current = true;
+
+    revisarEstadoClave()
+      .then(async (estado) => {
+        if (estado?.debeCambiarClave !== false) return;
+
+        await checkUserSession?.();
+        router.replace(CONFIG.auth.redirectPath);
+      })
+      .catch(() => null);
+  }, [loading, authenticated, user, claveCambiada, router, checkUserSession]);
 
   // El boton "atras" del navegador no puede devolverle al panel —la sesion sigue
   // con la clave publica y el guardia le traeria de vuelta aqui, en bucle—, asi
