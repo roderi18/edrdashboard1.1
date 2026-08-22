@@ -79,11 +79,10 @@ import { MemberTableFiltersResult } from '../member-table-filters-result';
 // llega de Firestore puede venir en 0 —y entonces todos los cargos empatan—, asi
 // que el catalogo hace de respaldo.
 const ORDEN_CARGO_DEST = new Map(
-  DIRECTIVA_POSITIONS.filter((position) => position.nivel === 'destacamento').flatMap(
-    (position) =>
-      [position.idPosicionDirectiva, position.idCargo, position.idCargoApi]
-        .filter(Boolean)
-        .map((id) => [String(id), Number(position.orden) || Infinity])
+  DIRECTIVA_POSITIONS.filter((position) => position.nivel === 'destacamento').flatMap((position) =>
+    [position.idPosicionDirectiva, position.idCargo, position.idCargoApi]
+      .filter(Boolean)
+      .map((id) => [String(id), Number(position.orden) || Infinity])
   )
 );
 
@@ -369,6 +368,39 @@ export function MemberListView() {
 
     return [destName, destNumber].filter(Boolean).join(' ') || `destacamento ${allowedDest}`;
   }, [dests, user]);
+
+  const refreshMembersView = useCallback(async () => {
+    setMembersLoading(true);
+
+    try {
+      const refreshedMembers = await getMembers();
+      const mappedMembers = refreshedMembers.map(mapMemberToTableRow);
+      const membersWithPositions = await hydrateMemberPositions(mappedMembers).catch(
+        () => mappedMembers
+      );
+      const positionsById = new Map(
+        membersWithPositions.map((member) => [
+          String(member.id),
+          {
+            memberPosition: member.memberPosition,
+            destLeadershipPosition: member.destLeadershipPosition,
+            directivaLeadershipPosition: member.directivaLeadershipPosition,
+            nationalLeadershipPosition: member.nationalLeadershipPosition,
+            destPositionOrden: member.destPositionOrden,
+          },
+        ])
+      );
+
+      setTableData(
+        mappedMembers.map((member) => {
+          const positions = positionsById.get(String(member.id));
+          return positions ? { ...member, ...positions } : member;
+        })
+      );
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [hydrateMemberPositions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -787,6 +819,7 @@ export function MemberListView() {
             sectionals={sectionals}
             members={visibleMembers}
             canManageMembers={memberCanManage}
+            onMembersUploaded={refreshMembersView}
             showScopeFilters={!isDestacamentoAdminRole(user)}
             options={{
               destName: distinctdestName,

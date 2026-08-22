@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 
-import { esArchivoCsv, parsearCsvPipe } from './csv-pipe';
+import { esArchivoCsv, parsearCsvPipe } from './csv-pipe.js';
 
 export const readExcelRows = async (file) => {
   // El CSV va separado por barras y lo lee su propio parser: XLSX lo abriria
@@ -11,13 +11,21 @@ export const readExcelRows = async (file) => {
 
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  // La plantilla abre primero en "Instrucciones" para orientar al usuario, pero
+  // los datos que se deben importar viven en "Miembros". Los archivos externos
+  // que no tengan esa hoja conservan el comportamiento anterior: se usa la primera.
+  const memberSheetName = workbook.SheetNames.find(
+    (sheetName) => String(sheetName).trim().toLowerCase() === 'miembros'
+  );
+  const sheet = workbook.Sheets[memberSheetName || workbook.SheetNames[0]];
 
   return XLSX.utils.sheet_to_json(sheet, { defval: '' });
 };
 
 export const getCell = (row, keys) => {
-  const foundKey = keys.find((key) => row[key] !== undefined && row[key] !== null && row[key] !== '');
+  const foundKey = keys.find(
+    (key) => row[key] !== undefined && row[key] !== null && row[key] !== ''
+  );
 
   return foundKey ? row[foundKey] : '';
 };
@@ -84,10 +92,12 @@ export const downloadUploadLog = ({ fileName, failures }) => {
   URL.revokeObjectURL(url);
 };
 
-export const uploadExcelRows = async ({ file, processRow, onDone }) => {
+export const uploadExcelRows = async ({ file, processRow, onStart, onProgress, onDone }) => {
   const rows = await readExcelRows(file);
   const failures = [];
   let inserted = 0;
+
+  onStart?.({ total: rows.length });
 
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
@@ -102,9 +112,16 @@ export const uploadExcelRows = async ({ file, processRow, onDone }) => {
         row,
       });
     }
+
+    onProgress?.({
+      total: rows.length,
+      processed: index + 1,
+      inserted,
+      failed: failures.length,
+    });
   }
 
-  onDone?.({ inserted, failed: failures.length });
+  onDone?.({ total: rows.length, inserted, failed: failures.length });
 
-  return { inserted, failures };
+  return { total: rows.length, inserted, failures };
 };

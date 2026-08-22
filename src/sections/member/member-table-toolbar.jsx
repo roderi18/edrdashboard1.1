@@ -22,6 +22,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import { useTheme, useMediaQuery } from '@mui/material';
+import LinearProgress from '@mui/material/LinearProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -39,15 +40,19 @@ import { invalidateMembersCache } from 'src/services/member-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { guardarAsignacionDirectiva } from 'src/services/directivas-organizacionales-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
-import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dialog';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
-import { useAuthContext } from 'src/auth/hooks';
+import {
+  normalizeMemberUploadPhone,
+  formatMemberUploadBirthDate,
+} from 'src/sections/member/utils/member-upload-normalizers';
 
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
@@ -85,6 +90,19 @@ const getApiMessage = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;
 
+  // El detalle util viene en `errors`, campo a campo. El `message` de arriba es
+  // siempre "Operación completada", que no dice absolutamente nada de por que
+  // se rechazo la fila.
+  const errores = payload.data?.errors || payload.errors || payload.Data?.errors;
+
+  if (errores && typeof errores === 'object') {
+    const detalle = Object.entries(errores)
+      .map(([campo, mensajes]) => `${campo.replace(/^\$./, '')}: ${[].concat(mensajes).join(' ')}`)
+      .join(' | ');
+
+    if (detalle) return detalle;
+  }
+
   return payload.Message || payload.message || payload.error || payload.title || '';
 };
 
@@ -108,16 +126,32 @@ const DEFAULT_DOWNLOAD_FILTERS = {
 
 const ALL_DOWNLOAD_OPTION = { value: 'all', label: 'Todos' };
 
-const MEMBER_EXPORT_COLUMNS = [
-  { label: 'Código', value: (row) => row.memberId || row.codigoMiembro || '' },
-  { label: 'Nombre', value: (row) => row.name || `${row.firstName || ''} ${row.lastName || ''}`.trim() },
-  { label: 'Teléfono', value: (row) => row.phoneNumber || '' },
-  { label: 'Correo', value: (row) => row.email || '' },
-  { label: 'Destacamento', value: (row) => row.destName || row.destamento || row.idDestacamento || '' },
-  { label: 'Sección', value: (row) => row.sectionalName || '' },
-  { label: 'Región', value: (row) => row.regionalName || '' },
-  { label: 'División', value: (row) => row.memberDivision || '' },
-];
+const DEFAULT_UPLOAD_PROGRESS = {
+  open: false,
+  phase: 'reading',
+  total: 0,
+  processed: 0,
+  inserted: 0,
+  failed: 0,
+};
+
+const getTemplateDestIdForUser = (user = {}) => {
+  const scope = user?.alcance ?? {};
+  const scopeType = String(scope?.tipo ?? scope?.modo ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (scopeType !== 'destacamento') return '';
+
+  return String(
+    scope?.destacamentoId ??
+      scope?.idDestacamento ??
+      scope?.destacamentos?.[0] ??
+      user?.idDestacamento ??
+      user?.destId ??
+      ''
+  ).trim();
+};
 
 const normalizeDownloadOptions = (items = []) =>
   items
@@ -437,6 +471,7 @@ export function MemberTableToolbar({
   members = [],
   canManageMembers = true,
   showScopeFilters = true,
+  onMembersUploaded,
 }) {
   const { user } = useAuthContext();
   const menuActions = usePopover();
@@ -444,6 +479,8 @@ export function MemberTableToolbar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [uploadResult, setUploadResult] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(DEFAULT_UPLOAD_PROGRESS);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadFilters, setDownloadFilters] = useState(DEFAULT_DOWNLOAD_FILTERS);
 
@@ -691,205 +728,313 @@ export function MemberTableToolbar({
     event.target.value = '';
     if (!file) return;
 
-    const listaDests = await getDestsApi({ includePhotos: false }).catch(() => []);
-
-    const result = await uploadExcelRows({
-      file,
-      processRow: async (row) => {
-        // Si la hoja no trae las cabeceras esperadas se leen por POSICION, en el
-        // orden de CABECERAS_MIEMBROS. Asi vale igual un Excel exportado de otro
-        // sitio o un txt con barras: lo que importa es el orden de las columnas.
-        const celdas = Object.values(row);
-        const porPosicion = (indice) => String(celdas[indice] ?? "").trim();
-        const traeCabeceras = CABECERAS_MIEMBROS.some(
-          (cabecera) => row[cabecera] !== undefined
-        );
-        const leer = (indice, claves) =>
-          traeCabeceras ? getCell(row, claves) : porPosicion(indice);
-
-        const valores = {
-          Nombre: leer(0, ['Nombre', 'nombre', 'Nombre completo']),
-          Fecha_Nacimiento: formatExcelDate(
-            leer(1, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
-          ),
-          'Teléfono': leer(2, ['Teléfono', 'telefono', 'Telefono']),
-          Correo: leer(3, ['Correo', 'correo']),
-          Destacamento: leer(4, ['Destacamento', 'destacamento']),
-          Posicion_Destacamento: leer(5, [
-            'Posición_Destacamento',
-            'Posicion_Destacamento',
-            'Posición en destacamento',
-          ]),
-          Posicion_Nacional: leer(6, [
-            'Posición_Nacional',
-            'Posicion_Nacional',
-            'Posición nacional',
-          ]),
-          'Size_T-Shirt': leer(7, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
-          Sexo: leer(8, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
-        };
-
-        // Obligatorios solo los dos que identifican a la persona y la colocan. Con
-        // todo obligatorio se rechazaba el archivo entero, porque casi nadie tiene
-        // aun fecha de nacimiento ni correo registrados.
-        const faltantes = ['Nombre', 'Destacamento'].filter(
-          (columna) => !String(valores[columna] ?? '').trim()
-        );
-
-        if (faltantes.length) {
-          throw new Error(`Faltan: ${faltantes.join(', ')}.`);
-        }
-
-        const nombresSueltos = getCell(row, ['Nombres', 'nombres']);
-        const apellidosSueltos = getCell(row, ['Apellidos', 'apellidos', 'Apellido']);
-        const partido = partirNombreCompleto(valores.Nombre);
-        const nombres = nombresSueltos || partido.nombres;
-        const apellidos = apellidosSueltos || partido.apellidos;
-
-        if (!apellidos) {
-          throw new Error(`"${valores.Nombre}" no trae apellido.`);
-        }
-
-        const destEncontrado = buscarDestacamentoPorNombre(listaDests, valores.Destacamento);
-        const idDestacamento =
-          Number(getCell(row, ['idDestacamento', 'destId', 'ID Destacamento'])) ||
-          Number(destEncontrado?.id || destEncontrado?.idDestacamento) ||
-          null;
-
-        if (!idDestacamento) {
-          throw new Error(`No existe el destacamento "${valores.Destacamento}".`);
-        }
-
-        const cargoDestacamento = buscarPosicionDirectiva('destacamento', valores.Posicion_Destacamento);
-        const cargoNacional = buscarPosicionDirectiva('nacional', valores.Posicion_Nacional);
-
-        // Vacio significa "sin cargo". Solo se protesta cuando viene escrito algo
-        // que no existe, que si es un error de quien rellena la hoja.
-        if (valores.Posicion_Destacamento && !cargoDestacamento) {
-          throw new Error(
-            `No existe la posición de destacamento "${valores.Posicion_Destacamento}".`
-          );
-        }
-
-        if (valores.Posicion_Nacional && !cargoNacional) {
-          throw new Error(`No existe la posición nacional "${valores.Posicion_Nacional}".`);
-        }
-
-        // El codigo se genera con el destacamento delante, porque de el salen el
-        // pais y la provincia que forman el prefijo.
-        const codigoMiembro =
-          getCell(row, ['codigoMiembro', 'Código', 'Codigo']) ||
-          (await generateMemberId({ destId: idDestacamento }));
-
-        const res = await fetch('/api/members/post', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            idMiembros: 0,
-            codigoMiembro,
-            nombres,
-            apellidos,
-            // Vacio va como null, no como "": el backend rechaza la cadena vacia
-            // en fecha y division ("The JSON value could not be converted to
-            // DateOnly"), y toda la fila se perdia sin decir por que.
-            genero: valores.Sexo || null,
-            fechaNacimiento: valores.Fecha_Nacimiento || null,
-            idDestacamento,
-            telefono: valores['Teléfono'] || null,
-            direccion: getCell(row, ['Dirección', 'direccion', 'Direccion']),
-            correo: valores.Correo || null,
-            sizeCamisas: valores['Size_T-Shirt'] || null,
-            idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
-            idCargoInstitucional: Number(getCell(row, ['idCargoInstitucional'])) || null,
-            idDivision: Number(getCell(row, ['idDivision'])) || null,
-            instructorCertificadoCi:
-              getCell(row, ['instructorCertificadoCi', 'Instructor CI']) || false,
-            estatusVigenciaCi: getCell(row, ['estatusVigenciaCi', 'Estatus CI']) || false,
-            fechaInicioCertificado:
-              formatExcelDate(
-                getCell(row, ['fechaInicioCertificado', 'Fecha inicio certificado'])
-              ) || null,
-            fechaFinCertificado:
-              formatExcelDate(getCell(row, ['fechaFinCertificado', 'Fecha fin certificado'])) ||
-              null,
-            estatusMiembro: getCell(row, ['estatusMiembro', 'Estatus']) || 'activo',
-            cargosmiembros: [],
-            idDestacamentoNavigation: null,
-            idDivisionNavigation: null,
-            miembromeritos: [],
-            participanteseventos: [],
-            tutores: [],
-            usuarios: [],
-            idUniformes: [],
-            uniformesMiembros: [],
-          }),
-        });
-        const responsePayload = await readApiResponse(res);
-        const responseMessage = getApiMessage(responsePayload);
-
-        if (!res.ok) {
-          throw new Error(responseMessage || `Error creando miembro (${res.status}).`);
-        }
-
-        if (responsePayload?.Success === false) {
-          throw new Error(responseMessage || 'El API no pudo crear el miembro.');
-        }
-
-        // Los cargos se asignan DESPUES de crear al miembro, que es cuando existe
-        // el id al que colgarlos. Si el API no lo devuelve, el miembro queda
-        // creado y el cargo sin poner: se avisa en vez de callarlo.
-        const idCreado =
-          responsePayload?.data?.idMiembros ??
-          responsePayload?.Data?.idMiembros ??
-          responsePayload?.idMiembros ??
-          null;
-
-        if (!idCreado) {
-          throw new Error('El miembro se creó, pero el API no devolvió su id y quedó sin cargos.');
-        }
-
-        // Un cargo por nivel, y solo si la hoja lo trae: sin esta guarda, subir a
-        // alguien sin cargo reventaba al leer `idCargo` de null.
-        const asignaciones = [
-          cargoDestacamento && {
-            nivel: 'destacamento',
-            idEntidad: idDestacamento,
-            nombreEntidad: valores.Destacamento,
-            cargo: cargoDestacamento,
-          },
-          cargoNacional && {
-            nivel: 'nacional',
-            idEntidad: 'general',
-            nombreEntidad: 'Consejo Nacional',
-            cargo: cargoNacional,
-          },
-        ].filter(Boolean);
-
-        for (const asignacion of asignaciones) {
-          // En serie: son dos como mucho, y a la vez se pisarian al escribir el
-          // mismo documento de directiva.
-           
-          await guardarAsignacionDirectiva({
-            nivel: asignacion.nivel,
-            idEntidad: asignacion.idEntidad,
-            nombreEntidad: asignacion.nombreEntidad,
-            idCargo: asignacion.cargo.idCargo,
-            idPosicionDirectiva: asignacion.cargo.idCargo,
-            division: asignacion.cargo.division ?? null,
-            orden: asignacion.cargo.orden ?? 1,
-            idMiembro: idCreado,
-            nombreMiembro: `${nombres} ${apellidos}`.trim(),
-            codigoMiembro,
-            usuario: user,
-          });
-        }
-
-      },
+    menuActions.onClose();
+    setUploadProgress({
+      ...DEFAULT_UPLOAD_PROGRESS,
+      open: true,
+      phase: 'reading',
     });
 
-    invalidateMembersCache();
-    setUploadResult(result);
-    menuActions.onClose();
+    try {
+      const listaDests = await getDestsApi({ includePhotos: false }).catch(() => []);
+
+      const result = await uploadExcelRows({
+        file,
+        processRow: async (row) => {
+          // Si la hoja no trae las cabeceras esperadas se leen por POSICION, en el
+          // orden de CABECERAS_MIEMBROS. Asi vale igual un Excel exportado de otro
+          // sitio o un txt con barras: lo que importa es el orden de las columnas.
+          const celdas = Object.values(row);
+          const porPosicion = (indice) => celdas[indice] ?? '';
+          const traeCabeceras = CABECERAS_MIEMBROS.some((cabecera) => row[cabecera] !== undefined);
+          const leerValor = (indice, claves) =>
+            traeCabeceras ? getCell(row, claves) : porPosicion(indice);
+          // Todo se convierte a TEXTO. Excel guarda el telefono como numero
+          // (18297878833) y la API lo exige como cadena: sin esto, cada fila que
+          // viniera de un Excel se rechazaba con "could not be converted to String".
+          const leer = (indice, claves) => String(leerValor(indice, claves) ?? '').trim();
+
+          const nombre = leer(0, ['Nombre', 'nombre', 'Nombre completo']);
+          let fechaNacimiento = '';
+          let telefono = '';
+
+          try {
+            fechaNacimiento = formatMemberUploadBirthDate(
+              leerValor(1, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
+            );
+          } catch (error) {
+            throw new Error(
+              `Fecha_Nacimiento inválida para "${nombre || 'miembro sin nombre'}": ${error.message}`
+            );
+          }
+
+          try {
+            telefono = normalizeMemberUploadPhone(
+              leerValor(2, ['Teléfono', 'telefono', 'Telefono'])
+            );
+          } catch (error) {
+            throw new Error(
+              `Teléfono inválido para "${nombre || 'miembro sin nombre'}": ${error.message}`
+            );
+          }
+
+          const valores = {
+            Nombre: nombre,
+            Fecha_Nacimiento: fechaNacimiento,
+            Teléfono: telefono,
+            Correo: leer(3, ['Correo', 'correo']),
+            Destacamento: leer(4, ['Destacamento', 'destacamento']),
+            Posicion_Destacamento: leer(5, [
+              'Posición_Destacamento',
+              'Posicion_Destacamento',
+              'Posición en destacamento',
+            ]),
+            Posicion_Nacional: leer(6, [
+              'Posición_Nacional',
+              'Posicion_Nacional',
+              'Posición nacional',
+            ]),
+            'Size_T-Shirt': leer(7, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
+            Sexo: leer(8, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
+          };
+
+          // Obligatorios solo los dos que identifican a la persona y la colocan. Con
+          // todo obligatorio se rechazaba el archivo entero, porque casi nadie tiene
+          // aun fecha de nacimiento ni correo registrados.
+          const faltantes = ['Nombre', 'Destacamento'].filter(
+            (columna) => !String(valores[columna] ?? '').trim()
+          );
+
+          if (faltantes.length) {
+            throw new Error(`Faltan: ${faltantes.join(', ')}.`);
+          }
+
+          const nombresSueltos = getCell(row, ['Nombres', 'nombres']);
+          const apellidosSueltos = getCell(row, ['Apellidos', 'apellidos', 'Apellido']);
+          const partido = partirNombreCompleto(valores.Nombre);
+          const nombres = nombresSueltos || partido.nombres;
+          const apellidos = apellidosSueltos || partido.apellidos;
+
+          if (!apellidos) {
+            throw new Error(`"${valores.Nombre}" no trae apellido.`);
+          }
+
+          const destEncontrado = buscarDestacamentoPorNombre(listaDests, valores.Destacamento);
+          const idDestacamento =
+            Number(getCell(row, ['idDestacamento', 'destId', 'ID Destacamento'])) ||
+            Number(destEncontrado?.id || destEncontrado?.idDestacamento) ||
+            null;
+
+          if (!idDestacamento) {
+            throw new Error(`No existe el destacamento "${valores.Destacamento}".`);
+          }
+
+          const cargoDestacamento = buscarPosicionDirectiva(
+            'destacamento',
+            valores.Posicion_Destacamento
+          );
+          const cargoNacional = buscarPosicionDirectiva('nacional', valores.Posicion_Nacional);
+
+          // Vacio significa "sin cargo". Solo se protesta cuando viene escrito algo
+          // que no existe, que si es un error de quien rellena la hoja.
+          if (valores.Posicion_Destacamento && !cargoDestacamento) {
+            throw new Error(
+              `No existe la posición de destacamento "${valores.Posicion_Destacamento}".`
+            );
+          }
+
+          if (valores.Posicion_Nacional && !cargoNacional) {
+            throw new Error(`No existe la posición nacional "${valores.Posicion_Nacional}".`);
+          }
+
+          // El codigo se genera con el destacamento delante, porque de el salen el
+          // pais y la provincia que forman el prefijo.
+          const codigoMiembro =
+            getCell(row, ['codigoMiembro', 'Código', 'Codigo']) ||
+            (await generateMemberId({ destId: idDestacamento }));
+
+          const res = await fetch('/api/members/post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              idMiembros: 0,
+              codigoMiembro,
+              nombres,
+              apellidos,
+              // Vacio va como null, no como "": el backend rechaza la cadena vacia
+              // en fecha y division ("The JSON value could not be converted to
+              // DateOnly"), y toda la fila se perdia sin decir por que.
+              genero: valores.Sexo || null,
+              fechaNacimiento: valores.Fecha_Nacimiento || null,
+              idDestacamento,
+              telefono: valores['Teléfono'] || null,
+              direccion: getCell(row, ['Dirección', 'direccion', 'Direccion']),
+              correo: valores.Correo || null,
+              sizeCamisas: valores['Size_T-Shirt'] || null,
+              idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
+              idCargoInstitucional: Number(getCell(row, ['idCargoInstitucional'])) || null,
+              idDivision: Number(getCell(row, ['idDivision'])) || null,
+              instructorCertificadoCi:
+                getCell(row, ['instructorCertificadoCi', 'Instructor CI']) || false,
+              estatusVigenciaCi: getCell(row, ['estatusVigenciaCi', 'Estatus CI']) || false,
+              fechaInicioCertificado:
+                formatExcelDate(
+                  getCell(row, ['fechaInicioCertificado', 'Fecha inicio certificado'])
+                ) || null,
+              fechaFinCertificado:
+                formatExcelDate(getCell(row, ['fechaFinCertificado', 'Fecha fin certificado'])) ||
+                null,
+              estatusMiembro: getCell(row, ['estatusMiembro', 'Estatus']) || 'activo',
+              cargosmiembros: [],
+              idDestacamentoNavigation: null,
+              idDivisionNavigation: null,
+              miembromeritos: [],
+              participanteseventos: [],
+              tutores: [],
+              usuarios: [],
+              idUniformes: [],
+              uniformesMiembros: [],
+            }),
+          });
+          const responsePayload = await readApiResponse(res);
+          const responseMessage = getApiMessage(responsePayload);
+
+          if (!res.ok) {
+            throw new Error(responseMessage || `Error creando miembro (${res.status}).`);
+          }
+
+          if (responsePayload?.Success === false) {
+            throw new Error(responseMessage || 'El API no pudo crear el miembro.');
+          }
+
+          // Los cargos se asignan DESPUES de crear al miembro, que es cuando existe
+          // el id al que colgarlos. Si el API no lo devuelve, el miembro queda
+          // creado y el cargo sin poner: se avisa en vez de callarlo.
+          const idCreado =
+            responsePayload?.data?.idMiembros ??
+            responsePayload?.Data?.idMiembros ??
+            responsePayload?.idMiembros ??
+            null;
+
+          if (!idCreado) {
+            throw new Error(
+              'El miembro se creó, pero el API no devolvió su id y quedó sin cargos.'
+            );
+          }
+
+          // Un cargo por nivel, y solo si la hoja lo trae: sin esta guarda, subir a
+          // alguien sin cargo reventaba al leer `idCargo` de null.
+          const asignaciones = [
+            cargoDestacamento && {
+              nivel: 'destacamento',
+              idEntidad: idDestacamento,
+              nombreEntidad: valores.Destacamento,
+              cargo: cargoDestacamento,
+            },
+            cargoNacional && {
+              nivel: 'nacional',
+              idEntidad: 'general',
+              nombreEntidad: 'Consejo Nacional',
+              cargo: cargoNacional,
+            },
+          ].filter(Boolean);
+
+          for (const asignacion of asignaciones) {
+            // En serie: son dos como mucho, y a la vez se pisarian al escribir el
+            // mismo documento de directiva.
+
+            await guardarAsignacionDirectiva({
+              nivel: asignacion.nivel,
+              idEntidad: asignacion.idEntidad,
+              nombreEntidad: asignacion.nombreEntidad,
+              idCargo: asignacion.cargo.idCargo,
+              idPosicionDirectiva: asignacion.cargo.idCargo,
+              division: asignacion.cargo.division ?? null,
+              orden: asignacion.cargo.orden ?? 1,
+              idMiembro: idCreado,
+              nombreMiembro: `${nombres} ${apellidos}`.trim(),
+              codigoMiembro,
+              usuario: user,
+            });
+          }
+        },
+        onStart: ({ total }) => {
+          setUploadProgress((current) => ({
+            ...current,
+            phase: 'uploading',
+            total,
+          }));
+        },
+        onProgress: ({ total, processed, inserted, failed }) => {
+          setUploadProgress({
+            open: true,
+            phase: 'uploading',
+            total,
+            processed,
+            inserted,
+            failed,
+          });
+        },
+      });
+
+      invalidateMembersCache();
+
+      if (result.inserted > 0 && onMembersUploaded) {
+        setUploadProgress((current) => ({ ...current, phase: 'refreshing' }));
+
+        try {
+          await onMembersUploaded();
+        } catch (error) {
+          console.error('Error refreshing members after upload:', error);
+          toast.error('Los miembros se cargaron, pero no se pudo actualizar la vista.');
+        }
+      }
+
+      setUploadResult(result);
+    } catch (error) {
+      setUploadResult({
+        total: 0,
+        inserted: 0,
+        failures: [
+          {
+            rowNumber: 'archivo',
+            reason: error?.message || 'No se pudo leer o procesar el documento.',
+            row: { archivo: file.name },
+          },
+        ],
+      });
+    } finally {
+      setUploadProgress(DEFAULT_UPLOAD_PROGRESS);
+    }
+  };
+
+  const handleDownloadMemberTemplate = async () => {
+    setTemplateDownloading(true);
+
+    try {
+      const templateDestId = getTemplateDestIdForUser(user);
+      const query = templateDestId ? `?destId=${encodeURIComponent(templateDestId)}` : '';
+      const response = await fetch(`/api/members/template${query}`, { cache: 'no-store' });
+
+      if (!response.ok) {
+        const payload = await readApiResponse(response);
+        throw new Error(getApiMessage(payload) || 'No se pudo generar la plantilla.');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = 'plantilla-miembros.xlsx';
+      link.click();
+      URL.revokeObjectURL(url);
+      menuActions.onClose();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo descargar la plantilla de miembros.');
+    } finally {
+      setTemplateDownloading(false);
+    }
   };
 
   const renderMenuActions = () => (
@@ -932,17 +1077,13 @@ export function MemberTableToolbar({
           Descargar
         </MenuItem>
 
-        <ExportTableButton
-          rows={members}
-          columns={MEMBER_EXPORT_COLUMNS}
-          title="Lista de miembros"
-          fileNamePrefix="lista-miembros"
-          trigger="menuItem"
-          buttonLabel="Exportar vista"
-        />
+        <MenuItem disabled={templateDownloading} onClick={handleDownloadMemberTemplate}>
+          <Iconify icon="solar:download-minimalistic-bold" />
+          {templateDownloading ? 'Preparando plantilla...' : 'Descargar plantilla miembros'}
+        </MenuItem>
 
         {canManageMembers && (
-          <MenuItem onClick={() => uploadInputRef.current?.click()}>
+          <MenuItem disabled={uploadProgress.open} onClick={() => uploadInputRef.current?.click()}>
             <Iconify icon="solar:export-bold" />
             Subir
           </MenuItem>
@@ -1206,6 +1347,45 @@ export function MemberTableToolbar({
             Descargar
           </Button>
         </DialogActions>
+      </Dialog>
+      <Dialog fullWidth maxWidth="xs" open={uploadProgress.open} disableEscapeKeyDown>
+        <DialogTitle>Subiendo miembros</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <LinearProgress
+              variant={uploadProgress.total ? 'determinate' : 'indeterminate'}
+              value={
+                uploadProgress.total
+                  ? Math.round((uploadProgress.processed / uploadProgress.total) * 100)
+                  : undefined
+              }
+            />
+
+            {uploadProgress.phase === 'reading' ? (
+              <Typography>Leyendo el documento y contando las filas...</Typography>
+            ) : uploadProgress.phase === 'refreshing' ? (
+              <Stack spacing={0.5}>
+                <Typography>Actualizando la vista de miembros...</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Cargadas correctamente: {uploadProgress.inserted}. Con error:{' '}
+                  {uploadProgress.failed}.
+                </Typography>
+              </Stack>
+            ) : (
+              <Stack spacing={0.5}>
+                <Typography>
+                  Filas procesadas: <strong>{uploadProgress.processed}</strong> de{' '}
+                  <strong>{uploadProgress.total}</strong>.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Cargadas correctamente: {uploadProgress.inserted}. Con error:{' '}
+                  {uploadProgress.failed}.
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        </DialogContent>
       </Dialog>
       <input
         ref={uploadInputRef}
