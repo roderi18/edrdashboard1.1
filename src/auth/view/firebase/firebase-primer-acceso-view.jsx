@@ -92,21 +92,27 @@ export function FirebasePrimerAccesoView() {
   // Esta pantalla no cuelga de AuthGuard, asi que se vigila sola. Sin sesion no
   // hay nada que cambiar —se va al inicio de sesion— y quien ya eligio su clave
   // no tiene por que volver a verla.
-  const debeEstarAqui = authenticated && user?.debeCambiarClave === true;
-  const puedeMostrarse = debeEstarAqui || claveCambiada;
+  const puedeMostrarse = user?.debeCambiarClave === true || claveCambiada;
 
   useEffect(() => {
     if (loading || claveCambiada) return;
 
-    if (!authenticated) {
+    // Recien iniciada la sesion hay un instante en que la aplicacion todavia no
+    // ha resuelto el perfil. Se pregunta tambien a Firebase, que ya sabe quien
+    // acaba de entrar: sin esto, el primer acceso rebotaba al inicio de sesion y
+    // solo funcionaba al segundo intento.
+    if (!authenticated && !AUTH?.currentUser) {
       router.replace(paths.auth.firebase.signIn);
       return;
     }
 
-    if (!user?.debeCambiarClave) {
+    // Con sesion pero sin perfil todavia: no se decide nada, se espera.
+    if (!user) return;
+
+    if (user.debeCambiarClave !== true) {
       router.replace(CONFIG.auth.redirectPath);
     }
-  }, [loading, authenticated, user?.debeCambiarClave, claveCambiada, router]);
+  }, [loading, authenticated, user, claveCambiada, router]);
 
   // El boton "atras" del navegador no puede devolverle al panel —la sesion sigue
   // con la clave publica y el guardia le traeria de vuelta aqui, en bucle—, asi
@@ -121,6 +127,10 @@ export function FirebasePrimerAccesoView() {
     window.history.pushState(null, '', window.location.href);
 
     const alRetroceder = () => {
+      // Solo si el "atras" deja al usuario en esta misma pantalla. Durante una
+      // navegacion normal el destino es otro y aqui no hay nada que hacer.
+      if (!window.location.pathname.startsWith(paths.auth.firebase.primerAcceso)) return;
+
       window.location.replace(`${paths.auth.firebase.signIn}?forceSignOut=1`);
     };
 

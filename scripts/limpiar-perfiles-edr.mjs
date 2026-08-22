@@ -107,17 +107,14 @@ const esProtegido = (datos) => {
   return ROLES_PROTEGIDOS.has(rol);
 };
 
-// Nunca ha entrado: el unico acceso registrado es el del momento en que se creo
-// la cuenta, que lo hace el propio sistema al darla de alta.
-const nuncaHaEntrado = (usuario) => {
-  const creada = usuario?.metadata?.creationTime;
-  const ultimo = usuario?.metadata?.lastSignInTime;
-
-  if (!ultimo) return true;
-  if (!creada) return false;
-
-  return Math.abs(new Date(ultimo).getTime() - new Date(creada).getTime()) < 60 * 1000;
-};
+// Todavia usa la clave inicial: no ha completado el primer acceso. Se mira el
+// PERFIL, no la fecha del ultimo acceso: entrar y quedarse en la pantalla de
+// "Crea tu contraseña" cuenta como acceso para Firebase, pero la clave sigue
+// siendo la publica, que es justo la que hay que renovar.
+const usaClaveInicial = (perfiles = []) =>
+  !perfiles.some(
+    (perfil) => perfil?.debeCambiarClave === false || Boolean(perfil?.claveCambiadaEn)
+  );
 
 const main = async () => {
   console.log(APLICAR ? '>>> MODO ESCRITURA <<<' : '>>> simulacion (no escribe nada) <<<');
@@ -254,8 +251,15 @@ const main = async () => {
       continue;
     }
 
-    if (!nuncaHaEntrado(miembro.usuario)) {
-      acciones.push(`YA ENTRO   ${miembro.codigo} (${miembro.nombre}): no se toca su clave`);
+    const perfiles = await Promise.all(
+      [miembro.id, miembro.uid]
+        .filter(Boolean)
+        .map((id) => db.collection(COLECCION).doc(id).get())
+    );
+    const datosPerfiles = perfiles.filter((doc) => doc.exists).map((doc) => doc.data());
+
+    if (!usaClaveInicial(datosPerfiles)) {
+      acciones.push(`YA LA CAMBIO ${miembro.codigo} (${miembro.nombre}): no se toca su clave`);
       continue;
     }
 
