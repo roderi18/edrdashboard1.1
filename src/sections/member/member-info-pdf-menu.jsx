@@ -294,6 +294,7 @@ export function MemberInfoPdfMenu({
   return (
     <>
       <Button
+        fullWidth
         variant="soft"
         color="inherit"
         onClick={menuActions.onOpen}

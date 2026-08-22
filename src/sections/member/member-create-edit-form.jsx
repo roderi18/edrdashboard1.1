@@ -2590,12 +2590,28 @@ export function MemberCreateEditForm({
                   }}
                 />
               )}
+              {currentMember && (
+                <Stack sx={{ mt: 3 }}>
+                  <MemberInfoPdfMenu
+                    values={values}
+                    memberCode={currentMember?.memberId}
+                    fullName={memberFullName}
+                    destName={destName}
+                    avatarUrl={currentMember?.avatarUrl}
+                    // El PDF hereda el mismo enmascarado que la ficha en pantalla.
+                    masked={maskSensitive}
+                    maskContact={maskContact}
+                    maskBirthdate={maskBirthdate}
+                  />
+                </Stack>
+              )}
+
               {puedeRestablecerClave && (
-                <Stack sx={{ mt: 3, gap: 1.5 }}>
+                <Stack sx={{ mt: 1.5, gap: 1.5 }}>
                   <Button
                     fullWidth
-                    color="warning"
-                    variant="outlined"
+                    variant="soft"
+                    color="inherit"
                     disabled={generandoClave}
                     onClick={restablecerClaveDelMiembro}
                     startIcon={<Iconify icon="solar:key-bold" />}
@@ -2623,22 +2639,6 @@ export function MemberCreateEditForm({
                       </Typography>
                     </Alert>
                   )}
-                </Stack>
-              )}
-
-              {currentMember && (
-                <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                  <MemberInfoPdfMenu
-                    values={values}
-                    memberCode={currentMember?.memberId}
-                    fullName={memberFullName}
-                    destName={destName}
-                    avatarUrl={currentMember?.avatarUrl}
-                    // El PDF hereda el mismo enmascarado que la ficha en pantalla.
-                    masked={maskSensitive}
-                    maskContact={maskContact}
-                    maskBirthdate={maskBirthdate}
-                  />
                 </Stack>
               )}
             </Card>
