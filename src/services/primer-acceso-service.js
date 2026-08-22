@@ -83,3 +83,19 @@ export async function generarClaveTemporalMiembro({ idMiembros, codigoMiembro, c
 
   return resultado;
 }
+
+/**
+ * Revisa si el miembro sigue debiendo cambiar su clave.
+ *
+ * Se llama al entrar: si la cambio por fuera —con el enlace que Firebase manda
+ * al correo—, la marca se queda puesta y volveria a la pantalla de primer
+ * acceso aunque ya tenga una clave suya.
+ */
+export async function revisarEstadoClave() {
+  const respuesta = await fetch('/api/auth/estado-clave', {
+    method: 'POST',
+    headers: await cabecerasConToken(),
+  });
+
+  return respuesta.ok ? respuesta.json() : { debeCambiarClave: null };
+}

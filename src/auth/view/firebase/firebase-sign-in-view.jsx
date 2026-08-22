@@ -26,6 +26,7 @@ import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
 import { resolverCorreosDeMiembroPorNumero } from 'src/utils/member-sign-in';
 
 import { CONFIG } from 'src/global-config';
+import { revisarEstadoClave } from 'src/services/primer-acceso-service';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
 
 import { Iconify } from 'src/components/iconify';
@@ -203,6 +204,11 @@ export function FirebaseSignInView({ mode = 'member' }) {
       if (errorDeAcceso) {
         throw errorDeAcceso;
       }
+
+      // Puede haber cambiado su clave por fuera (con el enlace del correo) y
+      // seguir marcado como pendiente: se revisa ANTES de resolver la sesion,
+      // para que no le mande a "Crea tu contraseña" teniendo ya una suya.
+      await revisarEstadoClave().catch(() => null);
 
       await checkUserSession?.();
 
