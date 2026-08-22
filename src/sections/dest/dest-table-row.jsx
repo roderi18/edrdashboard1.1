@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
@@ -26,7 +25,6 @@ export function DestTableRow({
   canManage = true,
   canDelete = true,
   lockMemberCount = false,
-  ocultarMemberCount = false,
 }) {
   const id = row.id || row.idDestacamento;
   const sectionalName = String(row.sectionalName || '').trim();
@@ -77,15 +75,7 @@ export function DestTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {ocultarMemberCount ? (
-            // Cuantos miembros tiene otro destacamento tampoco es asunto de un
-            // cargo de destacamento: se oculta el numero, no solo el enlace.
-            <Tooltip title="Solo se ve la cantidad de tu propio destacamento" placement="top" arrow>
-              <Box component="span" sx={{ color: 'text.disabled', letterSpacing: 2 }}>
-                ••
-              </Box>
-            </Tooltip>
-          ) : lockMemberCount ? (
+          {lockMemberCount ? (
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {destMemberCount}
             </Box>

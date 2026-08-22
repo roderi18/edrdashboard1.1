@@ -716,22 +716,22 @@ export function DestListView() {
                         editHref={paths.dashboard.level.dest.edit(row.id)}
                         canManage={canEditDest(user, row)}
                         canDelete={canDeleteDest}
-                        // A un cargo de destacamento (o al Usuario Comun) se le
-                        // oculta el contador de los OTROS destacamentos, sin
-                        // enlace y sin numero. Aqui no vale que coincida la
-                        // seccion: se compara solo con el suyo.
-                        ocultarMemberCount={
-                          esRolDeDestacamento(user) &&
-                          !ownScope.destIds.has(String(row.id ?? '').trim())
+                        // El contador de OTRO destacamento se ve, pero apagado y
+                        // sin enlace. A un cargo de destacamento (o al Usuario
+                        // Comun) no le vale que coincida la seccion: se compara
+                        // solo con el suyo.
+                        lockMemberCount={
+                          (esRolDeDestacamento(user) &&
+                            !ownScope.destIds.has(String(row.id ?? '').trim())) ||
+                          isForeignDestForMembers(user, {
+                            destId: row.id,
+                            sectionId: row.sectionalId,
+                            regionId: row.regionalId,
+                            ownRegionIds: ownScope.regionIds,
+                            ownSectionIds: ownScope.sectionIds,
+                            ownDestIds: ownScope.destIds,
+                          })
                         }
-                        lockMemberCount={isForeignDestForMembers(user, {
-                          destId: row.id,
-                          sectionId: row.sectionalId,
-                          regionId: row.regionalId,
-                          ownRegionIds: ownScope.regionIds,
-                          ownSectionIds: ownScope.sectionIds,
-                          ownDestIds: ownScope.destIds,
-                        })}
                       />
                     )}
                     notFound={notFound}
