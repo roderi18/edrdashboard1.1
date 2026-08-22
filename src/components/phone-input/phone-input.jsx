@@ -99,6 +99,9 @@ export function PhoneInput({
   );
 
   const renderInput = () => {
+    const esNoEditable = Boolean(
+      other?.disabled || other?.slotProps?.input?.readOnly || other?.inputProps?.readOnly
+    );
     const textFieldProps = {
       size,
       label,
@@ -109,7 +112,9 @@ export function PhoneInput({
       slotProps: {
         inputLabel: { shrink: true },
         input: {
-          endAdornment: normalizedValue && (
+          // Sin la X cuando el campo no se puede tocar: un boton de borrar en un
+          // campo deshabilitado invita a algo que no va a pasar.
+          endAdornment: normalizedValue && !esNoEditable && (
             <InputAdornment position="end">
               <IconButton size="small" edge="end" onClick={handleClearInput}>
                 <Iconify width={16} icon="mingcute:close-line" />
