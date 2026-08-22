@@ -55,6 +55,7 @@ import {
 } from 'src/utils/firebase-photos';
 import {
   getOwnDestIdsForUser,
+  esMiembroDeSuAlcance,
   canApproveMemberChanges,
   puedeEditarSuPropiaFicha,
   isDestacamentoApprovalRole,
@@ -380,8 +381,14 @@ export function MemberCreateEditForm({
   // muestra ENMASCARADA (dirección, teléfono y correo).
   // Nadie se oculta a si mismo: en su propia ficha ve telefono, correo, direccion
   // y fecha de nacimiento en claro.
+  // Un miembro de OTRO destacamento se ve como se ve a un desconocido: aunque el
+  // cargo tenga permiso para datos sensibles, ese permiso vale dentro de su
+  // destacamento, no fuera.
+  const fueraDeSuAlcance = Boolean(currentMember) && !esMiembroDeSuAlcance(user, currentMember);
   const maskSensitive =
-    Boolean(currentMember) && !canViewMemberSensitiveData(user) && !esFichaPropia;
+    Boolean(currentMember) &&
+    !esFichaPropia &&
+    (fueraDeSuAlcance || !canViewMemberSensitiveData(user));
   // Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
   // EDAD ven fecha de nacimiento, teléfono y correo en texto plano (el
   // enmascarado protege a los menores). La dirección sigue enmascarada.
@@ -391,9 +398,11 @@ export function MemberCreateEditForm({
   // es donde vive la persona, que sigue enmascarado.
   const maskContact = false;
   // La fecha de nacimiento es la única excepción al enmascarado para los cargos
-  // del destacamento que la necesitan (edad y división del miembro).
+  // del destacamento que la necesitan (edad y division del miembro) — pero solo
+  // sobre los suyos: fuera de su destacamento va enmascarada igual.
   const maskBirthdate =
-    maskSensitive && !adultContactVisible && !canViewMemberBirthdateWhenMasked(user);
+    fueraDeSuAlcance ||
+    (maskSensitive && !adultContactVisible && !canViewMemberBirthdateWhenMasked(user));
   // Enmascarar NO implica solo lectura: quién puede editar ya lo decide el prop
   // `readOnly` (derivado de `miembros.editar`). Acoplarlos dejaba sin el botón de
   // "Enviar cambios a aprobación" a los líderes de grupo, que sí editan aunque
@@ -2711,7 +2720,9 @@ export function MemberCreateEditForm({
               >
                 {(!isCreateView || step === 1) && (
                   <MemberGeneralSection
-                    age={age}
+                    // Sin la edad al lado: enmascarar la fecha y dejar "(26
+                    // años)" en la etiqueta seria enmascararla solo de nombre.
+                    age={fueraDeSuAlcance ? null : age}
                     division={division}
                     isCreateView={isCreateView}
                     control={control}
