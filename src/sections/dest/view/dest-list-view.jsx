@@ -24,17 +24,18 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
-  canEditDest,
-  isAdminGlobal,
-  canCreateDestInSection,
-  isForeignDestForMembers,
-} from 'src/utils/org-level-access';
-import {
   getOwnDestIdsForUser,
   getOwnRegionIdsForUser,
   getOwnSectionIdsForUser,
   filterDestsByMemberScope,
 } from 'src/utils/member-access';
+import {
+  canEditDest,
+  isAdminGlobal,
+  esRolDeDestacamento,
+  canCreateDestInSection,
+  isForeignDestForMembers,
+} from 'src/utils/org-level-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -715,6 +716,17 @@ export function DestListView() {
                         editHref={paths.dashboard.level.dest.edit(row.id)}
                         canManage={canEditDest(user, row)}
                         canDelete={canDeleteDest}
+                        ocultarMemberCount={
+                          esRolDeDestacamento(user) &&
+                          isForeignDestForMembers(user, {
+                            destId: row.id,
+                            sectionId: row.sectionalId,
+                            regionId: row.regionalId,
+                            ownRegionIds: ownScope.regionIds,
+                            ownSectionIds: ownScope.sectionIds,
+                            ownDestIds: ownScope.destIds,
+                          })
+                        }
                         lockMemberCount={isForeignDestForMembers(user, {
                           destId: row.id,
                           sectionId: row.sectionalId,

@@ -421,6 +421,12 @@ export const isForeignSectionForMembers = (
   return !ownSection.has(normalizeId(sectionId));
 };
 
+// Cargos cuyo alcance es UN destacamento: los del propio destacamento y el
+// Usuario Comun. Sale del catalogo, asi que un cargo nuevo de ese nivel entra
+// solo, sin tocar esto.
+export const esRolDeDestacamento = (user = {}) =>
+  ALCANCE_PREDETERMINADO_ROL[getOrgRoleId(user)] === ALCANCES.DESTACAMENTO;
+
 export const isForeignDestForMembers = (
   user = {},
   { destId, sectionId, regionId, ownRegionIds, ownSectionIds, ownDestIds } = {}
