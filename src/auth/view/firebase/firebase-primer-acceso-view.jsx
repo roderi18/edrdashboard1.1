@@ -84,6 +84,20 @@ export function FirebasePrimerAccesoView() {
 
   const [comprobandoCorreo, setComprobandoCorreo] = useState(false);
 
+  // Bienvenida: su nombre, y debajo el codigo con el que acaba de entrar.
+  const nombreDeSaludo = String(
+    user?.displayName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || ''
+  ).trim();
+  // Si el perfil todavia no trae el codigo, se saca del correo interno con el
+  // que acaba de entrar (`edr-10002@exploradores.app`), que siempre esta.
+  const correoDeAcceso = String(AUTH?.currentUser?.email || '').toLowerCase();
+  const codigoDelCorreo = correoDeAcceso.endsWith(`@${MEMBER_AUTH_DOMAIN}`)
+    ? correoDeAcceso.split('@')[0].toUpperCase()
+    : '';
+  const codigoMiembro = String(
+    user?.codigoMiembro || user?.memberId || codigoDelCorreo || ''
+  ).trim();
+
   const methods = useForm({
     resolver: zodResolver(PrimerAccesoSchema),
     defaultValues: { claveNueva: '', claveRepetida: '', correo: correoInicial },
@@ -270,8 +284,20 @@ export function FirebasePrimerAccesoView() {
 
   return (
     <>
+      {!!nombreDeSaludo && (
+        <Box sx={{ mb: 3, textAlign: { xs: 'center', md: 'left' } }}>
+          <Typography variant="h5">Bienvenido, {nombreDeSaludo}</Typography>
+
+          {!!codigoMiembro && (
+            <Typography variant="subtitle2" sx={{ mt: 0.5, color: 'text.secondary' }}>
+              {codigoMiembro}
+            </Typography>
+          )}
+        </Box>
+      )}
+
       <FormHead
-        title="Crea tu contraseña"
+        // title="Crea tu contraseña"
         description="Actualmente estás utilizando una contraseña temporal asociada a tu código de miembro. Por seguridad, crea una contraseña personal para continuar."
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
