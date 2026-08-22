@@ -421,11 +421,21 @@ export const isForeignSectionForMembers = (
   return !ownSection.has(normalizeId(sectionId));
 };
 
-// Cargos cuyo alcance es UN destacamento: los del propio destacamento y el
-// Usuario Comun. Sale del catalogo, asi que un cargo nuevo de ese nivel entra
-// solo, sin tocar esto.
-export const esRolDeDestacamento = (user = {}) =>
-  ALCANCE_PREDETERMINADO_ROL[getOrgRoleId(user)] === ALCANCES.DESTACAMENTO;
+/**
+ * ¿Trabaja esta persona a nivel de UN destacamento?
+ *
+ * Lo es el Usuario Comun y cualquier cargo de destacamento. Se miran TODOS sus
+ * cargos, no solo el principal: quien es Coordinador Asistente en su
+ * destacamento y ademas Sub Coordinador en su seccion sigue siendo un cargo de
+ * destacamento, y lo de los demas destacamentos no le toca.
+ */
+export const esRolDeDestacamento = (user = {}) => {
+  const cargos = Array.isArray(user?.cargos) ? user.cargos : [];
+
+  if (cargos.some((cargo) => String(cargo?.nivel ?? '') === 'destacamento')) return true;
+
+  return ALCANCE_PREDETERMINADO_ROL[getOrgRoleId(user)] === ALCANCES.DESTACAMENTO;
+};
 
 export const isForeignDestForMembers = (
   user = {},

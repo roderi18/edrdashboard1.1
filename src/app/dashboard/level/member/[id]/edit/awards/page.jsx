@@ -5,9 +5,8 @@ import { useParams } from 'next/navigation';
 
 import {
   canEditAwards,
+  esMiembroDeSuAlcance,
   canMemberManageMembers,
-  filtrarMiembrosDeSuDestacamento,
-  puedeVerMiembrosDeTodaLaOrganizacion,
 } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
@@ -31,14 +30,10 @@ export default function Page() {
   // Y exige además que el miembro sea de SU destacamento: el ascenso lo lleva
   // quien acompaña a esa persona, no cualquiera con el permiso. Vale también
   // para subir documentos, que es la misma pantalla.
-  const esDeSuDestacamento =
-    !currentMember ||
-    puedeVerMiembrosDeTodaLaOrganizacion(user) ||
-    filtrarMiembrosDeSuDestacamento([currentMember], user).length > 0;
   const canManage =
     (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) &&
     canEditAwards(user) &&
-    esDeSuDestacamento;
+    esMiembroDeSuAlcance(user, currentMember);
 
   useEffect(() => {
     let cancelled = false;

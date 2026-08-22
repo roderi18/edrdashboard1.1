@@ -716,16 +716,13 @@ export function DestListView() {
                         editHref={paths.dashboard.level.dest.edit(row.id)}
                         canManage={canEditDest(user, row)}
                         canDelete={canDeleteDest}
+                        // A un cargo de destacamento (o al Usuario Comun) se le
+                        // oculta el contador de los OTROS destacamentos, sin
+                        // enlace y sin numero. Aqui no vale que coincida la
+                        // seccion: se compara solo con el suyo.
                         ocultarMemberCount={
                           esRolDeDestacamento(user) &&
-                          isForeignDestForMembers(user, {
-                            destId: row.id,
-                            sectionId: row.sectionalId,
-                            regionId: row.regionalId,
-                            ownRegionIds: ownScope.regionIds,
-                            ownSectionIds: ownScope.sectionIds,
-                            ownDestIds: ownScope.destIds,
-                          })
+                          !ownScope.destIds.has(String(row.id ?? '').trim())
                         }
                         lockMemberCount={isForeignDestForMembers(user, {
                           destId: row.id,

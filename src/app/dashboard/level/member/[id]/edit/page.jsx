@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 
 import {
   canEditMembers,
+  esMiembroDeSuAlcance,
   canMemberManageMembers,
   puedeEditarSuPropiaFicha,
 } from 'src/utils/member-access';
@@ -32,8 +33,13 @@ export default function Page() {
   // Médica con `salud.editar` y Ascenso con `ascenso.editar`. Sin esta condición
   // toda sesión de administrador editaba, incluidos los cargos de supervisión
   // (sección, región y Consejo Nacional), que son de solo consulta.
+  // El permiso dice que sabe editar fichas; el alcance, de quien. Sin la segunda
+  // condicion, sumar los cargos de alguien —correcto— le abria la ficha de
+  // cualquier miembro de la organizacion.
   const canManage =
-    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) && canEditMembers(user);
+    (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) &&
+    canEditMembers(user) &&
+    esMiembroDeSuAlcance(user, currentMember);
 
   useEffect(() => {
     let cancelled = false;

@@ -1376,6 +1376,21 @@ export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
       .toLowerCase()
   );
 
+/**
+ * ¿Esta persona esta dentro del alcance de quien la mira?
+ *
+ * Es la condicion que acompaña SIEMPRE al permiso: tener `miembros.editar` o
+ * `ascenso.editar` dice que sabe hacerlo; esto dice sobre quien. Sin ella, sumar
+ * los cargos de alguien —que es lo correcto— le abria la ficha de cualquier
+ * miembro de la organizacion.
+ */
+export const esMiembroDeSuAlcance = (user = {}, member = null) => {
+  if (!member) return true;
+  if (puedeVerMiembrosDeTodaLaOrganizacion(user)) return true;
+
+  return filtrarMiembrosDeSuDestacamento([member], user).length > 0;
+};
+
 /** Miembros del destacamento (o destacamentos) de quien consulta. */
 export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
   const propios = getOwnDestIdsForUser(user);
