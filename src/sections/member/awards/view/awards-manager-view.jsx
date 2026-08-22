@@ -253,7 +253,10 @@ export function AwardsManagerView({ memberId, readOnly = false }) {
   // eso el `readOnly` que llega de la pagina solo manda fuera de Academia.
   const isAcademiaContext = isAcademiaMinisterial || isAcademiaSubFolder;
   const canEditAcademia = canEditAcademiaMinisterial(user);
-  const effectiveReadOnly = isAcademiaContext ? !canEditAcademia : readOnly;
+  // Academia tiene su propio permiso, pero el alcance manda igual: si la ficha
+  // llega en solo lectura —porque el miembro es de otro destacamento— tampoco se
+  // toca Academia.
+  const effectiveReadOnly = readOnly || (isAcademiaContext && !canEditAcademia);
   // Dentro de la rama de destacamento, todos menos el Coordinador y su Asistente
   // envian los cambios de Academia a aprobacion de ambos.
   // El aviso del certificado obligatorio solo tiene sentido donde se registran los

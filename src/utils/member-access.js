@@ -2,7 +2,11 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 
 import { paths } from 'src/routes/paths';
 
-import { puedeEntrarAAdministracion } from 'src/utils/org-level-access';
+import {
+  isAdminGlobal,
+  isOficinaNacional,
+  puedeEntrarAAdministracion,
+} from 'src/utils/org-level-access';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -770,6 +774,13 @@ const getSectionIdsInRegions = (sectionals = [], regionIds = new Set()) => {
 };
 
 export const filterMembersByMemberScope = (members = [], user, context = {}) => {
+  // Cada quien con los suyos: fuera del Administrador Global y la Oficina
+  // Nacional, nadie ve miembros de otro destacamento —tampoco los cargos
+  // seccionales o regionales—. Lo de fuera se consulta por otras pantallas.
+  if (!puedeVerMiembrosDeTodaLaOrganizacion(user)) {
+    return filtrarMiembrosDeSuDestacamento(members, user);
+  }
+
   // Cargos regionales: consulta acotada a los miembros de SU región. Un miembro
   // entra si su región coincide, o su sección/destacamento pertenece a la región.
   if (isRegionScopedMemberViewer(user)) {
@@ -1349,6 +1360,39 @@ export const getOwnRegionIdsForUser = (
 
 // Ids del/los destacamento(s) propios del usuario (alcance explicito + el
 // destacamento de su propia membresia).
+/**
+ * Quien ve —y toca— miembros fuera de su propio destacamento.
+ *
+ * Solo el Administrador Global y la Oficina Nacional. El resto de los cargos,
+ * por alto que sea su nivel, trabaja con la gente de SU destacamento: lo demas
+ * se consulta por otras pantallas.
+ */
+export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
+  isAdminGlobal(user) ||
+  isOficinaNacional(user) ||
+  ['admin', 'administrador_global'].includes(
+    String(user?.role ?? user?.rol ?? '')
+      .trim()
+      .toLowerCase()
+  );
+
+/** Miembros del destacamento (o destacamentos) de quien consulta. */
+export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
+  const propios = getOwnDestIdsForUser(user);
+  const idPropio = String(user?.idMiembros ?? user?.memberId ?? '');
+
+  return (Array.isArray(miembros) ? miembros : []).filter((miembro) => {
+    // Su propia ficha siempre, aunque todavia no tenga destacamento.
+    if (idPropio && String(miembro?.id ?? miembro?.idMiembros ?? '') === idPropio) return true;
+
+    const suDestacamento = normalizeScopeId(
+      miembro?.idDestacamento ?? miembro?.destId ?? miembro?.destamentoId
+    );
+
+    return Boolean(suDestacamento) && propios.has(suDestacamento);
+  });
+};
+
 export const getOwnDestIdsForUser = (user = {}) => {
   const scope = getMemberScope(user);
   const ids = new Set(getScopeDestIds(scope));

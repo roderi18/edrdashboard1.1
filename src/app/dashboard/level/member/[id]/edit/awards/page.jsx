@@ -3,7 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
-import { canEditAwards, canMemberManageMembers } from 'src/utils/member-access';
+import {
+  canEditAwards,
+  canMemberManageMembers,
+  filtrarMiembrosDeSuDestacamento,
+  puedeVerMiembrosDeTodaLaOrganizacion,
+} from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 
@@ -22,9 +27,18 @@ export default function Page() {
   const [currentMember, setCurrentMember] = useState(null);
   // Editar el Sistema de Ascenso exige el permiso `ascenso.editar` del catálogo
   // (el Usuario Común solo tiene `ascenso.ver`, por eso queda en solo lectura).
+  //
+  // Y exige además que el miembro sea de SU destacamento: el ascenso lo lleva
+  // quien acompaña a esa persona, no cualquiera con el permiso. Vale también
+  // para subir documentos, que es la misma pantalla.
+  const esDeSuDestacamento =
+    !currentMember ||
+    puedeVerMiembrosDeTodaLaOrganizacion(user) ||
+    filtrarMiembrosDeSuDestacamento([currentMember], user).length > 0;
   const canManage =
     (!user || user.role !== 'member' ? true : canMemberManageMembers(user)) &&
-    canEditAwards(user);
+    canEditAwards(user) &&
+    esDeSuDestacamento;
 
   useEffect(() => {
     let cancelled = false;
