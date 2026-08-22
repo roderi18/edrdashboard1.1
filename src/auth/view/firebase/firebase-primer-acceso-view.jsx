@@ -82,6 +82,8 @@ export function FirebasePrimerAccesoView() {
     ? ''
     : correoDelMiembro;
 
+  const [comprobandoCorreo, setComprobandoCorreo] = useState(false);
+
   const methods = useForm({
     resolver: zodResolver(PrimerAccesoSchema),
     defaultValues: { claveNueva: '', claveRepetida: '', correo: correoInicial },
@@ -101,6 +103,57 @@ export function FirebasePrimerAccesoView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [correoInicial]);
 
+  // El correo identifica a la persona: con el se recupera la clave y, una vez
+  // verificado, se entra. Si ya es de otro miembro, los dos se quedarian sin
+  // forma de distinguirse. Se comprueba contra el listado, que es el que ve el
+  // resto de la aplicacion, y se avisa en el propio campo.
+  const correoYaEsDeOtro = async (correo) => {
+    const buscado = String(correo ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (!buscado) return false;
+
+    setComprobandoCorreo(true);
+
+    try {
+      const res = await fetch('/api/members/');
+
+      if (!res.ok) return false;
+
+      const cuerpo = await res.json();
+      const miembros = cuerpo?.data || cuerpo?.Data || cuerpo || [];
+      const idActual = String(user?.idMiembros ?? '');
+
+      return (Array.isArray(miembros) ? miembros : []).some((miembro) => {
+        const suCorreo = String(miembro?.correo || miembro?.email || '')
+          .trim()
+          .toLowerCase();
+
+        return suCorreo === buscado && String(miembro?.idMiembros ?? miembro?.id ?? '') !== idActual;
+      });
+    } catch {
+      // Sin listado no se puede afirmar que este repetido: se deja pasar y lo
+      // atrapa Firebase con `auth/email-already-in-use`.
+      return false;
+    } finally {
+      setComprobandoCorreo(false);
+    }
+  };
+
+  const revisarCorreoAlSalir = async (evento) => {
+    const correo = evento.target.value;
+
+    methods.clearErrors('correo');
+
+    if (await correoYaEsDeOtro(correo)) {
+      methods.setError('correo', {
+        type: 'manual',
+        message: 'Ese correo ya lo usa otro miembro. Escribe otro o déjalo vacío.',
+      });
+    }
+  };
+
   const onSubmit = handleSubmit(async (datos) => {
     setErrorMessage(null);
     setAvisoCorreo(null);
@@ -114,6 +167,16 @@ export function FirebasePrimerAccesoView() {
 
     const codigo = user?.codigoMiembro || user?.memberId || '';
 
+    // Antes de cambiar nada: si el correo es de otro, no se sigue.
+    if (datos.correo && (await correoYaEsDeOtro(datos.correo))) {
+      methods.setError('correo', {
+        type: 'manual',
+        message: 'Ese correo ya lo usa otro miembro. Escribe otro o déjalo vacío.',
+      });
+
+      return;
+    }
+
     try {
       // Firebase exige haber iniciado sesion hace poco para cambiar clave o
       // correo. Se rehace con la clave inicial —la que acaba de usar para
@@ -125,7 +188,7 @@ export function FirebasePrimerAccesoView() {
 
       for (const clave of clavesIniciales) {
         // En serie a proposito: en cuanto una vale, no hay que probar la siguiente.
-         
+
         const reautenticado = await reauthenticateWithCredential(
           usuarioAuth,
           EmailAuthProvider.credential(usuarioAuth.email, clave)
@@ -209,7 +272,7 @@ export function FirebasePrimerAccesoView() {
     <>
       <FormHead
         title="Crea tu contraseña"
-        description="Entraste con la contraseña que sale de tu número, y esa la sabe cualquiera que vea tu código. Elige una tuya para seguir."
+        description="Actualmente estás utilizando una contraseña temporal asociada a tu código de miembro. Por seguridad, crea una contraseña personal para continuar."
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
 
@@ -267,13 +330,18 @@ export function FirebasePrimerAccesoView() {
             name="correo"
             label="Correo electrónico (opcional)"
             placeholder="tucorreo@ejemplo.com"
-            helperText="Si lo dejas, te enviamos un correo para verificarlo y podrás entrar también con él. Si no, sigues entrando con tu número."
+            onBlur={revisarCorreoAlSalir}
+            helperText={
+              comprobandoCorreo
+                ? 'Comprobando que el correo no esté en uso…'
+                : 'Te enviaremos un enlace para verificarlo y, una vez confirmado, también podrás utilizarlo para iniciar sesión. Si prefieres omitirlo, podrás seguir accediendo con tu código de miembro.'
+            }
             slotProps={{ inputLabel: { shrink: true } }}
           />
-
+          {/* 
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             Tu número de miembro no cambia: seguirá sirviendo para entrar.
-          </Typography>
+          </Typography> */}
 
           <LoadingButton
             fullWidth
