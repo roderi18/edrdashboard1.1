@@ -174,6 +174,10 @@ const getRowsFromApi = (payload) => {
   return [];
 };
 
+// Los dos botones de la tarjeta del miembro comparten tipo y tamaño de letra: se
+// define una sola vez para que no se separen al tocar uno de ellos.
+const ESTILO_BOTON_TARJETA = { typography: 'button' };
+
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
 const getOccupationValue = (occupation) => {
@@ -2603,6 +2607,8 @@ export function MemberCreateEditForm({
                     masked={maskSensitive}
                     maskContact={maskContact}
                     maskBirthdate={maskBirthdate}
+                    size="medium"
+                    sx={ESTILO_BOTON_TARJETA}
                   />
                 </Stack>
               )}
@@ -2612,6 +2618,8 @@ export function MemberCreateEditForm({
                   <Button
                     variant="soft"
                     color="inherit"
+                    size="medium"
+                    sx={ESTILO_BOTON_TARJETA}
                     disabled={generandoClave}
                     onClick={restablecerClaveDelMiembro}
                     startIcon={<Iconify icon="solar:key-bold" />}
