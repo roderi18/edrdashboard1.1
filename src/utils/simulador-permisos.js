@@ -21,6 +21,7 @@ import {
   canUploadHealthDocuments,
   canViewMemberSensitiveData,
   canViewMemberContactDataByAge,
+  canViewMemberBirthdateWhenMasked,
   puedeVerMiembrosDeTodaLaOrganizacion,
 } from 'src/utils/member-access';
 
@@ -196,11 +197,43 @@ export const CAPACIDADES = [
     solicitaA: 'Coordinador de Destacamento y su Asistente',
   },
   {
+    id: 'miembros.general.completa',
+    area: 'Miembros de su destacamento',
+    etiqueta: 'Ver su ficha General entera, sin asteriscos',
+    // Se calcula igual que la ficha: `maskSensitive` y `maskBirthdate` juntos.
+    // Es la pregunta de verdad —"¿la veo completa o con asteriscos?"— y la que
+    // se rompia al recibir un cargo en la seccion.
+    evaluar: (user) => {
+      if (!esMiembroDeSuAlcance(user, FICHAS.propioAdulto)) return RESULTADO.oculto;
+      if (!canViewMemberSensitiveData(user)) return RESULTADO.oculto;
+
+      return RESULTADO.si;
+    },
+  },
+  {
     id: 'miembros.datos_sensibles',
     area: 'Miembros de su destacamento',
-    etiqueta: 'Ver dirección y datos sensibles',
+    etiqueta: 'Ver su dirección y sus datos sensibles',
     evaluar: (user) =>
-      canViewMemberSensitiveData(user) ? RESULTADO.si : RESULTADO.oculto,
+      esMiembroDeSuAlcance(user, FICHAS.propioAdulto) && canViewMemberSensitiveData(user)
+        ? RESULTADO.si
+        : RESULTADO.oculto,
+  },
+  {
+    id: 'miembros.nacimiento',
+    area: 'Miembros de su destacamento',
+    etiqueta: 'Ver su fecha de nacimiento',
+    evaluar: (user) => {
+      if (!esMiembroDeSuAlcance(user, FICHAS.propioAdulto)) return RESULTADO.oculto;
+      if (canViewMemberSensitiveData(user)) return RESULTADO.si;
+
+      // El enmascarado tiene dos escapes: los cargos que la necesitan para saber
+      // la division del miembro, y los seccionales/regionales sobre adultos.
+      return canViewMemberBirthdateWhenMasked(user) ||
+        canViewMemberContactDataByAge(user, FICHAS.propioAdulto)
+        ? RESULTADO.si
+        : RESULTADO.oculto;
+    },
   },
   {
     id: 'miembros.menores',

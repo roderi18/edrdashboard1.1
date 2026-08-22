@@ -1263,10 +1263,37 @@ const SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS = new Set([
   ROLES.CAPELLAN_DESTACAMENTO,
 ]);
 
+/**
+ * ¿Se lo concede su cargo de DESTACAMENTO?
+ *
+ * Sobre los datos de su propio destacamento, el cargo de destacamento va por
+ * encima de todo: quien coordina su destacamento sigue coordinandolo aunque
+ * ademas ocupe una casilla en su seccion, su region o el Consejo Nacional, y el
+ * rol principal pase a ser aquel. Se pregunta al catalogo del cargo, no a los
+ * permisos sumados de la sesion, para que la regla no dependa de que la suma
+ * sobreviva a los demas filtros.
+ *
+ * Lo que impide que esto alcance a OTROS destacamentos no es esta funcion, sino
+ * `esMiembroDeSuAlcance`, que la acompaña en todas las pantallas.
+ */
+export const suCargoDeDestacamentoConcede = (user = {}, permiso) =>
+  codigosDeSusCargos(user).some(
+    (codigo) =>
+      ALCANCE_PREDETERMINADO_ROL[codigo] === ALCANCES.DESTACAMENTO &&
+      (PERMISOS_POR_ROL[codigo] ?? []).includes(permiso)
+  );
+
 export const canViewMemberSensitiveData = (user = {}) => {
   const roleId = getUserRoleId(user);
 
   if (FULL_MEMBER_TEXT_ROLE_IDS.has(roleId)) {
+    return true;
+  }
+
+  // Su cargo de destacamento manda sobre la ficha de los suyos, este donde este
+  // el rol principal. Sin esta linea, recibir una casilla en la seccion volvia a
+  // enmascarar la ficha de los miembros de su propio destacamento.
+  if (suCargoDeDestacamentoConcede(user, PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES)) {
     return true;
   }
 
@@ -1294,8 +1321,11 @@ const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
   ROLES.LIDER_ASISTENTE_GRUPO,
 ]);
 
+// Por todos sus cargos, no solo por el principal: al Consejo, al Capellan y a los
+// Lideres de Grupo la fecha de nacimiento les hace falta para saber la division
+// de SU gente, y recibir una casilla en la seccion se la borraba.
 export const canViewMemberBirthdateWhenMasked = (user = {}) =>
-  BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS.has(getUserRoleId(user));
+  rolesQueEjerce(user).some((codigo) => BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS.has(codigo));
 
 // Coordinador Seccional y Coordinador Regional: sobre los miembros MAYORES DE
 // EDAD ven en texto plano la fecha de nacimiento, el telefono y el correo. El

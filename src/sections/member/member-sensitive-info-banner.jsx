@@ -14,6 +14,7 @@ import { usePathname } from 'src/routes/hooks';
 
 import { isSectionOrRegionLevelRole } from 'src/utils/org-level-access';
 import {
+  esMiembroDeSuAlcance,
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
@@ -77,8 +78,11 @@ const isRestrictedForRoute = (user, pathname = '', member) => {
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
   if (pathname.includes('/edit/history')) return !canViewMemberHistoryTab(user, member);
-  // General (ficha principal): depende del acceso a los datos sensibles.
-  return !canViewMemberSensitiveData(user);
+  // General (ficha principal): depende del acceso a los datos sensibles Y de que
+  // el miembro sea de los suyos. Sin lo segundo, quien tiene cargo de
+  // destacamento dejaba de ver el aviso en la ficha de otro destacamento aunque
+  // los datos siguieran enmascarados.
+  return !esMiembroDeSuAlcance(user, member) || !canViewMemberSensitiveData(user);
 };
 
 // ----------------------------------------------------------------------
