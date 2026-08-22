@@ -17,6 +17,7 @@ import {
   isGroupLeaderRole,
   esMiembroDeSuAlcance,
   canAccessMinorMembers,
+  canMemberManageMembers,
   canApproveMemberChanges,
   canUploadHealthDocuments,
   canViewMemberSensitiveData,
@@ -167,6 +168,11 @@ export const RESULTADO = {
 
 const si = (valor) => (valor ? RESULTADO.si : RESULTADO.no);
 
+// Lo que de verdad pregunta la pantalla de edicion antes de dejar tocar una
+// ficha. Se junta aqui para que la matriz no pueda contestar por una condicion
+// parcial: si la pantalla exige tres cosas, la matriz exige las tres.
+const puedeGestionar = (user) => canMemberManageMembers(user) && canEditMembers(user);
+
 /**
  * Las preguntas que se le hacen a cada combinacion.
  *
@@ -186,7 +192,10 @@ export const CAPACIDADES = [
     area: 'Miembros de su destacamento',
     etiqueta: 'Editar la ficha',
     evaluar: (user) => {
-      if (!canEditMembers(user) || !esMiembroDeSuAlcance(user, FICHAS.propioAdulto)) {
+      // La MISMA condicion que calcula la pantalla de edicion, entera. Antes
+      // aqui faltaba `canMemberManageMembers`, y por ese hueco se colo que
+      // ninguna sesion de miembro podia editar la ficha de nadie.
+      if (!puedeGestionar(user) || !esMiembroDeSuAlcance(user, FICHAS.propioAdulto)) {
         return RESULTADO.no;
       }
 
@@ -281,8 +290,7 @@ export const CAPACIDADES = [
     id: 'miembros.editar.ajeno',
     area: 'Miembros de otro destacamento',
     etiqueta: 'Editar su ficha',
-    evaluar: (user) =>
-      si(canEditMembers(user) && esMiembroDeSuAlcance(user, FICHAS.ajenoAdulto)),
+    evaluar: (user) => si(puedeGestionar(user) && esMiembroDeSuAlcance(user, FICHAS.ajenoAdulto)),
   },
   {
     id: 'miembros.datos.ajeno',

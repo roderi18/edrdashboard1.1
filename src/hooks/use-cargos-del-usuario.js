@@ -28,6 +28,21 @@ const mismoId = (entidad, id) =>
     .filter((valor) => valor !== undefined && valor !== null && valor !== '')
     .some((valor) => String(valor) === String(id));
 
+// Para MOSTRARLOS manda el destacamento: es donde la persona esta cada semana y
+// es lo que la identifica ante los suyos. El orden guardado es el contrario —por
+// nivel, de mayor a menor— porque de ahi sale el rol principal de la sesion, asi
+// que se reordena aqui y no en el catalogo: cambiar aquel cambiaria con quien
+// entra a la aplicacion.
+const primeroElDestacamento = (cargos = []) => {
+  const esDeDestacamento = (cargo) =>
+    String(cargo?.nivel ?? '') === DIRECTIVA_LEVELS.destacamento;
+
+  return [
+    ...cargos.filter(esDeDestacamento),
+    ...cargos.filter((cargo) => !esDeDestacamento(cargo)),
+  ];
+};
+
 export function useCargosDelUsuario(user) {
   const cargos = user?.cargos;
   const [conNombre, setConNombre] = useState([]);
@@ -88,7 +103,7 @@ export function useCargosDelUsuario(user) {
     };
   }, [cargos]);
 
-  return conNombre.length ? conNombre : (cargos ?? []);
+  return primeroElDestacamento(conNombre.length ? conNombre : (cargos ?? []));
 }
 
 /** "Coordinador Asistente de Dest. 18", "Sub Coordinador Seccional Este Oriental I" */

@@ -18,7 +18,7 @@ import {
 import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
-import { can, isReadOnlyRole } from 'src/auth/permissions/can';
+import { can, isReadOnlyRole, puedeModificar } from 'src/auth/permissions/can';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import {
   PERMISOS_POR_ROL,
@@ -695,15 +695,38 @@ const syncRoleProfileByAuthUid = async ({
   });
 };
 
+/**
+ * ¿Gestiona miembros?
+ *
+ * Toda la directiva entra con sesion de miembro: el Coordinador de un
+ * destacamento es un miembro con un cargo, no una cuenta de administrador.
+ * Negarselo por la FORMA de la sesion dejaba la gestion en manos exclusivas de
+ * las cuentas de admin, y bastaba con eso para que un Coordinador Asistente no
+ * pudiera editar a los suyos.
+ *
+ * Sobre QUIEN puede hacerlo no decide esta funcion: la acompaña siempre
+ * `esMiembroDeSuAlcance`. Y los cargos de supervision quedan fuera igual que en
+ * `canEditMembers` —solo consultan—, salvo que ademas tengan cargo en su
+ * destacamento, que es cuando vuelven a ser de la casa.
+ */
 export const canMemberManageMembers = (user) => {
-  if (isMemberSessionUser(user)) {
-    return false;
-  }
-
   const permissions = getMemberPermissions(user);
   const members = permissions.miembros ?? {};
 
-  return Boolean(members.crear || members.editar || members.eliminar || members.subirFoto);
+  if (members.crear || members.editar || members.eliminar || members.subirFoto) {
+    return true;
+  }
+
+  if (isSupervisoryMemberViewer(user)) {
+    return false;
+  }
+
+  return [
+    PERMISOS.MIEMBROS_CREAR,
+    PERMISOS.MIEMBROS_EDITAR,
+    PERMISOS.MIEMBROS_ELIMINAR,
+    PERMISOS.MIEMBROS_SUBIR_FOTO,
+  ].some((permiso) => puedeModificar(user, permiso));
 };
 
 // --- Alcance regional para la lista de miembros ---
