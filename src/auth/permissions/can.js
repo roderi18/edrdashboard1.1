@@ -56,7 +56,25 @@ export const canAny = (usuario, permisos = []) => permisos.some((permiso) => can
 
 export const canAll = (usuario, permisos = []) => permisos.every((permiso) => can(usuario, permiso));
 
+// Solo lectura es una propiedad del CARGO, no de la persona. Quien ocupa dos
+// casillas —Coordinador en su destacamento y un cargo de consulta en su region o
+// en el Consejo Nacional— entra con el de mayor nivel, y ese suele ser el de solo
+// lectura: mirar unicamente el rol principal le quitaba en silencio todo lo que
+// hace en su destacamento. Si ejerce ALGUN cargo que si puede modificar, no es de
+// solo lectura; lo que acota sobre QUE puede es su alcance, no esta marca.
+const ejerceAlgunCargoQueModifica = (usuario = {}) =>
+  (Array.isArray(usuario?.cargos) ? usuario.cargos : []).some((cargo) => {
+    const codigo = String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+      .trim()
+      .toLowerCase();
+    const catalogo = RESTRICCIONES_ROL[codigo];
+
+    return Boolean(catalogo) && catalogo.soloLectura !== true;
+  });
+
 export const isReadOnlyRole = (usuario) => {
+  if (ejerceAlgunCargoQueModifica(usuario)) return false;
+
   const acceso = normalizarAccesoUsuario(usuario);
   // El catálogo del rol MANDA para solo lectura: un rol definido como soloLectura
   // lo es aunque el token traiga una restricción heredada (soloLectura:false) de

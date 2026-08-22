@@ -45,6 +45,10 @@ export const AMBITOS_CAMBIO = {
   // Historial, que es lo que se pidio.
   sistemaAscenso: 'sistema_ascenso',
   academiaMinisterial: 'academia_ministerial',
+  // El catalogo de lo que puede hacer cada combinacion de cargos. Solo lo toca
+  // el Administrador Global, asi que no espera aprobacion de nadie, pero cada
+  // ajuste queda en Historial: es lo que decide quien puede que.
+  combinacionesRoles: 'combinaciones_roles',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

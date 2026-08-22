@@ -4,4 +4,5 @@ export * from './admin-maintenance-view';
 export * from './admin-roles-catalog-view';
 export * from './admin-notifications-view';
 export * from './admin-system-health-view';
+export * from './admin-role-combinations-view';
 export * from './admin-permissions-catalog-view';

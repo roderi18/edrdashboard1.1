@@ -320,6 +320,31 @@ const getScopeUserRoleId = (user = {}) => {
   return roleId;
 };
 
+// Los codigos de TODOS los cargos que la persona ejerce, con la misma
+// normalizacion del asistente al titular.
+//
+// El rol principal es solo el de MAYOR nivel. Quien es Lider de Grupo en su
+// destacamento y ademas ocupa una casilla en su seccion entra como seccional, y
+// preguntar unicamente por el principal le borraba —sin avisar— todo lo que hace
+// en el suyo. La pregunta correcta no es "¿que rol tiene?" sino "¿ejerce alguno
+// que...?".
+const codigosDeSusCargos = (user = {}) =>
+  (Array.isArray(user?.cargos) ? user.cargos : [])
+    .map((cargo) =>
+      String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+        .trim()
+        .toLowerCase()
+    )
+    .filter(Boolean)
+    .map((codigo) =>
+      codigo === ROLES.USUARIO_DESTACAMENTO_ASISTENTE ? ROLES.USUARIO_DESTACAMENTO : codigo
+    );
+
+/** El rol principal mas todos sus cargos, sin repetidos. */
+const rolesQueEjerce = (user = {}) => [
+  ...new Set([getScopeUserRoleId(user), ...codigosDeSusCargos(user)].filter(Boolean)),
+];
+
 // Ven la lista de destacamentos de TODA su seccion, no solo el suyo. El Usuario
 // Comun va con ellos: es lo que su propia ficha de rol viene prometiendo desde
 // el principio —"datos publicos de destacamentos de su seccion"—. Solo abre la
@@ -1028,7 +1053,7 @@ export const isRegionWideSectionViewer = (user = {}) =>
 const GROUP_LEADER_ROLE_IDS = [ROLES.LIDER_GRUPO, ROLES.LIDER_ASISTENTE_GRUPO];
 
 export const isGroupLeaderRole = (user = {}) =>
-  GROUP_LEADER_ROLE_IDS.includes(getScopeUserRoleId(user));
+  rolesQueEjerce(user).some((codigo) => GROUP_LEADER_ROLE_IDS.includes(codigo));
 
 // Cargos del destacamento que NO son coordinadores: editan a sus miembros pero
 // sus cambios (General y Dispensa Médica) van a APROBACION del Coordinador de
@@ -1045,12 +1070,12 @@ const DESTACAMENTO_APPROVAL_ROLE_IDS = [
 ];
 
 export const isDestacamentoApprovalRole = (user = {}) =>
-  DESTACAMENTO_APPROVAL_ROLE_IDS.includes(getScopeUserRoleId(user));
+  rolesQueEjerce(user).some((codigo) => DESTACAMENTO_APPROVAL_ROLE_IDS.includes(codigo));
 
 // Coordinador de Destacamento (titular y asistente comparten alcance; el
 // asistente se normaliza a titular en getScopeUserRoleId). Tienen acceso total.
 export const isCoordinadorDestacamentoRole = (user = {}) =>
-  getScopeUserRoleId(user) === ROLES.USUARIO_DESTACAMENTO;
+  rolesQueEjerce(user).includes(ROLES.USUARIO_DESTACAMENTO);
 
 // Detecta específicamente al Pastor por su rol CRUDO (sin la normalización a
 // titular de getScopeUserRoleId). Se usa para la única excepción del Pastor: en
@@ -1104,7 +1129,18 @@ const SUPERVISORY_ROLE_IDS = new Set(
     .map(([rolId]) => rolId)
 );
 
+// Un cargo de destacamento NO se anula por tener ademas uno de seccion, region o
+// Consejo Nacional: la persona lo sigue ejerciendo dentro de SU destacamento —lo
+// que le impide tocar los demas es `esMiembroDeSuAlcance`, no esto—. Sin esta
+// comprobacion, ascender a alguien a la directiva de su seccion le quitaba en
+// silencio lo que hacia en su destacamento.
+const tieneCargoDeDestacamento = (user = {}) =>
+  codigosDeSusCargos(user).some(
+    (codigo) => ALCANCE_PREDETERMINADO_ROL[codigo] === ALCANCES.DESTACAMENTO
+  );
+
 export const isSupervisoryMemberViewer = (user = {}) =>
+  !tieneCargoDeDestacamento(user) &&
   SUPERVISORY_ROLE_IDS.has(
     String(
       user?.rolId ||
@@ -1386,7 +1422,16 @@ export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
  */
 export const esMiembroDeSuAlcance = (user = {}, member = null) => {
   if (!member) return true;
-  if (puedeVerMiembrosDeTodaLaOrganizacion(user)) return true;
+  if (isAdminGlobal(user)) return true;
+
+  // Ver toda la organizacion es cosa de la Oficina Nacional, y es CONSULTA: su
+  // cargo esta marcado de solo lectura justamente para eso. Si esa misma persona
+  // ocupa ademas una casilla en su destacamento —y entonces si puede modificar—,
+  // lo que puede tocar sigue siendo lo suyo. Sin esta linea, sumar los dos
+  // alcances le entregaria la ficha de cualquier miembro del pais.
+  if (puedeVerMiembrosDeTodaLaOrganizacion(user) && !tieneCargoDeDestacamento(user)) {
+    return true;
+  }
 
   return filtrarMiembrosDeSuDestacamento([member], user).length > 0;
 };

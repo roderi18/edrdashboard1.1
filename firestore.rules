@@ -757,6 +757,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // El catálogo de lo que puede hacer cada combinación de cargos. Lo lee
+    // cualquiera con sesión —de él salen los permisos— pero solo lo escribe el
+    // Administrador Global: quien pudiera editarlo se concedería lo que quisiera.
+    match /combinaciones_roles/{idCombinacion} {
+      allow read: if estaAutenticado();
+      allow write: if esAdministradorGlobal();
+    }
+
     // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
     // ni se borra desde el cliente.
     match /auditoria_sistema/{idEvento} {
@@ -798,6 +806,7 @@ service cloud.firestore {
         && coleccion != 'usuarios_roles'
         && coleccion != 'admins'
         && coleccion != 'auditoria_sistema'
+        && coleccion != 'combinaciones_roles'
         && estaAutenticado();
     }
   }

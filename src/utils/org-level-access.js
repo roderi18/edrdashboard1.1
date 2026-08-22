@@ -33,6 +33,23 @@ export const getOrgRoleId = (user = {}) => {
     .toLowerCase();
 };
 
+/**
+ * Todos los cargos que la persona ejerce, en codigo de catalogo.
+ *
+ * El rol principal es solo el de MAYOR nivel. Quien es Coordinador en su
+ * destacamento y ademas ocupa una casilla en su seccion o region entra con el
+ * segundo, y preguntar unicamente por el le borraba lo que hace en el suyo.
+ */
+export const rolesQueEjerce = (user = {}) => {
+  const deSusCargos = (Array.isArray(user?.cargos) ? user.cargos : []).map((cargo) =>
+    String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+      .trim()
+      .toLowerCase()
+  );
+
+  return [...new Set([getOrgRoleId(user), ...deSusCargos].filter(Boolean))];
+};
+
 // Un miembro sin cargo es un Usuario Comun: su sesion guarda `rol: 'miembro'`,
 // que no es un codigo del catalogo, asi que getOrgRoleId devuelve vacio. Se
 // resuelve aqui en vez de importar member-access, que no depende de este modulo
@@ -232,21 +249,27 @@ export const canEditSectional = (user = {}, sectional = {}) => {
 export const canEditDest = (user = {}, dest = {}) => {
   if (isFullOrgManager(user)) return true;
 
-  const roleId = getOrgRoleId(user);
+  // Se miran TODOS sus cargos: cada uno abre su propia puerta, y el alcance de
+  // cada puerta —su region, su seccion, su destacamento— sigue siendo el que era.
+  const suyos = rolesQueEjerce(user);
+  const ejerce = (lista) => suyos.some((codigo) => lista.includes(codigo));
 
-  if (REGION_SCOPED_ROLES.includes(roleId)) {
+  if (ejerce(REGION_SCOPED_ROLES)) {
     const regionId = getDestRegionId(dest);
-    return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
+
+    if (Boolean(regionId) && getRegionScopeIds(user).has(regionId)) return true;
   }
 
-  if (SECTION_SCOPED_ROLES.includes(roleId)) {
+  if (ejerce(SECTION_SCOPED_ROLES)) {
     const sectionId = getDestSectionId(dest);
-    return Boolean(sectionId) && getSectionScopeIds(user).has(sectionId);
+
+    if (Boolean(sectionId) && getSectionScopeIds(user).has(sectionId)) return true;
   }
 
-  if (DEST_SCOPED_ROLES.includes(roleId)) {
+  if (ejerce(DEST_SCOPED_ROLES)) {
     const destId = getDestOwnId(dest);
-    return Boolean(destId) && getDestScopeIds(user).has(destId);
+
+    if (Boolean(destId) && getDestScopeIds(user).has(destId)) return true;
   }
 
   return false;

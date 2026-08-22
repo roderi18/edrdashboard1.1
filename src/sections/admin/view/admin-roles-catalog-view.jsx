@@ -19,6 +19,9 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -155,6 +158,15 @@ export function AdminRolesCatalogView() {
                 onClick={() => setOpenPermissionsCatalog(true)}
               >
                 Catálogo de permisos
+              </Button>
+              <Button
+                color="inherit"
+                variant="outlined"
+                component={RouterLink}
+                href={paths.dashboard.admin.combinacionesRoles}
+                startIcon={<Iconify icon="solar:users-group-two-rounded-bold" />}
+              >
+                Combinación de roles
               </Button>
             </Stack>
           }
