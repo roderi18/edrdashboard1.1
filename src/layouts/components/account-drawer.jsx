@@ -18,6 +18,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { etiquetaDeCargo, useCargosDelUsuario } from 'src/hooks/use-cargos-del-usuario';
+
 import { getAdminRoleLabel } from 'src/utils/admin-role-label';
 import {
   getRealMemberEmail,
@@ -70,6 +72,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
 
   const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user, { dests }) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
+  const cargos = useCargosDelUsuario(user);
   const accountPhotoURL = user?.photoURL || '';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
@@ -191,11 +194,24 @@ export function AccountDrawer({ data = [], sx, ...other }) {
               {accountName}
             </Typography>
 
-            {!isMemberSessionUser(user) && (
+            {!isMemberSessionUser(user) && !cargos.length && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
                 {adminRoleLabel}
               </Typography>
             )}
+
+            {/* Todos sus cargos: una persona puede ser Coordinador Asistente en
+                su destacamento y Sub Coordinador en su seccion, y ejerce los
+                dos. */}
+            {cargos.map((cargo) => (
+              <Typography
+                key={`${cargo.idPosicion}-${cargo.idEntidad}`}
+                variant="body2"
+                sx={{ color: 'text.secondary', mt: 0.5, textAlign: 'center', px: 2 }}
+              >
+                {etiquetaDeCargo(cargo)}
+              </Typography>
+            ))}
 
             {memberCode && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
