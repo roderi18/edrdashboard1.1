@@ -21,6 +21,13 @@ import { Iconify } from 'src/components/iconify';
 
 export const ETIQUETA_VACANTE = 'Vacante';
 
+// Lo que se muestra en lugar del nombre a quien mira el organigrama de un
+// destacamento que no es el suyo: que la casilla esta cubierta, sin decir por
+// quien. Tampoco se distingue de una vacante, a proposito.
+export const ETIQUETA_RESTRINGIDA = 'Miembro asignado';
+
+export const MOTIVO_RESTRINGIDO = 'Nombre restringido por pertenecer a otro destacamento.';
+
 // ----------------------------------------------------------------------
 // Tamano de la tarjeta del organigrama.
 //
@@ -57,12 +64,30 @@ export const getMemberDisplayName = (member = {}) =>
   member?.codigoMiembro ||
   '';
 
-// `miembroAsignado` es null cuando el cargo esta libre.
-export const getLeadershipNodeIdentity = (miembroAsignado) => {
+/**
+ * `miembroAsignado` es null cuando el cargo esta libre.
+ *
+ * `restringido` oculta a la persona: ni nombre ni foto. Se usa con quien mira el
+ * organigrama de otro destacamento, y da igual que la casilla este ocupada o no
+ * —se ve lo mismo en los dos casos, que es justamente el punto—.
+ */
+export const getLeadershipNodeIdentity = (miembroAsignado, { restringido = false } = {}) => {
+  if (restringido) {
+    return {
+      vacante: false,
+      restringido: true,
+      displayName: ETIQUETA_RESTRINGIDA,
+      nombreCompleto: '',
+      avisoDatosPendientes: '',
+      avatarUrl: '',
+    };
+  }
+
   const displayName = miembroAsignado ? getLeadershipShortName(miembroAsignado) : '';
 
   return {
     vacante: !displayName,
+    restringido: false,
     displayName: displayName || ETIQUETA_VACANTE,
     // El nombre completo queda en el tooltip: la tarjeta abrevia, pero saber de
     // quién se trata no debería obligar a abrir la ficha.
@@ -76,6 +101,25 @@ export const getLeadershipNodeIdentity = (miembroAsignado) => {
 };
 
 export function LeadershipNodeAvatar({ identity, size = 48 }) {
+  // Sin foto y con candado: la cara tambien identifica a la persona.
+  if (identity.restringido) {
+    return (
+      <Tooltip title={MOTIVO_RESTRINGIDO} placement="top" arrow>
+        <Avatar
+          alt={ETIQUETA_RESTRINGIDA}
+          sx={{
+            width: 1,
+            height: 1,
+            color: 'text.disabled',
+            bgcolor: 'action.selected',
+          }}
+        >
+          <Iconify icon="solar:lock-keyhole-bold" width={Math.round(size * 0.5)} />
+        </Avatar>
+      </Tooltip>
+    );
+  }
+
   if (identity.vacante) {
     return (
       <Avatar
@@ -106,6 +150,12 @@ export function LeadershipNodeName({ identity, children, mostrarAvisoDatos = fal
   // Un cargo vacante no tiene ficha que completar.
   const aviso = !identity.vacante && mostrarAvisoDatos ? identity.avisoDatosPendientes : '';
 
+  // Restringido: se ignora lo que envuelva al nombre (el enlace a la ficha) y se
+  // pinta el candado con el motivo.
+  if (identity.restringido) {
+    return renderNombre({ identity, children: null, aviso: '', other });
+  }
+
   return renderNombre({ identity, children, aviso, other });
 }
 
@@ -121,7 +171,7 @@ function renderNombre({ identity, children, aviso, other }) {
         display: 'flex',
         alignItems: 'center',
         gap: 0.5,
-        ...(identity.vacante && {
+        ...((identity.vacante || identity.restringido) && {
           fontStyle: 'italic',
           fontWeight: 'fontWeightRegular',
           color: 'text.secondary',
@@ -132,6 +182,19 @@ function renderNombre({ identity, children, aviso, other }) {
       <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {identity.vacante ? identity.displayName : (children ?? identity.displayName)}
       </Box>
+
+      {/* Candado, a la derecha del nombre oculto. */}
+      {identity.restringido && (
+        <Tooltip title={MOTIVO_RESTRINGIDO} placement="top" arrow>
+          <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+            <Iconify
+              width={16}
+              icon="solar:lock-keyhole-bold"
+              sx={{ color: 'text.disabled' }}
+            />
+          </Box>
+        </Tooltip>
+      )}
 
       {/* Aviso de ficha incompleta, a la derecha del nombre. */}
       {aviso && (

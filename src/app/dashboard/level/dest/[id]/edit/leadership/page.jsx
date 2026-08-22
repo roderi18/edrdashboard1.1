@@ -39,6 +39,10 @@ import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes'
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
+  getOwnDestIdsForUser,
+  puedeVerMiembrosDeTodaLaOrganizacion,
+} from 'src/utils/member-access';
+import {
   buildOrgIndex,
   getLeadershipScopeLabel,
   buildLeadershipMemberOptions,
@@ -510,6 +514,15 @@ const getAssignmentKey = (asignacion) =>
 
 const NIVEL_DESTACAMENTO = 'destacamento';
 
+// Las tres cabezas del destacamento: quien las ocupa se ve desde fuera, porque
+// son a quienes se acude. Del resto de las casillas, quien mira desde otro
+// destacamento solo ve que estan cubiertas.
+const CARGOS_VISIBLES_DESDE_FUERA = new Set([
+  'pastor',
+  'coordinador-destacamento',
+  'coordinador-asistente-destacamento',
+]);
+
 // Casilla del organigrama -> posicion del catalogo. Es el inverso de
 // `getOrganigramaDestSlot`, que hace el camino contrario.
 const POSICION_POR_CASILLA = new Map(
@@ -557,6 +570,7 @@ function LeadershipNode({
   onInformacionRol,
   mostrarAvisoDatos = false,
   canManage = true,
+  restringido = false,
 }) {
   const menuActions = usePopover();
   // El nodo describe el CARGO: nombre y foto los pone el ocupante, y sin
@@ -564,13 +578,13 @@ function LeadershipNode({
   const identity = getLeadershipNodeIdentity(
     miembroAsignado
       ? { ...miembroAsignado, avatarUrl: getMemberAvatar(miembroAsignado) }
-      : null
+      : null,
+    { restringido }
   );
   const displayName = identity.displayName;
   const miembroAsignadoId = getMemberId(miembroAsignado);
-  const memberProfileHref = miembroAsignadoId
-    ? `/dashboard/level/member/${miembroAsignadoId}/edit`
-    : '';
+  const memberProfileHref =
+    miembroAsignadoId && !restringido ? `/dashboard/level/member/${miembroAsignadoId}/edit` : '';
   const nodeId = id || getAssignmentKey(asignacionOrganigrama) || role || name;
   const editProps = layoutEditor?.getNodeEditProps({
     id: nodeId,
@@ -821,6 +835,14 @@ export default function Page() {
   // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
   // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
   const canManageLeadership = canManageDirectiva(user);
+  // Quien mira el organigrama de un destacamento que no es el suyo ve los cargos
+  // y quien los ocupa solo en las tres cabezas; del resto, solo que estan
+  // cubiertos. El Administrador Global y la Oficina Nacional lo ven todo.
+  const esDeOtroDestacamento =
+    !puedeVerMiembrosDeTodaLaOrganizacion(user) &&
+    !getOwnDestIdsForUser(user).has(String(params?.id ?? '').trim());
+  const cargoRestringido = (idNodo) =>
+    esDeOtroDestacamento && !CARGOS_VISIBLES_DESDE_FUERA.has(String(idNodo ?? ''));
   // El aviso de ficha incompleta solo lo ven los cargos del destacamento y los
   // administradores: para el resto es ruido sobre datos que no les toca completar.
   const mostrarAvisoDatos = puedeVerAvisoDatosPendientes(user);
@@ -1535,6 +1557,7 @@ export default function Page() {
                 layoutEditor={layoutEditor}
                 mostrarAvisoDatos={mostrarAvisoDatos}
                 canManage={canManageLeadership}
+                restringido={cargoRestringido(props?.id)}
                 miembroAsignado={getAssignedMember(props)}
                 onCambiarMiembro={handleOpenChangeMember}
                 onRemoverMiembro={handleOpenRemoveMember}
@@ -1569,6 +1592,7 @@ export default function Page() {
                       layoutEditor={layoutEditor}
                       mostrarAvisoDatos={mostrarAvisoDatos}
                       canManage={canManageLeadership}
+                      restringido={cargoRestringido(props?.id)}
                       miembroAsignado={getAssignedMember(props)}
                       onCambiarMiembro={handleOpenChangeMember}
                       onRemoverMiembro={handleOpenRemoveMember}
