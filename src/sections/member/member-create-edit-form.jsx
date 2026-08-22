@@ -138,6 +138,7 @@ import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { ContextInfo } from 'src/components/info/context-info';
+import { BotonCopiar } from 'src/components/common/boton-copiar';
 import { UnderlineLink } from 'src/components/link/underline-link';
 // form sections
 import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
@@ -2591,7 +2592,7 @@ export function MemberCreateEditForm({
                 />
               )}
               {currentMember && (
-                <Stack sx={{ mt: 3 }}>
+                <Stack sx={{ mt: 3, alignItems: 'center' }}>
                   <MemberInfoPdfMenu
                     values={values}
                     memberCode={currentMember?.memberId}
@@ -2607,9 +2608,8 @@ export function MemberCreateEditForm({
               )}
 
               {puedeRestablecerClave && (
-                <Stack sx={{ mt: 1.5, gap: 1.5 }}>
+                <Stack sx={{ mt: 1.5, gap: 1.5, alignItems: 'center' }}>
                   <Button
-                    fullWidth
                     variant="soft"
                     color="inherit"
                     disabled={generandoClave}
@@ -2620,27 +2620,30 @@ export function MemberCreateEditForm({
                   </Button>
 
                   {!!claveTemporal && (
-                    <Alert severity="success" sx={{ textAlign: 'left' }}>
-                      <Typography variant="body2" sx={{ mb: 0.5 }}>
-                        Dile esta contraseña temporal a {memberFullName || 'el miembro'}. Al entrar
-                        con ella tendrá que elegir una suya, y no podrá repetir ninguna anterior.
+                    <Alert severity="success" sx={{ width: 1, textAlign: 'left' }}>
+                      <Typography variant="body2">
+                        Contraseña temporal. Al entrar tendrá que elegir otra.
                       </Typography>
 
-                      <Typography
-                        variant="h6"
-                        sx={{ letterSpacing: 2, fontFamily: 'monospace', userSelect: 'all' }}
-                      >
-                        {claveTemporal}
-                      </Typography>
+                      <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
+                        <Typography
+                          variant="h6"
+                          sx={{ letterSpacing: 2, fontFamily: 'monospace', userSelect: 'all' }}
+                        >
+                          {claveTemporal}
+                        </Typography>
+
+                        <BotonCopiar valor={claveTemporal} titulo="Copiar contraseña" />
+                      </Box>
 
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        No se guarda en ningún sitio: si cierras esta pantalla habrá que generar
-                        otra.
+                        No se guarda: si cierras esta pantalla, genera otra.
                       </Typography>
                     </Alert>
                   )}
                 </Stack>
               )}
+
             </Card>
           </Grid>
 

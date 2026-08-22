@@ -1,11 +1,9 @@
-import { useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 
 import { Iconify } from 'src/components/iconify';
+import { BotonCopiar } from 'src/components/common/boton-copiar';
 
 /**
  * ContextInfo
@@ -20,49 +18,6 @@ import { Iconify } from 'src/components/iconify';
  * pase —no el texto de la linea—, para poder mostrar "Miembro EDR-10002" y
  * copiar solo "EDR-10002".
  */
-
-const BotonCopiar = ({ valor }) => {
-    const [copiado, setCopiado] = useState(false);
-
-    const copiar = async () => {
-        try {
-            await navigator.clipboard.writeText(String(valor));
-        } catch {
-            // Navegadores sin portapapeles (o sin permiso): se selecciona el
-            // texto en un campo oculto y se copia con el metodo de siempre.
-            const campo = document.createElement('textarea');
-
-            campo.value = String(valor);
-            campo.setAttribute('readonly', '');
-            campo.style.position = 'fixed';
-            campo.style.opacity = '0';
-            document.body.appendChild(campo);
-            campo.select();
-            document.execCommand('copy');
-            document.body.removeChild(campo);
-        }
-
-        setCopiado(true);
-        setTimeout(() => setCopiado(false), 1500);
-    };
-
-    return (
-        <Tooltip title={copiado ? 'Copiado' : 'Copiar código'} placement="top" arrow>
-            <IconButton
-                size="small"
-                onClick={copiar}
-                aria-label={`Copiar ${valor}`}
-                sx={{ p: 0.25, flexShrink: 0 }}
-            >
-                <Iconify
-                    width={16}
-                    icon={copiado ? 'solar:check-circle-bold' : 'solar:copy-bold'}
-                    sx={{ color: copiado ? 'success.main' : 'text.secondary' }}
-                />
-            </IconButton>
-        </Tooltip>
-    );
-};
 
 export function ContextInfo({ items = [] }) {
     if (!items?.length) return null;
@@ -101,7 +56,7 @@ export function ContextInfo({ items = [] }) {
                             </Tooltip>
                         )}
 
-                        {!!item.copiar && <BotonCopiar valor={item.copiar} />}
+                        {!!item.copiar && <BotonCopiar valor={item.copiar} titulo="Copiar código" />}
                     </Typography>
                 ))}
         </>
