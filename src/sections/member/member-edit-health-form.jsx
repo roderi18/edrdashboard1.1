@@ -24,6 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import {
   canViewHealth,
   isGroupLeaderRole,
+  esMiembroDeSuAlcance,
   canApproveMemberChanges,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
@@ -134,7 +135,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // Vista limitada de salud: sin `salud.ver` solo ve
     // los campos básicos permitidos; el resto (seguro, medicación, alergias,
     // condiciones y documentos) se muestra ENMASCARADO con asteriscos.
-    const limitedHealth = !canViewHealth(user);
+    // Fuera de su destacamento la Dispensa no se ve: ni las secciones ni los
+    // datos. El permiso de salud vale sobre la gente que acompaña, no sobre
+    // cualquiera de la organizacion.
+    const fueraDeSuAlcance = !esMiembroDeSuAlcance(user, currentMember);
+    const limitedHealth = fueraDeSuAlcance || !canViewHealth(user);
     const isSupervisoryViewerRole = isSupervisoryMemberViewer(user);
     // Los cargos del Consejo Nacional ven las secciones médicas normalmente,
     // pero los datos del seguro de un menor permanecen enmascarados hasta
@@ -195,10 +200,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
 
     const maskHealthInsurance =
         limitedHealth || (requiresMaskedInsuranceAccess && !accessPermission);
-    const baseHealthSections =
-        requiresTemporaryAccess || supervisoryNeedsHealthAccess
-            ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
-            : TODAS_SECCIONES_ACCESO_SALUD;
+    const baseHealthSections = fueraDeSuAlcance
+        ? EMPTY_HEALTH_SECTIONS
+        : requiresTemporaryAccess || supervisoryNeedsHealthAccess
+          ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
+          : TODAS_SECCIONES_ACCESO_SALUD;
     // El Pastor no accede a la sección de Documentos (se deshabilita/enmascara con
     // el mismo mecanismo de secciones); usa el banner de costumbre para solicitar
     // acceso al Coordinador de Destacamento.
