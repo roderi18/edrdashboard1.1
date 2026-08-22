@@ -61,7 +61,9 @@ import {
   canViewMemberSensitiveData,
   isCoordinadorDestacamentoRole,
   canViewMemberContactDataByAge,
+  filtrarMiembrosDeSuDestacamento,
   canViewMemberBirthdateWhenMasked,
+  puedeVerMiembrosDeTodaLaOrganizacion,
 } from 'src/utils/member-access';
 
 import { FIRESTORE } from 'src/lib/firebase';
@@ -384,9 +386,10 @@ export function MemberCreateEditForm({
   // EDAD ven fecha de nacimiento, teléfono y correo en texto plano (el
   // enmascarado protege a los menores). La dirección sigue enmascarada.
   const adultContactVisible = canViewMemberContactDataByAge(user, currentMember ?? {});
-  // Teléfono y correo. Se separa de `maskSensitive` (que sigue rigiendo la
-  // dirección) para poder destaparlos solo en los miembros adultos.
-  const maskContact = maskSensitive && !adultContactVisible;
+  // Telefono y correo SE MUESTRAN a quien pueda abrir la ficha: son datos de
+  // contacto, y ocultarlos obligaba a pedirlos por otro lado. Lo que se protege
+  // es donde vive la persona, que sigue enmascarado.
+  const maskContact = false;
   // La fecha de nacimiento es la única excepción al enmascarado para los cargos
   // del destacamento que la necesitan (edad y división del miembro).
   const maskBirthdate =
@@ -726,6 +729,12 @@ export function MemberCreateEditForm({
   const isOwnDestMember = Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
   const canUploadMemberPhoto =
     isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
+  // La ficha completa en PDF solo la baja quien acompaña a esa persona: los de su
+  // mismo destacamento, el Administrador Global y la Oficina Nacional.
+  const puedeDescargarInformacion =
+    puedeVerMiembrosDeTodaLaOrganizacion(user) ||
+    (Boolean(currentMember) && filtrarMiembrosDeSuDestacamento([currentMember], user).length > 0);
+
   // Restablecer la clave de otro: los coordinadores de SU destacamento y los
   // administradores. El permiso de verdad lo comprueba el servidor.
   const puedeRestablecerClave =
@@ -2628,7 +2637,7 @@ export function MemberCreateEditForm({
                   }}
                 />
               )}
-              {currentMember && (
+              {currentMember && puedeDescargarInformacion && (
                 // `stretch` con un ancho comun: los dos botones miden lo mismo
                 // sin fijarle un tamaño a ninguno, que se romperia con textos
                 // mas largos. Es el mismo patron que la ficha del destacamento.

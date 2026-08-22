@@ -33,8 +33,6 @@ export default function LocationSelect({ disabled = false, masked = false }) {
     const { watch, setValue } = useFormContext();
     const provinceId = watch('provinceId');
     const municipioId = watch('municipioId');
-    const sectorId = watch('sectorId');
-    const street = watch('street');
     const hasRegisteredValue = (value) =>
         value !== null && value !== undefined && String(value).trim() !== '';
 
@@ -91,9 +89,11 @@ export default function LocationSelect({ disabled = false, masked = false }) {
                 />
             )}
 
-            {/* MUNICIPIO */}
-            {masked && !hasRegisteredValue(municipioId) ? (
-                <EmptyReadOnlyField label="Municipio" />
+            {/* MUNICIPIO. Enmascarado SIEMPRE para quien no ve la direccion: junto
+                con el sector ubica a la persona, y decir "sin informacion" cuando
+                no hay nada tambien dice algo de ella. */}
+            {masked ? (
+                <MaskedField label="Municipio" preset="text" />
             ) : (
                 <Field.Autocomplete
                     name="municipioId"
@@ -121,11 +121,7 @@ export default function LocationSelect({ disabled = false, masked = false }) {
 
             {/* SECTOR */}
             {masked ? (
-                hasRegisteredValue(sectorId) ? (
-                    <MaskedField label="Sector" preset="text" />
-                ) : (
-                    <EmptyReadOnlyField label="Sector" />
-                )
+                <MaskedField label="Sector" preset="text" />
             ) : (
                 <Field.Autocomplete
                     name="sectorId"
@@ -152,11 +148,7 @@ export default function LocationSelect({ disabled = false, masked = false }) {
             )}
 
             {masked ? (
-                hasRegisteredValue(street) ? (
-                    <MaskedField label="Calle / Número" preset="text" />
-                ) : (
-                    <EmptyReadOnlyField label="Calle / Número" />
-                )
+                <MaskedField label="Calle / Número" preset="text" />
             ) : (
                 <NameInput
                     name="street"
