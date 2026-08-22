@@ -8,8 +8,6 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { etiquetaDeCargo, useCargosDelUsuario } from 'src/hooks/use-cargos-del-usuario';
-
 import { getRealMemberEmail, getMemberCodeForDisplay } from 'src/utils/member-access';
 
 import { CONFIG } from 'src/global-config';
@@ -26,9 +24,6 @@ export function NavUpgrade({ sx, ...other }) {
   // autenticación @exploradores.app), se muestra debajo.
   const memberCode = getMemberCodeForDisplay(user);
   const realEmail = getRealMemberEmail(user);
-  // Todos sus cargos, no solo el principal: quien es Coordinador Asistente en su
-  // destacamento y Sub Coordinador en su seccion ejerce los dos.
-  const cargos = useCargosDelUsuario(user);
 
   return (
     <Box
@@ -65,16 +60,6 @@ export function NavUpgrade({ sx, ...other }) {
           >
             {user?.displayName}
           </Typography>
-
-          {cargos.map((cargo) => (
-            <Typography
-              key={`${cargo.idPosicion}-${cargo.idEntidad}`}
-              variant="caption"
-              sx={{ display: 'block', color: 'var(--layout-nav-text-secondary-color)' }}
-            >
-              {etiquetaDeCargo(cargo)}
-            </Typography>
-          ))}
 
           {memberCode && (
             <Typography

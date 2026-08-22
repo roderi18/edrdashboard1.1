@@ -44,6 +44,7 @@ import { Searchbar } from '../components/searchbar';
 import { _workspaces } from '../nav-config-workspace';
 import { MenuButton } from '../components/menu-button';
 import { AccountDrawer } from '../components/account-drawer';
+import { CargosUsuario } from '../components/cargos-usuario';
 import { SettingsButton } from '../components/settings-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
@@ -331,6 +332,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ),
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
+          {/** @slot Cargos del usuario */}
+          <CargosUsuario />
+
           {/** @slot Searchbar */}
           <Searchbar data={navData} />
 

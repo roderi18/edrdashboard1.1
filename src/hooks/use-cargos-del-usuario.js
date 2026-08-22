@@ -14,8 +14,14 @@ import { DIRECTIVA_LEVELS } from 'src/catalogs/directiva-positions';
 // sola vez por sesion.
 // ----------------------------------------------------------------------
 
-const nombreDeDestacamento = (dest) =>
-  `${dest?.name ?? dest?.nombre ?? ''} ${dest?.destNumber ?? dest?.numero ?? ''}`.trim();
+// El destacamento se nombra por su NUMERO cuando lo tiene: es lo que lo
+// identifica y lo que la gente usa al hablar ("Dest. 18"). Solo los que no
+// tienen numero se nombran por su nombre.
+const nombreDeDestacamento = (dest) => {
+  const numero = String(dest?.destNumber ?? dest?.numero ?? '').trim();
+
+  return numero || String(dest?.name ?? dest?.nombre ?? '').trim();
+};
 
 const mismoId = (entidad, id) =>
   [entidad?.id, entidad?.idDestacamento, entidad?.idSeccion, entidad?.idRegion, entidad?.regionId]
@@ -85,9 +91,14 @@ export function useCargosDelUsuario(user) {
   return conNombre.length ? conNombre : (cargos ?? []);
 }
 
-/** "Coordinador Asistente de Destacamento Tribu de Judá 18" */
+/** "Coordinador Asistente de Dest. 18", "Sub Coordinador Seccional Este Oriental I" */
 export const etiquetaDeCargo = (cargo) =>
-  [cargo?.nombreCargo, cargo?.nombreDivision ? `(${cargo.nombreDivision})` : '', cargo?.nombreEntidad]
+  [
+    // "Destacamento" se abrevia: repetido entero se come la linea.
+    String(cargo?.nombreCargo ?? '').replace(/destacamento/gi, 'Dest.'),
+    cargo?.nombreDivision ? `(${cargo.nombreDivision})` : '',
+    cargo?.nombreEntidad,
+  ]
     .filter(Boolean)
     .join(' ')
     .trim();
