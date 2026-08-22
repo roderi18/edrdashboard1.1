@@ -195,7 +195,7 @@ export function SignUpWithoutEmail() {
       setErrorMessage(null);
       setCreatedCredential(null);
 
-      const userCode = await generateMemberId({ destId: data?.dest?.id });
+      const userCode = await generateMemberId();
       const password = generatePassword({
         firstName: data.firstName,
         birthdate: data.birthdate,
@@ -348,3 +348,4 @@ export function SignUpWithoutEmail() {
     </>
   );
 }
+

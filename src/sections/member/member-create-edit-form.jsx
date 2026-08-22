@@ -217,6 +217,30 @@ const mapCurrentMemberToHistoryPayload = (member = {}) => ({
   fechaFinCertificado: member.fechaFinCertificado || member.FechaVencimientoCI || null,
 });
 
+// Miembro que ya tiene ese correo, o null. El correo identifica a la persona
+// —sirve para recuperar la clave y para entrar—, asi que dos fichas con el mismo
+// dejarian a las dos sin forma de distinguirse.
+const buscarMiembroConCorreo = (membersList, correo, currentMemberId) => {
+  const buscado = String(correo ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (!buscado) return null;
+
+  return (
+    (Array.isArray(membersList) ? membersList : []).find((member) => {
+      const memberId = member?.idMiembros ?? member?.id;
+      const memberCorreo = String(member?.email || member?.correo || '')
+        .trim()
+        .toLowerCase();
+
+      return (
+        memberCorreo === buscado && String(memberId ?? '') !== String(currentMemberId ?? '')
+      );
+    }) || null
+  );
+};
+
 const hasDuplicatedCodigoMiembro = (membersList, codigoMiembro, currentMemberId) => {
   const normalizedCodigoMiembro = normalizeMemberUsername(codigoMiembro);
 
@@ -1680,6 +1704,29 @@ export function MemberCreateEditForm({
         });
       }
 
+      // El correo no puede repetirse: identifica a la persona para recuperar la
+      // clave y para entrar. Se comprueba ANTES de arrancar el guardado —que al
+      // editar corre por detras y ya habria cantado "actualizado"— y contra la
+      // lista recien leida, no contra la que haya en pantalla.
+      if (formData.email) {
+        const listaMiembros = await getMembers().catch(() => []);
+        const duplicado = buscarMiembroConCorreo(listaMiembros, formData.email, currentMember?.id);
+
+        if (duplicado) {
+          const nombreDuplicado =
+            `${duplicado.firstName || ''} ${duplicado.lastName || ''}`.trim() ||
+            getCodigoMiembro(duplicado) ||
+            'otro miembro';
+          const mensaje = `Ese correo ya lo usa ${nombreDuplicado}.`;
+
+          methods.setError('email', { type: 'manual', message: mensaje });
+          toast.error(mensaje);
+          setFormErrorMessage(true);
+
+          return;
+        }
+      }
+
       // GUARDADO EN SEGUNDO PLANO (solo al EDITAR).
       //
       // La escritura arranca aqui pero no se espera: la interfaz se libera a los
@@ -1696,11 +1743,9 @@ export function MemberCreateEditForm({
           const genderValue =
             typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
-          // El destacamento del formulario es `destId`: `formData.idDestacamento`
-          // no existe y llegaba siempre vacio, asi que el codigo se generaba con
-          // la provincia de reserva aunque se hubiera elegido destacamento.
-          const codigoMiembro =
-            currentMember?.memberId || (await generateMemberId({ destId: selectedDestId }));
+          // El codigo no depende del destacamento: es una sola cuenta para toda
+          // la organizacion (EDR-10001, EDR-10002...).
+          const codigoMiembro = currentMember?.memberId || (await generateMemberId());
           const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
           // Se recalcula con la fecha que se esta enviando (no con la del render),
           // para que el bloqueo de Instructor CI valga aunque acaben de cambiarla.
@@ -2890,3 +2935,4 @@ export function MemberCreateEditForm({
     </Form>
   );
 }
+

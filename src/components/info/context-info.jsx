@@ -17,8 +17,8 @@ import { Iconify } from 'src/components/iconify';
  * una ficha a medio completar.
  *
  * `copiar` pinta un boton de copiar a la derecha. Copia EXACTAMENTE lo que se le
- * pase —no el texto de la linea—, para poder mostrar "Miembro DO-SD-10002" y
- * copiar solo "DO-SD-10002".
+ * pase —no el texto de la linea—, para poder mostrar "Miembro EDR-10002" y
+ * copiar solo "EDR-10002".
  */
 
 const BotonCopiar = ({ valor }) => {

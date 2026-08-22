@@ -191,10 +191,7 @@ const mapMemberToTableRow = (member) => ({
 // ----------------------------------------------------------------------
 
 export function MemberListView() {
-  // La lista arranca en vista compacta en todos los niveles: cabe mas gente en
-  // pantalla sin tener que activarla cada vez. El interruptor sigue ahi para
-  // volver a la vista amplia.
-  const table = useTable({ defaultDense: true });
+  const table = useTable();
   const { user, loading } = useAuthContext();
   const [dests, setDests] = useState([]);
   const theme = useTheme();

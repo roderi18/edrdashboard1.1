@@ -866,11 +866,9 @@ export function MemberTableToolbar({
             throw new Error(`No existe la posición nacional "${valores.Posicion_Nacional}".`);
           }
 
-          // El codigo se genera con el destacamento delante, porque de el salen el
-          // pais y la provincia que forman el prefijo.
           const codigoMiembro =
             getCell(row, ['codigoMiembro', 'Código', 'Codigo']) ||
-            (await generateMemberId({ destId: idDestacamento, codigosReservados }));
+            (await generateMemberId({ codigosReservados }));
 
           codigosReservados.push(codigoMiembro);
 
@@ -1459,3 +1457,4 @@ export function MemberTableToolbar({
     </>
   );
 }
+

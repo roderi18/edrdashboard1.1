@@ -172,6 +172,7 @@ export function FileManagerFileDetails({
     if (!fileUploaded) return;
 
     const reader = new FileReader();
+
     reader.onload = () => {
       const certificate = {
         name: fileUploaded.name,
@@ -181,6 +182,11 @@ export function FileManagerFileDetails({
       };
 
       actions.uploadCertificate(certificate);
+      toast.success('Documento cargado exitosamente.');
+    };
+
+    reader.onerror = () => {
+      toast.error('No se pudo leer el documento. Intentalo de nuevo.');
     };
 
     reader.readAsDataURL(fileUploaded);
@@ -554,13 +560,9 @@ export function FileManagerFileDetails({
         <Box sx={{ p: 2.5 }}>
           {!readOnly && localStatus === 'completado' && !hasCertificate && (
             <>
-              <input
-                id={fileInputId}
-                type="file"
-                hidden
-                accept="application/pdf"
-                onChange={handleUploadCertificate}
-              />
+              {/* Sin `accept`: el certificado puede venir escaneado como imagen,
+                  en Word o en PDF, y el selector abria filtrado a PDF. */}
+              <input id={fileInputId} type="file" hidden onChange={handleUploadCertificate} />
 
               <Button
                 fullWidth

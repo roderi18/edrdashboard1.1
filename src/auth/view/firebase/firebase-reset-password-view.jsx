@@ -25,7 +25,7 @@ import { getErrorMessage } from '../../utils';
 
 // ----------------------------------------------------------------------
 
-const DEFAULT_PREFIX = 'DO-SD-';
+const DEFAULT_PREFIX = 'EDR-';
 
 const expectedResetErrorCodes = [
   'auth/invalid-email',

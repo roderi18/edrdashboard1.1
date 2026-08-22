@@ -14,12 +14,12 @@ export const buildMemberAuthEmail = (memberCode) => {
 };
 
 // La clave inicial es el codigo COMPLETO Y EN MAYUSCULAS, tal como se ve en la
-// ficha del miembro: "DO-SD-10002". Las claves distinguen mayusculas, asi que se
+// ficha del miembro: "EDR-10002". Las claves distinguen mayusculas, asi que se
 // teclea exactamente como esta escrito el codigo.
 //
-// Lleva el prefijo a proposito: antes se le quitaba el "do-sd-" y quedaba solo el
-// numero, pero los codigos nuevos traen cinco digitos y Firebase no acepta claves
-// de menos de seis caracteres.
+// Lleva el prefijo a proposito: antes se le quitaba y quedaba solo el numero,
+// pero los codigos traen cinco digitos y Firebase no acepta claves de menos de
+// seis caracteres.
 export const buildMemberAuthPassword = (memberCode) =>
   normalizeMemberUsername(memberCode).toUpperCase();
 
@@ -31,7 +31,7 @@ export const buildMemberAuthPasswordMinusculas = (memberCode) =>
   normalizeMemberUsername(memberCode);
 
 export const buildMemberAuthPasswordHeredada = (memberCode) =>
-  normalizeMemberUsername(memberCode).replace(/^do-sd-/i, '');
+  normalizeMemberUsername(memberCode).replace(/^[a-z]+-(?:[a-z]+-)?/i, '');
 
 // Todas las formas de la clave inicial, de la actual a la mas antigua.
 export const clavesInicialesMiembro = (memberCode) =>

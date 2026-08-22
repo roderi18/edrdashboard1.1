@@ -38,7 +38,7 @@ import { signInWithGoogle, signInWithPassword } from '../../components/context/f
 
 // ----------------------------------------------------------------------
 
-const DEFAULT_PREFIX = 'DO-SD-';
+const DEFAULT_PREFIX = 'EDR-';
 
 const SIGN_IN_STORAGE_KEYS = {
   member: 'firebase-sign-in-member',
@@ -133,7 +133,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
     if (isAdminMode) {
       setValue('loginValue', storedValue);
     } else {
-      setValue('userNumber', storedValue.replace(/^do-sd-/i, '').replace(/\D/g, ''));
+      setValue('userNumber', storedValue.replace(/\D/g, ''));
     }
 
     setValue('rememberEmail', true);
@@ -147,9 +147,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       const userNumber = String(data.userNumber || '').replace(/\D/g, '');
       const loginValue = isAdminMode ? data.loginValue.trim() : `${DEFAULT_PREFIX}${userNumber}`;
-      // El prefijo del codigo depende de la provincia de la iglesia, asi que ya no
-      // se puede componer anteponiendo "DO-SD-": se busca a quien tenga ese numero y
-      // se usa su codigo real. El compuesto queda de reserva para los antiguos.
+      // Se busca a quien tenga ese numero y se usa su codigo real; componerlo
+      // con el prefijo queda de reserva para los codigos antiguos.
       const authEmail = isAdminMode
         ? await resolveAdminSignInEmail(loginValue)
         : (await resolverCorreoDeMiembroPorNumero(userNumber)) || resolveSignInEmail(loginValue);
@@ -172,7 +171,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       // La clave se comprueba TAL CUAL se escribe: distingue mayusculas de
       // minusculas, como cualquier contraseña. La clave inicial de un miembro es
-      // su codigo en mayusculas ("DO-SD-10002").
+      // su codigo en mayusculas ("EDR-10002").
       await signInWithPassword({ email: authEmail, password: data.password });
 
       await checkUserSession?.();

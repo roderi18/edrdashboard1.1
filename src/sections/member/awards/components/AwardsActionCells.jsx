@@ -6,6 +6,8 @@ import Button from '@mui/material/Button';
 import TableCell from '@mui/material/TableCell';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
+import { toast } from 'src/components/snackbar';
+
 import { CertificateActionCell } from 'src/sections/member/awards/components/certificate/CertificateActionCell';
 import {
   StatusSelectCell,
@@ -141,10 +143,11 @@ export function AwardsActionCells({
           CERTIFICADO (BOTÓN ORIGINAL)
          ========================= */}
       <TableCell>
+        {/* Sin `accept`: el certificado puede venir escaneado como imagen, en
+            Word o en PDF, y el selector abria filtrado a PDF. */}
         <input
           id={fileInputId}
           type="file"
-          accept="application/pdf"
           hidden
           disabled={readOnly}
           onChange={(e) => {
@@ -161,6 +164,11 @@ export function AwardsActionCells({
                 fileBase64: reader.result,
                 uploadedAt: new Date().toISOString(),
               });
+              toast.success('Documento cargado exitosamente.');
+            };
+
+            reader.onerror = () => {
+              toast.error('No se pudo leer el documento. Intentalo de nuevo.');
             };
 
             reader.readAsDataURL(file);

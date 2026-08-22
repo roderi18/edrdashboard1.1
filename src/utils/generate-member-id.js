@@ -1,126 +1,45 @@
-import { getDestsApi } from 'src/services/dest-service';
 import { getMembers } from 'src/services/member-service';
-import { getChurches } from 'src/services/church-service';
-import { getRegionals } from 'src/services/regional-service';
-import { getSectionals } from 'src/services/sectional-service';
-import {
-  obtenerAbreviaturasPais,
-  obtenerAbreviaturasProvincia,
-} from 'src/services/provincias-service';
-import {
-  PRIMER_NUMERO_MIEMBRO,
-  abreviaturaDeProvincia,
-  PREFIJO_PAIS_POR_DEFECTO,
-  normalizarAbreviaturaPais,
-  PREFIJO_PROVINCIA_DESCONOCIDA,
-} from 'src/catalogs/provincias-abreviaturas';
+import { PRIMER_NUMERO_MIEMBRO } from 'src/catalogs/codigo-miembro';
 
 // ----------------------------------------------------------------------
-// Codigo de miembro: PAIS-PROVINCIA-NNNNN, cinco digitos desde 10001.
+// Codigo de miembro: EDR-NNNNN, cinco digitos desde 10001.
 //
-//   DO-SD-10001   Santo Domingo, Republica Dominicana
-//   DO-STG-10001  Santiago, misma cuenta aparte
+//   EDR-10001   primer miembro registrado
+//   EDR-10002   el siguiente, viva donde viva
 //
-// El pais va delante porque la organizacion se abrira a otros paises y entonces
-// DO-SD-10001 y PA-SD-10001 tienen que poder convivir. La numeracion es POR
-// PAIS Y PROVINCIA: cada combinacion lleva su propia cuenta.
+// UNA sola cuenta para toda la organizacion. El codigo no dice donde esta la
+// persona: es su identidad —su usuario de acceso y lo que sale en su carnet— y
+// no cambia nunca.
 //
-// `RD` era la abreviatura anterior de Republica Dominicana y esta retirada: ya
-// no se emite y los codigos `RD-SD-NNNNN` que quedan cuentan como `DO-SD` al
-// numerar, para que el siguiente no repita un numero ya usado.
+// Antes llevaba pais y provincia (`DO-SD-10001`). Se quito por dos razones: la
+// provincia cambia cuando alguien se muda, asi que el codigo decia una cosa
+// mientras su destacamento decia otra; y cada provincia numeraba por separado,
+// de modo que dos personas podian compartir el numero 10002 y, como al entrar
+// solo se teclea el numero, una de las dos no podia entrar.
 //
-// Los codigos antiguos `DO-SD-111111xxx` se ignoran a proposito. Antes se cogia
-// el mayor numero existente y se le sumaba uno, de modo que aquellos nueve
-// digitos se heredaban para siempre y el 10001 no llegaba nunca; al exigir cinco
-// digitos exactos, los viejos quedan fuera de la cuenta y no contaminan a los
-// nuevos. Tampoco pueden colisionar: tienen otra forma.
+// Los codigos antiguos de nueve digitos (`EDR-111111201`) se ignoran a
+// proposito. Antes se cogia el mayor numero existente y se le sumaba uno, de
+// modo que aquellos nueve digitos se heredaban para siempre y el 10001 no
+// llegaba nunca; al exigir cinco digitos exactos, los viejos quedan fuera de la
+// cuenta y no contaminan a los nuevos. Tampoco pueden colisionar: tienen otra
+// forma.
 // ----------------------------------------------------------------------
 
-const FORMATO_CODIGO = /^([A-Z]+)-([A-Z]+)-(\d{5})$/;
+export const PREFIJO_MIEMBRO = 'EDR';
 
-// La API de Iglesias no tiene columna de provincia: la direccion se guarda como
-// "Provincia, Municipio, Sector, Calle", asi que la provincia es el primer
-// segmento. Si la direccion no sigue ese formato no hay provincia que sacar.
-const provinciaDeDireccion = (direccion = '') => String(direccion).split(',')[0]?.trim() || '';
-
-const mismoId = (izquierda, derecha) => {
-  const a = String(izquierda ?? '').trim();
-  const b = String(derecha ?? '').trim();
-
-  return Boolean(a && b && a === b);
-};
-
-// Del destacamento al pais y la provincia: destacamento → iglesia → seccion →
-// region → pais. La provincia sale de la direccion de la iglesia; el pais, de la
-// region a la que cuelga.
-export async function resolverPrefijosDeDestacamento(destId) {
-  const porDefecto = {
-    pais: PREFIJO_PAIS_POR_DEFECTO,
-    provincia: PREFIJO_PROVINCIA_DESCONOCIDA,
-  };
-
-  if (!destId) return porDefecto;
-
-  try {
-    const [dests, iglesias, secciones, regiones, tablaProvincias, tablaPaises] = await Promise.all([
-      getDestsApi({ includePhotos: false }),
-      getChurches(),
-      getSectionals({ includePhotos: false }),
-      getRegionals({ includePhotos: false }),
-      obtenerAbreviaturasProvincia(),
-      obtenerAbreviaturasPais(),
-    ]);
-
-    const dest = (Array.isArray(dests) ? dests : []).find(
-      (candidato) => mismoId(candidato?.id, destId) || mismoId(candidato?.idDestacamento, destId)
-    );
-
-    if (!dest) return porDefecto;
-
-    const idIglesia = dest.churchId ?? dest.idIglesia;
-    const iglesia = (Array.isArray(iglesias) ? iglesias : []).find(
-      (candidata) => mismoId(candidata?.id, idIglesia) || mismoId(candidata?.idIglesia, idIglesia)
-    );
-
-    const provincia =
-      abreviaturaDeProvincia(
-        provinciaDeDireccion(iglesia?.direccion || iglesia?.address),
-        tablaProvincias
-      ) || PREFIJO_PROVINCIA_DESCONOCIDA;
-
-    const idSeccion = iglesia?.idSeccion ?? iglesia?.sectionId ?? iglesia?.sectionalId;
-    const seccion = (Array.isArray(secciones) ? secciones : []).find(
-      (candidata) => mismoId(candidata?.idSeccion, idSeccion) || mismoId(candidata?.id, idSeccion)
-    );
-
-    const idRegion = seccion?.regionalId ?? seccion?.idRegion;
-    const region = (Array.isArray(regiones) ? regiones : []).find(
-      (candidata) => mismoId(candidata?.id, idRegion) || mismoId(candidata?.idRegion, idRegion)
-    );
-
-    const idPais = region?.idPais ?? region?.countryId;
-    const pais =
-      normalizarAbreviaturaPais(tablaPaises[String(idPais)]) || PREFIJO_PAIS_POR_DEFECTO;
-
-    return { pais, provincia };
-  } catch {
-    return porDefecto;
-  }
-}
+// Se acepta cualquier prefijo al CONTAR —y la forma vieja con provincia— para
+// que un codigo sin migrar no permita repartir dos veces el mismo numero.
+const FORMATO_CODIGO = /^[A-Z]+(?:-[A-Z]+)?-(\d{5})$/;
 
 /**
  * @param {object}   opciones
- * @param {*}        opciones.destId             Destacamento del que salen pais y provincia.
  * @param {string[]} opciones.codigosReservados  Codigos ya repartidos que todavia NO estan en
  *   la lista de miembros. La carga masiva crea varias personas seguidas y la lista viene de
  *   una cache de 30 segundos —y del API, que tarda en reflejar el alta—, asi que sin esto
  *   todas las filas del mismo archivo recibian el MISMO codigo.
  */
-export async function generateMemberId({ destId = null, codigosReservados = [] } = {}) {
-  const [{ pais, provincia }, members] = await Promise.all([
-    resolverPrefijosDeDestacamento(destId),
-    getMembers().catch(() => []),
-  ]);
+export async function generateMemberId({ codigosReservados = [] } = {}) {
+  const members = await getMembers().catch(() => []);
 
   const usados = [
     ...(Array.isArray(members) ? members : []).map((miembro) =>
@@ -130,17 +49,12 @@ export async function generateMemberId({ destId = null, codigosReservados = [] }
       String(codigo || '')
     ),
   ]
-    .map((codigo) => codigo.toUpperCase())
-    .map((codigo) => codigo.match(FORMATO_CODIGO))
-    .filter(
-      (coincidencia) =>
-        coincidencia &&
-        normalizarAbreviaturaPais(coincidencia[1]) === pais &&
-        coincidencia[2] === provincia
-    )
-    .map((coincidencia) => Number(coincidencia[3]));
+    .map((codigo) => codigo.trim().toUpperCase().match(FORMATO_CODIGO))
+    .filter(Boolean)
+    .map((coincidencia) => Number(coincidencia[1]));
 
   const siguiente = usados.length ? Math.max(...usados) + 1 : PRIMER_NUMERO_MIEMBRO;
 
-  return `${pais}-${provincia}-${String(siguiente).padStart(5, '0')}`;
+  return `${PREFIJO_MIEMBRO}-${String(siguiente).padStart(5, '0')}`;
 }
+

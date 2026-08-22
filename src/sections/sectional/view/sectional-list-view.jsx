@@ -214,10 +214,7 @@ export function SectionalListView() {
     return regional?.name;
   };
 
-  // La lista arranca en vista compacta en todos los niveles: cabe mas gente en
-  // pantalla sin tener que activarla cada vez. El interruptor sigue ahi para
-  // volver a la vista amplia.
-  const table = useTable({ defaultDense: true });
+  const table = useTable();
 
   const confirmDialog = useBoolean();
 
