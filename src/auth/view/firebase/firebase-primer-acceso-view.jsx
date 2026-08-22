@@ -5,12 +5,6 @@ import { useForm } from 'react-hook-form';
 import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  updatePassword,
-  EmailAuthProvider,
-  verifyBeforeUpdateEmail,
-  reauthenticateWithCredential,
-} from 'firebase/auth';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -24,12 +18,15 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { MEMBER_AUTH_DOMAIN, clavesInicialesMiembro } from 'src/utils/member-auth-credentials';
+import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 
 import { AUTH } from 'src/lib/firebase';
 import { CONFIG } from 'src/global-config';
-import { marcarClaveCambiada } from 'src/services/primer-acceso-service';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
+import {
+  cambiarClaveMiembro,
+  guardarCorreoDeAcceso,
+} from 'src/services/primer-acceso-service';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -247,59 +244,6 @@ export function FirebasePrimerAccesoView() {
     }
 
     try {
-      // Firebase exige haber iniciado sesion hace poco para cambiar clave o
-      // correo. Se rehace con la clave inicial —la que acaba de usar para
-      // entrar— y asi no hay que pedirsela de nuevo.
-      // Se prueban todas las formas de la clave inicial: la de ahora (codigo en
-      // MAYUSCULAS) y las de las cuentas antiguas (en minusculas, y solo el
-      // numero). Es una comprobacion interna: no la teclea nadie.
-      const clavesIniciales = clavesInicialesMiembro(codigo);
-
-      for (const clave of clavesIniciales) {
-        // En serie a proposito: en cuanto una vale, no hay que probar la siguiente.
-
-        const reautenticado = await reauthenticateWithCredential(
-          usuarioAuth,
-          EmailAuthProvider.credential(usuarioAuth.email, clave)
-        ).catch(() => null);
-
-        if (reautenticado) break;
-      }
-
-      await updatePassword(usuarioAuth, datos.claveNueva);
-
-      if (datos.correo) {
-        try {
-          // `updateEmail` esta bloqueado cuando el proyecto tiene activada la
-          // proteccion contra enumeracion de correos (lo esta por defecto), y
-          // fallaba con `auth/operation-not-allowed`: de ahi el "No pudimos
-          // guardar el correo". `verifyBeforeUpdateEmail` es el camino que si
-          // admite: manda el enlace al correo nuevo y la cuenta lo adopta cuando
-          // se abre, que es justo lo que promete el texto de abajo.
-          await verifyBeforeUpdateEmail(usuarioAuth, datos.correo);
-          setAvisoCorreo(
-            `Te enviamos un correo de verificación a ${datos.correo}. Ábrelo para confirmar que es tuyo; hasta entonces sigues entrando con tu número.`
-          );
-        } catch (error) {
-          console.error('[primer acceso] no se pudo guardar el correo', error);
-
-          const motivos = {
-            'auth/email-already-in-use':
-              'Ese correo ya lo usa otra cuenta.',
-            'auth/invalid-email': 'Ese correo no parece válido.',
-            'auth/requires-recent-login':
-              'Por seguridad hay que volver a entrar antes de cambiar el correo.',
-            'auth/operation-not-allowed':
-              'El proyecto no permite cambiar el correo desde aquí.',
-            'auth/too-many-requests': 'Demasiados intentos seguidos; espera un momento.',
-          };
-
-          setAvisoCorreo(
-            `${motivos[error?.code] || 'No pudimos guardar el correo.'} Tu contraseña sí se cambió; puedes añadirlo más tarde desde tu perfil.`
-          );
-        }
-      }
-
       // Pasa por la puerta unica: cambiar la clave es un cambio de la ficha de una
       // persona y tiene que quedar en Historial como cualquier otro. Va directo
       // porque nadie tiene que aprobarle a alguien su propia contraseña.
@@ -313,11 +257,32 @@ export function FirebasePrimerAccesoView() {
         usuario: user,
         aplicarDirecto: true,
         descripcion: `${user?.displayName || codigo} cambió su contraseña en su primer acceso.`,
-        aplicar: () =>
-          marcarClaveCambiada({
-            idDocumento: String(user?.idMiembros || codigo),
-            correoPersonal: datos.correo || '',
-          }),
+        aplicar: async () => {
+          // La clave la cambia el servidor: es el unico que puede compararla con
+          // las anteriores, y asi no hay que pedirle que vuelva a entrar.
+          await cambiarClaveMiembro({ clave: datos.claveNueva });
+
+          if (!datos.correo) return;
+
+          // El correo pasa a ser el de la cuenta: desde ese momento sirve para
+          // entrar y para recuperar la clave. El numero sigue sirviendo.
+          try {
+            await guardarCorreoDeAcceso({
+              idMiembros: user?.idMiembros ?? null,
+              codigoMiembro: codigo || codigoMiembro,
+              correo: datos.correo,
+            });
+
+            setAvisoCorreo(
+              `Listo: ${datos.correo} queda como tu correo. Podrás entrar y recuperar tu contraseña con él, y tu número sigue sirviendo.`
+            );
+          } catch (errorCorreo) {
+            // La clave ya se cambio: el correo no puede tumbar el resto.
+            setAvisoCorreo(
+              `${errorCorreo.message} Tu contraseña sí se cambió; puedes añadirlo más tarde desde tu perfil.`
+            );
+          }
+        },
       });
 
       setClaveCambiada(true);
@@ -331,11 +296,12 @@ export function FirebasePrimerAccesoView() {
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage(
-        error?.code === 'auth/requires-recent-login'
-          ? 'Por seguridad, vuelve a entrar y repite el cambio.'
-          : error?.message || 'No pudimos cambiar la contraseña.'
-      );
+
+      if (error?.repetida) {
+        methods.setError('claveNueva', { type: 'manual', message: error.message });
+      }
+
+      setErrorMessage(error?.message || 'No pudimos cambiar la contraseña.');
     }
   });
 

@@ -26,6 +26,7 @@ import municipiosData from 'src/data/municipios.json';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
 import { getMembers, updateMemberApi } from 'src/services/member-service';
+import { guardarCorreoDeAcceso } from 'src/services/primer-acceso-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import {
   crearNotificacionPerfilActualizado,
@@ -566,6 +567,26 @@ export function UserAccountGeneral() {
       };
 
       await updateMemberApi(payload);
+
+      // El correo pasa a ser tambien el de la cuenta: desde ese momento sirve
+      // para entrar y para recuperar la clave.
+      const correoAnterior = String(member?.correo || member?.email || '').trim().toLowerCase();
+      const correoNuevo = String(payload.correo || '').trim().toLowerCase();
+
+      if (correoNuevo && correoNuevo !== correoAnterior) {
+        try {
+          await guardarCorreoDeAcceso({
+            idMiembros: memberId,
+            codigoMiembro: payload.codigoMiembro,
+            correo: correoNuevo,
+          });
+        } catch (errorCorreo) {
+          console.error('[user-account] no se pudo poner el correo en la cuenta', errorCorreo);
+          toast.error(
+            `${errorCorreo.message} El correo quedó guardado en tu ficha, pero todavía no sirve para iniciar sesión.`
+          );
+        }
+      }
 
       registrarCambiosHistorialMiembro({
         idMiembros: memberId,

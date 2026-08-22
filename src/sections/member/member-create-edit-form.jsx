@@ -12,6 +12,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
@@ -80,6 +81,10 @@ import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leaders
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import {
+  guardarCorreoDeAcceso,
+  generarClaveTemporalMiembro,
+} from 'src/services/primer-acceso-service';
 import {
   getMembers,
   invalidateMembersCache,
@@ -647,6 +652,11 @@ export function MemberCreateEditForm({
   // ¿Ocupa la casilla de Pastor? Solo a el se le muestra el aviso de ficha
   // incompleta.
   const [esPastor, setEsPastor] = useState(false);
+  // Clave temporal recien generada para este miembro. Se muestra una vez, para
+  // que el coordinador se la dicte; no queda guardada en ninguna parte.
+  const [claveTemporal, setClaveTemporal] = useState('');
+  const [generandoClave, setGenerandoClave] = useState(false);
+
   // Foto ya subida a Storage mientras se llenaba el formulario de alta, a la
   // espera de que exista el miembro al que colgarla.
   const fotoPendienteRef = useRef(null);
@@ -685,6 +695,10 @@ export function MemberCreateEditForm({
   const isOwnDestMember = Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
   const canUploadMemberPhoto =
     isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
+  // Restablecer la clave de otro: los coordinadores de SU destacamento y los
+  // administradores. El permiso de verdad lo comprueba el servidor.
+  const puedeRestablecerClave =
+    !isCreateView && (isGlobalOrgManager(user) || (isDestacamentoCargo && isOwnDestMember));
 
   const totalSteps = 2;
   const nextStep = () => setStep(2);
@@ -1529,6 +1543,43 @@ export function MemberCreateEditForm({
     return { file: optimizedFile || file, info };
   };
 
+  // Devolverle el acceso a un miembro que no puede entrar: se le pone una clave
+  // temporal de ocho caracteres y se le marca que debe cambiarla, asi que al
+  // entrar con ella cae en "Crea tu contraseña" y no pasa de ahi.
+  const restablecerClaveDelMiembro = async () => {
+    if (!currentMember?.id) return;
+
+    try {
+      setGenerandoClave(true);
+
+      const { clave } = await generarClaveTemporalMiembro({
+        idMiembros: currentMember.id,
+        codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+      });
+
+      setClaveTemporal(clave);
+
+      registrarCambiosHistorialMiembro({
+        idMiembro: currentMember.id,
+        codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+        nombreMiembro: memberFullName,
+        modulo: 'Información general',
+        antes: { contrasena: 'la que tenía' },
+        despues: { contrasena: 'una temporal, pendiente de cambiar' },
+        campos: { contrasena: 'Contraseña' },
+        usuario: user,
+        metadata: { origen: 'member-create-edit-form', accion: 'clave_temporal' },
+      }).catch((error) => {
+        console.error('[member form] historial de clave temporal', error);
+      });
+    } catch (error) {
+      console.error('[member form] no se pudo restablecer la clave', error);
+      toast.error(error.message || 'No se pudo restablecer la contraseña.');
+    } finally {
+      setGenerandoClave(false);
+    }
+  };
+
   const registrarHistorialFotoMiembro = ({ idMiembros, urlFoto }) => {
     registrarCambiosHistorialMiembro({
       idMiembro: idMiembros,
@@ -2048,6 +2099,26 @@ export function MemberCreateEditForm({
             }
           }
 
+          // El correo del miembro pasa a ser el de su cuenta: desde ese momento
+          // sirve para entrar y para recuperar la clave. Solo si cambio.
+          const correoAnterior = String(currentMember?.email || '').trim().toLowerCase();
+          const correoNuevo = String(formData.email || '').trim().toLowerCase();
+
+          if (correoNuevo && correoNuevo !== correoAnterior && (currentMember?.id || idCreado)) {
+            try {
+              await guardarCorreoDeAcceso({
+                idMiembros: currentMember?.id || idCreado,
+                codigoMiembro,
+                correo: correoNuevo,
+              });
+            } catch (errorCorreo) {
+              console.error('[member form] no se pudo poner el correo en la cuenta', errorCorreo);
+              toast.error(
+                `${errorCorreo.message} El correo quedó guardado en la ficha, pero todavía no sirve para iniciar sesión.`
+              );
+            }
+          }
+
           const fotoPendiente = fotoPendienteRef.current;
           const selectedPhoto = formData.avatarUrl ?? methods.getValues('avatarUrl');
 
@@ -2519,6 +2590,42 @@ export function MemberCreateEditForm({
                   }}
                 />
               )}
+              {puedeRestablecerClave && (
+                <Stack sx={{ mt: 3, gap: 1.5 }}>
+                  <Button
+                    fullWidth
+                    color="warning"
+                    variant="outlined"
+                    disabled={generandoClave}
+                    onClick={restablecerClaveDelMiembro}
+                    startIcon={<Iconify icon="solar:key-bold" />}
+                  >
+                    {generandoClave ? 'Generando…' : 'Restablecer contraseña'}
+                  </Button>
+
+                  {!!claveTemporal && (
+                    <Alert severity="success" sx={{ textAlign: 'left' }}>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        Dile esta contraseña temporal a {memberFullName || 'el miembro'}. Al entrar
+                        con ella tendrá que elegir una suya, y no podrá repetir ninguna anterior.
+                      </Typography>
+
+                      <Typography
+                        variant="h6"
+                        sx={{ letterSpacing: 2, fontFamily: 'monospace', userSelect: 'all' }}
+                      >
+                        {claveTemporal}
+                      </Typography>
+
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        No se guarda en ningún sitio: si cierras esta pantalla habrá que generar
+                        otra.
+                      </Typography>
+                    </Alert>
+                  )}
+                </Stack>
+              )}
+
               {currentMember && (
                 <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                   <MemberInfoPdfMenu
