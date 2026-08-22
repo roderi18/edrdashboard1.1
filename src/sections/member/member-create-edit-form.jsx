@@ -20,6 +20,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { useTheme, useMediaQuery } from '@mui/material';
+import LinearProgress from '@mui/material/LinearProgress';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 // routes
@@ -173,6 +174,9 @@ const getRowsFromApi = (payload) => {
 
   return [];
 };
+
+// Lo que dura en pantalla la clave temporal antes de desaparecer.
+const SEGUNDOS_CLAVE_TEMPORAL = 15;
 
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
@@ -654,9 +658,35 @@ export function MemberCreateEditForm({
   // incompleta.
   const [esPastor, setEsPastor] = useState(false);
   // Clave temporal recien generada para este miembro. Se muestra una vez, para
-  // que el coordinador se la dicte; no queda guardada en ninguna parte.
+  // que el coordinador se la copie; no queda guardada en ninguna parte.
   const [claveTemporal, setClaveTemporal] = useState('');
   const [generandoClave, setGenerandoClave] = useState(false);
+  // Lo que le queda en pantalla, en milisegundos. La barra que se vacia empuja a
+  // copiarla ahora: al agotarse desaparece y hay que generar otra.
+  const [tiempoClaveRestante, setTiempoClaveRestante] = useState(0);
+
+  useEffect(() => {
+    if (!claveTemporal) return undefined;
+
+    const finaliza = Date.now() + SEGUNDOS_CLAVE_TEMPORAL * 1000;
+
+    setTiempoClaveRestante(SEGUNDOS_CLAVE_TEMPORAL * 1000);
+
+    const reloj = setInterval(() => {
+      const restante = finaliza - Date.now();
+
+      if (restante <= 0) {
+        clearInterval(reloj);
+        setTiempoClaveRestante(0);
+        setClaveTemporal('');
+        return;
+      }
+
+      setTiempoClaveRestante(restante);
+    }, 100);
+
+    return () => clearInterval(reloj);
+  }, [claveTemporal]);
 
   // Foto ya subida a Storage mientras se llenaba el formulario de alta, a la
   // espera de que exista el miembro al que colgarla.
@@ -2630,7 +2660,8 @@ export function MemberCreateEditForm({
                   {!!claveTemporal && (
                     <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
-                        Contraseña temporal. Al entrar tendrá que elegir otra.
+                        Cópiala y entrégasela al miembro. Con ella podrá entrar una vez, y la
+                        aplicación le pedirá crear su propia contraseña.
                       </Typography>
 
                       <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
@@ -2644,9 +2675,12 @@ export function MemberCreateEditForm({
                         <BotonCopiar valor={claveTemporal} titulo="Copiar contraseña" />
                       </Box>
 
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        No se guarda: si cierras esta pantalla, genera otra.
-                      </Typography>
+                      <LinearProgress
+                        color="success"
+                        variant="determinate"
+                        value={(tiempoClaveRestante / (SEGUNDOS_CLAVE_TEMPORAL * 1000)) * 100}
+                        sx={{ mt: 1 }}
+                      />
                     </Alert>
                   )}
                 </Stack>
