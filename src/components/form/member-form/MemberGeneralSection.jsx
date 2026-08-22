@@ -1,8 +1,13 @@
-import { Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+
+import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
+
+import { getMembers } from 'src/services/member-service';
 
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
@@ -20,7 +25,42 @@ export default function MemberGeneralSection({
     // ficha enmascarada pero conservan visible la fecha (edad y division).
     maskBirthdate = masked,
     readOnly = false,
+    // Id del miembro que se esta editando, para no confundirlo consigo mismo al
+    // comprobar si su correo esta repetido.
+    memberId = null,
 }) {
+    const { setError, clearErrors } = useFormContext();
+    const [comprobandoCorreo, setComprobandoCorreo] = useState(false);
+
+    // Se comprueba al salir del campo, no solo al guardar: asi se entera antes de
+    // seguir llenando el resto de la ficha.
+    const revisarCorreoAlSalir = async (evento) => {
+        const correo = String(evento.target.value || '').trim();
+
+        clearErrors('email');
+
+        if (!correo) return;
+
+        setComprobandoCorreo(true);
+
+        try {
+            const duplicado = buscarMiembroConCorreo(
+                await getMembers().catch(() => []),
+                correo,
+                memberId
+            );
+
+            if (duplicado) {
+                setError('email', {
+                    type: 'manual',
+                    message: `Ese correo ya lo usa ${nombreDeMiembro(duplicado)}.`,
+                });
+            }
+        } finally {
+            setComprobandoCorreo(false);
+        }
+    };
+
     return (
 
         <>
@@ -115,6 +155,8 @@ export default function MemberGeneralSection({
                     name="email"
                     label="Correo electrónico"
                     disabled={readOnly}
+                    onBlur={revisarCorreoAlSalir}
+                    helperText={comprobandoCorreo ? 'Comprobando el correo…' : undefined}
                 />
             )}
         </>

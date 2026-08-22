@@ -2558,6 +2558,7 @@ export function MemberCreateEditForm({
                     masked={maskContact}
                     maskBirthdate={maskBirthdate}
                     readOnly={readOnlyEffective}
+                    memberId={currentMember?.id}
                   />
                 )}
 

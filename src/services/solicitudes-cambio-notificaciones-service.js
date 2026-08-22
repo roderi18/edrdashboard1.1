@@ -372,3 +372,93 @@ export const notificarAgregadoSistemaAscenso = async ({
 
   return enviadas;
 };
+
+// ----------------------------------------------------------------------
+// Recuperacion de clave pedida desde la pantalla de acceso.
+//
+// El miembro no tiene sesion, asi que no puede resolver el suyo: se avisa a los
+// DOS coordinadores del destacamento —titular y asistente— para que cualquiera
+// de los dos pueda ayudarle, y se devuelven sus nombres para poder decirle a
+// quien se le pidio.
+// ----------------------------------------------------------------------
+
+// "Roderi Daniel Peña Rosario" -> "Roderi Peña": primer nombre y primer apellido.
+export const nombreCortoDeMiembro = (miembro) => {
+  const primero = (texto) => String(texto ?? '').trim().split(/\s+/)[0] || '';
+  const nombre = primero(miembro?.nombres ?? miembro?.firstName);
+  const apellido = primero(miembro?.apellidos ?? miembro?.lastName);
+  const corto = [nombre, apellido].filter(Boolean).join(' ');
+
+  return corto || String(miembro?.nombreMiembro || miembro?.codigoMiembro || '').trim();
+};
+
+export const notificarCoordinadoresRecuperacionClave = async ({
+  member,
+  miembros = [],
+  onInfo,
+} = {}) => {
+  const destacamentoId = Number(member?.idDestacamento || member?.destId) || null;
+
+  if (!destacamentoId) {
+    onInfo?.('No se pudo identificar tu destacamento.');
+    return { enviadas: 0, coordinadores: [] };
+  }
+
+  const asignaciones = await obtenerCoordinadoresDestacamento(destacamentoId);
+
+  if (!asignaciones.length) {
+    onInfo?.('Tu destacamento aún no tiene coordinador asignado en la directiva.');
+    return { enviadas: 0, coordinadores: [] };
+  }
+
+  const porId = new Map(
+    (Array.isArray(miembros) ? miembros : []).map((candidato) => [
+      String(candidato?.idMiembros ?? candidato?.id),
+      candidato,
+    ])
+  );
+  const nombreMiembro = nombreCortoDeMiembro(member) || member?.codigoMiembro || 'un miembro';
+  const coordinadores = [];
+  let enviadas = 0;
+
+  await Promise.all(
+    asignaciones.map(async (asignacion) => {
+      const ficha = porId.get(String(asignacion.idMiembros));
+      const nombre =
+        nombreCortoDeMiembro(ficha) || nombreCortoDeMiembro(asignacion) || 'tu coordinador';
+
+      coordinadores.push({ idMiembros: asignacion.idMiembros, nombre, cargo: asignacion.cargo });
+
+      const idsDestinatarios = await resolverDestinatariosPorIdMiembros(asignacion.idMiembros);
+
+      if (!idsDestinatarios.length) {
+        console.warn(
+          '[recuperacion clave] coordinador sin cuenta para notificar',
+          asignacion.idMiembros
+        );
+        return;
+      }
+
+      const resultado = await crearNotificacionAdmin({
+        tipoNotificacion: 'recuperacion_clave_miembro',
+        modulo: 'miembros',
+        titulo: 'Recuperación de contraseña',
+        mensaje: `${nombreMiembro} (${member?.codigoMiembro || 'sin código'}) no puede entrar y pide ayuda para recuperar su contraseña.`,
+        prioridad: 'importante',
+        entidadTipo: 'miembro',
+        entidadId: String(member?.idMiembros || member?.id || ''),
+        ruta: member?.idMiembros
+          ? `/dashboard/level/member/${member.idMiembros}/edit`
+          : '/dashboard/level/member',
+        etiquetaAccion: 'Ayudar',
+        actorId: 'sistema',
+        actorNombre: nombreMiembro,
+        idsDestinatariosPrecalculados: idsDestinatarios,
+      });
+
+      if (resultado) enviadas += 1;
+    })
+  );
+
+  return { enviadas, coordinadores };
+};

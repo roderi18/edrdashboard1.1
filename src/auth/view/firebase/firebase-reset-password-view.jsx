@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -19,6 +18,9 @@ import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 
 import { PasswordIcon } from 'src/assets/icons';
+import {
+  notificarCoordinadoresRecuperacionClave,
+} from 'src/services/solicitudes-cambio-notificaciones-service';
 
 import { Form, Field } from 'src/components/hook-form';
 
@@ -51,7 +53,9 @@ const getRowsFromApi = (payload) => {
   return [];
 };
 
-const findMemberByUsername = async (username) => {
+// Devuelve el miembro y TODA la lista: los nombres de los coordinadores salen de
+// ahi mismo, sin pedir el listado por segunda vez.
+const buscarMiembroConLista = async (username) => {
   const normalizedUsername = normalizeMemberUsername(username);
   const res = await fetch('/api/members/');
 
@@ -59,12 +63,17 @@ const findMemberByUsername = async (username) => {
     throw new Error('No se pudo consultar la informacion del miembro.');
   }
 
-  const data = await res.json();
+  const miembros = getRowsFromApi(await res.json());
 
-  return getRowsFromApi(data).find(
-    (member) => normalizeMemberUsername(member.codigoMiembro) === normalizedUsername
-  );
+  return {
+    miembros,
+    member: miembros.find(
+      (member) => normalizeMemberUsername(member.codigoMiembro) === normalizedUsername
+    ),
+  };
 };
+
+const findMemberByUsername = async (username) => (await buscarMiembroConLista(username)).member;
 
 // ----------------------------------------------------------------------
 
@@ -151,8 +160,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         setErrorMessage(
           comprobacion?.tieneCorreoPropio
             ? 'El correo de tu ficha no es el de tu cuenta de acceso, así que el enlace no te llegaría. Pídele la recuperación a tu Coordinador con el botón de abajo.'
-            : 'Tu cuenta está configurada para iniciar sesión con tu código de miembro y no tiene un correo electrónico asociado. Por esta razón, no podemos enviarte un enlace de recuperación.
-Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
+            : 'Tu cuenta está configurada para iniciar sesión con tu código de miembro y no tiene un correo electrónico asociado. Por esta razón, no podemos enviarte un enlace de recuperación. Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
         );
         return;
       }
@@ -174,15 +182,34 @@ Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
       setErrorMessage(null);
       setSuccessMessage(null);
 
-      const member = await findMemberByUsername(getLoginValue(data));
+      const { member, miembros } = await buscarMiembroConLista(getLoginValue(data));
 
       if (!member) {
         setErrorMessage('No encontramos un miembro con ese usuario.');
         return;
       }
 
+      // Se avisa a los DOS coordinadores del destacamento: el titular y su
+      // asistente. Cualquiera de los dos puede ayudarle, y saber a quien acudir
+      // ahorra el paso de preguntar.
+      const { enviadas, coordinadores } = await notificarCoordinadoresRecuperacionClave({
+        member,
+        miembros,
+        onInfo: (aviso) => setErrorMessage(aviso),
+      });
+
+      if (!coordinadores.length) return;
+
+      const nombres = coordinadores.map((coordinador) => coordinador.nombre);
+      const listaNombres =
+        nombres.length > 1
+          ? `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+          : nombres[0];
+
       setSuccessMessage(
-        'Solicitud de recuperacion enviada. Tu coordinador recibira el aviso para ayudarte.'
+        enviadas
+          ? `Solicitud enviada a ${listaNombres}. Recibirán el aviso para ayudarte a recuperar tu contraseña.`
+          : `Tus coordinadores son ${listaNombres}, pero todavía no tienen cuenta para recibir el aviso. Contáctalos directamente.`
       );
     } catch (error) {
       console.error(error);
@@ -230,82 +257,75 @@ Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
                 Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
                 ayuda a tu coordinador cuando no tengas acceso al email registrado.
               </Typography>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                <Chip size="small" variant="outlined" label="Enlace por correo" />
-                {!isAdminMode && (
-                  <Chip size="small" variant="outlined" label="Ayuda del coordinador" />
-                )}
-                {/* <Chip size="small" variant="outlined" label="Paso a paso" /> */}
-              </Stack>
-            </Stack>
-          </Box>
+          </Stack>
+        </Box>
 
-          {isAdminMode ? (
-            <Field.Text
-              autoFocus
-              name="loginValue"
-              label="Usuario o correo electronico"
-              placeholder="admin001 o correo@correo.com"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          ) : (
-            <Field.Text
-              autoFocus
-              name="userNumber"
-              label="Código de usuario"
-              placeholder="10999"
-              slotProps={{
-                inputLabel: { shrink: true },
-                // El prefijo se pinta dentro del campo, apagado: el miembro solo
-                // escribe su numero y ve el codigo entero, como en su carnet.
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start" disableTypography>
-                      <Box component="span" sx={{ color: 'text.disabled' }}>
-                        {DEFAULT_PREFIX}
-                      </Box>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          )}
+        {isAdminMode ? (
+          <Field.Text
+            autoFocus
+            name="loginValue"
+            label="Usuario o correo electronico"
+            placeholder="admin001 o correo@correo.com"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        ) : (
+          <Field.Text
+            autoFocus
+            name="userNumber"
+            label="Código de usuario"
+            placeholder="10999"
+            slotProps={{
+              inputLabel: { shrink: true },
+              // El prefijo se pinta dentro del campo, apagado: el miembro solo
+              // escribe su numero y ve el codigo entero, como en su carnet.
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start" disableTypography>
+                    <Box component="span" sx={{ color: 'text.disabled' }}>
+                      {DEFAULT_PREFIX}
+                    </Box>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        )}
 
+        <Button
+          fullWidth
+          size="large"
+          type="button"
+          variant="contained"
+          loading={isSubmitting}
+          loadingIndicator="Enviando solicitud..."
+          onClick={handleSendEmailLink}
+          sx={{ minHeight: 54, borderRadius: 1.8 }}
+        >
+          Enviar enlace a mi correo
+        </Button>
+
+        {!isAdminMode && (
           <Button
             fullWidth
             size="large"
             type="button"
-            variant="contained"
+            color="inherit"
+            variant="outlined"
             loading={isSubmitting}
             loadingIndicator="Enviando solicitud..."
-            onClick={handleSendEmailLink}
+            onClick={handleRequestCoordinator}
             sx={{ minHeight: 54, borderRadius: 1.8 }}
           >
-            Enviar enlace a mi correo
+            Solicitar recuperacion a mi Coordinador
           </Button>
+        )}
 
-          {!isAdminMode && (
-            <Button
-              fullWidth
-              size="large"
-              type="button"
-              color="inherit"
-              variant="outlined"
-              loading={isSubmitting}
-              loadingIndicator="Enviando solicitud..."
-              onClick={handleRequestCoordinator}
-              sx={{ minHeight: 54, borderRadius: 1.8 }}
-            >
-              Solicitar recuperacion a mi Coordinador
-            </Button>
-          )}
-
-          <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
-            nuevo.
-          </Typography>
-        </Box>
-      </Form>
+        <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+          Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
+          nuevo.
+        </Typography>
+      </Box>
+    </Form >
 
       <FormReturnLink
         href={isAdminMode ? paths.auth.firebase.adminSignIn : paths.auth.firebase.signIn}

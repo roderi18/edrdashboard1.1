@@ -23,7 +23,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 import { resolveSignInEmail } from 'src/utils/member-auth-credentials';
-import { resolverCorreoDeMiembroPorNumero } from 'src/utils/member-sign-in';
+import { resolverCorreosDeMiembroPorNumero } from 'src/utils/member-sign-in';
 
 import { CONFIG } from 'src/global-config';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
@@ -147,11 +147,17 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       const userNumber = String(data.userNumber || '').replace(/\D/g, '');
       const loginValue = isAdminMode ? data.loginValue.trim() : `${DEFAULT_PREFIX}${userNumber}`;
-      // Se busca a quien tenga ese numero y se usa su codigo real; componerlo
-      // con el prefijo queda de reserva para los codigos antiguos.
-      const authEmail = isAdminMode
-        ? await resolveAdminSignInEmail(loginValue)
-        : (await resolverCorreoDeMiembroPorNumero(userNumber)) || resolveSignInEmail(loginValue);
+      // Se busca a quien tenga ese numero y se usan sus correos reales; el
+      // compuesto con el prefijo queda de reserva para los codigos antiguos.
+      const correosAProbar = isAdminMode
+        ? [await resolveAdminSignInEmail(loginValue)].filter(Boolean)
+        : [
+            ...new Set([
+              ...(await resolverCorreosDeMiembroPorNumero(userNumber)),
+              resolveSignInEmail(loginValue),
+            ]),
+          ].filter(Boolean);
+      const [authEmail] = correosAProbar;
 
       if (!authEmail) {
         throw new Error(
@@ -172,7 +178,31 @@ export function FirebaseSignInView({ mode = 'member' }) {
       // La clave se comprueba TAL CUAL se escribe: distingue mayusculas de
       // minusculas, como cualquier contraseña. La clave inicial de un miembro es
       // su codigo en mayusculas ("EDR-10002").
-      await signInWithPassword({ email: authEmail, password: data.password });
+      //
+      // Se prueban los correos que puede tener la cuenta —el interno y el
+      // personal— porque solo uno de los dos es el suyo y desde fuera no se sabe
+      // cual. El error que se muestra es el del ultimo intento.
+      let errorDeAcceso = null;
+
+      for (const correo of correosAProbar) {
+        try {
+          // En serie: cada intento depende de que el anterior fallara.
+           
+          await signInWithPassword({ email: correo, password: data.password });
+          errorDeAcceso = null;
+          break;
+        } catch (signInError) {
+          if (!expectedAuthErrorCodes.includes(signInError?.code)) {
+            throw signInError;
+          }
+
+          errorDeAcceso = signInError;
+        }
+      }
+
+      if (errorDeAcceso) {
+        throw errorDeAcceso;
+      }
 
       await checkUserSession?.();
 

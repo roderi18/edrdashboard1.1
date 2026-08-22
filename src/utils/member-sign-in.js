@@ -19,15 +19,23 @@ export const numeroDeCodigoMiembro = (codigo) => {
   return soloDigitos(partes[partes.length - 1]);
 };
 
-export async function resolverCorreoDeMiembroPorNumero(numeroEscrito) {
+/**
+ * Correos con los que ese numero puede entrar, en orden.
+ *
+ * Son dos porque la cuenta puede tener cualquiera de los dos: el interno
+ * (`<codigo>@exploradores.app`), con el que se crea, o el personal del miembro,
+ * si se registro para poder recuperar la clave por correo. Se prueban ambos y
+ * asi nadie se queda fuera mientras conviven.
+ */
+export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
   const numero = soloDigitos(numeroEscrito);
 
-  if (!numero) return '';
+  if (!numero) return [];
 
   try {
     const res = await fetch('/api/members/');
 
-    if (!res.ok) return '';
+    if (!res.ok) return [];
 
     const cuerpo = await res.json();
     const miembros = cuerpo?.data || cuerpo || [];
@@ -38,9 +46,17 @@ export async function resolverCorreoDeMiembroPorNumero(numeroEscrito) {
     );
 
     const codigo = miembro?.codigoMiembro || miembro?.memberId || '';
+    const correoPersonal = String(miembro?.correo || miembro?.email || '').trim();
+    const correoInterno = codigo ? buildMemberAuthEmail(normalizeMemberUsername(codigo)) : '';
 
-    return codigo ? buildMemberAuthEmail(normalizeMemberUsername(codigo)) : '';
+    return [correoInterno, correoPersonal].filter(Boolean);
   } catch {
-    return '';
+    return [];
   }
+}
+
+export async function resolverCorreoDeMiembroPorNumero(numeroEscrito) {
+  const [correo = ''] = await resolverCorreosDeMiembroPorNumero(numeroEscrito);
+
+  return correo;
 }
