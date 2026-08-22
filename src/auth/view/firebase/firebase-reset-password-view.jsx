@@ -126,7 +126,33 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       }
 
       if (!member.correo) {
-        setErrorMessage('Este usuario no tiene correo asignado.');
+        setErrorMessage(
+          'Este usuario no tiene correo asignado. Pídele la recuperación a tu Coordinador con el botón de abajo.'
+        );
+        return;
+      }
+
+      // El enlace de Firebase cambia la clave de la cuenta QUE TENGA ese correo.
+      // El de la ficha del miembro casi nunca es el de su cuenta —esta usa
+      // `<codigo>@exploradores.app` mientras no verifique uno propio—, y
+      // enviarlo a ciegas cambiaba la clave de OTRA persona. Se comprueba antes.
+      const comprobacion = await fetch('/api/auth/correo-recuperacion', {
+        // No cambia nada: es una consulta. Va por POST para no llevar el correo
+        // en la direccion, donde acabaria en los registros del servidor.
+        // eslint-disable-next-line no-restricted-syntax
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: loginValue, correo: member.correo }),
+      })
+        .then((respuesta) => respuesta.json())
+        .catch(() => null);
+
+      if (!comprobacion?.coincide) {
+        setErrorMessage(
+          comprobacion?.tieneCorreoPropio
+            ? 'El correo de tu ficha no es el de tu cuenta de acceso, así que el enlace no te llegaría. Pídele la recuperación a tu Coordinador con el botón de abajo.'
+            : 'Tu cuenta todavía entra con tu código, no con un correo, así que no hay dónde enviarte el enlace. Pídele la recuperación a tu Coordinador con el botón de abajo.'
+        );
         return;
       }
 
