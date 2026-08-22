@@ -33,6 +33,7 @@ export const MEDICAL_RELATIONSHIP_OPTIONS = [
     { value: 'mother', label: 'Madre' },
     { value: 'father', label: 'Padre' },
     { value: 'guardian', label: 'Tutor' },
+    { value: 'spouse', label: 'Cónyuge' },
     { value: 'other', label: 'Otro' },
 ];
 

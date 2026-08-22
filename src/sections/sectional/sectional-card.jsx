@@ -46,6 +46,9 @@ export function SectionalCard({
   // Siempre permite navegar al detalle (solo lectura si no puede gestionar).
   const editHref = sectionalId ? `/dashboard/level/sectional/${sectionalId}/edit` : '';
   const sectionalName = getSectionalName(sectional);
+  // Segundo nombre de la seccion: va debajo del principal, sin icono, como
+  // aclaracion del nombre y no como un dato mas.
+  const sectionalName2 = String(sectional?.sectionalName2 || '').trim();
   const directorName = getDirectorName(sectional);
   const regionalName = getRegionalName(sectional);
   const regionalLine =
@@ -60,6 +63,7 @@ export function SectionalCard({
       avatarUrl={getSectionalAvatar(sectional)}
       fallbackText={sectionalName}
       lines={[
+        ...(sectionalName2 ? [{ text: sectionalName2 }] : []),
         {
           icon: 'solar:user-bold',
           text: `Director ${directorName}`,

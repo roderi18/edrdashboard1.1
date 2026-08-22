@@ -7,6 +7,8 @@ import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { colocarCursor, calcularPosicionCursor } from 'src/utils/input-caret';
+
 export default function LocationSuggestInput({
     name,
     label,
@@ -172,13 +174,25 @@ export default function LocationSuggestInput({
                         }}
 
                         onChange={(e) => {
-                            const formatted = formatValue(e.target.value);
+                            const input = e.target;
+                            const escrito = input.value;
+                            const formatted = formatValue(escrito);
+                            // El texto se reescribe entero, asi que el cursor se
+                            // recoloca a mano: sin esto saltaba al final y
+                            // escribir dentro de un parentesis sacaba las letras
+                            // fuera.
+                            const posicionCursor = calcularPosicionCursor({
+                                valor: escrito,
+                                posicion: input.selectionStart,
+                                formatear: formatValue,
+                            });
 
                             setValue(name, formatted, {
                                 shouldValidate: formatted.trim().length > 0,
                             });
 
                             setSuggestion(getSuggestion(formatted));
+                            colocarCursor(input, posicionCursor);
                         }}
 
                         onKeyDown={(e) => {

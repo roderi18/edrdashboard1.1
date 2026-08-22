@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import ListSubheader from '@mui/material/ListSubheader';
 
+import { rangoDivisionRol } from 'src/catalogs/directiva-positions';
 import {
   NIVELES_DIRECTIVA,
   obtenerCargosDirectivaCached,
@@ -55,7 +56,10 @@ const sortCargos = (cargos = []) =>
 
     if (levelCompare !== 0) return levelCompare;
 
-    const divisionCompare = String(a.division || '').localeCompare(String(b.division || ''));
+    // Por edad descendente (Exploradores, Seguidores, Pioneros, Navegantes), no
+    // alfabeticamente: es el mismo orden con el que se listan las divisiones en
+    // el resto de la aplicacion.
+    const divisionCompare = rangoDivisionRol(a.division) - rangoDivisionRol(b.division);
     if (divisionCompare !== 0) return divisionCompare;
 
     return Number(a.orden || 0) - Number(b.orden || 0);

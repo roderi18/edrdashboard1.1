@@ -13,16 +13,33 @@ export const buildMemberAuthEmail = (memberCode) => {
   return username ? `${username}@${MEMBER_AUTH_DOMAIN}` : '';
 };
 
-// La clave inicial es el codigo COMPLETO, con su prefijo. Antes se le quitaba el
-// "do-sd-" y quedaba solo el numero, pero los codigos nuevos traen cinco digitos
-// (SD-10001) y Firebase no acepta claves de menos de seis caracteres: sin el
-// prefijo, ninguna cuenta nueva se podria crear.
-export const buildMemberAuthPassword = (memberCode) => normalizeMemberUsername(memberCode);
+// La clave inicial es el codigo COMPLETO Y EN MAYUSCULAS, tal como se ve en la
+// ficha del miembro: "DO-SD-10002". Las claves distinguen mayusculas, asi que se
+// teclea exactamente como esta escrito el codigo.
+//
+// Lleva el prefijo a proposito: antes se le quitaba el "do-sd-" y quedaba solo el
+// numero, pero los codigos nuevos traen cinco digitos y Firebase no acepta claves
+// de menos de seis caracteres.
+export const buildMemberAuthPassword = (memberCode) =>
+  normalizeMemberUsername(memberCode).toUpperCase();
 
-// Los codigos creados antes de ese cambio se dieron de alta con el numero suelto.
-// Sirve para reintentar cuando la clave completa no vale.
+// Formas con las que se dieron de alta las cuentas ANTERIORES a los cambios: en
+// minusculas, y antes de eso solo el numero. No se ofrecen en el formulario de
+// acceso —ahi la clave se comprueba tal cual se escribe—, pero si sirven para
+// reautenticar por dentro a quien todavia tenga una de ellas.
+export const buildMemberAuthPasswordMinusculas = (memberCode) =>
+  normalizeMemberUsername(memberCode);
+
 export const buildMemberAuthPasswordHeredada = (memberCode) =>
   normalizeMemberUsername(memberCode).replace(/^do-sd-/i, '');
+
+// Todas las formas de la clave inicial, de la actual a la mas antigua.
+export const clavesInicialesMiembro = (memberCode) =>
+  [
+    buildMemberAuthPassword(memberCode),
+    buildMemberAuthPasswordMinusculas(memberCode),
+    buildMemberAuthPasswordHeredada(memberCode),
+  ].filter((clave) => clave && clave.length >= 6);
 
 export const resolveSignInEmail = (loginValue) => {
   const value = String(loginValue ?? '').trim();

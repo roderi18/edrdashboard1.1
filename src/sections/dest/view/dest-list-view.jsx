@@ -136,7 +136,10 @@ const canModifyDest = (user, permissionCode, actionKey) => {
 
 // ----------------------------------------------------------------------
 export function DestListView() {
-  const table = useTable();
+  // La lista arranca en vista compacta en todos los niveles: cabe mas gente en
+  // pantalla sin tener que activarla cada vez. El interruptor sigue ahi para
+  // volver a la vista amplia.
+  const table = useTable({ defaultDense: true });
   const confirmDialog = useBoolean();
   const { user } = useAuthContext();
   const [sectionals, setSectionals] = useState([]);

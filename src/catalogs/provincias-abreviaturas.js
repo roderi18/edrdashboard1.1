@@ -48,17 +48,34 @@ export const ABREVIATURAS_PROVINCIA = {
 export const PREFIJO_PROVINCIA_DESCONOCIDA = 'SD';
 
 // El codigo empieza por el pais: hoy solo hay Republica Dominicana, pero la
-// organizacion se abrira a otros y entonces RD-SD-10001 y PA-SD-10001 tienen que
+// organizacion se abrira a otros y entonces DO-SD-10001 y PA-SD-10001 tienen que
 // poder convivir. Se guarda como dato, no fijo en el codigo.
 //
-// La abreviatura NO es el codigo ISO: la Republica Dominicana es "DO" en ISO y
-// aqui se escribe RD, que es como se la nombra. Por eso hay tabla propia; para
-// los paises que no esten, sirve el ISO que devuelve la API.
+// La abreviatura sigue el codigo ISO del pais (Republica Dominicana = DO). Hay
+// tabla propia por si algun pais necesita otra; para los que no esten, sirve el
+// ISO que devuelve la API.
 export const ABREVIATURAS_PAIS = {
-  1: 'RD',
+  1: 'DO',
 };
 
-export const PREFIJO_PAIS_POR_DEFECTO = 'RD';
+export const PREFIJO_PAIS_POR_DEFECTO = 'DO';
+
+// `RD` fue la abreviatura inicial de Republica Dominicana y ya no se usa. La
+// tabla viva esta en Firestore, asi que puede seguir trayendola durante un
+// tiempo: se traduce al leerla, para que ninguna fuente vuelva a emitir codigos
+// `RD-`. Los codigos ya emitidos NO se renombran (son el usuario de acceso del
+// miembro), pero cuentan como DO al numerar: ver `generateMemberId`.
+export const ABREVIATURAS_PAIS_OBSOLETAS = {
+  RD: 'DO',
+};
+
+export const normalizarAbreviaturaPais = (abreviatura) => {
+  const valor = String(abreviatura ?? '')
+    .trim()
+    .toUpperCase();
+
+  return ABREVIATURAS_PAIS_OBSOLETAS[valor] || valor;
+};
 
 export const PRIMER_NUMERO_MIEMBRO = 10001;
 

@@ -38,6 +38,8 @@ import {
 import { getDestsApi } from 'src/services/dest-service';
 import { invalidateMembersCache } from 'src/services/member-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { crearNotificacionCuentaCreada } from 'src/services/notification-service';
+import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { guardarAsignacionDirectiva } from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
@@ -48,6 +50,7 @@ import { ExcelUploadResultDialog } from 'src/components/excel-upload-result-dial
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 import {
+  buildMemberUploadAddress,
   normalizeMemberUploadPhone,
   formatMemberUploadBirthDate,
 } from 'src/sections/member/utils/member-upload-normalizers';
@@ -104,13 +107,6 @@ const getApiMessage = (payload) => {
   }
 
   return payload.Message || payload.message || payload.error || payload.title || '';
-};
-
-const getMemberCodeNumber = (member) => {
-  const code = member.codigoMiembro || member.memberCode || member.memberId || member.code || '';
-  const match = String(code).match(/DO-SD-(\d+)/i);
-
-  return match ? Number(match[1]) : 0;
 };
 
 const DEFAULT_DOWNLOAD_FILTERS = {
@@ -279,41 +275,6 @@ const nombreDestacamentoConNumero = (member = {}) => {
   return [nombre, numero].filter(Boolean).join(' ').trim() || String(member.idDestacamento || '');
 };
 
-// El nombre viene en UNA columna y hay que partirlo. No hay regla que acierte
-// siempre —"Juan Ramón Corporán" son dos nombres y un apellido, y "Rafael Quezada
-// de León" es uno y dos—, asi que se parte por la mitad y las particulas ("de",
-// "del", "la") se pegan a lo que sigue. Quien necesite exactitud puede añadir
-// columnas Nombres y Apellidos, que mandan sobre esto.
-const PARTICULAS_DE_APELLIDO = ['de', 'del', 'la', 'las', 'los', 'y', 'san', 'santa'];
-
-const partirNombreCompleto = (completo) => {
-  const piezas = String(completo || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (!piezas.length) return { nombres: '', apellidos: '' };
-  if (piezas.length === 1) return { nombres: piezas[0], apellidos: '' };
-
-  const unidas = [];
-
-  for (let i = 0; i < piezas.length; i += 1) {
-    if (PARTICULAS_DE_APELLIDO.includes(normalizeTextValue(piezas[i])) && piezas[i + 1]) {
-      unidas.push(`${piezas[i]} ${piezas[i + 1]}`);
-      i += 1;
-    } else {
-      unidas.push(piezas[i]);
-    }
-  }
-
-  const corte = Math.ceil(unidas.length / 2);
-
-  return {
-    nombres: unidas.slice(0, corte).join(' '),
-    apellidos: unidas.slice(corte).join(' '),
-  };
-};
-
 // Del texto del cargo al cargo del catalogo. Se compara sin acentos ni
 // mayusculas, y se acepta tanto "Líder de Grupo" como "Líder de Grupo
 // (Exploradores)", que es como sale al descargar.
@@ -343,9 +304,14 @@ const buscarPosicionDirectiva = (nivel, texto) => {
 // abria la puerta a que el archivo dijera una cosa y la base de datos otra.
 const CABECERAS_MIEMBROS = [
   'Nombre',
+  'Apellido',
   'Fecha_Nacimiento',
   'Teléfono',
   'Correo',
+  'Provincia',
+  'Municipio',
+  'Sector',
+  'Calle / número',
   'Destacamento',
   'Posición_Destacamento',
   'Posición_Nacional',
@@ -353,17 +319,39 @@ const CABECERAS_MIEMBROS = [
   'Sexo',
 ];
 
-const filaDeMiembro = (member) => [
-  member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
-  member.birthdate || member.fechaNacimiento || '',
-  member.phoneNumber || '',
-  member.email || '',
-  nombreDestacamentoConNumero(member),
-  member.destLeadershipPosition || '',
-  member.nationalLeadershipPosition || '',
-  member.sizeCamisas || member.shirtSize || '',
-  member.gender || member.genero || '',
-];
+const getMemberAddressColumns = (member = {}) => {
+  const addressParts = String(member.memberAddress || member.direccion || '')
+    .split(',')
+    .map((part) => part.trim());
+
+  return [
+    member.provinceName || member.provincia || addressParts[0] || '',
+    member.municipalityName || member.municipio || addressParts[1] || '',
+    member.sectorName || member.sector || addressParts[2] || '',
+    member.street || member.calle || addressParts.slice(3).join(', ') || '',
+  ];
+};
+
+const filaDeMiembro = (member) => {
+  const [province, municipality, sector, streetAndNumber] = getMemberAddressColumns(member);
+
+  return [
+    member.firstName || member.nombres || '',
+    member.lastName || member.apellidos || '',
+    member.birthdate || member.fechaNacimiento || '',
+    member.phoneNumber || '',
+    member.email || '',
+    province,
+    municipality,
+    sector,
+    streetAndNumber,
+    nombreDestacamentoConNumero(member),
+    member.destLeadershipPosition || '',
+    member.nationalLeadershipPosition || '',
+    member.sizeCamisas || member.shirtSize || '',
+    member.gender || member.genero || '',
+  ];
+};
 
 const downloadMembersCsv = (membersToDownload) => {
   descargarCsvPipe({
@@ -737,6 +725,11 @@ export function MemberTableToolbar({
 
     try {
       const listaDests = await getDestsApi({ includePhotos: false }).catch(() => []);
+      // Codigos repartidos en ESTA carga. La lista de miembros se cachea 30
+      // segundos y el API tarda en devolver al recien creado, asi que sin
+      // llevarlos aparte todas las filas del archivo recibian el mismo codigo:
+      // el segundo miembro en adelante entraba con un codigo ya ocupado.
+      const codigosReservados = [];
 
       const result = await uploadExcelRows({
         file,
@@ -754,54 +747,87 @@ export function MemberTableToolbar({
           // viniera de un Excel se rechazaba con "could not be converted to String".
           const leer = (indice, claves) => String(leerValor(indice, claves) ?? '').trim();
 
-          const nombre = leer(0, ['Nombre', 'nombre', 'Nombre completo']);
+          const nombre = leer(0, ['Nombre', 'nombre', 'Nombres', 'nombres']);
+          const apellido = leer(1, ['Apellido', 'apellido', 'Apellidos', 'apellidos']);
+          const nombreCompleto = `${nombre} ${apellido}`.trim();
           let fechaNacimiento = '';
           let telefono = '';
 
           try {
             fechaNacimiento = formatMemberUploadBirthDate(
-              leerValor(1, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
+              leerValor(2, ['Fecha_Nacimiento', 'fechaNacimiento', 'Fecha nacimiento', 'birthdate'])
             );
           } catch (error) {
             throw new Error(
-              `Fecha_Nacimiento inválida para "${nombre || 'miembro sin nombre'}": ${error.message}`
+              `Fecha_Nacimiento inválida para "${nombreCompleto || 'miembro sin nombre'}": ${error.message}`
             );
           }
 
           try {
             telefono = normalizeMemberUploadPhone(
-              leerValor(2, ['Teléfono', 'telefono', 'Telefono'])
+              leerValor(3, ['Teléfono', 'telefono', 'Telefono'])
             );
           } catch (error) {
             throw new Error(
-              `Teléfono inválido para "${nombre || 'miembro sin nombre'}": ${error.message}`
+              `Teléfono inválido para "${nombreCompleto || 'miembro sin nombre'}": ${error.message}`
             );
           }
 
           const valores = {
             Nombre: nombre,
+            Apellido: apellido,
             Fecha_Nacimiento: fechaNacimiento,
             Teléfono: telefono,
-            Correo: leer(3, ['Correo', 'correo']),
-            Destacamento: leer(4, ['Destacamento', 'destacamento']),
-            Posicion_Destacamento: leer(5, [
+            Correo: leer(4, ['Correo', 'correo']),
+            Provincia: leer(5, ['Provincia', 'provincia']),
+            Municipio: leer(6, ['Municipio', 'municipio']),
+            Sector: leer(7, ['Sector', 'sector']),
+            Calle_Numero: leer(8, [
+              'Calle / número',
+              'Calle / Numero',
+              'Calle / Número',
+              'Calle_Numero',
+              'Calle',
+              'calle',
+            ]),
+            Destacamento: leer(9, ['Destacamento', 'destacamento']),
+            Posicion_Destacamento: leer(10, [
               'Posición_Destacamento',
               'Posicion_Destacamento',
               'Posición en destacamento',
             ]),
-            Posicion_Nacional: leer(6, [
+            Posicion_Nacional: leer(11, [
               'Posición_Nacional',
               'Posicion_Nacional',
               'Posición nacional',
             ]),
-            'Size_T-Shirt': leer(7, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
-            Sexo: leer(8, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
+            'Size_T-Shirt': leer(12, ['Size_T-Shirt', 'sizeCamisas', 'Talla']),
+            Sexo: leer(13, ['Sexo', 'sexo', 'genero', 'Género', 'Genero']),
           };
 
-          // Obligatorios solo los dos que identifican a la persona y la colocan. Con
+          const direccionAnterior = String(
+            getCell(row, ['Dirección', 'direccion', 'Direccion']) ?? ''
+          ).trim();
+          let direccion = '';
+
+          try {
+            direccion = buildMemberUploadAddress({
+              province: valores.Provincia,
+              municipality: valores.Municipio,
+              sector: valores.Sector,
+              streetAndNumber: valores.Calle_Numero,
+              legacyAddress: direccionAnterior,
+            });
+          } catch (error) {
+            throw new Error(
+              `Dirección inválida para "${nombreCompleto || 'miembro sin nombre'}": ${error.message}`
+            );
+          }
+
+          // Obligatorios solo los tres que identifican a la persona y la colocan. Con
           // todo obligatorio se rechazaba el archivo entero, porque casi nadie tiene
           // aun fecha de nacimiento ni correo registrados.
-          const faltantes = ['Nombre', 'Destacamento'].filter(
+          const faltantes = ['Nombre', 'Apellido', 'Destacamento'].filter(
             (columna) => !String(valores[columna] ?? '').trim()
           );
 
@@ -809,15 +835,8 @@ export function MemberTableToolbar({
             throw new Error(`Faltan: ${faltantes.join(', ')}.`);
           }
 
-          const nombresSueltos = getCell(row, ['Nombres', 'nombres']);
-          const apellidosSueltos = getCell(row, ['Apellidos', 'apellidos', 'Apellido']);
-          const partido = partirNombreCompleto(valores.Nombre);
-          const nombres = nombresSueltos || partido.nombres;
-          const apellidos = apellidosSueltos || partido.apellidos;
-
-          if (!apellidos) {
-            throw new Error(`"${valores.Nombre}" no trae apellido.`);
-          }
+          const nombres = valores.Nombre;
+          const apellidos = valores.Apellido;
 
           const destEncontrado = buscarDestacamentoPorNombre(listaDests, valores.Destacamento);
           const idDestacamento =
@@ -851,7 +870,9 @@ export function MemberTableToolbar({
           // pais y la provincia que forman el prefijo.
           const codigoMiembro =
             getCell(row, ['codigoMiembro', 'Código', 'Codigo']) ||
-            (await generateMemberId({ destId: idDestacamento }));
+            (await generateMemberId({ destId: idDestacamento, codigosReservados }));
+
+          codigosReservados.push(codigoMiembro);
 
           const res = await fetch('/api/members/post', {
             method: 'POST',
@@ -868,7 +889,7 @@ export function MemberTableToolbar({
               fechaNacimiento: valores.Fecha_Nacimiento || null,
               idDestacamento,
               telefono: valores['Teléfono'] || null,
-              direccion: getCell(row, ['Dirección', 'direccion', 'Direccion']),
+              direccion: direccion || null,
               correo: valores.Correo || null,
               sizeCamisas: valores['Size_T-Shirt'] || null,
               idCargoLocal: Number(getCell(row, ['idCargoLocal'])) || null,
@@ -955,6 +976,41 @@ export function MemberTableToolbar({
               nombreMiembro: `${nombres} ${apellidos}`.trim(),
               codigoMiembro,
               usuario: user,
+            });
+          }
+
+          let authCredentials = null;
+
+          try {
+            authCredentials = await createFirebaseAuthForMember({
+              codigoMiembro,
+              firstName: nombres,
+              lastName: apellidos,
+              destId: idDestacamento,
+              memberId: idCreado,
+            });
+          } catch (authError) {
+            if (authError?.code === 'auth/email-already-in-use') {
+              console.warn('[member upload] firebase auth user already exists', authError);
+            } else {
+              throw new Error(
+                `El miembro se creó, pero no se pudo crear su cuenta de acceso: ${authError?.message || 'error desconocido'}`
+              );
+            }
+          }
+
+          if (authCredentials) {
+            crearNotificacionCuentaCreada({
+              cuenta: {
+                idMiembros: idCreado,
+                codigoMiembro,
+                uid: authCredentials.uid,
+                displayName: `${nombres} ${apellidos}`.trim(),
+                email: authCredentials.emailFake,
+              },
+              usuario: user,
+            }).catch((notificationError) => {
+              console.error('[member upload] account notification failed', notificationError);
             });
           }
         },

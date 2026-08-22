@@ -5,9 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import { getApp, deleteApp, initializeApp } from 'firebase/app';
-import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, where, query, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, where, query, getDoc, getDocs, collection } from 'firebase/firestore';
 
 // mui
 import Box from '@mui/material/Box';
@@ -29,42 +27,40 @@ import { useRouter } from 'src/routes/hooks';
 
 // utils
 import { EDAD_MAYORIA } from 'src/utils/member-age';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { isGlobalOrgManager } from 'src/utils/org-level-access';
 // services
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
+import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
-import {
-  getAvisoDatosPendientes,
-  puedeVerAvisoDatosPendientes,
-} from 'src/utils/member-datos-pendientes';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
   calcularDiasRestantesCI,
 } from 'src/utils/ci-utils';
 import {
-  buildMemberAuthEmail,
-  buildMemberAuthPassword,
-  normalizeMemberUsername,
-} from 'src/utils/member-auth-credentials';
+  getAvisoDatosPendientes,
+  puedeVerAvisoDatosPendientes,
+} from 'src/utils/member-datos-pendientes';
+import {
+  subirFotoEntidad,
+  subirFotoMiembroPendiente,
+  registrarFotoEntidadSubida,
+} from 'src/utils/firebase-photos';
 import {
   getOwnDestIdsForUser,
   canApproveMemberChanges,
   puedeEditarSuPropiaFicha,
   isDestacamentoApprovalRole,
   canViewMemberSensitiveData,
-  buildDefaultMemberPermissions,
   isCoordinadorDestacamentoRole,
   canViewMemberContactDataByAge,
   canViewMemberBirthdateWhenMasked,
 } from 'src/utils/member-access';
 
-import { CONFIG } from 'src/global-config';
 import { FIRESTORE } from 'src/lib/firebase';
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
@@ -81,6 +77,7 @@ import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
+import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
 import {
   getMembers,
@@ -153,114 +150,12 @@ import {
 } from './member-change-request-fields';
 // ----------------------------------------------------------------------
 
-const MEMBER_AUTH_APP_NAME = 'member-auth-provisioning';
 const MEMBER_PHOTO_OPTIMIZE_OPTIONS = {
   maxWidth: 900,
   maxHeight: 900,
   quality: 0.82,
   mimeType: 'image/webp',
   maxSizeBytes: 320000,
-};
-
-const createSecondaryAuth = () => {
-  try {
-    return getAuth(getApp(MEMBER_AUTH_APP_NAME));
-  } catch {
-    return getAuth(initializeApp(CONFIG.firebase, MEMBER_AUTH_APP_NAME));
-  }
-};
-
-const withTimeout = (promise, milliseconds, errorMessage) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(errorMessage)), milliseconds);
-    }),
-  ]);
-
-const createFirebaseAuthForMember = async ({
-  codigoMiembro,
-  firstName,
-  lastName,
-  destId,
-  memberId,
-}) => {
-  let secondaryAuth = null;
-
-  try {
-    const username = normalizeMemberUsername(codigoMiembro);
-    const emailFake = buildMemberAuthEmail(username);
-    const password = buildMemberAuthPassword(username);
-    const displayName = `${firstName} ${lastName}`.trim() || codigoMiembro;
-
-    secondaryAuth = createSecondaryAuth();
-
-    const credential = await createUserWithEmailAndPassword(secondaryAuth, emailFake, password);
-
-    Promise.allSettled([
-      withTimeout(
-        updateProfile(credential.user, { displayName }),
-        5000,
-        'No se pudo actualizar el nombre del usuario Firebase.'
-      ),
-      withTimeout(
-        setDoc(doc(collection(FIRESTORE, 'users'), credential.user.uid), {
-          uid: credential.user.uid,
-          email: emailFake,
-          username,
-          codigoMiembro,
-          displayName,
-          firstName,
-          lastName,
-          idDestacamento: destId ? Number(destId) : null,
-          authMode: 'member-code',
-          createdAt: new Date().toISOString(),
-        }),
-        5000,
-        'No se pudo guardar el perfil extra del usuario Firebase.'
-      ),
-      withTimeout(
-        setDoc(doc(collection(FIRESTORE, 'usuarios_roles'), String(memberId || codigoMiembro)), {
-          idMiembros: memberId ? Number(memberId) : null,
-          codigoMiembro,
-          uid: credential.user.uid,
-          correo: emailFake,
-          nombre: displayName,
-          rol: 'miembro',
-          estado: 'activo',
-          // La clave inicial se deduce del codigo, asi que la sabe cualquiera que lo
-          // vea: no es un secreto, es un pase de un solo uso. Hasta que la cambie, la
-          // sesion no le deja pasar del formulario de cambio.
-          debeCambiarClave: true,
-          alcance: {
-            modo: 'destacamento',
-            destacamentos: destId ? [Number(destId)] : [],
-            regiones: [],
-            secciones: [],
-          },
-          permisos: {
-            ...buildDefaultMemberPermissions(),
-          },
-          creadoEn: new Date().toISOString(),
-          actualizadoEn: new Date().toISOString(),
-        }),
-        5000,
-        'No se pudo guardar los permisos base del miembro.'
-      ),
-    ]).then((results) => {
-      results
-        .filter((result) => result.status === 'rejected')
-        .forEach((result) =>
-          console.warn('[member form] firebase profile task failed', result.reason)
-        );
-    });
-
-    return { uid: credential.user.uid, emailFake, username, password };
-  } finally {
-    if (secondaryAuth?.app) {
-      deleteApp(secondaryAuth.app).catch(() => { });
-    }
-  }
 };
 
 const getRowsFromApi = (payload) => {
@@ -551,9 +446,9 @@ export function MemberCreateEditForm({
       // Los docs de usuarios_roles suelen llavearse por el idMiembros: lectura
       // directa como respaldo si el campo se guardo como texto.
       (async () => {
-        const directo = await getDoc(
-          doc(FIRESTORE, 'usuarios_roles', String(idMiembros))
-        ).catch(() => null);
+        const directo = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(idMiembros))).catch(
+          () => null
+        );
 
         if (directo?.exists()) {
           agregarDesdeData(directo);
@@ -751,6 +646,9 @@ export function MemberCreateEditForm({
   // ¿Ocupa la casilla de Pastor? Solo a el se le muestra el aviso de ficha
   // incompleta.
   const [esPastor, setEsPastor] = useState(false);
+  // Foto ya subida a Storage mientras se llenaba el formulario de alta, a la
+  // espera de que exista el miembro al que colgarla.
+  const fotoPendienteRef = useRef(null);
   const lastCalculatedBirthdateRef = useRef('');
   const skippedInitialDivisionFetchRef = useRef(false);
 
@@ -783,8 +681,7 @@ export function MemberCreateEditForm({
   const isDestacamentoCargo =
     isCoordinadorDestacamentoRole(user) || isDestacamentoApprovalRole(user);
   const memberDestId = String(currentMember?.destId ?? currentMember?.idDestacamento ?? '').trim();
-  const isOwnDestMember =
-    Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
+  const isOwnDestMember = Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
   const canUploadMemberPhoto =
     isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
 
@@ -977,7 +874,9 @@ export function MemberCreateEditForm({
         : currentMember?.dateOfBirth
           ? dayjs(currentMember.dateOfBirth).format('YYYY-MM-DD')
           : '';
-    const hasCurrentDivisionData = Boolean(currentMember?.idDivision || currentMember?.memberDivision);
+    const hasCurrentDivisionData = Boolean(
+      currentMember?.idDivision || currentMember?.memberDivision
+    );
 
     if (
       !skippedInitialDivisionFetchRef.current &&
@@ -1474,14 +1373,31 @@ export function MemberCreateEditForm({
       return null;
     }
 
-    const miembros = await getMembers().catch(() => []);
-    const ocupante = miembros.find(
-      (item) => String(item?.id ?? item?.idMiembros ?? '') === String(idOcupante)
-    );
+    // El aviso nombra a la persona: un "#322" no le dice nada a quien tiene que
+    // decidir si la desplaza. Si la lista en cache es vieja y no la trae, se
+    // vuelve a leer; y si aun asi no aparece o no tiene nombre, se dice "otro
+    // miembro" antes que ensenar el numero interno.
+    const buscarOcupanteEnLista = (lista) =>
+      (Array.isArray(lista) ? lista : []).find(
+        (item) => String(item?.id ?? item?.idMiembros ?? '') === String(idOcupante)
+      );
+
+    let ocupante = buscarOcupanteEnLista(await getMembers().catch(() => []));
+
+    if (!ocupante) {
+      invalidateMembersCache();
+      ocupante = buscarOcupanteEnLista(await getMembers().catch(() => []));
+    }
+
+    const nombreOcupante =
+      getMemberFullName(ocupante) ||
+      ocupante?.memberId ||
+      ocupante?.codigoMiembro ||
+      'otro miembro';
 
     return {
       idMiembros: idOcupante,
-      nombre: ocupante ? getMemberFullName(ocupante) : `el miembro #${idOcupante}`,
+      nombre: nombreOcupante,
       cargoLabel: cargo.nombreCargo || cargo.nombre || 'este cargo',
       division: cargo.nombreDivision || '',
       ambito: AMBITO_CARGO_UNICO_POR_NIVEL[cargo.nivel],
@@ -1612,6 +1528,25 @@ export function MemberCreateEditForm({
     return { file: optimizedFile || file, info };
   };
 
+  const registrarHistorialFotoMiembro = ({ idMiembros, urlFoto }) => {
+    registrarCambiosHistorialMiembro({
+      idMiembro: idMiembros,
+      codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+      nombreMiembro: memberFullName,
+      modulo: 'Información general',
+      antes: { fotoPerfil: currentMember?.avatarUrl || '' },
+      despues: { fotoPerfil: urlFoto || '' },
+      campos: { fotoPerfil: 'Foto de perfil' },
+      usuario: user,
+      metadata: {
+        origen: 'member-create-edit-form',
+        accion: 'foto_perfil',
+      },
+    }).catch((historyError) => {
+      console.error('[member form] member photo history failed', historyError);
+    });
+  };
+
   const uploadMemberPhoto = async ({ file, idMiembros, showSuccess = true }) => {
     if (!file || !(file instanceof File)) {
       return null;
@@ -1631,22 +1566,7 @@ export function MemberCreateEditForm({
       subidoPor: user?.uid || user?.id || null,
     });
 
-    registrarCambiosHistorialMiembro({
-      idMiembro: idMiembros,
-      codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
-      nombreMiembro: memberFullName,
-      modulo: 'Información general',
-      antes: { fotoPerfil: currentMember?.avatarUrl || '' },
-      despues: { fotoPerfil: photo.urlFoto || '' },
-      campos: { fotoPerfil: 'Foto de perfil' },
-      usuario: user,
-      metadata: {
-        origen: 'member-create-edit-form',
-        accion: 'foto_perfil',
-      },
-    }).catch((historyError) => {
-      console.error('[member form] member photo history failed', historyError);
-    });
+    registrarHistorialFotoMiembro({ idMiembros, urlFoto: photo.urlFoto });
 
     if (showSuccess) {
       toast.success(getImageOptimizationMessage(info));
@@ -1669,9 +1589,30 @@ export function MemberCreateEditForm({
     try {
       setUploadingPhoto(true);
 
+      // ALTA: la persona todavia no tiene id, pero la imagen no tiene por que
+      // esperar. Se sube en cuanto se elige —mientras se termina de llenar el
+      // formulario— bajo un id provisional, y al guardar solo queda apuntarla al
+      // miembro recien creado. Antes se guardaba el archivo en el formulario y
+      // toda la subida ocurria DESPUES de pulsar Guardar, que es lo que hacia
+      // larga la espera.
       if (!currentMember || !idMiembros) {
-        const { file: optimizedFile } = await optimizeMemberPhoto(file);
-        return optimizedFile;
+        const { file: optimizedFile, info } = await optimizeMemberPhoto(file);
+        const pendiente = await subirFotoMiembroPendiente({
+          file: optimizedFile,
+          subidoPor: user?.uid || user?.id || null,
+        });
+
+        fotoPendienteRef.current = {
+          rutaArchivo: pendiente.rutaArchivo,
+          urlFoto: pendiente.urlFoto,
+          optimizationInfo: info,
+        };
+
+        toast.success(getImageOptimizationMessage(info));
+
+        // Se devuelve la URL ya subida: el avatar se pinta desde Storage, igual
+        // que al editar, y no desde un archivo en memoria.
+        return pendiente.urlFoto;
       }
 
       const result = await uploadMemberPhoto({
@@ -1727,14 +1668,13 @@ export function MemberCreateEditForm({
 
       for (const ocupante of ocupantes) {
         // En serie: cada aviso espera la decisión del anterior.
-         
+
         const confirmado = await pedirConfirmacionDeReemplazo(ocupante);
 
         if (!confirmado) {
           return;
         }
 
-         
         await retirarPosicionAlOcupante(ocupante).catch((error) => {
           console.warn('[member form] no se pudo retirar la posición al ocupante', error);
         });
@@ -1750,385 +1690,417 @@ export function MemberCreateEditForm({
       // del usuario de acceso y las notificaciones, y soltar la pantalla a medias
       // dejaria al miembro sin cuenta y al usuario en otra pagina sin saberlo.
       const tareaGuardado = (async () => {
-      try {
-        const submittedFirstName = formData.firstName;
-        const submittedLastName = formData.lastName;
-        const genderValue =
-          typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
-
-        const codigoMiembro =
-          currentMember?.memberId ||
-          (await generateMemberId({ destId: formData.idDestacamento }));
-        const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
-        // Se recalcula con la fecha que se esta enviando (no con la del render),
-        // para que el bloqueo de Instructor CI valga aunque acaben de cambiarla.
-        const edadAlGuardar = formData.birthdate
-          ? dayjs().diff(dayjs(formData.birthdate), 'year')
-          : null;
-        const esMenorAlGuardar = edadAlGuardar !== null && edadAlGuardar < 18;
-
-        if (!currentMember) {
-          const existingMembers = await getMembers();
-
-          if (hasDuplicatedCodigoMiembro(existingMembers, codigoMiembro, currentMember?.id)) {
-            toast.error(`El codigo de miembro ${codigoMiembro} ya existe. No se creo el miembro.`);
-            return;
-          }
-        }
-
-        const provinces = provinciasData;
-        const municipios = municipiosData.map((m, index) => ({
-          ...m,
-          id: index + 1,
-        }));
-        const sectores = barriosData;
-        const buildDireccion = () => {
-          const province = provinces.find((p) => String(p.id) === formData.provinceId)?.nombre;
-          const municipio = municipios.find((m) => String(m.id) === formData.municipioId)?.nombre;
-          const sector = sectores.find((s) => String(s.id) === formData.sectorId)?.nombre;
-
-          return [province, municipio, sector, formData.street].filter(Boolean).join(', ');
-        };
-
-        const payload = {
-          idMiembros: currentMember?.id || 0,
-          codigoMiembro,
-          nombres: submittedFirstName,
-          apellidos: submittedLastName,
-          genero:
-            genderValue === 'Masculino'
-              ? 'M'
-              : genderValue === 'Femenino'
-                ? 'F'
-                : genderValue || null,
-          fechaNacimiento: formData.birthdate
-            ? dayjs(formData.birthdate).format('YYYY-MM-DD')
-            : null,
-          sizeCamisas: formData.shirtSize || null,
-          ocupacion: getOccupationValue(formData.ocupation) || null,
-          fechaCreacion:
-            currentMember?.createdAt ||
-            currentMember?.fechaCreacion ||
-            currentMember?.created_at ||
-            new Date().toISOString(),
-          idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
-          telefono: formData.phoneNumber || '',
-          direccion: buildDireccion(formData) || null,
-          correo: formData.email || null,
-          idCargoLocal: null,
-          idCargoInstitucional:
-            Number.isFinite(legacyCargoInstitucional) && legacyCargoInstitucional > 0
-              ? legacyCargoInstitucional
-              : null,
-          idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
-          // Un menor de edad nunca es Instructor CI: se guarda siempre en blanco,
-          // aunque el formulario trajera valores previos.
-          instructorCertificadoCi: esMenorAlGuardar
-            ? false
-            : formData.InstructorCertificadoCI === 1
-              ? true
-              : formData.InstructorCertificadoCI === 0
-                ? false
-                : null,
-
-          estatusVigenciaCi:
-            esMenorAlGuardar || formData.EstatusVigenciaCI === 'na'
-              ? null
-              : formData.EstatusVigenciaCI === 1
-                ? true
-                : formData.EstatusVigenciaCI === 0
-                  ? false
-                  : null,
-          fechaInicioCertificado:
-            !esMenorAlGuardar && formData.FechaInicioCI
-              ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')
-              : null,
-          fechaFinCertificado:
-            !esMenorAlGuardar && formData.FechaVencimientoCI
-              ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
-              : null,
-        };
-
-        const res = await fetch(currentMember ? '/api/members/put/' : '/api/members/post/', {
-          method: currentMember ? 'PUT' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const text = await res.text();
-        let responseData;
         try {
-          responseData = text ? JSON.parse(text) : {};
-        } catch {
-          console.error('RAW RESPONSE =>', text);
-          responseData = {};
-        }
+          const submittedFirstName = formData.firstName;
+          const submittedLastName = formData.lastName;
+          const genderValue =
+            typeof formData.gender === 'string' ? formData.gender : formData.gender?.value;
 
-        if (!res.ok) {
-          throw new Error(
-            responseData?.message ||
-            responseData?.Message ||
-            responseData?.error ||
-            text ||
-            `Error de red o servidor (${res.status})`
-          );
-        }
+          // El destacamento del formulario es `destId`: `formData.idDestacamento`
+          // no existe y llegaba siempre vacio, asi que el codigo se generaba con
+          // la provincia de reserva aunque se hubiera elegido destacamento.
+          const codigoMiembro =
+            currentMember?.memberId || (await generateMemberId({ destId: selectedDestId }));
+          const legacyCargoInstitucional = Number(formData.nationalLeadershipRole);
+          // Se recalcula con la fecha que se esta enviando (no con la del render),
+          // para que el bloqueo de Instructor CI valga aunque acaben de cambiarla.
+          const edadAlGuardar = formData.birthdate
+            ? dayjs().diff(dayjs(formData.birthdate), 'year')
+            : null;
+          const esMenorAlGuardar = edadAlGuardar !== null && edadAlGuardar < 18;
 
-        registrarAuditoriaSilenciosa({
-          modulo: 'miembros',
-          accion: currentMember ? 'miembro_actualizado' : 'miembro_creado',
-          descripcion: currentMember
-            ? `Se actualizó el miembro ${submittedFirstName} ${submittedLastName}.`
-            : `Se creó el miembro ${submittedFirstName} ${submittedLastName}.`,
-          entidad: {
-            tipo: 'miembro',
-            id: currentMember?.id || responseData?.idMiembros || responseData?.data?.idMiembros,
-            nombre: `${submittedFirstName} ${submittedLastName}`.trim(),
-            ruta: currentMember
-              ? `/dashboard/level/member/${currentMember?.id || ''}/edit`
-              : '/dashboard/level/member',
-          },
-          antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : null,
-          despues: payload,
-          realizadoPor: user,
-          origen: 'miembros',
-        });
+          if (!currentMember) {
+            const existingMembers = await getMembers();
 
-        const completedMessage = (responseData?.message || responseData?.Message)
-          ?.toLowerCase()
-          .includes('completada');
-
-        if (
-          (responseData?.success === false || responseData?.Success === false) &&
-          !completedMessage
-        ) {
-          console.error('API ERROR =>', responseData);
-          throw new Error(
-            responseData?.message || responseData?.Message || 'Error guardando en API'
-          );
-        }
-
-        // Al editar, el aviso de exito ya salio al liberar la pantalla; repetirlo
-        // aqui lo mostraria dos veces.
-        if (!currentMember) {
-          toast.success(`Miembro ${codigoMiembro} creado!`);
-        }
-
-        let savedMember = null;
-        let authCredentials = null;
-
-        if (!currentMember) {
-          // El miembro recien creado no aparece al instante: la lista se cachea
-          // 30 segundos y el formulario ya la ha calentado antes de guardar, asi
-          // que una sola lectura devuelve la lista VIEJA, sin el. Sin el id, la
-          // foto se subia a ninguna parte —por eso funcionaba al editar y no al
-          // crear—. Se invalida la cache y se reintenta, como ya hace la ruta de
-          // alta con la division.
-          const buscarMiembroCreado = async () => {
-            for (let intento = 0; intento < 3; intento += 1) {
-              if (intento > 0) {
-                 
-                await esperar(600);
-              }
-
-              invalidateMembersCache();
-
-               
-              const lista = await getMembers();
-              const encontrado = (Array.isArray(lista) ? lista : []).find(
-                (member) =>
-                  normalizeMemberUsername(
-                    member?.memberId || member?.codigoMiembro || member?.id
-                  ) === normalizeMemberUsername(codigoMiembro)
+            if (hasDuplicatedCodigoMiembro(existingMembers, codigoMiembro, currentMember?.id)) {
+              toast.error(
+                `El codigo de miembro ${codigoMiembro} ya existe. No se creo el miembro.`
               );
-
-              if (encontrado) return encontrado;
+              return;
             }
+          }
 
-            return null;
+          const provinces = provinciasData;
+          const municipios = municipiosData.map((m, index) => ({
+            ...m,
+            id: index + 1,
+          }));
+          const sectores = barriosData;
+          const buildDireccion = () => {
+            const province = provinces.find((p) => String(p.id) === formData.provinceId)?.nombre;
+            const municipio = municipios.find((m) => String(m.id) === formData.municipioId)?.nombre;
+            const sector = sectores.find((s) => String(s.id) === formData.sectorId)?.nombre;
+
+            return [province, municipio, sector, formData.street].filter(Boolean).join(', ');
           };
 
-          savedMember = await buscarMiembroCreado();
+          const payload = {
+            idMiembros: currentMember?.id || 0,
+            codigoMiembro,
+            nombres: submittedFirstName,
+            apellidos: submittedLastName,
+            genero:
+              genderValue === 'Masculino'
+                ? 'M'
+                : genderValue === 'Femenino'
+                  ? 'F'
+                  : genderValue || null,
+            fechaNacimiento: formData.birthdate
+              ? dayjs(formData.birthdate).format('YYYY-MM-DD')
+              : null,
+            sizeCamisas: formData.shirtSize || null,
+            ocupacion: getOccupationValue(formData.ocupation) || null,
+            fechaCreacion:
+              currentMember?.createdAt ||
+              currentMember?.fechaCreacion ||
+              currentMember?.created_at ||
+              new Date().toISOString(),
+            idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
+            telefono: formData.phoneNumber || '',
+            direccion: buildDireccion(formData) || null,
+            correo: formData.email || null,
+            idCargoLocal: null,
+            idCargoInstitucional:
+              Number.isFinite(legacyCargoInstitucional) && legacyCargoInstitucional > 0
+                ? legacyCargoInstitucional
+                : null,
+            idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
+            // Un menor de edad nunca es Instructor CI: se guarda siempre en blanco,
+            // aunque el formulario trajera valores previos.
+            instructorCertificadoCi: esMenorAlGuardar
+              ? false
+              : formData.InstructorCertificadoCI === 1
+                ? true
+                : formData.InstructorCertificadoCI === 0
+                  ? false
+                  : null,
 
+            estatusVigenciaCi:
+              esMenorAlGuardar || formData.EstatusVigenciaCI === 'na'
+                ? null
+                : formData.EstatusVigenciaCI === 1
+                  ? true
+                  : formData.EstatusVigenciaCI === 0
+                    ? false
+                    : null,
+            fechaInicioCertificado:
+              !esMenorAlGuardar && formData.FechaInicioCI
+                ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')
+                : null,
+            fechaFinCertificado:
+              !esMenorAlGuardar && formData.FechaVencimientoCI
+                ? dayjs(formData.FechaVencimientoCI).format('YYYY-MM-DD')
+                : null,
+          };
+
+          const res = await fetch(currentMember ? '/api/members/put/' : '/api/members/post/', {
+            method: currentMember ? 'PUT' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const text = await res.text();
+          let responseData;
           try {
-            authCredentials = await createFirebaseAuthForMember({
-              codigoMiembro,
-              firstName: submittedFirstName,
-              lastName: submittedLastName,
-              destId: selectedDestId,
-              memberId: savedMember?.id || null,
-            });
-          } catch (authError) {
-            if (authError?.code === 'auth/email-already-in-use') {
-              console.warn('[member form] firebase auth user already exists', authError);
-            } else {
-              console.error('[member form] firebase auth user creation failed', authError);
-              toast.error(
-                'Miembro creado, pero no se pudo crear su usuario de inicio de sesi?n.'
-              );
-            }
+            responseData = text ? JSON.parse(text) : {};
+          } catch {
+            console.error('RAW RESPONSE =>', text);
+            responseData = {};
           }
 
-          try {
-            await crearNotificacionMiembroCreado({
-              miembro: savedMember || {
-                id: responseData?.idMiembros || responseData?.data?.idMiembros,
-                memberId: codigoMiembro,
+          if (!res.ok) {
+            throw new Error(
+              responseData?.message ||
+                responseData?.Message ||
+                responseData?.error ||
+                text ||
+                `Error de red o servidor (${res.status})`
+            );
+          }
+
+          registrarAuditoriaSilenciosa({
+            modulo: 'miembros',
+            accion: currentMember ? 'miembro_actualizado' : 'miembro_creado',
+            descripcion: currentMember
+              ? `Se actualizó el miembro ${submittedFirstName} ${submittedLastName}.`
+              : `Se creó el miembro ${submittedFirstName} ${submittedLastName}.`,
+            entidad: {
+              tipo: 'miembro',
+              id: currentMember?.id || responseData?.idMiembros || responseData?.data?.idMiembros,
+              nombre: `${submittedFirstName} ${submittedLastName}`.trim(),
+              ruta: currentMember
+                ? `/dashboard/level/member/${currentMember?.id || ''}/edit`
+                : '/dashboard/level/member',
+            },
+            antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : null,
+            despues: payload,
+            realizadoPor: user,
+            origen: 'miembros',
+          });
+
+          const completedMessage = (responseData?.message || responseData?.Message)
+            ?.toLowerCase()
+            .includes('completada');
+
+          if (
+            (responseData?.success === false || responseData?.Success === false) &&
+            !completedMessage
+          ) {
+            console.error('API ERROR =>', responseData);
+            throw new Error(
+              responseData?.message || responseData?.Message || 'Error guardando en API'
+            );
+          }
+
+          // Al editar, el aviso de exito ya salio al liberar la pantalla; repetirlo
+          // aqui lo mostraria dos veces.
+          if (!currentMember) {
+            toast.success(`Miembro ${codigoMiembro} creado!`);
+          }
+
+          let savedMember = null;
+          let authCredentials = null;
+          let idCreado =
+            responseData?.idMiembros ||
+            responseData?.data?.idMiembros ||
+            responseData?.Data?.idMiembros ||
+            null;
+
+          if (!currentMember) {
+            // Plan B para el id. La ruta de alta ya lo devuelve, asi que esto
+            // casi nunca corre: releer el listado cuesta una vuelta completa al
+            // API por intento (~2 s cada una) y era lo que mas alargaba el
+            // guardado. Sin id no hay donde colgar la foto ni los cargos.
+            const buscarMiembroCreado = async () => {
+              for (let intento = 0; intento < 3; intento += 1) {
+                if (intento > 0) {
+                  await esperar(600);
+                }
+
+                invalidateMembersCache();
+
+                const lista = await getMembers();
+                const encontrado = (Array.isArray(lista) ? lista : []).find(
+                  (member) =>
+                    normalizeMemberUsername(
+                      member?.memberId || member?.codigoMiembro || member?.id
+                    ) === normalizeMemberUsername(codigoMiembro)
+                );
+
+                if (encontrado) return encontrado;
+              }
+
+              return null;
+            };
+
+            if (!idCreado) {
+              savedMember = await buscarMiembroCreado();
+              idCreado = savedMember?.id || null;
+            }
+
+            // El listado se relee solo, ya sin este miembro dentro: se marca la
+            // cache como vieja para que la lista lo muestre al volver.
+            invalidateMembersCache();
+
+            try {
+              authCredentials = await createFirebaseAuthForMember({
+                codigoMiembro,
                 firstName: submittedFirstName,
                 lastName: submittedLastName,
-                phoneNumber: formData.phoneNumber || '',
-                email: formData.email || '',
-                status: formData.status ?? 'active',
-              },
-              usuario: user,
-            });
+                destId: selectedDestId,
+                memberId: idCreado,
+              });
+            } catch (authError) {
+              if (authError?.code === 'auth/email-already-in-use') {
+                console.warn('[member form] firebase auth user already exists', authError);
+              } else {
+                console.error('[member form] firebase auth user creation failed', authError);
+                toast.error(
+                  'Miembro creado, pero no se pudo crear su usuario de inicio de sesi?n.'
+                );
+              }
+            }
 
-            if (authCredentials) {
-              await crearNotificacionCuentaCreada({
-                cuenta: {
-                  ...savedMember,
-                  idMiembros: savedMember?.id || responseData?.idMiembros || null,
-                  codigoMiembro,
-                  uid: authCredentials.uid,
-                  displayName: `${submittedFirstName} ${submittedLastName}`.trim(),
-                  email: authCredentials.emailFake,
+            // Los avisos van POR DETRAS: son varias escrituras en Firestore y
+            // nada de lo que viene despues depende de ellas. Esperarlas solo
+            // servia para retrasar la vuelta al listado.
+            (async () => {
+              try {
+                await crearNotificacionMiembroCreado({
+                  miembro: savedMember || {
+                    id: idCreado,
+                    memberId: codigoMiembro,
+                    firstName: submittedFirstName,
+                    lastName: submittedLastName,
+                    phoneNumber: formData.phoneNumber || '',
+                    email: formData.email || '',
+                    status: formData.status ?? 'active',
+                  },
+                  usuario: user,
+                });
+
+                if (authCredentials) {
+                  await crearNotificacionCuentaCreada({
+                    cuenta: {
+                      ...savedMember,
+                      idMiembros: savedMember?.id || idCreado || null,
+                      codigoMiembro,
+                      uid: authCredentials.uid,
+                      displayName: `${submittedFirstName} ${submittedLastName}`.trim(),
+                      email: authCredentials.emailFake,
+                    },
+                    usuario: user,
+                  });
+                }
+
+                window.dispatchEvent(new Event('notificaciones:actualizar'));
+              } catch (notificationError) {
+                console.error('[member form] member notification failed', notificationError);
+              }
+            })();
+          } else {
+            try {
+              await crearNotificacionMiembroActualizado({
+                miembro: {
+                  ...currentMember,
+                  ...payload,
+                  id: currentMember?.id || currentMember?.idMiembros,
+                  memberId: codigoMiembro,
+                  firstName: submittedFirstName,
+                  lastName: submittedLastName,
+                  phoneNumber: formData.phoneNumber || '',
+                  email: formData.email || '',
+                  status: formData.status ?? currentMember?.status ?? 'active',
                 },
                 usuario: user,
               });
+            } catch (notificationError) {
+              console.error('[member form] member update notification failed', notificationError);
             }
 
-            window.dispatchEvent(new Event('notificaciones:actualizar'));
-          } catch (notificationError) {
-            console.error('[member form] member notification failed', notificationError);
-          }
-        } else {
-          try {
-            await crearNotificacionMiembroActualizado({
-              miembro: {
-                ...currentMember,
-                ...payload,
-                id: currentMember?.id || currentMember?.idMiembros,
-                memberId: codigoMiembro,
-                firstName: submittedFirstName,
-                lastName: submittedLastName,
-                phoneNumber: formData.phoneNumber || '',
-                email: formData.email || '',
-                status: formData.status ?? currentMember?.status ?? 'active',
-              },
-              usuario: user,
-            });
-          } catch (notificationError) {
-            console.error('[member form] member update notification failed', notificationError);
+            // Guardado directo de un coordinador: avisar al OTRO coordinador
+            // (nunca a sí mismo).
+            if (isCoordinador) {
+              const segmentoCoord = currentMember?.memberId
+                ? encodeURIComponent(currentMember.memberId)
+                : currentMember?.id;
+
+              notificarCoordinadoresActualizacionDirecta({
+                member: currentMember,
+                actorId: user?.uid || user?.id || 'sistema',
+                actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+                actorNombre: user?.displayName || 'Un coordinador',
+                moduloTexto: 'la información general',
+                ruta: segmentoCoord
+                  ? `/dashboard/level/member/${segmentoCoord}/edit`
+                  : '/dashboard',
+              }).catch(() => null);
+            }
           }
 
-          // Guardado directo de un coordinador: avisar al OTRO coordinador
-          // (nunca a sí mismo).
-          if (isCoordinador) {
-            const segmentoCoord = currentMember?.memberId
-              ? encodeURIComponent(currentMember.memberId)
-              : currentMember?.id;
+          const historyMemberId = currentMember?.id || idCreado;
 
-            notificarCoordinadoresActualizacionDirecta({
-              member: currentMember,
-              actorId: user?.uid || user?.id || 'sistema',
-              actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
-              actorNombre: user?.displayName || 'Un coordinador',
-              moduloTexto: 'la información general',
-              ruta: segmentoCoord
-                ? `/dashboard/level/member/${segmentoCoord}/edit`
-                : '/dashboard',
-            }).catch(() => null);
-          }
-        }
-
-        const historyMemberId =
-          currentMember?.id ||
-          savedMember?.id ||
-          responseData?.idMiembros ||
-          responseData?.data?.idMiembros ||
-          responseData?.Data?.idMiembros;
-
-        if (historyMemberId) {
-          registrarCambiosHistorialMiembro({
-            idMiembro: historyMemberId,
-            codigoMiembro,
-            nombreMiembro: `${submittedFirstName} ${submittedLastName}`.trim(),
-            modulo: 'Información general',
-            antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : {},
-            despues: payload,
-            campos: MEMBER_HISTORY_FIELDS,
-            usuario: user,
-            metadata: {
-              origen: 'member-create-edit-form',
-              accion: currentMember ? 'actualizacion' : 'creacion',
-            },
-          }).catch((historyError) => {
-            console.error('[member form] member history failed', historyError);
-          });
-
-          try {
-            await saveSelectedMemberCargos({
+          if (historyMemberId) {
+            registrarCambiosHistorialMiembro({
               idMiembro: historyMemberId,
-              formData,
+              codigoMiembro,
+              nombreMiembro: `${submittedFirstName} ${submittedLastName}`.trim(),
+              modulo: 'Información general',
+              antes: currentMember ? mapCurrentMemberToHistoryPayload(currentMember) : {},
+              despues: payload,
+              campos: MEMBER_HISTORY_FIELDS,
+              usuario: user,
+              metadata: {
+                origen: 'member-create-edit-form',
+                accion: currentMember ? 'actualizacion' : 'creacion',
+              },
+            }).catch((historyError) => {
+              console.error('[member form] member history failed', historyError);
             });
-          } catch (cargoError) {
-            toast.error(cargoError.message || 'No se pudo guardar el cargo del miembro.');
-          }
-        }
 
-        const selectedPhoto = formData.avatarUrl;
-
-        if (!currentMember && selectedPhoto instanceof File) {
-          try {
-            setUploadingPhoto(true);
-
-            const createdMemberId =
-              savedMember?.id ||
-              responseData?.idMiembros ||
-              responseData?.data?.idMiembros ||
-              responseData?.Data?.idMiembros;
-
-            const uploadedPhoto = await uploadMemberPhoto({
-              file: selectedPhoto,
-              idMiembros: createdMemberId,
-              showSuccess: false,
-            });
-            const uploadedPhotoUrl = uploadedPhoto?.urlFoto;
-
-            if (uploadedPhotoUrl) {
-              methods.setValue('avatarUrl', uploadedPhotoUrl, { shouldValidate: true });
-              toast.success(getImageOptimizationMessage(uploadedPhoto?.optimizationInfo));
+            try {
+              await saveSelectedMemberCargos({
+                idMiembro: historyMemberId,
+                formData,
+              });
+            } catch (cargoError) {
+              toast.error(cargoError.message || 'No se pudo guardar el cargo del miembro.');
             }
-          } catch (photoError) {
-            console.error('[member form] deferred photo upload failed', photoError);
-            toast.error(photoError.message || 'Miembro creado, pero no se pudo subir la foto.');
-          } finally {
-            setUploadingPhoto(false);
-          }
-        }
-
-        if (currentMember) {
-          const updatedMembers = await getMembers();
-          const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : []).find(
-            (m) => String(m.id) === String(currentMember?.id)
-          );
-
-          if (updatedMember) {
-            reset(mapMemberToForm(updatedMember));
           }
 
-          // Despues del reset, para que el cargo recien guardado se relea de la
-          // API y vuelva a pintarse. Va fuera del `if`: el cargo pudo cambiar
-          // aunque la ficha del miembro no se haya podido recuperar.
-          setCargosVersion((version) => version + 1);
-        } else {
-          router.push(paths.dashboard.level.member.root);
+          const fotoPendiente = fotoPendienteRef.current;
+          const selectedPhoto = formData.avatarUrl ?? methods.getValues('avatarUrl');
+
+          if (!currentMember && idCreado && fotoPendiente?.urlFoto) {
+            // La imagen ya esta en Storage desde que se eligio: aqui solo se
+            // apunta al miembro, que es UNA escritura.
+            try {
+              await registrarFotoEntidadSubida({
+                tipoEntidad: 'miembro',
+                idEntidad: idCreado,
+                tipoFoto: 'perfil',
+                rutaArchivo: fotoPendiente.rutaArchivo,
+                urlFoto: fotoPendiente.urlFoto,
+                subidoPor: user?.uid || user?.id || null,
+              });
+
+              registrarHistorialFotoMiembro({
+                idMiembros: idCreado,
+                urlFoto: fotoPendiente.urlFoto,
+              });
+
+              fotoPendienteRef.current = null;
+            } catch (photoError) {
+              console.error('[member form] photo link failed', photoError);
+              toast.error(photoError.message || 'Miembro creado, pero no se pudo guardar la foto.');
+            }
+          } else if (!currentMember && selectedPhoto instanceof File) {
+            // Plan B: la subida al elegir la foto fallo y el archivo se quedo en
+            // el formulario. Se sube ahora, con el miembro ya creado.
+            try {
+              setUploadingPhoto(true);
+
+              const uploadedPhoto = await uploadMemberPhoto({
+                file: selectedPhoto,
+                idMiembros: idCreado,
+                showSuccess: false,
+              });
+              const uploadedPhotoUrl = uploadedPhoto?.urlFoto;
+
+              if (uploadedPhotoUrl) {
+                methods.setValue('avatarUrl', uploadedPhotoUrl, { shouldValidate: true });
+                toast.success(getImageOptimizationMessage(uploadedPhoto?.optimizationInfo));
+              }
+            } catch (photoError) {
+              console.error('[member form] deferred photo upload failed', photoError);
+              toast.error(photoError.message || 'Miembro creado, pero no se pudo subir la foto.');
+            } finally {
+              setUploadingPhoto(false);
+            }
+          }
+
+          if (currentMember) {
+            const updatedMembers = await getMembers();
+            const updatedMember = (Array.isArray(updatedMembers) ? updatedMembers : []).find(
+              (m) => String(m.id) === String(currentMember?.id)
+            );
+
+            if (updatedMember) {
+              reset(mapMemberToForm(updatedMember));
+            }
+
+            // Despues del reset, para que el cargo recien guardado se relea de la
+            // API y vuelva a pintarse. Va fuera del `if`: el cargo pudo cambiar
+            // aunque la ficha del miembro no se haya podido recuperar.
+            setCargosVersion((version) => version + 1);
+          } else {
+            router.push(paths.dashboard.level.member.root);
+          }
+        } catch (error) {
+          toast.error(error.message || 'Error guardando en API');
         }
-      } catch (error) {
-        toast.error(error.message || 'Error guardando en API');
-      }
       })();
 
       if (currentMember) {
@@ -2149,7 +2121,10 @@ export function MemberCreateEditForm({
         // Al crear, el campo que falla puede estar en el paso anterior: sin esto
         // el aviso salta pero el error no se ve por ninguna parte, y parece que
         // el boton no hace nada.
-        if (!currentMember && Object.keys(validationErrors).some((campo) => CAMPOS_PASO_1.has(campo))) {
+        if (
+          !currentMember &&
+          Object.keys(validationErrors).some((campo) => CAMPOS_PASO_1.has(campo))
+        ) {
           setStep(1);
         }
 
@@ -2298,7 +2273,10 @@ export function MemberCreateEditForm({
     try {
       if (aprobados.length) {
         aprobados.forEach((item) => {
-          methods.setValue(item.campo, item.valorFinal, { shouldDirty: true, shouldValidate: true });
+          methods.setValue(item.campo, item.valorFinal, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
         });
 
         // Reutiliza el guardado normal del formulario para persistir los cambios.
@@ -2410,6 +2388,9 @@ export function MemberCreateEditForm({
                           {
                             show: !isCreateView && !!currentMember?.memberId,
                             text: `Miembro ${currentMember?.memberId}`,
+                            // Se copia el codigo solo, sin la palabra "Miembro":
+                            // es lo que se pega en el acceso o en un mensaje.
+                            copiar: currentMember?.memberId,
                             // Mismo aviso que en la Directiva, y con las mismas
                             // reglas: solo lo ven los cargos del destacamento y
                             // los administradores.
@@ -2746,13 +2727,15 @@ export function MemberCreateEditForm({
                             />
                             <Field.DatePicker
                               name="FechaVencimientoCI"
-                              label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
-                                ? ` (${diasRestantesCI >= 0
-                                  ? `${diasRestantesCI} d?as restantes`
-                                  : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
-                                })`
-                                : ''
-                                }`}
+                              label={`Fecha vencimiento CI${
+                                diasRestantesCI !== null && diasRestantesCI <= 365
+                                  ? ` (${
+                                      diasRestantesCI >= 0
+                                        ? `${diasRestantesCI} d?as restantes`
+                                        : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
+                                    })`
+                                  : ''
+                              }`}
                               format="DD/MM/YYYY"
                               views={['year', 'month', 'day']}
                               disabled

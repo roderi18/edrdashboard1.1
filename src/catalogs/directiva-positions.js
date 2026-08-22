@@ -16,6 +16,23 @@ export const DIRECTIVA_DIVISIONS = {
   exploradores: 'exploradores',
 };
 
+// Orden en que se listan los cargos por division: de la division mayor a la
+// menor (Exploradores -> Navegantes), igual que las pestañas del listado de
+// miembros. No se toca el `orden` de cada cargo: ese numero forma parte del id
+// de las asignaciones ya guardadas.
+export const ORDEN_DIVISIONES_ROLES = [
+  DIRECTIVA_DIVISIONS.exploradores,
+  DIRECTIVA_DIVISIONS.seguidores,
+  DIRECTIVA_DIVISIONS.pioneros,
+  DIRECTIVA_DIVISIONS.navegantes,
+];
+
+export const rangoDivisionRol = (division) => {
+  const indice = ORDEN_DIVISIONES_ROLES.indexOf(String(division || '').trim().toLowerCase());
+
+  return indice === -1 ? ORDEN_DIVISIONES_ROLES.length : indice;
+};
+
 export const DIRECTIVA_DIVISION_NAMES = {
   [DIRECTIVA_DIVISIONS.navegantes]: 'Navegantes',
   [DIRECTIVA_DIVISIONS.pioneros]: 'Pioneros',

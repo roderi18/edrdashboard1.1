@@ -27,6 +27,70 @@ const PHOTO_FOLDERS = {
 const getPhotoDocumentId = ({ tipoEntidad, idEntidad, tipoFoto = 'perfil' }) =>
   `${tipoEntidad}_${idEntidad}_${tipoFoto}`;
 
+const asegurarFirebaseFotos = () => {
+  if (!isFirebaseConfigured || !FIRESTORE || !FIREBASE_STORAGE) {
+    throw new Error('Firebase no está configurado en este entorno.');
+  }
+};
+
+const carpetaDeEntidad = (tipoEntidad) => {
+  const folder = PHOTO_FOLDERS[tipoEntidad];
+
+  if (!folder) throw new Error(`Tipo de entidad no soportado: ${tipoEntidad}`);
+
+  return folder;
+};
+
+/**
+ * Deja constancia en Firestore de que una imagen YA SUBIDA es la foto principal
+ * de una entidad. Separado de la subida porque no siempre ocurren a la vez: al
+ * crear un miembro la foto se sube al elegirla, cuando todavia no hay id al que
+ * colgarla, y solo se registra cuando el alta devuelve el id.
+ */
+export async function registrarFotoEntidadSubida({
+  tipoEntidad,
+  idEntidad,
+  tipoFoto = 'perfil',
+  rutaArchivo,
+  urlFoto,
+  subidoPor,
+}) {
+  asegurarFirebaseFotos();
+
+  if (!tipoEntidad || !idEntidad)
+    throw new Error('No se pudo identificar a quién pertenece la foto.');
+  if (!urlFoto) throw new Error('La foto no tiene una dirección válida.');
+
+  carpetaDeEntidad(tipoEntidad);
+
+  const documentId = getPhotoDocumentId({ tipoEntidad, idEntidad, tipoFoto });
+  const payload = {
+    tipoEntidad,
+    idEntidad: String(idEntidad),
+    rutaArchivo: rutaArchivo || '',
+    urlFoto,
+    tipoFoto,
+    esPrincipal: true,
+    subidoPor: subidoPor || null,
+    estado: 'activo',
+    actualizadoEn: serverTimestamp(),
+  };
+
+  await setDoc(
+    doc(FIRESTORE, COLLECTION_NAME, documentId),
+    {
+      ...payload,
+      creadoEn: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return {
+    id: documentId,
+    ...payload,
+  };
+}
+
 export async function subirFotoEntidad({
   file,
   tipoEntidad,
@@ -34,18 +98,13 @@ export async function subirFotoEntidad({
   tipoFoto = 'perfil',
   subidoPor,
 }) {
-  if (!isFirebaseConfigured || !FIRESTORE || !FIREBASE_STORAGE) {
-    throw new Error('Firebase no está configurado en este entorno.');
-  }
+  asegurarFirebaseFotos();
 
   if (!file) throw new Error('Selecciona una foto para subir.');
   if (!tipoEntidad || !idEntidad)
     throw new Error('No se pudo identificar a quién pertenece la foto.');
 
-  const folder = PHOTO_FOLDERS[tipoEntidad];
-
-  if (!folder) throw new Error(`Tipo de entidad no soportado: ${tipoEntidad}`);
-
+  const folder = carpetaDeEntidad(tipoEntidad);
   const basePath = `${folder}/${idEntidad}/${tipoFoto}.webp`;
   const uploadResult = await uploadOptimizedImage({
     file,
@@ -58,35 +117,56 @@ export async function subirFotoEntidad({
       subidoPor: subidoPor || '',
     },
   });
-  const rutaArchivo = uploadResult.storagePath;
-  const urlFoto = uploadResult.downloadUrl;
-  const documentId = getPhotoDocumentId({ tipoEntidad, idEntidad, tipoFoto });
-  const photoRef = doc(FIRESTORE, COLLECTION_NAME, documentId);
 
-  const payload = {
+  return registrarFotoEntidadSubida({
     tipoEntidad,
-    idEntidad: String(idEntidad),
-    rutaArchivo,
-    urlFoto,
+    idEntidad,
     tipoFoto,
-    esPrincipal: true,
-    subidoPor: subidoPor || null,
-    estado: 'activo',
-    actualizadoEn: serverTimestamp(),
-  };
+    rutaArchivo: uploadResult.storagePath,
+    urlFoto: uploadResult.downloadUrl,
+    subidoPor,
+  });
+}
 
-  await setDoc(
-    photoRef,
-    {
-      ...payload,
-      creadoEn: serverTimestamp(),
+/**
+ * Sube la foto de un miembro que TODAVIA no existe.
+ *
+ * Al crear, la persona no tiene id hasta que el alta vuelve del API, asi que la
+ * imagen se guarda bajo un id provisional y NO se escribe documento: no hay
+ * miembro al que referirlo. La subida ocurre mientras se termina de llenar el
+ * formulario, y al guardar solo queda registrarla —una escritura— en vez de
+ * esperar a que suba la imagen entera.
+ *
+ * El id provisional es un segmento mas de la ruta (`miembros/<id>/perfil.webp`),
+ * de modo que las reglas de Storage lo tratan igual que cualquier otra foto de
+ * miembro.
+ */
+export async function subirFotoMiembroPendiente({ file, subidoPor }) {
+  asegurarFirebaseFotos();
+
+  if (!file) throw new Error('Selecciona una foto para subir.');
+
+  const idTemporal = `pendiente-${
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }`;
+  const uploadResult = await uploadOptimizedImage({
+    file,
+    preset: 'avatar',
+    storagePath: `${PHOTO_FOLDERS.miembro}/${idTemporal}/perfil.webp`,
+    metadata: {
+      tipoEntidad: 'miembro',
+      idEntidad: idTemporal,
+      tipoFoto: 'perfil',
+      subidoPor: subidoPor || '',
     },
-    { merge: true }
-  );
+  });
 
   return {
-    id: documentId,
-    ...payload,
+    idTemporal,
+    rutaArchivo: uploadResult.storagePath,
+    urlFoto: uploadResult.downloadUrl,
+    originalSizeBytes: uploadResult.originalSizeBytes,
+    optimizedSizeBytes: uploadResult.optimizedSizeBytes,
   };
 }
 

@@ -125,6 +125,13 @@ const getMaximumBirthdate = () => {
 
 // });
 export const MemberValidationSchema = z.object({
+    // La foto NO se valida, pero tiene que estar declarada: `z.object` descarta
+    // todo lo que no aparezca aqui, y el formulario recibe en `handleSubmit` lo
+    // que devuelve el schema, no los valores crudos. Sin esta linea el archivo
+    // elegido al CREAR llegaba como `undefined` y la subida se saltaba en
+    // silencio (al editar no se nota: ahi la foto se sube al soltarla).
+    avatarUrl: z.any().optional().nullable(),
+
     // Obligatorios. Estaban como opcionales y el formulario dejaba guardar una
     // ficha entera en blanco: quedaba una fila sin nombre en el listado, con su
     // codigo de miembro gastado, y sin forma de saber a quien pertenecia.

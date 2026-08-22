@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildMemberUploadAddress,
   formatMemberUploadBirthDate,
   normalizeMemberUploadPhone,
 } from '../../src/sections/member/utils/member-upload-normalizers.js';
@@ -31,4 +32,31 @@ test('rechaza fechas imposibles y sugiere corregir el archivo', () => {
     /Corrige el archivo y vuelve a subirlo/
   );
   assert.throws(() => formatMemberUploadBirthDate('2000/06/18'), /DD-MM-AAAA/);
+});
+
+test('construye la dirección con calle y número en un único campo', () => {
+  assert.equal(
+    buildMemberUploadAddress({
+      province: 'Santo Domingo',
+      municipality: 'Santo Domingo Este',
+      sector: 'Ensanche Ozama',
+      streetAndNumber: 'Rey David 16',
+    }),
+    'Santo Domingo, Santo Domingo Este, Ensanche Ozama, Rey David 16'
+  );
+  assert.equal(
+    buildMemberUploadAddress({ legacyAddress: 'Azua, Azua, Centro, Duarte 12-A' }),
+    'Azua, Azua, Centro, Duarte 12-A'
+  );
+});
+
+test('rechaza municipio o sector sin su ubicación superior', () => {
+  assert.throws(
+    () => buildMemberUploadAddress({ municipality: 'Santo Domingo Este' }),
+    /Provincia/
+  );
+  assert.throws(
+    () => buildMemberUploadAddress({ province: 'Santo Domingo', sector: 'Ozama' }),
+    /Municipio/
+  );
 });

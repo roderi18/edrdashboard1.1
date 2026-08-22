@@ -123,17 +123,11 @@ const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = 
 // nada, y ni siquiera miraba si el update habia funcionado. Cuando fallaba —y
 // fallaba— el miembro se quedaba sin division y nadie se enteraba. Ahora los dos
 // casos se registran.
-const ensureCreatedMemberDivision = async ({ responsePayload, memberPayload, authHeader = '' }) => {
+const ensureCreatedMemberDivision = async ({ createdMember, memberPayload, authHeader = '' }) => {
   try {
     const divisionId = toPositiveNumberOrNull(memberPayload.idDivision);
 
     if (!divisionId) return;
-
-    const createdMember = await findCreatedMember({
-      codigoMiembro: memberPayload.codigoMiembro,
-      createdMemberId: getCreatedMemberId(responsePayload),
-      authHeader,
-    });
 
     if (!createdMember?.idMiembros) {
       console.warn(
@@ -247,11 +241,34 @@ export async function POST(req) {
     const text = await res.text();
     const responsePayload = parseResponseText(text);
 
+    // `SetMiembros` no devuelve el id del miembro creado, y sin id el cliente no
+    // sabe donde guardar la foto de perfil (se subia "a ninguna parte"). Se busca
+    // aqui una sola vez y se anade a la respuesta.
+    let createdMember = null;
+
     if (res.ok) {
-      await ensureCreatedMemberDivision({ responsePayload, memberPayload, authHeader });
+      createdMember = await findCreatedMember({
+        codigoMiembro: memberPayload.codigoMiembro,
+        createdMemberId: getCreatedMemberId(responsePayload),
+        authHeader,
+      }).catch(() => null);
+
+      await ensureCreatedMemberDivision({ createdMember, memberPayload, authHeader });
     }
 
     invalidateUpstream(UPSTREAM_KEYS.miembros);
+
+    if (res.ok && createdMember?.idMiembros) {
+      const base =
+        responsePayload && !Array.isArray(responsePayload) && typeof responsePayload === 'object'
+          ? responsePayload
+          : {};
+
+      return Response.json(
+        { ...base, idMiembros: Number(createdMember.idMiembros) },
+        { status: res.status }
+      );
+    }
 
     return new Response(text, {
       status: res.status,

@@ -1,7 +1,11 @@
 import { getDocs, collection } from 'firebase/firestore';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { ABREVIATURAS_PAIS, ABREVIATURAS_PROVINCIA } from 'src/catalogs/provincias-abreviaturas';
+import {
+  ABREVIATURAS_PAIS,
+  ABREVIATURAS_PROVINCIA,
+  normalizarAbreviaturaPais,
+} from 'src/catalogs/provincias-abreviaturas';
 
 // ----------------------------------------------------------------------
 // Tabla de abreviaturas de provincia. Vive en Firestore para que se pueda
@@ -70,7 +74,9 @@ export async function obtenerAbreviaturasPais({ recargar = false } = {}) {
 
     const tabla = {};
     snap.forEach((documento) => {
-      const abreviatura = documento.data()?.abreviatura || '';
+      // Se normaliza al leer: la tabla de Firestore todavia puede traer `RD`,
+      // que es la abreviatura retirada, y de ahi salian codigos `RD-...`.
+      const abreviatura = normalizarAbreviaturaPais(documento.data()?.abreviatura);
 
       if (abreviatura) tabla[documento.id] = abreviatura;
     });

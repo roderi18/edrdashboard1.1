@@ -6,7 +6,9 @@ import { useTheme, useMediaQuery } from '@mui/material';
 // ----------------------------------------------------------------------
 
 export function useTable(props) {
-  const [dense, setDense] = useState(!!props?.defaultDense);
+  const defaultDense = !!props?.defaultDense;
+
+  const [dense, setDense] = useState(defaultDense);
 
   const [page, setPage] = useState(props?.defaultCurrentPage ?? 0);
 
@@ -86,9 +88,15 @@ export function useTable(props) {
     [page]
   );
 
+  // En movil la tabla va compacta siempre. Este efecto solo esta para eso, pero
+  // al correr tambien en escritorio apagaba la vista compacta de las tablas que
+  // arrancan con ella (`defaultDense`), asi que ahi se queda quieto: el
+  // interruptor sigue mandando.
   useEffect(() => {
+    if (defaultDense) return;
+
     setDense(isMobile);
-  }, [isMobile]);
+  }, [isMobile, defaultDense]);
 
   const onUpdatePageDeleteRows = useCallback(
     (totalRowsInPage, totalRowsFiltered) => {

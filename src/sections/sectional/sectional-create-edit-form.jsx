@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -32,7 +32,13 @@ import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
-import { getSectionals, saveSectional, updateSectional } from 'src/services/sectional-service';
+import {
+  getSectionals,
+  saveSectional,
+  updateSectional,
+  obtenerNombreSecundarioSeccion,
+  guardarNombreSecundarioSeccion,
+} from 'src/services/sectional-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -189,6 +195,36 @@ export function SectionalCreateEditForm({ currentSectional }) {
     }
   }, [currentSectional, reset]);
 
+  // Ultimo segundo nombre leido de Firebase: es el "antes" del cambio, para no
+  // proponer nada cuando no se toca el campo.
+  const nombreSecundarioGuardado = useRef('');
+
+  // El segundo nombre no viene con la seccion: vive en Firebase, identificado
+  // por el id de la seccion, y se trae aparte al abrir la ficha.
+  useEffect(() => {
+    const idSeccion = currentSectional?.id ?? currentSectional?.idSeccion;
+
+    if (!idSeccion) return undefined;
+
+    let activo = true;
+
+    obtenerNombreSecundarioSeccion(idSeccion)
+      .then((nombreSecundario) => {
+        if (!activo) return;
+
+        nombreSecundarioGuardado.current = nombreSecundario || '';
+        methods.setValue('sectionalName2', nombreSecundario || '');
+      })
+      .catch((error) => {
+        console.error('[sectional form] no se pudo leer el segundo nombre', error);
+      });
+
+    return () => {
+      activo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSectional?.id, currentSectional?.idSeccion]);
+
   // Destacamentos y miembros de la seccion. La API devuelve estos campos vacios,
   // asi que la ficha mostraba 0 mientras el listado —que si los calculaba—
   // mostraba el numero bueno. Se recalculan aqui con la misma funcion que usa el
@@ -297,6 +333,29 @@ export function SectionalCreateEditForm({ currentSectional }) {
         resultado = await updateSectional(payload, { usuario: user, antes: currentSectional });
       } else {
         await saveSectional(payload, { usuario: user });
+      }
+
+      // El segundo nombre va aparte, a Firebase, con el id de la seccion: al
+      // crear hay que averiguarlo primero, porque la API no lo devuelve.
+      try {
+        const idSeccion = await resolveSectionalId(data.sectionalName, data.regionalId);
+
+        if (idSeccion) {
+          await guardarNombreSecundarioSeccion({
+            idSeccion,
+            nombreSecundario: data.sectionalName2,
+            nombreSeccion: data.sectionalName,
+            antes: nombreSecundarioGuardado.current,
+            usuario: user,
+          });
+
+          nombreSecundarioGuardado.current = String(data.sectionalName2 ?? '').trim();
+        } else if (String(data.sectionalName2 ?? '').trim()) {
+          toast.error('La sección se guardó, pero no se pudo guardar su Nombre 2.');
+        }
+      } catch (error) {
+        console.error('[sectional form] no se pudo guardar el segundo nombre', error);
+        toast.error(error.message || 'No se pudo guardar el Nombre 2 de la Sección.');
       }
 
       await espera;

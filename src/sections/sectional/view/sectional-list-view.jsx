@@ -43,7 +43,12 @@ import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
-import { getSectionals, deleteSectional, getCachedSectionals } from 'src/services/sectional-service';
+import {
+  getSectionals,
+  deleteSectional,
+  getCachedSectionals,
+  obtenerNombresSecundariosSeccion,
+} from 'src/services/sectional-service';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -129,6 +134,7 @@ const buildSectionalList = ({
   dests = [],
   churches = [],
   fotosMiembros = {},
+  nombresSecundarios = {},
 }) =>
   sectionals.map((sectional) => {
     const sectionalId = getSectionalId(sectional);
@@ -164,6 +170,9 @@ const buildSectionalList = ({
       ...sectional,
 
       sectionalName: sectional.sectionalName,
+
+      // Segundo nombre: no viene con la seccion, vive en Firebase con su id.
+      sectionalName2: nombresSecundarios[String(sectionalId)] || '',
 
       regionalName:
         regional?.regionalName ||
@@ -205,7 +214,10 @@ export function SectionalListView() {
     return regional?.name;
   };
 
-  const table = useTable();
+  // La lista arranca en vista compacta en todos los niveles: cabe mas gente en
+  // pantalla sin tener que activarla cada vez. El interruptor sigue ahi para
+  // volver a la vista amplia.
+  const table = useTable({ defaultDense: true });
 
   const confirmDialog = useBoolean();
 
@@ -321,6 +333,9 @@ export function SectionalListView() {
             // el avatar generico aunque tuviera foto.
             obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
           ]);
+        // Los segundos nombres tambien estan en Firebase: se leen de una vez
+        // para todas las secciones, no uno por fila.
+        const nombresSecundarios = await obtenerNombresSecundariosSeccion().catch(() => ({}));
 
         setRegionals(regionalsData);
 
@@ -353,6 +368,7 @@ export function SectionalListView() {
           dests: destsData,
           churches: churchesData,
           fotosMiembros,
+          nombresSecundarios,
         });
         setTableData(
           filterSectionalsByMemberScope(data, user, { dests: destsData, churches: churchesData })

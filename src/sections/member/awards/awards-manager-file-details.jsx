@@ -350,7 +350,29 @@ export function FileManagerFileDetails({
                 value={completedDate}
                 onChange={(newValue) => {
                   setCompletedDate(newValue);
-                  actions?.setCompletedDate(newValue?.toISOString());
+
+                  if (!newValue) {
+                    actions?.setCompletedDate(null);
+                    return;
+                  }
+
+                  // Mientras se teclea, la fecha pasa por estados a medias
+                  // ("12/0..."): ahi el valor es una fecha invalida y
+                  // `toISOString()` reventaba con "Invalid time value". Se
+                  // propaga solo cuando ya es una fecha de verdad; lo escrito
+                  // sigue viendose en el campo mientras tanto.
+                  const fechaValida =
+                    typeof newValue.isValid !== 'function' || newValue.isValid();
+                  // Un ano a medio teclear ("0003") es una fecha valida para
+                  // dayjs, asi que sin este limite se guardaba tal cual.
+                  const anio = typeof newValue.year === 'function' ? newValue.year() : null;
+                  const anioRazonable = anio === null || (anio >= 1900 && anio <= 2100);
+
+                  if (!fechaValida || !anioRazonable) {
+                    return;
+                  }
+
+                  actions?.setCompletedDate(newValue.toISOString());
                 }}
                 slotProps={{
                   textField: {

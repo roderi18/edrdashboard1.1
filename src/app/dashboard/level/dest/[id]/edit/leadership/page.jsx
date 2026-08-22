@@ -853,8 +853,11 @@ export default function Page() {
   const [zoom, setZoom] = useState(1);
   const zoomPercentage = Math.round(zoom * 100);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
+  // Con numero: dos destacamentos pueden llamarse igual, y el numero es lo que
+  // los distingue en todas las demas pantallas ("Tribu de Juda 18").
+  const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
   const titleText =
-    destName && destName !== 'Destacamento' ? `Destacamento ${destName}` : 'Destacamento';
+    destName && destName !== 'Destacamento' ? `Destacamento ${destNombreCompleto}` : 'Destacamento';
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-destacamento',
     name: titleText,
@@ -1277,7 +1280,7 @@ export default function Page() {
 
       const chartData = await getLeadershipPdfChartData(getAssignedMember);
       const blob = await pdf(
-        <LeadershipPdfDocument destName={destName} chartData={chartData} />
+        <LeadershipPdfDocument destName={destNombreCompleto} chartData={chartData} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

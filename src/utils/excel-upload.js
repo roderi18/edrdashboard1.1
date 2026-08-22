@@ -19,7 +19,16 @@ export const readExcelRows = async (file) => {
   );
   const sheet = workbook.Sheets[memberSheetName || workbook.SheetNames[0]];
 
-  return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+  // Las listas dependientes usan columnas auxiliares ocultas con fórmulas hasta
+  // la fila 501. No deben contarse como personas cuando el resto de la fila está
+  // vacío; los campos técnicos siempre comienzan con "__".
+  return rows.filter((row) =>
+    Object.entries(row).some(
+      ([key, value]) => !String(key).startsWith('__') && String(value ?? '').trim() !== ''
+    )
+  );
 };
 
 export const getCell = (row, keys) => {

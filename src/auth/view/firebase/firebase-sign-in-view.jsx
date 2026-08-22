@@ -170,7 +170,11 @@ export function FirebaseSignInView({ mode = 'member' }) {
         setRememberedValue('');
       }
 
+      // La clave se comprueba TAL CUAL se escribe: distingue mayusculas de
+      // minusculas, como cualquier contraseña. La clave inicial de un miembro es
+      // su codigo en mayusculas ("DO-SD-10002").
       await signInWithPassword({ email: authEmail, password: data.password });
+
       await checkUserSession?.();
 
       setIsRedirecting(true);

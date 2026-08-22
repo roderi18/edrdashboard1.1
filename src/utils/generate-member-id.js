@@ -11,18 +11,23 @@ import {
   PRIMER_NUMERO_MIEMBRO,
   abreviaturaDeProvincia,
   PREFIJO_PAIS_POR_DEFECTO,
+  normalizarAbreviaturaPais,
   PREFIJO_PROVINCIA_DESCONOCIDA,
 } from 'src/catalogs/provincias-abreviaturas';
 
 // ----------------------------------------------------------------------
 // Codigo de miembro: PAIS-PROVINCIA-NNNNN, cinco digitos desde 10001.
 //
-//   RD-SD-10001   Santo Domingo, Republica Dominicana
-//   RD-STG-10001  Santiago, misma cuenta aparte
+//   DO-SD-10001   Santo Domingo, Republica Dominicana
+//   DO-STG-10001  Santiago, misma cuenta aparte
 //
 // El pais va delante porque la organizacion se abrira a otros paises y entonces
-// RD-SD-10001 y PA-SD-10001 tienen que poder convivir. La numeracion es POR
+// DO-SD-10001 y PA-SD-10001 tienen que poder convivir. La numeracion es POR
 // PAIS Y PROVINCIA: cada combinacion lleva su propia cuenta.
+//
+// `RD` era la abreviatura anterior de Republica Dominicana y esta retirada: ya
+// no se emite y los codigos `RD-SD-NNNNN` que quedan cuentan como `DO-SD` al
+// numerar, para que el siguiente no repita un numero ya usado.
 //
 // Los codigos antiguos `DO-SD-111111xxx` se ignoran a proposito. Antes se cogia
 // el mayor numero existente y se le sumaba uno, de modo que aquellos nueve
@@ -94,7 +99,8 @@ export async function resolverPrefijosDeDestacamento(destId) {
     );
 
     const idPais = region?.idPais ?? region?.countryId;
-    const pais = tablaPaises[String(idPais)] || PREFIJO_PAIS_POR_DEFECTO;
+    const pais =
+      normalizarAbreviaturaPais(tablaPaises[String(idPais)]) || PREFIJO_PAIS_POR_DEFECTO;
 
     return { pais, provincia };
   } catch {
@@ -102,18 +108,35 @@ export async function resolverPrefijosDeDestacamento(destId) {
   }
 }
 
-export async function generateMemberId({ destId = null } = {}) {
+/**
+ * @param {object}   opciones
+ * @param {*}        opciones.destId             Destacamento del que salen pais y provincia.
+ * @param {string[]} opciones.codigosReservados  Codigos ya repartidos que todavia NO estan en
+ *   la lista de miembros. La carga masiva crea varias personas seguidas y la lista viene de
+ *   una cache de 30 segundos —y del API, que tarda en reflejar el alta—, asi que sin esto
+ *   todas las filas del mismo archivo recibian el MISMO codigo.
+ */
+export async function generateMemberId({ destId = null, codigosReservados = [] } = {}) {
   const [{ pais, provincia }, members] = await Promise.all([
     resolverPrefijosDeDestacamento(destId),
     getMembers().catch(() => []),
   ]);
 
-  const usados = (Array.isArray(members) ? members : [])
-    .map((miembro) => String(miembro?.memberId || miembro?.codigoMiembro || '').toUpperCase())
+  const usados = [
+    ...(Array.isArray(members) ? members : []).map((miembro) =>
+      String(miembro?.memberId || miembro?.codigoMiembro || '')
+    ),
+    ...(Array.isArray(codigosReservados) ? codigosReservados : []).map((codigo) =>
+      String(codigo || '')
+    ),
+  ]
+    .map((codigo) => codigo.toUpperCase())
     .map((codigo) => codigo.match(FORMATO_CODIGO))
     .filter(
       (coincidencia) =>
-        coincidencia && coincidencia[1] === pais && coincidencia[2] === provincia
+        coincidencia &&
+        normalizarAbreviaturaPais(coincidencia[1]) === pais &&
+        coincidencia[2] === provincia
     )
     .map((coincidencia) => Number(coincidencia[3]));
 

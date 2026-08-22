@@ -1,3 +1,5 @@
+import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
+
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
@@ -8,6 +10,8 @@ import {
   canCreateSectionalInRegion,
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
+
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { getChurches } from './church-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
@@ -296,4 +300,117 @@ export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
     } catch {
         return { raw: text };
     }
+};
+
+// ----------------------------------------------------------------------
+// Segundo nombre de la seccion ("Nombre 2 de la Sección").
+//
+// La API de Secciones solo guarda UN nombre, asi que el segundo vive en
+// Firestore, en un documento por seccion identificado por su id:
+// `seccionesNombres/seccion_<idSeccion>`. El id va tambien como campo, para
+// poder cruzarlo sin depender del nombre del documento.
+// ----------------------------------------------------------------------
+
+export const COLECCION_NOMBRES_SECCION = 'seccionesNombres';
+
+const normalizarIdSeccion = (idSeccion) => String(idSeccion ?? '').trim();
+
+export const idDocumentoNombreSeccion = (idSeccion) =>
+    `seccion_${normalizarIdSeccion(idSeccion)}`;
+
+export const obtenerNombreSecundarioSeccion = async (idSeccion) => {
+    const id = normalizarIdSeccion(idSeccion);
+
+    if (!isFirebaseConfigured || !FIRESTORE || !id) return '';
+
+    const snapshot = await getDoc(doc(FIRESTORE, COLECCION_NOMBRES_SECCION, idDocumentoNombreSeccion(id)));
+
+    return snapshot.exists() ? String(snapshot.data()?.nombreSecundario || '') : '';
+};
+
+// Todos de una vez, indexados por id de seccion: quien los necesite para una
+// lista no tiene que pedir uno por fila.
+export const obtenerNombresSecundariosSeccion = async () => {
+    if (!isFirebaseConfigured || !FIRESTORE) return {};
+
+    const snapshot = await getDocs(collection(FIRESTORE, COLECCION_NOMBRES_SECCION));
+    const nombres = {};
+
+    snapshot.forEach((documento) => {
+        const datos = documento.data() || {};
+        const id = normalizarIdSeccion(datos.idSeccion);
+
+        if (id) nombres[id] = String(datos.nombreSecundario || '');
+    });
+
+    return nombres;
+};
+
+// Escritura real. No se llama a pelo: entra por la puerta de cambios.
+const escribirNombreSecundario = async ({ id, nombre, usuario }) =>
+    setDoc(
+        doc(FIRESTORE, COLECCION_NOMBRES_SECCION, idDocumentoNombreSeccion(id)),
+        {
+            idSeccion: id,
+            nombreSecundario: nombre,
+            actualizadoPor: usuario?.uid || usuario?.id || null,
+            actualizadoEn: serverTimestamp(),
+        },
+        { merge: true }
+    );
+
+export const guardarNombreSecundarioSeccion = async ({
+    idSeccion,
+    nombreSecundario,
+    nombreSeccion = '',
+    antes = '',
+    usuario,
+} = {}) => {
+    if (!isFirebaseConfigured || !FIRESTORE) {
+        throw new Error('Firebase no está configurado en este entorno.');
+    }
+
+    const id = normalizarIdSeccion(idSeccion);
+
+    if (!id) {
+        throw new Error('No se pudo identificar la sección para guardar su segundo nombre.');
+    }
+
+    const nombre = String(nombreSecundario ?? '').trim();
+    const anterior = String(antes ?? '').trim();
+
+    // Sin cambios no se molesta a nadie: ni solicitud, ni escritura.
+    if (nombre === anterior) {
+        return { pendienteDeAprobacion: false, idSeccion: id, nombreSecundario: nombre };
+    }
+
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.seccion,
+        entidad: {
+            tipo: 'seccion',
+            id,
+            nombre: nombreSeccion || `Sección ${id}`,
+            ruta: `/dashboard/level/sectional/${id}/edit`,
+        },
+        cambios: [
+            {
+                campo: 'nombreSecundario',
+                etiqueta: 'Nombre 2 de la Sección',
+                antes: anterior || null,
+                despues: nombre || null,
+            },
+        ],
+        usuario,
+        descripcion: `Se cambió el segundo nombre de la sección ${nombreSeccion || id}.`,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload: { idSeccion: id, nombreSecundario: nombre },
+        aplicar: () => escribirNombreSecundario({ id, nombre, usuario }),
+    });
+
+    return {
+        idSeccion: id,
+        nombreSecundario: nombre,
+        pendienteDeAprobacion: resultado.estado === ESTADOS_CAMBIO.pendiente,
+        idSolicitud: resultado.idSolicitud,
+    };
 };

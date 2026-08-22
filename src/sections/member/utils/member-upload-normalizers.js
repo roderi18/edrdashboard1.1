@@ -71,3 +71,26 @@ export const normalizeMemberUploadPhone = (value) => {
       'El prefijo +1 se agrega automáticamente.'
   );
 };
+
+export const buildMemberUploadAddress = ({
+  province,
+  municipality,
+  sector,
+  streetAndNumber,
+  legacyAddress,
+} = {}) => {
+  const values = [province, municipality, sector, streetAndNumber].map((value) =>
+    String(value ?? '').trim()
+  );
+  const [normalizedProvince, normalizedMunicipality, normalizedSector] = values;
+
+  if (normalizedMunicipality && !normalizedProvince) {
+    throw new Error('selecciona primero la Provincia.');
+  }
+
+  if (normalizedSector && !normalizedMunicipality) {
+    throw new Error('selecciona primero el Municipio.');
+  }
+
+  return values.filter(Boolean).join(', ') || String(legacyAddress ?? '').trim();
+};

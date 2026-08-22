@@ -1,15 +1,14 @@
 'use client';
 
 import { z as zod } from 'zod';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  updateEmail,
   updatePassword,
   EmailAuthProvider,
-  sendEmailVerification,
+  verifyBeforeUpdateEmail,
   reauthenticateWithCredential,
 } from 'firebase/auth';
 
@@ -24,10 +23,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { useRouter } from 'src/routes/hooks';
 
-import {
-  buildMemberAuthPassword,
-  buildMemberAuthPasswordHeredada,
-} from 'src/utils/member-auth-credentials';
+import { MEMBER_AUTH_DOMAIN, clavesInicialesMiembro } from 'src/utils/member-auth-credentials';
 
 import { AUTH } from 'src/lib/firebase';
 import { CONFIG } from 'src/global-config';
@@ -79,15 +75,31 @@ export function FirebasePrimerAccesoView() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [avisoCorreo, setAvisoCorreo] = useState(null);
 
+  // Correo con el que se creo al miembro. El de la sesion puede ser el interno
+  // (`...@exploradores.app`), que no es de nadie y no se ofrece.
+  const correoDelMiembro = String(user?.email || user?.correo || '').trim();
+  const correoInicial = correoDelMiembro.toLowerCase().endsWith(`@${MEMBER_AUTH_DOMAIN}`)
+    ? ''
+    : correoDelMiembro;
+
   const methods = useForm({
     resolver: zodResolver(PrimerAccesoSchema),
-    defaultValues: { claveNueva: '', claveRepetida: '', correo: '' },
+    defaultValues: { claveNueva: '', claveRepetida: '', correo: correoInicial },
   });
 
   const {
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, dirtyFields },
   } = methods;
+
+  // La ficha del miembro puede llegar despues del primer pintado: se rellena
+  // entonces, salvo que ya lo haya tocado a mano.
+  useEffect(() => {
+    if (!correoInicial || dirtyFields.correo) return;
+
+    methods.setValue('correo', correoInicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correoInicial]);
 
   const onSubmit = handleSubmit(async (datos) => {
     setErrorMessage(null);
@@ -106,12 +118,10 @@ export function FirebasePrimerAccesoView() {
       // Firebase exige haber iniciado sesion hace poco para cambiar clave o
       // correo. Se rehace con la clave inicial —la que acaba de usar para
       // entrar— y asi no hay que pedirsela de nuevo.
-      // Se prueban las dos formas de la clave inicial: la actual (codigo completo) y
-      // la heredada (solo el numero), porque las cuentas antiguas se crearon con esa.
-      const clavesIniciales = [
-        buildMemberAuthPassword(codigo),
-        buildMemberAuthPasswordHeredada(codigo),
-      ].filter(Boolean);
+      // Se prueban todas las formas de la clave inicial: la de ahora (codigo en
+      // MAYUSCULAS) y las de las cuentas antiguas (en minusculas, y solo el
+      // numero). Es una comprobacion interna: no la teclea nadie.
+      const clavesIniciales = clavesInicialesMiembro(codigo);
 
       for (const clave of clavesIniciales) {
         // En serie a proposito: en cuanto una vale, no hay que probar la siguiente.
@@ -128,16 +138,32 @@ export function FirebasePrimerAccesoView() {
 
       if (datos.correo) {
         try {
-          await updateEmail(usuarioAuth, datos.correo);
-          await sendEmailVerification(usuarioAuth);
+          // `updateEmail` esta bloqueado cuando el proyecto tiene activada la
+          // proteccion contra enumeracion de correos (lo esta por defecto), y
+          // fallaba con `auth/operation-not-allowed`: de ahi el "No pudimos
+          // guardar el correo". `verifyBeforeUpdateEmail` es el camino que si
+          // admite: manda el enlace al correo nuevo y la cuenta lo adopta cuando
+          // se abre, que es justo lo que promete el texto de abajo.
+          await verifyBeforeUpdateEmail(usuarioAuth, datos.correo);
           setAvisoCorreo(
-            `Te enviamos un correo de verificación a ${datos.correo}. Ábrelo para confirmar que es tuyo.`
+            `Te enviamos un correo de verificación a ${datos.correo}. Ábrelo para confirmar que es tuyo; hasta entonces sigues entrando con tu número.`
           );
         } catch (error) {
+          console.error('[primer acceso] no se pudo guardar el correo', error);
+
+          const motivos = {
+            'auth/email-already-in-use':
+              'Ese correo ya lo usa otra cuenta.',
+            'auth/invalid-email': 'Ese correo no parece válido.',
+            'auth/requires-recent-login':
+              'Por seguridad hay que volver a entrar antes de cambiar el correo.',
+            'auth/operation-not-allowed':
+              'El proyecto no permite cambiar el correo desde aquí.',
+            'auth/too-many-requests': 'Demasiados intentos seguidos; espera un momento.',
+          };
+
           setAvisoCorreo(
-            error?.code === 'auth/email-already-in-use'
-              ? 'Ese correo ya lo usa otra cuenta. Tu contraseña sí se cambió; puedes añadir el correo más tarde desde tu perfil.'
-              : 'No pudimos guardar el correo. Tu contraseña sí se cambió; puedes añadirlo más tarde desde tu perfil.'
+            `${motivos[error?.code] || 'No pudimos guardar el correo.'} Tu contraseña sí se cambió; puedes añadirlo más tarde desde tu perfil.`
           );
         }
       }

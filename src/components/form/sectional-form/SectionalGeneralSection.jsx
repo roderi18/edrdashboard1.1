@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { getRegionals } from 'src/services/regional-service';
 
 import { Field } from 'src/components/hook-form';
+import NameInput from 'src/components/common/name-input';
 import LocationSuggestInput from 'src/components/api/location-suggest-input-api';
 import DirectivaMemberSelect from 'src/components/form/common/directiva-member-select';
 // ----------------------------------------------------------------------
@@ -72,12 +73,22 @@ export default function SectionalGeneralSection({
                 <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
             </Box>
 
-            {/* Nombre de la Sección */}
-            {/* `allowSpecialChars` abre parentesis y puntos —"Este Oriental I
-                (Zona Urbana)"— ademas de "#" y "/". */}
+            {/* Nombre principal y nombre 2. El principal es el que guarda la API
+                de Secciones; el segundo —el apodo con el que se la conoce, "Tiburones
+                Del Este"— no cabe ahi y se guarda en Firebase con el id de la seccion.
+                `allowSpecialChars` abre parentesis y puntos, ademas de "#" y "/". */}
             <LocationSuggestInput
                 name="sectionalName"
-                label="Nombre de la Sección"
+                label="Nombre Principal de Sección"
+                allowNumbers
+                allowDash
+                allowSpecialChars
+                disabled={disabled}
+            />
+
+            <NameInput
+                name="sectionalName2"
+                label="Nombre 2 de la Sección"
                 allowNumbers
                 allowDash
                 allowSpecialChars

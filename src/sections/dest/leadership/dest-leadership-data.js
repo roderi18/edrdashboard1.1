@@ -12,11 +12,13 @@
 // guarda los desplazamientos por id.
 // ----------------------------------------------------------------------
 
+// De mayor a menor, igual que las pestañas del listado de miembros: el
+// organigrama las dibuja de izquierda a derecha en este orden.
 const DIVISIONES = [
-  { id: 'navegantes', nombre: 'Navegantes', edades: '5 a 7 años' },
-  { id: 'pioneros', nombre: 'Pioneros', edades: '8 a 10 años' },
-  { id: 'seguidores', nombre: 'Seguidores', edades: '11 a 13 años' },
   { id: 'exploradores', nombre: 'Exploradores', edades: '14 a 17 años' },
+  { id: 'seguidores', nombre: 'Seguidores', edades: '11 a 13 años' },
+  { id: 'pioneros', nombre: 'Pioneros', edades: '8 a 10 años' },
+  { id: 'navegantes', nombre: 'Navegantes', edades: '5 a 7 años' },
 ];
 
 const createNode = ({ id, role, cargo, division = null, orden = 1, children }) => ({

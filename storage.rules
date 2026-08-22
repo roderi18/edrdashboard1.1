@@ -6,6 +6,8 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Requiere que el agente administrado de Firebase Storage tenga
+    // roles/firebaserules.firestoreServiceAgent para resolver estos perfiles.
     function rutaUsuario(coleccion) {
       return /databases/(default)/documents/$(coleccion)/$(request.auth.uid);
     }
@@ -46,6 +48,52 @@ service firebase.storage {
             || esRolAdministrativo(documentoUsuario('usuarios_roles').data.role)
             || esRolAdministrativo(documentoUsuario('usuarios_roles').data.rolId)
           )
+        );
+    }
+
+    // `admin` es la identidad legada de la cuenta administrativa principal
+    // (admin001). No se incluye `administrador`: ese valor tambien lo usan cargos
+    // organizacionales que no deben recibir privilegios globales.
+    function esRolAdministradorGlobal(rol) {
+      return rol in ['admin', 'administrador_global'];
+    }
+
+    function documentoTieneRolAdministradorGlobal(coleccion) {
+      return tieneDocumento(coleccion)
+        && (
+          (
+            'rolId' in documentoUsuario(coleccion).data
+            && esRolAdministradorGlobal(documentoUsuario(coleccion).data.rolId)
+          )
+          || (
+            'roleId' in documentoUsuario(coleccion).data
+            && esRolAdministradorGlobal(documentoUsuario(coleccion).data.roleId)
+          )
+          || (
+            'rol' in documentoUsuario(coleccion).data
+            && esRolAdministradorGlobal(documentoUsuario(coleccion).data.rol)
+          )
+          || (
+            'role' in documentoUsuario(coleccion).data
+            && esRolAdministradorGlobal(documentoUsuario(coleccion).data.role)
+          )
+        );
+    }
+
+    // El Administrador Global es el unico rol con acceso transversal para crear
+    // o reemplazar imagenes en cualquier modulo. Se consulta primero el custom
+    // claim y se conservan los documentos de perfil como respaldo mientras el
+    // token renovado aun no ha llegado al cliente.
+    function esAdministradorGlobal() {
+      return estaAutenticado()
+        && (
+          (
+            'rol' in request.auth.token
+            && esRolAdministradorGlobal(request.auth.token.rol)
+          )
+          || documentoTieneRolAdministradorGlobal('usuarios_roles')
+          || documentoTieneRolAdministradorGlobal('users')
+          || documentoTieneRolAdministradorGlobal('admins')
         );
     }
 
@@ -337,6 +385,17 @@ service firebase.storage {
       allow read: if estaAutenticado();
       allow write: if esArchivoPerfil(archivo)
         && tienePermiso('destacamentos.subir_foto')
+        && esImagenPermitida();
+    }
+
+    // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
+    // permite al Administrador Global agregar o reemplazar cualquier imagen,
+    // incluidas las fotos de secciones y regiones que no tienen un match propio.
+    // No concede borrado ni permite subir archivos que no sean imagenes.
+    match /{rutaImagen=**} {
+      allow read: if esAdministradorGlobal()
+        && resource.contentType.matches('image/.*');
+      allow create, update: if esAdministradorGlobal()
         && esImagenPermitida();
     }
   }

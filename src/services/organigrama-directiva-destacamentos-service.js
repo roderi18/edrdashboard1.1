@@ -7,6 +7,7 @@ import {
   getDocs,
   deleteDoc,
   updateDoc,
+  writeBatch,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -228,6 +229,54 @@ export async function desactivarAsignacionOrganigramaDirectivaDestacamento(idAsi
       fechaActualizacion: serverTimestamp(),
     }
   );
+}
+
+/**
+ * Retira del organigrama TODAS las casillas que ocupe un miembro, en cualquier
+ * destacamento.
+ *
+ * Se usa al darlo de baja: la directiva del destacamento no vive en
+ * `asignacionesDirectiva` sino aqui, asi que borrar a la persona dejaba su nodo
+ * en pie —con su nombre y su foto— apuntando a un id que ya no existe.
+ *
+ * No se borran los documentos: quedan inactivos, para conservar el historico.
+ */
+export async function desactivarAsignacionesOrganigramaDelMiembro({ idMiembro } = {}) {
+  asegurarFirebaseOrganigrama();
+
+  const idMiembros = normalizarNumero(idMiembro);
+
+  if (!idMiembros) {
+    return 0;
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_ORGANIGRAMA_DIRECTIVA_DESTACAMENTOS),
+      where('idMiembros', '==', idMiembros)
+    )
+  );
+  const activas = snapshot.docs.filter(
+    (documentSnapshot) => documentSnapshot.data()?.activo !== false
+  );
+
+  if (!activas.length) {
+    return 0;
+  }
+
+  const batch = writeBatch(FIRESTORE);
+
+  activas.forEach((documentSnapshot) => {
+    batch.set(
+      documentSnapshot.ref,
+      { activo: false, fechaActualizacion: serverTimestamp() },
+      { merge: true }
+    );
+  });
+
+  await batch.commit();
+
+  return activas.length;
 }
 
 export async function eliminarAsignacionOrganigramaDirectivaDestacamento(idAsignacion) {

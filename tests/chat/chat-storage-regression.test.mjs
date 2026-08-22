@@ -21,6 +21,23 @@ test('Storage restringe archivos del chat a participantes de la conversación', 
   assert.match(storageRules, /allow update: if false/g);
 });
 
+test('el administrador global puede crear o reemplazar imagenes en cualquier ruta', () => {
+  assert.match(storageRules, /function esAdministradorGlobal\(\)/);
+  assert.match(storageRules, /return rol in \['admin', 'administrador_global'\]/);
+  assert.match(storageRules, /esRolAdministradorGlobal\(request\.auth\.token\.rol\)/);
+  assert.doesNotMatch(storageRules, /\['admin', 'administrador', 'administrador_global'\]/);
+  assert.match(storageRules, /match \/\{rutaImagen=\*\*\}/);
+  assert.match(
+    storageRules,
+    /allow create, update: if esAdministradorGlobal\(\)\s*&& esImagenPermitida\(\)/
+  );
+  assert.match(
+    storageRules,
+    /allow read: if esAdministradorGlobal\(\)\s*&& resource\.contentType\.matches\('image\/\.\*'\)/
+  );
+  assert.doesNotMatch(storageRules, /allow (?:write|delete): if esAdministradorGlobal\(\)/);
+});
+
 test('las cargas usan la conversación real y metadatos ligados al usuario autenticado', () => {
   assert.match(inputSource, /createConversation\(\s*\{ \.\.\.conversationData, messages: \[\] \}/);
   assert.match(inputSource, /chat\/\$\{activeConversationId\}\/imagenes/);
