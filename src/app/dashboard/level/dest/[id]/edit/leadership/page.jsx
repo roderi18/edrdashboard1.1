@@ -1176,6 +1176,9 @@ export default function Page() {
 
       const [asignacionGuardada] = await Promise.all([
         guardarAsignacionDirectiva({
+          // Sin el usuario, la puerta de cambios no sabe quien actua y deja el
+          // cambio pendiente de aprobacion: la casilla se pintaba y volvia atras.
+          usuario: user,
           nivel: NIVEL_DESTACAMENTO,
           idEntidad: destId,
           idCargo: Number(position.idCargoApi) || null,
@@ -1260,6 +1263,7 @@ export default function Page() {
       // Se da de baja escribiendo la misma asignacion con activo=false, igual que
       // hacen las Directivas de seccion, region y nacion.
       await guardarAsignacionDirectiva({
+        usuario: user,
         nivel: NIVEL_DESTACAMENTO,
         idEntidad: destId,
         idCargo: Number(position?.idCargoApi) || null,

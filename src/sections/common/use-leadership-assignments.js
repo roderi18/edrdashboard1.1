@@ -26,6 +26,8 @@ import {
 
 import { toast } from 'src/components/snackbar';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 // Asignacion de miembros en las Directivas de SECCION, REGION y NACION.
 //
@@ -78,6 +80,10 @@ export function useLeadershipAssignments({
   nombreEntidad = '',
   canManage = true,
 }) {
+  // Quien actua. Sin esto, la puerta de cambios no sabia que quien remueve es el
+  // Administrador Global, dejaba el cambio PENDIENTE de aprobacion y la casilla
+  // volvia a su estado anterior: se anunciaba "removido" y reaparecia la persona.
+  const { user } = useAuthContext();
   const [members, setMembers] = useState([]);
   const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
   // Asignaciones activas de esta directiva, indexadas por idPosicionDirectiva.
@@ -270,6 +276,7 @@ export function useLeadershipAssignments({
       (async () => {
         try {
           const asignacionGuardada = await guardarAsignacionDirectiva({
+            usuario: user,
             nivel,
             idEntidad,
             nombreEntidad,
@@ -298,6 +305,13 @@ export function useLeadershipAssignments({
           // estas mismas asignaciones, asi que escribir aqui es suficiente para
           // que las tres pantallas digan lo mismo.
 
+          // Pendiente de aprobacion: no se ha escrito nada todavia. Se dice y se
+          // vuelve a lo que hay, en vez de dejar la casilla pintada como si ya
+          // estuviera hecho.
+          if (asignacionGuardada?.pendienteDeAprobacion) {
+            toast.info('Cambio enviado a la Oficina Nacional. Se aplicará cuando lo apruebe.');
+          }
+
           // Reconcilia el pintado optimista con lo que quedo escrito de verdad.
           await loadAssignments();
         } catch (error) {
@@ -316,7 +330,7 @@ export function useLeadershipAssignments({
 
       return true;
     },
-    [canManage, nivel, idEntidad, nombreEntidad, loadAssignments, assignments]
+    [canManage, nivel, idEntidad, nombreEntidad, loadAssignments, assignments, user]
   );
 
   const asignarMiembro = useCallback(async () => {
