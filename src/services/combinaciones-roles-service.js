@@ -1,6 +1,7 @@
-import { doc, getDocs, writeBatch, collection } from 'firebase/firestore';
+import { doc, getDocs, writeBatch, collection, runTransaction } from 'firebase/firestore';
 
 import { CAPACIDADES, analizarCombinacion } from 'src/utils/simulador-permisos';
+import { mergeCombinationCapabilityReview } from 'src/utils/role-combination-reviews';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
@@ -122,6 +123,7 @@ export async function sembrarCombinacionesRoles({ usuario = null, rehacer = fals
               // Al rehacer se conserva lo que es del revisor, no del calculo.
               revisado: anterior?.revisado ?? false,
               nota: anterior?.nota ?? '',
+              revisionesCapacidades: anterior?.revisionesCapacidades ?? {},
               sembradoEn: marca,
               sembradoPor: autor,
             },
@@ -193,6 +195,82 @@ export async function guardarRevisionCombinacion({
       );
 
       await lote.commit();
+    },
+  });
+}
+
+/**
+ * Marca una fila concreta del simulador como validada para una combinación.
+ * La transacción vuelve a leer el mapa antes de guardar para que dos clics
+ * cercanos no borren entre sí las demás filas ya revisadas.
+ */
+export async function guardarRevisionCapacidadCombinacion({
+  idCombinacion,
+  idCapacidad,
+  validada = false,
+  anterior = false,
+  usuario = null,
+} = {}) {
+  asegurarFirebase();
+
+  const combinacion = COMBINACION_POR_ID[idCombinacion];
+  const capacidad = CAPACIDADES.find((item) => item.id === idCapacidad);
+
+  if (!combinacion) {
+    throw new Error('Esa combinación de roles no existe.');
+  }
+
+  if (!capacidad) {
+    throw new Error('Esa fila del simulador no existe.');
+  }
+
+  const nombre = `${combinacion.destacamento.nombre} + ${combinacion.acompanante.nombre}`;
+
+  return proponerCambio({
+    ambito: AMBITOS_CAMBIO.combinacionesRoles,
+    entidad: { tipo: 'capacidad_combinacion_roles', id: idCombinacion, nombre },
+    usuario,
+    aplicarDirecto: true,
+    descripcion: validada
+      ? `Fila validada en ${nombre}: ${capacidad.etiqueta}`
+      : `Validación retirada en ${nombre}: ${capacidad.etiqueta}`,
+    cambios: [
+      {
+        campo: `revisionesCapacidades.${idCapacidad}`,
+        etiqueta: capacidad.etiqueta,
+        antes: anterior ? 'Validada' : 'Pendiente',
+        despues: validada ? 'Validada' : 'Pendiente',
+      },
+    ],
+    aplicar: async () => {
+      const documentRef = doc(FIRESTORE, COLECCION_COMBINACIONES, idCombinacion);
+      const marca = new Date().toISOString();
+      const autor = usuario?.uid || usuario?.email || 'sistema';
+
+      await runTransaction(FIRESTORE, async (transaction) => {
+        const snapshot = await transaction.get(documentRef);
+        const document = snapshot.exists() ? snapshot.data() : documentoBase(combinacion);
+        const revisionesCapacidades = mergeCombinationCapabilityReview(
+          document,
+          idCapacidad,
+          {
+            validada,
+            revisadaEn: marca,
+            revisadaPor: autor,
+          }
+        );
+
+        transaction.set(
+          documentRef,
+          {
+            ...(!snapshot.exists() ? document : {}),
+            revisionesCapacidades,
+            revisionesCapacidadesActualizadasEn: marca,
+            revisionesCapacidadesActualizadasPor: autor,
+          },
+          { merge: true }
+        );
+      });
     },
   });
 }

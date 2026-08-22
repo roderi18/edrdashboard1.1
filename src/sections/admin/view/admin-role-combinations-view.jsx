@@ -36,15 +36,22 @@ import {
   analizarCombinacion,
   construirUsuarioSimulado,
 } from 'src/utils/simulador-permisos';
+import {
+  isCombinationCapabilityValidated,
+  mergeCombinationCapabilityReview,
+  countValidatedCombinationCapabilities,
+} from 'src/utils/role-combination-reviews';
 
 import {
   obtenerCombinacionesRoles,
   sembrarCombinacionesRoles,
   guardarRevisionCombinacion,
+  guardarRevisionCapacidadCombinacion,
 } from 'src/services/combinaciones-roles-service';
 import {
   rolesDeNivel,
   COMBINACIONES,
+  idCombinacion,
   ETIQUETA_NIVEL,
   NIVEL_COMBINACION,
   NIVELES_ACOMPANANTES,
@@ -92,7 +99,15 @@ function ResultadoLabel({ valor }) {
 
 // ----------------------------------------------------------------------
 
-function Simulador({ codigoDestacamento, codigoAcompanante, onCambiar }) {
+function Simulador({
+  codigoDestacamento,
+  codigoAcompanante,
+  onCambiar,
+  revisionGuardada,
+  onRevisarCapacidad,
+  guardandoCapacidades,
+  cargandoRevisiones,
+}) {
   const [mostrarSueltos, setMostrarSueltos] = useState(true);
 
   const destacamento = ROL_COMBINABLE_POR_CODIGO[codigoDestacamento];
@@ -114,8 +129,14 @@ function Simulador({ codigoDestacamento, codigoAcompanante, onCambiar }) {
   if (!analisis || !sesion) return null;
 
   const principal = ROL_COMBINABLE_POR_CODIGO[sesion.rolId];
+  const combinationId = idCombinacion(codigoDestacamento, codigoAcompanante);
+  const totalValidadas = countValidatedCombinationCapabilities(
+    revisionGuardada,
+    CAPACIDADES.map((capacidad) => capacidad.id)
+  );
 
   const cabecera = [
+    { id: 'validada', label: 'Correcta', width: 88 },
     { id: 'capacidad', label: 'Qué puede hacer' },
     ...(mostrarSueltos
       ? [
@@ -176,7 +197,7 @@ function Simulador({ codigoDestacamento, codigoAcompanante, onCambiar }) {
         </Box>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 2.5 }}>
-          <Tooltip title="Es el de mayor nivel: con él entra a la aplicación y de él salen las restricciones del catálogo.">
+          <Tooltip title="Es el rol principal de navegación. Dentro de su propio destacamento, el cargo local conserva sus permisos.">
             <Label variant="soft" color="info">
               Entra como {principal?.nombre ?? sesion.rolId}
             </Label>
@@ -236,7 +257,7 @@ function Simulador({ codigoDestacamento, codigoAcompanante, onCambiar }) {
       <Card>
         <CardHeader
           title="Lo que puede hacer"
-          subheader="Cada fila es una pregunta real de la aplicación, respondida ejecutándola."
+          subheader={`Cada fila es una pregunta real de la aplicación. ${totalValidadas} de ${CAPACIDADES.length} marcadas como correctas; se guardan automáticamente en Firebase.`}
           action={
             <FormControlLabel
               control={
@@ -267,6 +288,36 @@ function Simulador({ codigoDestacamento, codigoAcompanante, onCambiar }) {
 
                     {CAPACIDADES.filter((capacidad) => capacidad.area === area).map((capacidad) => (
                       <TableRow key={capacidad.id} hover>
+                        <TableCell padding="checkbox">
+                          <Tooltip
+                            title={
+                              isCombinationCapabilityValidated(revisionGuardada, capacidad.id)
+                                ? 'Marcada como correcta y guardada en Firebase'
+                                : 'Marcar esta fila como correcta'
+                            }
+                          >
+                            <span>
+                              <Checkbox
+                                checked={isCombinationCapabilityValidated(
+                                  revisionGuardada,
+                                  capacidad.id
+                                )}
+                                disabled={
+                                  cargandoRevisiones ||
+                                  guardandoCapacidades.has(
+                                    `${combinationId}::${capacidad.id}`
+                                  )
+                                }
+                                inputProps={{
+                                  'aria-label': `Validar ${capacidad.etiqueta}`,
+                                }}
+                                onChange={(event) =>
+                                  onRevisarCapacidad(capacidad, event.target.checked)
+                                }
+                              />
+                            </span>
+                          </Tooltip>
+                        </TableCell>
                         <TableCell>
                           <Typography variant="body2">{capacidad.etiqueta}</Typography>
                         </TableCell>
@@ -513,6 +564,8 @@ export function AdminRoleCombinationsView() {
   const [pestana, setPestana] = useState('simulador');
   const [guardadas, setGuardadas] = useState({});
   const [sembrando, setSembrando] = useState(false);
+  const [guardandoCapacidades, setGuardandoCapacidades] = useState(() => new Set());
+  const [cargandoRevisiones, setCargandoRevisiones] = useState(true);
 
   const cargar = useCallback(async () => {
     try {
@@ -521,6 +574,8 @@ export function AdminRoleCombinationsView() {
       console.error(error);
       // Sin catalogo guardado el simulador funciona igual: lo calcula.
       setGuardadas({});
+    } finally {
+      setCargandoRevisiones(false);
     }
   }, []);
 
@@ -595,6 +650,61 @@ export function AdminRoleCombinationsView() {
     }
   };
 
+  const handleRevisarCapacidad = async (capacidad, validada) => {
+    const combinationId = idCombinacion(codigoDestacamento, codigoAcompanante);
+    const savingId = `${combinationId}::${capacidad.id}`;
+    const documentAnterior = guardadas[combinationId] ?? { id: combinationId };
+    const revisionAnterior = documentAnterior?.revisionesCapacidades?.[capacidad.id];
+    const estabaValidada = isCombinationCapabilityValidated(documentAnterior, capacidad.id);
+
+    setGuardandoCapacidades((previas) => new Set(previas).add(savingId));
+    setGuardadas((previas) => ({
+      ...previas,
+      [combinationId]: {
+        ...(previas[combinationId] ?? documentAnterior),
+        revisionesCapacidades: mergeCombinationCapabilityReview(
+          previas[combinationId] ?? documentAnterior,
+          capacidad.id,
+          { validada }
+        ),
+      },
+    }));
+
+    try {
+      await guardarRevisionCapacidadCombinacion({
+        idCombinacion: combinationId,
+        idCapacidad: capacidad.id,
+        validada,
+        anterior: estabaValidada,
+        usuario: user,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'No se pudo guardar la validación de esta fila.');
+      setGuardadas((previas) => {
+        const documentActual = previas[combinationId] ?? documentAnterior;
+        const revisionesCapacidades = { ...(documentActual.revisionesCapacidades ?? {}) };
+
+        if (revisionAnterior === undefined) {
+          delete revisionesCapacidades[capacidad.id];
+        } else {
+          revisionesCapacidades[capacidad.id] = revisionAnterior;
+        }
+
+        return {
+          ...previas,
+          [combinationId]: { ...documentActual, revisionesCapacidades },
+        };
+      });
+    } finally {
+      setGuardandoCapacidades((previas) => {
+        const siguientes = new Set(previas);
+        siguientes.delete(savingId);
+        return siguientes;
+      });
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <Card>
@@ -649,6 +759,12 @@ export function AdminRoleCombinationsView() {
           codigoDestacamento={codigoDestacamento}
           codigoAcompanante={codigoAcompanante}
           onCambiar={cambiarSeleccion}
+          revisionGuardada={
+            guardadas[idCombinacion(codigoDestacamento, codigoAcompanante)] ?? {}
+          }
+          onRevisarCapacidad={handleRevisarCapacidad}
+          guardandoCapacidades={guardandoCapacidades}
+          cargandoRevisiones={cargandoRevisiones}
         />
       ) : (
         <Checklist guardadas={guardadas} onRevisar={handleRevisar} onAbrir={handleAbrir} />

@@ -40,8 +40,9 @@ export const ETIQUETA_NIVEL = {
 
 const ROLES_EXCLUIDOS = new Set([ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL]);
 
-// Cuanto mas alto el nivel, mas manda: es el que decide el rol PRINCIPAL de la
-// sesion, y con el las restricciones del catalogo (solo lectura, supervision).
+// Cuanto mas alto el nivel, mas pesa para elegir el rol PRINCIPAL de navegación.
+// Eso no borra las facultades locales: sobre miembros de su propio destacamento,
+// el cargo de destacamento conserva la prioridad y sus permisos.
 export const PESO_NIVEL = {
   [NIVEL_COMBINACION.nacional]: 4,
   [NIVEL_COMBINACION.region]: 3,

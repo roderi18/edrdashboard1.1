@@ -19,6 +19,10 @@ import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { obtenerAccesoUsuario, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions';
+import {
+  mergeCombinedRoleScope,
+  mergeCombinedRolePermissions,
+} from 'src/auth/permissions/combined-role-access';
 
 import { AuthContext } from '../auth-context';
 
@@ -148,67 +152,6 @@ const getAdminProfileData = (profile = {}) => {
   };
 };
 
-const normalizeScopeList = (...values) =>
-  values
-    .flat()
-    .filter((value) => value !== null && value !== undefined && value !== '')
-    .map((value) => (Number.isFinite(Number(value)) ? Number(value) : String(value)));
-
-const uniqueScopeList = (...values) => Array.from(new Set(normalizeScopeList(...values)));
-
-const getScopeType = (scope = {}, fallback = '') => scope?.tipo || scope?.modo || fallback;
-
-const mergeDestScopeWithMemberAccess = (scope = {}, memberAccess = {}, fallbackScopeType = '') => {
-  const memberScope = memberAccess?.profile?.alcance ?? {};
-  const scopeType = getScopeType(scope, fallbackScopeType || getScopeType(memberScope));
-
-  if (scopeType !== 'destacamento') {
-    return {
-      ...memberScope,
-      ...scope,
-      ...(scopeType ? { tipo: scopeType, modo: scopeType } : {}),
-    };
-  }
-
-  const destacamentos = uniqueScopeList(
-    scope?.destacamentos,
-    scope?.destacamentoId,
-    scope?.idDestacamento,
-    memberScope?.destacamentos,
-    memberScope?.destacamentoId,
-    memberScope?.idDestacamento,
-    memberAccess?.member?.idDestacamento
-  );
-  const secciones = uniqueScopeList(
-    scope?.secciones,
-    scope?.seccionId,
-    scope?.idSeccion,
-    memberScope?.secciones,
-    memberScope?.seccionId,
-    memberScope?.idSeccion
-  );
-  const primaryDestId =
-    scope?.destacamentoId ??
-    scope?.idDestacamento ??
-    memberScope?.destacamentoId ??
-    memberScope?.idDestacamento ??
-    destacamentos[0] ??
-    '';
-
-  return {
-    ...memberScope,
-    ...scope,
-    tipo: scopeType,
-    modo: scopeType,
-    destacamentoId: primaryDestId,
-    idDestacamento: scope?.idDestacamento ?? scope?.destacamentoId ?? primaryDestId,
-    destacamentos,
-    seccionId: scope?.seccionId ?? scope?.idSeccion ?? memberScope?.seccionId ?? memberScope?.idSeccion ?? secciones[0] ?? '',
-    idSeccion: scope?.idSeccion ?? scope?.seccionId ?? memberScope?.idSeccion ?? memberScope?.seccionId ?? secciones[0] ?? '',
-    secciones,
-  };
-};
-
 const getAuthorizationCandidateIds = (authUser = {}, profile = {}, memberAccess = {}) =>
   Array.from(
     new Set(
@@ -254,15 +197,27 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
   const roleId = access.rolId || access.roleId || memberAccess?.profile?.rolId || '';
   const roleScopeType =
     access?.rol?.alcancePredeterminado || ALCANCE_PREDETERMINADO_ROL[roleId] || '';
-  const alcance = mergeDestScopeWithMemberAccess(access.alcance, memberAccess, roleScopeType);
+  const memberProfile = memberAccess?.profile ?? {};
+  const alcance = mergeCombinedRoleScope(access.alcance, memberAccess, roleScopeType);
 
   return {
     rolId: roleId,
     roleId,
     rolNombre: access.rolNombre || access.rol?.nombre || '',
     alcance,
-    restricciones: access.restricciones || {},
-    permisosRol: access.rol?.permisos || access.permisosRol || [],
+    // La autorización persistida puede representar solo el rol principal. Los
+    // cargos resueltos desde la directiva conservan sus permisos y restricciones
+    // contextuales para que uno de sección no anule al de destacamento.
+    cargos: memberProfile.cargos ?? access.cargos ?? [],
+    restricciones: {
+      ...(access.restricciones ?? {}),
+      ...(memberProfile.restricciones ?? {}),
+    },
+    permisosRol: mergeCombinedRolePermissions(
+      access.rol?.permisos,
+      access.permisosRol,
+      memberProfile.permisosRol
+    ),
     permisosDirectos: access.permisosDirectos || [],
     permisosExcluidos: access.permisosExcluidos || [],
     permisosMetadata: access.permisosMetadata || {},
@@ -346,16 +301,20 @@ export function AuthProvider({ children }) {
             );
             const authorizationProfile = pickAuthorizationProfile(authorizationAccess, memberAccess);
 
+            const combinedMemberAccess = {
+              ...memberAccess,
+              profile: {
+                ...(memberAccess.profile ?? {}),
+                ...authorizationProfile,
+              },
+            };
+
             sessionUser =
-              isAdminRole(memberRole) || isAdminRoleId(memberRoleId) || isAdminRoleId(authorizationProfile.rolId)
-                ? buildAdminSessionFromMemberAccess(authUser, {
-                    ...memberAccess,
-                    profile: {
-                      ...(memberAccess.profile ?? {}),
-                      ...authorizationProfile,
-                    },
-                  })
-                : buildMemberSessionUser(authUser, memberAccess);
+              isAdminRole(memberRole) ||
+              isAdminRoleId(memberRoleId) ||
+              isAdminRoleId(authorizationProfile.rolId)
+                ? buildAdminSessionFromMemberAccess(authUser, combinedMemberAccess)
+                : buildMemberSessionUser(authUser, combinedMemberAccess);
           } else if (isSocialAuthUser(authUser)) {
             await _signOut(AUTH).catch(() => {});
             setState({ user: null, loading: false });

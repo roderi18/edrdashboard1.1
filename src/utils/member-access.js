@@ -20,6 +20,7 @@ import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole, puedeModificar } from 'src/auth/permissions/can';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
+import { getAssignedDestIds } from 'src/auth/permissions/combined-role-access';
 import {
   PERMISOS_POR_ROL,
   RESTRICCIONES_ROL,
@@ -721,12 +722,16 @@ export const canMemberManageMembers = (user) => {
     return false;
   }
 
-  return [
+  const managementPermissions = [
     PERMISOS.MIEMBROS_CREAR,
     PERMISOS.MIEMBROS_EDITAR,
     PERMISOS.MIEMBROS_ELIMINAR,
     PERMISOS.MIEMBROS_SUBIR_FOTO,
-  ].some((permiso) => puedeModificar(user, permiso));
+  ];
+
+  return managementPermissions.some(
+    (permiso) => suCargoDeDestacamentoConcede(user, permiso) || puedeModificar(user, permiso)
+  );
 };
 
 // --- Alcance regional para la lista de miembros ---
@@ -1197,7 +1202,9 @@ export const canDeleteHealthDocuments = (user = {}) =>
 // `normalizarAccesoUsuario` une los permisos del rol con los guardados en el
 // documento del usuario.
 export const canEditMembers = (user = {}) =>
-  !isSupervisoryMemberViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_EDITAR);
+  !isSupervisoryMemberViewer(user) &&
+  (suCargoDeDestacamentoConcede(user, PERMISOS.MIEMBROS_EDITAR) ||
+    puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_EDITAR));
 
 export const canAuthorizeMinorHealthAccess = (user = {}) =>
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
@@ -1508,9 +1515,21 @@ export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
 
 export const getOwnDestIdsForUser = (user = {}) => {
   const scope = getMemberScope(user);
-  const ids = new Set(getScopeDestIds(scope));
+  // En una combinación, el alcance seccional puede contener muchos
+  // destacamentos visibles. Solo la entidad del cargo LOCAL es propia y puede
+  // recibir las facultades de edición del Coordinador de Destacamento.
+  const destRoleIds = Object.entries(ALCANCE_PREDETERMINADO_ROL)
+    .filter(([, alcance]) => alcance === ALCANCES.DESTACAMENTO)
+    .map(([roleId]) => roleId);
+  const cargoDestIds = getAssignedDestIds(user?.cargos, destRoleIds)
+    .map(normalizeScopeId)
+    .filter(Boolean);
+  const ids = new Set(cargoDestIds.length ? cargoDestIds : getScopeDestIds(scope));
   const ownDestId = normalizeScopeId(
-    user?.idDestacamento ?? user?.destId ?? user?.destamentoId ?? scope?.destacamentoId ?? scope?.idDestacamento
+    user?.idDestacamento ??
+      user?.destId ??
+      user?.destamentoId ??
+      (cargoDestIds.length ? '' : (scope?.destacamentoId ?? scope?.idDestacamento))
   );
   if (ownDestId) ids.add(ownDestId);
   return ids;
