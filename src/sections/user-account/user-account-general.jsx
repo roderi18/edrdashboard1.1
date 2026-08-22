@@ -569,11 +569,13 @@ export function UserAccountGeneral() {
       await updateMemberApi(payload);
 
       // El correo pasa a ser tambien el de la cuenta: desde ese momento sirve
-      // para entrar y para recuperar la clave.
-      const correoAnterior = String(member?.correo || member?.email || '').trim().toLowerCase();
+      // para entrar y para recuperar la clave. Se comprueba siempre que haya
+      // correo —no solo cuando cambia aqui—, porque el que ya estaba guardado en
+      // la ficha nunca llego a la cuenta. Si ya coincide, el servidor no hace
+      // nada.
       const correoNuevo = String(payload.correo || '').trim().toLowerCase();
 
-      if (correoNuevo && correoNuevo !== correoAnterior) {
+      if (correoNuevo) {
         try {
           await guardarCorreoDeAcceso({
             idMiembros: memberId,

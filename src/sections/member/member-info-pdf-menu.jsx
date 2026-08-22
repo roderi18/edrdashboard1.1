@@ -241,9 +241,6 @@ export function MemberInfoPdfMenu({
   masked = false,
   maskContact = masked,
   maskBirthdate = false,
-  // Para poder igualarlo al resto de botones de la tarjeta del miembro.
-  size = 'medium',
-  sx,
 }) {
   const { user } = useAuthContext();
   const menuActions = usePopover();
@@ -299,8 +296,6 @@ export function MemberInfoPdfMenu({
       <Button
         variant="soft"
         color="inherit"
-        size={size}
-        sx={sx}
         onClick={menuActions.onOpen}
         endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
       >

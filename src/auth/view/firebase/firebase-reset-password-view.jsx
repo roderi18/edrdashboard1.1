@@ -257,75 +257,75 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
                 Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
                 ayuda a tu coordinador cuando no tengas acceso al email registrado.
               </Typography>
-          </Stack>
-        </Box>
+            </Stack>
+          </Box>
 
-        {isAdminMode ? (
-          <Field.Text
-            autoFocus
-            name="loginValue"
-            label="Usuario o correo electronico"
-            placeholder="admin001 o correo@correo.com"
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-        ) : (
-          <Field.Text
-            autoFocus
-            name="userNumber"
-            label="Código de usuario"
-            placeholder="10999"
-            slotProps={{
-              inputLabel: { shrink: true },
-              // El prefijo se pinta dentro del campo, apagado: el miembro solo
-              // escribe su numero y ve el codigo entero, como en su carnet.
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start" disableTypography>
-                    <Box component="span" sx={{ color: 'text.disabled' }}>
-                      {DEFAULT_PREFIX}
-                    </Box>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-        )}
+          {isAdminMode ? (
+            <Field.Text
+              autoFocus
+              name="loginValue"
+              label="Usuario o correo electronico"
+              placeholder="admin001 o correo@correo.com"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          ) : (
+            <Field.Text
+              autoFocus
+              name="userNumber"
+              label="Código de usuario"
+              placeholder="10999"
+              slotProps={{
+                inputLabel: { shrink: true },
+                // El prefijo se pinta dentro del campo, apagado: el miembro solo
+                // escribe su numero y ve el codigo entero, como en su carnet.
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" disableTypography>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        {DEFAULT_PREFIX}
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          )}
 
-        <Button
-          fullWidth
-          size="large"
-          type="button"
-          variant="contained"
-          loading={isSubmitting}
-          loadingIndicator="Enviando solicitud..."
-          onClick={handleSendEmailLink}
-          sx={{ minHeight: 54, borderRadius: 1.8 }}
-        >
-          Enviar enlace a mi correo
-        </Button>
-
-        {!isAdminMode && (
           <Button
             fullWidth
             size="large"
             type="button"
-            color="inherit"
-            variant="outlined"
+            variant="contained"
             loading={isSubmitting}
             loadingIndicator="Enviando solicitud..."
-            onClick={handleRequestCoordinator}
+            onClick={handleSendEmailLink}
             sx={{ minHeight: 54, borderRadius: 1.8 }}
           >
-            Solicitar recuperacion a mi Coordinador
+            Enviar enlace a mi correo
           </Button>
-        )}
 
-        <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-          Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
-          nuevo.
-        </Typography>
-      </Box>
-    </Form >
+          {!isAdminMode && (
+            <Button
+              fullWidth
+              size="large"
+              type="button"
+              color="inherit"
+              variant="outlined"
+              loading={isSubmitting}
+              loadingIndicator="Enviando solicitud..."
+              onClick={handleRequestCoordinator}
+              sx={{ minHeight: 54, borderRadius: 1.8 }}
+            >
+              Solicitar recuperación a mi Coordinador
+            </Button>
+          )}
+
+          <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+            Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
+            nuevo.
+          </Typography>
+        </Box>
+      </Form >
 
       <FormReturnLink
         href={isAdminMode ? paths.auth.firebase.adminSignIn : paths.auth.firebase.signIn}

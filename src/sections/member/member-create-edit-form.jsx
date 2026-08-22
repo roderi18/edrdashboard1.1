@@ -174,10 +174,6 @@ const getRowsFromApi = (payload) => {
   return [];
 };
 
-// Los dos botones de la tarjeta del miembro comparten tipo y tamaño de letra: se
-// define una sola vez para que no se separen al tocar uno de ellos.
-const ESTILO_BOTON_TARJETA = { typography: 'button' };
-
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
 const getOccupationValue = (occupation) => {
@@ -2105,11 +2101,16 @@ export function MemberCreateEditForm({
           }
 
           // El correo del miembro pasa a ser el de su cuenta: desde ese momento
-          // sirve para entrar y para recuperar la clave. Solo si cambio.
-          const correoAnterior = String(currentMember?.email || '').trim().toLowerCase();
+          // sirve para entrar y para recuperar la clave.
+          //
+          // Se comprueba SIEMPRE que haya correo, no solo cuando cambia en esta
+          // pantalla: los miembros que ya tenian uno guardado en su ficha nunca
+          // llegaron a tenerlo en su cuenta, y comparando con lo que habia en la
+          // ficha no se enterarian nunca. Si ya coincide, el servidor no hace
+          // nada y lo dice.
           const correoNuevo = String(formData.email || '').trim().toLowerCase();
 
-          if (correoNuevo && correoNuevo !== correoAnterior && (currentMember?.id || idCreado)) {
+          if (correoNuevo && (currentMember?.id || idCreado)) {
             try {
               await guardarCorreoDeAcceso({
                 idMiembros: currentMember?.id || idCreado,
@@ -2596,7 +2597,13 @@ export function MemberCreateEditForm({
                 />
               )}
               {currentMember && (
-                <Stack sx={{ mt: 3, alignItems: 'center' }}>
+                // `stretch` con un ancho comun: los dos botones miden lo mismo
+                // sin fijarle un tamaño a ninguno, que se romperia con textos
+                // mas largos. Es el mismo patron que la ficha del destacamento.
+                <Stack
+                  spacing={1.5}
+                  sx={{ mt: 3, width: 1, maxWidth: 260, mx: 'auto', alignItems: 'stretch' }}
+                >
                   <MemberInfoPdfMenu
                     values={values}
                     memberCode={currentMember?.memberId}
@@ -2607,28 +2614,21 @@ export function MemberCreateEditForm({
                     masked={maskSensitive}
                     maskContact={maskContact}
                     maskBirthdate={maskBirthdate}
-                    size="medium"
-                    sx={ESTILO_BOTON_TARJETA}
                   />
-                </Stack>
-              )}
 
-              {puedeRestablecerClave && (
-                <Stack sx={{ mt: 1.5, gap: 1.5, alignItems: 'center' }}>
-                  <Button
-                    variant="soft"
-                    color="inherit"
-                    size="medium"
-                    sx={ESTILO_BOTON_TARJETA}
-                    disabled={generandoClave}
-                    onClick={restablecerClaveDelMiembro}
-                    startIcon={<Iconify icon="solar:key-bold" />}
-                  >
-                    {generandoClave ? 'Generando…' : 'Restablecer contraseña'}
-                  </Button>
+                  {puedeRestablecerClave && (
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      disabled={generandoClave}
+                      onClick={restablecerClaveDelMiembro}
+                    >
+                      {generandoClave ? 'Generando…' : 'Restablecer contraseña'}
+                    </Button>
+                  )}
 
                   {!!claveTemporal && (
-                    <Alert severity="success" sx={{ width: 1, textAlign: 'left' }}>
+                    <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
                         Contraseña temporal. Al entrar tendrá que elegir otra.
                       </Typography>
