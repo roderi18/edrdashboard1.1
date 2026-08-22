@@ -36,6 +36,7 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
+import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
 import {
   calcularEstatusCI,
   calcularVencimientoCI,
@@ -216,30 +217,6 @@ const mapCurrentMemberToHistoryPayload = (member = {}) => ({
   fechaInicioCertificado: member.fechaInicioCertificado || member.FechaInicioCI || null,
   fechaFinCertificado: member.fechaFinCertificado || member.FechaVencimientoCI || null,
 });
-
-// Miembro que ya tiene ese correo, o null. El correo identifica a la persona
-// —sirve para recuperar la clave y para entrar—, asi que dos fichas con el mismo
-// dejarian a las dos sin forma de distinguirse.
-const buscarMiembroConCorreo = (membersList, correo, currentMemberId) => {
-  const buscado = String(correo ?? '')
-    .trim()
-    .toLowerCase();
-
-  if (!buscado) return null;
-
-  return (
-    (Array.isArray(membersList) ? membersList : []).find((member) => {
-      const memberId = member?.idMiembros ?? member?.id;
-      const memberCorreo = String(member?.email || member?.correo || '')
-        .trim()
-        .toLowerCase();
-
-      return (
-        memberCorreo === buscado && String(memberId ?? '') !== String(currentMemberId ?? '')
-      );
-    }) || null
-  );
-};
 
 const hasDuplicatedCodigoMiembro = (membersList, codigoMiembro, currentMemberId) => {
   const normalizedCodigoMiembro = normalizeMemberUsername(codigoMiembro);
@@ -1713,11 +1690,7 @@ export function MemberCreateEditForm({
         const duplicado = buscarMiembroConCorreo(listaMiembros, formData.email, currentMember?.id);
 
         if (duplicado) {
-          const nombreDuplicado =
-            `${duplicado.firstName || ''} ${duplicado.lastName || ''}`.trim() ||
-            getCodigoMiembro(duplicado) ||
-            'otro miembro';
-          const mensaje = `Ese correo ya lo usa ${nombreDuplicado}.`;
+          const mensaje = `Ese correo ya lo usa ${nombreDeMiembro(duplicado)}.`;
 
           methods.setError('email', { type: 'manual', message: mensaje });
           toast.error(mensaje);

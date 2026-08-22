@@ -151,7 +151,8 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         setErrorMessage(
           comprobacion?.tieneCorreoPropio
             ? 'El correo de tu ficha no es el de tu cuenta de acceso, así que el enlace no te llegaría. Pídele la recuperación a tu Coordinador con el botón de abajo.'
-            : 'Tu cuenta todavía entra con tu código, no con un correo, así que no hay dónde enviarte el enlace. Pídele la recuperación a tu Coordinador con el botón de abajo.'
+            : 'Tu cuenta está configurada para iniciar sesión con tu código de miembro y no tiene un correo electrónico asociado. Por esta razón, no podemos enviarte un enlace de recuperación.
+Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
         );
         return;
       }
@@ -252,7 +253,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
               autoFocus
               name="userNumber"
               label="Código de usuario"
-              placeholder="10002"
+              placeholder="10999"
               slotProps={{
                 inputLabel: { shrink: true },
                 // El prefijo se pinta dentro del campo, apagado: el miembro solo

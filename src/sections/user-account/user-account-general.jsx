@@ -18,13 +18,14 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { getMemberCodeLabel } from 'src/utils/member-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
 
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
-import { updateMemberApi } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
+import { getMembers, updateMemberApi } from 'src/services/member-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import {
   crearNotificacionPerfilActualizado,
@@ -490,6 +491,21 @@ export function UserAccountGeneral() {
     }
 
     try {
+      // Un correo, un miembro: si ya es de otra ficha no se guarda nada.
+      if (data.email?.trim()) {
+        const listaMiembros = await getMembers().catch(() => []);
+        const duplicado = buscarMiembroConCorreo(listaMiembros, data.email, memberId);
+
+        if (duplicado) {
+          const mensaje = `Ese correo ya lo usa ${nombreDeMiembro(duplicado)}.`;
+
+          methods.setError('email', { type: 'manual', message: mensaje });
+          toast.error(mensaje);
+
+          return;
+        }
+      }
+
       const parseGender = (value) => {
         if (value === 'Masculino' || value === 'M') return 'M';
         if (value === 'Femenino' || value === 'F') return 'F';
