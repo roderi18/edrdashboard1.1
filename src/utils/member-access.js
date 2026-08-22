@@ -570,10 +570,28 @@ const syncRoleProfileByAuthUid = async ({
 
   const authUid = String(authUser.uid);
 
+  // Lo que tenga que ver con la CLAVE no se copia: lo lleva el servidor, que es
+  // quien puede leer las huellas y hablar con Firebase. `sourceProfile` es una
+  // foto tomada al empezar a resolver la sesion, asi que copiarlo de vuelta
+  // revivia marcas ya retiradas —a quien acababa de cambiar su clave por correo
+  // le volvia a salir "Crea tu contraseña"—. Con `merge` lo omitido se queda
+  // como esta en el documento.
+  const CAMPOS_DE_CLAVE = [
+    'debeCambiarClave',
+    'claveTemporal',
+    'claveTemporalEn',
+    'claveTemporalPor',
+    'claveCambiadaEn',
+    'clavesAnteriores',
+  ];
+  const perfilSinClaves = Object.fromEntries(
+    Object.entries(sourceProfile ?? {}).filter(([campo]) => !CAMPOS_DE_CLAVE.includes(campo))
+  );
+
   await setDoc(
     doc(FIRESTORE, 'usuarios_roles', authUid),
     {
-      ...sourceProfile,
+      ...perfilSinClaves,
       uid: authUid,
       correo: sourceProfile?.correo ?? profile?.correo ?? member?.email ?? authUser?.email ?? '',
       nombre:
