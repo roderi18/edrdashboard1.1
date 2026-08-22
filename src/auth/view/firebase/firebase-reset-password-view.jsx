@@ -5,23 +5,27 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
 
-import { PasswordIcon } from 'src/assets/icons';
-import { Form, Field } from 'src/components/hook-form';
 import { paths } from 'src/routes/paths';
+
 import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 
+import { PasswordIcon } from 'src/assets/icons';
+
+import { Form, Field } from 'src/components/hook-form';
+
+import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
 import { FormReturnLink } from '../../components/form-return-link';
 import { sendPasswordResetEmail } from '../../components/context/firebase';
-import { getErrorMessage } from '../../utils';
 
 // ----------------------------------------------------------------------
 
@@ -204,7 +208,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
                 {!isAdminMode && (
                   <Chip size="small" variant="outlined" label="Ayuda del coordinador" />
                 )}
-                <Chip size="small" variant="outlined" label="Paso a paso" />
+                {/* <Chip size="small" variant="outlined" label="Paso a paso" /> */}
               </Stack>
             </Stack>
           </Box>
@@ -222,8 +226,21 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
               autoFocus
               name="userNumber"
               label="Código de usuario"
-              placeholder="111111017"
-              slotProps={{ inputLabel: { shrink: true } }}
+              placeholder="10002"
+              slotProps={{
+                inputLabel: { shrink: true },
+                // El prefijo se pinta dentro del campo, apagado: el miembro solo
+                // escribe su numero y ve el codigo entero, como en su carnet.
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" disableTypography>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        {DEFAULT_PREFIX}
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
           )}
 

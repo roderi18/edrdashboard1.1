@@ -279,8 +279,21 @@ export function FirebaseSignInView({ mode = 'member' }) {
               autoFocus
               name="userNumber"
               label="Código de usuario"
-              placeholder="111111017"
-              slotProps={{ inputLabel: { shrink: true } }}
+              placeholder="10002"
+              slotProps={{
+                inputLabel: { shrink: true },
+                // El prefijo se pinta dentro del campo, apagado: el miembro solo
+                // escribe su numero y ve el codigo entero, como en su carnet.
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" disableTypography>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        {DEFAULT_PREFIX}
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
           )}
 
