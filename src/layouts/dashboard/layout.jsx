@@ -12,6 +12,7 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
@@ -108,6 +109,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
+  // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
+  // una sesion que es administrativa por ocupar un cargo, no.
+  const esAdministradorGlobal =
+    isAdminGlobal(user) || String(user?.role ?? user?.rol ?? '').trim().toLowerCase() === 'admin';
   const { labels: mailLabels } = useGetLabels(isMailRoute);
   const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
   const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
@@ -313,10 +318,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           )}
 
           {/** @slot Workspace popover */}
-          <WorkspacesPopover
-            data={_workspaces}
-            sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
-          />
+          {/* Solo el Administrador Global: es el unico que cambia de rol. Para el
+              resto era un adorno que ademas decia un solo cargo, y hay quien
+              tiene dos; los suyos salen bajo su nombre, en la barra lateral. */}
+          {esAdministradorGlobal && (
+            <WorkspacesPopover
+              data={_workspaces}
+              sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
+            />
+          )}
         </>
       ),
       rightArea: (

@@ -6,13 +6,21 @@ import { puedeEntrarAAdministracion } from 'src/utils/org-level-access';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { ROLES_ASIGNADOS_A_MANO, resolverRolPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { DIRECTIVA_LEVELS } from 'src/catalogs/directiva-positions';
+import {
+  ROLES_ASIGNADOS_A_MANO,
+  resolverRolesPorAsignaciones,
+} from 'src/catalogs/directiva-roles';
 import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole } from 'src/auth/permissions/can';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
-import { PERMISOS_POR_ROL, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
+import {
+  PERMISOS_POR_ROL,
+  RESTRICCIONES_ROL,
+  ALCANCE_PREDETERMINADO_ROL,
+} from 'src/auth/permissions/role-permissions';
 
 import { normalizeText } from './normalize-text';
 import { loadProfileByUid } from './admin-profile';
@@ -549,12 +557,60 @@ const aplicarRolPorCargo = async (profile = {}) => {
       })
     : [];
 
-  const rol = resolverRolPorAsignaciones(asignaciones);
+  const cargos = resolverRolesPorAsignaciones(asignaciones);
+  const [principal] = cargos;
+  const rol = principal?.rol ?? ROLES.USUARIO_COMUN;
+
+  // Los poderes se SUMAN: quien es Coordinador Asistente en su destacamento y
+  // Sub Coordinador en su seccion puede lo de los dos cargos. `can()` ya une
+  // `permisosRol` con los permisos directos, asi que basta con dejarlos aqui.
+  const permisosDeSusCargos = [
+    ...new Set(cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? [])),
+  ];
+
+  // Y el alcance tambien: cada cargo manda sobre SU entidad.
+  const alcanceDeSusCargos = cargos.reduce(
+    (acumulado, cargo) => {
+      const destino = {
+        [DIRECTIVA_LEVELS.destacamento]: 'destacamentos',
+        [DIRECTIVA_LEVELS.seccional]: 'secciones',
+        [DIRECTIVA_LEVELS.regional]: 'regiones',
+      }[cargo.nivel];
+
+      if (destino && cargo.idEntidad) acumulado[destino].push(cargo.idEntidad);
+
+      return acumulado;
+    },
+    { destacamentos: [], secciones: [], regiones: [] }
+  );
+
+  // Solo lectura si TODOS sus cargos lo son: con uno que no lo sea, puede editar
+  // lo que ese cargo le permita.
+  const soloLectura =
+    cargos.length > 0 && cargos.every((cargo) => RESTRICCIONES_ROL[cargo.rol]?.soloLectura === true);
 
   return {
     ...profile,
     rolId: rol,
     rolNombre: ROLES_POR_CODIGO[rol]?.nombre ?? '',
+    cargos,
+    permisosRol: [...new Set([...(profile?.permisosRol ?? []), ...permisosDeSusCargos])],
+    restricciones: { ...(profile?.restricciones ?? {}), soloLectura },
+    alcance: {
+      ...(profile?.alcance ?? {}),
+      destacamentos: [
+        ...new Set([
+          ...(profile?.alcance?.destacamentos ?? []),
+          ...alcanceDeSusCargos.destacamentos,
+        ]),
+      ],
+      secciones: [
+        ...new Set([...(profile?.alcance?.secciones ?? []), ...alcanceDeSusCargos.secciones]),
+      ],
+      regiones: [
+        ...new Set([...(profile?.alcance?.regiones ?? []), ...alcanceDeSusCargos.regiones]),
+      ],
+    },
   };
 };
 
@@ -2203,5 +2259,10 @@ export const buildMemberSessionUser = (authUser, access = {}) => {
     codigoMiembro: memberCode,
     permisos: mergeMemberPermissions(profile?.permisos),
     alcance: mergeMemberScope(profile?.alcance, member),
+    // Todos sus cargos, no solo el principal: los permisos se suman y la barra
+    // lateral los muestra debajo de su nombre.
+    cargos: profile?.cargos ?? [],
+    permisosRol: profile?.permisosRol ?? [],
+    restricciones: profile?.restricciones ?? {},
   };
 };

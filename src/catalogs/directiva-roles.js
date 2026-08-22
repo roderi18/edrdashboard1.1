@@ -96,13 +96,17 @@ const getIdPosicion = (asignacion = {}) =>
   String(asignacion?.idPosicionDirectiva || asignacion?.idCargo || '').trim();
 
 /**
- * Devuelve el rol que corresponde a las asignaciones ACTIVAS de una persona.
+ * TODOS los cargos activos de una persona, con el rol que otorga cada uno.
  *
- * Con varias, gana la de mayor nivel; a igual nivel, la que esta mas arriba en
- * el organigrama (menor `orden`). Sin ninguna que otorgue rol, Usuario Comun.
+ * Una misma persona puede ocupar mas de una casilla —Coordinador Asistente en su
+ * destacamento y Sub Coordinador en su seccion, por ejemplo— y los dos cargos
+ * cuentan: manda el de mayor nivel, pero los poderes se suman.
+ *
+ * Vienen ordenados de mayor a menor: primero el nivel, y a igual nivel el que
+ * esta mas arriba en el organigrama (menor `orden`).
  */
-export const resolverRolPorAsignaciones = (asignaciones = []) => {
-  const candidatos = (Array.isArray(asignaciones) ? asignaciones : [])
+export const resolverRolesPorAsignaciones = (asignaciones = []) => {
+  const cargos = (Array.isArray(asignaciones) ? asignaciones : [])
     .filter((asignacion) => asignacion?.activo !== false)
     .map((asignacion) => {
       const idPosicion = getIdPosicion(asignacion);
@@ -111,20 +115,36 @@ export const resolverRolPorAsignaciones = (asignaciones = []) => {
       if (!rol) return null;
 
       const posicion = POSICION_POR_ID.get(idPosicion);
+      const nivel = posicion?.nivel ?? asignacion?.nivel ?? '';
 
       return {
         rol,
-        peso: PESO_POR_NIVEL[posicion?.nivel ?? asignacion?.nivel] ?? 0,
+        nivel,
+        idPosicion,
+        idEntidad: String(asignacion?.idEntidad ?? asignacion?.idDestacamento ?? '').trim(),
+        nombreEntidad: String(asignacion?.nombreEntidad ?? '').trim(),
+        nombreCargo: posicion?.nombreCargo ?? '',
+        nombreDivision: posicion?.nombreDivision ?? '',
+        peso: PESO_POR_NIVEL[nivel] ?? 0,
         orden: Number(posicion?.orden ?? asignacion?.orden ?? 999),
       };
     })
     .filter(Boolean);
 
-  if (!candidatos.length) {
-    return ROLES.USUARIO_COMUN;
-  }
+  cargos.sort((a, b) => b.peso - a.peso || a.orden - b.orden);
 
-  candidatos.sort((a, b) => b.peso - a.peso || a.orden - b.orden);
+  return cargos;
+};
 
-  return candidatos[0].rol;
+/**
+ * El rol con el que entra: el de mayor nivel de todos los que tenga.
+ *
+ * Sigue haciendo falta uno solo para lo que no admite varios —la pantalla de
+ * inicio, el nombre que se muestra—, pero los permisos salen de TODOS: ver
+ * `resolverRolesPorAsignaciones`.
+ */
+export const resolverRolPorAsignaciones = (asignaciones = []) => {
+  const [principal] = resolverRolesPorAsignaciones(asignaciones);
+
+  return principal?.rol ?? ROLES.USUARIO_COMUN;
 };
