@@ -26,6 +26,7 @@ import { Form, Field } from 'src/components/hook-form';
 
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
+import { EmailSentPanel } from '../../components/email-sent-panel';
 import { FormReturnLink } from '../../components/form-return-link';
 import { sendPasswordResetEmail } from '../../components/context/firebase';
 
@@ -81,6 +82,9 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
   const isAdminMode = mode === 'admin';
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  // A donde salio el enlace. Con esto la pantalla pasa a ser la misma "Revisa tu
+  // correo" que la de verificacion: los dos casos se viven igual.
+  const [correoEnviado, setCorreoEnviado] = useState('');
 
   const methods = useForm({
     resolver: zodResolver(ResetPasswordSchema),
@@ -121,9 +125,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         }
 
         await sendPasswordResetEmail({ email: admin.data.correo });
-        setSuccessMessage(
-          `Te enviamos un enlace para restablecer tu contraseña a ${admin.data.correo}.`
-        );
+        setCorreoEnviado(admin.data.correo);
         return;
       }
 
@@ -171,7 +173,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
 
       await sendPasswordResetEmail({ email: member.correo });
 
-      setSuccessMessage(`Te enviamos un enlace para restablecer tu contraseña a ${member.correo}.`);
+      setCorreoEnviado(member.correo);
     } catch (error) {
       if (!expectedResetErrorCodes.includes(error?.code)) {
         console.error(error);
@@ -220,6 +222,16 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       setErrorMessage(error?.message || 'No se pudo enviar la solicitud de recuperacion.');
     }
   });
+
+  if (correoEnviado) {
+    return (
+      <EmailSentPanel
+        description={`Te enviamos un enlace para restablecer tu contraseña a ${correoEnviado}. \nÁbrelo y elige una nueva.`}
+        onResend={() => sendPasswordResetEmail({ email: correoEnviado })}
+        returnHref={isAdminMode ? paths.auth.firebase.adminSignIn : paths.auth.firebase.signIn}
+      />
+    );
+  }
 
   return (
     <>
@@ -285,7 +297,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
                 // escribe su numero y ve el codigo entero, como en su carnet.
                 input: {
                   startAdornment: (
-                    <InputAdornment position="start" disableTypography>
+                    <InputAdornment position="start" disableTypography sx={{ mr: 0 }}>
                       <Box component="span" sx={{ color: 'text.disabled' }}>
                         {DEFAULT_PREFIX}
                       </Box>

@@ -35,6 +35,10 @@ import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from '../../hooks';
 import { FormHead } from '../../components/form-head';
+import {
+  signInWithPassword,
+  resendEmailVerification,
+} from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 // Primer acceso: cambiar la clave y, si quiere, dejar un correo propio.
@@ -83,6 +87,9 @@ export function FirebasePrimerAccesoView() {
     : correoDelMiembro;
 
   const [comprobandoCorreo, setComprobandoCorreo] = useState(false);
+  // El correo llego a la cuenta: solo entonces tiene sentido pedir que lo
+  // verifique, porque el enlace va a la direccion de la cuenta.
+  const correoEnLaCuentaRef = useRef(false);
   // Cambio ya hecho en esta visita: a partir de ahi la pantalla se queda para
   // que le de tiempo a leer el aviso del correo, sin que el guardia la eche.
   const [claveCambiada, setClaveCambiada] = useState(false);
@@ -295,9 +302,7 @@ export function FirebasePrimerAccesoView() {
               correo: datos.correo,
             });
 
-            setAvisoCorreo(
-              `Listo: ${datos.correo} queda como tu correo. Podrás entrar y recuperar tu contraseña con él, y tu número sigue sirviendo.`
-            );
+            correoEnLaCuentaRef.current = true;
           } catch (errorCorreo) {
             // La clave ya se cambio: el correo no puede tumbar el resto.
             setAvisoCorreo(
@@ -311,13 +316,45 @@ export function FirebasePrimerAccesoView() {
 
       await checkUserSession?.();
 
-      // Con correo se espera: si redirige de inmediato, el aviso de "revisa tu
-      // bandeja" desaparece antes de que le de tiempo a leerlo.
-      if (!datos.correo) {
+      if (!datos.correo || !correoEnLaCuentaRef.current) {
         router.replace(CONFIG.auth.redirectPath);
+        return;
+      }
+
+      // Se vuelve a entrar con lo que acaba de elegir: cambiar el correo de la
+      // cuenta invalida la sesion anterior, y el enlace de verificacion se pide
+      // con la sesion.
+      await signInWithPassword({ email: datos.correo, password: datos.claveNueva }).catch(
+        () => null
+      );
+
+      try {
+        // El enlace va SIEMPRE a la direccion de la cuenta. Si no es la que
+        // acaba de escribir, saldria hacia el correo interno —que no existe— y
+        // el miembro se quedaria esperando un correo que nadie recibio.
+        await AUTH?.currentUser?.reload().catch(() => null);
+
+        const correoDeLaCuenta = String(AUTH?.currentUser?.email || '').toLowerCase();
+
+        if (correoDeLaCuenta !== datos.correo.trim().toLowerCase()) {
+          throw new Error('Tu cuenta todavía no tiene ese correo.');
+        }
+
+        await resendEmailVerification({ destino: paths.auth.firebase.verify });
+        router.replace(paths.auth.firebase.verify);
+      } catch (errorEnvio) {
+        console.error(errorEnvio);
+        setAvisoCorreo(
+          `${datos.correo} quedó como tu correo, pero no pudimos enviarte el enlace de verificación. Podrás pedirlo más tarde desde tu perfil.`
+        );
       }
     } catch (error) {
-      console.error(error);
+      // Lo previsto —una clave repetida, un correo ya usado— se le dice al
+      // miembro en su propio campo; llevarlo tambien a la consola solo levanta
+      // el panel de errores como si algo se hubiera roto.
+      if (error?.name !== 'ErrorPrimerAcceso') {
+        console.error(error);
+      }
 
       if (error?.repetida) {
         methods.setError('claveNueva', { type: 'manual', message: error.message });

@@ -36,11 +36,13 @@ const expectedAuthErrorCodes = [
   'auth/invalid-email',
 ];
 
-const getEmailVerificationSettings = () => ({
-  url:
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/auth/firebase/sign-in?forceSignOut=1`
-      : '/auth/firebase/sign-in?forceSignOut=1',
+// A donde vuelve el miembro despues de pulsar el enlace. El alta lo deja en el
+// inicio de sesion; quien esta esperando en la pantalla de verificacion vuelve a
+// ella, que lo detecta y le abre el panel sin que tenga que hacer nada.
+const DESTINO_TRAS_VERIFICAR = '/auth/firebase/sign-in?forceSignOut=1';
+
+const getEmailVerificationSettings = (destino = DESTINO_TRAS_VERIFICAR) => ({
+  url: typeof window !== 'undefined' ? `${window.location.origin}${destino}` : destino,
   handleCodeInApp: false,
 });
 
@@ -173,7 +175,7 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
   }
 };
 
-export const resendEmailVerification = async () => {
+export const resendEmailVerification = async ({ destino } = {}) => {
   const user = ensureFirebaseAuth().currentUser;
 
   if (!user) {
@@ -181,7 +183,7 @@ export const resendEmailVerification = async () => {
   }
 
   await withTimeout(
-    _sendEmailVerification(user, getEmailVerificationSettings()),
+    _sendEmailVerification(user, getEmailVerificationSettings(destino)),
     'Resend email verification'
   );
 };

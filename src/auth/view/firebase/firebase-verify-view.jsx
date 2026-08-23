@@ -1,98 +1,100 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
-import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 
-import { EmailInboxIcon } from 'src/assets/icons';
+import { AUTH } from 'src/lib/firebase';
+import { CONFIG } from 'src/global-config';
 
-import { FormHead } from '../../components/form-head';
-import { FormReturnLink } from '../../components/form-return-link';
+import { useAuthContext } from '../../hooks';
+import { EmailSentPanel } from '../../components/email-sent-panel';
 import { resendEmailVerification } from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 
-const RESEND_WAIT_SECONDS = 60;
+// Cada cuanto se le pregunta a Firebase si ya pulso el enlace. El correo se abre
+// en otra pestaña o en el telefono, asi que nadie vuelve aqui a avisar.
+const CHECK_INTERVAL_MS = 4000;
 
 export function FirebaseVerifyView() {
-  const [secondsLeft, setSecondsLeft] = useState(RESEND_WAIT_SECONDS);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [isResending, setIsResending] = useState(false);
+  const router = useRouter();
+  const { checkUserSession } = useAuthContext();
+  const [verificado, setVerificado] = useState(false);
+  const [sinSesion, setSinSesion] = useState(false);
+  const correo = AUTH?.currentUser?.email || '';
+  const entrandoRef = useRef(false);
 
+  const entrarAlPanel = useCallback(async () => {
+    if (entrandoRef.current) return;
+
+    entrandoRef.current = true;
+
+    await checkUserSession?.().catch(() => null);
+    router.replace(CONFIG.auth.redirectPath);
+  }, [checkUserSession, router]);
+
+  // Se pregunta en bucle y tambien al volver a la pestaña, que es cuando suele
+  // acabar de pulsar el enlace.
   useEffect(() => {
-    if (secondsLeft <= 0) {
-      return undefined;
-    }
+    let cancelado = false;
 
-    const timer = window.setTimeout(() => {
-      setSecondsLeft((current) => current - 1);
-    }, 1000);
+    const revisar = async () => {
+      const usuario = AUTH?.currentUser;
 
-    return () => window.clearTimeout(timer);
-  }, [secondsLeft]);
+      if (cancelado) return;
 
-  const handleResendEmail = async () => {
-    try {
-      setErrorMessage(null);
-      setSuccessMessage(null);
-      setIsResending(true);
+      // Sin sesion no hay a quien preguntar: le paso al abrir el enlace en una
+      // ventana que la cerro.
+      if (!usuario) {
+        setSinSesion(true);
+        return;
+      }
 
-      await resendEmailVerification();
+      await usuario.reload().catch(() => null);
 
-      setSuccessMessage('Te reenviamos el enlace de verificación.');
-      setSecondsLeft(RESEND_WAIT_SECONDS);
-    } catch (error) {
-      console.error(error);
-      setErrorMessage(error?.message || 'No se pudo reenviar el enlace. Inténtalo de nuevo.');
-    } finally {
-      setIsResending(false);
-    }
-  };
+      if (cancelado || !usuario.emailVerified) return;
+
+      setVerificado(true);
+      entrarAlPanel();
+    };
+
+    const reloj = setInterval(revisar, CHECK_INTERVAL_MS);
+
+    window.addEventListener('focus', revisar);
+    revisar();
+
+    return () => {
+      cancelado = true;
+      clearInterval(reloj);
+      window.removeEventListener('focus', revisar);
+    };
+  }, [entrarAlPanel]);
 
   return (
-    <>
-      <FormHead
-        icon={<EmailInboxIcon />}
-        title="Revisa tu correo"
-        description={`Te enviamos un enlace de verificación. \nAbre ese enlace para confirmar tu cuenta antes de continuar.`}
-      />
-
-      <Typography variant="body2" sx={{ mt: -1, mb: 3, color: 'text.secondary', textAlign: 'center' }}>
-        Si no lo ves en tu bandeja de entrada, revisa tu carpeta de spam o correo no deseado.
-      </Typography>
-
-      {!!errorMessage && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {errorMessage}
+    <EmailSentPanel
+      title={verificado ? 'Correo verificado' : 'Revisa tu correo'}
+      description={
+        verificado
+          ? 'Listo. Te estamos llevando a tu panel.'
+          : `Te enviamos un enlace de verificación${correo ? ` a ${correo}` : ''}. \nÁbrelo para confirmar que el correo es tuyo; esta pantalla lo detecta sola.`
+      }
+      onResend={
+        sinSesion
+          ? null
+          : () => resendEmailVerification({ destino: paths.auth.firebase.verify })
+      }
+      returnHref={`${paths.auth.firebase.signIn}?forceSignOut=1`}
+    >
+      {sinSesion && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Tu sesión se cerró. Si ya abriste el enlace, entra de nuevo y tu correo quedará
+          verificado.
         </Alert>
       )}
-
-      {!!successMessage && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          {successMessage}
-        </Alert>
-      )}
-
-      <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
-        <Button
-          color="inherit"
-          variant="outlined"
-          loading={isResending}
-          disabled={secondsLeft > 0}
-          onClick={handleResendEmail}
-          loadingIndicator="Reenviando..."
-        >
-          {secondsLeft > 0 ? `Reenviar en ${secondsLeft}s` : 'Reenviar correo'}
-        </Button>
-
-        <FormReturnLink href={`${paths.auth.firebase.signIn}?forceSignOut=1`} sx={{ mt: 0 }} />
-      </Box>
-    </>
+    </EmailSentPanel>
   );
 }

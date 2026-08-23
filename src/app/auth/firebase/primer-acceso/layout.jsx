@@ -10,7 +10,7 @@ export default function Layout({ children }) {
           title: '',
           subtitle: '',
           method: null,
-          imgUrl: '/assets/banner.png',
+          imgUrl: '/assets/banner1.png',
           sx: {
             px: 0,
             pt: 0,
