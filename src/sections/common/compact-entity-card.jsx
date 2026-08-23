@@ -46,12 +46,33 @@ export const CompactEntityCard = memo(function CompactEntityCard({
   sx,
   ...other
 }) {
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  // Con la imagen en cache, el `load` del <img> llega antes de que React escuche
+  // y el efecto de montaje la volvia a marcar "sin cargar": se quedaba
+  // transparente hasta cambiar de vista otra vez. Se precarga aparte y el estado
+  // guarda QUE url cargo, no un si/no que un montaje pueda pisar.
+  const [urlCargada, setUrlCargada] = useState('');
   const initial = String(fallbackText || title || '?').charAt(0);
   const titleColor = disabled || isUnknownLabel(title) ? 'text.disabled' : 'inherit';
+  const fotoVisible = Boolean(avatarUrl) && urlCargada === avatarUrl;
 
   useEffect(() => {
-    setAvatarLoaded(false);
+    if (!avatarUrl) return undefined;
+
+    let vigente = true;
+    const imagen = new Image();
+    const marcarCargada = () => {
+      if (vigente) setUrlCargada(avatarUrl);
+    };
+
+    imagen.onload = marcarCargada;
+    imagen.src = avatarUrl;
+
+    if (imagen.complete && imagen.naturalWidth > 0) marcarCargada();
+
+    return () => {
+      vigente = false;
+      imagen.onload = null;
+    };
   }, [avatarUrl]);
 
   const canUseHref = (hrefValue, textValue, allowWhenDisabled = false) => {
@@ -76,6 +97,40 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     ? { component: RouterLink, href }
     : { href };
 
+  // Uno solo para las dos ramas: eran el mismo bloque duplicado.
+  const renderAvatar = () => (
+    <Avatar
+      alt={title}
+      sx={{
+        width: 48,
+        height: 48,
+        mr: 2,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <Box component="span">{initial}</Box>
+
+      {!!avatarUrl && (
+        <Box
+          component="img"
+          alt={title}
+          src={avatarUrl}
+          onLoad={() => setUrlCargada(avatarUrl)}
+          sx={{
+            inset: 0,
+            width: 1,
+            height: 1,
+            objectFit: 'cover',
+            position: 'absolute',
+            opacity: fotoVisible ? 1 : 0,
+            transition: 'opacity 180ms ease',
+          }}
+        />
+      )}
+    </Avatar>
+  );
+
   return (
     <Card
       sx={[
@@ -93,66 +148,10 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     >
       {canUseHref(href, title) ? (
         <Link {...titleLinkProps} color="inherit" underline="none">
-          <Avatar
-            alt={title}
-            sx={{
-              width: 48,
-              height: 48,
-              mr: 2,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <Box component="span">{initial}</Box>
-            {avatarUrl && (
-              <Box
-                component="img"
-                alt={title}
-                src={avatarUrl}
-                onLoad={() => setAvatarLoaded(true)}
-                sx={{
-                  inset: 0,
-                  width: 1,
-                  height: 1,
-                  objectFit: 'cover',
-                  position: 'absolute',
-                  opacity: avatarLoaded ? 1 : 0,
-                  transition: 'opacity 180ms ease',
-                }}
-              />
-            )}
-          </Avatar>
+          {renderAvatar()}
         </Link>
       ) : (
-        <Avatar
-          alt={title}
-          sx={{
-            width: 48,
-            height: 48,
-            mr: 2,
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          <Box component="span">{initial}</Box>
-          {avatarUrl && (
-            <Box
-              component="img"
-              alt={title}
-              src={avatarUrl}
-              onLoad={() => setAvatarLoaded(true)}
-              sx={{
-                inset: 0,
-                width: 1,
-                height: 1,
-                objectFit: 'cover',
-                position: 'absolute',
-                opacity: avatarLoaded ? 1 : 0,
-                transition: 'opacity 180ms ease',
-              }}
-            />
-          )}
-        </Avatar>
+        renderAvatar()
       )}
 
       <ListItemText
