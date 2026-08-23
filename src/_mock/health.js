@@ -13,6 +13,7 @@ export const HEALTH_INSURANCE_COMPANIES = [
     { value: 'meta-salud', label: 'MetaSalud' },
     { value: 'futuro', label: 'ARS Futuro' },
     { value: 'yunen', label: 'ARS Yunen' },
+    { value: 'renacer', label: 'ARS Renacer' },
     { value: 'monumental', label: 'ARS Monumental' },
     { value: 'semma', label: 'SEMMA' },
 ];
