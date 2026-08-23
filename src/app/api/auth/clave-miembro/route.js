@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { isAdminConfigured, getAdminAuth } from 'src/server/firebase-admin';
+import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
   claveYaUsada,
   CLAVES_RECORDADAS,
@@ -44,8 +44,9 @@ export async function POST(req) {
       );
     }
 
-    // Solo la suya: el uid sale del token, no de lo que mande el navegador.
-    const cuenta = await getAdminAuth().getUser(solicitante.uid);
+    // Solo la suya: el uid sale del token, no de lo que mande el navegador. No
+    // hace falta traer la cuenta para eso —el token ya la identifica—, y pedirla
+    // era un viaje entero a Firebase antes de poder hacer nada.
     const perfil = await buscarPerfilMiembro({
       idMiembros: solicitante.idMiembros,
       uid: solicitante.uid,
@@ -62,18 +63,36 @@ export async function POST(req) {
       );
     }
 
-    await getAdminAuth().updateUser(cuenta.uid, { password: claveNueva });
+    await getAdminAuth().updateUser(solicitante.uid, { password: claveNueva });
+
+    // Ya tiene contraseña suya: se retira la marca y se tira el codigo del
+    // Coordinador, que existia solo para llegar hasta aqui.
+    const cierre = {
+      debeCambiarClave: false,
+      claveCambiadaEn: new Date().toISOString(),
+      claveTemporal: false,
+      codigoRestablecimiento: null,
+    };
 
     await registrarHuellaClave({
       idMiembros: solicitante.idMiembros,
       uid: solicitante.uid,
       clave: claveNueva,
-      extra: {
-        debeCambiarClave: false,
-        claveCambiadaEn: new Date().toISOString(),
-        claveTemporal: false,
-      },
+      extra: cierre,
     });
+
+    // Tambien en el documento que va por uid: es el que lee la sesion, y si se
+    // queda con la marca puesta le devuelve a "Crea tu contraseña" en bucle.
+    // Solo si ya existe: uno creado aqui, con el cierre y nada mas, dejaria a la
+    // sesion sin rol ni codigo de miembro.
+    const porUid = await getAdminDb()
+      .collection('usuarios_roles')
+      .doc(String(solicitante.uid))
+      .get();
+
+    if (porUid.exists) {
+      await porUid.ref.set(cierre, { merge: true });
+    }
 
     return Response.json({ ok: true });
   } catch (error) {

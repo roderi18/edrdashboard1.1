@@ -259,7 +259,8 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
               <Typography variant="subtitle2">Que puedes hacer desde aqui</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
-                ayuda a tu coordinador cuando no tengas acceso al email registrado.
+                ayuda a tu coordinador cuando no tengas acceso al email registrado. El te dara un
+                codigo que se escribe en el campo de contraseña del inicio de sesion.
               </Typography>
             </Stack>
           </Box>

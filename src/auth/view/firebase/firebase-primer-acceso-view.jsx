@@ -353,7 +353,7 @@ export function FirebasePrimerAccesoView() {
 
       <FormHead
         // title="Crea tu contraseña"
-        description="Actualmente estás utilizando una contraseña temporal asociada a tu código de miembro. Por seguridad, crea una contraseña personal para continuar."
+        description="Por seguridad, crea una contraseña personal para continuar. Será la que uses para entrar de ahora en adelante."
         sx={{ textAlign: { xs: 'center', md: 'left' } }}
       />
 
@@ -435,6 +435,20 @@ export function FirebasePrimerAccesoView() {
           >
             Guardar y continuar
           </LoadingButton>
+
+          {/* Salir sin crear la contraseña. La sesion no puede quedarse abierta
+              —el guardia la devolveria aqui en bucle—, asi que volver cierra la
+              sesion, igual que el boton "atras" del navegador. */}
+          <Link
+            component="button"
+            type="button"
+            variant="body2"
+            underline="always"
+            onClick={() => window.location.replace(`${paths.auth.firebase.signIn}?forceSignOut=1`)}
+            sx={{ mx: 'auto', color: 'text.secondary' }}
+          >
+            Volver a inicio de sesión
+          </Link>
         </Box>
       </Form>
     </>

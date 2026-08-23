@@ -4,8 +4,7 @@ import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase
 import {
   esCorreoInterno,
   correoInternoDe,
-  buscarCuentaMiembro,
-  buscarPerfilMiembro,
+  buscarAccesoMiembro,
   identificarSolicitante,
 } from 'src/server/claves-miembro';
 
@@ -36,12 +35,6 @@ export async function POST(req) {
       );
     }
 
-    const solicitante = await identificarSolicitante(req);
-
-    if (!solicitante) {
-      return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });
-    }
-
     const { idMiembros, codigoMiembro, correo } = await req.json();
     const correoNuevo = normalizarCorreo(correo);
 
@@ -53,7 +46,17 @@ export async function POST(req) {
       return Response.json({ error: 'Ese correo no sirve para iniciar sesión.' }, { status: 400 });
     }
 
-    const cuenta = await buscarCuentaMiembro({ idMiembros, codigoMiembro });
+    // Quien pide y de quien es la cuenta, a la vez: no se necesitan entre si y
+    // en serie era el doble de espera. No se escribe nada hasta comprobar el
+    // permiso, unas lineas mas abajo.
+    const [solicitante, { cuenta, perfil }] = await Promise.all([
+      identificarSolicitante(req),
+      buscarAccesoMiembro({ idMiembros, codigoMiembro }),
+    ]);
+
+    if (!solicitante) {
+      return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });
+    }
 
     if (!cuenta) {
       return Response.json(
@@ -89,7 +92,8 @@ export async function POST(req) {
     }
 
     const db = getAdminDb();
-    const perfil = await buscarPerfilMiembro({ idMiembros, uid: cuenta.uid });
+    // El perfil ya viene de la busqueda de la cuenta: pedirlo otra vez era otro
+    // viaje a Firestore para traer lo mismo.
     const referencia =
       perfil?.ref ?? db.collection('usuarios_roles').doc(String(idMiembros || cuenta.uid));
 

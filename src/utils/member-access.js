@@ -669,6 +669,9 @@ const syncRoleProfileByAuthUid = async ({
     'claveTemporalPor',
     'claveCambiadaEn',
     'clavesAnteriores',
+    // El codigo de un solo uso vive con las claves: copiarlo de vuelta reviviria
+    // uno ya gastado.
+    'codigoRestablecimiento',
   ];
   const perfilSinClaves = Object.fromEntries(
     Object.entries(sourceProfile ?? {}).filter(([campo]) => !CAMPOS_DE_CLAVE.includes(campo))

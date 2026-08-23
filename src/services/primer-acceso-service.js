@@ -68,9 +68,14 @@ export async function guardarCorreoDeAcceso({ idMiembros, codigoMiembro, correo 
   return resultado;
 }
 
-/** Clave temporal de ocho caracteres que el coordinador le dicta al miembro. */
-export async function generarClaveTemporalMiembro({ idMiembros, codigoMiembro, correo }) {
-  const respuesta = await fetch('/api/auth/clave-temporal-miembro', {
+/**
+ * Codigo de un solo uso que el coordinador le dicta al miembro.
+ *
+ * No le cambia la contraseña: mientras no use el codigo, sigue entrando con la
+ * que tenia. El codigo solo le deja elegir una nueva sin iniciar sesion.
+ */
+export async function generarCodigoRestablecimientoMiembro({ idMiembros, codigoMiembro, correo }) {
+  const respuesta = await fetch('/api/auth/codigo-restablecimiento', {
     method: 'POST',
     headers: await cabecerasConToken(),
     body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
@@ -78,10 +83,31 @@ export async function generarClaveTemporalMiembro({ idMiembros, codigoMiembro, c
   const resultado = await respuesta.json().catch(() => ({}));
 
   if (!respuesta.ok) {
-    throw new ErrorPrimerAcceso(resultado?.error || 'No pudimos restablecer la contraseña.');
+    throw new ErrorPrimerAcceso(resultado?.error || 'No pudimos generar el código.');
   }
 
   return resultado;
+}
+
+/**
+ * Cambia el codigo del Coordinador por un acceso de una sola pasada.
+ *
+ * Va sin token a proposito: quien lo usa es justo quien no puede entrar. Y
+ * devuelve vacio en vez de reventar, porque quien llama ya tiene un error mejor
+ * que contar —el de la contraseña— si esto tampoco cuela.
+ */
+export async function accederConCodigoDeCoordinador({ numeroUsuario, codigo }) {
+  const respuesta = await fetch('/api/auth/acceso-con-codigo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ numeroUsuario, codigo }),
+  }).catch(() => null);
+
+  if (!respuesta?.ok) return '';
+
+  const resultado = await respuesta.json().catch(() => ({}));
+
+  return resultado?.token || '';
 }
 
 /**

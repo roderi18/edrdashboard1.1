@@ -27,6 +27,7 @@ import { resolverCorreosDeMiembroPorNumero } from 'src/utils/member-sign-in';
 
 import { CONFIG } from 'src/global-config';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
+import { accederConCodigoDeCoordinador } from 'src/services/primer-acceso-service';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -34,7 +35,11 @@ import { Form, Field } from 'src/components/hook-form';
 import { useAuthContext } from '../../hooks';
 import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
-import { signInWithGoogle, signInWithPassword } from '../../components/context/firebase';
+import {
+  signInWithGoogle,
+  signInWithPassword,
+  signInWithCustomToken,
+} from '../../components/context/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -62,6 +67,10 @@ const SOCIAL_SIGN_IN_OPTIONS = [
     helperText: 'Proximamente',
   },
 ];
+
+// Un codigo del Coordinador: ocho caracteres sin los que se confunden al
+// dictarlo. Solo sirve para no molestar al servidor con cada contraseña fallida.
+const PARECE_CODIGO_DE_COORDINADOR = /^[a-hj-np-z2-9]{8}$/i;
 
 const expectedAuthErrorCodes = [
   'auth/invalid-credential',
@@ -152,11 +161,11 @@ export function FirebaseSignInView({ mode = 'member' }) {
       const correosAProbar = isAdminMode
         ? [await resolveAdminSignInEmail(loginValue)].filter(Boolean)
         : [
-            ...new Set([
-              ...(await resolverCorreosDeMiembroPorNumero(userNumber)),
-              resolveSignInEmail(loginValue),
-            ]),
-          ].filter(Boolean);
+          ...new Set([
+            ...(await resolverCorreosDeMiembroPorNumero(userNumber)),
+            resolveSignInEmail(loginValue),
+          ]),
+        ].filter(Boolean);
       const [authEmail] = correosAProbar;
 
       if (!authEmail) {
@@ -187,7 +196,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
       for (const correo of correosAProbar) {
         try {
           // En serie: cada intento depende de que el anterior fallara.
-           
+
           await signInWithPassword({ email: correo, password: data.password });
           errorDeAcceso = null;
           break;
@@ -201,7 +210,29 @@ export function FirebaseSignInView({ mode = 'member' }) {
       }
 
       if (errorDeAcceso) {
-        throw errorDeAcceso;
+        // La contraseña no era. Puede que lo escrito no sea una contraseña sino
+        // el codigo que le dio su Coordinador: se comprueba antes de darle el
+        // error. Si lo es, entra —solo a crear su contraseña— y su clave
+        // anterior sigue valiendo hasta que guarde la nueva.
+        const token =
+          !isAdminMode && PARECE_CODIGO_DE_COORDINADOR.test(data.password.trim())
+            ? await accederConCodigoDeCoordinador({
+              numeroUsuario: userNumber,
+              codigo: data.password.trim().toUpperCase(),
+            })
+            : '';
+
+        if (!token) {
+          throw errorDeAcceso;
+        }
+
+        await signInWithCustomToken({ token });
+        await checkUserSession?.();
+
+        setIsRedirecting(true);
+        router.replace(paths.auth.firebase.primerAcceso);
+
+        return;
       }
 
       await checkUserSession?.();

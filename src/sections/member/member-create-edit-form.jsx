@@ -85,16 +85,16 @@ import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leaders
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
-import {
-  guardarCorreoDeAcceso,
-  generarClaveTemporalMiembro,
-} from 'src/services/primer-acceso-service';
+import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
   invalidateMembersCache,
   getLeadershipAssignments,
 } from 'src/services/member-service';
-import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
+import {
+  guardarCorreoDeAcceso,
+  generarCodigoRestablecimientoMiembro,
+} from 'src/services/primer-acceso-service';
 import {
   getNivelesARetirar,
   getOrganigramaDestSlot,
@@ -178,8 +178,8 @@ const getRowsFromApi = (payload) => {
   return [];
 };
 
-// Lo que dura en pantalla la clave temporal antes de desaparecer.
-const SEGUNDOS_CLAVE_TEMPORAL = 30;
+// Lo que dura en pantalla el codigo de un solo uso antes de desaparecer.
+const SEGUNDOS_CODIGO_EN_PANTALLA = 30;
 
 const getCodigoMiembro = (member) => member?.codigoMiembro || member?.memberId || '';
 
@@ -669,36 +669,37 @@ export function MemberCreateEditForm({
   // ¿Ocupa la casilla de Pastor? Solo a el se le muestra el aviso de ficha
   // incompleta.
   const [esPastor, setEsPastor] = useState(false);
-  // Clave temporal recien generada para este miembro. Se muestra una vez, para
-  // que el coordinador se la copie; no queda guardada en ninguna parte.
-  const [claveTemporal, setClaveTemporal] = useState('');
-  const [generandoClave, setGenerandoClave] = useState(false);
+  // Codigo de un solo uso recien generado para este miembro. Se muestra una vez,
+  // para que el coordinador se lo copie; no queda guardado en ninguna parte.
+  const [codigoUnUso, setCodigoUnUso] = useState('');
+  const [generandoCodigo, setGenerandoCodigo] = useState(false);
   // Lo que le queda en pantalla, en milisegundos. La barra que se vacia empuja a
-  // copiarla ahora: al agotarse desaparece y hay que generar otra.
-  const [tiempoClaveRestante, setTiempoClaveRestante] = useState(0);
+  // copiarlo ahora: al agotarse desaparece de la pantalla —el codigo sigue
+  // sirviendo— y, si no lo apunto, hay que generar otro.
+  const [tiempoCodigoRestante, setTiempoCodigoRestante] = useState(0);
 
   useEffect(() => {
-    if (!claveTemporal) return undefined;
+    if (!codigoUnUso) return undefined;
 
-    const finaliza = Date.now() + SEGUNDOS_CLAVE_TEMPORAL * 1000;
+    const finaliza = Date.now() + SEGUNDOS_CODIGO_EN_PANTALLA * 1000;
 
-    setTiempoClaveRestante(SEGUNDOS_CLAVE_TEMPORAL * 1000);
+    setTiempoCodigoRestante(SEGUNDOS_CODIGO_EN_PANTALLA * 1000);
 
     const reloj = setInterval(() => {
       const restante = finaliza - Date.now();
 
       if (restante <= 0) {
         clearInterval(reloj);
-        setTiempoClaveRestante(0);
-        setClaveTemporal('');
+        setTiempoCodigoRestante(0);
+        setCodigoUnUso('');
         return;
       }
 
-      setTiempoClaveRestante(restante);
+      setTiempoCodigoRestante(restante);
     }, 100);
 
     return () => clearInterval(reloj);
-  }, [claveTemporal]);
+  }, [codigoUnUso]);
 
   // Foto ya subida a Storage mientras se llenaba el formulario de alta, a la
   // espera de que exista el miembro al que colgarla.
@@ -1591,16 +1592,19 @@ export function MemberCreateEditForm({
     return { file: optimizedFile || file, info };
   };
 
-  // Devolverle el acceso a un miembro que no puede entrar: se le pone una clave
-  // temporal de ocho caracteres y se le marca que debe cambiarla, asi que al
-  // entrar con ella cae en "Crea tu contraseña" y no pasa de ahi.
-  const restablecerClaveDelMiembro = async () => {
+  // Devolverle el acceso a un miembro que no puede entrar: se le da un codigo de
+  // ocho caracteres que el escribe donde va la contraseña. Entra con el, pero
+  // solo a "Crea tu contraseña", y el codigo muere en cuanto guarda una.
+  //
+  // Su contraseña actual NO se toca: si aparece y resulta que si la recordaba,
+  // sigue entrando con ella y el codigo se queda sin usar hasta que vence.
+  const generarCodigoDelMiembro = async () => {
     if (!currentMember?.id) return;
 
     try {
-      setGenerandoClave(true);
+      setGenerandoCodigo(true);
 
-      const { clave } = await generarClaveTemporalMiembro({
+      const { codigo } = await generarCodigoRestablecimientoMiembro({
         idMiembros: currentMember.id,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
         // Si ya registro un correo propio, su cuenta entra con el y el interno
@@ -1608,26 +1612,26 @@ export function MemberCreateEditForm({
         correo: currentMember?.email || '',
       });
 
-      setClaveTemporal(clave);
+      setCodigoUnUso(codigo);
 
       registrarCambiosHistorialMiembro({
         idMiembro: currentMember.id,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
         nombreMiembro: memberFullName,
         modulo: 'Información general',
-        antes: { contrasena: 'la que tenía' },
-        despues: { contrasena: 'una temporal, pendiente de cambiar' },
+        antes: { contrasena: 'sin código pendiente' },
+        despues: { contrasena: 'con un código de un solo uso para crear otra' },
         campos: { contrasena: 'Contraseña' },
         usuario: user,
-        metadata: { origen: 'member-create-edit-form', accion: 'clave_temporal' },
+        metadata: { origen: 'member-create-edit-form', accion: 'codigo_restablecimiento' },
       }).catch((error) => {
-        console.error('[member form] historial de clave temporal', error);
+        console.error('[member form] historial del código de restablecimiento', error);
       });
     } catch (error) {
-      console.error('[member form] no se pudo restablecer la clave', error);
-      toast.error(error.message || 'No se pudo restablecer la contraseña.');
+      console.error('[member form] no se pudo generar el código', error);
+      toast.error(error.message || 'No se pudo generar el código.');
     } finally {
-      setGenerandoClave(false);
+      setGenerandoCodigo(false);
     }
   };
 
@@ -2670,17 +2674,17 @@ export function MemberCreateEditForm({
                     <Button
                       variant="outlined"
                       color="inherit"
-                      disabled={generandoClave}
-                      onClick={restablecerClaveDelMiembro}
+                      disabled={generandoCodigo}
+                      onClick={generarCodigoDelMiembro}
                     >
-                      {generandoClave ? 'Generando…' : 'Restablecer contraseña'}
+                      {generandoCodigo ? 'Generando…' : 'Restablecer contraseña'}
                     </Button>
                   )}
 
-                  {!!claveTemporal && (
+                  {!!codigoUnUso && (
                     <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
-                        Entrégala al miembro. Podrá usarla una vez y deberá crear una nueva contraseña al ingresar.
+                        Código temporal para crear una nueva contraseña. Vence en 1 hora.
                       </Typography>
 
                       <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
@@ -2688,16 +2692,16 @@ export function MemberCreateEditForm({
                           variant="h6"
                           sx={{ letterSpacing: 2, fontFamily: 'monospace', userSelect: 'all' }}
                         >
-                          {claveTemporal}
+                          {codigoUnUso}
                         </Typography>
 
-                        <BotonCopiar valor={claveTemporal} titulo="Copiar contraseña" />
+                        <BotonCopiar valor={codigoUnUso} titulo="Copiar código" />
                       </Box>
 
                       <LinearProgress
                         color="success"
                         variant="determinate"
-                        value={(tiempoClaveRestante / (SEGUNDOS_CLAVE_TEMPORAL * 1000)) * 100}
+                        value={(tiempoCodigoRestante / (SEGUNDOS_CODIGO_EN_PANTALLA * 1000)) * 100}
                         sx={{ mt: 1 }}
                       />
                     </Alert>

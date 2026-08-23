@@ -11,6 +11,7 @@ import {
   GithubAuthProvider as _GithubAuthProvider,
   TwitterAuthProvider as _TwitterAuthProvider,
   sendEmailVerification as _sendEmailVerification,
+  signInWithCustomToken as _signInWithCustomToken,
   sendPasswordResetEmail as _sendPasswordResetEmail,
   signInWithEmailAndPassword as _signInWithEmailAndPassword,
   createUserWithEmailAndPassword as _createUserWithEmailAndPassword,
@@ -68,6 +69,19 @@ export const signInWithPassword = async ({ email, password }) => {
 
     throw error;
   }
+};
+
+/**
+ * Entrar con un token que emite el servidor.
+ *
+ * Se usa para el codigo de un solo uso del Coordinador: el miembro no tiene
+ * contraseña que dar, asi que el servidor comprueba el codigo y devuelve el
+ * token con el que se abre la sesion.
+ */
+export const signInWithCustomToken = async ({ token }) => {
+  const userCredential = await _signInWithCustomToken(ensureFirebaseAuth(), token);
+
+  return userCredential.user;
 };
 
 export const signInWithGoogle = async () => {
