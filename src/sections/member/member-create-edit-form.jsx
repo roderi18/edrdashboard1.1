@@ -1,10 +1,10 @@
 // third-party
 import dayjs from 'dayjs';
 import { useSearchParams } from 'next/navigation';
-// react
-import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
+// react
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { doc, where, query, getDoc, getDocs, collection } from 'firebase/firestore';
 
 // mui
@@ -93,6 +93,7 @@ import {
 } from 'src/services/member-service';
 import {
   guardarCorreoDeAcceso,
+  consultarCodigoRestablecimiento,
   generarCodigoRestablecimientoMiembro,
 } from 'src/services/primer-acceso-service';
 import {
@@ -673,10 +674,25 @@ export function MemberCreateEditForm({
   // para que el coordinador se lo copie; no queda guardado en ninguna parte.
   const [codigoUnUso, setCodigoUnUso] = useState('');
   const [generandoCodigo, setGenerandoCodigo] = useState(false);
+  // Codigo que el OTRO coordinador pudo generar hace un rato: generar uno nuevo
+  // anula el suyo, que quiza ya le dicto al miembro.
+  const [codigoPendiente, setCodigoPendiente] = useState(null);
   // Lo que le queda en pantalla, en milisegundos. La barra que se vacia empuja a
   // copiarlo ahora: al agotarse desaparece de la pantalla —el codigo sigue
   // sirviendo— y, si no lo apunto, hay que generar otro.
   const [tiempoCodigoRestante, setTiempoCodigoRestante] = useState(0);
+
+  const revisarCodigoPendiente = useCallback(async () => {
+    if (!currentMember?.id) return;
+
+    const estado = await consultarCodigoRestablecimiento({
+      idMiembros: currentMember.id,
+      codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
+      correo: currentMember?.email || '',
+    }).catch(() => null);
+
+    setCodigoPendiente(estado?.vigente ? estado : null);
+  }, [currentMember?.id, currentMember?.memberId, currentMember?.codigoMiembro, currentMember?.email]);
 
   useEffect(() => {
     if (!codigoUnUso) return undefined;
@@ -737,6 +753,17 @@ export function MemberCreateEditForm({
     isCoordinadorDestacamentoRole(user) || isDestacamentoApprovalRole(user);
   const memberDestId = String(currentMember?.destId ?? currentMember?.idDestacamento ?? '').trim();
   const isOwnDestMember = Boolean(memberDestId) && getOwnDestIdsForUser(user).has(memberDestId);
+  // Al dar de alta, un cargo de destacamento solo puede hacerlo en el SUYO: el
+  // campo viene puesto y no se deja cambiar. Los administradores globales y
+  // quien no tenga un unico destacamento propio siguen eligiendo.
+  const destacamentosPropios = [...getOwnDestIdsForUser(user)];
+  const destacamentoPropioFijo =
+    isCreateView &&
+    isDestacamentoCargo &&
+    !isGlobalOrgManager(user) &&
+    destacamentosPropios.length === 1
+      ? String(destacamentosPropios[0])
+      : '';
   const canUploadMemberPhoto =
     isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
   // La ficha completa en PDF solo la baja quien acompaña a esa persona: los de su
@@ -749,6 +776,14 @@ export function MemberCreateEditForm({
   // administradores. El permiso de verdad lo comprueba el servidor.
   const puedeRestablecerClave =
     !isCreateView && (isGlobalOrgManager(user) || (isDestacamentoCargo && isOwnDestMember));
+
+  // Aqui abajo y no junto a `revisarCodigoPendiente`: depende de
+  // `puedeRestablecerClave`, que se calcula en esta linea.
+  useEffect(() => {
+    if (!puedeRestablecerClave) return;
+
+    revisarCodigoPendiente();
+  }, [puedeRestablecerClave, revisarCodigoPendiente]);
 
   const totalSteps = 2;
   const nextStep = () => setStep(2);
@@ -780,7 +815,7 @@ export function MemberCreateEditForm({
     shirtSize: '',
     // Viene puesto cuando se entra desde la ficha de un destacamento. De el
     // cuelgan la seccion, la region y la iglesia, que se resuelven solas.
-    destId: destIdInicial || '',
+    destId: destacamentoPropioFijo || destIdInicial || '',
     InstructorCertificadoCI: 0,
     EstatusVigenciaCI: 'na',
     FechaVencimientoCI: null,
@@ -814,8 +849,10 @@ export function MemberCreateEditForm({
     if (currentMember) return;
 
     setStep(1);
-    methods.setValue('destId', destIdInicial || '');
-  }, [destIdInicial, currentMember]);
+    // El suyo manda sobre el que venga en la direccion: no puede dar de alta
+    // en otro destacamento ni entrando desde la ficha de otro.
+    methods.setValue('destId', destacamentoPropioFijo || destIdInicial || '');
+  }, [destIdInicial, destacamentoPropioFijo, currentMember]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1613,6 +1650,7 @@ export function MemberCreateEditForm({
       });
 
       setCodigoUnUso(codigo);
+      revisarCodigoPendiente();
 
       registrarCambiosHistorialMiembro({
         idMiembro: currentMember.id,
@@ -1882,7 +1920,10 @@ export function MemberCreateEditForm({
             idDestacamento: selectedDestId ? Number(selectedDestId) : 0,
             telefono: formData.phoneNumber || '',
             direccion: buildDireccion(formData) || null,
-            correo: formData.email || null,
+            // Cadena vacia y no `null`: es como se dice "borralo". Hoy la API
+            // externa lo ignora y la ficha lo avisa; en cuanto distinga vacio de
+            // nulo, el borrado funciona sin tocar nada mas.
+            correo: String(formData.email ?? '').trim(),
             idCargoLocal: null,
             idCargoInstitucional:
               Number.isFinite(legacyCargoInstitucional) && legacyCargoInstitucional > 0
@@ -1963,6 +2004,18 @@ export function MemberCreateEditForm({
             realizadoPor: user,
             origen: 'miembros',
           });
+
+          // El sistema de miembros no deja vaciar el correo: lo ignora y responde
+          // que todo fue bien. Se avisa en vez de dar por hecho que se borro.
+          const correoGuardado = responseData?.data?.correo;
+
+          if (correoGuardado && correoGuardado.aplicado === false) {
+            toast.warning(
+              correoGuardado.pedido
+                ? `El correo no se pudo cambiar: sigue siendo ${correoGuardado.guardado}.`
+                : `El sistema de miembros no permite dejar el correo vacío: sigue siendo ${correoGuardado.guardado}.`
+            );
+          }
 
           const completedMessage = (responseData?.message || responseData?.Message)
             ?.toLowerCase()
@@ -2670,7 +2723,34 @@ export function MemberCreateEditForm({
                     maskBirthdate={maskBirthdate}
                   />
 
-                  {puedeRestablecerClave && (
+                  {puedeRestablecerClave && !!codigoPendiente && !codigoUnUso && (
+                    <Alert severity="warning" icon={false} sx={{ textAlign: 'left' }}>
+                      <Typography variant="body2">
+                        Ya hay un código activo
+                        {codigoPendiente.generadoPorMi
+                          ? ' que generaste tú'
+                          : codigoPendiente.generadoPorNombre
+                            ? ` generado por ${codigoPendiente.generadoPorNombre}`
+                            : ''}
+                        . {codigoPendiente.expiraEn
+                          ? `Vence el ${dayjs(codigoPendiente.expiraEn).format('D [de] MMMM [a las] h:mm A')}.`
+                          : ''}{' '}
+                        Si generas otro, el suyo dejará de servir.
+                      </Typography>
+
+                      <Button
+                        size="small"
+                        color="inherit"
+                        sx={{ mt: 1 }}
+                        disabled={generandoCodigo}
+                        onClick={generarCodigoDelMiembro}
+                      >
+                        {generandoCodigo ? 'Generando…' : 'Generar otro de todas formas'}
+                      </Button>
+                    </Alert>
+                  )}
+
+                  {puedeRestablecerClave && (!codigoPendiente || codigoUnUso) && (
                     <Button
                       variant="outlined"
                       color="inherit"
@@ -2684,7 +2764,7 @@ export function MemberCreateEditForm({
                   {!!codigoUnUso && (
                     <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
-                        Código temporal para crear una nueva contraseña. Vence en 1 hora.
+                        Código temporal para crear una nueva contraseña. Vence en 12 horas.
                       </Typography>
 
                       <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
@@ -2856,6 +2936,7 @@ export function MemberCreateEditForm({
                       isCreateView
                       dests={dests}
                       lockCoreFields={lockGroupLeaderFields}
+                      lockDest={Boolean(destacamentoPropioFijo)}
                     />
                     {/* Instructor CI: oculto por completo para Lider de Grupo /
                         Lider Asistente de Grupo, y para los miembros menores de

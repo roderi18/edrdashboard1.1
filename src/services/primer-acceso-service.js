@@ -111,6 +111,37 @@ export async function accederConCodigoDeCoordinador({ numeroUsuario, codigo }) {
 }
 
 /**
+ * ¿Ya hay un codigo vivo para ese miembro?
+ *
+ * La ficha lo pregunta antes de ofrecer el boton: el otro coordinador pudo
+ * generar uno hace un rato y generar otro lo anularia.
+ */
+export async function consultarCodigoRestablecimiento({ idMiembros, codigoMiembro, correo }) {
+  const respuesta = await fetch('/api/auth/codigo-restablecimiento', {
+    method: 'PUT',
+    headers: await cabecerasConToken(),
+    body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
+  }).catch(() => null);
+
+  return respuesta?.ok ? respuesta.json().catch(() => ({ vigente: false })) : { vigente: false };
+}
+
+/**
+ * Su peticion de ayuda al Coordinador queda atendida: ya pudo entrar.
+ *
+ * No molesta a nadie si no habia ninguna, y su fallo no puede estorbar el inicio
+ * de sesion, asi que se llama sin esperar respuesta.
+ */
+export async function marcarRecuperacionAtendida() {
+  const respuesta = await fetch('/api/notificaciones/recuperacion-atendida', {
+    method: 'POST',
+    headers: await cabecerasConToken(),
+  }).catch(() => null);
+
+  return respuesta?.ok ? respuesta.json().catch(() => null) : null;
+}
+
+/**
  * Revisa si el miembro sigue debiendo cambiar su clave.
  *
  * Se llama al entrar: si la cambio por fuera —con el enlace que Firebase manda

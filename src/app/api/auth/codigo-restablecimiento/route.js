@@ -2,6 +2,11 @@ import 'server-only';
 
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import {
+  nombreDeUsuario,
+  marcarSolicitudesRecuperacionAtendidas,
+} from 'src/server/notificaciones-recuperacion';
+import {
+  codigoVigente,
   crearCodigoUnUso,
   buscarAccesoMiembro,
   LARGO_CODIGO_UN_USO,
@@ -95,10 +100,58 @@ export async function POST(req) {
       { merge: true }
     );
 
+    // Quien pidio ayuda ya la tiene: se cierra la solicitud para el OTRO
+    // coordinador, que si no la ve abierta genera un segundo codigo y tumba
+    // este, muchas veces ya dictado por telefono.
+    const nombreAtendio = await nombreDeUsuario(solicitante.uid);
+
+    await marcarSolicitudesRecuperacionAtendidas({
+      idMiembros,
+      atendidaPor: solicitante.uid,
+      nombreAtendio,
+      motivo: 'codigo_generado',
+    }).catch((error) => console.error('[codigo-restablecimiento] no se pudo cerrar la solicitud', error));
+
     return Response.json({ codigo, expiraEn, largo: LARGO_CODIGO_UN_USO, minutos: MINUTOS_CODIGO_UN_USO });
   } catch (error) {
     console.error('[codigo-restablecimiento] no se pudo generar', error);
 
     return Response.json({ error: 'No pudimos generar el código.' }, { status: 500 });
+  }
+}
+
+// ----------------------------------------------------------------------
+// ¿Ya hay un codigo vivo para este miembro?
+//
+// La ficha lo pregunta antes de ofrecer el boton: si el otro coordinador acaba
+// de generar uno, generar otro lo tumbaria —y puede que ya se lo hubiera
+// dictado al miembro—.
+// ----------------------------------------------------------------------
+
+export async function PUT(req) {
+  try {
+    if (!isAdminConfigured()) return Response.json({ vigente: false });
+
+    const solicitante = await identificarSolicitante(req);
+
+    if (!solicitante?.puedeGestionarOtros) return Response.json({ vigente: false });
+
+    const { idMiembros, codigoMiembro, correo } = await req.json();
+    const { perfil } = await buscarAccesoMiembro({ idMiembros, codigoMiembro, correo });
+    const registro = perfil?.data()?.codigoRestablecimiento;
+
+    if (!codigoVigente(registro)) return Response.json({ vigente: false });
+
+    return Response.json({
+      vigente: true,
+      creadoEn: registro.creadoEn ?? null,
+      expiraEn: registro.expiraEn ?? null,
+      generadoPorMi: String(registro.generadoPor || '') === String(solicitante.uid),
+      generadoPorNombre: await nombreDeUsuario(registro.generadoPor),
+    });
+  } catch (error) {
+    console.error('[codigo-restablecimiento] no se pudo consultar', error);
+
+    return Response.json({ vigente: false });
   }
 }

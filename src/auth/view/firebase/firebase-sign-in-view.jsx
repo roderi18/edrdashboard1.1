@@ -27,7 +27,10 @@ import { resolverCorreosDeMiembroPorNumero } from 'src/utils/member-sign-in';
 
 import { CONFIG } from 'src/global-config';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from 'src/lib/firebase';
-import { accederConCodigoDeCoordinador } from 'src/services/primer-acceso-service';
+import {
+  marcarRecuperacionAtendida,
+  accederConCodigoDeCoordinador,
+} from 'src/services/primer-acceso-service';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -237,6 +240,10 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       await checkUserSession?.();
 
+      // Ya entro: si le habia pedido ayuda a su Coordinador, esa solicitud queda
+      // atendida. Sin esperar, que no tiene por que retrasar la entrada.
+      if (!isAdminMode) marcarRecuperacionAtendida();
+
       setIsRedirecting(true);
       router.replace(CONFIG.auth.redirectPath);
     } catch (error) {
@@ -347,7 +354,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
                 // escribe su numero y ve el codigo entero, como en su carnet.
                 input: {
                   startAdornment: (
-                    <InputAdornment position="start" disableTypography>
+                    <InputAdornment position="start" disableTypography sx={{ mr: 0 }}>
                       <Box component="span" sx={{ color: 'text.disabled' }}>
                         {DEFAULT_PREFIX}
                       </Box>

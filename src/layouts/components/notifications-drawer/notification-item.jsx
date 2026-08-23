@@ -11,6 +11,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fToNow } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 
@@ -91,7 +92,28 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
 
+  // La solicitud llega a los dos coordinadores: si uno ya la resolvio, el otro
+  // tiene que verlo o acaba generando un segundo codigo y tumbando el primero.
+  const solicitudYaAtendida =
+    notification.tipoNotificacion === 'recuperacion_clave_miembro' &&
+    notification.estado === 'atendida';
+  const quienAtendio = notification.metadatos?.atendidaPorNombre || '';
+  const atendidaPorCodigo = notification.metadatos?.atendidaMotivo === 'codigo_generado';
+  const avisoAtendida = solicitudYaAtendida
+    ? [
+        'Esta solicitud ya fue atendida',
+        quienAtendio ? ` por ${quienAtendio}` : '',
+        atendidaPorCodigo
+          ? ': ya se le generó un código. Generar otro anularía el suyo.'
+          : ': el miembro ya volvió a entrar a su cuenta.',
+      ].join('')
+    : '';
+
   const handleClickNotification = async () => {
+    if (solicitudYaAtendida) {
+      toast.info(avisoAtendida);
+    }
+
     await onClickNotification?.(notification);
 
     if (notificationRoute) {
@@ -165,6 +187,12 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
             sx={{ width: 2, height: 2, borderRadius: '50%', bgcolor: 'currentColor' }}
           />
           {notification.category}
+
+          {solicitudYaAtendida && (
+            <Box component="span" sx={{ color: 'success.main', fontWeight: 'fontWeightSemiBold' }}>
+              · {quienAtendio ? `Atendida por ${quienAtendio}` : 'Ya atendida'}
+            </Box>
+          )}
         </>
       }
       slotProps={{
@@ -305,7 +333,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const renderNotificationActions = () =>
     (actionLabel || notification.estado !== 'atendida') && (
       <Box sx={{ gap: 1, mt: 1.5, display: 'flex', flexWrap: 'wrap' }}>
-        {!!actionLabel && notificationRoute && (
+        {!!actionLabel && notificationRoute && !solicitudYaAtendida && (
           <Button size="small" variant="contained" onClick={handlePrimaryAction}>
             {actionLabel}
           </Button>

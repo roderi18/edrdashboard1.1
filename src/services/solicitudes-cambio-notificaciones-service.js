@@ -60,6 +60,35 @@ const obtenerCoordinadoresDestacamento = async (destacamentoId) => {
   return asignaciones.filter((asignacion) => cargosCoordinacion.includes(asignacion.cargo));
 };
 
+/**
+ * Los ids de acceso de varios coordinadores, en una sola lista.
+ *
+ * Antes se creaba UNA notificacion por coordinador, y el id del documento se
+ * componia con el miembro y la hora en milisegundos: como los dos avisos salen a
+ * la vez, caian en el mismo id y el segundo pisaba al primero. Solo llegaba a
+ * uno. Una notificacion con los dos en `idsDestinatarios` es lo que la coleccion
+ * espera y no puede pisarse a si misma.
+ */
+const idsDeCoordinadores = async (asignaciones = []) => {
+  const listas = await Promise.all(
+    asignaciones.map(async (asignacion) => ({
+      idMiembros: asignacion.idMiembros,
+      ids: await resolverDestinatariosPorIdMiembros(asignacion.idMiembros),
+    }))
+  );
+
+  listas
+    .filter(({ ids }) => !ids.length)
+    .forEach(({ idMiembros }) =>
+      console.warn('[solicitudes cambio] coordinador sin cuenta de usuario para notificar', idMiembros)
+    );
+
+  return {
+    ids: [...new Set(listas.flatMap(({ ids }) => ids))],
+    alcanzados: listas.filter(({ ids }) => ids.length).length,
+  };
+};
+
 // Notifica a los Coordinadores (titular y asistente) del destacamento del miembro
 // que hay una solicitud de cambio para revisar. Devuelve la cantidad de
 // notificaciones enviadas. `onInfo` recibe mensajes informativos (p. ej. cuando
@@ -89,44 +118,30 @@ export const notificarCoordinadoresCambioMiembro = async ({
   const nombreMiembroFinal = nombreMiembro || currentMember?.memberId || 'un miembro';
   const nombreSolicitanteFinal = nombreSolicitante || 'Un líder de grupo';
 
-  let enviadas = 0;
+  const { ids, alcanzados } = await idsDeCoordinadores(destinatarios);
 
-  await Promise.all(
-    destinatarios.map(async (asignacion) => {
-      const idsDestinatarios = await resolverDestinatariosPorIdMiembros(asignacion.idMiembros);
+  if (!ids.length) return 0;
 
-      if (!idsDestinatarios.length) {
-        console.warn(
-          '[solicitudes cambio] coordinador sin cuenta de usuario para notificar',
-          asignacion.idMiembros
-        );
-        return;
-      }
+  // El coordinador de destacamento es una sesion de administrador, por lo que
+  // la notificacion debe crearse como "admin".
+  const resultado = await crearNotificacionAdmin({
+    tipoNotificacion: 'solicitud_cambio_miembro',
+    modulo: 'miembros',
+    titulo: 'Solicitud de cambio de miembro',
+    mensaje: `${nombreSolicitanteFinal} solicita aprobar cambios en ${nombreMiembroFinal}.`,
+    prioridad: 'informativa',
+    entidadTipo: 'miembro',
+    entidadId: String(currentMember?.id || ''),
+    ruta:
+      ruta ||
+      (currentMember?.id ? `/dashboard/level/member/${currentMember.id}/edit` : '/dashboard'),
+    etiquetaAccion: 'Revisar',
+    actorId: actorId || 'sistema',
+    actorNombre: nombreSolicitanteFinal,
+    idsDestinatariosPrecalculados: ids,
+  });
 
-      // El coordinador de destacamento es una sesion de administrador, por lo que
-      // la notificacion debe crearse como "admin".
-      const resultado = await crearNotificacionAdmin({
-        tipoNotificacion: 'solicitud_cambio_miembro',
-        modulo: 'miembros',
-        titulo: 'Solicitud de cambio de miembro',
-        mensaje: `${nombreSolicitanteFinal} solicita aprobar cambios en ${nombreMiembroFinal}.`,
-        prioridad: 'informativa',
-        entidadTipo: 'miembro',
-        entidadId: String(currentMember?.id || ''),
-        ruta:
-          ruta ||
-          (currentMember?.id ? `/dashboard/level/member/${currentMember.id}/edit` : '/dashboard'),
-        etiquetaAccion: 'Revisar',
-        actorId: actorId || 'sistema',
-        actorNombre: nombreSolicitanteFinal,
-        idsDestinatariosPrecalculados: idsDestinatarios,
-      });
-
-      if (resultado) enviadas += 1;
-    })
-  );
-
-  return enviadas;
+  return resultado ? alcanzados : 0;
 };
 
 // Aviso informativo entre Coordinadores: cuando un Coordinador (titular o
@@ -418,47 +433,40 @@ export const notificarCoordinadoresRecuperacionClave = async ({
     ])
   );
   const nombreMiembro = nombreCortoDeMiembro(member) || member?.codigoMiembro || 'un miembro';
-  const coordinadores = [];
-  let enviadas = 0;
+  const coordinadores = asignaciones.map((asignacion) => ({
+    idMiembros: asignacion.idMiembros,
+    nombre:
+      nombreCortoDeMiembro(porId.get(String(asignacion.idMiembros))) ||
+      nombreCortoDeMiembro(asignacion) ||
+      'tu coordinador',
+    cargo: asignacion.cargo,
+  }));
 
-  await Promise.all(
-    asignaciones.map(async (asignacion) => {
-      const ficha = porId.get(String(asignacion.idMiembros));
-      const nombre =
-        nombreCortoDeMiembro(ficha) || nombreCortoDeMiembro(asignacion) || 'tu coordinador';
+  const { ids, alcanzados } = await idsDeCoordinadores(asignaciones);
 
-      coordinadores.push({ idMiembros: asignacion.idMiembros, nombre, cargo: asignacion.cargo });
+  if (!ids.length) return { enviadas: 0, coordinadores };
 
-      const idsDestinatarios = await resolverDestinatariosPorIdMiembros(asignacion.idMiembros);
+  const resultado = await crearNotificacionAdmin({
+    tipoNotificacion: 'recuperacion_clave_miembro',
+    modulo: 'miembros',
+    titulo: 'Recuperación de contraseña',
+    mensaje: `${nombreMiembro} (${member?.codigoMiembro || 'sin código'}) no puede entrar y pide ayuda para recuperar su contraseña.`,
+    prioridad: 'importante',
+    entidadTipo: 'miembro',
+    entidadId: String(member?.idMiembros || member?.id || ''),
+    ruta: member?.idMiembros
+      ? `/dashboard/level/member/${member.idMiembros}/edit`
+      : '/dashboard/level/member',
+    etiquetaAccion: 'Ayudar',
+    actorId: 'sistema',
+    actorNombre: nombreMiembro,
+    idsDestinatariosPrecalculados: ids,
+    metadatos: {
+      idMiembroSolicitante: String(member?.idMiembros || member?.id || ''),
+      codigoMiembroSolicitante: member?.codigoMiembro || '',
+      atendida: false,
+    },
+  });
 
-      if (!idsDestinatarios.length) {
-        console.warn(
-          '[recuperacion clave] coordinador sin cuenta para notificar',
-          asignacion.idMiembros
-        );
-        return;
-      }
-
-      const resultado = await crearNotificacionAdmin({
-        tipoNotificacion: 'recuperacion_clave_miembro',
-        modulo: 'miembros',
-        titulo: 'Recuperación de contraseña',
-        mensaje: `${nombreMiembro} (${member?.codigoMiembro || 'sin código'}) no puede entrar y pide ayuda para recuperar su contraseña.`,
-        prioridad: 'importante',
-        entidadTipo: 'miembro',
-        entidadId: String(member?.idMiembros || member?.id || ''),
-        ruta: member?.idMiembros
-          ? `/dashboard/level/member/${member.idMiembros}/edit`
-          : '/dashboard/level/member',
-        etiquetaAccion: 'Ayudar',
-        actorId: 'sistema',
-        actorNombre: nombreMiembro,
-        idsDestinatariosPrecalculados: idsDestinatarios,
-      });
-
-      if (resultado) enviadas += 1;
-    })
-  );
-
-  return { enviadas, coordinadores };
+  return { enviadas: resultado ? alcanzados : 0, coordinadores };
 };

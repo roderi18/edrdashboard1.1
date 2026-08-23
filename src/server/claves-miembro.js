@@ -42,9 +42,11 @@ const LARGO_HUELLA = 32;
 const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const LARGO_CODIGO_UN_USO = 8;
 
-// Cuanto vive el codigo de un solo uso. Una hora da margen para dictarlo y que
-// el miembro lo use sin prisas, y es poco para quien lo encuentre por ahi.
-export const MINUTOS_CODIGO_UN_USO = 60;
+// Cuanto vive el codigo de un solo uso. Doce horas cubren el caso real: el
+// coordinador lo genera cuando puede y el miembro lo usa cuando llega a un
+// computador, sin tener que coincidir en el mismo rato.
+export const HORAS_CODIGO_UN_USO = 12;
+export const MINUTOS_CODIGO_UN_USO = HORAS_CODIGO_UN_USO * 60;
 
 // Intentos de escribir el codigo antes de tirarlo. Ocho caracteres de un
 // alfabeto de treinta y dos no se adivinan a mano, pero el limite cierra la

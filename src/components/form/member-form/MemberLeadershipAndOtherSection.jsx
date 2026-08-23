@@ -48,6 +48,9 @@ export default function MemberLeadershipAndOtherSection({
     // Bloquea destacamento, posicion en el destacamento y sexo (p. ej. para
     // Lider de Grupo / Lider Asistente de Grupo).
     lockCoreFields = false,
+    // Bloquea SOLO el destacamento: al crear, un cargo de destacamento da de
+    // alta en el suyo y no en otro.
+    lockDest = false,
     // Solo lectura (p. ej. Director Nacional): deshabilita todos los selects.
     readOnly = false,
 }) {
@@ -143,7 +146,7 @@ export default function MemberLeadershipAndOtherSection({
                 <Field.Autocomplete
                     name="destId"
                     label="Tu Destacamento"
-                    disabled={disabledCore}
+                    disabled={disabledCore || lockDest}
                     options={dests}
                     freeSolo={false}
                     value={dests.find((d) => String(d.id) === String(watch('destId'))) || null}
