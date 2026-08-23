@@ -183,7 +183,8 @@ export function HealthBasicSection({
                             label="Teléfono principal"
                             placeholder="(809) 555-1234"
                             disabled={readOnly}
-                            inputProps={{ inputMode: 'numeric' }}
+                            type="tel"
+                            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                             onChange={(e) => {
                                 const raw = e.target.value;
 
@@ -227,7 +228,8 @@ export function HealthBasicSection({
                             label="Teléfono de emergencia"
                             placeholder="(829) 555-1234"
                             disabled={readOnly}
-                            inputProps={{ inputMode: 'numeric' }}
+                            type="tel"
+                            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                             onChange={(e) => {
                                 const raw = e.target.value;
 

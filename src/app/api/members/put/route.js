@@ -140,11 +140,22 @@ export async function PUT(req) {
             );
         }
 
+        // UpdateMiembros ignora el correo cuando llega vacio o en blanco, y aun asi
+        // responde OK. Como la comprobacion de arriba solo mira nombre y apellido,
+        // vaciarlo se daba por guardado y volvia al recargar. Se compara aparte
+        // para que quien llama pueda decirlo.
+        const correoAplicado = normalize(updatedMember.correo) === normalize(payload.correo);
+
         return Response.json({
             success: true,
             message: 'Actualizacion exitosa',
             data: {
                 upstream: normalizeApiResponse(upstreamParsed ?? { raw: upstreamText }),
+                correo: {
+                    aplicado: correoAplicado,
+                    pedido: payload.correo ?? '',
+                    guardado: updatedMember.correo ?? '',
+                },
                 verifiedMember: {
                     idMiembros: updatedMember.idMiembros,
                     nombres: updatedMember.nombres,

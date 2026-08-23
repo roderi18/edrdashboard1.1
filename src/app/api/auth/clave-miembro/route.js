@@ -56,7 +56,7 @@ export async function POST(req) {
     if (claveYaUsada(claveNueva, datos.clavesAnteriores)) {
       return Response.json(
         {
-          error: `Esa contraseña ya la usaste antes. Elige una distinta de tus últimas ${CLAVES_RECORDADAS}.`,
+          error: `Esa contraseña ya la usaste antes. Elige una distinta.`,
           repetida: true,
         },
         { status: 409 }

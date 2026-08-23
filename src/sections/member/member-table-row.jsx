@@ -54,12 +54,12 @@ export function MemberTableRow({
 
       return roles.length
         ? roles.map((roleItem) => getLeadershipRoleLabel(roleItem)).join(', ')
-        : 'Posición desconocida';
+        : 'Sin rol asignado';
     }
 
     const normalizedRole = String(roleValue || '').trim();
 
-    if (!normalizedRole) return 'Posición desconocida';
+    if (!normalizedRole) return 'Sin rol asignado';
 
     // Se traduce contra el CATALOGO real. Antes se buscaba en los roles de
     // ejemplo, que no contienen los ids del catalogo, asi que caia siempre en el
@@ -78,12 +78,12 @@ export function MemberTableRow({
 
       return positions.length
         ? positions.map(getLeadershipRoleLabel).join(', ')
-        : 'Posición desconocida';
+        : 'Sin rol asignado';
     }
 
     return String(row.memberPosition || '').trim()
       ? getLeadershipRoleLabel(row.memberPosition)
-      : 'Posición desconocida';
+      : 'Sin rol asignado';
   })();
 
   const leaderships = leadershipAssignments
@@ -104,7 +104,11 @@ export function MemberTableRow({
     row.destLeadershipPosition || row.directivaLeadershipPosition
   );
   const isPositionUnknown =
-    !hasDirectLeadershipPosition && !leaderships.length && isUnknownLabel(memberPositionLabel);
+    !hasDirectLeadershipPosition &&
+    !leaderships.length &&
+    // "Sin rol asignado" ya no dice "desconocido", pero se sigue viendo apagado:
+    // es la ausencia de cargo, no un cargo.
+    (memberPositionLabel === 'Sin rol asignado' || isUnknownLabel(memberPositionLabel));
 
   const handleOpenMemberEdit = () => {
     if (!memberEditId) return;
@@ -268,7 +272,7 @@ export function MemberTableRow({
         ) : row.memberPosition ? (
           memberPositionLabel
         ) : (
-          'Posición desconocida'
+          'Sin rol asignado'
         )}
       </TableCell>
 

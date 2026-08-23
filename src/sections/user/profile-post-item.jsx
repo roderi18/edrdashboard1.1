@@ -1466,12 +1466,13 @@ export function ProfilePostItem({
             type="button"
             onClick={() => handleOpenPreview(0)}
             aria-label="Abrir imagen de la publicacion"
+            // Sin proporcion fija: la imagen manda. Con 4/3 y `cover` se recortaba
+            // lo que no cupiera —a un certificado se le comian los bordes—.
             sx={{
               p: 0,
               m: 0,
               border: 0,
               width: 1,
-              aspectRatio: { xs: '4 / 3', sm: '16 / 9' },
               display: 'block',
               overflow: 'hidden',
               borderRadius: 1.5,
@@ -1485,9 +1486,11 @@ export function ProfilePostItem({
               src={mediaItems[0]}
               sx={{
                 width: 1,
-                height: 1,
+                height: 'auto',
                 display: 'block',
-                objectFit: 'cover',
+                // Tope para que una foto muy vertical no ocupe la pantalla entera.
+                maxHeight: { xs: '70vh', sm: '75vh' },
+                objectFit: 'contain',
                 objectPosition: 'center',
               }}
             />

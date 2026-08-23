@@ -8,7 +8,10 @@ const normalizeList = (value) =>
       ? [String(value)]
       : [];
 
-export const normalizarAccesoUsuario = (usuario = {}) => {
+export const normalizarAccesoUsuario = (entrada) => {
+  // Al cerrar sesion la sesion pasa a `null` mientras la pantalla se desmonta, y
+  // un valor por defecto no cubre `null`: solo `undefined`.
+  const usuario = entrada ?? {};
   const rolId =
     usuario.rolId ||
     usuario.roleId ||
