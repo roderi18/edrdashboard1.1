@@ -402,7 +402,8 @@ export function SectionalCreateEditForm({ currentSectional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto || !canEdit}
+                disabled={uploadingPhoto}
+                readOnly={!canEdit}
                 onDrop={handleUploadSectionalPhoto}
                 optimizationToast={false}
                 helperText={

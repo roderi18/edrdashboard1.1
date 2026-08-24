@@ -140,9 +140,9 @@ function Simulador({
     { id: 'capacidad', label: 'Qué puede hacer' },
     ...(mostrarSueltos
       ? [
-          { id: 'solo-dest', label: `Solo ${destacamento.nombre}`, width: 170 },
-          { id: 'solo-acom', label: `Solo ${acompanante.nombre}`, width: 170 },
-        ]
+        { id: 'solo-dest', label: `Solo ${destacamento.nombre}`, width: 170 },
+        { id: 'solo-acom', label: `Solo ${acompanante.nombre}`, width: 170 },
+      ]
       : []),
     { id: 'combinado', label: 'Con los dos cargos', width: 170 },
     { id: 'solicita', label: 'Se lo pide a', width: 260 },
@@ -289,34 +289,26 @@ function Simulador({
                     {CAPACIDADES.filter((capacidad) => capacidad.area === area).map((capacidad) => (
                       <TableRow key={capacidad.id} hover>
                         <TableCell padding="checkbox">
-                          <Tooltip
-                            title={
-                              isCombinationCapabilityValidated(revisionGuardada, capacidad.id)
-                                ? 'Marcada como correcta y guardada en Firebase'
-                                : 'Marcar esta fila como correcta'
-                            }
-                          >
-                            <span>
-                              <Checkbox
-                                checked={isCombinationCapabilityValidated(
-                                  revisionGuardada,
-                                  capacidad.id
-                                )}
-                                disabled={
-                                  cargandoRevisiones ||
-                                  guardandoCapacidades.has(
-                                    `${combinationId}::${capacidad.id}`
-                                  )
-                                }
-                                inputProps={{
-                                  'aria-label': `Validar ${capacidad.etiqueta}`,
-                                }}
-                                onChange={(event) =>
-                                  onRevisarCapacidad(capacidad, event.target.checked)
-                                }
-                              />
-                            </span>
-                          </Tooltip>
+                          <span>
+                            <Checkbox
+                              checked={isCombinationCapabilityValidated(
+                                revisionGuardada,
+                                capacidad.id
+                              )}
+                              disabled={
+                                cargandoRevisiones ||
+                                guardandoCapacidades.has(
+                                  `${combinationId}::${capacidad.id}`
+                                )
+                              }
+                              inputProps={{
+                                'aria-label': `Validar ${capacidad.etiqueta}`,
+                              }}
+                              onChange={(event) =>
+                                onRevisarCapacidad(capacidad, event.target.checked)
+                              }
+                            />
+                          </span>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">{capacidad.etiqueta}</Typography>

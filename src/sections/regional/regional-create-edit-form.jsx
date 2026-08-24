@@ -306,7 +306,8 @@ export function RegionalCreateEditForm({ currentRegional }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto || !canEdit}
+                disabled={uploadingPhoto}
+                readOnly={!canEdit}
                 onDrop={handleUploadRegionalPhoto}
                 optimizationToast={false}
                 helperText={
