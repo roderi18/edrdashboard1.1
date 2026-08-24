@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { limiteSuperado } from 'src/server/limite-intentos';
+import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
   codigoVigente,
@@ -41,39 +43,57 @@ export async function POST(req) {
       return Response.json({ error: NO_VALE }, { status: 400 });
     }
 
+    // Dos limites, porque hay dos abusos distintos. Por IP, contra quien recorre
+    // numeros probando codigos. Por numero, porque cinco fallos AGOTAN el codigo
+    // del miembro: sin esto, un desconocido puede tumbar de una tacada todas las
+    // recuperaciones en curso, incluidas las ya dictadas por telefono.
+    const frenado =
+      limiteSuperado(req, { grupo: 'codigo-ip', maximo: 10, ventanaMs: 60 * 1000 }) ??
+      limiteSuperado(req, {
+        grupo: 'codigo-miembro',
+        identificador: numeroDeCodigoMiembro(numeroUsuario),
+        porOrigen: false,
+        maximo: 6,
+        ventanaMs: 60 * 60 * 1000,
+      });
+
+    if (frenado) return frenado;
+
     const documentos = await buscarPerfilesPorNumeroMiembro(numeroUsuario);
-    const pendientes = documentos.filter((documento) =>
-      codigoVigente(documento.data()?.codigoRestablecimiento)
+    // El codigo ya no vive en el perfil sino en `secretos_acceso`, que el
+    // cliente no puede leer. Cada candidato viaja con el suyo al lado.
+    const candidatos = await Promise.all(
+      documentos.map(async (documento) => ({
+        documento,
+        registro: (await leerSecretos(documento.id, documento)).codigoRestablecimiento,
+      }))
     );
+    const pendientes = candidatos.filter(({ registro }) => codigoVigente(registro));
 
     if (!pendientes.length) {
       return Response.json({ error: NO_VALE }, { status: 400 });
     }
 
-    const documento = pendientes.find((candidato) =>
-      codigoCoincide(codigo, candidato.data().codigoRestablecimiento)
-    );
+    const acertado = pendientes.find(({ registro }) => codigoCoincide(codigo, registro));
 
-    if (!documento) {
+    if (!acertado) {
       // Fallar cuesta: el codigo se agota tras unos cuantos intentos.
       await Promise.all(
-        pendientes.map((candidato) =>
-          candidato.ref.set(
-            {
-              codigoRestablecimiento: {
-                ...candidato.data().codigoRestablecimiento,
-                intentos: Number(candidato.data().codigoRestablecimiento?.intentos || 0) + 1,
-              },
+        pendientes.map(({ documento, registro }) =>
+          guardarSecretos(documento.id, {
+            codigoRestablecimiento: {
+              ...registro,
+              intentos: Number(registro?.intentos || 0) + 1,
             },
-            { merge: true }
-          )
+          })
         )
       );
 
       return Response.json({ error: NO_VALE }, { status: 400 });
     }
 
-    const { uid } = documento.data().codigoRestablecimiento;
+    const { documento } = acertado;
+    const { uid } = acertado.registro;
 
     if (!uid) return Response.json({ error: NO_VALE }, { status: 400 });
 

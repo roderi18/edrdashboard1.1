@@ -24,6 +24,7 @@ import { AUTH } from 'src/lib/firebase';
 import { CONFIG } from 'src/global-config';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
+  cabecerasConToken,
   revisarEstadoClave,
   cambiarClaveMiembro,
   guardarCorreoDeAcceso,
@@ -212,21 +213,19 @@ export function FirebasePrimerAccesoView() {
     setComprobandoCorreo(true);
 
     try {
-      const res = await fetch('/api/members/');
+      // La comparacion la hace el servidor con su propia sesion: traerse el
+      // padron entero al navegador para buscar un correo obligaba a dejar
+      // `/api/members/` abierta, y de ahi salia todo el directorio.
+      const { enUso } = await fetch('/api/auth/correo-disponible/', {
+        // No cambia nada: es una consulta. Va por POST para no llevar el correo
+        // en la direccion, donde acabaria en los registros del servidor.
+        // eslint-disable-next-line no-restricted-syntax
+        method: 'POST',
+        headers: await cabecerasConToken(),
+        body: JSON.stringify({ correo: buscado }),
+      }).then((respuesta) => respuesta.json());
 
-      if (!res.ok) return false;
-
-      const cuerpo = await res.json();
-      const miembros = cuerpo?.data || cuerpo?.Data || cuerpo || [];
-      const idActual = String(user?.idMiembros ?? '');
-
-      return (Array.isArray(miembros) ? miembros : []).some((miembro) => {
-        const suCorreo = String(miembro?.correo || miembro?.email || '')
-          .trim()
-          .toLowerCase();
-
-        return suCorreo === buscado && String(miembro?.idMiembros ?? miembro?.id ?? '') !== idActual;
-      });
+      return Boolean(enUso);
     } catch {
       // Sin listado no se puede afirmar que este repetido: se deja pasar y lo
       // atrapa Firebase con `auth/email-already-in-use`.

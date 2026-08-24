@@ -4,9 +4,9 @@ import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase
 import {
   claveYaUsada,
   CLAVES_RECORDADAS,
-  buscarPerfilMiembro,
   registrarHuellaClave,
   identificarSolicitante,
+  huellasDeClavesAnteriores,
 } from 'src/server/claves-miembro';
 
 export const runtime = 'nodejs';
@@ -47,13 +47,12 @@ export async function POST(req) {
     // Solo la suya: el uid sale del token, no de lo que mande el navegador. No
     // hace falta traer la cuenta para eso —el token ya la identifica—, y pedirla
     // era un viaje entero a Firebase antes de poder hacer nada.
-    const perfil = await buscarPerfilMiembro({
+    const anteriores = await huellasDeClavesAnteriores({
       idMiembros: solicitante.idMiembros,
       uid: solicitante.uid,
     });
-    const datos = perfil?.data() ?? {};
 
-    if (claveYaUsada(claveNueva, datos.clavesAnteriores)) {
+    if (claveYaUsada(claveNueva, anteriores)) {
       return Response.json(
         {
           error: `Esa contraseña ya la usaste antes. Elige una distinta.`,
@@ -114,14 +113,12 @@ export async function PUT(req) {
     }
 
     const { clave } = await req.json();
-    const perfil = await buscarPerfilMiembro({
+    const anteriores = await huellasDeClavesAnteriores({
       idMiembros: solicitante.idMiembros,
       uid: solicitante.uid,
     });
 
-    return Response.json({
-      repetida: claveYaUsada(String(clave ?? ''), perfil?.data()?.clavesAnteriores),
-    });
+    return Response.json({ repetida: claveYaUsada(String(clave ?? ''), anteriores) });
   } catch (error) {
     console.error('[clave-miembro] no se pudo comprobar la clave', error);
 

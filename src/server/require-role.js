@@ -53,4 +53,33 @@ export async function requireRole(req, rolesPermitidos = []) {
   }
 }
 
+/**
+ * Solo hace falta tener sesion, sea del rol que sea.
+ *
+ * Para las rutas que devuelven datos de la organizacion: no deciden nada, pero
+ * tampoco son publicas. Devuelve null si puede pasar, o la Response del error.
+ */
+export async function exigirSesion(req) {
+  if (!isAdminConfigured()) {
+    return Response.json(
+      { error: 'El servidor no tiene configurado FIREBASE_SERVICE_ACCOUNT.' },
+      { status: 503 }
+    );
+  }
+
+  const token = getBearerToken(req);
+
+  if (!token) {
+    return Response.json({ error: 'Inicia sesión para consultar esta información.' }, { status: 401 });
+  }
+
+  try {
+    await getAdminAuth().verifyIdToken(token);
+
+    return null;
+  } catch {
+    return Response.json({ error: 'La sesión no es válida o expiró.' }, { status: 401 });
+  }
+}
+
 export const ROLES_ADMINISTRACION_CARGOS = ['administrador_global'];

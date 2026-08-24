@@ -15,12 +15,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 
 import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
-import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 
 import { PasswordIcon } from 'src/assets/icons';
-import {
-  notificarCoordinadoresRecuperacionClave,
-} from 'src/services/solicitudes-cambio-notificaciones-service';
 
 import { Form, Field } from 'src/components/hook-form';
 
@@ -45,36 +41,29 @@ export const ResetPasswordSchema = z.object({
   loginValue: z.string().optional(),
 });
 
-const getRowsFromApi = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.Data)) return payload.Data;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
+// Todo lo que hace falta para recuperar lo resuelve el servidor: quien es el
+// miembro, si su cuenta tiene un correo propio al que mandarle el enlace y a que
+// coordinadores avisar. Esta pantalla no tiene sesion, asi que antes se
+// descargaba el padron entero para averiguarlo aqui —y eso obligaba a dejar
+// `/api/members/` abierta a cualquiera—.
+const pedirRecuperacion = async ({ accion, numeroUsuario }) => {
+  const respuesta = await fetch('/api/auth/recuperacion/', {
+    // No es un cambio de la ficha de nadie: es la propia recuperacion de acceso,
+    // que no pasa por Historial. Va por POST para no llevar el numero en la
+    // direccion, donde acabaria en los registros del servidor.
+    // eslint-disable-next-line no-restricted-syntax
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accion, numeroUsuario }),
+  });
+  const datos = await respuesta.json().catch(() => ({}));
 
-  return [];
-};
-
-// Devuelve el miembro y TODA la lista: los nombres de los coordinadores salen de
-// ahi mismo, sin pedir el listado por segunda vez.
-const buscarMiembroConLista = async (username) => {
-  const normalizedUsername = normalizeMemberUsername(username);
-  const res = await fetch('/api/members/');
-
-  if (!res.ok) {
-    throw new Error('No se pudo consultar la informacion del miembro.');
+  if (!respuesta.ok) {
+    throw new Error(datos?.error || 'No pudimos atender la solicitud.');
   }
 
-  const miembros = getRowsFromApi(await res.json());
-
-  return {
-    miembros,
-    member: miembros.find(
-      (member) => normalizeMemberUsername(member.codigoMiembro) === normalizedUsername
-    ),
-  };
+  return datos;
 };
-
-const findMemberByUsername = async (username) => (await buscarMiembroConLista(username)).member;
 
 // ----------------------------------------------------------------------
 
@@ -104,6 +93,10 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
     return `${DEFAULT_PREFIX}${userNumber}`;
   };
 
+  // Al servidor solo va el numero: el prefijo lo resuelve el, que es quien tiene
+  // el padron.
+  const getUserNumber = (data) => String(data.userNumber || '').replace(/\D/g, '');
+
   const handleSendEmailLink = handleSubmit(async (data) => {
     try {
       setErrorMessage(null);
@@ -129,51 +122,23 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
         return;
       }
 
-      const member = await findMemberByUsername(loginValue);
+      const resultado = await pedirRecuperacion({
+        accion: 'enlace',
+        numeroUsuario: getUserNumber(data),
+      });
 
-      if (!member) {
-        setErrorMessage('No encontramos un miembro con ese usuario.');
+      if (!resultado.puedeEnviar) {
+        setErrorMessage(resultado.error);
         return;
       }
 
-      if (!member.correo) {
-        setErrorMessage(
-          'Este usuario no tiene correo asignado. Pídele la recuperación a tu Coordinador con el botón de abajo.'
-        );
-        return;
-      }
+      // El servidor ya comprobo que ese correo es EL DE LA CUENTA. Mandarlo a
+      // ciegas al de la ficha le cambiaba la clave a quien tuviera esa direccion
+      // registrada: le paso al administrador, que pidio recuperar la de un
+      // miembro y termino cambiando la suya.
+      await sendPasswordResetEmail({ email: resultado.correo });
 
-      // El enlace de Firebase cambia la clave de la cuenta QUE TENGA ese correo.
-      // El de la ficha del miembro casi nunca es el de su cuenta —esta usa
-      // `<codigo>@exploradores.app` mientras no verifique uno propio—, y
-      // enviarlo a ciegas cambiaba la clave de OTRA persona. Se comprueba antes.
-      const comprobacion = await fetch('/api/auth/correo-recuperacion', {
-        // No cambia nada: es una consulta. Va por POST para no llevar el correo
-        // en la direccion, donde acabaria en los registros del servidor.
-        // eslint-disable-next-line no-restricted-syntax
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          codigo: loginValue,
-          correo: member.correo,
-          idMiembros: member.idMiembros ?? member.id ?? null,
-        }),
-      })
-        .then((respuesta) => respuesta.json())
-        .catch(() => null);
-
-      if (!comprobacion?.coincide) {
-        setErrorMessage(
-          comprobacion?.tieneCorreoPropio
-            ? 'El correo de tu ficha no es el de tu cuenta de acceso, así que el enlace no te llegaría. Pídele la recuperación a tu Coordinador con el botón de abajo.'
-            : 'Tu cuenta está configurada para iniciar sesión con tu código de miembro y no tiene un correo electrónico asociado. Por esta razón, no podemos enviarte un enlace de recuperación. Utiliza el botón de abajo para solicitar ayuda a tu Coordinador.'
-        );
-        return;
-      }
-
-      await sendPasswordResetEmail({ email: member.correo });
-
-      setCorreoEnviado(member.correo);
+      setCorreoEnviado(resultado.correo);
     } catch (error) {
       if (!expectedResetErrorCodes.includes(error?.code)) {
         console.error(error);
@@ -188,21 +153,19 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       setErrorMessage(null);
       setSuccessMessage(null);
 
-      const { member, miembros } = await buscarMiembroConLista(getLoginValue(data));
-
-      if (!member) {
-        setErrorMessage('No encontramos un miembro con ese usuario.');
-        return;
-      }
-
       // Se avisa a los DOS coordinadores del destacamento: el titular y su
       // asistente. Cualquiera de los dos puede ayudarle, y saber a quien acudir
-      // ahorra el paso de preguntar.
-      const { enviadas, coordinadores } = await notificarCoordinadoresRecuperacionClave({
-        member,
-        miembros,
-        onInfo: (aviso) => setErrorMessage(aviso),
+      // ahorra el paso de preguntar. A quien hay que avisar lo resuelve el
+      // servidor: aqui solo vuelven sus nombres.
+      const { enviadas, coordinadores, aviso } = await pedirRecuperacion({
+        accion: 'coordinador',
+        numeroUsuario: getUserNumber(data),
       });
+
+      if (aviso) {
+        setErrorMessage(aviso);
+        return;
+      }
 
       if (!coordinadores.length) return;
 

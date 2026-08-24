@@ -1,6 +1,9 @@
 import 'server-only';
 
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
+import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
+import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
 import {
   nombreDeUsuario,
   marcarSolicitudesRecuperacionAtendidas,
@@ -67,17 +70,35 @@ export async function POST(req) {
       return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });
     }
 
-    if (!solicitante.puedeGestionarOtros) {
-      return Response.json(
-        { error: 'Tu rol no puede restablecer la contraseña de otros miembros.' },
-        { status: 403 }
-      );
-    }
-
     if (!cuenta) {
       return Response.json(
         { error: 'Ese miembro todavía no tiene cuenta de acceso.' },
         { status: 404 }
+      );
+    }
+
+    // El permiso no basta: hay que mirar A QUIEN. Un codigo abre la cuenta del
+    // otro con SUS permisos, asi que sin esta comprobacion cualquier Lider de
+    // Grupo podia entrar en la cuenta de un cargo nacional.
+    const { permitido, motivo } = await puedeGestionarAMiembro({
+      solicitante,
+      idMiembros: idMiembros ?? perfil?.data()?.idMiembros,
+      uidObjetivo: cuenta.uid,
+      resolverRoles: resolverRolesPorAsignaciones,
+    });
+
+    if (!permitido) {
+      // El motivo se queda aqui: a quien lo intenta se le contesta siempre lo
+      // mismo, que distinguir "no es de los tuyos" de "manda mas que tu" es
+      // dibujarle el organigrama a quien esta tanteando.
+      console.warn('[codigo-restablecimiento] intento fuera de alcance', {
+        solicitante: solicitante.uid,
+        motivo,
+      });
+
+      return Response.json(
+        { error: 'Tu rol no puede restablecer la contraseña de ese miembro.' },
+        { status: 403 }
       );
     }
 
@@ -91,14 +112,18 @@ export async function POST(req) {
     const referencia =
       perfil?.ref ?? getAdminDb().collection(COLECCION).doc(String(idMiembros || cuenta.uid));
 
-    await referencia.set(
-      {
-        uid: cuenta.uid,
-        [CAMPO_BUSQUEDA_NUMERO]: numeroDeCodigoMiembro(codigoMiembro),
-        codigoRestablecimiento: registro,
-      },
-      { merge: true }
-    );
+    // En el perfil queda solo por donde encontrarlo; la huella del codigo va a
+    // `secretos_acceso`, cerrada al cliente.
+    await Promise.all([
+      referencia.set(
+        {
+          uid: cuenta.uid,
+          [CAMPO_BUSQUEDA_NUMERO]: numeroDeCodigoMiembro(codigoMiembro),
+        },
+        { merge: true }
+      ),
+      guardarSecretos(referencia.id, { codigoRestablecimiento: registro }),
+    ]);
 
     // Quien pidio ayuda ya la tiene: se cierra la solicitud para el OTRO
     // coordinador, que si no la ve abierta genera un segundo codigo y tumba
@@ -138,7 +163,9 @@ export async function PUT(req) {
 
     const { idMiembros, codigoMiembro, correo } = await req.json();
     const { perfil } = await buscarAccesoMiembro({ idMiembros, codigoMiembro, correo });
-    const registro = perfil?.data()?.codigoRestablecimiento;
+    const { codigoRestablecimiento: registro } = perfil
+      ? await leerSecretos(perfil.id, perfil)
+      : {};
 
     if (!codigoVigente(registro)) return Response.json({ vigente: false });
 

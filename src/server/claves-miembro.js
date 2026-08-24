@@ -3,6 +3,7 @@ import 'server-only';
 import { randomInt, pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
 
 import { getAdminDb, getAdminAuth } from 'src/server/firebase-admin';
+import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
 import {
   ROLES_ASIGNADOS_A_MANO,
   resolverRolesPorAsignaciones,
@@ -271,20 +272,37 @@ export const buscarAccesoMiembro = async ({ idMiembros, codigoMiembro, correo })
 /** Solo la cuenta, para quien no necesita el perfil. */
 export const buscarCuentaMiembro = async (datos) => (await buscarAccesoMiembro(datos)).cuenta;
 
-/** Guarda la huella de la clave nueva y conserva solo las ultimas. */
+/** Las huellas de las claves que ya uso ese miembro. */
+export const huellasDeClavesAnteriores = async ({ idMiembros, uid, perfil = null }) => {
+  const documento = perfil ?? (await buscarPerfilMiembro({ idMiembros, uid }));
+  const id = documento?.id ?? String(idMiembros || uid || '');
+  const { clavesAnteriores } = await leerSecretos(id, documento);
+
+  return clavesAnteriores;
+};
+
+/**
+ * Guarda la huella de la clave nueva y conserva solo las ultimas.
+ *
+ * La huella va a `secretos_acceso`, que el cliente no puede leer; en el perfil
+ * queda solo lo que la sesion si necesita ver (`extra`).
+ */
 export const registrarHuellaClave = async ({ idMiembros, uid, clave, extra = {} }) => {
   const db = getAdminDb();
   const documento = await buscarPerfilMiembro({ idMiembros, uid });
   const referencia = documento?.ref ?? db.collection(COLECCION).doc(String(idMiembros || uid));
-  const anteriores = documento?.data()?.clavesAnteriores ?? [];
+  const id = documento?.id ?? String(idMiembros || uid);
+  const { clavesAnteriores } = await leerSecretos(id, documento);
 
-  await referencia.set(
-    {
-      ...extra,
-      clavesAnteriores: [...anteriores, crearHuellaClave(clave)].slice(-CLAVES_RECORDADAS),
-    },
-    { merge: true }
-  );
+  await Promise.all([
+    referencia.set({ ...extra }, { merge: true }),
+    guardarSecretos(id, {
+      clavesAnteriores: [...clavesAnteriores, crearHuellaClave(clave)].slice(-CLAVES_RECORDADAS),
+      // La clave nueva es suya: el codigo del Coordinador existia solo para
+      // llegar hasta aqui.
+      codigoRestablecimiento: null,
+    }),
+  ]);
 };
 
 // --- permisos ---

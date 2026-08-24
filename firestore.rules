@@ -2,8 +2,29 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // OJO: tener cuenta de Firebase NO es ser de la casa.
+    //
+    // Cualquiera puede crearse una —con correo y contraseña contra la API key
+    // pública, o entrando con Google—, así que `request.auth != null` no
+    // distingue a un miembro de un desconocido que se registró hace un minuto.
+    // Se conserva porque hay reglas que solo necesitan saber que hay sesión,
+    // pero NUNCA debe ser lo único que proteja un dato.
     function estaAutenticado() {
       return request.auth != null;
+    }
+
+    // Esta es la frontera de verdad: existe una ficha suya que solo el servidor
+    // (Admin SDK) puede crear. Quien no esté dado de alta no pasa de aquí, tenga
+    // la cuenta que tenga.
+    //
+    // A propósito NO se mira `users/{uid}`: ese documento se lo crea el propio
+    // navegador al registrarse, así que aceptarlo sería volver al principio.
+    function esUsuarioDelSistema() {
+      return estaAutenticado()
+        && (
+          exists(/databases/$(database)/documents/usuarios_roles/$(request.auth.uid))
+          || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        );
     }
 
     function rutaAsignacion() {
@@ -704,7 +725,7 @@ service cloud.firestore {
     }
 
     match /asignacionesDirectiva/{idAsignacion} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow create, update: if esAdministradorGlobal()
         && request.resource.data.idAsignacion == idAsignacion
         && nivelDirectivaValido(request.resource.data.nivel)
@@ -718,7 +739,7 @@ service cloud.firestore {
     }
 
     match /directivasOrganizacionales/{idDirectiva} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow create, update: if esAdministradorGlobal()
         && request.resource.data.idDirectiva == idDirectiva
         && nivelDirectivaValido(request.resource.data.nivel);
@@ -726,21 +747,35 @@ service cloud.firestore {
     }
 
     match /posicionesDirectiva/{idPosicion} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
     }
 
     match /disenosDirectiva/{idDiseno} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow create, update: if esAdministradorGlobal()
         && request.resource.data.nodeOffsets is map
         && request.resource.data.containerHeightOffset is int;
       allow delete: if false;
     }
 
+    // El nombre real de la colección lleva guiones bajos. Esta regla estaba
+    // escrita en camelCase, así que no casaba con nada: el organigrama caía en
+    // el comodín de abajo y lo escribía cualquiera con sesión. Se dejan las dos
+    // grafías porque la vieja pudo llegar a usarse en algún entorno.
+    // Escribe quien asigna cargos —el formulario del miembro lo sincroniza al
+    // guardar—, no solo el Administrador Global: dejarlo en global rompía la
+    // asignación de cargos del Coordinador. Se cierra a los usuarios del
+    // sistema, que es lo que de verdad estaba abierto.
+    //
+    // PENDIENTE: limitarlo a quien tenga el permiso de asignar cargos exige
+    // modelar ese permiso en las reglas.
+    match /organigrama_directiva_destacamentos/{idAsignacion} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
     match /organigramaDirectivaDestacamentos/{idAsignacion} {
-      allow read: if estaAutenticado();
-      allow write: if esAdministradorGlobal();
+      allow read, write: if esUsuarioDelSistema();
     }
 
     // El rol de cada usuario y la lista de administradores solo los escribe el
@@ -748,28 +783,40 @@ service cloud.firestore {
     // podía concederse el rol que quisiera — y `admins/{uid}` es justo lo que
     // consulta esAdministradorSocial().
     match /usuarios_roles/{idUsuario} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow write: if false;
     }
 
     match /admins/{idUsuario} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow write: if false;
+    }
+
+    // Las huellas de las contraseñas y la del código de un solo uso.
+    //
+    // Ninguna deja volver a la clave, pero las dos se pueden atacar SIN
+    // CONEXIÓN: quien se las lleve prueba contra ellas todo el diccionario que
+    // quiera, a su ritmo y sin que nadie lo vea. Vivían dentro de
+    // `usuarios_roles`, que cualquiera con sesión puede leer entera.
+    //
+    // Aquí no entra nadie: solo el Admin SDK, que se salta las reglas.
+    match /secretos_acceso/{idUsuario} {
+      allow read, write: if false;
     }
 
     // El catálogo de lo que puede hacer cada combinación de cargos. Lo lee
     // cualquiera con sesión —de él salen los permisos— pero solo lo escribe el
     // Administrador Global: quien pudiera editarlo se concedería lo que quisiera.
     match /combinaciones_roles/{idCombinacion} {
-      allow read: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
     }
 
     // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
     // ni se borra desde el cliente.
     match /auditoria_sistema/{idEvento} {
-      allow read: if estaAutenticado();
-      allow create: if estaAutenticado();
+      allow read: if esUsuarioDelSistema();
+      allow create: if esUsuarioDelSistema();
       allow update, delete: if false;
     }
 
@@ -803,11 +850,13 @@ service cloud.firestore {
         && coleccion != 'posicionesDirectiva'
         && coleccion != 'disenosDirectiva'
         && coleccion != 'organigramaDirectivaDestacamentos'
+        && coleccion != 'organigrama_directiva_destacamentos'
         && coleccion != 'usuarios_roles'
         && coleccion != 'admins'
+        && coleccion != 'secretos_acceso'
         && coleccion != 'auditoria_sistema'
         && coleccion != 'combinaciones_roles'
-        && estaAutenticado();
+        && esUsuarioDelSistema();
     }
   }
 }

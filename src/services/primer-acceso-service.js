@@ -18,7 +18,7 @@ class ErrorPrimerAcceso extends Error {
   }
 }
 
-const cabecerasConToken = async () => {
+export const cabecerasConToken = async () => {
   const usuario = AUTH?.currentUser;
 
   if (!usuario) {

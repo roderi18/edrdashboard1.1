@@ -6,6 +6,7 @@ import {
   buildScopedUpstreamKey,
 } from 'src/utils/upstream-cache';
 
+import { exigirSesion } from 'src/server/require-role';
 import { getDivisions } from 'src/services/division-service';
 
 const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
@@ -65,6 +66,16 @@ const withCalculatedDivision = (member, divisions) => {
 
 export async function GET(req) {
   try {
+    // Sin sesion no se pasa. Esta ruta devuelve el padron completo —nombres,
+    // correos, telefonos y fechas de nacimiento, menores incluidos— y hasta
+    // ahora respondia a cualquiera: la usaban las pantallas de acceso, que no
+    // tienen sesion. Ya no: lo que necesitan se resuelve en el servidor
+    // (`/api/auth/correo-acceso`, `/api/auth/recuperacion`,
+    // `/api/auth/correo-disponible`) y de ahi solo sale el dato concreto.
+    const sinSesion = await exigirSesion(req);
+
+    if (sinSesion) return sinSesion;
+
     // Reenviar la identidad del llamante al upstream para que autorice/filtre por
     // alcance (ver contrato en docs/seguridad-miembros-por-region.md). El caché se
     // particiona por token para no compartir resultados filtrados entre usuarios.
@@ -115,6 +126,12 @@ export async function GET(req) {
 
 export async function DELETE(req) {
   try {
+    // Borrar a un miembro sin sesion era posible: la ruta reenviaba la cabecera
+    // solo SI venia, y sin ella llamaba igual al backend.
+    const sinSesion = await exigirSesion(req);
+
+    if (sinSesion) return sinSesion;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

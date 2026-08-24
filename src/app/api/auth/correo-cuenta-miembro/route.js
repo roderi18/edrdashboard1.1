@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
   esCorreoInterno,
@@ -65,13 +67,30 @@ export async function POST(req) {
       );
     }
 
-    // Cada quien puede cambiar el suyo; para el de otro hace falta el permiso de
-    // editar miembros.
-    if (cuenta.uid !== solicitante.uid && !solicitante.puedeGestionarOtros) {
-      return Response.json(
-        { error: 'Tu rol no puede cambiar el correo de acceso de otros miembros.' },
-        { status: 403 }
-      );
+    // Cada quien puede cambiar el suyo. Para el de otro no basta el permiso de
+    // editar miembros: el correo de acceso es con lo que se recupera la clave,
+    // asi que poner el propio en la ficha de otro es quedarse con su cuenta a un
+    // "olvidé mi contraseña" de distancia. Tiene que ser alguien de su cadena de
+    // mando y por encima de el.
+    if (cuenta.uid !== solicitante.uid) {
+      const { permitido, motivo } = await puedeGestionarAMiembro({
+        solicitante,
+        idMiembros: idMiembros ?? perfil?.data()?.idMiembros,
+        uidObjetivo: cuenta.uid,
+        resolverRoles: resolverRolesPorAsignaciones,
+      });
+
+      if (!permitido) {
+        console.warn('[correo-cuenta-miembro] intento fuera de alcance', {
+          solicitante: solicitante.uid,
+          motivo,
+        });
+
+        return Response.json(
+          { error: 'Tu rol no puede cambiar el correo de acceso de ese miembro.' },
+          { status: 403 }
+        );
+      }
     }
 
     if (normalizarCorreo(cuenta.email) === correoNuevo) {
