@@ -11,7 +11,7 @@ import { desactivarAsignacionesOrganigramaDelMiembro } from './organigrama-direc
 // Cabecera de identidad: adjunta el ID token de Firebase para que el proxy /api
 // lo reenvíe al backend, que autoriza/filtra por alcance. Sin sesión, no agrega
 // nada (el backend responderá 401 cuando exija identidad).
-async function authHeaders(extra = {}) {
+export async function authHeaders(extra = {}) {
   try {
     const token = AUTH?.currentUser ? await AUTH.currentUser.getIdToken() : '';
     return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };

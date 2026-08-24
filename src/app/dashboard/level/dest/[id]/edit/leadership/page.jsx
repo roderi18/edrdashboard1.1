@@ -48,6 +48,7 @@ import {
   buildLeadershipMemberOptions,
 } from 'src/utils/leadership-member-options';
 
+import { authHeaders } from 'src/services/member-service';
 import { DIRECTIVA_POSITIONS, getOrganigramaDestSlot } from 'src/catalogs/directiva-positions';
 import {
   guardarAsignacionDirectiva,
@@ -949,7 +950,7 @@ export default function Page() {
   useEffect(() => {
     const loadMembers = async () => {
       try {
-        const res = await fetch('/api/members');
+        const res = await fetch('/api/members', { headers: await authHeaders() });
         const data = await res.json();
         const loadedMembers = Array.isArray(data?.data) ? data.data : [];
         const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });

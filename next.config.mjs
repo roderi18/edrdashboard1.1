@@ -21,6 +21,16 @@ const getFirebaseEnv = (...keys) =>
 const nextConfig = {
   trailingSlash: true,
 
+  // El Admin SDK se carga TAL CUAL, sin empaquetar.
+  //
+  // firebase-admin resuelve media biblioteca con `require` dinamicos —segun el
+  // entorno y las dependencias opcionales que encuentre—, y eso no sobrevive al
+  // empaquetado: en Netlify, toda ruta que lo importara reventaba al CARGAR el
+  // modulo, antes de ejecutar una sola linea del handler. Por fuera se veia como
+  // un 500 seco en `/api/members`, `/api/cargos` y todo `/api/auth/*`, mientras
+  // las rutas que no lo importan respondian normal.
+  serverExternalPackages: ['firebase-admin'],
+
   async headers() {
     return [
       {

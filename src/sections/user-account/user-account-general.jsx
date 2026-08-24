@@ -25,8 +25,8 @@ import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
-import { getMembers, updateMemberApi } from 'src/services/member-service';
 import { guardarCorreoDeAcceso } from 'src/services/primer-acceso-service';
+import { getMembers, authHeaders, updateMemberApi } from 'src/services/member-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import {
   crearNotificacionPerfilActualizado,
@@ -252,7 +252,7 @@ export function UserAccountGeneral() {
       try {
         setLoadingMember(true);
 
-        const response = await fetch('/api/members');
+        const response = await fetch('/api/members', { headers: await authHeaders() });
         const data = await response.json();
         const rawMembers = data?.Data || data?.data || data?.items || data || [];
 
