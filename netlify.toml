@@ -4,3 +4,11 @@
 
 [build.environment]
   NODE_VERSION = "22.13.0"
+  # Version de Node de las FUNCIONES, que no es la del build.
+  #
+  # `firebase-admin@14` declara `engines: node >= 22`. Con las funciones en una
+  # version anterior, toda ruta que lo importara reventaba al cargar el modulo
+  # (500 seco, antes de ejecutar el handler) y con ella se caian `/api/auth/*`,
+  # `/api/cargos` y `/api/chat`. El `NODE_VERSION` de arriba solo afecta al
+  # build, no al runtime de las funciones.
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
