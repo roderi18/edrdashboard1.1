@@ -300,7 +300,6 @@ export function MemberListView() {
     const loadMetadata = async () => {
       const metadataResult = await Promise.allSettled([
         getMemberDirectoryMetadata({
-          includeDestPhotos: false,
           includeRegionalPhotos: false,
           includeSectionalPhotos: false,
         }),

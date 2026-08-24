@@ -42,9 +42,20 @@ const buildMetadata = ({ dests = [], churches = [], regionals = [], sectionals =
 
 let memberDirectoryMetadataPromise = null;
 
+// La foto del destacamento SI, por defecto.
+//
+// La fila de cada miembro pinta el avatar de su destacamento, asi que sin ella
+// el listado sale lleno de iconos grises. Cuesta una consulta a `fotos` con un
+// puñado de documentos, y ademas la promesa esta cacheada: la paga la primera
+// pantalla que cargue y el resto la reutiliza.
+//
+// Justo por esa cache el valor tiene que decidirse AQUI y no en cada llamada:
+// quien llamara primero mandaba sobre todos los demas, asi que bastaba con
+// entrar por una pantalla que no quisiera fotos para que el listado de miembros
+// se quedara sin ellas.
 export async function getMemberDirectoryMetadata({
   refresh = false,
-  includeDestPhotos = false,
+  includeDestPhotos = true,
   includeRegionalPhotos = false,
   includeSectionalPhotos = false,
 } = {}) {
