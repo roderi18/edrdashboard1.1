@@ -23,7 +23,7 @@ export const runtime = 'nodejs';
 // Lo que se devuelve no es una sesion cualquiera: viene con `debeCambiarClave`
 // puesto, asi que el guardia le lleva a "Crea tu contraseña" y no le deja pasar
 // de ahi. El codigo muere cuando guarda la nueva (lo hace `/api/auth/clave-
-// miembro`) o cuando vence, a la hora.
+// miembro`) o cuando vence, al dia.
 // ----------------------------------------------------------------------
 
 const COLECCION = 'usuarios_roles';

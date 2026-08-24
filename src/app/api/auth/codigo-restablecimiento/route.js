@@ -31,7 +31,7 @@ export const runtime = 'nodejs';
 //
 // Se devuelve UNA vez, para que el coordinador se lo dicte. Guardado queda solo
 // su huella, con la que se comprueba pero desde la que no se puede volver al
-// codigo. Vence en una hora y muere al usarse.
+// codigo. Vence en un dia y muere al usarse.
 // ----------------------------------------------------------------------
 
 const COLECCION = 'usuarios_roles';

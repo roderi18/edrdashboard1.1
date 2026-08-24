@@ -673,6 +673,10 @@ export function MemberCreateEditForm({
   // Codigo de un solo uso recien generado para este miembro. Se muestra una vez,
   // para que el coordinador se lo copie; no queda guardado en ninguna parte.
   const [codigoUnUso, setCodigoUnUso] = useState('');
+  // Cuanto vale, en horas. Lo dice el servidor al generarlo en vez de estar
+  // escrito aqui: el numero vive en `claves-miembro` y este texto ya se habia
+  // quedado atras una vez, prometiendole al miembro un plazo que no era.
+  const [horasCodigo, setHorasCodigo] = useState(null);
   const [generandoCodigo, setGenerandoCodigo] = useState(false);
   // Codigo que el OTRO coordinador pudo generar hace un rato: generar uno nuevo
   // anula el suyo, que quiza ya le dicto al miembro.
@@ -1641,7 +1645,7 @@ export function MemberCreateEditForm({
     try {
       setGenerandoCodigo(true);
 
-      const { codigo } = await generarCodigoRestablecimientoMiembro({
+      const { codigo, minutos } = await generarCodigoRestablecimientoMiembro({
         idMiembros: currentMember.id,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
         // Si ya registro un correo propio, su cuenta entra con el y el interno
@@ -1650,6 +1654,7 @@ export function MemberCreateEditForm({
       });
 
       setCodigoUnUso(codigo);
+      setHorasCodigo(Number(minutos) ? Math.round(Number(minutos) / 60) : null);
       revisarCodigoPendiente();
 
       registrarCambiosHistorialMiembro({
@@ -2764,7 +2769,8 @@ export function MemberCreateEditForm({
                   {!!codigoUnUso && (
                     <Alert severity="success" sx={{ textAlign: 'left' }}>
                       <Typography variant="body2">
-                        Código temporal para crear una nueva contraseña. Vence en 12 horas.
+                        Código temporal para crear una nueva contraseña.
+                        {horasCodigo ? ` Vence en ${horasCodigo} horas.` : ''}
                       </Typography>
 
                       <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
