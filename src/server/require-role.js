@@ -74,7 +74,18 @@ export async function exigirSesion(req) {
   }
 
   try {
-    await getAdminAuth().verifyIdToken(token);
+    const decodificado = await getAdminAuth().verifyIdToken(token);
+
+    // Quien entro con la clave inicial o con un codigo del Coordinador tiene un
+    // token valido pero todavia no ha elegido contraseña. La pantalla ya le
+    // encierra en "Crea tu contraseña"; esto lo hace de verdad, porque ese
+    // guarda es de navegador y con el token se llegaba a cualquier ruta.
+    if (decodificado?.debeCambiarClave === true) {
+      return Response.json(
+        { error: 'Crea tu contraseña antes de continuar.' },
+        { status: 403 }
+      );
+    }
 
     return null;
   } catch {

@@ -2,6 +2,7 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 
 import { paths } from 'src/routes/paths';
 
+import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 import {
   isAdminGlobal,
   isOficinaNacional,
@@ -10,12 +11,14 @@ import {
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+
+export { buildDefaultMemberPermissions };
 import { DIRECTIVA_LEVELS } from 'src/catalogs/directiva-positions';
+import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
 import {
   ROLES_ASIGNADOS_A_MANO,
   resolverRolesPorAsignaciones,
 } from 'src/catalogs/directiva-roles';
-import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole, puedeModificar } from 'src/auth/permissions/can';
@@ -158,78 +161,6 @@ export const esFichaDelPropioMiembro = (user = {}, member = {}) => {
 export const puedeEditarSuPropiaFicha = (user = {}, member = {}) =>
   isMemberSessionUser(user) && esFichaDelPropioMiembro(user, member);
 
-export const buildDefaultMemberPermissions = () => ({
-  miembros: {
-    ver: true,
-    crear: false,
-    editar: false,
-    eliminar: false,
-    subirFoto: false,
-  },
-  destacamentos: {
-    ver: true,
-    crear: false,
-    editar: false,
-    eliminar: false,
-  },
-  // Los niveles organizacionales son de consulta para cualquier miembro: ve la
-  // estructura, no la toca. Faltaban las dos claves, y sin ellas el menu ocultaba
-  // Secciones, Regiones y Consejo Nacional.
-  secciones: {
-    ver: true,
-    crear: false,
-    editar: false,
-    eliminar: false,
-  },
-  regiones: {
-    ver: true,
-    crear: false,
-    editar: false,
-    eliminar: false,
-  },
-  asistencia: {
-    ver: false,
-    crear: false,
-    editar: false,
-  },
-  tienda: {
-    ver: true,
-    comprar: true,
-    administrar: false,
-    verPedidos: false,
-    gestionarProductos: false,
-  },
-  ordenes: {
-    ver: true,
-  },
-  recibos: {
-    ver: true,
-  },
-  productos: {
-    ver: true,
-    crear: false,
-    editar: false,
-    eliminar: false,
-  },
-  blog: {
-    ver: true,
-  },
-  course: {
-    ver: true,
-  },
-  archivos: {
-    ver: true,
-  },
-  chats: {
-    ver: true,
-  },
-  calendario: {
-    ver: true,
-  },
-  flujoTrabajo: {
-    ver: true,
-  },
-});
 
 const mergeMemberPermissions = (permissions = {}) => ({
   ...buildDefaultMemberPermissions(),

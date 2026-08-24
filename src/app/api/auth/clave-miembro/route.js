@@ -6,6 +6,7 @@ import {
   CLAVES_RECORDADAS,
   registrarHuellaClave,
   identificarSolicitante,
+  marcarDebeCambiarClave,
   huellasDeClavesAnteriores,
 } from 'src/server/claves-miembro';
 
@@ -63,6 +64,14 @@ export async function POST(req) {
     }
 
     await getAdminAuth().updateUser(solicitante.uid, { password: claveNueva });
+
+    // Ya eligio la suya: se le retira la marca del token y se tiran las sesiones
+    // anteriores. Si alguien habia entrado con la clave vieja —o con el codigo
+    // del Coordinador— deja de estar dentro en ese momento.
+    await marcarDebeCambiarClave(solicitante.uid, false);
+    await getAdminAuth()
+      .revokeRefreshTokens(solicitante.uid)
+      .catch((error) => console.error('[clave-miembro] no se pudieron revocar las sesiones', error));
 
     // Ya tiene contraseña suya: se retira la marca y se tira el codigo del
     // Coordinador, que existia solo para llegar hasta aqui.

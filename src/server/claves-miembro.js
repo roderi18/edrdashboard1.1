@@ -145,6 +145,24 @@ export const codigoVigente = (registro) => {
 export const codigoCoincide = (codigo, registro) =>
   claveYaUsada(String(codigo ?? '').trim().toUpperCase(), [registro]);
 
+// --- la marca de "todavia no ha elegido contraseña" ---
+//
+// Vive en los claims del token y no solo en Firestore, porque el guarda del
+// navegador (`auth-guard`) no vincula a nadie: quien entra con un codigo de un
+// solo uso tiene un token perfectamente valido, y sin esta marca el SERVIDOR no
+// tenia forma de negarle lo que no fuera elegir su clave.
+
+export const marcarDebeCambiarClave = async (uid, debeCambiarClave) => {
+  if (!uid) return;
+
+  const auth = getAdminAuth();
+  // Los claims se reemplazan enteros, no se mezclan: hay que traerse los que ya
+  // tuviera (su rol, su id de miembro) o se pierden.
+  const actuales = (await auth.getUser(String(uid)).catch(() => null))?.customClaims ?? {};
+
+  await auth.setCustomUserClaims(String(uid), { ...actuales, debeCambiarClave });
+};
+
 // --- perfil del miembro ---
 
 /**
@@ -414,8 +432,9 @@ export const identificarSolicitante = async (req) => {
     ...cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] || []),
   ]);
 
-  const puedeGestionarOtros =
-    rol === 'administrador_global' || permisos.has(PERMISOS.MIEMBROS_EDITAR);
+  const esAdministradorGlobal = rol === 'administrador_global';
+  const puedeGestionarOtros = esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_EDITAR);
+  const puedeCrearMiembros = esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_CREAR);
 
   if (!puedeGestionarOtros) {
     // Lo que hay que mirar cuando alguien dice "pero si soy Coordinador": casi
@@ -429,5 +448,15 @@ export const identificarSolicitante = async (req) => {
     });
   }
 
-  return { uid: decodificado.uid, idMiembros, rol, cargos, puedeGestionarOtros };
+  return {
+    uid: decodificado.uid,
+    idMiembros,
+    rol,
+    cargos,
+    puedeGestionarOtros,
+    puedeCrearMiembros,
+    // La marca viaja en los claims desde que se crea la cuenta: quien todavia no
+    // ha elegido contraseña no puede hacer nada mas que elegirla.
+    debeCambiarClave: decodificado.debeCambiarClave === true,
+  };
 };

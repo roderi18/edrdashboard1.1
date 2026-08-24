@@ -313,12 +313,23 @@ export function FirebasePrimerAccesoView() {
 
       setClaveCambiada(true);
 
-      await checkUserSession?.();
-
       if (!datos.correo || !correoEnLaCuentaRef.current) {
+        // Se vuelve a entrar con la clave que acaba de elegir. Hace falta: al
+        // guardarla, el servidor le retira la marca de "todavia no tiene
+        // contraseña" y tira las sesiones anteriores —por si alguien habia
+        // entrado con la inicial—. El token que quedaba en el navegador es de
+        // esos, y con el la aplicacion respondia 403 a todo.
+        await signInWithPassword({
+          email: correoDeAcceso || correoDelMiembro,
+          password: datos.claveNueva,
+        }).catch(() => null);
+
+        await checkUserSession?.();
         router.replace(CONFIG.auth.redirectPath);
         return;
       }
+
+      await checkUserSession?.();
 
       // Se vuelve a entrar con lo que acaba de elegir: cambiar el correo de la
       // cuenta invalida la sesion anterior, y el enlace de verificacion se pide

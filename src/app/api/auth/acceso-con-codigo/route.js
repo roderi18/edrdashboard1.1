@@ -7,6 +7,7 @@ import {
   codigoVigente,
   codigoCoincide,
   numeroDeCodigoMiembro,
+  marcarDebeCambiarClave,
   buscarPerfilesPorNumeroMiembro,
 } from 'src/server/claves-miembro';
 
@@ -120,6 +121,11 @@ export async function POST(req) {
         ? [porUid.ref.set(marca, { merge: true })]
         : []),
     ]);
+
+    // La marca tambien en los claims: con ella el servidor le niega todo lo que
+    // no sea elegir su contraseña. En el navegador sola no bastaba —el guarda es
+    // de pantalla— y con este token se llegaba a cualquier ruta de la API.
+    await marcarDebeCambiarClave(uid, true);
 
     // Un token de un solo uso para abrir la sesion en el navegador. Caduca en
     // una hora y no lleva permisos por si mismo: los saca del perfil, como
