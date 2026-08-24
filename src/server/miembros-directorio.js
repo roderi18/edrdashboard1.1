@@ -124,6 +124,7 @@ export const correoUsadoPorOtroMiembro = async ({ correo, idMiembros }) => {
 // ----------------------------------------------------------------------
 
 const URL_DESTACAMENTOS = 'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos';
+const URL_IGLESIAS = 'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias';
 const URL_SECCIONES = 'https://systexploradores.somee.com/api/Secciones/GetAllSecciones';
 
 const idTexto = (valor) => {
@@ -146,38 +147,46 @@ const leerCatalogo = async (clave, url) => {
   }
 };
 
-/** `{ idDestacamento, idSeccion, idRegion }` del destacamento indicado. */
+/**
+ * `{ idDestacamento, idSeccion, idRegion }` del destacamento indicado.
+ *
+ * El destacamento NO guarda su seccion: guarda su iglesia, y es la iglesia la
+ * que pertenece a una seccion, que a su vez pertenece a una region. Buscar
+ * `idSeccion` en el destacamento —que es lo que se hacia— no encontraba nada
+ * nunca, asi que todo cargo seccional o regional se quedaba sin alcance y solo
+ * podia con su propio destacamento.
+ *
+ * Si el destacamento no esta en el catalogo, se devuelve al menos su id: la
+ * comprobacion por destacamento sigue funcionando y la de seccion o region
+ * simplemente no encuentra con que comparar.
+ */
 export const ubicacionDeDestacamento = async (idDestacamento) => {
   const buscado = idTexto(idDestacamento);
-  const vacia = { idDestacamento: buscado, idSeccion: '', idRegion: '' };
 
-  if (!buscado) return vacia;
+  if (!buscado) return { idDestacamento: '', idSeccion: '', idRegion: '' };
 
-  const [destacamentos, secciones] = await Promise.all([
+  const [destacamentos, iglesias, secciones] = await Promise.all([
     leerCatalogo(UPSTREAM_KEYS.destacamentos, URL_DESTACAMENTOS),
+    leerCatalogo(UPSTREAM_KEYS.iglesias, URL_IGLESIAS),
     leerCatalogo(UPSTREAM_KEYS.secciones, URL_SECCIONES),
   ]);
 
   const destacamento = destacamentos.find(
-    (candidato) => idTexto(candidato?.id ?? candidato?.idDestacamento) === buscado
+    (candidato) => idTexto(candidato?.idDestacamento ?? candidato?.id) === buscado
   );
-
-  if (!destacamento) return vacia;
-
-  const idSeccion = idTexto(
-    destacamento?.sectionalId ??
-      destacamento?.idSeccion ??
-      destacamento?.seccionId ??
-      destacamento?.sectionId
+  const idIglesia = idTexto(destacamento?.idIglesia ?? destacamento?.churchId);
+  const iglesia = iglesias.find(
+    (candidata) => idTexto(candidata?.idIglesia ?? candidata?.id) === idIglesia
   );
+  const idSeccion = idTexto(iglesia?.idSeccion ?? iglesia?.sectionId);
   const seccion = secciones.find(
-    (candidata) => idTexto(candidata?.idSeccion ?? candidata?.id ?? candidata?.sectionalId) === idSeccion
+    (candidata) => idTexto(candidata?.idSeccion ?? candidata?.id) === idSeccion
   );
 
   return {
     idDestacamento: buscado,
     idSeccion,
-    idRegion: idTexto(seccion?.regionalId ?? seccion?.idRegion ?? seccion?.regionId),
+    idRegion: idTexto(seccion?.idRegion ?? seccion?.regionalId),
   };
 };
 
