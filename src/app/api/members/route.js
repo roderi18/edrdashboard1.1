@@ -6,8 +6,12 @@ import {
   buildScopedUpstreamKey,
 } from 'src/utils/upstream-cache';
 
-import { exigirSesion } from 'src/server/require-role';
 import { getDivisions } from 'src/services/division-service';
+// Por REST y no con el Admin SDK a proposito: importar `firebase-admin` en esta
+// ruta la tumbaba entera en Netlify (500 al cargar el modulo, antes del
+// handler), y con ella la lista de miembros. Comprobar que hay sesion no
+// necesita privilegios.
+import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
 
 const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
@@ -72,7 +76,7 @@ export async function GET(req) {
     // tienen sesion. Ya no: lo que necesitan se resuelve en el servidor
     // (`/api/auth/correo-acceso`, `/api/auth/recuperacion`,
     // `/api/auth/correo-disponible`) y de ahi solo sale el dato concreto.
-    const sinSesion = await exigirSesion(req);
+    const sinSesion = await exigirSesionRest(req);
 
     if (sinSesion) return sinSesion;
 
@@ -128,7 +132,7 @@ export async function DELETE(req) {
   try {
     // Borrar a un miembro sin sesion era posible: la ruta reenviaba la cabecera
     // solo SI venia, y sin ella llamaba igual al backend.
-    const sinSesion = await exigirSesion(req);
+    const sinSesion = await exigirSesionRest(req);
 
     if (sinSesion) return sinSesion;
 
