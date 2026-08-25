@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
@@ -40,9 +39,8 @@ export function NationalTableRow({
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
   const positionLabel = row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';
+  const organizationalLevel = row.nationalOrganizationalLevel || '-';
   const structureLabel = row.nationalEstructureLabel || '-';
-  const structureScope =
-    row.nationalEstructureScope || row.nationalXMemberPositionScope || '';
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -62,21 +60,12 @@ export function NationalTableRow({
       <CompactEntityTableCell
         title={memberName}
         href={memberHref}
-        subtitle={member?.email || row.email || ''}
+        subtitle={formatPhoneNumber(phoneNumber)}
+        subtitleHref={getPhoneHref(phoneNumber)}
         avatarAlt={row.nationalXname}
         avatarUrl={row.avatarUrl}
         linkSx={{ cursor: member ? 'pointer' : 'default' }}
       />
-
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {phoneNumber ? (
-          <Link href={getPhoneHref(phoneNumber)} color="inherit" underline="hover">
-            {formatPhoneNumber(phoneNumber)}
-          </Link>
-        ) : (
-          formatPhoneNumber(phoneNumber)
-        )}
-      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {/* El cargo lleva a la Directiva de SU entidad. Sin entidad resoluble se
@@ -94,17 +83,12 @@ export function NationalTableRow({
         ) : (
           positionLabel
         )}
-
       </TableCell>
+
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{organizationalLevel}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {structureLabel}
-
-        {structureScope && (
-          <Box component="span" sx={{ display: 'block', color: 'text.secondary', typography: 'caption' }}>
-            {structureScope}
-          </Box>
-        )}
       </TableCell>
 
       <CompactEntityRowActions

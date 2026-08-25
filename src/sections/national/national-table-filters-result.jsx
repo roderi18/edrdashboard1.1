@@ -22,8 +22,13 @@ export function NationalTableFiltersResult({ filters, options, onResetPage, tota
           options: options?.nationalXMemberPosition,
         },
         {
-          name: 'nationalEstructure',
+          name: 'nationalOrganizationalLevel',
           label: 'Nivel organizacional',
+          options: options?.nationalOrganizationalLevel,
+        },
+        {
+          name: 'nationalEstructure',
+          label: 'Estructura',
           options: options?.nationalEstructure,
         },
         { name: 'name', label: 'Keyword:', resetValue: '' },

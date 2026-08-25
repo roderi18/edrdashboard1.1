@@ -18,6 +18,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
+import { claveNodo } from 'src/utils/leadership-assignments';
 import { canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -28,6 +29,11 @@ import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import {
+  NATIONAL_LEADERSHIP_DATA,
+  REGIONAL_LEADERSHIP_DATA,
+  SECTIONAL_LEADERSHIP_DATA,
+} from 'src/catalogs/directiva-diagrams';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectivaMiembros,
@@ -61,8 +67,8 @@ import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 const TABLE_HEAD = [
   { id: 'nationalXname', label: 'Nombre' },
-  { id: 'phoneNumber', label: 'Núm. Teléfono', width: 180 },
   { id: 'nationalXMemberPosition', label: 'Posición', width: 200 },
+  { id: 'nationalOrganizationalLevel', label: 'Nivel organizacional', width: 200 },
   { id: 'nationalEstructure', label: 'Estructura', width: 200 },
   // { id: 'nationalXAssignedRegional', label: 'Región asignada', width: 160 },
   // { id: 'status', label: 'Estado', width: 100 },
@@ -80,7 +86,81 @@ const ESTRUCTURA_POR_NIVEL = {
   seccional: 'directivas_seccionales',
 };
 
-// Ambito que se muestra BAJO la estructura: la seccion o la region a la que
+const ORDEN_ESTRUCTURA = {
+  consejo_ejecutivo: 0,
+  directivas_regionales: 1,
+  directivas_seccionales: 2,
+};
+
+const DIAGRAMA_POR_NIVEL = {
+  nacional: NATIONAL_LEADERSHIP_DATA,
+  regional: REGIONAL_LEADERSHIP_DATA,
+  seccional: SECTIONAL_LEADERSHIP_DATA,
+};
+
+// Algunos cargos historicos nombran al ocupante de una caja raiz con un id
+// distinto al de esa caja. Para ordenarlos se usa el nodo visual equivalente.
+const NODO_VISUAL_EQUIVALENTE = {
+  nacional: {
+    [claveNodo('director-ministerios-infantiles')]: 'ministerios-infantiles',
+  },
+  regional: {
+    [claveNodo('director-regional')]: 'directiva-regional',
+  },
+  seccional: {
+    [claveNodo('director-seccional')]: 'directiva-regional',
+  },
+};
+
+// Recorrido por niveles: primero de arriba hacia abajo y, entre hermanos que
+// comparten una fila, de izquierda a derecha, tal como se ven en el organigrama.
+const construirOrdenVisual = (raiz) => {
+  const orden = new Map();
+  const pendientes = raiz ? [raiz] : [];
+  let indice = 0;
+
+  while (indice < pendientes.length) {
+    const nodo = pendientes[indice];
+    orden.set(claveNodo(nodo.id), indice);
+    pendientes.push(...(nodo.children || []));
+    indice += 1;
+  }
+
+  return orden;
+};
+
+const ORDEN_VISUAL_POR_NIVEL = Object.fromEntries(
+  Object.entries(DIAGRAMA_POR_NIVEL).map(([nivel, diagrama]) => [nivel, construirOrdenVisual(diagrama)])
+);
+
+const obtenerOrdenVisualCargo = (position, nivel) => {
+  const claveOriginal = claveNodo(position?.idNodoDiagrama || position?.idCargo);
+  const nodoEquivalente = NODO_VISUAL_EQUIVALENTE[nivel]?.[claveOriginal] || claveOriginal;
+  const ordenVisual = ORDEN_VISUAL_POR_NIVEL[nivel]?.get(claveNodo(nodoEquivalente));
+
+  return ordenVisual ?? 1000 + (Number(position?.orden) || 999);
+};
+
+const compararJerarquia = (a, b) =>
+  a.hierarchyStructureOrder - b.hierarchyStructureOrder ||
+  a.hierarchyRoleOrder - b.hierarchyRoleOrder ||
+  String(a.nationalOrganizationalLevel || '').localeCompare(
+    String(b.nationalOrganizationalLevel || ''),
+    'es'
+  ) ||
+  String(a.nationalXname || '').localeCompare(String(b.nationalXname || ''), 'es');
+
+const ordenNivelOrganizacional = (value) => {
+  const normalizado = normalizeText(value);
+
+  if (normalizado === normalizeText('Consejo Ejecutivo')) return 0;
+  if (normalizado.startsWith(normalizeText('Región'))) return 1;
+  if (normalizado.startsWith(normalizeText('Sección'))) return 2;
+
+  return 3;
+};
+
+// Ambito que se muestra BAJO la posicion: la seccion o la region a la que
 // pertenece el cargo. Los nombres de region ya suelen venir con la palabra
 // "Región" incluida ("Región Este"), asi que anteponerla otra vez daria "Región
 // Región Este"; se comprueba antes de componerla.
@@ -235,6 +315,7 @@ export function NationalListView() {
     name: '',
     nationalXMemberPosition: [],
     status: 'all',
+    nationalOrganizationalLevel: [],
     nationalEstructure: [],
   });
 
@@ -255,19 +336,31 @@ export function NationalListView() {
     const position = DIRECTIVA_POSITIONS.find(
       (item) => item.idCargo === assignment.idPosicionDirectiva
     );
-    const estructura = ESTRUCTURA_POR_NIVEL[assignment.nivel] || '-';
+    // El catalogo del cargo manda sobre metadata antigua de la asignacion. Asi,
+    // todo cargo que vive en la Directiva Nacional se clasifica siempre dentro
+    // del Consejo Ejecutivo, aunque el miembro tambien pertenezca a una seccion
+    // o region por su procedencia.
+    const perteneceAlConsejoEjecutivo =
+      position?.nivel === 'nacional' ||
+      String(assignment.idEntidad || '').trim().toLowerCase() === 'nacional';
+    const nivel = perteneceAlConsejoEjecutivo
+      ? 'nacional'
+      : position?.nivel || assignment.nivel;
+    const idEntidad = nivel === 'nacional' ? 'nacional' : assignment.idEntidad;
+    const estructura = ESTRUCTURA_POR_NIVEL[nivel] || '-';
     const ambito = construirAmbito({
-      nivel: assignment.nivel,
-      idEntidad: assignment.idEntidad,
+      nivel,
+      idEntidad,
       seccionesPorId,
       regionesPorId,
     });
+    const estructuraLabel = NATIONAL_STRUCTURES[estructura] || '-';
 
     return {
       id: assignment.idAsignacion || assignment.id,
-      entityId: assignment.idEntidad,
+      entityId: idEntidad,
       memberId: member?.id ?? assignment.idMiembro,
-      level: assignment.nivel,
+      level: nivel,
       // El nombre del listado manda; si el miembro no viene (baja, filtro), se usa
       // la copia guardada dentro de la propia asignacion.
       nationalXname:
@@ -282,15 +375,17 @@ export function NationalListView() {
 
       nationalXMemberPosition: assignment.idPosicionDirectiva,
       nationalXMemberPositionLabel: position?.nombreCargo || '-',
-      // Se pinta BAJO la estructura: "Sección La Romana", "Región Este".
+      // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
       nationalXMemberPositionScope: ambito,
       nationalXMemberPositionHref: construirHrefDirectiva({
-        nivel: assignment.nivel,
-        idEntidad: assignment.idEntidad,
+        nivel,
+        idEntidad,
       }),
       nationalEstructure: estructura,
-      nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
-      nationalEstructureScope: ambito,
+      nationalEstructureLabel: estructuraLabel,
+      nationalOrganizationalLevel: ambito,
+      hierarchyStructureOrder: ORDEN_ESTRUCTURA[estructura] ?? 999,
+      hierarchyRoleOrder: obtenerOrdenVisualCargo(position, nivel),
 
       nationalXAssignedRegional: ambito || '-',
     };
@@ -302,24 +397,46 @@ export function NationalListView() {
     property: 'nationalXMemberPosition',
     labelResolver: (value) =>
       tableData.find((row) => row.nationalXMemberPosition === value)?.nationalXMemberPositionLabel,
+  }).sort((a, b) => {
+    const rowA = tableData.find((row) => row.nationalXMemberPosition === a.value);
+    const rowB = tableData.find((row) => row.nationalXMemberPosition === b.value);
+
+    return (
+      (rowA?.hierarchyStructureOrder ?? 999) - (rowB?.hierarchyStructureOrder ?? 999) ||
+      (rowA?.hierarchyRoleOrder ?? 9999) - (rowB?.hierarchyRoleOrder ?? 9999) ||
+      a.label.localeCompare(b.label, 'es')
+    );
   });
 
+  const distinctOrganizationalLevels = getAvailableOptionsFromData({
+    inputData: tableData,
+    property: 'nationalOrganizationalLevel',
+  }).sort(
+    (a, b) =>
+      ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
+      a.label.localeCompare(b.label, 'es')
+  );
   const distinctEstructures = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalEstructure',
     labelResolver: (value) =>
       tableData.find((row) => row.nationalEstructure === value)?.nationalEstructureLabel,
-  });
+  }).sort((a, b) => (ORDEN_ESTRUCTURA[a.value] ?? 999) - (ORDEN_ESTRUCTURA[b.value] ?? 999));
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  const dataFiltered = (() => {
+    const filtered = applyFilter({
+      inputData: tableData,
+      comparator: getComparator(table.order, table.orderBy),
+      filters: currentFilters,
+    });
+
+    return table.hasUserSorted ? filtered : [...filtered].sort(compararJerarquia);
+  })();
 
   const canReset =
     !!currentFilters.name ||
     currentFilters.nationalXMemberPosition.length > 0 ||
+    currentFilters.nationalOrganizationalLevel.length > 0 ||
     currentFilters.nationalEstructure.length > 0;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
@@ -435,6 +552,7 @@ export function NationalListView() {
             setDisplayMode={setDisplayMode}
             options={{
               nationalXMemberPosition: distinctPositions,
+              nationalOrganizationalLevel: distinctOrganizationalLevels,
               nationalEstructure: distinctEstructures,
             }}
           />
@@ -443,6 +561,7 @@ export function NationalListView() {
             <NationalTableFiltersResult
               filters={filters}
               options={{
+                nationalOrganizationalLevel: distinctOrganizationalLevels,
                 nationalEstructure: distinctEstructures,
                 nationalXMemberPosition: distinctPositions,
               }}
@@ -554,7 +673,7 @@ export function NationalListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters }) {
-  const { name, nationalXMemberPosition, nationalEstructure } = filters;
+  const { name, nationalXMemberPosition, nationalOrganizationalLevel, nationalEstructure } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -569,6 +688,12 @@ function applyFilter({ inputData, comparator, filters }) {
   if (name) {
     inputData = inputData.filter((national) =>
       normalizeText(national.nationalXname).includes(normalizeText(name))
+    );
+  }
+
+  if (nationalOrganizationalLevel.length) {
+    inputData = inputData.filter((national) =>
+      nationalOrganizationalLevel.includes(national.nationalOrganizationalLevel)
     );
   }
 

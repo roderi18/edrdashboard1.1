@@ -1,5 +1,6 @@
-import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
+import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
+import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
 
@@ -38,17 +39,13 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
-  // La estructura se acompaña de su ambito, igual que en la tabla:
-  // "Directivas Seccionales — Sección La Romana".
+  const phoneNumber = national?.phoneNumber || '';
   const positionLabel =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';
-  const position = positionLabel;
   const positionHref = national?.nationalXMemberPositionHref || '';
-  const structureLabel =
+  const organizationalLevel = national?.nationalOrganizationalLevel || 'Desconocido';
+  const structure =
     national?.nationalEstructureLabel || national?.nationalEstructure || 'Desconocida';
-  const structureScope =
-    national?.nationalEstructureScope || national?.nationalXMemberPositionScope || '';
-  const structure = structureScope ? `${structureLabel} — ${structureScope}` : structureLabel;
 
   return (
     <CompactEntityCard
@@ -57,7 +54,13 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
       avatarUrl={getNationalAvatar(national)}
       fallbackText={nationalName}
       lines={[
-        { icon: 'solar:user-bold', text: position, href: positionHref },
+        {
+          icon: 'solar:phone-calling-rounded-bold',
+          text: formatPhoneNumber(phoneNumber),
+          href: getPhoneHref(phoneNumber),
+        },
+        { icon: 'solar:user-bold', text: positionLabel, href: positionHref },
+        { icon: 'solar:map-point-bold', text: organizationalLevel },
         { icon: 'mingcute:location-fill', text: structure, href: structureHref },
       ]}
       sx={sx}

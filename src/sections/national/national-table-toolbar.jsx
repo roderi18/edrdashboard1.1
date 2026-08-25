@@ -45,16 +45,26 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
     [onResetPage, updateFilters]
   );
 
-  const handleFilternationalEstructure = useCallback(
+  const handleFilterOrganizationalLevel = useCallback(
     (event) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      // updateFilters({ nationalEstructure: newValue });
       updateFilters({
-        nationalEstructure: newValue, status: 'all',
+        nationalOrganizationalLevel: newValue,
       });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterEstructure = useCallback(
+    (event) => {
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+
+      onResetPage();
+      updateFilters({ nationalEstructure: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -178,6 +188,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             <TableToolbarMobileFilter
               hasActiveFilters={
                 currentFilters.nationalXMemberPosition.length ||
+                currentFilters.nationalOrganizationalLevel.length ||
                 currentFilters.nationalEstructure.length
               }
               filtersConfig={[
@@ -190,10 +201,18 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
                   renderValue: (selected) => selected.join(', '),
                 },
                 {
-                  key: 'nationalEstructure',
+                  key: 'nationalOrganizationalLevel',
                   label: 'Nivel organizacional',
+                  value: currentFilters.nationalOrganizationalLevel,
+                  onChange: handleFilterOrganizationalLevel,
+                  options: options.nationalOrganizationalLevel,
+                  renderValue: (selected) => selected.join(', '),
+                },
+                {
+                  key: 'nationalEstructure',
+                  label: 'Estructura',
                   value: currentFilters.nationalEstructure,
-                  onChange: handleFilternationalEstructure,
+                  onChange: handleFilterEstructure,
                   options: options.nationalEstructure,
                   renderValue: (selected) => selected.join(', '),
                 },
@@ -240,9 +259,37 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             <InputLabel>Nivel organizacional</InputLabel>
             <Select
               multiple
-              value={currentFilters.nationalEstructure}
-              onChange={handleFilternationalEstructure}
+              value={currentFilters.nationalOrganizationalLevel}
+              onChange={handleFilterOrganizationalLevel}
               label="Nivel organizacional"
+              renderValue={(selected) =>
+                options.nationalOrganizationalLevel
+                  .filter((opt) => selected.includes(opt.value))
+                  .map((opt) => opt.label)
+                  .join(', ')
+              }
+            >
+              {options.nationalOrganizationalLevel.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Checkbox
+                    checked={currentFilters.nationalOrganizationalLevel.includes(option.value)}
+                  />
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
+        {/* Filtro estructura */}
+        {!isMobile && (
+          <FormControl sx={{ minWidth: 220 }}>
+            <InputLabel>Estructura</InputLabel>
+            <Select
+              multiple
+              value={currentFilters.nationalEstructure}
+              onChange={handleFilterEstructure}
+              label="Estructura"
               renderValue={(selected) =>
                 options.nationalEstructure
                   .filter((opt) => selected.includes(opt.value))
@@ -252,9 +299,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             >
               {options.nationalEstructure.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
-                  <Checkbox
-                    checked={currentFilters.nationalEstructure.includes(option.value)}
-                  />
+                  <Checkbox checked={currentFilters.nationalEstructure.includes(option.value)} />
                   {option.label}
                 </MenuItem>
               ))}
