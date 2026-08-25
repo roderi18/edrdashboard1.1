@@ -20,6 +20,7 @@ import { RouterLink } from 'src/routes/components';
 import { normalizeText } from 'src/utils/normalize-text';
 import { canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -79,7 +80,7 @@ const ESTRUCTURA_POR_NIVEL = {
   seccional: 'directivas_seccionales',
 };
 
-// Ambito que se muestra BAJO la posicion: la seccion o la region a la que
+// Ambito que se muestra BAJO la estructura: la seccion o la region a la que
 // pertenece el cargo. Los nombres de region ya suelen venir con la palabra
 // "Región" incluida ("Región Este"), asi que anteponerla otra vez daria "Región
 // Región Este"; se comprueba antes de componerla.
@@ -118,7 +119,7 @@ const construirHrefDirectiva = ({ nivel, idEntidad }) => {
 };
 
 const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) => {
-  if (nivel === 'nacional') return 'Consejo Nacional';
+  if (nivel === 'nacional') return 'Consejo Ejecutivo';
 
   const id = String(idEntidad || '');
 
@@ -160,6 +161,9 @@ export function NationalListView() {
   const [nationalAssignments, setNationalAssignments] = useState([]);
   const [seccionesPorId, setSeccionesPorId] = useState(() => new Map());
   const [regionesPorId, setRegionesPorId] = useState(() => new Map());
+  // Las fotos viven en su propia coleccion, no en el miembro: sin esta carga la
+  // lista pintaba siempre el avatar por defecto.
+  const [fotosPorMiembro, setFotosPorMiembro] = useState(() => ({}));
 
   useEffect(() => {
     let cancelado = false;
@@ -196,6 +200,20 @@ export function NationalListView() {
           ])
         )
       );
+
+      obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
+        .then((fotos) => {
+          if (cancelado) return;
+
+          setFotosPorMiembro(
+            Object.fromEntries(
+              Object.entries(fotos)
+                .filter(([, foto]) => foto?.urlFoto)
+                .map(([idMiembro, foto]) => [String(idMiembro), foto.urlFoto])
+            )
+          );
+        })
+        .catch(() => {});
     };
 
     cargar();
@@ -259,11 +277,12 @@ export function NationalListView() {
         'Desconocido',
       email: member?.email,
       phoneNumber: member?.phoneNumber,
-      avatarUrl: member?.avatarUrl,
+      avatarUrl:
+        fotosPorMiembro[String(member?.id ?? assignment.idMiembro)] || member?.avatarUrl || '',
 
       nationalXMemberPosition: assignment.idPosicionDirectiva,
       nationalXMemberPositionLabel: position?.nombreCargo || '-',
-      // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
+      // Se pinta BAJO la estructura: "Sección La Romana", "Región Este".
       nationalXMemberPositionScope: ambito,
       nationalXMemberPositionHref: construirHrefDirectiva({
         nivel: assignment.nivel,
@@ -271,6 +290,7 @@ export function NationalListView() {
       }),
       nationalEstructure: estructura,
       nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
+      nationalEstructureScope: ambito,
 
       nationalXAssignedRegional: ambito || '-',
     };

@@ -237,14 +237,14 @@ export function NationalLeadershipView() {
   const leadership = useLeadershipAssignments({
     nivel: 'nacional',
     idEntidad: 'nacional',
-    nombreEntidad: 'Directiva nacional',
+    nombreEntidad: 'Directiva Nacional',
     canManage: canManageLeadership,
   });
   const layoutStorage = useLeadershipLayoutStorage({
     editor: layoutEditor,
     nivel: 'nacional',
     idEntidad: '',
-    nombreEntidad: 'Directiva nacional',
+    nombreEntidad: 'Directiva Nacional',
     canManage: canManageLeadership,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
@@ -357,7 +357,7 @@ export function NationalLeadershipView() {
 
   const titleEditProps = layoutEditor.getNodeEditProps({
     id: 'titulo-directiva-nacional',
-    name: 'Directiva nacional',
+    name: 'Directiva Nacional',
     role: 'Titulo del diagrama',
   });
 
@@ -584,7 +584,7 @@ export function NationalLeadershipView() {
             ...getLeadershipEditableNodeSx(titleEditProps),
           }}
         >
-          Directiva nacional
+          Directiva Nacional
         </Typography>
 
         <OrganizationalChart
@@ -621,7 +621,7 @@ export function NationalLeadershipView() {
           pan={pan}
           zoom={zoom}
           chartWidth={1440}
-          title="Directiva nacional"
+          title="Directiva Nacional"
           editor={layoutEditor}
           containerMinHeight={containerMinHeight}
           onSaveLayout={layoutStorage.guardar}
@@ -634,7 +634,7 @@ export function NationalLeadershipView() {
         open={Boolean(leadership.selectedNode)}
         node={leadership.selectedNode}
         nivel="nacional"
-        nombreEntidad="Directiva nacional"
+        nombreEntidad="Directiva Nacional"
         options={leadership.memberOptions}
         loading={!leadership.members.length}
         value={leadership.selectedMember}

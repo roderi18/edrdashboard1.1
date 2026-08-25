@@ -5,7 +5,7 @@ import { NationalLeadershipView } from 'src/sections/national/leadership/nationa
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Directiva nacional | Dashboard - ${CONFIG.appName}` };
+export const metadata = { title: `Directiva Nacional | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   return (

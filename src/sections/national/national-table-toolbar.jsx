@@ -191,7 +191,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
                 },
                 {
                   key: 'nationalEstructure',
-                  label: 'Estructura',
+                  label: 'Nivel organizacional',
                   value: currentFilters.nationalEstructure,
                   onChange: handleFilternationalEstructure,
                   options: options.nationalEstructure,
@@ -234,15 +234,15 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
           </FormControl>
         )}
 
-        {/* Filtro estructura */}
+        {/* Filtro nivel organizacional */}
         {!isMobile && (
           <FormControl sx={{ minWidth: 220 }}>
-            <InputLabel>Estructura</InputLabel>
+            <InputLabel>Nivel organizacional</InputLabel>
             <Select
               multiple
               value={currentFilters.nationalEstructure}
               onChange={handleFilternationalEstructure}
-              label="Estructura"
+              label="Nivel organizacional"
               renderValue={(selected) =>
                 options.nationalEstructure
                   .filter((opt) => selected.includes(opt.value))

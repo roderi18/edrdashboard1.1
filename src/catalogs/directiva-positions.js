@@ -231,7 +231,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
   createPosition({
     idCargo: 'nacional-consejo-nacional',
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Consejo Nacional',
+    nombreCargo: 'Consejo Ejecutivo',
     idNodoDiagrama: 'consejo-nacional',
     idCargoPadre: 'nacional-ministerios-infantiles',
     idNodoPadre: 'ministerios-infantiles',
@@ -247,7 +247,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idNodoDiagrama: 'director-nacional',
     idCargoPadre: 'nacional-consejo-nacional',
     idNodoPadre: 'consejo-nacional',
-    nombreCargoPadre: 'Consejo Nacional',
+    nombreCargoPadre: 'Consejo Ejecutivo',
     orden: 4,
   }),
   createPosition({
@@ -258,7 +258,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idNodoDiagrama: 'capellan-nacional',
     idCargoPadre: 'nacional-consejo-nacional',
     idNodoPadre: 'consejo-nacional',
-    nombreCargoPadre: 'Consejo Nacional',
+    nombreCargoPadre: 'Consejo Ejecutivo',
     orden: 5,
   }),
   createPosition({
@@ -751,7 +751,7 @@ export const AMBITO_CARGO_UNICO_POR_NIVEL = {
   [DIRECTIVA_LEVELS.destacamento]: 'en este destacamento',
   [DIRECTIVA_LEVELS.seccional]: 'en esta sección',
   [DIRECTIVA_LEVELS.regional]: 'en esta región',
-  [DIRECTIVA_LEVELS.nacional]: 'en el Consejo Nacional',
+  [DIRECTIVA_LEVELS.nacional]: 'en el Consejo Ejecutivo',
 };
 
 // UN SOLO CARGO DE NIVEL SUPERIOR. Un miembro no puede ser a la vez seccional y

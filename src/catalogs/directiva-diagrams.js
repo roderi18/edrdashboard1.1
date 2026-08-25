@@ -33,7 +33,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
   ...createNode('asambleas-de-dios', '', [
     createNode('ministerios-infantiles', 'Ministerios infantiles', [
       {
-        // El Consejo Nacional NO es un cargo: es el cuerpo del que cuelga la
+        // El Consejo Ejecutivo NO es un cargo: es el cuerpo del que cuelga la
         // direccion, igual que el Concilio. Se dibuja como caja de estructura
         // —sin "Vacante" y sin menu de asignar— en vez de como una casilla que
         // invita a poner a alguien dentro.
@@ -68,7 +68,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
           createNode('capellan-nacional', 'Capellán Nacional'),
         ]),
         ]),
-        name: 'Consejo Nacional',
+        name: 'Consejo Ejecutivo',
         avatarUrl: '/exploradores-del-rey-icono.ico',
         isDivision: true,
       },
@@ -80,7 +80,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
 };
 
 export const REGIONAL_LEADERSHIP_DATA = {
-  // Caja de estructura, como el Consejo Nacional: es el cuerpo del que cuelga la
+  // Caja de estructura, como el Consejo Ejecutivo: es el cuerpo del que cuelga la
   // Directiva Regional, no un cargo que alguien ocupe.
   ...createNode('consejo-ejecutivo', '', [
     createNode('directiva-regional', 'Directiva Regional', [

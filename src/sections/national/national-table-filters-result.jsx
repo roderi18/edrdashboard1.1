@@ -23,7 +23,7 @@ export function NationalTableFiltersResult({ filters, options, onResetPage, tota
         },
         {
           name: 'nationalEstructure',
-          label: 'Estructura',
+          label: 'Nivel organizacional',
           options: options?.nationalEstructure,
         },
         { name: 'name', label: 'Keyword:', resetValue: '' },

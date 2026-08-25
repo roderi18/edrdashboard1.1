@@ -15,17 +15,6 @@ import { NationalQuickEditForm } from './national-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
-const NATIONAL_STRUCTURES = {
-  ministerios_infantiles: 'Ministerios Infantiles',
-  consejo_ejecutivo: 'Consejo Ejecutivo',
-  oficiales_especiales_nacionales: 'Oficiales Especiales Nacionales',
-  directivas_regionales: 'Directivas Regionales',
-  directivas_seccionales: 'Directivas Seccionales',
-  directivas_zonales: 'Directivas Zonales',
-};
-
-// ----------------------------------------------------------------------
-
 export function NationalTableRow({
   row,
   selected,
@@ -50,9 +39,10 @@ export function NationalTableRow({
   const memberHref = member ? `/dashboard/level/member/${member.id}/edit` : '';
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
   const positionLabel = row.nationalXMemberPositionLabel || '-';
-  const positionScope = row.nationalXMemberPositionScope || '';
   const positionHref = row.nationalXMemberPositionHref || '';
   const structureLabel = row.nationalEstructureLabel || '-';
+  const structureScope =
+    row.nationalEstructureScope || row.nationalXMemberPositionScope || '';
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -105,14 +95,17 @@ export function NationalTableRow({
           positionLabel
         )}
 
-        {positionScope && (
+      </TableCell>
+
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {structureLabel}
+
+        {structureScope && (
           <Box component="span" sx={{ display: 'block', color: 'text.secondary', typography: 'caption' }}>
-            {positionScope}
+            {structureScope}
           </Box>
         )}
       </TableCell>
-
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{structureLabel}</TableCell>
 
       <CompactEntityRowActions
         canManage={canManage}

@@ -38,15 +38,17 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
-  // El cargo se acompaña de su ambito y enlaza a la Directiva de esa entidad,
-  // igual que en la tabla: "Coordinador de Producción — Sección La Romana".
+  // La estructura se acompaña de su ambito, igual que en la tabla:
+  // "Directivas Seccionales — Sección La Romana".
   const positionLabel =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';
-  const positionScope = national?.nationalXMemberPositionScope || '';
-  const position = positionScope ? `${positionLabel} — ${positionScope}` : positionLabel;
+  const position = positionLabel;
   const positionHref = national?.nationalXMemberPositionHref || '';
-  const structure =
+  const structureLabel =
     national?.nationalEstructureLabel || national?.nationalEstructure || 'Desconocida';
+  const structureScope =
+    national?.nationalEstructureScope || national?.nationalXMemberPositionScope || '';
+  const structure = structureScope ? `${structureLabel} — ${structureScope}` : structureLabel;
 
   return (
     <CompactEntityCard
