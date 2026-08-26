@@ -71,6 +71,10 @@ export function LeadershipAssignDialog({
             noOptionsText="No hay miembros disponibles en este nivel"
             renderOption={(optionProps, option) => {
               const { key, ...liProps } = optionProps;
+              // Quien ya tiene cargo se ve APAGADO y va al final, para que se
+              // note de un vistazo quien esta libre. Apagado, no bloqueado: se
+              // puede elegir igual, y entonces se pregunta.
+              const ocupado = Boolean(option.rolActual || option.rolEnOtroConsejo);
 
               return (
                 // El texto que no cabe BAJA DE LINEA en vez de recortarse: la
@@ -83,7 +87,7 @@ export function LeadershipAssignDialog({
                   key={key}
                   component="li"
                   {...liProps}
-                  sx={{ alignItems: 'flex-start', ...liProps.sx }}
+                  sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.5 : 1, ...liProps.sx }}
                 >
                   <Avatar
                     alt={option.nombre}

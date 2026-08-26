@@ -13,6 +13,14 @@ import { desactivarAsignacionesOrganigramaDelMiembro } from './organigrama-direc
 // nada (el backend responderá 401 cuando exija identidad).
 export async function authHeaders(extra = {}) {
   try {
+    // Se ESPERA a que Firebase restaure la sesion. Al cargar la pagina,
+    // `currentUser` es null durante los primeros milisegundos, asi que las
+    // llamadas que salen al montar —la lista de miembros de los organigramas,
+    // sin ir mas lejos— viajaban sin token y volvian con un 401: el desplegable
+    // se quedaba en "Cargando..." con la sesion abierta. El interceptor de axios
+    // ya esperaba asi.
+    await AUTH?.authStateReady?.();
+
     const token = AUTH?.currentUser ? await AUTH.currentUser.getIdToken() : '';
     return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
   } catch {

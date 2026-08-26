@@ -1780,6 +1780,8 @@ export default function Page() {
               noOptionsText="No hay miembros en este destacamento"
               renderOption={(optionProps, option) => {
                 const { key, ...liProps } = optionProps;
+                // Apagado si ya tiene cargo, igual que en las demas directivas.
+                const ocupado = Boolean(option.rolActual || option.rolEnOtroConsejo);
 
                 return (
                   // El texto que no cabe baja de linea en vez de recortarse,
@@ -1788,7 +1790,7 @@ export default function Page() {
                     key={key}
                     component="li"
                     {...liProps}
-                    sx={{ alignItems: 'flex-start', ...liProps.sx }}
+                    sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.5 : 1, ...liProps.sx }}
                   >
                     <Avatar
                       alt={option.nombre}
@@ -1880,7 +1882,13 @@ export default function Page() {
           asi que se dice antes. Mismo dialogo que en las demas directivas. */}
       <Dialog
         open={Boolean(traspasoPendiente)}
-        onClose={() => setTraspasoPendiente(null)}
+        // El clic en el fondo no responde por nadie: ver el dialogo equivalente
+        // de seccion, region y nacion.
+        onClose={(event, reason) => {
+          if (reason === 'backdropClick') return;
+
+          setTraspasoPendiente(null);
+        }}
         fullWidth
         maxWidth="xs"
       >

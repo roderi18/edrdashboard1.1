@@ -651,7 +651,14 @@ export function NationalLeadershipView() {
           aqui es retirarle el cargo anterior. */}
       <ConfirmDialog
         open={Boolean(leadership.traspasoPendiente)}
-        onClose={leadership.cancelarTraspaso}
+        // Un clic en el fondo NO cuenta como respuesta: este dialogo aparece
+        // justo bajo el cursor que acaba de pulsar "Asignar", y el remate de ese
+        // mismo clic caia en su fondo y lo cerraba sin que diera tiempo a leerlo.
+        onClose={(event, reason) => {
+          if (reason === 'backdropClick') return;
+
+          leadership.cancelarTraspaso();
+        }}
         title="Ya tiene un cargo"
         content={
           <>
