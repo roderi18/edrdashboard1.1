@@ -90,15 +90,23 @@ export function NotificationsDrawer({
     onClose();
   };
 
-  const handleMarkAsAttended = async (notification) => {
+  // La marca es INMEDIATA. La escritura en la base viaja por detras: esperarla
+  // dejaba el boton igual que antes durante el viaje de ida y vuelta, y quien lo
+  // pulsaba no sabia si habia pasado algo. Si falla, quien persiste ya lo
+  // registra; nada que deshacer aqui.
+  const handleMarkAsAttended = (notification) => {
     setNotifications((prevState) =>
       prevState.map((item) =>
         item.id === notification.id ? { ...item, isUnRead: false, estado: 'atendida' } : item
       )
     );
-
-    await onMarkAsAttended?.(notification.idsNotificaciones || notification.id);
     setCurrentTab('all');
+
+    Promise.resolve(onMarkAsAttended?.(notification.idsNotificaciones || notification.id)).catch(
+      (error) => {
+        console.error('[notifications] no se pudo marcar como atendida', error);
+      }
+    );
   };
 
   const renderHead = () => (

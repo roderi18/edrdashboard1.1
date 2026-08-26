@@ -126,9 +126,10 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     await handleClickNotification();
   };
 
-  const handleAttendAction = async (event) => {
+  const handleAttendAction = (event) => {
     event.stopPropagation();
-    await onMarkAsAttended?.(notification);
+    // Sin await: la fila cambia en el acto y el guardado va por detras.
+    onMarkAsAttended?.(notification);
   };
 
   const renderAvatar = () => (
@@ -330,22 +331,38 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     </Box>
   );
 
-  const renderNotificationActions = () =>
-    (actionLabel || notification.estado !== 'atendida') && (
-      <Box sx={{ gap: 1, mt: 1.5, display: 'flex', flexWrap: 'wrap' }}>
-        {!!actionLabel && notificationRoute && !solicitudYaAtendida && (
-          <Button size="small" variant="contained" onClick={handlePrimaryAction}>
-            {actionLabel}
-          </Button>
-        )}
+  const yaAtendida = notification.estado === 'atendida';
 
-        {notification.estado !== 'atendida' && (
-          <Button size="small" variant="outlined" color="inherit" onClick={handleAttendAction}>
-            Marcar como atendida
-          </Button>
-        )}
-      </Box>
-    );
+  const renderNotificationActions = () => (
+    <Box sx={{ gap: 1, mt: 1.5, display: 'flex', flexWrap: 'wrap' }}>
+      {!!actionLabel && notificationRoute && !solicitudYaAtendida && (
+        <Button size="small" variant="contained" onClick={handlePrimaryAction}>
+          {actionLabel}
+        </Button>
+      )}
+
+      {/* Atendida, el boton NO desaparece: se queda diciendo que ya lo esta. Al
+          esfumarse, la fila quedaba igual que una sin atender y no habia forma
+          de saber si el clic habia hecho algo. Mismas props que el boton de
+          accion —sin fijar color— para que herede el del tema, y sin `disabled`,
+          que lo apagaria en gris: no esta deshabilitado, es un estado. */}
+      {yaAtendida ? (
+        <Button
+          size="small"
+          variant="contained"
+          disableRipple
+          startIcon={<Iconify width={16} icon="eva:checkmark-fill" />}
+          sx={{ pointerEvents: 'none' }}
+        >
+          Atendido
+        </Button>
+      ) : (
+        <Button size="small" variant="outlined" color="inherit" onClick={handleAttendAction}>
+          Marcar como atendida
+        </Button>
+      )}
+    </Box>
+  );
 
   return (
     <ListItemButton
