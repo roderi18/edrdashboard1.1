@@ -1,3 +1,5 @@
+import { eliminarArchivoDeStorage } from 'src/utils/firebase-photos';
+
 import { updateRegional } from './regional-service';
 import { updateSectional } from './sectional-service';
 import { updateDestApi, aplicarFotoDestacamento } from './dest-service';
@@ -31,33 +33,58 @@ const APLICADORES = {
     guardarAsignacionDirectiva({ ...payload, usuario }),
 };
 
-export async function aprobarSolicitud(solicitud, { usuario, comentario = '' } = {}) {
+/**
+ * `payload` sustituye al de la propuesta cuando se aprueba SOLO UNA PARTE: quien
+ * resuelve devuelve los campos rechazados a su valor anterior y lo que se
+ * escribe es esa mezcla, no lo que se propuso.
+ */
+export async function aprobarSolicitud(solicitud, { usuario, comentario = '', payload = null } = {}) {
   return resolverSolicitudCambio(solicitud.id, {
     estado: ESTADOS_CAMBIO.aprobada,
     usuario,
     comentario,
     aplicar: async (guardada) => {
       const aplicador = APLICADORES[guardada.ambito];
+      const datos = payload || guardada.payload;
 
       if (!aplicador) {
         throw new Error(`No hay forma de aplicar un cambio de tipo "${guardada.ambito}".`);
       }
 
-      if (!guardada.payload) {
+      if (!datos) {
         throw new Error(
           'La propuesta no guardó los datos del cambio, así que no se puede aplicar. Pídele a quien la envió que la vuelva a hacer.'
         );
       }
 
-      await aplicador(guardada.payload, usuario);
+      await aplicador(datos, usuario);
     },
   });
 }
 
+// Que hacer con lo que la propuesta dejo a medias cuando NO sale adelante. La
+// foto sugerida ya esta subida: si se rechaza, nada la referencia y se queda
+// ocupando sitio para siempre.
+const LIMPIADORES = {
+  [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => eliminarArchivoDeStorage(payload?.rutaArchivo),
+};
+
 export async function rechazarSolicitud(solicitud, { usuario, comentario = '' } = {}) {
-  return resolverSolicitudCambio(solicitud.id, {
+  const resultado = await resolverSolicitudCambio(solicitud.id, {
     estado: ESTADOS_CAMBIO.rechazada,
     usuario,
     comentario,
   });
+
+  // Despues de resolver y sin bloquear: el rechazo ya esta escrito y avisado, y
+  // un archivo que no se pudo borrar no lo invalida.
+  const limpiar = LIMPIADORES[solicitud?.ambito];
+
+  if (limpiar && solicitud?.payload) {
+    limpiar(solicitud.payload).catch((error) => {
+      console.warn('[aprobaciones] no se pudo limpiar lo que dejo la propuesta', error);
+    });
+  }
+
+  return resultado;
 }

@@ -406,8 +406,9 @@ export function DestCreateEditForm({ currentDest }) {
           (estaDentroDelAlcance(user, currentDestResource) ||
             canGestionarDestPorAlcance(user, currentDestResource))))
     : isAdminGlobal(user) || canEditCoordinatorFields;
-  // Solo sugerir: la foto oficial no cambia hasta que la aprueben.
-  const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
+  // Sus cambios no se aplican: van a la bandeja de la Oficina Nacional. Vale
+  // para la foto y para los campos que si puede tocar.
+  const soloSugiereCambios = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
   // El admin de destacamento solo puede descargar la informacion de miembros de
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
@@ -570,7 +571,7 @@ export function DestCreateEditForm({ currentDest }) {
       // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
       // queda como esta. Devolver la url nueva pintaria en pantalla un cambio
       // que todavia no existe, asi que se conserva la de antes.
-      if (soloSugiereFoto) {
+      if (soloSugiereCambios) {
         const propuesta = await subirFotoEntidadPropuesta({
           file,
           tipoEntidad: 'destacamento',
@@ -847,7 +848,7 @@ export function DestCreateEditForm({ currentDest }) {
                     {/* A quien solo puede sugerirla, decirle los formatos no le
                         aclara lo que de verdad necesita saber: que la foto no
                         cambia hasta que la aprueben. */}
-                    {soloSugiereFoto ? (
+                    {soloSugiereCambios ? (
                       'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
                     ) : (
                       <>
@@ -1235,7 +1236,11 @@ export function DestCreateEditForm({ currentDest }) {
                   loading={isSubmitting}
                   disabled={!canSaveDest}
                 >
-                  Guardar cambios
+                  {/* Lo que hace el boton, no lo que uno querria que hiciera: a
+                      quien no puede aplicar el cambio, "Guardar cambios" le
+                      prometia algo que no pasa hasta que la Oficina Nacional lo
+                      apruebe. */}
+                  {soloSugiereCambios ? 'Enviar a aprobación' : 'Guardar cambios'}
                 </LoadingButton>
               )}
             </Stack>

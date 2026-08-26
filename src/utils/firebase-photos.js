@@ -1,3 +1,4 @@
+import { ref, deleteObject } from 'firebase/storage';
 import {
   doc,
   query,
@@ -163,6 +164,30 @@ export async function subirFotoEntidadPropuesta({ file, tipoEntidad, idEntidad, 
   });
 
   return { rutaArchivo: uploadResult.storagePath, urlFoto: uploadResult.downloadUrl };
+}
+
+/**
+ * Borra un archivo subido que ya no va a usarse.
+ *
+ * Se usa con las fotos PROPUESTAS que se rechazan: nada las referencia, pero se
+ * quedarian ocupando sitio para siempre. Si el borrado no se puede hacer —las
+ * reglas de Storage no se lo permiten a quien resuelve— no se convierte en un
+ * error: la resolucion ya esta escrita y un archivo huerfano no la invalida.
+ */
+export async function eliminarArchivoDeStorage(rutaArchivo) {
+  const ruta = String(rutaArchivo || '').trim();
+
+  if (!ruta || !isFirebaseConfigured || !FIREBASE_STORAGE) return false;
+
+  try {
+    await deleteObject(ref(FIREBASE_STORAGE, ruta));
+
+    return true;
+  } catch (error) {
+    console.warn('[fotos] no se pudo borrar el archivo propuesto', ruta, error);
+
+    return false;
+  }
 }
 
 /**

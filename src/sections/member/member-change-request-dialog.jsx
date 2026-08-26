@@ -54,6 +54,11 @@ export function MemberChangeRequestDialog({
   dests = [],
   onClose,
   onResolve,
+  // La cabecera nombra a QUIEN o a QUE se le cambia algo. Por defecto, el
+  // miembro; la bandeja de la Oficina Nacional pasa el destacamento, la seccion
+  // o la region, que es lo mismo que hace este dialogo pero un nivel mas arriba.
+  titulo = null,
+  codigo = null,
 }) {
   const cambios = useMemo(() => solicitud?.cambios || [], [solicitud]);
 
@@ -241,11 +246,11 @@ export function MemberChangeRequestDialog({
             <Iconify icon="mingcute:close-line" />
           </IconButton>
           <Avatar sx={{ bgcolor: 'primary.lighter', color: 'primary.dark' }}>
-            {getInitials(solicitud?.nombreMiembro)}
+            {getInitials(titulo || solicitud?.nombreMiembro)}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle1" noWrap>
-              {solicitud?.nombreMiembro || 'Miembro'}
+              {titulo || solicitud?.nombreMiembro || 'Miembro'}
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
               <Box
@@ -258,7 +263,7 @@ export function MemberChangeRequestDialog({
                   bgcolor: 'background.neutral',
                 }}
               >
-                {solicitud?.codigoMiembro || '—'}
+                {codigo || solicitud?.codigoMiembro || '—'}
               </Box>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Enviado por {solicitud?.solicitadoPorNombre || 'Líder de Grupo'}

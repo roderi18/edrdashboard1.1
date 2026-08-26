@@ -240,7 +240,21 @@ export async function obtenerSolicitudesCambio({ estado = ESTADOS_CAMBIO.pendien
     estado ? query(solicitudesRef, where('estado', '==', estado)) : solicitudesRef
   );
 
-  return snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }));
+  // LO MAS RECIENTE ARRIBA. Firestore devuelve por id de documento, que aqui es
+  // un identificador aleatorio: la bandeja salia en un orden que no significaba
+  // nada y una propuesta de hoy podia quedar enterrada entre las de la semana
+  // pasada. `creadoEn` es una fecha ISO, asi que ordena bien como texto, pero se
+  // compara como fecha para que una propuesta vieja con otro formato no se cuele
+  // arriba.
+  const enMilisegundos = (valor) => {
+    const fecha = new Date(valor || 0);
+
+    return Number.isNaN(fecha.getTime()) ? 0 : fecha.getTime();
+  };
+
+  return snapshot.docs
+    .map((documento) => ({ id: documento.id, ...documento.data() }))
+    .sort((a, b) => enMilisegundos(b.creadoEn) - enMilisegundos(a.creadoEn));
 }
 
 export async function obtenerSolicitudCambio(idSolicitud) {

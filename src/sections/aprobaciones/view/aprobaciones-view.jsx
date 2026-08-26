@@ -30,7 +30,14 @@ import { obtenerSolicitudesCambio } from 'src/services/solicitudes-cambio-servic
 import { aprobarSolicitud, rechazarSolicitud } from 'src/services/aplicar-solicitud-service';
 
 import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+// El MISMO dialogo con el que el Coordinador de Destacamento revisa los cambios
+// de un miembro: se rechaza campo a campo y se aprueba lo que queda. Aqui vale
+// igual —una propuesta de destacamento tambien puede traer cuatro cambios y solo
+// dos buenos— y repetirlo seria mantener dos veces la misma pantalla.
+import { MemberChangeRequestDialog } from 'src/sections/member/member-change-request-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -88,6 +95,10 @@ export function AprobacionesView() {
   const [enCurso, setEnCurso] = useState('');
   const [rechazo, setRechazo] = useState(null);
   const [comentario, setComentario] = useState('');
+  // Propuesta abierta para elegir QUE se aprueba (solo si trae mas de un cambio).
+  const [seleccion, setSeleccion] = useState(null);
+  // Lo elegido, a la espera del "si, apruebalo".
+  const [confirmacion, setConfirmacion] = useState(null);
 
   const puedeResolver = puedeAprobarCambiosDeOrganizacion(user);
 
@@ -112,12 +123,12 @@ export function AprobacionesView() {
     }
   }, [loading, puedeResolver, cargar]);
 
-  const resolver = async (solicitud, accion, comentarioTexto = '') => {
+  const resolver = async (solicitud, accion, comentarioTexto = '', payload = null) => {
     setEnCurso(solicitud.id);
 
     try {
       if (accion === 'aprobar') {
-        await aprobarSolicitud(solicitud, { usuario: user, comentario: comentarioTexto });
+        await aprobarSolicitud(solicitud, { usuario: user, comentario: comentarioTexto, payload });
         toast.success('Cambio aprobado y aplicado.');
       } else {
         await rechazarSolicitud(solicitud, { usuario: user, comentario: comentarioTexto });
@@ -133,7 +144,50 @@ export function AprobacionesView() {
       setEnCurso('');
       setRechazo(null);
       setComentario('');
+      setSeleccion(null);
+      setConfirmacion(null);
     }
+  };
+
+  // Un solo cambio no hay nada que elegir: se pregunta y se aplica. Con varios se
+  // abre el dialogo de revision campo a campo.
+  const pedirAprobar = (solicitud) => {
+    if ((solicitud?.cambios?.length || 0) > 1) {
+      setSeleccion(solicitud);
+      return;
+    }
+
+    setConfirmacion({ solicitud, payload: null, aprobados: solicitud?.cambios?.length || 0, total: solicitud?.cambios?.length || 0 });
+  };
+
+  // Lo que devuelve el dialogo: por campo, si se aprueba y con que valor. Los
+  // rechazados vuelven a su valor anterior, asi que lo que se escribe es la
+  // mezcla, no lo propuesto.
+  const revisarSeleccion = (decision = []) => {
+    const solicitud = seleccion;
+
+    if (!solicitud) return;
+
+    const aprobados = decision.filter((campo) => campo.aprobado);
+
+    if (!aprobados.length) {
+      // Rechazarlo todo es rechazar la propuesta: se pide el motivo, como
+      // siempre, en vez de aplicar un cambio vacio.
+      setSeleccion(null);
+      setRechazo(solicitud);
+      return;
+    }
+
+    const payload = decision.reduce(
+      (acumulado, campo) => ({
+        ...acumulado,
+        [campo.campo]: campo.aprobado ? campo.valorFinal : campo.antes,
+      }),
+      { ...(solicitud.payload || {}) }
+    );
+
+    setSeleccion(null);
+    setConfirmacion({ solicitud, payload, aprobados: aprobados.length, total: decision.length });
   };
 
   if (loading || cargando) {
@@ -214,9 +268,13 @@ export function AprobacionesView() {
                     color="primary"
                     variant="contained"
                     disabled={Boolean(enCurso)}
-                    onClick={() => resolver(solicitud, 'aprobar')}
+                    onClick={() => pedirAprobar(solicitud)}
                   >
-                    {enCurso === solicitud.id ? 'Aplicando...' : 'Aprobar'}
+                    {enCurso === solicitud.id
+                      ? 'Aplicando...'
+                      : (solicitud.cambios?.length || 0) > 1
+                        ? 'Revisar y aprobar'
+                        : 'Aprobar'}
                   </Button>
                 </Stack>
               </Stack>
@@ -255,6 +313,65 @@ export function AprobacionesView() {
           ))}
         </Stack>
       )}
+
+      {/* Varios cambios en la misma propuesta: se revisan uno a uno y se aprueba
+          lo que valga. Mismo dialogo que usa el destacamento con sus miembros. */}
+      <MemberChangeRequestDialog
+        open={Boolean(seleccion)}
+        solicitud={
+          seleccion
+            ? {
+                ...seleccion,
+                // El dialogo habla en su propio vocabulario: `label` y los textos
+                // ya formateados de cada campo.
+                cambios: (seleccion.cambios || []).map((cambio) => ({
+                  ...cambio,
+                  label: cambio.etiqueta || cambio.campo,
+                  antesTexto: cambio.antes === null || cambio.antes === undefined ? '' : String(cambio.antes),
+                  despuesTexto:
+                    cambio.despues === null || cambio.despues === undefined
+                      ? ''
+                      : String(cambio.despues),
+                })),
+              }
+            : null
+        }
+        titulo={seleccion?.entidad?.nombre || ''}
+        codigo={ETIQUETA_AMBITO[seleccion?.ambito] || seleccion?.ambito || ''}
+        saving={Boolean(enCurso)}
+        onClose={() => setSeleccion(null)}
+        onResolve={revisarSeleccion}
+      />
+
+      {/* Aplicar un cambio ajeno no se hace de un clic despistado. */}
+      <ConfirmDialog
+        open={Boolean(confirmacion)}
+        onClose={() => setConfirmacion(null)}
+        title="Aprobar el cambio"
+        content={
+          confirmacion ? (
+            <>
+              Se aplicará
+              {confirmacion.aprobados === confirmacion.total
+                ? ' lo propuesto'
+                : ` ${confirmacion.aprobados} de ${confirmacion.total} cambios`}{' '}
+              en <strong>{confirmacion.solicitud?.entidad?.nombre || 'la organización'}</strong>.
+              ¿Confirmas?
+            </>
+          ) : null
+        }
+        action={
+          <Button
+            variant="contained"
+            disabled={Boolean(enCurso)}
+            onClick={() =>
+              resolver(confirmacion.solicitud, 'aprobar', '', confirmacion.payload)
+            }
+          >
+            Sí, aprobar
+          </Button>
+        }
+      />
 
       {/* El rechazo pide un motivo: quien propuso el cambio merece saber por que
           no salio adelante, y el motivo queda en Historial con la resolucion. */}
