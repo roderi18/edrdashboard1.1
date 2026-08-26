@@ -6,6 +6,7 @@ import { useRef, useMemo, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -21,8 +22,8 @@ import { SECTIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
-import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
+import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
@@ -642,6 +643,29 @@ export function SectionalLeadershipView() {
         onChange={leadership.setSelectedMember}
         onClose={leadership.closeAssign}
         onSubmit={leadership.asignarMiembro}
+      />
+
+      {/* Sirve en otro consejo. Se puede asignar igual, pero primero se dice de
+          donde se le saca: nadie ocupa dos consejos a la vez, asi que aceptar
+          aqui es retirarle el cargo anterior. */}
+      <ConfirmDialog
+        open={Boolean(leadership.traspasoPendiente)}
+        onClose={leadership.cancelarTraspaso}
+        title="Ya tiene un cargo en otro consejo"
+        content={
+          <>
+            <strong>
+              {getMemberDisplayName(leadership.traspasoPendiente?.miembro) || 'Este miembro'}
+            </strong>{' '}
+            ya es {leadership.traspasoPendiente?.cargoEnOtroConsejo}. ¿Quieres quitárselo y
+            asignarle el cargo de {leadership.traspasoPendiente?.node?.role || 'esta directiva'}?
+          </>
+        }
+        action={
+          <Button variant="contained" onClick={leadership.confirmarTraspaso}>
+            Sí, moverlo aquí
+          </Button>
+        }
       />
 
       <ConfirmEscribiendoDialog

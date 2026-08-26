@@ -195,6 +195,9 @@ export const getLeadershipScopeLabel = ({ nivel, nombreEntidad = '' } = {}) => {
  *
  * @param ocupantesPorMiembro Map/objeto idMiembro -> nombre del cargo que ocupa.
  *   Quien aparezca ahi se muestra al final, deshabilitado.
+ * @param ocupantesEnOtroConsejo Map/objeto idMiembro -> cargo que ocupa en OTRO
+ *   consejo. Se puede elegir: al hacerlo se pregunta si de verdad se le quita de
+ *   alli. Solo se avisa, no se bloquea.
  */
 export const buildLeadershipMemberOptions = ({
   members = [],
@@ -202,6 +205,7 @@ export const buildLeadershipMemberOptions = ({
   idEntidad,
   index,
   ocupantesPorMiembro = new Map(),
+  ocupantesEnOtroConsejo = new Map(),
   edadMinima = nivel === 'destacamento' ? 0 : EDAD_MINIMA_CARGO_SUPERVISION,
   idMiembroActual = null,
 } = {}) => {
@@ -209,6 +213,10 @@ export const buildLeadershipMemberOptions = ({
     ocupantesPorMiembro instanceof Map
       ? ocupantesPorMiembro
       : new Map(Object.entries(ocupantesPorMiembro || {}));
+  const ocupantesExternos =
+    ocupantesEnOtroConsejo instanceof Map
+      ? ocupantesEnOtroConsejo
+      : new Map(Object.entries(ocupantesEnOtroConsejo || {}));
 
   const opciones = members
     .map((member) => {
@@ -226,6 +234,9 @@ export const buildLeadershipMemberOptions = ({
       // Quien ya ocupa ESTE puesto no se marca como ocupado: es el valor actual.
       const rolActual =
         id && String(id) !== String(idMiembroActual ?? '') ? ocupantes.get(id) || '' : '';
+      // Cargo en otro consejo: se ve, pero no impide elegir.
+      const rolEnOtroConsejo =
+        id && String(id) !== String(idMiembroActual ?? '') ? ocupantesExternos.get(id) || '' : '';
 
       return {
         member,
@@ -233,6 +244,7 @@ export const buildLeadershipMemberOptions = ({
         nombre: getLeadershipMemberName(member) || `Miembro ${id}`,
         subtitulo: buildSubtitulo({ nivel, member, path }),
         rolActual,
+        rolEnOtroConsejo,
         disabled: Boolean(rolActual),
       };
     })

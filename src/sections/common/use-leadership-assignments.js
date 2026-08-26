@@ -17,7 +17,7 @@ import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
-import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { getNivelesARetirar, DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
   esNivelDeConsejo,
   guardarAsignacionDirectiva,
@@ -97,6 +97,8 @@ export function useLeadershipAssignments({
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [nodoARemover, setNodoARemover] = useState(null);
+  // Miembro elegido que ya sirve en otro consejo: espera el "si, quitalo de alli".
+  const [traspasoPendiente, setTraspasoPendiente] = useState(null);
   // Solo esta en alto durante la espera de `RETARDO_ASIGNACION_MS`, no mientras
   // se escribe: la escritura va por detras y no bloquea la interfaz.
   const [isSaving, setIsSaving] = useState(false);
@@ -182,16 +184,6 @@ export function useLeadershipAssignments({
   const ocupantesPorMiembro = useMemo(() => {
     const porMiembro = new Map();
 
-    // Primero los de otros consejos; el cargo de ESTA directiva, que es mas
-    // concreto, los pisa despues.
-    asignacionesDeConsejo.forEach((asignacion) => {
-      if (!asignacion?.idMiembro) return;
-
-      porMiembro.set(
-        normalizarIdAsignacion(asignacion.idMiembro),
-        describirConflictoDeConsejo(asignacion)
-      );
-    });
 
     Object.values(assignments).forEach((asignacion) => {
       if (!asignacion?.idMiembro) return;
@@ -209,7 +201,24 @@ export function useLeadershipAssignments({
     });
 
     return porMiembro;
-  }, [assignments, asignacionesDeConsejo]);
+  }, [assignments]);
+
+  // Cargo que ya ocupa cada miembro en OTRO consejo. No deshabilita: al elegir a
+  // esa persona se pregunta si se le quita de alli, igual que al remover.
+  const ocupantesEnOtroConsejo = useMemo(() => {
+    const porMiembro = new Map();
+
+    asignacionesDeConsejo.forEach((asignacion) => {
+      if (!asignacion?.idMiembro) return;
+
+      porMiembro.set(
+        normalizarIdAsignacion(asignacion.idMiembro),
+        describirConflictoDeConsejo(asignacion)
+      );
+    });
+
+    return porMiembro;
+  }, [asignacionesDeConsejo]);
 
   // Memoizado a proposito: sin esto las opciones se recreaban en cada render y el
   // Autocomplete perdia la seleccion recien hecha.
@@ -222,9 +231,19 @@ export function useLeadershipAssignments({
       idEntidad,
       index: orgIndex,
       ocupantesPorMiembro,
+      ocupantesEnOtroConsejo,
       idMiembroActual: normalizarIdAsignacion(asignado?.id ?? asignado?.idMiembros) || null,
     });
-  }, [members, nivel, idEntidad, orgIndex, ocupantesPorMiembro, selectedNode, getAssignedMember]);
+  }, [
+    members,
+    nivel,
+    idEntidad,
+    orgIndex,
+    ocupantesPorMiembro,
+    ocupantesEnOtroConsejo,
+    selectedNode,
+    getAssignedMember,
+  ]);
 
   const openAssign = useCallback(
     (node) => {
@@ -249,7 +268,7 @@ export function useLeadershipAssignments({
   // sobre un nodo distinto del que tenga abierto el dialogo, y leerlo del estado
   // daria el valor anterior al render.
   const guardar = useCallback(
-    async ({ node, idMiembro, miembro, activo }) => {
+    async ({ node, idMiembro, miembro, activo, reemplazarConsejo = false }) => {
       // La comprobacion de verdad esta en firestore.rules; esta solo evita
       // lanzar una escritura que el servidor va a rechazar.
       if (!canManage) {
@@ -322,6 +341,9 @@ export function useLeadershipAssignments({
             orden: position.orden || 1,
             origen: 'organigrama-directiva',
             activo,
+            // Ya se le pregunto y dijo que si: el servicio deja pasar el cambio
+            // de consejo porque el cargo anterior se retira aqui debajo.
+            reemplazarCargoDeConsejo: reemplazarConsejo,
             ...construirResumenMiembro(miembro || {}),
           });
 
@@ -329,11 +351,20 @@ export function useLeadershipAssignments({
           // lo aplicaba; el organigrama no, y asignar desde el diagrama dejaba a
           // la persona con cargos activos en dos secciones a la vez.
           if (activo && idMiembro) {
-            await desactivarAsignacionesDirectivaPorNivel({
-              idMiembro,
-              nivel,
-              conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
-            }).catch(() => 0);
+            // Al traspasar se retiran ademas los cargos de los OTROS consejos:
+            // es lo que se acaba de confirmar, y es la misma lista de niveles
+            // excluyentes que aplica la ficha del miembro.
+            const niveles = reemplazarConsejo ? getNivelesARetirar(nivel) : [nivel];
+
+            await Promise.all(
+              niveles.map((nivelARetirar) =>
+                desactivarAsignacionesDirectivaPorNivel({
+                  idMiembro,
+                  nivel: nivelARetirar,
+                  conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+                }).catch(() => 0)
+              )
+            );
           }
 
           // Ya no hay espejo en la API .NET: la ficha del miembro y la lista leen
@@ -376,10 +407,51 @@ export function useLeadershipAssignments({
       return;
     }
 
+    // Sirve en otro consejo: se puede elegir, pero no se le mueve a espaldas de
+    // quien asigna. Se pregunta primero, igual que al remover.
+    const cargoEnOtroConsejo = ocupantesEnOtroConsejo.get(idMiembro);
+
+    if (cargoEnOtroConsejo) {
+      setTraspasoPendiente({
+        node: selectedNode,
+        idMiembro,
+        miembro: selectedMember,
+        cargoEnOtroConsejo,
+      });
+
+      return;
+    }
+
     if (await guardar({ node: selectedNode, idMiembro, miembro: selectedMember, activo: true })) {
       toast.success('Miembro asignado correctamente.');
     }
-  }, [guardar, selectedMember, selectedNode]);
+  }, [guardar, ocupantesEnOtroConsejo, selectedMember, selectedNode]);
+
+  // --- Traspaso: confirmar que se le quita del otro consejo ---
+
+  const cancelarTraspaso = useCallback(() => {
+    setTraspasoPendiente(null);
+  }, []);
+
+  const confirmarTraspaso = useCallback(async () => {
+    const pendiente = traspasoPendiente;
+
+    setTraspasoPendiente(null);
+
+    if (!pendiente?.idMiembro) return;
+
+    if (
+      await guardar({
+        node: pendiente.node,
+        idMiembro: pendiente.idMiembro,
+        miembro: pendiente.miembro,
+        activo: true,
+        reemplazarConsejo: true,
+      })
+    ) {
+      toast.success('Miembro asignado correctamente.');
+    }
+  }, [guardar, traspasoPendiente]);
 
   // --- Remover: se pide confirmacion antes de liberar el cargo ---
 
@@ -432,5 +504,8 @@ export function useLeadershipAssignments({
     pedirRemoverMiembro,
     cancelarRemover,
     confirmarRemover,
+    traspasoPendiente,
+    cancelarTraspaso,
+    confirmarTraspaso,
   };
 }
