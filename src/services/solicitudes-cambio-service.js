@@ -1,5 +1,7 @@
 import { doc, query, where, setDoc, getDoc, getDocs, updateDoc, collection } from 'firebase/firestore';
 
+import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSistema } from './audit-log-service';
@@ -162,8 +164,14 @@ export async function proponerCambio({
   // registro: su cambio queda en Historial igual que cualquier otro.
   //
   // Una sugerencia nunca se aplica sola, ni siquiera con este permiso.
+  // No se confia solo en lo que diga quien llama: se comprueba tambien el rol de
+  // quien actua. El Administrador Global y la Oficina Nacional NO esperan una
+  // aprobacion que se darian a si mismos, y basta que un llamador olvide el
+  // `usuario` o el `aplicarDirecto` para que un cambio suyo —ya aplicado en
+  // pantalla— aparezca en la bandeja pidiendo permiso a nadie.
+  const puedeAplicarYaMismo = aplicarDirecto || puedeAprobarCambiosDeOrganizacion(usuario);
   const necesitaAprobacion =
-    esSugerencia || (requiereAprobacionDeOficinaNacional(ambito) && !aplicarDirecto);
+    esSugerencia || (requiereAprobacionDeOficinaNacional(ambito) && !puedeAplicarYaMismo);
   const actor = describirActor(usuario);
   const textoEntidad = entidad?.nombre ? ` ${entidad.nombre}` : '';
   const detalle =

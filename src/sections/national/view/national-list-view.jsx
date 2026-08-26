@@ -465,6 +465,11 @@ export function NationalListView() {
             orden: asignacion.orden || 1,
             origen: 'lista-nacional',
             activo: false,
+            // SIN ESTO la puerta de cambios no sabe quien actua: daba la baja por
+            // "Usuario sin identificar" y, al no reconocer al Administrador
+            // Global, la dejaba esperando una aprobacion que el mismo tendria que
+            // darse. El cargo seguia activo y la baja se quedaba en la bandeja.
+            usuario: user,
           })
         )
       );
@@ -473,7 +478,7 @@ export function NationalListView() {
         previas.filter((asignacion) => !ids.includes(asignacion.idAsignacion || asignacion.id))
       );
     },
-    [nationalAssignments]
+    [nationalAssignments, user]
   );
 
   const handleDeleteRow = useCallback(

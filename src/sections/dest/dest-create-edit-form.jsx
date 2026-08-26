@@ -739,6 +739,9 @@ export function DestCreateEditForm({ currentDest }) {
             division: null,
             orden: POSICION_COORDINADOR_DEST?.orden || 1,
             origen: 'form-destacamento',
+            // Quien actua, para que la puerta de cambios lo reconozca y el
+            // registro no diga "Usuario sin identificar".
+            usuario: user,
           };
 
           if (miembroSeleccionado?.id) {

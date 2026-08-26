@@ -136,11 +136,11 @@ export async function subirFotoEntidad({
  * Destacamento y su Asistente—, asi que no se registra como principal: hasta que
  * la Oficina Nacional la apruebe, la foto oficial sigue siendo la de antes.
  *
- * Va a una carpeta propia por propuesta (`destacamentos/<id>-propuesta-<ts>/`)
- * por dos razones: las reglas de Storage solo dejan escribir archivos llamados
- * `perfil.<ext>` dentro de la carpeta de la entidad —de ahi que la propuesta sea
- * una carpeta y no otro nombre de archivo—, y con una carpeta por propuesta una
- * segunda sugerencia no pisa a la anterior ni a la que ya se aprobo.
+ * Va a `propuestas/<carpeta>/<id>/<marca de tiempo>/perfil.webp`, FUERA de la
+ * carpeta de la entidad. Ahi las reglas de Storage no piden permiso sobre la
+ * foto de la entidad —sugerirla no es cambiarla, y quien sugiere no tiene ese
+ * permiso ni le hace falta—, y con una carpeta por propuesta una segunda
+ * sugerencia no pisa a la anterior ni a la que ya se aprobo.
  */
 export async function subirFotoEntidadPropuesta({ file, tipoEntidad, idEntidad, subidoPor }) {
   asegurarFirebaseFotos();
@@ -153,7 +153,7 @@ export async function subirFotoEntidadPropuesta({ file, tipoEntidad, idEntidad, 
   const uploadResult = await uploadOptimizedImage({
     file,
     preset: 'avatar',
-    storagePath: `${folder}/${idEntidad}-propuesta-${Date.now()}/perfil.webp`,
+    storagePath: `propuestas/${folder}/${idEntidad}/${Date.now()}/perfil.webp`,
     metadata: {
       tipoEntidad,
       idEntidad: String(idEntidad),

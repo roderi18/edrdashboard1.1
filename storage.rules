@@ -388,6 +388,25 @@ service firebase.storage {
         && esImagenPermitida();
     }
 
+    // Fotos SUGERIDAS. Sugerir no es cambiar: quien las sube —el Coordinador de
+    // Destacamento y su Asistente— no tiene ni necesita `destacamentos.subir_foto`,
+    // porque la foto oficial no se toca. Vive fuera de la carpeta de la entidad
+    // hasta que la Oficina Nacional o el Administrador Global aprueban la
+    // propuesta; entonces la ficha del destacamento pasa a apuntar aqui.
+    //
+    // Una carpeta por propuesta (`.../<idDestacamento>/<marca de tiempo>/perfil.webp`)
+    // para que una segunda sugerencia no pise a la anterior ni a la aprobada.
+    // Borrar queda para quien resuelve: al rechazar una propuesta se limpia el
+    // archivo que dejo subido.
+    match /propuestas/destacamentos/{idDestacamento}/{propuesta}/{archivo} {
+      allow read: if estaAutenticado();
+      allow create, update: if estaAutenticado()
+        && esArchivoPerfil(archivo)
+        && esImagenPermitida();
+      allow delete: if esAdministradorGlobal()
+        || (tieneDocumento('usuarios_roles') && rolDeUsuario() == 'oficina_nacional');
+    }
+
     // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
     // permite al Administrador Global agregar o reemplazar cualquier imagen,
     // incluidas las fotos de secciones y regiones que no tienen un match propio.
