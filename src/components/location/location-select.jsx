@@ -155,7 +155,7 @@ export default function LocationSelect({ disabled = false, masked = false }) {
                     label="Calle / Número"
                     allowNumbers
                     allowSpecialChars
-                    maxLength={50}
+                    maxLength={300}
                     disabled={disabled}
                 />
             )}
