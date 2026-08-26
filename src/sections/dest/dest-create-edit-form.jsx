@@ -22,12 +22,16 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { subirFotoEntidad , obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   getOwnRegionIdsForUser,
   canMemberManageMembers,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
+import {
+  subirFotoEntidad,
+  subirFotoEntidadPropuesta,
+  obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
   isAdminGlobal,
   isFullOrgManager,
@@ -55,6 +59,10 @@ import {
   updateChurchApi,
   buildChurchPayload,
 } from 'src/services/church-service';
+import {
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+} from 'src/services/directivas-organizacionales-service';
 // import { ChurchSchema } from 'src/models/church-schema';
 // import { saveChurch } from 'src/services/church-service';
 // import { createChurch } from 'src/models/church-model';
@@ -65,11 +73,8 @@ import {
   createDestApi,
   updateDestApi,
   mapApiDestToUI,
+  proponerFotoDestacamento,
 } from 'src/services/dest-service';
-import {
-  guardarAsignacionDirectiva,
-  obtenerAsignacionesDirectiva,
-} from 'src/services/directivas-organizacionales-service';
 
 // Posicion del catalogo que corresponde al Coordinador de Destacamento: de ella
 // salen el id de cargo y el orden con los que se guarda la asignacion.
@@ -388,8 +393,10 @@ export function DestCreateEditForm({ currentDest }) {
   // seccion del Coordinador Seccional y de su Sub-Coordinador aunque la sesion no
   // exponga el alcance completo. Sigue acotado: solo los destacamentos de su
   // seccion, nunca los ajenos.
-  // La foto es informacion del destacamento: se rige por la misma regla que el
-  // resto de la ficha.
+  // La foto la CAMBIA el Administrador Global; el Coordinador de Destacamento y
+  // su Asistente la SUGIEREN. Los dos usan el mismo control —dejarlo en gris no
+  // decia que se puede proponer una— y lo que cambia es a donde va: aplicada o a
+  // la bandeja de la Oficina Nacional.
   const canUploadDestPhoto = isCreateView
     ? !isDestacamentoAdmin &&
       (isLegacyAdmin ||
@@ -398,7 +405,9 @@ export function DestCreateEditForm({ currentDest }) {
         (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
           (estaDentroDelAlcance(user, currentDestResource) ||
             canGestionarDestPorAlcance(user, currentDestResource))))
-    : isAdminGlobal(user);
+    : isAdminGlobal(user) || canEditCoordinatorFields;
+  // Solo sugerir: la foto oficial no cambia hasta que la aprueben.
+  const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
   // El admin de destacamento solo puede descargar la informacion de miembros de
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
@@ -557,6 +566,29 @@ export function DestCreateEditForm({ currentDest }) {
 
     try {
       setUploadingPhoto(true);
+
+      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
+      // queda como esta. Devolver la url nueva pintaria en pantalla un cambio
+      // que todavia no existe, asi que se conserva la de antes.
+      if (soloSugiereFoto) {
+        const propuesta = await subirFotoEntidadPropuesta({
+          file,
+          tipoEntidad: 'destacamento',
+          idEntidad: destId,
+          subidoPor: AUTH.currentUser?.uid || '',
+        });
+
+        await proponerFotoDestacamento({
+          destacamento: { id: destId, nombre: currentDest?.name || currentDest?.nombre || '' },
+          foto: propuesta,
+          urlAntes: values.avatarUrl || currentDest?.avatarUrl || '',
+          usuario: user,
+        });
+
+        toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
+
+        return values.avatarUrl || currentDest?.avatarUrl || null;
+      }
 
       const photo = await subirFotoEntidad({
         file,
@@ -812,8 +844,17 @@ export function DestCreateEditForm({ currentDest }) {
                       color: 'text.disabled',
                     }}
                   >
-                    Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> la imagen se optimiza al cargar.
+                    {/* A quien solo puede sugerirla, decirle los formatos no le
+                        aclara lo que de verdad necesita saber: que la foto no
+                        cambia hasta que la aprueben. */}
+                    {soloSugiereFoto ? (
+                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
+                    ) : (
+                      <>
+                        Permitido *.jpeg, *.jpg, *.png, *.gif
+                        <br /> la imagen se optimiza al cargar.
+                      </>
+                    )}
                   </Typography>
                 }
               />

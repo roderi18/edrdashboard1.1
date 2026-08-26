@@ -129,6 +129,43 @@ export async function subirFotoEntidad({
 }
 
 /**
+ * Sube una foto PROPUESTA, sin tocar la que esta en uso.
+ *
+ * La sube quien puede sugerir el cambio pero no aplicarlo —el Coordinador de
+ * Destacamento y su Asistente—, asi que no se registra como principal: hasta que
+ * la Oficina Nacional la apruebe, la foto oficial sigue siendo la de antes.
+ *
+ * Va a una carpeta propia por propuesta (`destacamentos/<id>-propuesta-<ts>/`)
+ * por dos razones: las reglas de Storage solo dejan escribir archivos llamados
+ * `perfil.<ext>` dentro de la carpeta de la entidad —de ahi que la propuesta sea
+ * una carpeta y no otro nombre de archivo—, y con una carpeta por propuesta una
+ * segunda sugerencia no pisa a la anterior ni a la que ya se aprobo.
+ */
+export async function subirFotoEntidadPropuesta({ file, tipoEntidad, idEntidad, subidoPor }) {
+  asegurarFirebaseFotos();
+
+  if (!file) throw new Error('Selecciona una foto para subir.');
+  if (!tipoEntidad || !idEntidad)
+    throw new Error('No se pudo identificar a quién pertenece la foto.');
+
+  const folder = carpetaDeEntidad(tipoEntidad);
+  const uploadResult = await uploadOptimizedImage({
+    file,
+    preset: 'avatar',
+    storagePath: `${folder}/${idEntidad}-propuesta-${Date.now()}/perfil.webp`,
+    metadata: {
+      tipoEntidad,
+      idEntidad: String(idEntidad),
+      tipoFoto: 'perfil',
+      esPropuesta: 'true',
+      subidoPor: subidoPor || '',
+    },
+  });
+
+  return { rutaArchivo: uploadResult.storagePath, urlFoto: uploadResult.downloadUrl };
+}
+
+/**
  * Sube la foto de un miembro que TODAVIA no existe.
  *
  * Al crear, la persona no tiene id hasta que el alta vuelve del API, asi que la

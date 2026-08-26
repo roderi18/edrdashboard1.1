@@ -38,6 +38,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 const ETIQUETA_AMBITO = {
   destacamento: 'Destacamento',
+  foto_destacamento: 'Foto de destacamento',
   seccion: 'Sección',
   region: 'Región',
   directiva_seccion: 'Directiva de sección',
@@ -45,8 +46,29 @@ const ETIQUETA_AMBITO = {
   directiva_nacional: 'Directiva del Consejo Nacional',
 };
 
+const esUrlDeImagen = (valor) => /^https?:\/\//i.test(String(valor || ''));
+
+// Una foto se juzga mirandola. Pintar la url en la tabla obligaba a copiarla y
+// abrirla en otra pestaña para saber que se estaba aprobando.
 const mostrarValor = (valor) => {
   if (valor === null || valor === undefined || valor === '') return '—';
+
+  if (esUrlDeImagen(valor)) {
+    return (
+      <Box
+        component="img"
+        src={String(valor)}
+        alt=""
+        sx={{
+          width: 72,
+          height: 72,
+          borderRadius: 1,
+          objectFit: 'cover',
+          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        }}
+      />
+    );
+  }
 
   return String(valor);
 };

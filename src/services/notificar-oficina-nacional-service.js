@@ -50,6 +50,10 @@ const obtenerDestinatarios = async () => {
 };
 
 export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } = {}) {
+  // La foto del destacamento manda su propio aviso, con la imagen de antes y la
+  // de despues. Este seria el mismo mensaje sin las imagenes.
+  if (solicitud?.ambito === 'foto_destacamento') return null;
+
   const destinatarios = await obtenerDestinatarios();
 
   // Sin nadie con el rol, no se inventa un destinatario: la propuesta ya quedo
@@ -121,6 +125,59 @@ export async function notificarDestacamentoActualizado({
       : '/dashboard/level/dest',
     etiquetaAccion: 'Ver',
     metadatos: { idDestacamento: destacamento?.id, campos: camposCambiados },
+    usuario,
+    idsDestinatariosPrecalculados: destinatarios,
+  });
+}
+
+/**
+ * Foto de destacamento sugerida: se ve la de antes y la de despues.
+ *
+ * Una foto no se juzga por su nombre de archivo. El aviso lleva las dos
+ * imagenes para que se pueda decidir sin abrir nada mas, y la ruta apunta a la
+ * bandeja de aprobaciones, que es donde se resuelve.
+ */
+export async function notificarFotoDestacamentoPropuesta({
+  destacamento = {},
+  urlAntes = '',
+  urlDespues = '',
+  pendiente = true,
+  usuario = {},
+} = {}) {
+  const destinatarios = await obtenerDestinatarios();
+
+  if (!destinatarios.length) {
+    console.warn('[oficina-nacional] no hay nadie con el rol para avisar de la foto');
+    return null;
+  }
+
+  const quien =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Alguien';
+  const nombre = destacamento?.nombre || 'un destacamento';
+
+  return crearNotificacionAdmin({
+    tipoNotificacion: pendiente ? 'foto_destacamento_propuesta' : 'foto_destacamento_actualizada',
+    modulo: pendiente ? 'aprobaciones' : 'destacamentos',
+    titulo: pendiente ? 'Foto de destacamento sugerida' : 'Foto de destacamento actualizada',
+    mensaje: pendiente
+      ? `${quien} sugiere cambiar la foto de ${nombre}. Requiere tu revisión.`
+      : `${quien} cambió la foto de ${nombre}.`,
+    prioridad: pendiente ? 'importante' : 'informativa',
+    entidadTipo: 'destacamento',
+    entidadId: String(destacamento?.id || ''),
+    ruta: pendiente
+      ? paths.dashboard.admin.aprobaciones
+      : `/dashboard/level/dest/${destacamento?.id || ''}/edit`,
+    // La propuesta va de imagen: se manda como imagen, no como icono.
+    imagenTipo: 'imagen',
+    imagenURL: urlDespues || null,
+    miniaturaURL: urlAntes || null,
+    etiquetaAccion: pendiente ? 'Revisar' : 'Ver',
+    metadatos: {
+      idDestacamento: destacamento?.id,
+      fotoAntes: urlAntes || '',
+      fotoDespues: urlDespues || '',
+    },
     usuario,
     idsDestinatariosPrecalculados: destinatarios,
   });

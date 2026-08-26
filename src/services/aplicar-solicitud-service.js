@@ -1,6 +1,6 @@
-import { updateDestApi } from './dest-service';
 import { updateRegional } from './regional-service';
 import { updateSectional } from './sectional-service';
+import { updateDestApi, aplicarFotoDestacamento } from './dest-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solicitudes-cambio-service';
 
@@ -19,6 +19,8 @@ import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solic
 
 const APLICADORES = {
   [AMBITOS_CAMBIO.destacamento]: (payload, usuario) => updateDestApi(payload, { usuario }),
+  // La foto ya esta subida: aprobarla es apuntarla como principal.
+  [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => aplicarFotoDestacamento(payload),
   [AMBITOS_CAMBIO.seccion]: (payload, usuario) => updateSectional(payload, { usuario }),
   [AMBITOS_CAMBIO.region]: (payload, usuario) => updateRegional(payload, { usuario }),
   [AMBITOS_CAMBIO.directivaSeccion]: (payload, usuario) =>

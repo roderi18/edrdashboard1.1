@@ -1,10 +1,13 @@
-import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
 import {
     saveItem,
     getStorageCollection,
     setStorageCollection,
 } from 'src/utils/storage-service';
+import {
+    registrarFotoEntidadSubida,
+    obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
     isFullOrgManager,
     canCreateDestInSection,
@@ -14,12 +17,15 @@ import {
 import { getChurches } from './church-service';
 import { getSectionals } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
-import { notificarDestacamentoActualizado } from './notificar-oficina-nacional-service';
 import {
     AMBITOS_CAMBIO,
     ESTADOS_CAMBIO,
     proponerCambio,
 } from './solicitudes-cambio-service';
+import {
+    notificarDestacamentoActualizado,
+    notificarFotoDestacamentoPropuesta,
+} from './notificar-oficina-nacional-service';
 
 // Campos del destacamento que se listan en la propuesta, para que quien la
 // apruebe vea QUE cambia y no solo que "hubo cambios".
@@ -476,3 +482,79 @@ export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
         return { raw: text };
     }
 };
+
+// ----------------------------------------------------------------------
+// Foto del destacamento.
+//
+// El Coordinador de Destacamento y su Asistente pueden SUGERIRLA: la imagen ya
+// esta subida a una carpeta de propuesta, pero la foto oficial no cambia hasta
+// que la Oficina Nacional lo aprueba. Quien puede aplicar directo se salta la
+// espera, como en el resto de la ficha.
+// ----------------------------------------------------------------------
+
+export const proponerFotoDestacamento = async ({
+    destacamento = {},
+    foto = {},
+    urlAntes = '',
+    usuario = {},
+} = {}) => {
+    const idDestacamento = destacamento?.id ?? destacamento?.idDestacamento ?? null;
+    const payload = {
+        idDestacamento,
+        rutaArchivo: foto?.rutaArchivo || '',
+        urlFoto: foto?.urlFoto || '',
+        subidoPor: usuario?.uid || usuario?.id || '',
+    };
+
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.fotoDestacamento,
+        entidad: {
+            tipo: 'destacamento',
+            id: idDestacamento,
+            nombre: destacamento?.nombre || getDestAuditName(destacamento),
+            ruta: `/dashboard/level/dest/${idDestacamento ?? ''}/edit`,
+        },
+        cambios: [
+            {
+                campo: 'avatarUrl',
+                etiqueta: 'Foto del destacamento',
+                antes: urlAntes || null,
+                despues: foto?.urlFoto || null,
+            },
+        ],
+        usuario,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload,
+        aplicar: () => aplicarFotoDestacamento(payload),
+    });
+
+    const pendienteDeAprobacion = resultado.estado === ESTADOS_CAMBIO.pendiente;
+
+    // El aviso lleva las dos imagenes; que falle no deshace lo ya registrado.
+    notificarFotoDestacamentoPropuesta({
+        destacamento: { id: idDestacamento, nombre: destacamento?.nombre || '' },
+        urlAntes,
+        urlDespues: foto?.urlFoto || '',
+        pendiente: pendienteDeAprobacion,
+        usuario,
+    }).catch((error) => {
+        console.warn('[destacamentos] no se pudo avisar de la foto', error);
+    });
+
+    return {
+        pendienteDeAprobacion,
+        idSolicitud: resultado.idSolicitud || null,
+    };
+};
+
+// Al aprobarla, la propuesta pasa a ser la foto principal. Se apunta al archivo
+// que ya se subio: no se vuelve a subir nada.
+export const aplicarFotoDestacamento = async (payload = {}) =>
+    registrarFotoEntidadSubida({
+        tipoEntidad: 'destacamento',
+        idEntidad: payload?.idDestacamento,
+        tipoFoto: 'perfil',
+        rutaArchivo: payload?.rutaArchivo || '',
+        urlFoto: payload?.urlFoto || '',
+        subidoPor: payload?.subidoPor || '',
+    });

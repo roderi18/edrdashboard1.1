@@ -33,6 +33,9 @@ export const COLECCION_SOLICITUDES_CAMBIO = 'solicitudes_cambio';
 
 export const AMBITOS_CAMBIO = {
   destacamento: 'destacamento',
+  // La FOTO del destacamento va aparte de su ficha: la puede sugerir el
+  // Coordinador de Destacamento aunque el resto de la ficha no la toque.
+  fotoDestacamento: 'foto_destacamento',
   seccion: 'seccion',
   region: 'region',
   directivaSeccion: 'directiva_seccion',
@@ -55,6 +58,7 @@ export const AMBITOS_CAMBIO = {
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.
 export const AMBITOS_QUE_APRUEBA_OFICINA_NACIONAL = [
   AMBITOS_CAMBIO.destacamento,
+  AMBITOS_CAMBIO.fotoDestacamento,
   AMBITOS_CAMBIO.seccion,
   AMBITOS_CAMBIO.region,
   AMBITOS_CAMBIO.directivaSeccion,
