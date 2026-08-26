@@ -22,9 +22,14 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { getOwnRegionIdsForUser, canMemberManageMembers } from 'src/utils/member-access';
 import { subirFotoEntidad , obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
+  getOwnRegionIdsForUser,
+  canMemberManageMembers,
+  isCoordinadorDestacamentoRole,
+} from 'src/utils/member-access';
+import {
+  isAdminGlobal,
   isFullOrgManager,
   getSectionScopeIds,
   isRegionScopedCreator,
@@ -362,29 +367,39 @@ export function DestCreateEditForm({ currentDest }) {
   // sección (canCreateDestInSection) sigue vigente para las sesiones que ya
   // traen su alcance; el catálogo cubre las que aún no lo tienen resuelto.
   const canCreateDestByRole = puedeModificar(user, PERMISOS.DESTACAMENTOS_CREAR);
-  const canEditDest =
-    !isDestacamentoAdmin &&
-    (isLegacyAdmin ||
-      (isCreateView
-        ? canCreateDestInSection(user) || canCreateDestByRole
-        : puedeModificar(user, PERMISOS.DESTACAMENTOS_EDITAR) &&
-        estaDentroDelAlcance(user, currentDestResource)));
+  // MODIFICAR un destacamento ya creado es cosa del Administrador Global. Antes
+  // bastaba con `destacamentos.editar`, asi que un Coordinador Seccional podia
+  // reescribir el nombre, el numero o la iglesia de cualquier destacamento de su
+  // seccion. CREARLO sigue como estaba: es la via por la que la seccion da de
+  // alta los suyos.
+  const canEditDest = isCreateView
+    ? !isDestacamentoAdmin &&
+      (isLegacyAdmin || canCreateDestInSection(user) || canCreateDestByRole)
+    : isAdminGlobal(user);
+  // Lo que el Coordinador de Destacamento y su Asistente SI llevan de su propio
+  // destacamento: cuando se reunen, a que hora, quien coordina, y el telefono y
+  // el correo de contacto. El Pastor queda fuera: su rol es de solo lectura.
+  const canEditCoordinatorFields =
+    !isCreateView &&
+    isCoordinadorDestacamentoRole(user) &&
+    estaDentroDelAlcance(user, currentDestResource);
   // Alcance sobre ESTE destacamento para la foto de perfil. Ademas del alcance del
   // token (`estaDentroDelAlcance`), se acepta `canEditDest`, que resuelve la
   // seccion del Coordinador Seccional y de su Sub-Coordinador aunque la sesion no
   // exponga el alcance completo. Sigue acotado: solo los destacamentos de su
   // seccion, nunca los ajenos.
-  const canUploadDestPhoto =
-    !isDestacamentoAdmin &&
-    (isLegacyAdmin ||
-      (isCreateView
-        ? canCreateDestInSection(user) || canCreateDestByRole
-        : puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-        (estaDentroDelAlcance(user, currentDestResource) ||
-          canGestionarDestPorAlcance(user, currentDestResource))));
-  const canEditMeetingSchedule =
-    isDestacamentoAdmin && !isCreateView && estaDentroDelAlcance(user, currentDestResource);
-  const canSaveDest = canEditDest || canEditMeetingSchedule;
+  // La foto es informacion del destacamento: se rige por la misma regla que el
+  // resto de la ficha.
+  const canUploadDestPhoto = isCreateView
+    ? !isDestacamentoAdmin &&
+      (isLegacyAdmin ||
+        canCreateDestInSection(user) ||
+        canCreateDestByRole ||
+        (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
+          (estaDentroDelAlcance(user, currentDestResource) ||
+            canGestionarDestPorAlcance(user, currentDestResource))))
+    : isAdminGlobal(user);
+  const canSaveDest = canEditDest || canEditCoordinatorFields;
   // El admin de destacamento solo puede descargar la informacion de miembros de
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
   const canDownloadMembersInfo =
@@ -1053,6 +1068,7 @@ export function DestCreateEditForm({ currentDest }) {
                       watch={watch}
                       disabled={!canEditDest}
                       scheduleDisabled={!canSaveDest}
+                      coordinatorDisabled={!canSaveDest}
                     />
                   )}
                 </>
@@ -1065,11 +1081,15 @@ export function DestCreateEditForm({ currentDest }) {
                     watch={watch}
                     disabled={!canEditDest}
                     scheduleDisabled={!canSaveDest}
+                    coordinatorDisabled={!canSaveDest}
                   />
 
                   <Box sx={{ gridColumn: '1 / -1' }}>
                     <DashedAccordion title="Información de la iglesia">
-                      <ChurchDestSection disabled={!canEditDest} />
+                      <ChurchDestSection
+                        disabled={!canEditDest}
+                        contactDisabled={!canSaveDest}
+                      />
                     </DashedAccordion>
                   </Box>
                 </>

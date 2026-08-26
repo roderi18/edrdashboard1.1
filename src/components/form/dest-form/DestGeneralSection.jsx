@@ -18,7 +18,11 @@ export default function DestGeneralSection({
     methods,
     watch,
     disabled = false,
+    // El dia y la hora de reunion, el coordinador y el telefono los lleva el
+    // propio Coordinador de Destacamento; el resto de la ficha, solo el
+    // Administrador Global. Por eso van con su propio candado.
     scheduleDisabled = disabled,
+    coordinatorDisabled = disabled,
 }) {
     const params = useParams();
     const destId = params?.id;
@@ -87,9 +91,9 @@ export default function DestGeneralSection({
                 label="Iglesia"
                 disabled={disabled}
                 options={Array.isArray(churches) ? churches : []}
-                getOptionLabel={(option) =>
-                    option?.name ? `${option.name} (ID: ${option.id})` : ''
-                }
+                // El id no lo usa nadie para elegir una iglesia y ensuciaba el
+                // campo: "Iglesia Aposento Alto, A.D. (ID: 263)".
+                getOptionLabel={(option) => option?.name || ''}
                 isOptionEqualToValue={(option, value) => option.id === value?.id}
                 value={
                     Array.isArray(churches)
@@ -109,7 +113,7 @@ export default function DestGeneralSection({
             <Field.Autocomplete
                 name="coordinatorId"
                 label="Coordinador de Destacamento"
-                disabled={disabled}
+                disabled={coordinatorDisabled}
                 options={destMembers}
                 value={
                     watch('coordinatorId')
@@ -121,7 +125,7 @@ export default function DestGeneralSection({
                 }
                 isOptionEqualToValue={(option, value) => option.memberId === value?.memberId}
                 onChange={(_, value) => {
-                    if (disabled) return;
+                    if (coordinatorDisabled) return;
 
                     methods.setValue('coordinatorId', value?.memberId ?? null, {
                         shouldValidate: true,

@@ -77,3 +77,51 @@ export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } 
     idsDestinatariosPrecalculados: destinatarios,
   });
 }
+
+/**
+ * Aviso de que la ficha de un destacamento CAMBIO.
+ *
+ * El de arriba avisa de lo que esta pendiente de aprobar; este, de lo que ya se
+ * escribio. Modificar un destacamento lo hace el Administrador Global —y el
+ * Coordinador de Destacamento en sus cuatro campos—, y en ninguno de esos dos
+ * casos hay una propuesta que revisar: sin este aviso el cambio se enteraba
+ * quien lo hizo y nadie mas.
+ */
+export async function notificarDestacamentoActualizado({
+  destacamento = {},
+  cambios = [],
+  usuario = {},
+} = {}) {
+  const destinatarios = await obtenerDestinatarios();
+
+  if (!destinatarios.length) {
+    console.warn('[oficina-nacional] no hay nadie con el rol para avisar del cambio');
+    return null;
+  }
+
+  const quien =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Alguien';
+  const nombre = destacamento?.nombre || 'un destacamento';
+  // QUE cambio, no solo que hubo cambios: es lo que decide si hay que mirarlo.
+  const camposCambiados = (Array.isArray(cambios) ? cambios : [])
+    .map((cambio) => cambio?.etiqueta || cambio?.campo)
+    .filter(Boolean);
+  const detalle = camposCambiados.length ? `: ${camposCambiados.join(', ')}` : '';
+
+  return crearNotificacionAdmin({
+    tipoNotificacion: 'destacamento_actualizado',
+    modulo: 'destacamentos',
+    titulo: 'Destacamento actualizado',
+    mensaje: `${quien} modificó ${nombre}${detalle}.`,
+    prioridad: 'informativa',
+    entidadTipo: 'destacamento',
+    entidadId: String(destacamento?.id || ''),
+    ruta: destacamento?.id
+      ? `/dashboard/level/dest/${destacamento.id}/edit`
+      : '/dashboard/level/dest',
+    etiquetaAccion: 'Ver',
+    metadatos: { idDestacamento: destacamento?.id, campos: camposCambiados },
+    usuario,
+    idsDestinatariosPrecalculados: destinatarios,
+  });
+}

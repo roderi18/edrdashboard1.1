@@ -14,6 +14,7 @@ import {
 import { getChurches } from './church-service';
 import { getSectionals } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { notificarDestacamentoActualizado } from './notificar-oficina-nacional-service';
 import {
     AMBITOS_CAMBIO,
     ESTADOS_CAMBIO,
@@ -366,6 +367,7 @@ const escribirDestacamento = async (payload) => {
 
 export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
     const payload = buildDestPayload(data);
+    const cambios = compararParaHistorial(antes, data);
 
     // Modificar un destacamento lo aprueba la Oficina Nacional. Mientras no lo
     // haga, el cambio NO se escribe: queda como propuesta.
@@ -377,7 +379,7 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
             nombre: getDestAuditName(data),
             ruta: '/dashboard/level/dest',
         },
-        cambios: compararParaHistorial(antes, data),
+        cambios,
         usuario,
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
         payload: data,
@@ -385,11 +387,27 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
     });
 
     if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
+        // Queda pendiente: la puerta de cambios ya avisa a la Oficina Nacional y
+        // al Administrador Global de que hay algo que aprobar, asi que un segundo
+        // aviso aqui seria el mismo mensaje dos veces.
         return {
             pendienteDeAprobacion: true,
             idSolicitud: resultado.idSolicitud,
         };
     }
+
+    // Aplicado. Que el aviso falle no puede tumbar un guardado que ya se
+    // escribio, asi que va por detras y sin await.
+    notificarDestacamentoActualizado({
+        destacamento: {
+            id: data?.id ?? data?.idDestacamento ?? null,
+            nombre: getDestAuditName(data),
+        },
+        cambios,
+        usuario,
+    }).catch((error) => {
+        console.warn('[destacamentos] no se pudo avisar del cambio', error);
+    });
 
     // La puerta ya dejo constancia en Historial; no hace falta un segundo
     // registro aqui.

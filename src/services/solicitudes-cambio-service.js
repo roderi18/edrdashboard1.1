@@ -3,6 +3,7 @@ import { doc, query, where, setDoc, getDoc, getDocs, updateDoc, collection } fro
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSistema } from './audit-log-service';
+import { crearNotificacionUsuario } from './notification-service';
 import { notificarCambioPropuesto } from './notificar-oficina-nacional-service';
 
 // ----------------------------------------------------------------------
@@ -296,5 +297,53 @@ export async function resolverSolicitudCambio(
     comentarioResolucion: comentario,
   });
 
+  // Quien lo propuso se entera. Sin esto, mandaba su cambio y no volvia a saber
+  // nada: ni que se aplico ni por que no. Que el aviso falle no invalida una
+  // resolucion que ya quedo escrita, asi que va por detras.
+  notificarResolucionAlSolicitante({ solicitud, estado, comentario, actor, usuario }).catch(
+    (error) => {
+      console.warn('[cambios] no se pudo avisar al solicitante', error);
+    }
+  );
+
   return { ...solicitud, estado };
 }
+
+// ----------------------------------------------------------------------
+
+const notificarResolucionAlSolicitante = async ({
+  solicitud = {},
+  estado,
+  comentario = '',
+  actor = '',
+  usuario = {},
+} = {}) => {
+  const destinatario = String(solicitud?.solicitadoPorUid || '').trim();
+  const resolvioElMismo = destinatario && destinatario === String(usuario?.uid || usuario?.id || '');
+
+  // Sin quien lo propuso —propuestas viejas sin uid— no hay a quien avisar, y a
+  // quien resuelve su propia solicitud no hay nada que contarle.
+  if (!destinatario || resolvioElMismo) return null;
+
+  const aprobada = estado === ESTADOS_CAMBIO.aprobada;
+  const que = solicitud?.entidad?.nombre || 'la organización';
+  const quien = actor || 'La Oficina Nacional';
+  const motivo = String(comentario || '').trim();
+
+  return crearNotificacionUsuario({
+    tipoNotificacion: aprobada ? 'cambio_aprobado' : 'cambio_rechazado',
+    modulo: 'aprobaciones',
+    titulo: aprobada ? 'Cambio aprobado' : 'Cambio rechazado',
+    mensaje: aprobada
+      ? `${quien} aprobó tus cambios en ${que}. Ya están aplicados.`
+      : `${quien} rechazó tus cambios en ${que}.${motivo ? ` Motivo: ${motivo}` : ''}`,
+    prioridad: aprobada ? 'informativa' : 'importante',
+    actorNombre: quien,
+    entidadTipo: solicitud?.entidad?.tipo || 'solicitud_cambio',
+    entidadId: String(solicitud?.id || ''),
+    ruta: solicitud?.entidad?.ruta || '/dashboard',
+    etiquetaAccion: 'Ver',
+    metadatos: { idSolicitud: solicitud?.id, ambito: solicitud?.ambito, comentario: motivo },
+    idsDestinatarios: [destinatario],
+  });
+};

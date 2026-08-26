@@ -20,6 +20,10 @@ export default function ChurchDestSection({
     isCreateView,
     methods,
     disabled = false,
+    // El telefono y el correo de contacto los lleva tambien el Coordinador de
+    // Destacamento, asi que no comparten candado con el resto de la ficha de la
+    // iglesia.
+    contactDisabled = disabled,
     lockedSectional = null,
     // Ids de region a los que se acota el desplegable de Sección (Coordinador
     // Regional y Sub-Director Regional: solo las secciones de su propia región).
@@ -152,7 +156,7 @@ export default function ChurchDestSection({
                             {...field}
                             label="Teléfono"
                             defaultCountry="DO"
-                            disabled={disabled}
+                            disabled={contactDisabled}
                             inputProps={{ maxLength: 14 }}
                         />
                     )}
@@ -164,7 +168,7 @@ export default function ChurchDestSection({
                     name="correo"
                     label="Correo"
                     type="email"
-                    disabled={disabled}
+                    disabled={contactDisabled}
                 />
 
 
