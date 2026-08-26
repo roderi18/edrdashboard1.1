@@ -54,7 +54,7 @@ export const COLECCION_DISENOS_DIRECTIVA = 'disenosDirectiva';
 // declara el catalogo: nacional, regional y seccional. La regla vive alli, aqui
 // solo se aplica.
 const NOMBRE_CONSEJO = {
-  [DIRECTIVA_LEVELS.nacional]: 'el Consejo Nacional',
+  [DIRECTIVA_LEVELS.nacional]: 'el Consejo Ejecutivo',
   [DIRECTIVA_LEVELS.regional]: 'una directiva regional',
   [DIRECTIVA_LEVELS.seccional]: 'una directiva seccional',
 };
@@ -543,7 +543,7 @@ export async function guardarAsignacionDirectiva({
     orden,
   });
   // Un miembro sirve en UN solo consejo. Sin esta comprobacion se le podia dar
-  // un cargo seccional a quien ya estaba en el Consejo Nacional, y la persona
+  // un cargo seccional a quien ya estaba en el Consejo Ejecutivo, y la persona
   // aparecia dos veces en la lista de directivas con dos ambitos distintos.
   // Dar de baja (`activo: false`) nunca se bloquea: es justo lo que resuelve el
   // conflicto.

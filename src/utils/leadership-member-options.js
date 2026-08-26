@@ -137,7 +137,9 @@ const conPrefijo = (prefijo, nombre) => {
  * a buscar de cual se trata.
  */
 export const getEntidadDirectivaNombre = ({ nivel, idEntidad, index, nombreEntidad } = {}) => {
-  if (nivel === 'nacional') return 'el Consejo Nacional';
+  // Los cargos del nivel nacional son los del CONSEJO EJECUTIVO: es el cuerpo
+  // que los ocupa, y asi se nombra tambien en la lista de directivas.
+  if (nivel === 'nacional') return 'el Consejo Ejecutivo';
 
   // Quien ya tiene el nombre a mano lo pasa y se ahorra el indice.
   const dado = String(nombreEntidad || '').trim();
@@ -266,7 +268,7 @@ export const getLeadershipScopeLabel = ({ nivel, nombreEntidad = '' } = {}) => {
     return `Pertenecientes a la región${nombre ? ` ${nombre}` : ''}, mayores de edad`;
   }
 
-  return 'Pertenecientes al Consejo Nacional';
+  return 'Pertenecientes al Consejo Ejecutivo';
 };
 
 /**
