@@ -87,7 +87,9 @@ export function LeadershipAssignDialog({
                   key={key}
                   component="li"
                   {...liProps}
-                  sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.5 : 1, ...liProps.sx }}
+                  // Apagado lo justo para distinguirse: a 0.5 el texto no se
+                  // leia, que es peor que no atenuarlo.
+                  sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.75 : 1, ...liProps.sx }}
                 >
                   <Avatar
                     alt={option.nombre}
@@ -107,7 +109,11 @@ export function LeadershipAssignDialog({
                         pertenece. El de OTRA directiva no impide elegirla: al
                         asignar se pregunta si se le quita de alli. */}
                     {(option.rolActual || option.rolEnOtroConsejo) && (
-                      <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
+                      <Typography
+                        variant="caption"
+                        component="div"
+                        sx={{ color: 'text.secondary', fontWeight: 'fontWeightSemiBold' }}
+                      >
                         Ya es {option.rolActual || option.rolEnOtroConsejo}
                       </Typography>
                     )}

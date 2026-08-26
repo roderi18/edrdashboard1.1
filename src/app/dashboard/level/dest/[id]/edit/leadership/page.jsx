@@ -1790,7 +1790,7 @@ export default function Page() {
                     key={key}
                     component="li"
                     {...liProps}
-                    sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.5 : 1, ...liProps.sx }}
+                    sx={{ alignItems: 'flex-start', opacity: ocupado ? 0.75 : 1, ...liProps.sx }}
                   >
                     <Avatar
                       alt={option.nombre}
@@ -1811,7 +1811,7 @@ export default function Page() {
                         <Typography
                           variant="caption"
                           component="div"
-                          sx={{ color: 'text.secondary' }}
+                          sx={{ color: 'text.secondary', fontWeight: 'fontWeightSemiBold' }}
                         >
                           Ya es {option.rolActual || option.rolEnOtroConsejo}
                         </Typography>
