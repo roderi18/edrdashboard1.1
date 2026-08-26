@@ -52,8 +52,15 @@ const getSectionalOwnIds = (sectional = {}) =>
 const getSectionalRegionId = (sectional = {}) =>
   normalizeId(sectional?.idRegion ?? sectional?.regionalId ?? sectional?.regionId);
 
-const getDestName = (dest = {}) =>
-  String(dest?.nombre ?? dest?.name ?? '').trim() || 'Destacamento desconocido';
+// CON EL NUMERO cuando lo hay: "Tribu de Judá" a secas no distingue un
+// destacamento de otro que se llame igual, que es justo lo que el numero
+// resuelve. Es tambien como se nombran en la lista de miembros.
+const getDestName = (dest = {}) => {
+  const nombre = String(dest?.nombre ?? dest?.name ?? dest?.destName ?? '').trim();
+  const numero = String(dest?.destNumber ?? dest?.numero ?? dest?.number ?? '').trim();
+
+  return [nombre, numero].filter(Boolean).join(' ') || 'Destacamento desconocido';
+};
 
 const getSectionalName = (sectional = {}) =>
   String(sectional?.nombre ?? sectional?.sectionalName ?? sectional?.name ?? '').trim() ||
