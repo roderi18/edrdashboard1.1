@@ -37,6 +37,7 @@ import {
   isFullOrgManager,
   getSectionScopeIds,
   isRegionScopedCreator,
+  isRegionScopedManager,
   canCreateDestInSection,
   isSectionScopedManager,
   canEditDest as canGestionarDestPorAlcance,
@@ -405,10 +406,18 @@ export function DestCreateEditForm({ currentDest }) {
         (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
           (estaDentroDelAlcance(user, currentDestResource) ||
             canGestionarDestPorAlcance(user, currentDestResource))))
-    : isAdminGlobal(user) || canEditCoordinatorFields;
+    : isAdminGlobal(user) ||
+      canEditCoordinatorFields ||
+      // La foto tambien la sugieren los cargos de seccion y region: son quienes
+      // acompañan al destacamento y muchas veces tienen la imagen antes que el.
+      isSectionScopedManager(user) ||
+      isRegionScopedManager(user) ||
+      isRegionScopedCreator(user);
   // Sus cambios no se aplican: van a la bandeja de la Oficina Nacional. Vale
   // para la foto y para los campos que si puede tocar.
   const soloSugiereCambios = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
+  // La foto la sugiere TODO el que no puede aplicarla, no solo el destacamento.
+  const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canUploadDestPhoto;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
   // El admin de destacamento solo puede descargar la informacion de miembros de
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
@@ -571,7 +580,7 @@ export function DestCreateEditForm({ currentDest }) {
       // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
       // queda como esta. Devolver la url nueva pintaria en pantalla un cambio
       // que todavia no existe, asi que se conserva la de antes.
-      if (soloSugiereCambios) {
+      if (soloSugiereFoto) {
         const propuesta = await subirFotoEntidadPropuesta({
           file,
           tipoEntidad: 'destacamento',
@@ -851,7 +860,7 @@ export function DestCreateEditForm({ currentDest }) {
                     {/* A quien solo puede sugerirla, decirle los formatos no le
                         aclara lo que de verdad necesita saber: que la foto no
                         cambia hasta que la aprueben. */}
-                    {soloSugiereCambios ? (
+                    {soloSugiereFoto ? (
                       'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
                     ) : (
                       <>

@@ -192,6 +192,27 @@ service firebase.storage {
         ];
     }
 
+    // Quien puede SUGERIR una foto: los coordinadores y sus asistentes de
+    // destacamento, seccion y region. No es el permiso de cambiarla —esa sigue
+    // pidiendo `destacamentos.subir_foto` en la carpeta de la entidad—, sino el
+    // de dejar una propuesta a la espera de que la Oficina Nacional o el
+    // Administrador Global la aprueben.
+    function puedeSugerirFoto() {
+      return esAdministradorGlobal()
+        || (
+          tieneDocumento('usuarios_roles')
+          && rolDeUsuario() in [
+            'usuario_destacamento',
+            'usuario_destacamento_asistente',
+            'usuario_seccion',
+            'usuario_seccion_asistente',
+            'usuario_region',
+            'usuario_region_asistente',
+            'oficina_nacional'
+          ]
+        );
+    }
+
     // Cargos que pueden SUBIR documentos de salud: coordinadores de destacamento y
     // el resto de cargos del destacamento (pastor, consejo, capellán, líderes),
     // más seccion/region.
@@ -400,7 +421,7 @@ service firebase.storage {
     // archivo que dejo subido.
     match /propuestas/destacamentos/{idDestacamento}/{propuesta}/{archivo} {
       allow read: if estaAutenticado();
-      allow create, update: if estaAutenticado()
+      allow create, update: if puedeSugerirFoto()
         && esArchivoPerfil(archivo)
         && esImagenPermitida();
       allow delete: if esAdministradorGlobal()
