@@ -45,15 +45,19 @@ import {
 import {
   buildOrgIndex,
   getLeadershipScopeLabel,
+  describirCargoDeDirectiva,
   buildLeadershipMemberOptions,
 } from 'src/utils/leadership-member-options';
 
 import { authHeaders } from 'src/services/member-service';
+import { getRegionals } from 'src/services/regional-service';
+import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS, getOrganigramaDestSlot } from 'src/catalogs/directiva-positions';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
   desactivarAsignacionesDirectivaPorNivel,
+  obtenerAsignacionesDirectivaMiembros,
 } from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
@@ -871,6 +875,14 @@ export default function Page() {
   const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSavingMember, setIsSavingMember] = useState(false);
+  // Cargos que los miembros ocupan en las directivas de seccion, region y nacion,
+  // y el indice para poder nombrar esas entidades. Aqui no estorban —el
+  // destacamento es compatible con ellas— pero se dicen, igual que en los demas
+  // organigramas.
+  const [asignacionesDeDirectiva, setAsignacionesDeDirectiva] = useState([]);
+  const [orgIndexDirectivas, setOrgIndexDirectivas] = useState(() => buildOrgIndex({}));
+  // Miembro elegido que ya tiene cargo: espera el "si, quitaselo".
+  const [traspasoPendiente, setTraspasoPendiente] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -918,7 +930,14 @@ export default function Page() {
       const asignacion = assignments[getAssignmentKey(node.asignacionOrganigrama)];
 
       if (asignacion?.idMiembros) {
-        porMiembro.set(String(asignacion.idMiembros), node.role || 'un cargo del organigrama');
+        porMiembro.set(
+          String(asignacion.idMiembros),
+          describirCargoDeDirectiva({
+            nombreCargo: node.role,
+            nivel: NIVEL_DESTACAMENTO,
+            nombreEntidad: destNombreCompleto,
+          })
+        );
       }
 
       (node.children || []).forEach(recorrer);
@@ -929,6 +948,32 @@ export default function Page() {
     return porMiembro;
   }, [assignments]);
 
+  // Cargo que cada miembro ocupa en una directiva de seccion, region o nacion.
+  // No impide asignarlo aqui: se dice, y punto.
+  const ocupantesEnOtraDirectiva = useMemo(() => {
+    const porMiembro = new Map();
+
+    asignacionesDeDirectiva.forEach((asignacion) => {
+      if (!asignacion?.idMiembro) return;
+
+      const position = DIRECTIVA_POSITIONS.find(
+        (item) => item.idCargo === asignacion.idPosicionDirectiva
+      );
+
+      porMiembro.set(
+        String(asignacion.idMiembro),
+        describirCargoDeDirectiva({
+          nombreCargo: position?.nombreCargo,
+          nivel: asignacion.nivel,
+          idEntidad: asignacion.idEntidad,
+          index: orgIndexDirectivas,
+        })
+      );
+    });
+
+    return porMiembro;
+  }, [asignacionesDeDirectiva, orgIndexDirectivas]);
+
   // Miembros que se ofrecen en el desplegable: SOLO los de este destacamento.
   const memberOptions = useMemo(
     () =>
@@ -938,9 +983,10 @@ export default function Page() {
         idEntidad: destId,
         index: buildOrgIndex({}),
         ocupantesPorMiembro,
+        ocupantesEnOtroConsejo: ocupantesEnOtraDirectiva,
         idMiembroActual: getMemberId(selectedNode?.miembroAsignado),
       }),
-    [members, destId, ocupantesPorMiembro, selectedNode]
+    [members, destId, ocupantesPorMiembro, ocupantesEnOtraDirectiva, selectedNode]
   );
 
   useEffect(() => {
@@ -1030,6 +1076,33 @@ export default function Page() {
 
     return () => {
       document.removeEventListener('pointerdown', handleClickAwayPopover, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    const cargarCargosDeSupervision = async () => {
+      const [asignaciones, sectionals, regionals] = await Promise.all([
+        obtenerAsignacionesDirectivaMiembros().catch(() => []),
+        getSectionals({ includePhotos: false }).catch(() => []),
+        getRegionals().catch(() => []),
+      ]);
+
+      if (cancelado) return;
+
+      setAsignacionesDeDirectiva(
+        (Array.isArray(asignaciones) ? asignaciones : []).filter(
+          (asignacion) => asignacion?.nivel && asignacion.nivel !== NIVEL_DESTACAMENTO
+        )
+      );
+      setOrgIndexDirectivas(buildOrgIndex({ sectionals, regionals }));
+    };
+
+    cargarCargosDeSupervision();
+
+    return () => {
+      cancelado = true;
     };
   }, []);
 
@@ -1228,6 +1301,35 @@ export default function Page() {
     } finally {
       setIsSavingMember(false);
     }
+  };
+
+  // Igual que en seccion, region y nacion: si el miembro ya ocupa OTRA casilla de
+  // este organigrama se pregunta antes, porque asignarlo aqui se la quita. El
+  // cargo de una directiva de supervision no se toca —son compatibles—, asi que
+  // ese no pregunta nada.
+  const pedirAsignarMiembro = () => {
+    const memberId = getMemberId(selectedMember);
+
+    if (!memberId) {
+      toast.warning('Selecciona un miembro para asignarlo al rol.');
+      return;
+    }
+
+    const yaEstaEnEsteNodo =
+      String(getMemberId(selectedNode?.miembroAsignado) ?? '') === String(memberId);
+    const cargoQueOcupa = ocupantesPorMiembro.get(String(memberId));
+
+    if (cargoQueOcupa && !yaEstaEnEsteNodo) {
+      setTraspasoPendiente({ cargoQueOcupa, miembro: selectedMember, node: selectedNode });
+      return;
+    }
+
+    handleSaveMemberAssignment();
+  };
+
+  const confirmarTraspaso = () => {
+    setTraspasoPendiente(null);
+    handleSaveMemberAssignment();
   };
 
   const handleOpenRemoveMember = (node) => {
@@ -1697,9 +1799,21 @@ export default function Page() {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle2">{option.nombre}</Typography>
 
+                      {/* Mismas dos lineas que en seccion, region y nacion: de
+                          donde viene y que cargo ocupa ya, con su entidad. */}
                       <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                        {option.rolActual ? `Ya es ${option.rolActual}` : option.subtitulo}
+                        {option.subtitulo}
                       </Typography>
+
+                      {(option.rolActual || option.rolEnOtroConsejo) && (
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{ color: 'text.secondary' }}
+                        >
+                          Ya es {option.rolActual || option.rolEnOtroConsejo}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
                 );
@@ -1733,7 +1847,7 @@ export default function Page() {
           <Button
             variant="contained"
             disabled={!selectedMember || isSavingMember}
-            onClick={handleSaveMemberAssignment}
+            onClick={pedirAsignarMiembro}
           >
             Asignar
           </Button>
@@ -1758,6 +1872,35 @@ export default function Page() {
         <DialogActions>
           <Button variant="contained" onClick={() => setRoleInfoNode(null)}>
             Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ya ocupa otra casilla de este organigrama: asignarlo aqui se la quita,
+          asi que se dice antes. Mismo dialogo que en las demas directivas. */}
+      <Dialog
+        open={Boolean(traspasoPendiente)}
+        onClose={() => setTraspasoPendiente(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Ya tiene un cargo</DialogTitle>
+
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            <Box component="strong" sx={{ color: 'text.primary' }}>
+              {getMemberName(traspasoPendiente?.miembro) || 'Este miembro'}
+            </Box>{' '}
+            ya es {traspasoPendiente?.cargoQueOcupa}. ¿Quieres quitárselo y asignarle el cargo de{' '}
+            {traspasoPendiente?.node?.role || 'este organigrama'}?
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setTraspasoPendiente(null)}>Cancelar</Button>
+
+          <Button variant="contained" onClick={confirmarTraspaso}>
+            Sí, moverlo aquí
           </Button>
         </DialogActions>
       </Dialog>

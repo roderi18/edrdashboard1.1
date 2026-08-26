@@ -679,14 +679,14 @@ export function RegionalLeadershipView() {
       <ConfirmDialog
         open={Boolean(leadership.traspasoPendiente)}
         onClose={leadership.cancelarTraspaso}
-        title="Ya tiene un cargo en otro consejo"
+        title="Ya tiene un cargo"
         content={
           <>
             <strong>
               {getMemberDisplayName(leadership.traspasoPendiente?.miembro) || 'Este miembro'}
             </strong>{' '}
-            ya es {leadership.traspasoPendiente?.cargoEnOtroConsejo}. ¿Quieres quitárselo y
-            asignarle el cargo de {leadership.traspasoPendiente?.node?.role || 'esta directiva'}?
+            ya es {leadership.traspasoPendiente?.cargoQueOcupa}. ¿Quieres quitárselo y asignarle el
+            cargo de {leadership.traspasoPendiente?.node?.role || 'esta directiva'}?
           </>
         }
         action={

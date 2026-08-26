@@ -3,7 +3,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
-import { buildOrgIndex, buildLeadershipMemberOptions } from 'src/utils/leadership-member-options';
+import {
+  buildOrgIndex,
+  describirCargoDeDirectiva,
+  buildLeadershipMemberOptions,
+} from 'src/utils/leadership-member-options';
 import {
   buscarPosicionPorNodo,
   normalizarIdAsignacion,
@@ -21,7 +25,6 @@ import { getNivelesARetirar, DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-
 import {
   esNivelDeConsejo,
   guardarAsignacionDirectiva,
-  describirConflictoDeConsejo,
   obtenerAsignacionesDirectiva,
   obtenerAsignacionesDirectivaMiembros,
   desactivarAsignacionesDirectivaPorNivel,
@@ -196,12 +199,17 @@ export function useLeadershipAssignments({
 
       porMiembro.set(
         normalizarIdAsignacion(asignacion.idMiembro),
-        position?.nombreCargo || 'un cargo de esta directiva'
+        describirCargoDeDirectiva({
+          nombreCargo: position?.nombreCargo,
+          nivel,
+          idEntidad,
+          index: orgIndex,
+        })
       );
     });
 
     return porMiembro;
-  }, [assignments]);
+  }, [assignments, nivel, idEntidad, orgIndex]);
 
   // Cargo que ya ocupa cada miembro en OTRO consejo. No deshabilita: al elegir a
   // esa persona se pregunta si se le quita de alli, igual que al remover.
@@ -211,14 +219,25 @@ export function useLeadershipAssignments({
     asignacionesDeConsejo.forEach((asignacion) => {
       if (!asignacion?.idMiembro) return;
 
+      const position = DIRECTIVA_POSITIONS.find(
+        (item) =>
+          normalizarIdAsignacion(item.idCargo) ===
+          normalizarIdAsignacion(asignacion.idPosicionDirectiva)
+      );
+
       porMiembro.set(
         normalizarIdAsignacion(asignacion.idMiembro),
-        describirConflictoDeConsejo(asignacion)
+        describirCargoDeDirectiva({
+          nombreCargo: position?.nombreCargo,
+          nivel: asignacion.nivel,
+          idEntidad: asignacion.idEntidad,
+          index: orgIndex,
+        })
       );
     });
 
     return porMiembro;
-  }, [asignacionesDeConsejo]);
+  }, [asignacionesDeConsejo, orgIndex]);
 
   // Memoizado a proposito: sin esto las opciones se recreaban en cada render y el
   // Autocomplete perdia la seleccion recien hecha.
@@ -407,16 +426,23 @@ export function useLeadershipAssignments({
       return;
     }
 
-    // Sirve en otro consejo: se puede elegir, pero no se le mueve a espaldas de
-    // quien asigna. Se pregunta primero, igual que al remover.
-    const cargoEnOtroConsejo = ocupantesEnOtroConsejo.get(idMiembro);
+    // Ya tiene cargo —en esta directiva o en otra—: se puede elegir, pero no se
+    // le mueve a espaldas de quien asigna. Se pregunta primero, igual que al
+    // remover. El cargo anterior se retira al confirmar.
+    // Quien YA ocupa este mismo nodo no se pregunta: no se le mueve de ningun
+    // sitio, se esta reescribiendo la misma casilla.
+    const asignado = getAssignedMember(selectedNode?.id);
+    const yaEstaEnEsteNodo =
+      normalizarIdAsignacion(asignado?.id ?? asignado?.idMiembros) === idMiembro;
+    const cargoQueOcupa =
+      ocupantesPorMiembro.get(idMiembro) || ocupantesEnOtroConsejo.get(idMiembro);
 
-    if (cargoEnOtroConsejo) {
+    if (cargoQueOcupa && !yaEstaEnEsteNodo) {
       setTraspasoPendiente({
         node: selectedNode,
         idMiembro,
         miembro: selectedMember,
-        cargoEnOtroConsejo,
+        cargoQueOcupa,
       });
 
       return;
@@ -425,7 +451,14 @@ export function useLeadershipAssignments({
     if (await guardar({ node: selectedNode, idMiembro, miembro: selectedMember, activo: true })) {
       toast.success('Miembro asignado correctamente.');
     }
-  }, [guardar, ocupantesEnOtroConsejo, selectedMember, selectedNode]);
+  }, [
+    guardar,
+    getAssignedMember,
+    ocupantesPorMiembro,
+    ocupantesEnOtroConsejo,
+    selectedMember,
+    selectedNode,
+  ]);
 
   // --- Traspaso: confirmar que se le quita del otro consejo ---
 

@@ -114,6 +114,78 @@ export const buildOrgIndex = ({
   return { destById, sectionalById, sectionIdByDestId, regionIdBySectionId, regionalById };
 };
 
+// Los nombres de region y seccion suelen traer ya la palabra ("Región Este"),
+// asi que anteponerla otra vez daria "Región Región Este".
+const conPrefijo = (prefijo, nombre) => {
+  const limpio = String(nombre || '').trim();
+
+  if (!limpio) return '';
+
+  return limpio.toLowerCase().startsWith(prefijo.toLowerCase()) ? limpio : `${prefijo} ${limpio}`;
+};
+
+/**
+ * A QUE entidad pertenece una directiva: "Región Central", "Sección Este
+ * Oriental I", "Tribu de Judá". Decir solo "una directiva regional" obliga a ir
+ * a buscar de cual se trata.
+ */
+export const getEntidadDirectivaNombre = ({ nivel, idEntidad, index, nombreEntidad } = {}) => {
+  if (nivel === 'nacional') return 'el Consejo Nacional';
+
+  // Quien ya tiene el nombre a mano lo pasa y se ahorra el indice.
+  const dado = String(nombreEntidad || '').trim();
+
+  if (dado) {
+    return nivel === 'regional'
+      ? conPrefijo('Región', dado)
+      : (nivel === 'seccional' && conPrefijo('Sección', dado)) || dado;
+  }
+
+  const id = normalizeId(idEntidad);
+
+  if (nivel === 'regional') {
+    const regional = index?.regionalById?.get(id);
+
+    return conPrefijo('Región', regional ? getRegionalName(regional) : '') || 'una región';
+  }
+
+  if (nivel === 'seccional') {
+    const sectional = index?.sectionalById?.get(id);
+
+    return conPrefijo('Sección', sectional ? getSectionalName(sectional) : '') || 'una sección';
+  }
+
+  if (nivel === 'destacamento') {
+    const dest = index?.destById?.get(id);
+
+    return dest ? getDestName(dest) : 'un destacamento';
+  }
+
+  return 'otra directiva';
+};
+
+// Con su articulo, para poder pegarlo detras de "en": "en la Región Central".
+const conArticulo = (nivel, entidad) => {
+  if (nivel === 'nacional') return entidad;
+  if (nivel === 'destacamento') return `el destacamento ${entidad}`;
+
+  return `la ${entidad}`;
+};
+
+/** "Coordinador de Adiestramiento en la Región Central". */
+export const describirCargoDeDirectiva = ({
+  nombreCargo,
+  nivel,
+  idEntidad,
+  index,
+  nombreEntidad,
+} = {}) => {
+  const cargo = String(nombreCargo || '').trim() || 'un cargo';
+  const entidad = getEntidadDirectivaNombre({ nivel, idEntidad, index, nombreEntidad });
+
+  return `${cargo} en ${conArticulo(nivel, entidad)}`;
+};
+
 // Destacamento, seccion y region a los que pertenece un miembro.
 export const getMemberOrgPath = (member, index) => {
   const destId = getDestIdOf(member);
@@ -193,8 +265,9 @@ export const getLeadershipScopeLabel = ({ nivel, nombreEntidad = '' } = {}) => {
 /**
  * Opciones del desplegable, ya filtradas y ordenadas.
  *
- * @param ocupantesPorMiembro Map/objeto idMiembro -> nombre del cargo que ocupa.
- *   Quien aparezca ahi se muestra al final, deshabilitado.
+ * @param ocupantesPorMiembro Map/objeto idMiembro -> cargo que ocupa en ESTA
+ *   directiva. Se muestra al final de la lista, pero se puede elegir: al hacerlo
+ *   se pregunta si de verdad se le cambia de cargo.
  * @param ocupantesEnOtroConsejo Map/objeto idMiembro -> cargo que ocupa en OTRO
  *   consejo. Se puede elegir: al hacerlo se pregunta si de verdad se le quita de
  *   alli. Solo se avisa, no se bloquea.
@@ -245,14 +318,21 @@ export const buildLeadershipMemberOptions = ({
         subtitulo: buildSubtitulo({ nivel, member, path }),
         rolActual,
         rolEnOtroConsejo,
-        disabled: Boolean(rolActual),
+        // NADIE sale bloqueado. Deshabilitar la opcion dejaba sin salida: no
+        // habia forma de mover a alguien de un cargo a otro desde el
+        // organigrama, y quien mira no sabia por que no podia elegirlo. Ahora se
+        // elige y se pregunta antes de quitarle el cargo que ya tiene.
+        disabled: false,
       };
     })
     .filter(Boolean);
 
   // Libres primero (alfabetico); los que ya tienen cargo, al final.
   return opciones.sort((a, b) => {
-    if (a.disabled !== b.disabled) return a.disabled ? 1 : -1;
+    const aOcupado = Boolean(a.rolActual || a.rolEnOtroConsejo);
+    const bOcupado = Boolean(b.rolActual || b.rolEnOtroConsejo);
+
+    if (aOcupado !== bOcupado) return aOcupado ? 1 : -1;
     return a.nombre.localeCompare(b.nombre, 'es');
   });
 };

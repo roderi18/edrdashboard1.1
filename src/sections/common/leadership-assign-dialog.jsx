@@ -94,15 +94,17 @@ export function LeadershipAssignDialog({
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2">{option.nombre}</Typography>
 
+                    {/* De donde viene la persona. */}
                     <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                      {option.rolActual ? `Ya es ${option.rolActual}` : option.subtitulo}
+                      {option.subtitulo}
                     </Typography>
 
-                    {/* Cargo en otro consejo: se avisa, pero la opcion se puede
-                        elegir. Al asignar se pregunta si se le quita de alli. */}
-                    {!option.rolActual && option.rolEnOtroConsejo && (
-                      <Typography variant="caption" component="div" sx={{ color: 'warning.main' }}>
-                        Ya es {option.rolEnOtroConsejo}
+                    {/* Cargo que ya ocupa, con la seccion o region a la que
+                        pertenece. El de OTRA directiva no impide elegirla: al
+                        asignar se pregunta si se le quita de alli. */}
+                    {(option.rolActual || option.rolEnOtroConsejo) && (
+                      <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
+                        Ya es {option.rolActual || option.rolEnOtroConsejo}
                       </Typography>
                     )}
                   </Box>
