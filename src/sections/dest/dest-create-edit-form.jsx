@@ -754,21 +754,30 @@ export function DestCreateEditForm({ currentDest }) {
           };
 
           if (miembroSeleccionado?.id) {
-            await guardarAsignacionDirectiva({
+            const guardada = await guardarAsignacionDirectiva({
               ...datosAsignacion,
               idMiembro: Number(miembroSeleccionado.id),
               activo: true,
               ...construirResumenMiembro(miembroSeleccionado),
             });
-            setCoordinatorFromDb(miembroSeleccionado.memberId);
+
+            // Pendiente de aprobacion: el cargo NO ha cambiado todavia, asi que
+            // la ficha sigue mostrando al coordinador de antes. Pintarlo ya
+            // seria decir que esta hecho.
+            if (!guardada?.pendienteDeAprobacion) {
+              setCoordinatorFromDb(miembroSeleccionado.memberId);
+            }
           } else if (coordinadorActual?.idMiembro) {
             // Se limpio el coordinador: dar de baja la asignacion existente.
-            await guardarAsignacionDirectiva({
+            const guardada = await guardarAsignacionDirectiva({
               ...datosAsignacion,
               idMiembro: coordinadorActual.idMiembro,
               activo: false,
             });
-            setCoordinatorFromDb(null);
+
+            if (!guardada?.pendienteDeAprobacion) {
+              setCoordinatorFromDb(null);
+            }
           }
         } catch (coordError) {
           console.warn('[dest form] no se pudo guardar el coordinador del destacamento', coordError);
@@ -776,7 +785,12 @@ export function DestCreateEditForm({ currentDest }) {
         }
       }
 
-      if (resolvedDestId) {
+      // NADA DE ESTO SE ESPEJA EN LOCALSTORAGE SI AUN NO SE APLICO. El espejo
+      // local manda sobre lo que devuelve el API para el coordinador y la foto
+      // (ver getDestsApi), asi que guardar aqui una propuesta pendiente pintaba
+      // el cambio como hecho: la lista mostraba el coordinador nuevo mientras la
+      // Oficina Nacional todavia lo estaba mirando.
+      if (resolvedDestId && !resultadoDest?.pendienteDeAprobacion) {
         saveDest({
           ...(currentDest || {}),
           ...destPayloadData,
