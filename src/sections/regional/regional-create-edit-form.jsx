@@ -269,7 +269,15 @@ export function RegionalCreateEditForm({ currentRegional }) {
         null;
 
       if (idRegion) {
-        await guardarDirectorRegional({ idRegion, nombreRegion: data.name, idMiembro: getValues('directorId') });
+        // La region ya quedo guardada: si el director choca con otro consejo, se
+        // dice POR QUE en vez de dejar caer un "error al guardar la region" que
+        // ademas seria falso.
+        try {
+          await guardarDirectorRegional({ idRegion, nombreRegion: data.name, idMiembro: getValues('directorId') });
+        } catch (error) {
+          console.error('[region] no se pudo asignar el director', error);
+          toast.error(error?.message || 'No se pudo asignar el director regional.');
+        }
       }
 
       if (currentRegional) {

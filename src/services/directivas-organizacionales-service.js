@@ -25,6 +25,7 @@ import {
   DIRECTIVA_DIVISIONS,
   CARGOS_DIRECTIVA_BASE,
   DIRECTIVA_DIVISION_NAMES,
+  NIVELES_CARGO_EXCLUYENTES,
 } from 'src/catalogs/directiva-positions';
 
 // ----------------------------------------------------------------------
@@ -48,6 +49,49 @@ export const COLECCION_CARGOS_DIRECTIVA_OBSOLETA = 'cargosDirectiva';
 export const COLECCION_DIRECTIVAS_ORGANIZACIONALES = 'directivasOrganizacionales';
 export const COLECCION_ASIGNACIONES_DIRECTIVA = 'asignacionesDirectiva';
 export const COLECCION_DISENOS_DIRECTIVA = 'disenosDirectiva';
+
+// Los tres consejos de supervision son los mismos niveles excluyentes que ya
+// declara el catalogo: nacional, regional y seccional. La regla vive alli, aqui
+// solo se aplica.
+const NOMBRE_CONSEJO = {
+  [DIRECTIVA_LEVELS.nacional]: 'el Consejo Nacional',
+  [DIRECTIVA_LEVELS.regional]: 'una directiva regional',
+  [DIRECTIVA_LEVELS.seccional]: 'una directiva seccional',
+};
+
+export const esNivelDeConsejo = (nivel) => NIVELES_CARGO_EXCLUYENTES.includes(nivel);
+
+/**
+ * Cargo de consejo que ya ocupa el miembro y que impide darle otro, o null.
+ *
+ * `idAsignacionActual` es la asignacion que se esta guardando: reescribir la
+ * misma casilla no es un conflicto consigo misma.
+ */
+export async function buscarConflictoDeConsejo({
+  idMiembro,
+  idAsignacionActual = '',
+} = {}) {
+  if (!idMiembro) return null;
+
+  const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
+
+  return (
+    asignaciones.find(
+      (asignacion) =>
+        esNivelDeConsejo(asignacion?.nivel) &&
+        String(asignacion.idAsignacion || asignacion.id) !== String(idAsignacionActual)
+    ) || null
+  );
+}
+
+export const describirConflictoDeConsejo = (conflicto) => {
+  const cargo = POSICION_POR_ID_CARGO.get(normalizarTexto(conflicto?.idPosicionDirectiva));
+  const donde = NOMBRE_CONSEJO[conflicto?.nivel] || 'otro consejo';
+
+  return cargo?.nombreCargo
+    ? `${cargo.nombreCargo} en ${donde}`
+    : `un cargo en ${donde}`;
+};
 
 export const NIVELES_DIRECTIVA = DIRECTIVA_LEVELS;
 export const DIVISIONES_DIRECTIVA = DIRECTIVA_DIVISIONS;
@@ -480,6 +524,11 @@ export async function guardarAsignacionDirectiva({
   nombreMiembro = '',
   codigoMiembro = '',
   fotoMiembro = '',
+  // Solo para el selector de cargo de la ficha del miembro, que CAMBIA el cargo
+  // (guarda el nuevo y retira el anterior en el mismo envio). Ahi el estado final
+  // sigue siendo un unico consejo, asi que bloquearlo dejaria la ficha sin manera
+  // de mover a nadie de seccion a region.
+  reemplazarCargoDeConsejo = false,
 } = {}) {
   asegurarFirebaseDirectivas();
 
@@ -493,6 +542,24 @@ export async function guardarAsignacionDirectiva({
     division,
     orden,
   });
+  // Un miembro sirve en UN solo consejo. Sin esta comprobacion se le podia dar
+  // un cargo seccional a quien ya estaba en el Consejo Nacional, y la persona
+  // aparecia dos veces en la lista de directivas con dos ambitos distintos.
+  // Dar de baja (`activo: false`) nunca se bloquea: es justo lo que resuelve el
+  // conflicto.
+  if (activo && !reemplazarCargoDeConsejo && idMiembroResolved && esNivelDeConsejo(nivel)) {
+    const conflicto = await buscarConflictoDeConsejo({
+      idMiembro: idMiembroResolved,
+      idAsignacionActual: idAsignacion,
+    });
+
+    if (conflicto) {
+      throw new Error(
+        `Ya ocupa ${describirConflictoDeConsejo(conflicto)}. Retírelo de ese cargo antes de asignarle otro: nadie puede estar en dos consejos a la vez.`
+      );
+    }
+  }
+
   // Copia del ocupante cuando quien llama no la trae. Sin esto la asignacion se
   // guardaba con el nombre en blanco —le pasaba a todo llamador que solo tuviera
   // el id a mano— y cualquier vista que confie en la copia en vez de resolverla

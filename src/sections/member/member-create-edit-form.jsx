@@ -1320,6 +1320,9 @@ export function MemberCreateEditForm({
       fechaFin: null,
       activo: true,
       usuario: user,
+      // Aqui se CAMBIA el cargo: el bloque de abajo retira el de los otros
+      // consejos acto seguido, asi que la persona nunca queda en dos.
+      reemplazarCargoDeConsejo: true,
     });
 
     // Baja de las asignaciones ANTERIORES. Se retiran las del propio nivel (el id

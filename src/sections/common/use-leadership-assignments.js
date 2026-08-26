@@ -19,8 +19,11 @@ import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
+  esNivelDeConsejo,
   guardarAsignacionDirectiva,
+  describirConflictoDeConsejo,
   obtenerAsignacionesDirectiva,
+  obtenerAsignacionesDirectivaMiembros,
   desactivarAsignacionesDirectivaPorNivel,
 } from 'src/services/directivas-organizacionales-service';
 
@@ -88,6 +91,9 @@ export function useLeadershipAssignments({
   const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
   // Asignaciones activas de esta directiva, indexadas por idPosicionDirectiva.
   const [assignments, setAssignments] = useState({});
+  // Cargos de consejo de OTRAS entidades: quien figure aqui no puede recibir uno
+  // en esta directiva.
+  const [asignacionesDeConsejo, setAsignacionesDeConsejo] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [nodoARemover, setNodoARemover] = useState(null);
@@ -134,6 +140,24 @@ export function useLeadershipAssignments({
     const rows = await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => []);
 
     setAssignments(indexarAsignacionesPorPosicion(rows));
+
+    // Cargos de consejo FUERA de esta directiva. Nadie sirve en dos consejos a la
+    // vez, asi que quien ya este en uno tiene que salir deshabilitado aqui: el
+    // servicio lo rechaza igualmente, pero enterarse al pulsar "Asignar" es tarde.
+    if (!esNivelDeConsejo(nivel)) {
+      setAsignacionesDeConsejo([]);
+      return;
+    }
+
+    const todas = await obtenerAsignacionesDirectivaMiembros().catch(() => []);
+
+    setAsignacionesDeConsejo(
+      todas.filter(
+        (asignacion) =>
+          esNivelDeConsejo(asignacion?.nivel) &&
+          !(asignacion?.nivel === nivel && String(asignacion?.idEntidad || '') === String(idEntidad || ''))
+      )
+    );
   }, [nivel, idEntidad]);
 
   useEffect(() => {
@@ -158,6 +182,17 @@ export function useLeadershipAssignments({
   const ocupantesPorMiembro = useMemo(() => {
     const porMiembro = new Map();
 
+    // Primero los de otros consejos; el cargo de ESTA directiva, que es mas
+    // concreto, los pisa despues.
+    asignacionesDeConsejo.forEach((asignacion) => {
+      if (!asignacion?.idMiembro) return;
+
+      porMiembro.set(
+        normalizarIdAsignacion(asignacion.idMiembro),
+        describirConflictoDeConsejo(asignacion)
+      );
+    });
+
     Object.values(assignments).forEach((asignacion) => {
       if (!asignacion?.idMiembro) return;
 
@@ -174,7 +209,7 @@ export function useLeadershipAssignments({
     });
 
     return porMiembro;
-  }, [assignments]);
+  }, [assignments, asignacionesDeConsejo]);
 
   // Memoizado a proposito: sin esto las opciones se recreaban en cada render y el
   // Autocomplete perdia la seleccion recien hecha.
