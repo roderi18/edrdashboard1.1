@@ -138,6 +138,15 @@ export async function guardarAsignacionRolUsuario({
   alcance = {},
   restricciones = {},
   usuario = null,
+  // Los OTROS cargos que ejerce a la vez. El rol principal es uno solo —con el
+  // entra—, pero quien ocupa una casilla en su destacamento y otra en su seccion
+  // ejerce las dos, y los guardas preguntan por todas (`rolesQueEjerce`). Una
+  // lista vacia las borra, que es lo que hace falta al volver a un rol suelto.
+  cargos = null,
+  // Marca de que la sesion es una PRUEBA del Administrador Global: con que rol
+  // real volver cuando la apague. Sin ella, al entrar como otro cargo perdia el
+  // boton para regresar.
+  simulacion = null,
 } = {}) {
   assertFirebase();
 
@@ -157,6 +166,8 @@ export async function guardarAsignacionRolUsuario({
     rolNombre,
     alcance,
     restricciones,
+    ...(Array.isArray(cargos) ? { cargos } : {}),
+    ...(simulacion === null ? {} : { simulacion }),
     activo: true,
     asignadoPor: usuario?.uid || usuario?.email || 'sistema',
     asignadoEn: new Date().toISOString(),

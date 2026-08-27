@@ -2,6 +2,7 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 
 import { paths } from 'src/routes/paths';
 
+import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
 import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 import {
   isAdminGlobal,
@@ -223,7 +224,71 @@ const normalizeScopeList = (...values) =>
 
 const normalizeScopeId = (value) => String(value ?? '').trim();
 
+// Cargos que mandan en TODOS los modulos: no se les aplica la dominancia por
+// modulo porque no hay nivel por encima del suyo.
+const ROLES_SIN_DOMINANCIA_POR_MODULO = [
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  ROLES.OFICINA_NACIONAL,
+];
+
+const alcanceDeRol = (codigo) => ALCANCE_PREDETERMINADO_ROL[codigo] || '';
+
+const normalizarCodigoDeRol = (codigo) =>
+  String(codigo || '').trim().toLowerCase() === ROLES.USUARIO_DESTACAMENTO_ASISTENTE
+    ? ROLES.USUARIO_DESTACAMENTO
+    : String(codigo || '').trim().toLowerCase();
+
+// Los codigos crudos de todo lo que ejerce, SIN pasar por getScopeUserRoleId
+// (que es quien llama a esto: preguntarselo seria dar vueltas en redondo).
+const codigosCrudosDeSusCargos = (user = {}) => {
+  const rawRole = String(user?.rol || user?.role || '').trim().toLowerCase();
+  const principal = String(
+    user?.rolId ||
+      user?.roleId ||
+      user?.rolCodigo ||
+      user?.roleCodigo ||
+      user?.memberRole ||
+      (ROLES_POR_CODIGO[rawRole] ? rawRole : '')
+  )
+    .trim()
+    .toLowerCase();
+
+  const deCargos = (Array.isArray(user?.cargos) ? user.cargos : [])
+    .map((cargo) => String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '').trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set([principal, ...deCargos].filter(Boolean))];
+};
+
+/**
+ * El cargo que MANDA en el modulo que se esta mirando, si ejerce alguno de ese
+ * nivel. Sin modulo —o sin cargo de ese nivel— devuelve '' y decide el principal
+ * de siempre.
+ */
+const rolQueMandaEnElModulo = (user = {}) => {
+  const alcance = alcanceQueMandaAhora();
+
+  if (!alcance) return '';
+
+  const codigos = codigosCrudosDeSusCargos(user);
+
+  // Quien manda en todo no cede el mando por estar en otro modulo.
+  if (codigos.some((codigo) => ROLES_SIN_DOMINANCIA_POR_MODULO.includes(codigo))) return '';
+
+  const delNivel = codigos.find((codigo) => alcanceDeRol(codigo) === alcance);
+
+  return delNivel ? normalizarCodigoDeRol(delNivel) : '';
+};
+
 const getScopeUserRoleId = (user = {}) => {
+  // ANTES QUE NADA, el cargo que manda en este modulo: sobre los miembros de su
+  // destacamento decide su cargo de destacamento, aunque ademas ocupe una
+  // casilla de mayor nivel en su seccion o su region.
+  const mandaEnElModulo = rolQueMandaEnElModulo(user);
+
+  if (mandaEnElModulo) return mandaEnElModulo;
+
   // Se incluye `user.rol`/`user.role` (cuando traen un codigo de rol valido) igual
   // que en getUserRoleId/getOrgRoleId: algunas sesiones exponen el rol ahi y no en
   // rolId, y sin esto el asistente no se reconoceria y quedaria como generico.

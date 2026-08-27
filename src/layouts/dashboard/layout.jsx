@@ -14,6 +14,7 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { filterDashboardNavDataByUser } from 'src/utils/member-access';
+import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
 
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
@@ -51,6 +52,7 @@ import { WorkspacesPopover } from '../components/workspaces-popover';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
+import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 
 // ----------------------------------------------------------------------
@@ -104,6 +106,13 @@ const obtenerNotificacionesReportesLocales = () => {
 export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }) {
   const theme = useTheme();
   const pathname = usePathname();
+
+  // QUE MODULO SE ESTA MIRANDO, para que los guardas de acceso sepan cual de sus
+  // cargos manda aqui (ver `modulo-activo`). Se apunta durante el render y no en
+  // un efecto a proposito: los hijos preguntan por sus permisos mientras se
+  // pintan, y con un efecto llegaria tarde por un render entero.
+  setModuloActivo(moduloDesdeRuta(pathname));
+
   const searchParams = useSearchParams();
   const isChatRoute = pathname?.startsWith(paths.dashboard.chat);
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
@@ -113,6 +122,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // una sesion que es administrativa por ocupar un cargo, no.
   const esAdministradorGlobal =
     isAdminGlobal(user) || String(user?.role ?? user?.rol ?? '').trim().toLowerCase() === 'admin';
+  // Prueba de dos cargos en curso: la enciende el Administrador Global y, hasta
+  // que la apague, esta sesion ejerce esa pareja y no la suya.
+  const pruebaDeRolesActiva = Boolean(user?.simulacion?.activa);
   const { labels: mailLabels } = useGetLabels(isMailRoute);
   const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
   const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
@@ -324,6 +336,19 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {esAdministradorGlobal && (
             <WorkspacesPopover
               data={_workspaces}
+              // Con una PAREJA de cargos encendida manda ella: el selector de un
+              // solo rol se queda a la vista pero sin efecto, para que no haya
+              // dos mandos discutiendo por la misma sesion.
+              disabled={pruebaDeRolesActiva}
+              sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
+            />
+          )}
+
+          {/* Probar dos cargos a la vez. Sigue visible durante la prueba —la
+              sesion ya no es Administrador Global— porque es el unico camino de
+              vuelta. */}
+          {(esAdministradorGlobal || pruebaDeRolesActiva) && (
+            <RoleCombinationPopover
               sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
             />
           )}

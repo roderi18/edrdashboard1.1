@@ -187,6 +187,24 @@ const loadAuthorizationAccess = async (authUser, profile, memberAccess) => {
   return null;
 };
 
+const unirCargos = (...listas) => {
+  const porCodigo = new Map();
+
+  listas.flat().forEach((cargo) => {
+    if (!cargo) return;
+
+    const codigo = String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (!codigo || porCodigo.has(codigo)) return;
+
+    porCodigo.set(codigo, cargo);
+  });
+
+  return [...porCodigo.values()];
+};
+
 const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
   if (!access) return {};
 
@@ -208,7 +226,13 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
     // La autorización persistida puede representar solo el rol principal. Los
     // cargos resueltos desde la directiva conservan sus permisos y restricciones
     // contextuales para que uno de sección no anule al de destacamento.
-    cargos: memberProfile.cargos ?? access.cargos ?? [],
+    // Los cargos de la directiva Y los que traiga la autorizacion, sin repetir.
+    // Antes ganaba uno u otro: si el perfil del miembro traia los suyos, una
+    // combinacion asignada a mano —la que usa el Administrador Global para
+    // probar— no llegaba a los guardas.
+    cargos: unirCargos(memberProfile.cargos, access.cargos),
+    // Prueba de roles en curso (la enciende el Administrador Global).
+    simulacion: access.simulacion ?? null,
     restricciones: {
       ...(access.restricciones ?? {}),
       ...(memberProfile.restricciones ?? {}),

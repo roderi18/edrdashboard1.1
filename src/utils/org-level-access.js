@@ -1,3 +1,5 @@
+import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import { ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
 
@@ -18,7 +20,15 @@ const GLOBAL_MANAGER_ROLES = [ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FU
 
 const normalizeId = (value) => String(value ?? '').trim();
 
-export const getOrgRoleId = (user = {}) => {
+// Cargos que mandan en TODOS los modulos: la dominancia por modulo no les quita
+// el mando porque no hay nivel por encima del suyo.
+const ROLES_SIN_DOMINANCIA_POR_MODULO = [
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  ROLES.OFICINA_NACIONAL,
+];
+
+const codigoDeRolPrincipal = (user = {}) => {
   const rawRole = String(user?.rol || user?.role || '').trim();
 
   return String(
@@ -31,6 +41,35 @@ export const getOrgRoleId = (user = {}) => {
   )
     .trim()
     .toLowerCase();
+};
+
+/**
+ * El rol con el que se decide AQUI.
+ *
+ * Quien ejerce dos cargos entra con el de mayor nivel, pero dentro de un modulo
+ * manda el cargo de ESE nivel: sobre los miembros y los destacamentos decide su
+ * cargo de destacamento, en Secciones el seccional y en Regiones el regional.
+ * Sin esto, una casilla en la seccion —donde no se edita a nadie— le quitaba al
+ * Coordinador de Destacamento la edicion de los suyos.
+ */
+export const getOrgRoleId = (user = {}) => {
+  const principal = codigoDeRolPrincipal(user);
+  const alcance = alcanceQueMandaAhora();
+
+  if (!alcance) return principal;
+
+  const codigos = [
+    principal,
+    ...(Array.isArray(user?.cargos) ? user.cargos : []).map((cargo) =>
+      String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '').trim().toLowerCase()
+    ),
+  ].filter(Boolean);
+
+  if (codigos.some((codigo) => ROLES_SIN_DOMINANCIA_POR_MODULO.includes(codigo))) {
+    return principal;
+  }
+
+  return codigos.find((codigo) => ALCANCE_PREDETERMINADO_ROL[codigo] === alcance) || principal;
 };
 
 /**

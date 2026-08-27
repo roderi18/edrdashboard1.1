@@ -109,7 +109,10 @@ const isRoleBranchSelected = (optionId, activeRoleId) => {
   return (SUBROLES_POR_ROL[optionId] ?? []).some((sub) => sub.rolCodigo === activeRoleId);
 };
 
-export function WorkspacesPopover({ data = [], sx, ...other }) {
+// `disabled`: hay una PAREJA de cargos encendida (ver role-combination-popover).
+// El selector se queda a la vista, apagado, para que no haya dos mandos
+// discutiendo por la misma sesion.
+export function WorkspacesPopover({ data = [], sx, disabled = false, ...other }) {
   const mediaQuery = 'sm';
 
   const { open, anchorEl, onClose, onOpen } = usePopover();
@@ -300,12 +303,14 @@ export function WorkspacesPopover({ data = [], sx, ...other }) {
     return (
       <ButtonBase
         disableRipple
+        disabled={disabled}
         onClick={onOpen}
         sx={[
           {
             py: 0.5,
             gap: { xs: 0.5, [mediaQuery]: 1 },
             '&::before': buttonBg,
+            ...(disabled && { opacity: 0.5 }),
           },
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
