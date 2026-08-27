@@ -1658,7 +1658,14 @@ const navPermissionByItem = (item, user) => {
     return false;
   }
 
-  if (title.includes('miembro')) return Boolean(permissions.miembros?.ver);
+  // El objeto `permisos` de la sesion describe UN cargo. Quien ejerce dos —el de
+  // su destacamento y otro en su seccion o region— tiene el otro solo en el
+  // catalogo, y preguntando unicamente al objeto le desaparecian del menu las
+  // entradas que abre con el. Se consulta tambien el catalogo, como ya se hacia
+  // con Secciones y Regiones.
+  if (title.includes('miembro')) {
+    return Boolean(permissions.miembros?.ver) || can(user, PERMISOS.MIEMBROS_VER);
+  }
   // El area de Administradores —con Historial - Logs dentro— es de gobierno de
   // toda la organizacion. La decide el ROL, no el objeto `permisos`: una sesion
   // de cargo puede traer `administradores.ver` heredado y colarse. El bloqueo
@@ -1666,7 +1673,9 @@ const navPermissionByItem = (item, user) => {
   if (title.includes('administrador')) {
     return puedeEntrarAAdministracion(user);
   }
-  if (title.includes('destacamento')) return Boolean(permissions.destacamentos?.ver);
+  if (title.includes('destacamento')) {
+    return Boolean(permissions.destacamentos?.ver) || can(user, PERMISOS.DESTACAMENTOS_VER);
+  }
   if (title.includes('asistencia') || path.includes('/dashboard/level/attendance')) {
     return canViewAdminModule(permissions, 'asistencia', user);
   }
@@ -1853,7 +1862,11 @@ const getExcludedPermissionCodes = (user = {}) =>
 const getAuthorizationPermissionCodes = (user = {}) =>
   (() => {
     const excludedPermissions = new Set(getExcludedPermissionCodes(user));
-    const rolePermissions = PERMISOS_POR_ROL[getUserRoleId(user)] ?? [];
+    // TODOS los cargos que ejerce, no solo el principal. De esto salen los
+    // botones del menu lateral: mirando unicamente el principal, a quien tiene
+    // dos cargos le desaparecian del menu las secciones que abre con el otro
+    // —el mismo choque de siempre, pero en la navegacion—.
+    const rolePermissions = rolesQueEjerce(user).flatMap((codigo) => PERMISOS_POR_ROL[codigo] ?? []);
 
     return [
       rolePermissions,

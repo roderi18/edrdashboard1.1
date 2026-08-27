@@ -21,7 +21,20 @@ export const normalizarAccesoUsuario = (entrada) => {
     usuario.rol ||
     usuario.role ||
     ROLES.USUARIO_COMUN;
-  const permisosRol = PERMISOS_POR_ROL[rolId] || [];
+  // Los permisos de TODOS sus cargos, no solo los del principal. Quien ocupa una
+  // casilla en su destacamento y otra en su seccion ejerce las dos y sus
+  // permisos se suman —es el modelo declarado en el catalogo de combinaciones—;
+  // preguntando solo por el principal, lo que abre el otro cargo desaparecia,
+  // empezando por sus botones en el menu lateral.
+  const permisosDeSusCargos = (Array.isArray(usuario.cargos) ? usuario.cargos : [])
+    .map((cargo) =>
+      String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+        .trim()
+        .toLowerCase()
+    )
+    .filter(Boolean)
+    .flatMap((codigo) => PERMISOS_POR_ROL[codigo] || []);
+  const permisosRol = [...(PERMISOS_POR_ROL[rolId] || []), ...permisosDeSusCargos];
   const permisosDirectos = [
     ...normalizeList(usuario.permisos),
     ...normalizeList(usuario.permissions),

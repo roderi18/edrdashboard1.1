@@ -308,7 +308,10 @@ const aplicarSimulacionDeRoles = (user) => {
     permisosRol,
     // Los permisos sueltos de su cuenta de administrador no cuentan durante la
     // prueba: si contaran, seguiria pudiendo todo y la prueba no probaria nada.
-    permisos: [],
+    // Vacio como OBJETO, que es lo que espera `getMemberPermissions`: asi las
+    // comprobaciones caen en el catalogo de los dos cargos, que es la respuesta
+    // correcta, en vez de en un objeto de permisos que no existe.
+    permisos: {},
     permisosDirectos: [],
     permisosAutorizacion: [],
     permisosExcluidos: [],
