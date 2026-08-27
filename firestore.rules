@@ -444,6 +444,16 @@ service cloud.firestore {
         ]);
     }
 
+    // `leidoHasta` es OPCIONAL: el recibo se puede crear sin el —la lista de
+    // campos permitidos no lo exige— y solo aparece al marcar la conversacion
+    // como leida. En estas reglas leer un campo ausente NO devuelve vacio:
+    // aborta la evaluacion y deniega la escritura entera, asi que un recibo
+    // creado sin marca de lectura no se podia volver a tocar. Preguntando
+    // primero si esta, "sin marca" es null y no un error.
+    function leidoHastaDe(datos) {
+      return 'leidoHasta' in datos ? datos.leidoHasta : null;
+    }
+
     match /conversaciones_chat/{idConversacion} {
       allow get: if esParticipante(resource.data);
       allow list: if estaAutenticado()
@@ -497,8 +507,8 @@ service cloud.firestore {
           ])
           && request.resource.data.idMiembros == idMiembro()
           && request.resource.data.entregadoHasta is string
-          && (request.resource.data.leidoHasta == null
-            || request.resource.data.leidoHasta is string);
+          && (leidoHastaDe(request.resource.data) == null
+            || leidoHastaDe(request.resource.data) is string);
         allow update: if puedeLeerConversacion(idConversacion)
           && idRecibo == request.auth.uid
           && resource.data.idMiembros == idMiembro()
@@ -511,12 +521,12 @@ service cloud.firestore {
           && request.resource.data.entregadoHasta is string
           && request.resource.data.entregadoHasta >= resource.data.entregadoHasta
           && (
-            request.resource.data.leidoHasta == resource.data.leidoHasta
+            leidoHastaDe(request.resource.data) == leidoHastaDe(resource.data)
             || (
-              request.resource.data.leidoHasta is string
+              leidoHastaDe(request.resource.data) is string
               && (
-                resource.data.leidoHasta == null
-                || request.resource.data.leidoHasta >= resource.data.leidoHasta
+                leidoHastaDe(resource.data) == null
+                || leidoHastaDe(request.resource.data) >= leidoHastaDe(resource.data)
               )
             )
           );
