@@ -1,9 +1,11 @@
+import { ROLES_ASIGNADOS_A_MANO } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
-import { ROLES_ASIGNADOS_A_MANO, resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
-
-import { ROLES } from 'src/auth/permissions/roles';
-import { deriveUserClaims } from 'src/auth/permissions/user-claims';
-import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
+import {
+  leerAsignacionesDe,
+  resolverAccesoPorCargo,
+  escribirAccesoPorCargo,
+  COLECCION_USUARIOS_ROLES,
+} from 'src/server/rol-por-cargo';
 
 export const runtime = 'nodejs';
 
@@ -24,9 +26,6 @@ export const runtime = 'nodejs';
 // Los roles que se asignan a mano —Administrador Global, Funcional y de Tienda—
 // no se tocan: los pone una persona y no salen de ninguna casilla.
 // ----------------------------------------------------------------------
-
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
-const COLECCION_ASIGNACIONES = 'asignacionesDirectiva';
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });
 
@@ -61,24 +60,6 @@ const resolverIdMiembros = async (db, caller) => {
   const documento = porUid?.docs?.[0];
 
   return documento ? String(documento.data()?.idMiembros ?? documento.id) : '';
-};
-
-// El alcance sale de las propias casillas: cada cargo manda sobre SU entidad.
-const alcanceDeSusCargos = (cargos = []) => {
-  const destino = { destacamento: 'destacamentos', seccional: 'secciones', regional: 'regiones' };
-  const alcance = { destacamentos: [], secciones: [], regiones: [] };
-
-  cargos.forEach((cargo) => {
-    const clave = destino[cargo?.nivel];
-
-    if (clave && cargo?.idEntidad) alcance[clave].push(String(cargo.idEntidad));
-  });
-
-  return {
-    destacamentos: [...new Set(alcance.destacamentos)],
-    secciones: [...new Set(alcance.secciones)],
-    regiones: [...new Set(alcance.regiones)],
-  };
 };
 
 export async function POST(req) {
@@ -116,57 +97,8 @@ export async function POST(req) {
     return Response.json({ ok: true, omitido: 'sin id de miembro' });
   }
 
-  const asignaciones = await db
-    .collection(COLECCION_ASIGNACIONES)
-    .where('idMiembro', '==', String(idMiembros))
-    .where('activo', '==', true)
-    .get()
-    .catch(() => null);
+  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros));
+  await escribirAccesoPorCargo({ db, auth, uid: caller.uid, idMiembros, acceso });
 
-  const cargos = resolverRolesPorAsignaciones(
-    (asignaciones?.docs ?? []).map((documento) => documento.data())
-  );
-  const rolId = cargos[0]?.rol ?? ROLES.USUARIO_COMUN;
-  // Los permisos de TODOS sus cargos, no solo los del principal. Las reglas
-  // preguntan por un unico `rolId`, asi que quien entra como Coordinador de
-  // Adiestramiento de su region —y ademas coordina su destacamento— se quedaba
-  // sin lo que le da el cargo local: no podia ni subir la foto de un miembro
-  // suyo. Con la lista de permisos en el documento, las reglas lo resuelven por
-  // `tienePermisoDirecto` sin depender de cual sea el principal.
-  const permisos = [
-    ...new Set(cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? [])),
-  ].sort();
-  const alcance = alcanceDeSusCargos(cargos);
-
-  await referencia.set(
-    {
-      uid: caller.uid,
-      uidUsuario: caller.uid,
-      idMiembros: String(idMiembros),
-      rolId,
-      cargos,
-      permisos,
-      alcance,
-      // Deja constancia de que lo puso el sistema a partir de la directiva, para
-      // distinguirlo de una asignacion hecha por una persona.
-      asignadoPor: 'sistema:cargo',
-      sincronizadoEn: new Date().toISOString(),
-      activo: true,
-    },
-    { merge: true }
-  );
-
-  // Los claims viajan en el token y los leen las reglas de Firestore; sin
-  // refrescarlos, el servidor seguiria viendo el rol anterior hasta el proximo
-  // inicio de sesion.
-  try {
-    await auth.setCustomUserClaims(
-      caller.uid,
-      deriveUserClaims({ rolId, alcance, idMiembros: String(idMiembros) })
-    );
-  } catch (error) {
-    console.warn('[sincronizar-rol] no se pudieron actualizar los claims', error);
-  }
-
-  return Response.json({ ok: true, rolId, cargos: cargos.length });
+  return Response.json({ ok: true, rolId: acceso.rolId, cargos: acceso.cargos.length });
 }
