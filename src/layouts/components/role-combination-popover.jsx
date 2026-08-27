@@ -113,31 +113,68 @@ export function RoleCombinationPopover({ sx, ...other }) {
 
   const nombreDe = (codigo) => ROL_COMBINABLE_POR_CODIGO[codigo]?.nombre || '';
 
+  // El mismo fondo que se enciende al abrir el selector de un solo rol.
+  const fondoDelBoton = {
+    height: 1,
+    zIndex: -1,
+    opacity: 0,
+    content: "''",
+    borderRadius: 1,
+    position: 'absolute',
+    visibility: 'hidden',
+    bgcolor: 'action.hover',
+    width: 'calc(100% + 8px)',
+    transition: (theme) =>
+      theme.transitions.create(['opacity', 'visibility'], {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.shorter,
+      }),
+    ...(popover.open && {
+      opacity: 1,
+      visibility: 'visible',
+    }),
+  };
+
   return (
     <>
+      {/* El mismo boton que el selector de un solo rol —icono redondo, nombre y
+          la misma flecha—, para que se lean como dos piezas de lo mismo. Cambia
+          el icono, no la forma. */}
       <ButtonBase
         disableRipple
         onClick={popover.onOpen}
         sx={[
-          (theme) => ({
+          {
             py: 0.5,
-            px: 1,
-            gap: 1,
-            borderRadius: 1,
-            typography: 'subtitle2',
-            border: `dashed 1px ${theme.vars.palette.divider}`,
-            ...(combinacionActiva && {
-              borderStyle: 'solid',
-              borderColor: theme.vars.palette.warning.main,
-            }),
-          }),
+            gap: { xs: 0.5, sm: 1 },
+            '&::before': fondoDelBoton,
+          },
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
         {...other}
       >
-        <Iconify width={18} icon="solar:users-group-rounded-bold-duotone" />
+        <Box
+          sx={{
+            width: 24,
+            height: 24,
+            flexShrink: 0,
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            // Transparente, igual que el icono del selector de un solo rol en la
+            // cabecera; el color lo pone el icono, no un circulo de fondo.
+            bgcolor: 'transparent',
+            color: combinacionActiva ? 'warning.main' : 'primary.main',
+          }}
+        >
+          <Iconify width={16} icon="solar:users-group-rounded-bold-duotone" />
+        </Box>
 
-        <Box component="span" sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
+        <Box
+          component="span"
+          sx={{ typography: 'subtitle2', display: { xs: 'none', sm: 'inline-flex' } }}
+        >
           {combinacionActiva
             ? `${nombreDe(combinacionActiva.destacamento)} + ${nombreDe(combinacionActiva.acompanante)}`
             : 'Roles combinados'}
@@ -145,7 +182,7 @@ export function RoleCombinationPopover({ sx, ...other }) {
 
         {combinacionActiva && <Chip size="small" color="warning" variant="soft" label="Prueba" />}
 
-        <Iconify width={16} icon="eva:arrow-ios-downward-fill" />
+        <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
       </ButtonBase>
 
       <CustomPopover
