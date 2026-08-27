@@ -32,23 +32,34 @@ service firebase.storage {
       ];
     }
 
-    function esAdminRegistrado() {
-      return tieneDocumento('admins')
-        || (
-          tieneDocumento('users')
-          && (
-            esRolAdministrativo(documentoUsuario('users').data.rol)
-            || esRolAdministrativo(documentoUsuario('users').data.role)
+    // OJO: leer un campo que no existe NO devuelve vacio, revienta la evaluacion
+    // y la peticion se deniega entera. Un documento `users` sin `rol` —los que
+    // crea el alta de miembros— tumbaba asi la comprobacion antes de llegar a
+    // mirar los permisos: por eso a un Coordinador de Destacamento se le negaba
+    // subir la foto de un miembro suyo aunque tuviera el permiso. Se pregunta
+    // primero si el campo esta, como ya se hacia mas abajo.
+    function documentoTieneRolAdministrativo(coleccion) {
+      return tieneDocumento(coleccion)
+        && (
+          (
+            'rol' in documentoUsuario(coleccion).data
+            && esRolAdministrativo(documentoUsuario(coleccion).data.rol)
           )
-        )
-        || (
-          tieneDocumento('usuarios_roles')
-          && (
-            esRolAdministrativo(documentoUsuario('usuarios_roles').data.rol)
-            || esRolAdministrativo(documentoUsuario('usuarios_roles').data.role)
-            || esRolAdministrativo(documentoUsuario('usuarios_roles').data.rolId)
+          || (
+            'role' in documentoUsuario(coleccion).data
+            && esRolAdministrativo(documentoUsuario(coleccion).data.role)
+          )
+          || (
+            'rolId' in documentoUsuario(coleccion).data
+            && esRolAdministrativo(documentoUsuario(coleccion).data.rolId)
           )
         );
+    }
+
+    function esAdminRegistrado() {
+      return tieneDocumento('admins')
+        || documentoTieneRolAdministrativo('users')
+        || documentoTieneRolAdministrativo('usuarios_roles');
     }
 
     // `admin` es la identidad legada de la cuenta administrativa principal
@@ -99,12 +110,14 @@ service firebase.storage {
 
     function tienePermisoDirecto(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
+        && 'permisos' in documentoUsuario('usuarios_roles').data
         && documentoUsuario('usuarios_roles').data.permisos is list
         && documentoUsuario('usuarios_roles').data.permisos.hasAny([codigoPermiso]);
     }
 
     function tienePermisoPorRol(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
+        && 'rolId' in documentoUsuario('usuarios_roles').data
         && firestore.exists(
           /databases/(default)/documents/roles/$(documentoUsuario('usuarios_roles').data.rolId)
         )
@@ -118,12 +131,14 @@ service firebase.storage {
 
     function permisoExcluido(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
+        && 'permisosExcluidos' in documentoUsuario('usuarios_roles').data
         && documentoUsuario('usuarios_roles').data.permisosExcluidos is list
         && documentoUsuario('usuarios_roles').data.permisosExcluidos.hasAny([codigoPermiso]);
     }
 
     function rolBaseTienePermiso(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
+        && 'rolId' in documentoUsuario('usuarios_roles').data
         && (
           (
             codigoPermiso == 'miembros.subir_foto'
@@ -177,6 +192,11 @@ service firebase.storage {
         );
     }
 
+    function tieneRolId() {
+      return tieneDocumento('usuarios_roles')
+        && 'rolId' in documentoUsuario('usuarios_roles').data;
+    }
+
     function rolDeUsuario() {
       return documentoUsuario('usuarios_roles').data.rolId;
     }
@@ -184,7 +204,7 @@ service firebase.storage {
     // Estos cargos son de consulta aun si el catalogo remoto o una asignacion
     // antigua conserva permisos directos de escritura.
     function esCargoDestacamentoSoloLectura() {
-      return tieneDocumento('usuarios_roles')
+      return tieneRolId()
         && rolDeUsuario() in [
           'pastor_destacamento',
           'consejo_destacamento',
@@ -199,7 +219,7 @@ service firebase.storage {
     // vigila una prueba (`chat-storage-regression`).
     function puedeResolverPropuestaDeFoto() {
       return esAdministradorGlobal()
-        || (tieneDocumento('usuarios_roles') && rolDeUsuario() == 'oficina_nacional');
+        || (tieneRolId() && rolDeUsuario() == 'oficina_nacional');
     }
 
     // Quien puede SUGERIR una foto: los coordinadores y sus asistentes de
@@ -210,7 +230,7 @@ service firebase.storage {
     function puedeSugerirFoto() {
       return esAdministradorGlobal()
         || (
-          tieneDocumento('usuarios_roles')
+          tieneRolId()
           && rolDeUsuario() in [
             'usuario_destacamento',
             'usuario_destacamento_asistente',
@@ -227,7 +247,7 @@ service firebase.storage {
     // el resto de cargos del destacamento (pastor, consejo, capellán, líderes),
     // más seccion/region.
     function puedeSubirDocumentoSalud() {
-      return tieneDocumento('usuarios_roles')
+      return tieneRolId()
         && rolDeUsuario() in [
           'usuario_destacamento',
           'usuario_destacamento_asistente',
@@ -246,7 +266,7 @@ service firebase.storage {
     // Cargos que pueden ELIMINAR documentos de salud: coordinadores de destacamento
     // y niveles superiores (los cargos en flujo de aprobación solo pueden subir).
     function puedeEliminarDocumentoSalud() {
-      return tieneDocumento('usuarios_roles')
+      return tieneRolId()
         && rolDeUsuario() in [
           'usuario_destacamento',
           'usuario_destacamento_asistente',
