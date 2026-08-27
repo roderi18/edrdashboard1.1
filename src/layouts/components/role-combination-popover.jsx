@@ -18,6 +18,11 @@ import FormControl from '@mui/material/FormControl';
 import ListSubheader from '@mui/material/ListSubheader';
 
 import {
+  borrarSimulacionDeRoles,
+  guardarSimulacionDeRoles,
+} from 'src/utils/simulacion-roles';
+
+import {
   PESO_NIVEL,
   rolesDeNivel,
   ETIQUETA_NIVEL,
@@ -32,7 +37,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { ROLES } from 'src/auth/permissions/roles';
-import { guardarAsignacionRolUsuario, actualizarClaimsAutorizacion } from 'src/auth/permissions';
 
 // ----------------------------------------------------------------------
 // PROBAR DOS CARGOS A LA VEZ.
@@ -58,13 +62,6 @@ const NIVELES_DEL_SEGUNDO = [
 
 const rolesDestacamento = rolesDeNivel(NIVEL_COMBINACION.destacamento);
 
-const alcanceDeNivel = {
-  [NIVEL_COMBINACION.destacamento]: 'destacamento',
-  [NIVEL_COMBINACION.seccion]: 'seccion',
-  [NIVEL_COMBINACION.region]: 'region',
-  [NIVEL_COMBINACION.nacional]: 'nacional',
-};
-
 export function RoleCombinationPopover({ sx, ...other }) {
   const { user } = useAuthContext();
   const popover = usePopover();
@@ -85,72 +82,33 @@ export function RoleCombinationPopover({ sx, ...other }) {
   const [guardando, setGuardando] = useState(false);
 
   const aplicar = useCallback(
-    async ({ apagar = false } = {}) => {
-      if (!user?.uid) {
-        toast.error('No se pudo identificar el usuario actual.');
+    ({ apagar = false } = {}) => {
+      if (apagar) {
+        borrarSimulacionDeRoles();
+        window.location.reload();
         return;
       }
 
       const deDestacamento = ROL_COMBINABLE_POR_CODIGO[rolDestacamento];
       const acompanante = ROL_COMBINABLE_POR_CODIGO[rolAcompanante];
 
-      if (!apagar && (!deDestacamento || !acompanante)) {
+      if (!deDestacamento || !acompanante) {
         toast.error('Elige un cargo de destacamento y un segundo cargo.');
         return;
       }
 
-      // Al apagar se vuelve a quien de verdad es: el Administrador Global. Con
-      // `cargos: []` se borra la pareja, que si no seguiria sumando permisos.
-      const principal = apagar ? null : rolPrincipalDe([deDestacamento, acompanante]);
-      const rolId = apagar ? ROLES.ADMINISTRADOR_GLOBAL : principal.codigo;
-      const alcance = apagar
-        ? { tipo: 'global', modo: 'global' }
-        : { tipo: alcanceDeNivel[principal.nivel], modo: alcanceDeNivel[principal.nivel] };
-
       setGuardando(true);
-
-      try {
-        await guardarAsignacionRolUsuario({
-          uidUsuario: user.uid,
-          correo: user.email || user.correo || '',
-          nombre: user.displayName || [user.nombres, user.apellidos].filter(Boolean).join(' '),
-          rolId,
-          rolNombre: apagar ? 'Administrador Global' : principal.nombre,
-          alcance,
-          cargos: apagar
-            ? []
-            : [
-                { rol: deDestacamento.codigo, nivel: NIVEL_COMBINACION.destacamento },
-                { rol: acompanante.codigo, nivel: acompanante.nivel },
-              ],
-          simulacion: apagar
-            ? { activa: false }
-            : {
-                activa: true,
-                rolDestacamento: deDestacamento.codigo,
-                rolAcompanante: acompanante.codigo,
-                volverA: ROLES.ADMINISTRADOR_GLOBAL,
-              },
-          usuario: user,
-        });
-
-        try {
-          await actualizarClaimsAutorizacion({
-            uidUsuario: user.uid,
-            correo: user.email || user.correo || '',
-          });
-        } catch (claimsError) {
-          console.warn('[roles combinados] no se pudieron actualizar los claims', claimsError);
-        }
-
-        window.location.reload();
-      } catch (error) {
-        console.error('[roles combinados] no se pudo aplicar la combinación', error);
-        setGuardando(false);
-        toast.error(error?.message || 'No se pudo aplicar la combinación.');
-      }
+      // NO se toca la asignacion de rol en la base de datos. La prueba vive en
+      // la pestaña: asi apagarla no depende de que las reglas dejen a un
+      // coordinador reescribir su propio rol —no lo dejan—, que es como el
+      // Administrador Global se quedaria encerrado fuera de su propio mando.
+      guardarSimulacionDeRoles({
+        rolDestacamento: deDestacamento.codigo,
+        rolAcompanante: acompanante.codigo,
+      });
+      window.location.reload();
     },
-    [rolAcompanante, rolDestacamento, user]
+    [rolAcompanante, rolDestacamento]
   );
 
   const nombreDe = (codigo) => ROL_COMBINABLE_POR_CODIGO[codigo]?.nombre || '';
@@ -201,7 +159,8 @@ export function RoleCombinationPopover({ sx, ...other }) {
             <Typography variant="subtitle2">Entrar con dos cargos</Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Uno de destacamento y uno de sección, región o Consejo Nacional. Mientras esté
-              encendida, esta sesión deja de ser Administrador Global.
+              encendida, esta sesión deja de ser Administrador Global. Es una prueba de esta
+              pestaña: no cambia tu rol en la base de datos.
             </Typography>
           </Box>
 

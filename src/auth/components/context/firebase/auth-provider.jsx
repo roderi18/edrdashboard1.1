@@ -6,6 +6,7 @@ import { onIdTokenChanged, signOut as _signOut } from 'firebase/auth';
 
 import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
 import {
@@ -17,8 +18,10 @@ import {
 
 import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
+import { rolPrincipalDe, ROL_COMBINABLE_POR_CODIGO } from 'src/catalogs/combinaciones-roles';
 
 import { obtenerAccesoUsuario, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions';
+import { PERMISOS_POR_ROL, RESTRICCIONES_ROL } from 'src/auth/permissions/role-permissions';
 import {
   mergeCombinedRoleScope,
   mergeCombinedRolePermissions,
@@ -250,6 +253,58 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
 };
 
 /**
+ * La PRUEBA de dos cargos del Administrador Global, encima de su sesion.
+ *
+ * Solo cambia lo que miran los guardas —rol principal, cargos, permisos del
+ * catalogo, alcance y solo lectura—; su identidad (uid, correo, token) se queda
+ * como esta. No se persiste en ningun sitio: vive en la pestaña, asi que apagarla
+ * o cerrarla devuelve al Administrador Global sin depender de que la base de
+ * datos le deje escribir su propio rol.
+ */
+const aplicarSimulacionDeRoles = (user) => {
+  const simulacion = leerSimulacionDeRoles();
+
+  if (!user || !simulacion) return user;
+
+  const deDestacamento = ROL_COMBINABLE_POR_CODIGO[simulacion.rolDestacamento];
+  const acompanante = ROL_COMBINABLE_POR_CODIGO[simulacion.rolAcompanante];
+
+  if (!deDestacamento || !acompanante) return user;
+
+  const cargos = [deDestacamento, acompanante];
+  const principal = rolPrincipalDe(cargos);
+  const permisosRol = [...new Set(cargos.flatMap((rol) => PERMISOS_POR_ROL[rol.codigo] ?? []))];
+  const soloLectura = cargos.every((rol) => RESTRICCIONES_ROL[rol.codigo]?.soloLectura === true);
+
+  return {
+    ...user,
+    rolId: principal.codigo,
+    roleId: principal.codigo,
+    rolNombre: principal.nombre,
+    // `role`/`rol` dicen 'admin' en la sesion del Administrador Global, y por ahi
+    // se colaba de vuelta el mando: durante la prueba pasan a ser el rol probado.
+    role: principal.codigo,
+    rol: principal.codigo,
+    memberRole: principal.codigo,
+    cargos: cargos.map((rol) => ({ rol: rol.codigo, nivel: rol.nivel, nombreCargo: rol.nombre })),
+    permisosRol,
+    // Los permisos sueltos de su cuenta de administrador no cuentan durante la
+    // prueba: si contaran, seguiria pudiendo todo y la prueba no probaria nada.
+    permisos: [],
+    permisosDirectos: [],
+    permisosAutorizacion: [],
+    permisosExcluidos: [],
+    restricciones: { soloLectura },
+    alcance: {
+      ...(user.alcance ?? {}),
+      tipo: principal.alcance,
+      modo: principal.alcance,
+    },
+    simulacion: { activa: true, ...simulacion },
+  };
+};
+
+/**
  * NOTE:
  * We only build demo at basic level.
  * Customer will need to do some extra handling yourself if you want to extend the logic and other features...
@@ -352,7 +407,7 @@ export function AuthProvider({ children }) {
             );
           }
 
-          const resolvedUser = { ...sessionUser, accessToken };
+          const resolvedUser = aplicarSimulacionDeRoles({ ...sessionUser, accessToken });
           setState({ user: resolvedUser, loading: false });
           writeCachedSession(resolvedUser);
 
@@ -380,7 +435,7 @@ export function AuthProvider({ children }) {
     const cachedUser = readCachedSession();
 
     if (cachedUser) {
-      setState({ user: cachedUser, loading: false });
+      setState({ user: aplicarSimulacionDeRoles(cachedUser), loading: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

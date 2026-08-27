@@ -1,4 +1,5 @@
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { MODULOS, setModuloActivo, getModuloActivo } from 'src/utils/modulo-activo';
 import {
   canEditDest,
   isAdminGlobal,
@@ -179,6 +180,30 @@ const puedeGestionar = (user) => canMemberManageMembers(user) && canEditMembers(
  * `evaluar` devuelve uno de los cuatro resultados; `solicitaA` solo aparece
  * cuando el resultado es "aprobacion", y dice a quien.
  */
+// En que MODULO se hace cada pregunta. Manda el cargo de ese nivel (ver
+// `modulo-activo`), asi que preguntar fuera de su modulo daria una respuesta que
+// no es la que ve el usuario: la ficha de un miembro se abre desde Miembros, y
+// alli decide su cargo de destacamento aunque tenga otro mas alto en la seccion.
+const MODULO_POR_CAPACIDAD = {
+  'estructura.seccion.editar': MODULOS.secciones,
+  'estructura.region.editar': MODULOS.regiones,
+  'estructura.dest.editar': MODULOS.destacamentos,
+  'estructura.eliminar': MODULOS.destacamentos,
+};
+
+const MODULO_POR_AREA = {
+  'Miembros de su destacamento': MODULOS.miembros,
+  'Miembros de otro destacamento': MODULOS.miembros,
+  'Dispensa Médica': MODULOS.miembros,
+  'Sistema de Ascenso': MODULOS.miembros,
+  Estructura: MODULOS.destacamentos,
+  // Gobierno no pertenece a ningun nivel: se decide con el rol principal.
+  Gobierno: '',
+};
+
+export const moduloDeCapacidad = (capacidad = {}) =>
+  MODULO_POR_CAPACIDAD[capacidad.id] ?? MODULO_POR_AREA[capacidad.area] ?? '';
+
 export const CAPACIDADES = [
   // --- Miembros de su destacamento ---
   {
@@ -439,15 +464,31 @@ export const CAPACIDADES = [
 
 export const AREAS = [...new Set(CAPACIDADES.map((capacidad) => capacidad.area))];
 
-/** Evalua una lista de roles y devuelve el resultado de cada pregunta. */
+/**
+ * Evalua una lista de roles y devuelve el resultado de cada pregunta.
+ *
+ * Cada pregunta se responde EN SU MODULO, que es donde la haria el usuario. Sin
+ * esto el simulador contestaba siempre con el rol principal y no veia lo que de
+ * verdad pasa en Miembros, que es justo donde chocan los cargos.
+ */
 export const evaluarRoles = (roles = []) => {
   const user = construirUsuarioSimulado(roles);
 
   if (!user) return {};
 
-  return Object.fromEntries(
-    CAPACIDADES.map((capacidad) => [capacidad.id, capacidad.evaluar(user)])
-  );
+  const moduloPrevio = getModuloActivo();
+
+  try {
+    return Object.fromEntries(
+      CAPACIDADES.map((capacidad) => {
+        setModuloActivo(moduloDeCapacidad(capacidad));
+
+        return [capacidad.id, capacidad.evaluar(user)];
+      })
+    );
+  } finally {
+    setModuloActivo(moduloPrevio);
+  }
 };
 
 const ORDEN_RESULTADO = {
