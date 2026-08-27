@@ -110,9 +110,12 @@ const isRoleBranchSelected = (optionId, activeRoleId) => {
 };
 
 // `disabled`: hay una PAREJA de cargos encendida (ver role-combination-popover).
-// El selector se queda a la vista, apagado, para que no haya dos mandos
-// discutiendo por la misma sesion.
-export function WorkspacesPopover({ data = [], sx, disabled = false, ...other }) {
+// El selector se queda a la vista pero TACHADO y apagado: sigue diciendo con que
+// rol se entraria, y a la vez que ahora mismo no manda el.
+// `nombreForzado`: el rol REAL de la sesion cuando hay una prueba encendida. La
+// sesion dice ahora que es un coordinador, pero lo que este selector representa
+// —y lo que se recupera al apagar la prueba— es el rol de siempre.
+export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForzado = '', ...other }) {
   const mediaQuery = 'sm';
 
   const { open, anchorEl, onClose, onOpen } = usePopover();
@@ -274,7 +277,7 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, ...other })
     // nombre a la vista —es informacion util— pero sin boton, sin flecha y sin
     // menu: un desplegable que permitiera cambiarse el rol a uno mismo seria una
     // via de escalada de privilegios abierta a cualquiera.
-    if (!puedeCambiarDeRol) {
+    if (!puedeCambiarDeRol && !disabled) {
       return (
         <Box
           sx={[
@@ -310,7 +313,9 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, ...other })
             py: 0.5,
             gap: { xs: 0.5, [mediaQuery]: 1 },
             '&::before': buttonBg,
-            ...(disabled && { opacity: 0.5 }),
+            // Tachado ademas de apagado: la opacidad sola se confunde con "esta
+            // cargando", y la raya dice que ese rol esta anulado ahora mismo.
+            ...(disabled && { opacity: 0.4, textDecoration: 'line-through' }),
           },
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
@@ -320,9 +325,13 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, ...other })
 
         <Box
           component="span"
-          sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}
+          sx={{
+            typography: 'subtitle2',
+            display: { xs: 'none', [mediaQuery]: 'inline-flex' },
+            ...(disabled && { textDecoration: 'line-through' }),
+          }}
         >
-          {workspace?.name}
+          {nombreForzado || workspace?.name}
         </Box>
 
         <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />

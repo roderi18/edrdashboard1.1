@@ -333,9 +333,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {/* Solo el Administrador Global: es el unico que cambia de rol. Para el
               resto era un adorno que ademas decia un solo cargo, y hay quien
               tiene dos; los suyos salen bajo su nombre, en la barra lateral. */}
-          {esAdministradorGlobal && (
+          {(esAdministradorGlobal || pruebaDeRolesActiva) && (
             <WorkspacesPopover
               data={_workspaces}
+              // Durante la prueba sigue a la vista, tachado: dice cual es el rol
+              // de verdad y que ahora mismo no manda el.
+              nombreForzado={pruebaDeRolesActiva ? 'Administrador Global' : ''}
               // Con una PAREJA de cargos encendida manda ella: el selector de un
               // solo rol se queda a la vista pero sin efecto, para que no haya
               // dos mandos discutiendo por la misma sesion.

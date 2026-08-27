@@ -15,6 +15,21 @@
 
 const CLAVE = 'simulacion-roles';
 
+/**
+ * DONDE se ejerce la pareja de prueba.
+ *
+ * Un cargo no existe en el aire: es Coordinador DE un destacamento, de UNA
+ * seccion. Sin una entidad concreta el alcance sale vacio y la prueba enseña
+ * listas en blanco, que no se parecen a lo que ve la persona de verdad. Se fija
+ * el destacamento Tribu de Judá 18, con su seccion y su region reales, que es
+ * donde hay datos para mirar.
+ */
+export const ENTIDADES_DE_PRUEBA = {
+  destacamento: { id: 231, nombre: 'Tribu de Judá 18' },
+  seccion: { id: 1, nombre: 'Este Oriental I' },
+  region: { id: 3, nombre: 'Región Central' },
+};
+
 const sinVentana = () => typeof window === 'undefined' || !window.sessionStorage;
 
 export const leerSimulacionDeRoles = () => {

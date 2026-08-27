@@ -6,8 +6,8 @@ import { onIdTokenChanged, signOut as _signOut } from 'firebase/auth';
 
 import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
-import { leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
+import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
 import {
   loadAdminProfile,
@@ -276,17 +276,35 @@ const aplicarSimulacionDeRoles = (user) => {
   const permisosRol = [...new Set(cargos.flatMap((rol) => PERMISOS_POR_ROL[rol.codigo] ?? []))];
   const soloLectura = cargos.every((rol) => RESTRICCIONES_ROL[rol.codigo]?.soloLectura === true);
 
+  // La pareja se ejerce EN un sitio: el destacamento de prueba, con su seccion y
+  // su region. Sin entidad, el alcance sale vacio y las listas aparecen en
+  // blanco en vez de enseñar lo que veria esa persona.
+  const idEntidadDe = (nivel) =>
+    ({
+      destacamento: ENTIDADES_DE_PRUEBA.destacamento.id,
+      seccion: ENTIDADES_DE_PRUEBA.seccion.id,
+      region: ENTIDADES_DE_PRUEBA.region.id,
+    })[nivel] ?? '';
+
   return {
     ...user,
     rolId: principal.codigo,
     roleId: principal.codigo,
     rolNombre: principal.nombre,
+    // Pertenece al destacamento de prueba mientras dure.
+    idDestacamento: ENTIDADES_DE_PRUEBA.destacamento.id,
+    destId: ENTIDADES_DE_PRUEBA.destacamento.id,
     // `role`/`rol` dicen 'admin' en la sesion del Administrador Global, y por ahi
     // se colaba de vuelta el mando: durante la prueba pasan a ser el rol probado.
     role: principal.codigo,
     rol: principal.codigo,
     memberRole: principal.codigo,
-    cargos: cargos.map((rol) => ({ rol: rol.codigo, nivel: rol.nivel, nombreCargo: rol.nombre })),
+    cargos: cargos.map((rol) => ({
+      rol: rol.codigo,
+      nivel: rol.nivel,
+      idEntidad: idEntidadDe(rol.nivel),
+      nombreCargo: rol.nombre,
+    })),
     permisosRol,
     // Los permisos sueltos de su cuenta de administrador no cuentan durante la
     // prueba: si contaran, seguiria pudiendo todo y la prueba no probaria nada.
@@ -296,9 +314,27 @@ const aplicarSimulacionDeRoles = (user) => {
     permisosExcluidos: [],
     restricciones: { soloLectura },
     alcance: {
-      ...(user.alcance ?? {}),
       tipo: principal.alcance,
       modo: principal.alcance,
+      destacamentoId: ENTIDADES_DE_PRUEBA.destacamento.id,
+      idDestacamento: ENTIDADES_DE_PRUEBA.destacamento.id,
+      destacamentos: [ENTIDADES_DE_PRUEBA.destacamento.id],
+      // La seccion y la region solo entran en el alcance si ejerce un cargo de
+      // ese nivel: si no, veria de mas.
+      ...(cargos.some((rol) => rol.nivel === 'seccion')
+        ? {
+            seccionId: ENTIDADES_DE_PRUEBA.seccion.id,
+            idSeccion: ENTIDADES_DE_PRUEBA.seccion.id,
+            secciones: [ENTIDADES_DE_PRUEBA.seccion.id],
+          }
+        : { secciones: [] }),
+      ...(cargos.some((rol) => rol.nivel === 'region')
+        ? {
+            regionId: ENTIDADES_DE_PRUEBA.region.id,
+            idRegion: ENTIDADES_DE_PRUEBA.region.id,
+            regiones: [ENTIDADES_DE_PRUEBA.region.id],
+          }
+        : { regiones: [] }),
     },
     simulacion: { activa: true, ...simulacion },
   };
@@ -407,8 +443,13 @@ export function AuthProvider({ children }) {
             );
           }
 
-          const resolvedUser = aplicarSimulacionDeRoles({ ...sessionUser, accessToken });
-          setState({ user: resolvedUser, loading: false });
+          const resolvedUser = { ...sessionUser, accessToken };
+
+          // Se guarda en el cache la sesion DE VERDAD, sin la prueba encima: la
+          // prueba se aplica al leerla. Cacheandola ya simulada, apagarla no
+          // devolvia el mando —la recarga rehidrataba con el rol probado— hasta
+          // que Firebase revalidaba.
+          setState({ user: aplicarSimulacionDeRoles(resolvedUser), loading: false });
           writeCachedSession(resolvedUser);
 
           return;
