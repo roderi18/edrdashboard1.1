@@ -38,6 +38,26 @@ test('el administrador global puede crear o reemplazar imagenes en cualquier rut
   assert.doesNotMatch(storageRules, /allow (?:write|delete): if esAdministradorGlobal\(\)/);
 });
 
+// La UNICA excepcion al borrado, y acotada: la carpeta de fotos propuestas. Al
+// rechazar una sugerencia hay que borrar el archivo que dejo subido, y eso lo
+// hace quien resuelve (Administrador Global u Oficina Nacional). Se comprueba
+// que sigue siendo eso —un permiso con nombre propio, dentro de esa carpeta— y
+// no un borrado suelto por ser administrador.
+test('el borrado solo existe en la carpeta de fotos propuestas', () => {
+  assert.match(storageRules, /function puedeResolverPropuestaDeFoto\(\)/);
+  assert.match(
+    storageRules,
+    /match \/propuestas\/destacamentos\/\{idDestacamento\}\/\{propuesta\}\/\{archivo\}[\s\S]*?allow delete: if puedeResolverPropuestaDeFoto\(\);/
+  );
+
+  // Y sigue sin haber un borrado suelto en la ruta comodin de imagenes, que es
+  // la que abarca todo lo demas.
+  assert.doesNotMatch(
+    storageRules,
+    /match \/\{rutaImagen=\*\*\}[\s\S]*?allow [^;]*delete/
+  );
+});
+
 test('las cargas usan la conversación real y metadatos ligados al usuario autenticado', () => {
   assert.match(inputSource, /createConversation\(\s*\{ \.\.\.conversationData, messages: \[\] \}/);
   assert.match(inputSource, /chat\/\$\{activeConversationId\}\/imagenes/);

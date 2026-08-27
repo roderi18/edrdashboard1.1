@@ -192,6 +192,16 @@ service firebase.storage {
         ];
     }
 
+    // Quien RESUELVE una propuesta de foto: la aprueba o la rechaza. Al
+    // rechazarla se borra el archivo que dejo subido, y por eso —y SOLO aqui,
+    // dentro de la carpeta de propuestas— hay un permiso de borrado. Ser
+    // Administrador Global NO concede borrado en ninguna otra ruta: eso lo
+    // vigila una prueba (`chat-storage-regression`).
+    function puedeResolverPropuestaDeFoto() {
+      return esAdministradorGlobal()
+        || (tieneDocumento('usuarios_roles') && rolDeUsuario() == 'oficina_nacional');
+    }
+
     // Quien puede SUGERIR una foto: los coordinadores y sus asistentes de
     // destacamento, seccion y region. No es el permiso de cambiarla —esa sigue
     // pidiendo `destacamentos.subir_foto` en la carpeta de la entidad—, sino el
@@ -424,8 +434,7 @@ service firebase.storage {
       allow create, update: if puedeSugerirFoto()
         && esArchivoPerfil(archivo)
         && esImagenPermitida();
-      allow delete: if esAdministradorGlobal()
-        || (tieneDocumento('usuarios_roles') && rolDeUsuario() == 'oficina_nacional');
+      allow delete: if puedeResolverPropuestaDeFoto();
     }
 
     // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
