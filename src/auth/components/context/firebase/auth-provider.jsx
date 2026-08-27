@@ -20,12 +20,16 @@ import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
 import { rolPrincipalDe, ROL_COMBINABLE_POR_CODIGO } from 'src/catalogs/combinaciones-roles';
 
-import { obtenerAccesoUsuario, ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions';
 import { PERMISOS_POR_ROL, RESTRICCIONES_ROL } from 'src/auth/permissions/role-permissions';
 import {
   mergeCombinedRoleScope,
   mergeCombinedRolePermissions,
 } from 'src/auth/permissions/combined-role-access';
+import {
+  obtenerAccesoUsuario,
+  sincronizarRolPorCargo,
+  ALCANCE_PREDETERMINADO_ROL,
+} from 'src/auth/permissions';
 
 import { AuthContext } from '../auth-context';
 
@@ -253,6 +257,18 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
 };
 
 /**
+ * Le cuenta al SERVIDOR que cargo ocupa quien acaba de entrar.
+ *
+ * La sesion deduce el rol de sus casillas en la directiva, pero eso vivia solo
+ * aqui: en Firestore la mayoria de las cuentas no tenian `rolId`, y las reglas
+ * —que preguntan por `usuarios_roles/<uid>`— no encontraban ni el documento. Por
+ * ahi se caia, por ejemplo, subir la foto de un miembro del propio destacamento:
+ * la pantalla lo ofrecia y el servidor lo rechazaba.
+ *
+ * Va sin `await` y sin recargar nada: no cambia lo que ya se ve, solo alinea al
+ * servidor. Una vez por carga de sesion.
+ */
+/**
  * La PRUEBA de dos cargos del Administrador Global, encima de su sesion.
  *
  * Solo cambia lo que miran los guardas —rol principal, cargos, permisos del
@@ -447,6 +463,10 @@ export function AuthProvider({ children }) {
           }
 
           const resolvedUser = { ...sessionUser, accessToken };
+
+          // Sin `await`: alinea al servidor con el cargo que esta sesion ya
+          // resolvio, y no cambia nada de lo que se ve.
+          sincronizarRolPorCargo(accessToken).catch(() => {});
 
           // Se guarda en el cache la sesion DE VERDAD, sin la prueba encima: la
           // prueba se aplica al leerla. Cacheandola ya simulada, apagarla no

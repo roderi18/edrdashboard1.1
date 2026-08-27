@@ -180,6 +180,32 @@ export async function guardarAsignacionRolUsuario({
   return payload;
 }
 
+/**
+ * Le cuenta al SERVIDOR que cargo ocupa quien acaba de entrar.
+ *
+ * La sesion deduce el rol de sus casillas en la directiva, pero eso vivia solo
+ * en el navegador: en Firestore la mayoria de las cuentas no tenian `rolId`, y
+ * las reglas —que preguntan por `usuarios_roles/<uid>`— no encontraban ni el
+ * documento. Por ahi se caia, por ejemplo, subir la foto de un miembro del
+ * propio destacamento: la pantalla lo ofrecia y el servidor lo rechazaba.
+ *
+ * No concede nada: el rol sale de las asignaciones reales y cada quien solo se
+ * sincroniza a si mismo. Va sin bloquear y sin recargar; si el servidor de
+ * administracion no esta configurado responde 503 y no pasa nada.
+ */
+export async function sincronizarRolPorCargo(accessToken) {
+  if (!accessToken) return { ok: false, omitido: 'sin token' };
+
+  const res = await fetch('/api/auth/sincronizar-rol', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => null);
+
+  if (!res?.ok) return { ok: false, omitido: 'sin sincronizar' };
+
+  return res.json().catch(() => ({ ok: true }));
+}
+
 // Actualiza los custom claims de autorización (rol + alcance) del usuario objetivo
 // llamando al endpoint server-side protegido. Debe invocarse después de guardar la
 // asignación de rol. Si el objetivo es el propio usuario, refresca su token para
