@@ -46,6 +46,7 @@ import { useAuthContext } from 'src/auth/hooks';
 const ETIQUETA_AMBITO = {
   destacamento: 'Destacamento',
   foto_destacamento: 'Foto de destacamento',
+  foto_seccion: 'Foto de sección',
   seccion: 'Sección',
   region: 'Región',
   directiva_seccion: 'Directiva de sección',

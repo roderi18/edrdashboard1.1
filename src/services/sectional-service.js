@@ -1,8 +1,11 @@
 import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
-import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import {
+    registrarFotoEntidadSubida,
+    obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
   canEditSectional,
   canDeleteOrgLevel,
@@ -15,6 +18,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { getChurches } from './church-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { notificarFotoEntidadPropuesta } from './notificar-oficina-nacional-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
 // Campos que se listan en la propuesta, para que quien apruebe vea QUE cambia.
@@ -414,3 +418,72 @@ export const guardarNombreSecundarioSeccion = async ({
         idSolicitud: resultado.idSolicitud,
     };
 };
+
+// ----------------------------------------------------------------------
+// Foto de la seccion.
+//
+// La ficha de la seccion la edita su Coordinador titular, pero la FOTO la puede
+// sugerir tambien el Sub-Coordinador: no es cambiar la seccion, es proponer una
+// imagen. Va por el mismo camino que la del destacamento —carpeta de propuestas,
+// aviso con las dos imagenes, y la aplica quien aprueba—, asi que la foto oficial
+// no cambia hasta que la Oficina Nacional o el Administrador Global lo aceptan.
+// ----------------------------------------------------------------------
+
+export const proponerFotoSeccion = async ({ seccion = {}, foto = {}, urlAntes = '', usuario = {} } = {}) => {
+    const idSeccion = seccion?.id ?? seccion?.idSeccion ?? null;
+    const payload = {
+        idSeccion,
+        rutaArchivo: foto?.rutaArchivo || '',
+        urlFoto: foto?.urlFoto || '',
+        subidoPor: usuario?.uid || usuario?.id || '',
+    };
+
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.fotoSeccion,
+        entidad: {
+            tipo: 'seccion',
+            id: idSeccion,
+            nombre: seccion?.nombre || '',
+            ruta: `/dashboard/level/sectional/${idSeccion ?? ''}/edit`,
+        },
+        cambios: [
+            {
+                campo: 'avatarUrl',
+                etiqueta: 'Foto de la sección',
+                antes: urlAntes || null,
+                despues: foto?.urlFoto || null,
+            },
+        ],
+        usuario,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload,
+        aplicar: () => aplicarFotoSeccion(payload),
+    });
+
+    const pendienteDeAprobacion = resultado.estado === ESTADOS_CAMBIO.pendiente;
+
+    notificarFotoEntidadPropuesta({
+        tipoEntidad: 'seccion',
+        entidad: { id: idSeccion, nombre: seccion?.nombre || '' },
+        urlAntes,
+        urlDespues: foto?.urlFoto || '',
+        pendiente: pendienteDeAprobacion,
+        usuario,
+    }).catch((error) => {
+        console.warn('[secciones] no se pudo avisar de la foto', error);
+    });
+
+    return { pendienteDeAprobacion, idSolicitud: resultado.idSolicitud || null };
+};
+
+// Al aprobarla, la propuesta pasa a ser la foto principal. Se apunta al archivo
+// que ya se subio: no se vuelve a subir nada.
+export const aplicarFotoSeccion = async (payload = {}) =>
+    registrarFotoEntidadSubida({
+        tipoEntidad: 'seccion',
+        idEntidad: payload?.idSeccion,
+        tipoFoto: 'perfil',
+        rutaArchivo: payload?.rutaArchivo || '',
+        urlFoto: payload?.urlFoto || '',
+        subidoPor: payload?.subidoPor || '',
+    });

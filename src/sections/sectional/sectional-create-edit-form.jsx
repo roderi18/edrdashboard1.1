@@ -14,16 +14,19 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { contarSeccion } from 'src/utils/org-counts';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { subirFotoEntidad, subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
 import {
   canEditSectional,
   getRegionScopeIds,
+  getSectionScopeIds,
   isRegionScopedCreator,
   isRegionScopedManager,
+  isSectionScopedManager,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
+  puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
@@ -36,6 +39,7 @@ import {
   getSectionals,
   saveSectional,
   updateSectional,
+  proponerFotoSeccion,
   obtenerNombreSecundarioSeccion,
   guardarNombreSecundarioSeccion,
 } from 'src/services/sectional-service';
@@ -63,6 +67,16 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const canEdit = currentSectional
     ? canEditSectional(user, currentSectional)
     : canCreateSectionalInRegion(user) || puedeModificar(user, PERMISOS.SECCIONES_CREAR);
+  // LA FOTO NO ES LA FICHA. Editar la seccion es cosa del Coordinador titular,
+  // pero la imagen la puede PROPONER tambien el Sub-Coordinador: sugerir no es
+  // cambiar. Y quien no puede aplicar el cambio —cualquiera que no sea la Oficina
+  // Nacional o el Administrador Global— la manda a la bandeja de aprobaciones,
+  // con la foto de antes y la de despues.
+  const idSeccionActual = String(currentSectional?.id ?? currentSectional?.idSeccion ?? '');
+  const esSuSeccion = Boolean(idSeccionActual) && getSectionScopeIds(user).has(idSeccionActual);
+  const puedeSugerirFoto =
+    Boolean(currentSectional) && (canEdit || (isSectionScopedManager(user) && esSuSeccion));
+  const soloSugiereFoto = puedeSugerirFoto && !puedeAprobarCambiosDeOrganizacion(user);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [dests, setDests] = useState([]);
   const [churches, setChurches] = useState([]);
@@ -272,8 +286,36 @@ export function SectionalCreateEditForm({ currentSectional }) {
       return null;
     }
 
+    if (!puedeSugerirFoto) {
+      toast.error('No tienes permiso para cambiar la foto de esta sección.');
+      return null;
+    }
+
     try {
       setUploadingPhoto(true);
+
+      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
+      // queda como esta. Devolver la url nueva pintaria un cambio que todavia no
+      // existe, asi que se conserva la de antes.
+      if (soloSugiereFoto) {
+        const propuesta = await subirFotoEntidadPropuesta({
+          file,
+          tipoEntidad: 'seccion',
+          idEntidad: sectionalId,
+          subidoPor: AUTH.currentUser?.uid || '',
+        });
+
+        await proponerFotoSeccion({
+          seccion: { id: sectionalId, nombre: currentSectional?.sectionalName || '' },
+          foto: propuesta,
+          urlAntes: values.avatarUrl || currentSectional?.avatarUrl || '',
+          usuario: user,
+        });
+
+        toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
+
+        return values.avatarUrl || currentSectional?.avatarUrl || null;
+      }
 
       const photo = await subirFotoEntidad({
         file,
@@ -403,7 +445,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 name="avatarUrl"
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
-                readOnly={!canEdit}
+                readOnly={!puedeSugerirFoto}
                 onDrop={handleUploadSectionalPhoto}
                 optimizationToast={false}
                 helperText={
@@ -417,8 +459,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
                       color: 'text.disabled',
                     }}
                   >
-                    Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> la imagen se optimiza al cargar.
+                    {/* A quien solo puede sugerirla, decirle los formatos no le
+                        aclara lo que necesita saber: que la foto no cambia hasta
+                        que la aprueben. */}
+                    {soloSugiereFoto ? (
+                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
+                    ) : (
+                      <>
+                        Permitido *.jpeg, *.jpg, *.png, *.gif
+                        <br /> la imagen se optimiza al cargar.
+                      </>
+                    )}
                   </Typography>
                 }
               />

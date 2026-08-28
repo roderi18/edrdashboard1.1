@@ -1,8 +1,8 @@
 import { eliminarArchivoDeStorage } from 'src/utils/firebase-photos';
 
 import { updateRegional } from './regional-service';
-import { updateSectional } from './sectional-service';
 import { updateDestApi, aplicarFotoDestacamento } from './dest-service';
+import { updateSectional, aplicarFotoSeccion } from './sectional-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solicitudes-cambio-service';
 
@@ -23,6 +23,7 @@ const APLICADORES = {
   [AMBITOS_CAMBIO.destacamento]: (payload, usuario) => updateDestApi(payload, { usuario }),
   // La foto ya esta subida: aprobarla es apuntarla como principal.
   [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => aplicarFotoDestacamento(payload),
+  [AMBITOS_CAMBIO.fotoSeccion]: (payload) => aplicarFotoSeccion(payload),
   [AMBITOS_CAMBIO.seccion]: (payload, usuario) => updateSectional(payload, { usuario }),
   [AMBITOS_CAMBIO.region]: (payload, usuario) => updateRegional(payload, { usuario }),
   [AMBITOS_CAMBIO.directivaSeccion]: (payload, usuario) =>
@@ -67,6 +68,7 @@ export async function aprobarSolicitud(solicitud, { usuario, comentario = '', pa
 // ocupando sitio para siempre.
 const LIMPIADORES = {
   [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => eliminarArchivoDeStorage(payload?.rutaArchivo),
+  [AMBITOS_CAMBIO.fotoSeccion]: (payload) => eliminarArchivoDeStorage(payload?.rutaArchivo),
 };
 
 export async function rechazarSolicitud(solicitud, { usuario, comentario = '' } = {}) {

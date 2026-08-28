@@ -47,7 +47,7 @@ test('el borrado solo existe en la carpeta de fotos propuestas', () => {
   assert.match(storageRules, /function puedeResolverPropuestaDeFoto\(\)/);
   assert.match(
     storageRules,
-    /match \/propuestas\/destacamentos\/\{idDestacamento\}\/\{propuesta\}\/\{archivo\}[\s\S]*?allow delete: if puedeResolverPropuestaDeFoto\(\);/
+    /match \/propuestas\/\{tipoEntidad\}\/\{idEntidad\}\/\{propuesta\}\/\{archivo\}[\s\S]*?allow delete: if puedeResolverPropuestaDeFoto\(\);/
   );
 
   // Y sigue sin haber un borrado suelto en la ruta comodin de imagenes, que es

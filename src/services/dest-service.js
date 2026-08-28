@@ -23,8 +23,8 @@ import {
     proponerCambio,
 } from './solicitudes-cambio-service';
 import {
+    notificarFotoEntidadPropuesta,
     notificarDestacamentoActualizado,
-    notificarFotoDestacamentoPropuesta,
 } from './notificar-oficina-nacional-service';
 
 // Campos del destacamento que se listan en la propuesta, para que quien la
@@ -531,8 +531,9 @@ export const proponerFotoDestacamento = async ({
     const pendienteDeAprobacion = resultado.estado === ESTADOS_CAMBIO.pendiente;
 
     // El aviso lleva las dos imagenes; que falle no deshace lo ya registrado.
-    notificarFotoDestacamentoPropuesta({
-        destacamento: { id: idDestacamento, nombre: destacamento?.nombre || '' },
+    notificarFotoEntidadPropuesta({
+        tipoEntidad: 'destacamento',
+        entidad: { id: idDestacamento, nombre: destacamento?.nombre || '' },
         urlAntes,
         urlDespues: foto?.urlFoto || '',
         pendiente: pendienteDeAprobacion,

@@ -50,9 +50,9 @@ const obtenerDestinatarios = async () => {
 };
 
 export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } = {}) {
-  // La foto del destacamento manda su propio aviso, con la imagen de antes y la
-  // de despues. Este seria el mismo mensaje sin las imagenes.
-  if (solicitud?.ambito === 'foto_destacamento') return null;
+  // Las fotos mandan su propio aviso, con la imagen de antes y la de despues.
+  // Este seria el mismo mensaje sin las imagenes.
+  if (['foto_destacamento', 'foto_seccion'].includes(solicitud?.ambito)) return null;
 
   const destinatarios = await obtenerDestinatarios();
 
@@ -137,8 +137,10 @@ export async function notificarDestacamentoActualizado({
  * imagenes para que se pueda decidir sin abrir nada mas, y la ruta apunta a la
  * bandeja de aprobaciones, que es donde se resuelve.
  */
-export async function notificarFotoDestacamentoPropuesta({
-  destacamento = {},
+export async function notificarFotoEntidadPropuesta({
+  // 'destacamento' o 'seccion': solo cambia como se nombra y a donde lleva.
+  tipoEntidad = 'destacamento',
+  entidad = {},
   urlAntes = '',
   urlDespues = '',
   pendiente = true,
@@ -153,28 +155,34 @@ export async function notificarFotoDestacamentoPropuesta({
 
   const quien =
     usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Alguien';
-  const nombre = destacamento?.nombre || 'un destacamento';
+  const esSeccion = tipoEntidad === 'seccion';
+  const comoSeLlama = esSeccion ? 'sección' : 'destacamento';
+  const nombre = entidad?.nombre || `una ${comoSeLlama}`;
+  const rutaDeLaFicha = esSeccion
+    ? `/dashboard/level/sectional/${entidad?.id || ''}/edit`
+    : `/dashboard/level/dest/${entidad?.id || ''}/edit`;
 
   return crearNotificacionAdmin({
-    tipoNotificacion: pendiente ? 'foto_destacamento_propuesta' : 'foto_destacamento_actualizada',
-    modulo: pendiente ? 'aprobaciones' : 'destacamentos',
-    titulo: pendiente ? 'Foto de destacamento sugerida' : 'Foto de destacamento actualizada',
+    tipoNotificacion: pendiente ? `foto_${tipoEntidad}_propuesta` : `foto_${tipoEntidad}_actualizada`,
+    modulo: pendiente ? 'aprobaciones' : `${comoSeLlama}s`,
+    titulo: pendiente
+      ? `Foto de ${comoSeLlama} sugerida`
+      : `Foto de ${comoSeLlama} actualizada`,
     mensaje: pendiente
       ? `${quien} sugiere cambiar la foto de ${nombre}. Requiere tu revisión.`
       : `${quien} cambió la foto de ${nombre}.`,
     prioridad: pendiente ? 'importante' : 'informativa',
-    entidadTipo: 'destacamento',
-    entidadId: String(destacamento?.id || ''),
-    ruta: pendiente
-      ? paths.dashboard.admin.aprobaciones
-      : `/dashboard/level/dest/${destacamento?.id || ''}/edit`,
+    entidadTipo: tipoEntidad,
+    entidadId: String(entidad?.id || ''),
+    ruta: pendiente ? paths.dashboard.admin.aprobaciones : rutaDeLaFicha,
     // La propuesta va de imagen: se manda como imagen, no como icono.
     imagenTipo: 'imagen',
     imagenURL: urlDespues || null,
     miniaturaURL: urlAntes || null,
     etiquetaAccion: pendiente ? 'Revisar' : 'Ver',
     metadatos: {
-      idDestacamento: destacamento?.id,
+      tipoEntidad,
+      idEntidad: entidad?.id,
       fotoAntes: urlAntes || '',
       fotoDespues: urlDespues || '',
     },
