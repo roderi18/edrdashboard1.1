@@ -38,7 +38,15 @@ export const ETIQUETA_NIVEL = {
   [NIVEL_COMBINACION.tienda]: 'Tienda',
 };
 
-const ROLES_EXCLUIDOS = new Set([ROLES.ADMINISTRADOR_GLOBAL, ROLES.ADMINISTRADOR_FUNCIONAL]);
+const ROLES_EXCLUIDOS = new Set([
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  // El Usuario Comun no se combina con nada: es lo que se es MIENTRAS no se
+  // tiene cargo. Ofrecerlo en la pareja permitia probar un "Usuario Comun +
+  // Coordinador Seccional" que no existe —al recibir la casilla seccional deja
+  // de ser comun—, y lo que se probaba ahi no era ningun caso real.
+  ROLES.USUARIO_COMUN,
+]);
 
 // Cuanto mas alto el nivel, mas pesa para elegir el rol PRINCIPAL de navegación.
 // Eso no borra las facultades locales: sobre miembros de su propio destacamento,

@@ -1799,6 +1799,13 @@ const getUserRoleId = (user = {}) => {
  * el catalogo de USUARIO_COMUN los permitiera: a esa entrada no llegaba nadie.
  */
 export const isUsuarioComunRole = (user = {}) => {
+  // Usuario Comun es lo que se es MIENTRAS no se es otra cosa: en cuanto una
+  // casilla de la directiva le da un cargo, deja de serlo. Se mira aqui y no
+  // solo en el `rolId` porque ese lo escribe la sincronizacion del servidor:
+  // hasta que corre, la sesion seguia sumando lo del Usuario Comun a lo de su
+  // cargo nuevo, que es justo la mezcla que no debe existir.
+  if (codigosDeSusCargos(user).length) return false;
+
   const roleId = getUserRoleId(user) || getScopeUserRoleId(user);
 
   if (roleId === ROLES.USUARIO_COMUN) return true;

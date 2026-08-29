@@ -84,6 +84,72 @@ export async function buscarConflictoDeConsejo({
   );
 }
 
+// El Pastor no comparte casilla consigo mismo.
+//
+// Es quien acompaña espiritualmente al destacamento y quien lo representa ante
+// la iglesia: sumarle ademas Coordinador, Consejo o Lider de Grupo AHI MISMO lo
+// pone a responder ante si mismo —los cambios del Lider de Grupo los aprueba el
+// Coordinador, y el Pastor ve los datos sensibles en claro—. En OTRO
+// destacamento no hay choque: son dos casas distintas.
+const ID_POSICION_PASTOR = 'destacamento-pastor';
+
+// Las asignaciones antiguas guardan la casilla en `idCargo` y las nuevas en
+// `idPosicionDirectiva`. Se miran las dos, como hace `resolverRolesPorAsignaciones`.
+const esPosicionDePastor = (asignacionOId) => {
+  const id =
+    typeof asignacionOId === 'string'
+      ? asignacionOId
+      : asignacionOId?.idPosicionDirectiva || asignacionOId?.idCargo || '';
+
+  return normalizarTexto(id).toLowerCase() === ID_POSICION_PASTOR;
+};
+
+/**
+ * Cargo del MISMO destacamento que choca con el de Pastor, o null.
+ *
+ * Choca en los dos sentidos: darle otra casilla a quien ya es Pastor, y nombrar
+ * Pastor a quien ya ocupa otra casilla de ese destacamento.
+ */
+export async function buscarConflictoDePastor({
+  idMiembro,
+  nivel,
+  idEntidad,
+  idPosicionDirectiva = '',
+  idAsignacionActual = '',
+} = {}) {
+  if (!idMiembro || nivel !== DIRECTIVA_LEVELS.destacamento) return null;
+
+  const destacamento = normalizarTexto(idEntidad);
+
+  if (!destacamento) return null;
+
+  const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
+  const entraDePastor = esPosicionDePastor(idPosicionDirectiva);
+
+  const enEseDestacamento = asignaciones.filter(
+    (asignacion) =>
+      asignacion?.nivel === DIRECTIVA_LEVELS.destacamento &&
+      normalizarTexto(asignacion?.idEntidad) === destacamento &&
+      String(asignacion.idAsignacion || asignacion.id) !== String(idAsignacionActual)
+  );
+
+  // Entra de Pastor: choca con CUALQUIER otra casilla suya de ese destacamento.
+  if (entraDePastor) {
+    return enEseDestacamento[0] || null;
+  }
+
+  // Entra en otra casilla: solo choca si ya es el Pastor de ahi.
+  return enEseDestacamento.find((asignacion) => esPosicionDePastor(asignacion)) || null;
+}
+
+export const describirConflictoDePastor = (conflicto) => {
+  const cargo = POSICION_POR_ID_CARGO.get(
+    normalizarTexto(conflicto?.idPosicionDirectiva || conflicto?.idCargo)
+  );
+
+  return cargo?.nombreCargo || 'otro cargo';
+};
+
 export const describirConflictoDeConsejo = (conflicto) => {
   const cargo = POSICION_POR_ID_CARGO.get(normalizarTexto(conflicto?.idPosicionDirectiva));
   const donde = NOMBRE_CONSEJO[conflicto?.nivel] || 'otro consejo';
@@ -556,6 +622,30 @@ export async function guardarAsignacionDirectiva({
     if (conflicto) {
       throw new Error(
         `Ya ocupa ${describirConflictoDeConsejo(conflicto)}. Retírelo de ese cargo antes de asignarle otro: nadie puede estar en dos consejos a la vez.`
+      );
+    }
+  }
+
+  // El Pastor de un destacamento no ocupa ninguna otra casilla de ESE
+  // destacamento. Igual que arriba, dar de baja nunca se bloquea.
+  if (activo && idMiembroResolved && nivel === DIRECTIVA_LEVELS.destacamento) {
+    const conflicto = await buscarConflictoDePastor({
+      idMiembro: idMiembroResolved,
+      nivel,
+      idEntidad,
+      idPosicionDirectiva,
+      idAsignacionActual: idAsignacion,
+    });
+
+    if (conflicto) {
+      const entraDePastor = esPosicionDePastor(idPosicionDirectiva);
+      const otro = describirConflictoDePastor(conflicto);
+      const donde = normalizarTexto(nombreEntidad) || 'ese destacamento';
+
+      throw new Error(
+        entraDePastor
+          ? `Ya ocupa ${otro} en ${donde}. El Pastor no puede tener otro cargo en su mismo destacamento: retírelo de ese cargo primero.`
+          : `Es el Pastor de ${donde}. El Pastor no puede tener otro cargo en su mismo destacamento: retírelo de Pastor primero.`
       );
     }
   }
