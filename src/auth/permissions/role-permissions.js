@@ -464,6 +464,10 @@ export const PERMISOS_POR_ROL = {
   ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, PERMISOS_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_NACIONAL]: [
     PERMISOS.DESTACAMENTOS_VER,
+    // `miembros.ver` abre el modulo; a QUIENES ve lo sigue decidiendo el
+    // alcance: como su cargo es nacional y no de destacamento, lo que ve son
+    // los miembros del destacamento al que el mismo pertenece.
+    PERMISOS.MIEMBROS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     // Entra a la tienda como un miembro cualquiera: compra, no gestiona. Sin
     // `tienda.gestionar` ni `tienda.acceso_administrativo`, el menu le sale en

@@ -1520,6 +1520,28 @@ export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
   const propios = getOwnDestIdsForUser(user);
   const idPropio = String(user?.idMiembros ?? user?.memberId ?? '');
 
+  // A LOS SUYOS LOS VE, aunque su cargo sea de otro nivel.
+  //
+  // Quien solo ejerce cargos por encima del destacamento —seccion, region,
+  // Consejo Nacional o Ejecutivo— no tiene ningun destacamento en su alcance:
+  // ese alcance se arma con sus cargos y ninguno es de destacamento. Pero la
+  // persona PERTENECE a uno, y ahi es un miembro mas que conoce a los suyos.
+  // Sin esto, su lista de miembros salia vacia.
+  //
+  // Se saca de su propia ficha, que ya viene en la lista que se esta
+  // filtrando: no cuesta una peticion mas. Si ya tiene un cargo en su
+  // destacamento no hace falta —su alcance lo trae— y no se toca.
+  if (!propios.size && idPropio) {
+    const suFicha = (Array.isArray(miembros) ? miembros : []).find(
+      (miembro) => String(miembro?.id ?? miembro?.idMiembros ?? '') === idPropio
+    );
+    const suDestacamento = normalizeScopeId(
+      suFicha?.idDestacamento ?? suFicha?.destId ?? suFicha?.destamentoId
+    );
+
+    if (suDestacamento) propios.add(suDestacamento);
+  }
+
   return (Array.isArray(miembros) ? miembros : []).filter((miembro) => {
     // Su propia ficha siempre, aunque todavia no tenga destacamento.
     if (idPropio && String(miembro?.id ?? miembro?.idMiembros ?? '') === idPropio) return true;

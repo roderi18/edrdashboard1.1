@@ -10,6 +10,15 @@ const filtrar = (miembros, user) => {
   const propios = new Set([normalizar(user.idDestacamento)].filter(Boolean));
   const idPropio = normalizar(user.idMiembros);
 
+  // Quien solo ejerce cargos por encima del destacamento no lleva ninguno en su
+  // alcance: se saca de su propia ficha, que ya viene en la lista.
+  if (!propios.size && idPropio) {
+    const suFicha = miembros.find((miembro) => normalizar(miembro.id) === idPropio);
+    const suDestacamento = normalizar(suFicha?.idDestacamento);
+
+    if (suDestacamento) propios.add(suDestacamento);
+  }
+
   return miembros.filter((miembro) => {
     if (idPropio && normalizar(miembro.id) === idPropio) return true;
 
@@ -54,5 +63,35 @@ test('su propia ficha aparece aunque no tenga destacamento', () => {
   assert.deepEqual(
     filtrar(MIEMBROS, huerfano).map((m) => m.nombre),
     ['Sin destacamento']
+  );
+});
+
+// Un cargo de seccion, region o Consejo Nacional no tiene destacamento en su
+// alcance —ese alcance se arma con sus cargos—, pero pertenece a uno y a los
+// suyos los ve.
+test('un cargo de otro nivel ve a los de su propio destacamento', () => {
+  const coordinadorSeccional = { idMiembros: 340, idDestacamento: '' };
+
+  assert.deepEqual(
+    filtrar(MIEMBROS, coordinadorSeccional).map((m) => m.nombre),
+    ['Roderi', 'Daniel']
+  );
+});
+
+test('y sigue sin ver los de otro destacamento', () => {
+  const coordinadorSeccional = { idMiembros: 340, idDestacamento: '' };
+
+  assert.equal(
+    filtrar(MIEMBROS, coordinadorSeccional).some((m) => m.nombre === 'Stalin'),
+    false
+  );
+});
+
+test('un cargo que ya tiene destacamento propio no cambia de alcance', () => {
+  const conCargoLocal = { idMiembros: 323, idDestacamento: 233 };
+
+  assert.deepEqual(
+    filtrar(MIEMBROS, conCargoLocal).map((m) => m.nombre),
+    ['Stalin']
   );
 });
