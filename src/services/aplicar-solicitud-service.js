@@ -1,9 +1,9 @@
 import { eliminarArchivoDeStorage } from 'src/utils/firebase-photos';
 
 import { updateRegional, aplicarFotoRegion } from './regional-service';
-import { updateDestApi, aplicarFotoDestacamento } from './dest-service';
-import { updateSectional, aplicarFotoSeccion } from './sectional-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
+import { createDestApi, updateDestApi, aplicarFotoDestacamento } from './dest-service';
+import { saveSectional, updateSectional, aplicarFotoSeccion } from './sectional-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solicitudes-cambio-service';
 
 // ----------------------------------------------------------------------
@@ -20,12 +20,23 @@ import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solic
 // ----------------------------------------------------------------------
 
 const APLICADORES = {
-  [AMBITOS_CAMBIO.destacamento]: (payload, usuario) => updateDestApi(payload, { usuario }),
+  // Como en secciones: sin id es un destacamento que todavia no existe —lo
+  // sugirio un cargo de seccion— y hay que crearlo, no modificarlo.
+  [AMBITOS_CAMBIO.destacamento]: (payload, usuario) =>
+    Number(payload?.idDestacamento ?? payload?.id ?? 0) > 0
+      ? updateDestApi(payload, { usuario })
+      : createDestApi(payload, { usuario }),
   // La foto ya esta subida: aprobarla es apuntarla como principal.
   [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => aplicarFotoDestacamento(payload),
   [AMBITOS_CAMBIO.fotoSeccion]: (payload) => aplicarFotoSeccion(payload),
   [AMBITOS_CAMBIO.fotoRegion]: (payload) => aplicarFotoRegion(payload),
-  [AMBITOS_CAMBIO.seccion]: (payload, usuario) => updateSectional(payload, { usuario }),
+  // El mismo ambito cubre el alta y la modificacion: sin `idSeccion` es una
+  // seccion que todavia no existe, y aplicarla con `updateSectional` habria
+  // intentado modificar la seccion 0.
+  [AMBITOS_CAMBIO.seccion]: (payload, usuario) =>
+    Number(payload?.idSeccion ?? payload?.id ?? 0) > 0
+      ? updateSectional(payload, { usuario })
+      : saveSectional(payload, { usuario }),
   [AMBITOS_CAMBIO.region]: (payload, usuario) => updateRegional(payload, { usuario }),
   [AMBITOS_CAMBIO.directivaSeccion]: (payload, usuario) =>
     guardarAsignacionDirectiva({ ...payload, usuario }),

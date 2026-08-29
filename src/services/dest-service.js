@@ -11,6 +11,7 @@ import {
 import {
     isFullOrgManager,
     canCreateDestInSection,
+    soloSugiereAltasDeDestacamento,
     puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
@@ -286,7 +287,10 @@ export const createDestApi = async (data, { usuario } = {}) => {
     // Regional (secciones de su region) o admin pleno. Se valida contra la SECCION
     // DESTINO concreta: sin ella, un payload manipulado podia crear el
     // destacamento en una seccion ajena aunque el formulario tuviera el campo fijo.
-    if (usuario && !isFullOrgManager(usuario)) {
+    // Quien APRUEBA no se pide permiso a si mismo: al aplicar una propuesta ya
+    // aprobada, la escritura la ejecuta la Oficina Nacional, cuyo alcance no es
+    // el de la seccion donde va el destacamento.
+    if (usuario && !isFullOrgManager(usuario) && !puedeAprobarCambiosDeOrganizacion(usuario)) {
         const sectionId = data?.sectionId ?? data?.idSeccion ?? data?.seccionId ?? null;
         const { regionId, ownSectionIds, ownRegionIds } = await resolveDestCreationScope(
             usuario,
@@ -301,6 +305,45 @@ export const createDestApi = async (data, { usuario } = {}) => {
     }
 
     const payload = buildDestPayload(data);
+
+    // UN CARGO DE SECCION PROPONE, NO CREA. Puede dar de alta destacamentos en
+    // su seccion —es la suya y sabe que hace falta—, pero lo suyo entra como
+    // SUGERENCIA a la Oficina Nacional: un destacamento nuevo cambia el mapa de
+    // la organizacion, y una sugerencia no se aplica sola. Quien si puede
+    // —Administrador Global y Oficina Nacional— sigue creandolo en el momento.
+    if (soloSugiereAltasDeDestacamento(usuario)) {
+        const resultado = await proponerCambio({
+            ambito: AMBITOS_CAMBIO.destacamento,
+            entidad: {
+                // Todavia no tiene id: lo tendra cuando se apruebe y se cree.
+                tipo: 'destacamento',
+                id: null,
+                nombre: getDestAuditName(data),
+                ruta: '/dashboard/level/dest',
+            },
+            cambios: [
+                {
+                    campo: 'nombre',
+                    etiqueta: 'Destacamento nuevo',
+                    antes: null,
+                    despues: getDestAuditName(data),
+                },
+                {
+                    campo: 'idSeccion',
+                    etiqueta: 'Sección',
+                    antes: null,
+                    despues: data?.sectionId ?? data?.idSeccion ?? data?.seccionId ?? null,
+                },
+            ],
+            usuario,
+            esSugerencia: true,
+            descripcion: `Se sugirió crear el destacamento ${getDestAuditName(data)}.`,
+            payload: data,
+            aplicar: () => createDestApi(data),
+        });
+
+        return { pendienteDeAprobacion: true, idSolicitud: resultado.idSolicitud };
+    }
 
     const res = await fetch('/api/dest/post', {
         method: 'POST',

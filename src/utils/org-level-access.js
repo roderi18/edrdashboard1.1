@@ -173,10 +173,21 @@ export const isRegionScopedManager = (user = {}) =>
 // la creacion: siguen siendo cargos de consulta (`soloLectura`), por lo que no
 // editan ni eliminan lo ya existente. Va en una lista propia y no en
 // REGION_SCOPED_ROLES precisamente para no reabrirles la edicion.
-const REGION_CREATOR_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENTE];
+// TODOS los cargos de nivel region, no solo el Coordinador y su Sub-Director:
+// el de Adiestramiento, el de Promocion, el de Produccion, el de Programa, el
+// Capellan y el Secretario Regional. Se deriva del alcance del catalogo en vez
+// de escribirse a mano, para que un cargo regional nuevo no nazca fuera.
+//
+// Siguen siendo cargos de CONSULTA: no editan lo que ya existe. Lo que se les
+// abre es dar de alta —y lo que den de alta lo aprueba la Oficina Nacional—.
+const REGION_CREATOR_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
+  .filter(([, alcance]) => alcance === ALCANCES.REGION)
+  .map(([codigo]) => codigo);
 
+// Por todos sus cargos: quien coordina su destacamento y ademas ocupa una
+// casilla en su region entraba con el de destacamento y perdia lo de la region.
 export const isRegionScopedCreator = (user = {}) =>
-  REGION_CREATOR_ROLES.includes(getOrgRoleId(user));
+  rolesQueEjerce(user).some((codigo) => REGION_CREATOR_ROLES.includes(codigo));
 
 const isAdminSession = (user = {}) =>
   ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
@@ -311,6 +322,39 @@ export const destLeadershipChangeNeedsNotice = (user = {}) => {
  * Se miran TODOS sus cargos: recibir una casilla seccional cierra el
  * desplegable aunque su cargo principal sea otro.
  */
+/**
+ * ¿Lo que da de alta esta persona entra como SUGERENCIA?
+ *
+ * Un cargo de SECCION puede dar de alta destacamentos en su seccion, pero no
+ * habla por la organizacion: lo suyo se registra como sugerido y no se aplica
+ * solo. Es la misma distincion que ya se hace al editar la seccion (ver
+ * `soloSugiereCambiosDeSeccion`), llevada al alta.
+ */
+/**
+ * ¿Puede componer la directiva de ESA region?
+ *
+ * Cualquier cargo de nivel region, dentro de SU region. No es una excepcion a lo
+ * de que son cargos de consulta: la directiva regional la aprueba la Oficina
+ * Nacional (ambito `directiva_region`), asi que lo que hacen aqui es proponer.
+ * Antes la unica forma de mover una casilla de su propia directiva era pedirselo
+ * al Administrador Global.
+ */
+export const canManageRegionLeadership = (user = {}, regionId = null) => {
+  if (isGlobalOrgManager(user)) return true;
+
+  if (!isRegionScopedCreator(user)) return false;
+
+  const id = normalizeId(regionId);
+
+  return Boolean(id) && getRegionScopeIds(user).has(id);
+};
+
+export const soloSugiereAltasDeDestacamento = (user = {}) => {
+  if (puedeAprobarCambiosDeOrganizacion(user)) return false;
+
+  return rolesQueEjerce(user).some((codigo) => SECTION_SCOPED_ROLES.includes(codigo));
+};
+
 export const puedeAsignarLaRegionDeUnaSeccion = (user = {}) => {
   if (isGlobalOrgManager(user)) return true;
 
@@ -430,9 +474,9 @@ export const canEditDest = (user = {}, dest = {}) => {
 export const canCreateSectionalInRegion = (user = {}, regionId = null, { ownRegionIds } = {}) => {
   if (isGlobalOrgManager(user)) return true;
 
-  const roleId = getOrgRoleId(user);
-  const esCreadorRegional =
-    REGION_SCOPED_ROLES.includes(roleId) || REGION_CREATOR_ROLES.includes(roleId);
+  const esCreadorRegional = rolesQueEjerce(user).some(
+    (codigo) => REGION_SCOPED_ROLES.includes(codigo) || REGION_CREATOR_ROLES.includes(codigo)
+  );
 
   if (!esCreadorRegional) return false;
 
@@ -453,9 +497,10 @@ export const canCreateDestInSection = (
 ) => {
   if (isGlobalOrgManager(user)) return true;
 
-  const roleId = getOrgRoleId(user);
+  // Por todos sus cargos, igual que el resto de los guardas de esta casa.
+  const suyos = rolesQueEjerce(user);
 
-  if (SECTION_SCOPED_ROLES.includes(roleId)) {
+  if (suyos.some((codigo) => SECTION_SCOPED_ROLES.includes(codigo))) {
     if (sectionId === null) return true;
 
     const scope = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
@@ -463,7 +508,7 @@ export const canCreateDestInSection = (
     return scope.has(normalizeId(sectionId));
   }
 
-  if (REGION_CREATOR_ROLES.includes(roleId)) {
+  if (suyos.some((codigo) => REGION_CREATOR_ROLES.includes(codigo))) {
     if (sectionId === null && (regionId === null || regionId === undefined)) return true;
 
     // La seccion destino tiene que resolverse a una region para poder comprobarla.

@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 
 import { useParams } from 'src/routes/hooks';
 
-import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { canManageRegionLeadership } from 'src/utils/org-level-access';
 
 import { getRegionals } from 'src/services/regional-service';
 import { REGIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
@@ -213,10 +213,12 @@ function RegionalLeadershipNode({
 export function RegionalLeadershipView() {
   const params = useParams();
   const { user } = useAuthContext();
-  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
-  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
-  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
-  const canManageLeadership = canManageDirectiva(user);
+  // La directiva de una region la compone tambien cualquier cargo de ESA region,
+  // no solo el Administrador Global. No es una excepcion a que sean cargos de
+  // consulta: lo que hacen aqui queda PENDIENTE de la Oficina Nacional, porque
+  // el ambito `directiva_region` pasa por su aprobacion. La de otras regiones se
+  // consulta en solo lectura.
+  const canManageLeadership = canManageRegionLeadership(user, params?.id);
   const regionalId = params?.id;
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });

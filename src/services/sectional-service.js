@@ -204,7 +204,10 @@ const registrarAuditoriaSeccion = ({
 export const saveSectional = async (payload, { usuario } = {}) => {
     // Se valida contra la REGION DESTINO del payload, con el alcance propio ya
     // derivado (el token de un Coordinador Regional puede no traer su region).
-    if (usuario) {
+    // Quien APRUEBA no se pide permiso a si mismo: al aplicar un alta ya
+    // aprobada, la escritura la ejecuta la Oficina Nacional, cuya region no es
+    // la de la seccion propuesta.
+    if (usuario && !puedeAprobarCambiosDeOrganizacion(usuario)) {
         const ownRegionIds = await resolveOwnRegionIds(usuario);
 
         assertScope(
@@ -216,6 +219,50 @@ export const saveSectional = async (payload, { usuario } = {}) => {
         );
     }
 
+    // DAR DE ALTA UNA SECCION LO APRUEBA LA OFICINA NACIONAL, igual que
+    // modificarla. Los cargos de region pueden proponerla —es su region y son
+    // quienes saben que hace falta— pero no crearla de su mano: una seccion
+    // nueva cambia el mapa de la organizacion.
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.seccion,
+        entidad: {
+            tipo: 'seccion',
+            // Todavia no tiene id: lo tendra cuando se apruebe y se cree.
+            id: null,
+            nombre: getSectionalAuditName(payload),
+            ruta: '/dashboard/level/sectional',
+        },
+        cambios: [
+            {
+                campo: 'nombre',
+                etiqueta: 'Sección nueva',
+                antes: null,
+                despues: getSectionalAuditName(payload),
+            },
+            {
+                campo: 'idRegion',
+                etiqueta: 'Región',
+                antes: null,
+                despues: payload?.idRegion ?? payload?.regionalId ?? null,
+            },
+        ],
+        usuario,
+        descripcion: `Se creó la sección ${getSectionalAuditName(payload)}.`,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload,
+        aplicar: () => crearSeccionEnLaApi(payload),
+    });
+
+    if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
+        return { pendienteDeAprobacion: true, idSolicitud: resultado.idSolicitud };
+    }
+
+    return { pendienteDeAprobacion: false };
+};
+
+// La escritura real del alta. No se llama a pelo: entra por la puerta de
+// cambios, que la ejecuta ahora o al aprobarla.
+const crearSeccionEnLaApi = async (payload) => {
     const res = await fetch('/api/sectional/post', {
         method: 'POST',
         headers: {
@@ -224,16 +271,13 @@ export const saveSectional = async (payload, { usuario } = {}) => {
         body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    if (!res.ok) {
+        const texto = await res.text();
 
-    registrarAuditoriaSeccion({
-        accion: 'seccion_creada',
-        descripcion: `Se creó la sección ${getSectionalAuditName(payload)}.`,
-        payload: { ...payload, ...data },
-        usuario,
-    });
+        throw new Error(texto || `Error creando la sección (${res.status})`);
+    }
 
-    return data;
+    return res.json();
 };
 
 export const updateSectional = async (sectional, { usuario, antes = null } = {}) => {

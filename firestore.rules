@@ -733,6 +733,15 @@ service cloud.firestore {
         || rolDelDocumento() == 'administrador_global';
     }
 
+    // Quien APRUEBA las directivas de seccion, region y Consejo Nacional. Es la
+    // que escribe la asignacion cuando aprueba una propuesta: sin esto, una
+    // directiva propuesta se podia aprobar en pantalla y la escritura moria
+    // aqui, porque solo pasaba el Administrador Global.
+    function esOficinaNacional() {
+      return rolDelToken() == 'oficina_nacional'
+        || rolDelDocumento() == 'oficina_nacional';
+    }
+
     function nivelDirectivaValido(nivel) {
       return nivel in ['nacional', 'regional', 'seccional', 'destacamento'];
     }
@@ -750,6 +759,18 @@ service cloud.firestore {
     function tienePermisoDeCargo(codigo) {
       return 'permisos' in datosDeAcceso()
         && codigo in datosDeAcceso().permisos;
+    }
+
+    function regionesDeSuAlcance() {
+      return 'alcance' in datosDeAcceso() && 'regiones' in datosDeAcceso().alcance
+        ? datosDeAcceso().alcance.regiones
+        : [];
+    }
+
+    // Ocupa una casilla en ESA region. El alcance lo arma la sincronizacion a
+    // partir de sus cargos, asi que tenerla ahi es tener un cargo alli.
+    function esCargoDeEsaRegion(idEntidad) {
+      return string(idEntidad) in regionesDeSuAlcance();
     }
 
     function destacamentosDeSuAlcance() {
@@ -776,6 +797,9 @@ service cloud.firestore {
       allow read: if esUsuarioDelSistema();
       allow create, update: if (
           esAdministradorGlobal()
+          // La Oficina Nacional no compone directivas: las APRUEBA. Cuando lo
+          // hace, la escritura la ejecuta ella.
+          || esOficinaNacional()
           || componeLaDirectivaDeSuDestacamento(
                request.resource.data.nivel,
                request.resource.data.idEntidad
@@ -796,6 +820,7 @@ service cloud.firestore {
       allow read: if esUsuarioDelSistema();
       allow create, update: if (
           esAdministradorGlobal()
+          || esOficinaNacional()
           || componeLaDirectivaDeSuDestacamento(
                request.resource.data.nivel,
                request.resource.data.idEntidad
@@ -815,9 +840,17 @@ service cloud.firestore {
       allow read: if esUsuarioDelSistema();
       allow create, update: if (
           esAdministradorGlobal()
+          || esOficinaNacional()
           || componeLaDirectivaDeSuDestacamento(
                request.resource.data.nivel,
                request.resource.data.idEntidad
+             )
+          // El DISEÑO del diagrama —donde cae cada caja— no pasa por aprobacion:
+          // no cambia quien ocupa que, solo como se ve. Un cargo de la region
+          // acomoda el de la suya.
+          || (
+               request.resource.data.nivel == 'regional'
+               && esCargoDeEsaRegion(request.resource.data.idEntidad)
              )
         )
         && request.resource.data.nodeOffsets is map

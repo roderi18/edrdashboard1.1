@@ -442,11 +442,14 @@ export function SectionalCreateEditForm({ currentSectional }) {
       if (currentSectional) {
         resultado = await updateSectional(payload, { usuario: user, antes: currentSectional });
       } else {
-        await saveSectional(payload, { usuario: user });
+        resultado = await saveSectional(payload, { usuario: user });
       }
 
       // El segundo nombre va aparte, a Firebase, con el id de la seccion: al
-      // crear hay que averiguarlo primero, porque la API no lo devuelve.
+      // crear hay que averiguarlo primero, porque la API no lo devuelve. Si el
+      // alta quedo esperando aprobacion no hay seccion todavia, y buscarle un id
+      // solo encontraria el de otra que se llame parecido.
+      if (!resultado?.pendienteDeAprobacion) {
       try {
         const idSeccion = await resolveSectionalId(data.sectionalName, data.regionalId);
 
@@ -467,12 +470,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
         console.error('[sectional form] no se pudo guardar el segundo nombre', error);
         toast.error(error.message || 'No se pudo guardar el Nombre secundario de Sección.');
       }
+      }
 
       await espera;
 
       if (resultado?.pendienteDeAprobacion) {
         // Todavia no se ha guardado nada: el cambio espera a la Oficina Nacional.
-        toast.info('Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.');
+        toast.info(
+          currentSectional
+            ? 'Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.'
+            : 'Sección enviada a la Oficina Nacional. Se creará cuando la aprueben.'
+        );
       } else {
         toast.success(currentSectional ? 'Actualizado correctamente!' : 'Creado correctamente!');
       }
