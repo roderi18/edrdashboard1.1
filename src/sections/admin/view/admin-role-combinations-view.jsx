@@ -136,7 +136,6 @@ function Simulador({
   revisionGuardada,
   onRevisarCapacidad,
   onRevisarArea,
-  guardandoCapacidades,
   cargandoRevisiones,
 }) {
   const [mostrarSueltos, setMostrarSueltos] = useState(true);
@@ -160,7 +159,6 @@ function Simulador({
   if (!analisis || !sesion) return null;
 
   const principal = ROL_COMBINABLE_POR_CODIGO[sesion.rolId];
-  const combinationId = idCombinacion(codigoDestacamento, codigoAcompanante);
   const totalValidadas = countValidatedCombinationCapabilities(
     revisionGuardada,
     CAPACIDADES.map((capacidad) => capacidad.id)
@@ -209,6 +207,16 @@ function Simulador({
             label="Segundo cargo"
             value={codigoAcompanante}
             onChange={(event) => onCambiar(codigoDestacamento, event.target.value)}
+            // El conteo es para ELEGIR: sirve mientras se compara una pareja con
+            // otra en la lista. Una vez elegida, el mismo dato ya esta arriba
+            // ("29 de 29 marcadas como correctas") y aqui solo estorbaba debajo
+            // del nombre.
+            slotProps={{
+              select: {
+                renderValue: (codigo) =>
+                  ROL_COMBINABLE_POR_CODIGO[codigo]?.nombre ?? codigo,
+              },
+            }}
           >
             {NIVELES_ACOMPANANTES.flatMap((nivel) => {
               const roles = rolesDeNivel(nivel);
@@ -326,10 +334,6 @@ function Simulador({
                   );
                   const todas = validadasAqui.length === deLaSeccion.length;
                   const algunas = validadasAqui.length > 0 && !todas;
-                  const guardandoLaSeccion = deLaSeccion.some((capacidad) =>
-                    guardandoCapacidades.has(`${combinationId}::${capacidad.id}`)
-                  );
-
                   return (
                     <Fragment key={area}>
                       <TableRow>
@@ -342,7 +346,7 @@ function Simulador({
                           <Checkbox
                             checked={todas}
                             indeterminate={algunas}
-                            disabled={cargandoRevisiones || guardandoLaSeccion}
+                            disabled={cargandoRevisiones}
                             inputProps={{ 'aria-label': `Marcar todas las filas de ${area}` }}
                             onChange={(event) => onRevisarArea(deLaSeccion, event.target.checked)}
                           />
@@ -366,12 +370,12 @@ function Simulador({
                                 revisionGuardada,
                                 capacidad.id
                               )}
-                              disabled={
-                                cargandoRevisiones ||
-                                guardandoCapacidades.has(
-                                  `${combinationId}::${capacidad.id}`
-                                )
-                              }
+                              // NO se deshabilita mientras guarda. El visto ya
+                              // esta puesto —el estado se actualiza antes de
+                              // escribir— y apagar la casilla justo despues de
+                              // pulsarla parecia que el clic no habia entrado.
+                              // Si la escritura falla, se revierte y se avisa.
+                              disabled={cargandoRevisiones}
                               inputProps={{
                                 'aria-label': `Validar ${capacidad.etiqueta}`,
                               }}
@@ -628,7 +632,6 @@ export function AdminRoleCombinationsView() {
   const [pestana, setPestana] = useState('simulador');
   const [guardadas, setGuardadas] = useState({});
   const [sembrando, setSembrando] = useState(false);
-  const [guardandoCapacidades, setGuardandoCapacidades] = useState(() => new Set());
   const [cargandoRevisiones, setCargandoRevisiones] = useState(true);
 
   const cargar = useCallback(async () => {
@@ -716,12 +719,10 @@ export function AdminRoleCombinationsView() {
 
   const handleRevisarCapacidad = async (capacidad, validada) => {
     const combinationId = idCombinacion(codigoDestacamento, codigoAcompanante);
-    const savingId = `${combinationId}::${capacidad.id}`;
     const documentAnterior = guardadas[combinationId] ?? { id: combinationId };
     const revisionAnterior = documentAnterior?.revisionesCapacidades?.[capacidad.id];
     const estabaValidada = isCombinationCapabilityValidated(documentAnterior, capacidad.id);
 
-    setGuardandoCapacidades((previas) => new Set(previas).add(savingId));
     setGuardadas((previas) => ({
       ...previas,
       [combinationId]: {
@@ -760,12 +761,6 @@ export function AdminRoleCombinationsView() {
           [combinationId]: { ...documentActual, revisionesCapacidades },
         };
       });
-    } finally {
-      setGuardandoCapacidades((previas) => {
-        const siguientes = new Set(previas);
-        siguientes.delete(savingId);
-        return siguientes;
-      });
     }
   };
 
@@ -781,9 +776,31 @@ export function AdminRoleCombinationsView() {
       (capacidad) => isCombinationCapabilityValidated(documento, capacidad.id) !== validada
     );
 
-     
+    if (!pendientes.length) return;
+
+    // PRIMERO se pintan todas, de golpe. Las escrituras van detras y en orden,
+    // pero nadie tiene que ver como se marcan de una en una: el clic fue uno
+    // solo y la respuesta tiene que ser una sola. Cada escritura repite despues
+    // su propia marca —es el mismo valor— y revierte solo la suya si falla.
+    setGuardadas((previas) => {
+      const documentActual = previas[combinationId] ?? { id: combinationId };
+
+      return {
+        ...previas,
+        [combinationId]: {
+          ...documentActual,
+          revisionesCapacidades: pendientes.reduce(
+            (acumulado, capacidad) =>
+              mergeCombinationCapabilityReview({ revisionesCapacidades: acumulado }, capacidad.id, {
+                validada,
+              }),
+            { ...(documentActual.revisionesCapacidades ?? {}) }
+          ),
+        },
+      };
+    });
+
     for (const capacidad of pendientes) {
-       
       await handleRevisarCapacidad(capacidad, validada);
     }
   };
@@ -848,7 +865,6 @@ export function AdminRoleCombinationsView() {
           }
           onRevisarCapacidad={handleRevisarCapacidad}
           onRevisarArea={handleRevisarArea}
-          guardandoCapacidades={guardandoCapacidades}
           cargandoRevisiones={cargandoRevisiones}
         />
       ) : (
