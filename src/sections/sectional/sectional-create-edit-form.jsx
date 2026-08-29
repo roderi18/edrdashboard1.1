@@ -26,6 +26,7 @@ import {
   isSectionScopedManager,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
+  puedeAsignarLaRegionDeUnaSeccion,
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
@@ -615,6 +616,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
                 isCreateView={!currentSectional}
                 disabled={!canEdit}
                 lockedRegional={ownRegional}
+                regionBloqueada={!puedeAsignarLaRegionDeUnaSeccion(user)}
               />
             </Box>
 

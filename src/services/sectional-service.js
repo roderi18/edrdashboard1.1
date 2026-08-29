@@ -12,6 +12,7 @@ import {
     canAssignSectionalToRegion,
     canCreateSectionalInRegion,
     soloSugiereCambiosDeSeccion,
+    puedeAsignarLaRegionDeUnaSeccion,
     puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
@@ -236,13 +237,24 @@ export const saveSectional = async (payload, { usuario } = {}) => {
 };
 
 export const updateSectional = async (sectional, { usuario, antes = null } = {}) => {
+    // La REGION de la seccion no la mueve ningun cargo de seccion. El
+    // desplegable ya viene cerrado en el formulario; esto es lo que lo hace
+    // cierto: se conserva la region que tenia, asi que un formulario viejo —o
+    // una llamada armada a mano— no puede mudar la seccion de region ni dejar
+    // esa propuesta esperando en la bandeja de la Oficina Nacional.
+    const regionAnterior = antes?.idRegion ?? antes?.regionalId ?? null;
+    const cambio =
+        usuario && !puedeAsignarLaRegionDeUnaSeccion(usuario) && regionAnterior != null
+            ? { ...sectional, idRegion: Number(regionAnterior) }
+            : sectional;
+
     if (usuario) {
         const ownRegionIds = await resolveOwnRegionIds(usuario);
 
         assertScope(
             usuario,
-            canEditSectional(usuario, antes ?? sectional) &&
-            canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId, {
+            canEditSectional(usuario, antes ?? cambio) &&
+            canAssignSectionalToRegion(usuario, cambio?.idRegion ?? cambio?.regionalId, {
                 ownRegionIds,
             }),
             'No tienes permiso para editar esta sección.'
@@ -255,18 +267,18 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
         ambito: AMBITOS_CAMBIO.seccion,
         entidad: {
             tipo: 'seccion',
-            id: sectional?.idSeccion ?? sectional?.id ?? null,
-            nombre: getSectionalAuditName(sectional),
+            id: cambio?.idSeccion ?? cambio?.id ?? null,
+            nombre: getSectionalAuditName(cambio),
             ruta: '/dashboard/level/sectional',
         },
-        cambios: compararCambios(antes, sectional, CAMPOS_SECCION),
+        cambios: compararCambios(antes, cambio, CAMPOS_SECCION),
         usuario,
         // El Sub-Coordinador maneja los mismos campos que su Coordinador, pero
         // lo suyo se registra como sugerencia: no habla por la seccion.
         esSugerencia: soloSugiereCambiosDeSeccion(usuario),
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
-        payload: sectional,
-        aplicar: () => escribirSeccion(sectional),
+        payload: cambio,
+        aplicar: () => escribirSeccion(cambio),
     });
 
     if (resultado.estado === ESTADOS_CAMBIO.pendiente) {

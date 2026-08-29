@@ -21,6 +21,9 @@ export default function SectionalGeneralSection({
     isCreateView,
     disabled = false,
     lockedRegional = null,
+    // Ningun cargo de seccion mueve su seccion de region. Ver
+    // `puedeAsignarLaRegionDeUnaSeccion`.
+    regionBloqueada = false,
 }) {
     const [regionals, setRegionals] = useState([]);
     const regionalId = watch('regionalId');
@@ -136,13 +139,27 @@ export default function SectionalGeneralSection({
                 />
             )}
 
-            {/* Región: bloqueada a la región propia del coordinador regional */}
-            {lockedRegional ? (
+            {/* Región: bloqueada a la región propia del coordinador regional, y
+                cerrada del todo para los cargos de sección —una sección no se muda
+                de región por decisión de quien la coordina—. En vez de un
+                desplegable muerto se muestra la región que tiene, que es lo que
+                de verdad se quiere saber ahí. */}
+            {lockedRegional || regionBloqueada ? (
                 <TextField
                     label="Región"
-                    value={lockedRegional?.name || lockedRegional?.regionalName || ''}
+                    value={
+                        lockedRegional?.name ||
+                        lockedRegional?.regionalName ||
+                        regionals.find((r) => String(r.regionId) === String(regionalId))?.name ||
+                        ''
+                    }
                     disabled
                     fullWidth
+                    helperText={
+                        regionBloqueada && !lockedRegional
+                            ? 'La región de una sección no se cambia desde aquí.'
+                            : undefined
+                    }
                 />
             ) : (
                 <Field.Autocomplete

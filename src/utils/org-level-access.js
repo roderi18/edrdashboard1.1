@@ -300,6 +300,29 @@ export const destLeadershipChangeNeedsNotice = (user = {}) => {
   );
 };
 
+/**
+ * ¿Puede decir a que REGION pertenece una seccion?
+ *
+ * Ningun cargo de SECCION: ni cambiandola ni sugiriendolo. Una seccion no se
+ * muda de region por decision de quien la coordina —eso lo decide el nivel de
+ * arriba—, y como la ficha de la seccion viaja a la Oficina Nacional, dejar el
+ * desplegable vivo era ofrecerle mandar una propuesta que nadie le pidio.
+ *
+ * Se miran TODOS sus cargos: recibir una casilla seccional cierra el
+ * desplegable aunque su cargo principal sea otro.
+ */
+export const puedeAsignarLaRegionDeUnaSeccion = (user = {}) => {
+  if (isGlobalOrgManager(user)) return true;
+
+  const cargos = Array.isArray(user?.cargos) ? user.cargos : [];
+
+  if (cargos.some((cargo) => String(cargo?.nivel ?? '') === 'seccional')) return false;
+
+  return !rolesQueEjerce(user).some(
+    (codigo) => ALCANCE_PREDETERMINADO_ROL[codigo] === ALCANCES.SECCION
+  );
+};
+
 export const puedeSugerirFotoDeRegion = (user = {}, region = {}) => {
   if (isGlobalOrgManager(user)) return true;
 
