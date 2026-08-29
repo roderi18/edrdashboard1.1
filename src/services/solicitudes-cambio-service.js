@@ -310,9 +310,31 @@ export async function obtenerSolicitudCambio(idSolicitud) {
 }
 
 /**
+ * ¿Es suya la propuesta?
+ *
+ * NADIE APRUEBA LO SUYO. Quien es de la Oficina Nacional y ademas ocupa una
+ * casilla local propone con su cargo local —el del modulo manda— y la propuesta
+ * cae en la bandeja que el mismo atiende. Poder aprobarla convertia la
+ * aprobacion en un tramite: firmaba su propio cambio y la revision no existia.
+ *
+ * Se compara por uid, que es lo unico estable: el nombre se repite y el rol
+ * cambia. Sin uid en un lado o en el otro no se bloquea nada —no se puede
+ * afirmar que sea la misma persona—.
+ */
+export const esSuPropiaSolicitud = (solicitud = {}, usuario = {}) => {
+  const suyo = String(usuario?.uid || usuario?.id || '').trim();
+  const deLaSolicitud = String(solicitud?.solicitadoPorUid || '').trim();
+
+  return Boolean(suyo) && Boolean(deLaSolicitud) && suyo === deLaSolicitud;
+};
+
+/**
  * Resuelve una propuesta. Reservado a la Oficina Nacional y al Administrador
  * Global; el permiso lo comprueba quien llama, y la resolucion queda en
  * Historial igual que la propuesta.
+ *
+ * Con una excepcion que no depende del rol: la propia. Rechazarla si se puede
+ * —retirar lo que uno mando no es firmarselo—, pero aprobarla no.
  */
 export async function resolverSolicitudCambio(
   idSolicitud,
@@ -332,6 +354,12 @@ export async function resolverSolicitudCambio(
 
   if (solicitud.estado !== ESTADOS_CAMBIO.pendiente) {
     throw new Error('Esa solicitud ya fue resuelta.');
+  }
+
+  if (estado === ESTADOS_CAMBIO.aprobada && esSuPropiaSolicitud(solicitud, usuario)) {
+    throw new Error(
+      'No puedes aprobar un cambio que enviaste tú. Pídele a otra persona de la Oficina Nacional o al Administrador Global que lo revise; si te arrepentiste, recházalo.'
+    );
   }
 
   const actor = describirActor(usuario);

@@ -10,6 +10,7 @@ import Alert from '@mui/material/Alert';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -26,8 +27,8 @@ import { paths } from 'src/routes/paths';
 import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { obtenerSolicitudesCambio } from 'src/services/solicitudes-cambio-service';
 import { aprobarSolicitud, rechazarSolicitud } from 'src/services/aplicar-solicitud-service';
+import { esSuPropiaSolicitud , obtenerSolicitudesCambio } from 'src/services/solicitudes-cambio-service';
 
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -266,18 +267,35 @@ export function AprobacionesView() {
                   >
                     Rechazar
                   </Button>
-                  <Button
-                    color="primary"
-                    variant="contained"
-                    disabled={Boolean(enCurso)}
-                    onClick={() => pedirAprobar(solicitud)}
+                  {/* Lo suyo no se lo firma: se puede retirar, no aprobar. El
+                      boton se explica en vez de desaparecer, para que se
+                      entienda que falta OTRA persona y no que algo se rompio. */}
+                  <Tooltip
+                    arrow
+                    placement="top"
+                    title={
+                      esSuPropiaSolicitud(solicitud, user)
+                        ? 'Lo enviaste tú: tiene que revisarlo otra persona de la Oficina Nacional o el Administrador Global.'
+                        : ''
+                    }
                   >
-                    {enCurso === solicitud.id
-                      ? 'Aplicando...'
-                      : (solicitud.cambios?.length || 0) > 1
-                        ? 'Revisar y aprobar'
-                        : 'Aprobar'}
-                  </Button>
+                    <span>
+                      <Button
+                        color="primary"
+                        variant="contained"
+                        disabled={Boolean(enCurso) || esSuPropiaSolicitud(solicitud, user)}
+                        onClick={() => pedirAprobar(solicitud)}
+                      >
+                        {enCurso === solicitud.id
+                          ? 'Aplicando...'
+                          : esSuPropiaSolicitud(solicitud, user)
+                            ? 'Enviado por ti'
+                            : (solicitud.cambios?.length || 0) > 1
+                              ? 'Revisar y aprobar'
+                              : 'Aprobar'}
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </Stack>
               </Stack>
 
