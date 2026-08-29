@@ -9,8 +9,10 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { destLeadershipChangeNeedsNotice } from 'src/utils/member-access';
-import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
+import {
+  destLeadershipChangeNeedsNotice,
+  puedeAprobarCambiosDeOrganizacion,
+} from 'src/utils/org-level-access';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { obtenerCargosApi } from 'src/services/cargos-api-service';
