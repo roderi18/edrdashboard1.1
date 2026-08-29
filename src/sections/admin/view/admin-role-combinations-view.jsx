@@ -108,17 +108,21 @@ function MarcaDeRepaso({ validadas, total }) {
   if (!validadas) return null;
 
   const completa = validadas >= total;
+  const color = completa ? 'success.main' : 'text.disabled';
 
   return (
-    <Tooltip
-      title={completa ? 'Repasada por completo' : `Repasada a medias (${validadas} de ${total})`}
-    >
+    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1, flexShrink: 0 }}>
       <Iconify
         width={18}
         icon={completa ? 'eva:checkmark-circle-2-fill' : 'eva:radio-button-on-fill'}
-        sx={{ ml: 1, flexShrink: 0, color: completa ? 'success.main' : 'text.disabled' }}
+        sx={{ color }}
       />
-    </Tooltip>
+      {/* Cuanto falta, en numeros. El icono dice "a medias"; esto dice si es
+          media docena de filas o la ultima que queda. */}
+      <Typography variant="caption" sx={{ color }}>
+        {validadas}/{total}
+      </Typography>
+    </Stack>
   );
 }
 
@@ -131,6 +135,7 @@ function Simulador({
   guardadas = {},
   revisionGuardada,
   onRevisarCapacidad,
+  onRevisarArea,
   guardandoCapacidades,
   cargandoRevisiones,
 }) {
@@ -314,18 +319,46 @@ function Simulador({
             <Table size="small" sx={{ minWidth: 960 }}>
               <TableHeadCustom headCells={cabecera} />
               <TableBody>
-                {AREAS.map((area) => (
-                  <Fragment key={area}>
-                    <TableRow>
-                      <TableCell colSpan={cabecera.length} sx={{ bgcolor: 'background.neutral' }}>
-                        <Typography variant="overline" sx={{ color: 'text.secondary' }}>
-                          {area}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
+                {AREAS.map((area) => {
+                  const deLaSeccion = CAPACIDADES.filter((capacidad) => capacidad.area === area);
+                  const validadasAqui = deLaSeccion.filter((capacidad) =>
+                    isCombinationCapabilityValidated(revisionGuardada, capacidad.id)
+                  );
+                  const todas = validadasAqui.length === deLaSeccion.length;
+                  const algunas = validadasAqui.length > 0 && !todas;
+                  const guardandoLaSeccion = deLaSeccion.some((capacidad) =>
+                    guardandoCapacidades.has(`${combinationId}::${capacidad.id}`)
+                  );
 
-                    {CAPACIDADES.filter((capacidad) => capacidad.area === area).map((capacidad) => (
-                      <TableRow key={capacidad.id} hover>
+                  return (
+                    <Fragment key={area}>
+                      <TableRow>
+                        {/* Marcar la seccion entera de una vez: repasarla fila a
+                            fila cuando ya se sabe que esta bien son diez clics
+                            para decir lo mismo. Solo se escriben las que
+                            cambian, para no llenar Historial de filas que
+                            quedan igual. */}
+                        <TableCell padding="checkbox" sx={{ bgcolor: 'background.neutral' }}>
+                          <Checkbox
+                            checked={todas}
+                            indeterminate={algunas}
+                            disabled={cargandoRevisiones || guardandoLaSeccion}
+                            inputProps={{ 'aria-label': `Marcar todas las filas de ${area}` }}
+                            onChange={(event) => onRevisarArea(deLaSeccion, event.target.checked)}
+                          />
+                        </TableCell>
+                        <TableCell
+                          colSpan={cabecera.length - 1}
+                          sx={{ bgcolor: 'background.neutral' }}
+                        >
+                          <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                            {area}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+
+                      {deLaSeccion.map((capacidad) => (
+                        <TableRow key={capacidad.id} hover>
                         <TableCell padding="checkbox">
                           <span>
                             <Checkbox
@@ -374,10 +407,11 @@ function Simulador({
                               : '—'}
                           </Typography>
                         </TableCell>
-                      </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </Scrollbar>
@@ -735,6 +769,25 @@ export function AdminRoleCombinationsView() {
     }
   };
 
+  // Marca (o desmarca) la seccion entera. Va una por una y en orden a proposito:
+  // las tres escrituras caen en el MISMO documento y Firestore las resuelve por
+  // transaccion, asi que lanzarlas a la vez solo las pone a pelearse entre
+  // reintentos. Se saltan las que ya estan como quedarian: escribirlas no
+  // cambia nada y llenaria Historial de decisiones que nadie tomo.
+  const handleRevisarArea = async (capacidades = [], validada) => {
+    const combinationId = idCombinacion(codigoDestacamento, codigoAcompanante);
+    const documento = guardadas[combinationId] ?? {};
+    const pendientes = capacidades.filter(
+      (capacidad) => isCombinationCapabilityValidated(documento, capacidad.id) !== validada
+    );
+
+     
+    for (const capacidad of pendientes) {
+       
+      await handleRevisarCapacidad(capacidad, validada);
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <Card>
@@ -794,6 +847,7 @@ export function AdminRoleCombinationsView() {
             guardadas[idCombinacion(codigoDestacamento, codigoAcompanante)] ?? {}
           }
           onRevisarCapacidad={handleRevisarCapacidad}
+          onRevisarArea={handleRevisarArea}
           guardandoCapacidades={guardandoCapacidades}
           cargandoRevisiones={cargandoRevisiones}
         />
