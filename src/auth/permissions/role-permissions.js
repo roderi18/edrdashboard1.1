@@ -265,6 +265,9 @@ const PERMISOS_CARGO_DESTACAMENTO_APROBACION = [
 const PERMISOS_PASTOR_APROBACION = [
   ...PERMISOS_CARGO_DESTACAMENTO_APROBACION,
   PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
+  // Acompana a su gente: escribirles es parte del cargo. Va aqui y no en el
+  // perfil compartido para no darselo tambien al Consejo y al Capellan.
+  PERMISOS.CORREOS_ENVIAR,
 ];
 
 export const RESTRICCIONES_ROL = {
@@ -359,7 +362,13 @@ const PERMISOS_OFICINA_NACIONAL = [
   PERMISOS.DESTACAMENTOS_VER,
   PERMISOS.SECCIONES_VER,
   PERMISOS.REGIONES_VER,
+  // `miembros.ver` es lo que abre el modulo: sin el, tener `ver_adultos` y
+  // `ver_menores` no servia de nada porque la entrada del menu no aparecia.
+  PERMISOS.MIEMBROS_VER,
   PERMISOS.MIEMBROS_VER_ADULTOS,
+  // Ve la ficha de un menor, pero SIN `miembros.ver_datos_sensibles`: direccion,
+  // telefono y correo le salen enmascarados, igual que a los demas cargos de
+  // consulta. Aprobar no exige leer los datos personales de nadie.
   PERMISOS.MIEMBROS_VER_MENORES,
   PERMISOS.REPORTES_VER_NACIONALES,
   PERMISOS.ADMINISTRACION_VER_AUDITORIA,
@@ -376,10 +385,16 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.SECCIONES_VER,
     PERMISOS.REGIONES_VER,
+    // `miembros.ver` abre la lista; QUIENES ve lo sigue decidiendo el alcance:
+    // no viendo a toda la organizacion, `filtrarMiembrosDeSuDestacamento` le
+    // deja solo a los de su propio destacamento. Sin este codigo la entrada del
+    // menu no aparecia y `ver_adultos`/`ver_menores` no le servian de nada.
+    PERMISOS.MIEMBROS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.REPORTES_VER_LOCALES,
     PERMISOS.TIENDA_VER,
+    PERMISOS.CORREOS_ENVIAR,
     // Sistema de Ascenso: solo lectura.
     PERMISOS.ASCENSO_VER,
   ],
@@ -420,11 +435,11 @@ export const PERMISOS_POR_ROL = {
     // Dispensa Médica, Sistema de Ascenso y Padres: solo lectura (no editan).
     ...PERMISOS_SALUD_ASCENSO_PADRES_LECTURA,
   ],
-  // Sub-Coordinador Seccional: apoyo del titular. Crea/edita destacamentos de su
-  // seccion, pero NO edita la seccion misma (eso queda para el Coordinador).
+  // Sub-Coordinador Seccional: comparte exactamente los permisos del titular.
   [ROLES.USUARIO_SECCION_ASISTENTE]: [
     PERMISOS.REGIONES_VER,
     PERMISOS.SECCIONES_VER,
+    PERMISOS.SECCIONES_EDITAR,
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.DESTACAMENTOS_CREAR,
     PERMISOS.DESTACAMENTOS_EDITAR,
@@ -450,6 +465,10 @@ export const PERMISOS_POR_ROL = {
   [ROLES.CONSEJO_NACIONAL]: [
     PERMISOS.DESTACAMENTOS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
+    // Entra a la tienda como un miembro cualquiera: compra, no gestiona. Sin
+    // `tienda.gestionar` ni `tienda.acceso_administrativo`, el menu le sale en
+    // su version de cliente.
+    PERMISOS.TIENDA_VER,
     PERMISOS.REPORTES_VER_LOCALES,
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,
@@ -464,8 +483,11 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,
     PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
-    PERMISOS.MIEMBROS_SUBIR_FOTO,
+    // SIN `miembros.subir_foto`: es un cargo de consulta. Ver la ficha de
+    // alguien no es motivo para cambiarle la cara.
     PERMISOS.DOCUMENTOS_VER,
+    // Como el Consejo Nacional: entra a la tienda de cliente, no la gestiona.
+    PERMISOS.TIENDA_VER,
     PERMISOS.REPORTES_VER_LOCALES,
     PERMISOS.REPORTES_VER_SECCIONALES,
     PERMISOS.REPORTES_VER_REGIONALES,

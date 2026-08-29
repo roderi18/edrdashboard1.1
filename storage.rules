@@ -203,10 +203,16 @@ service firebase.storage {
 
     // Estos cargos son de consulta aun si el catalogo remoto o una asignacion
     // antigua conserva permisos directos de escritura.
+    //
+    // El PASTOR ya no esta aqui: acompaña a su gente y sube los documentos de su
+    // Dispensa Medica como cualquier cargo de destacamento. El catalogo siempre
+    // le dio `salud.subir_documentos`; era esta lista la que se lo quitaba en
+    // Storage, asi que la app le ofrecia el boton y la subida moria en las
+    // reglas. Los certificados de Ascenso siguen fuera de su alcance por otra
+    // via: no tiene `ascenso.editar`.
     function esCargoDestacamentoSoloLectura() {
       return tieneRolId()
         && rolDeUsuario() in [
-          'pastor_destacamento',
           'consejo_destacamento',
           'capellan_destacamento'
         ];
@@ -402,8 +408,8 @@ service firebase.storage {
     // Certificados PDF del Sistema de Ascenso / Academia Ministerial (subidos por
     // el coordinador/lider al marcar un item como completado) y lotes de
     // certificados generados por administracion. Cualquier cargo de solo lectura
-    // (Pastor, Consejo, Capellan) queda excluido aunque conserve un permiso
-    // directo heredado.
+    // (Consejo, Capellan) queda excluido aunque conserve un permiso directo
+    // heredado.
     function puedeGestionarCertificadosAscenso() {
       return !esCargoDestacamentoSoloLectura()
         && (esAdminRegistrado() || tienePermiso('ascenso.editar'));
@@ -439,10 +445,11 @@ service firebase.storage {
         && esImagenPermitida();
     }
 
-    // Fotos SUGERIDAS, de destacamento o de seccion. Sugerir no es cambiar: quien
-    // las sube —el Coordinador de Destacamento y su Asistente, el Coordinador
-    // Seccional y su Sub-Coordinador— no tiene ni necesita el permiso de cambiar
-    // esa foto, porque la oficial no se toca. Viven fuera de la carpeta de la
+    // Fotos SUGERIDAS, de destacamento, de seccion o de region. Sugerir no es
+    // cambiar: quien las sube —el Coordinador de Destacamento y su Asistente, el
+    // Coordinador Seccional y su Sub-Coordinador, el Coordinador Regional y su
+    // Asistente— no tiene ni necesita el permiso de cambiar esa foto, porque la
+    // oficial no se toca. Viven fuera de la carpeta de la
     // entidad hasta que la Oficina Nacional o el Administrador Global aprueban la
     // propuesta; entonces la ficha pasa a apuntar aqui.
     //
