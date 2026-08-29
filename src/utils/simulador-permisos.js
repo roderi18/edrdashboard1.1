@@ -18,13 +18,13 @@ import {
   canEditHealth,
   canViewHealth,
   canEditMembers,
-  isGroupLeaderRole,
   esMiembroDeSuAlcance,
   canAccessMinorMembers,
   canMemberManageMembers,
   canManageDestLeadership,
   canApproveMemberChanges,
   canUploadHealthDocuments,
+  isDestacamentoApprovalRole,
   canViewMemberSensitiveData,
   filterMembersByMemberScope,
   canViewMemberContactDataByAge,
@@ -241,9 +241,13 @@ export const CAPACIDADES = [
         return RESULTADO.no;
       }
 
-      // Los lideres de grupo editan, pero lo suyo va a aprobacion de los
-      // Coordinadores de Destacamento.
-      return isGroupLeaderRole(user) ? RESULTADO.aprobacion : RESULTADO.si;
+      // Todos los cargos del destacamento que NO son el Coordinador ni su
+      // Asistente editan, pero lo suyo va a aprobacion de ellos dos: Pastor,
+      // Consejo, Capellan y los dos Lideres de Grupo. Aqui se preguntaba solo por
+      // los Lideres, y el simulador decia que el Pastor guardaba directo cuando
+      // la pantalla —que pregunta por `isDestacamentoApprovalRole`— lleva
+      // enviandolo a aprobacion desde siempre.
+      return isDestacamentoApprovalRole(user) ? RESULTADO.aprobacion : RESULTADO.si;
     },
     solicitaA: 'Coordinador de Destacamento y su Asistente',
   },
@@ -295,9 +299,14 @@ export const CAPACIDADES = [
   {
     id: 'miembros.contacto_menor',
     area: 'Miembros de su destacamento',
-    etiqueta: 'Ver el contacto de un menor',
+    etiqueta: 'Ver el contacto de un menor (teléfono y correo)',
+    // El telefono y el correo SE MUESTRAN a quien pueda abrir la ficha —son
+    // datos de contacto, y ocultarlos obligaba a pedirlos por otro lado—; lo que
+    // se protege es la direccion, que va en su propia fila. Aqui se preguntaba
+    // por los datos sensibles y el simulador decia "oculto" a media casa
+    // mientras la ficha se los enseñaba.
     evaluar: (user) =>
-      canViewMemberContactDataByAge(user, FICHAS.propioMenor) || canViewMemberSensitiveData(user)
+      esMiembroDeSuAlcance(user, FICHAS.propioMenor) && canAccessMinorMembers(user)
         ? RESULTADO.si
         : RESULTADO.oculto,
   },
@@ -365,7 +374,9 @@ export const CAPACIDADES = [
         return RESULTADO.no;
       }
 
-      return isGroupLeaderRole(user) ? RESULTADO.aprobacion : RESULTADO.si;
+      // La misma pregunta que hace el formulario de Dispensa Medica: quien no es
+      // el Coordinador ni su Asistente envia sus cambios a aprobacion.
+      return isDestacamentoApprovalRole(user) ? RESULTADO.aprobacion : RESULTADO.si;
     },
     solicitaA: 'Coordinador de Destacamento y su Asistente',
   },
@@ -376,9 +387,10 @@ export const CAPACIDADES = [
     evaluar: (user) => {
       if (!canViewHealth(user)) return RESULTADO.oculto;
 
-      // Los cargos de supervision y quien no puede autorizar entran por el
-      // acceso temporal, que concede un Coordinador de Destacamento.
-      return canApproveMemberChanges(user) || isGroupLeaderRole(user)
+      // Los cargos de supervision —seccion, region, Consejo Nacional— entran por
+      // el acceso temporal que concede un Coordinador de Destacamento. Los del
+      // destacamento no: los ven, y lo que tocan va a aprobacion.
+      return canApproveMemberChanges(user) || isDestacamentoApprovalRole(user)
         ? RESULTADO.si
         : RESULTADO.aprobacion;
     },

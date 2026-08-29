@@ -250,20 +250,17 @@ const RESTRICCIONES_COORDINADOR_DESTACAMENTO = {
 // Sistema de Ascenso queda en SOLO LECTURA para estos tres cargos: consultan el
 // avance del miembro (`ascenso.ver`) pero no lo modifican. Es la diferencia con el
 // Líder de Grupo, que sí edita el ascenso.
+// Pastor, Consejo y Capellan: el MISMO perfil que el Lider de Grupo —crean
+// miembros, editan el Sistema de Ascenso y escriben a su gente—, y como el, todo
+// lo que tocan va a APROBACION del Coordinador de Destacamento.
+//
+// Con una diferencia: ellos SI ven los datos sensibles de los miembros de su
+// destacamento. Antes cada uno iba por su lado —el Pastor con los datos y sin
+// ascenso, el Consejo y el Capellan sin datos, sin crear y sin correos— y eran
+// tres perfiles para tres cargos que hacen lo mismo.
 const PERMISOS_CARGO_DESTACAMENTO_APROBACION = [
-  ...PERMISOS_CARGO_DESTACAMENTO.filter((permiso) => permiso !== PERMISOS.ASCENSO_EDITAR),
-  PERMISOS.REGIONES_VER,
-  PERMISOS.REPORTES_VER_SECCIONALES,
-];
-
-// Pastor: además de editar/enviar a aprobación, ve los datos personales sensibles
-// en claro (dirección, teléfono, correo).
-const PERMISOS_PASTOR_APROBACION = [
-  ...PERMISOS_CARGO_DESTACAMENTO_APROBACION,
+  ...PERMISOS_LIDER_GRUPO,
   PERMISOS.MIEMBROS_VER_DATOS_SENSIBLES,
-  // Acompana a su gente: escribirles es parte del cargo. Va aqui y no en el
-  // perfil compartido para no darselo tambien al Consejo y al Capellan.
-  PERMISOS.CORREOS_ENVIAR,
 ];
 
 export const RESTRICCIONES_ROL = {
@@ -400,11 +397,9 @@ export const PERMISOS_POR_ROL = {
   [ROLES.USUARIO_DESTACAMENTO]: PERMISOS_COORDINADOR_DESTACAMENTO,
   // Coordinador Asistente de Destacamento: identico al titular (apoyo operativo).
   [ROLES.USUARIO_DESTACAMENTO_ASISTENTE]: PERMISOS_COORDINADOR_DESTACAMENTO,
-  // Pastor: edita y envía cambios a aprobación (como el Líder de Grupo) y ve los
-  // datos sensibles en claro.
-  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_PASTOR_APROBACION,
-  // Consejo y Capellan: editan y envían a aprobación (como el Líder de Grupo), pero
-  // con los datos personales enmascarados (solo fecha de nacimiento visible).
+  // Pastor, Consejo y Capellan: lo mismo que el Lider de Grupo —y a aprobacion
+  // como el—, mas los datos sensibles de los miembros de su destacamento.
+  [ROLES.PASTOR_DESTACAMENTO]: PERMISOS_CARGO_DESTACAMENTO_APROBACION,
   [ROLES.CONSEJO_DESTACAMENTO]: PERMISOS_CARGO_DESTACAMENTO_APROBACION,
   [ROLES.CAPELLAN_DESTACAMENTO]: PERMISOS_CARGO_DESTACAMENTO_APROBACION,
   // Líder de Grupo y Líder Asistente: base + crear miembros, ver regiones,

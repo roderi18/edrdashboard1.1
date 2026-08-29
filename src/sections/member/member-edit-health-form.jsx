@@ -23,7 +23,6 @@ import { useRouter } from 'src/routes/hooks';
 
 import {
   canViewHealth,
-  isGroupLeaderRole,
   esMiembroDeSuAlcance,
   canApproveMemberChanges,
   canDeleteHealthDocuments,
@@ -145,20 +144,18 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero los datos del seguro de un menor permanecen enmascarados hasta
     // obtener autorización.
     const requiresMaskedInsuranceAccess = isMinor && isSupervisoryViewerRole;
-    // Cargos del destacamento que NO entran al flujo de acceso temporal de menores:
-    // - Pastor: ve todas las secciones médicas en solo lectura (los desplegables se
-    //   abren pero no edita); solo la sección de Documentos queda deshabilitada.
-    // - Líder de Grupo y Líder Asistente: ven y EDITAN la Dispensa Médica de sus
-    //   miembros (incluidos los menores) sin pedir autorización previa; el control
-    //   es que sus cambios van a APROBACIÓN de los Coordinadores de Destacamento
-    //   (titular y asistente) mediante `mustRequestApproval`.
-    const isGroupLeader = isGroupLeaderRole(user);
+    // Los cargos del destacamento que no son coordinadores —Pastor, Consejo,
+    // Capellan y los dos Lideres de Grupo— ven y EDITAN la Dispensa Medica de sus
+    // miembros, menores incluidos, sin pedir autorizacion previa: el control es
+    // que sus cambios van a APROBACION de los Coordinadores (`mustRequestApproval`).
+    // Al Pastor le sigue quedando fuera la seccion de Documentos.
+    // Los cargos del destacamento que envian sus cambios a aprobacion —Pastor,
+    // Consejo, Capellan y los dos Lideres de Grupo— ven y editan la Dispensa de
+    // sus menores sin pedir acceso temporal: el control es que lo que tocan lo
+    // aprueba el Coordinador. Antes el Consejo y el Capellan si tenian que
+    // pedirlo, y hacian el mismo trabajo que los otros tres.
     const requiresTemporaryAccess =
-        isMinor &&
-        !puedeAutorizarAccesoMenores &&
-        !isSupervisoryViewerRole &&
-        !isPastor &&
-        !isGroupLeader;
+        isMinor && !puedeAutorizarAccesoMenores && !isSupervisoryViewerRole && !isApprovalUser;
     // Cargos de supervisión (sección, región y Consejo Nacional): la Dispensa
     // Médica les queda BLOQUEADA por completo —secciones sin desplegar y campos
     // deshabilitados— hasta que un Coordinador de Destacamento les conceda acceso

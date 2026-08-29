@@ -1283,14 +1283,13 @@ export const canAuthorizeMinorHealthAccess = (user = {}) =>
 
 export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCENSO_VER);
 
-// Pastor, Consejo y Capellán de Destacamento consultan el Sistema de Ascenso pero
-// NUNCA lo editan. Se bloquea por ROL además de quitarles `ascenso.editar` del
-// catálogo, porque `normalizarAccesoUsuario` UNE los permisos del rol con los
-// `permisos` guardados en el documento del usuario: si su ficha conserva
-// `ascenso.editar` de una asignación anterior, el catálogo por sí solo no basta.
-// Mismo patrón que `canEditHealth` con el Consejo Nacional.
+// El Sistema de Ascenso lo editan tambien el Pastor, el Consejo y el Capellan:
+// hacen lo mismo que el Lider de Grupo con la gente que acompanan, y como el,
+// sus cambios van a APROBACION del Coordinador (`isDestacamentoApprovalRole`).
+// Aqui habia ademas un bloqueo por ROL para el Pastor; se retira con el permiso,
+// que es de donde tiene que salir la respuesta.
 export const canEditAwards = (user = {}) =>
-  !isPastorDestacamentoRole(user) && puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
+  puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
 // --- Academia Ministerial -----------------------------------------------------
 // La Academia Ministerial tiene sus PROPIOS permisos de edicion, distintos del
