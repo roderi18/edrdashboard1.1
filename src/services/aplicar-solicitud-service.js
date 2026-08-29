@@ -4,7 +4,11 @@ import { updateRegional, aplicarFotoRegion } from './regional-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { createDestApi, updateDestApi, aplicarFotoDestacamento } from './dest-service';
 import { saveSectional, updateSectional, aplicarFotoSeccion } from './sectional-service';
-import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, resolverSolicitudCambio } from './solicitudes-cambio-service';
+import {
+  AMBITOS_CAMBIO,
+  ESTADOS_CAMBIO,
+  resolverSolicitudCambio,
+} from './solicitudes-cambio-service';
 
 // ----------------------------------------------------------------------
 // Aplicar lo aprobado.
@@ -44,6 +48,10 @@ const APLICADORES = {
     guardarAsignacionDirectiva({ ...payload, usuario }),
   [AMBITOS_CAMBIO.directivaNacional]: (payload, usuario) =>
     guardarAsignacionDirectiva({ ...payload, usuario }),
+  // Normalmente la directiva local se aplica en el momento. Esta ruta se usa
+  // cuando el Consejo Ejecutivo propone un cambio sobre cualquier destacamento.
+  [AMBITOS_CAMBIO.directivaDestacamento]: (payload, usuario) =>
+    guardarAsignacionDirectiva({ ...payload, usuario }),
 };
 
 /**
@@ -51,7 +59,10 @@ const APLICADORES = {
  * resuelve devuelve los campos rechazados a su valor anterior y lo que se
  * escribe es esa mezcla, no lo que se propuso.
  */
-export async function aprobarSolicitud(solicitud, { usuario, comentario = '', payload = null } = {}) {
+export async function aprobarSolicitud(
+  solicitud,
+  { usuario, comentario = '', payload = null } = {}
+) {
   return resolverSolicitudCambio(solicitud.id, {
     estado: ESTADOS_CAMBIO.aprobada,
     usuario,

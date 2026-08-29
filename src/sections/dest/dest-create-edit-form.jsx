@@ -862,7 +862,14 @@ export function DestCreateEditForm({ currentDest }) {
               <Field.UploadAvatar
                 name="avatarUrl"
                 loading={uploadingPhoto}
-                disabled={uploadingPhoto || !canUploadDestPhoto}
+                // `readOnly` y no `disabled`: quien no puede cambiarla la ve
+                // IGUAL que quien si —el escudo de un destacamento no es un dato
+                // reservado—. `disabled` la atenuaba al 48%, y un Usuario Comun
+                // veia el escudo de su propio destacamento medio borrado, como si
+                // la pagina estuviera rota. Lo unico que cambia es que no se
+                // ofrece "Subir foto" y no se acepta el archivo.
+                disabled={uploadingPhoto}
+                readOnly={!canUploadDestPhoto}
                 onDrop={handleUploadDestPhoto}
                 optimizationToast={false}
                 helperText={

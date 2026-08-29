@@ -6,6 +6,7 @@ import {
   canEditRegional,
   canEditSectional,
   canDeleteOrgLevel,
+  canManageRegionLeadership,
   puedeEntrarAAdministracion,
   destLeadershipChangeNeedsNotice,
   puedeAprobarCambiosDeOrganizacion,
@@ -24,9 +25,9 @@ import {
   canApproveMemberChanges,
   canUploadHealthDocuments,
   canViewMemberSensitiveData,
+  filterMembersByMemberScope,
   canViewMemberContactDataByAge,
   canViewMemberBirthdateWhenMasked,
-  puedeVerMiembrosDeTodaLaOrganizacion,
 } from 'src/utils/member-access';
 
 import { PESO_NIVEL, NIVEL_COMBINACION } from 'src/catalogs/combinaciones-roles';
@@ -67,11 +68,28 @@ export const ENTIDADES = {
     sectionalId: CONTEXTO.seccionPropia,
     regionalId: CONTEXTO.regionPropia,
   },
+  // El destacamento de al lado: OTRO destacamento, pero de su misma seccion. Es
+  // el caso que distingue a un cargo seccional de uno de destacamento.
+  destacamentoAjeno: {
+    id: CONTEXTO.destacamentoAjeno,
+    idDestacamento: CONTEXTO.destacamentoAjeno,
+    sectionalId: CONTEXTO.seccionPropia,
+    regionalId: CONTEXTO.regionPropia,
+  },
   seccionPropia: {
     id: CONTEXTO.seccionPropia,
     idSeccion: CONTEXTO.seccionPropia,
     regionalId: CONTEXTO.regionPropia,
   },
+};
+
+// La estructura tal y como se la pasa la lista de miembros al filtro de alcance.
+// Sin ella, un cargo seccional o regional no puede resolver que destacamentos
+// caen dentro de lo suyo.
+const ESTRUCTURA = {
+  dests: [ENTIDADES.destacamentoPropio, ENTIDADES.destacamentoAjeno],
+  churches: [],
+  sectionals: [ENTIDADES.seccionPropia],
 };
 
 const miembro = ({ id, destacamento, edad }) => ({
@@ -106,12 +124,8 @@ export const construirUsuarioSimulado = (roles = []) => {
     (a, b) => (PESO_NIVEL[b.nivel] ?? 0) - (PESO_NIVEL[a.nivel] ?? 0)
   )[0];
 
-  const permisosRol = [
-    ...new Set(activos.flatMap((rol) => PERMISOS_POR_ROL[rol.codigo] ?? [])),
-  ];
-  const soloLectura = activos.every(
-    (rol) => RESTRICCIONES_ROL[rol.codigo]?.soloLectura === true
-  );
+  const permisosRol = [...new Set(activos.flatMap((rol) => PERMISOS_POR_ROL[rol.codigo] ?? []))];
+  const soloLectura = activos.every((rol) => RESTRICCIONES_ROL[rol.codigo]?.soloLectura === true);
 
   const entidadDe = (nivel) =>
     ({
@@ -310,8 +324,13 @@ export const CAPACIDADES = [
     id: 'miembros.ver.ajeno',
     area: 'Miembros de otro destacamento',
     etiqueta: 'Verlos en la lista',
+    // Se le hace la MISMA pregunta que hace la lista: la ficha de alguien de otro
+    // destacamento de su seccion, y si el filtro la deja pasar. Un cargo de
+    // seccion, region o nacional la ve; un cargo de destacamento no.
     evaluar: (user) =>
-      puedeVerMiembrosDeTodaLaOrganizacion(user) ? RESULTADO.si : RESULTADO.oculto,
+      filterMembersByMemberScope([FICHAS.ajenoAdulto], user, ESTRUCTURA).length
+        ? RESULTADO.si
+        : RESULTADO.oculto,
   },
   {
     id: 'miembros.editar.ajeno',
@@ -382,15 +401,13 @@ export const CAPACIDADES = [
     id: 'ascenso.editar',
     area: 'Sistema de Ascenso',
     etiqueta: 'Editarlo y subir certificados',
-    evaluar: (user) =>
-      si(canEditAwards(user) && esMiembroDeSuAlcance(user, FICHAS.propioAdulto)),
+    evaluar: (user) => si(canEditAwards(user) && esMiembroDeSuAlcance(user, FICHAS.propioAdulto)),
   },
   {
     id: 'ascenso.editar.ajeno',
     area: 'Sistema de Ascenso',
     etiqueta: 'Editar el de otro destacamento',
-    evaluar: (user) =>
-      si(canEditAwards(user) && esMiembroDeSuAlcance(user, FICHAS.ajenoAdulto)),
+    evaluar: (user) => si(canEditAwards(user) && esMiembroDeSuAlcance(user, FICHAS.ajenoAdulto)),
   },
 
   // --- Estructura ---
@@ -438,6 +455,19 @@ export const CAPACIDADES = [
     area: 'Estructura',
     etiqueta: 'Componer las directivas de sección, región y Consejo Nacional',
     evaluar: (user) => si(canManageDirectiva(user)),
+  },
+  {
+    id: 'estructura.directiva_region',
+    area: 'Estructura',
+    etiqueta: 'Componer la directiva de su región',
+    // Ningun cargo regional aplica directamente: todos proponen a Oficina
+    // Nacional y al Administrador Global. Solo este ultimo salta la aprobacion.
+    evaluar: (user) => {
+      if (!canManageRegionLeadership(user, CONTEXTO.regionPropia)) return RESULTADO.no;
+
+      return isAdminGlobal(user) ? RESULTADO.si : RESULTADO.aprobacion;
+    },
+    solicitaA: 'Oficina Nacional',
   },
   {
     id: 'estructura.directiva_destacamento',
@@ -526,31 +556,32 @@ export const analizarCombinacion = ({ destacamento, acompanante }) => {
   const soloDestacamento = evaluarRoles([destacamento]);
   const soloAcompanante = evaluarRoles([acompanante]);
 
-  const avisos = CAPACIDADES.filter((capacidad) => !capacidad.esRestriccion).map((capacidad) => {
-    const juntos = ORDEN_RESULTADO[combinado[capacidad.id]] ?? 0;
-    const porSeparado = Math.max(
-      ORDEN_RESULTADO[soloDestacamento[capacidad.id]] ?? 0,
-      ORDEN_RESULTADO[soloAcompanante[capacidad.id]] ?? 0
-    );
+  const avisos = CAPACIDADES.filter((capacidad) => !capacidad.esRestriccion)
+    .map((capacidad) => {
+      const juntos = ORDEN_RESULTADO[combinado[capacidad.id]] ?? 0;
+      const porSeparado = Math.max(
+        ORDEN_RESULTADO[soloDestacamento[capacidad.id]] ?? 0,
+        ORDEN_RESULTADO[soloAcompanante[capacidad.id]] ?? 0
+      );
 
-    if (juntos >= porSeparado) return null;
+      if (juntos >= porSeparado) return null;
 
-    const dueno =
-      (ORDEN_RESULTADO[soloDestacamento[capacidad.id]] ?? 0) > juntos
-        ? destacamento
-        : acompanante;
+      const dueno =
+        (ORDEN_RESULTADO[soloDestacamento[capacidad.id]] ?? 0) > juntos
+          ? destacamento
+          : acompanante;
 
-    return {
-      capacidad: capacidad.id,
-      etiqueta: capacidad.etiqueta,
-      area: capacidad.area,
-      pierde: dueno.nombre,
-      resultadoSolo: dueno === destacamento
-        ? soloDestacamento[capacidad.id]
-        : soloAcompanante[capacidad.id],
-      resultadoCombinado: combinado[capacidad.id],
-    };
-  }).filter(Boolean);
+      return {
+        capacidad: capacidad.id,
+        etiqueta: capacidad.etiqueta,
+        area: capacidad.area,
+        pierde: dueno.nombre,
+        resultadoSolo:
+          dueno === destacamento ? soloDestacamento[capacidad.id] : soloAcompanante[capacidad.id],
+        resultadoCombinado: combinado[capacidad.id],
+      };
+    })
+    .filter(Boolean);
 
   // Lo contrario, y igual de importante: algo que la combinacion permite y que
   // NINGUNO de los dos cargos permitia por separado. Un permiso que aparece de

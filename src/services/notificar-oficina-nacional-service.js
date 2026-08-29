@@ -162,6 +162,57 @@ export async function notificarDestacamentoActualizado({
 }
 
 /**
+ * Aviso de que la DIRECTIVA de una region cambio.
+ *
+ * El Director Regional y su Sub-Director componen el organigrama de su region
+ * sin pedir permiso: la asignacion ya esta escrita cuando llega este aviso. No
+ * es una propuesta ni pide nada, es que la Oficina Nacional y el Administrador
+ * Global se enteren de quien entro o salio de una casilla regional sin tener que
+ * ir a mirarlo.
+ */
+export async function notificarDirectivaRegionActualizada({
+  idRegion,
+  nombreRegion = '',
+  nombreCargo = '',
+  nombreMiembro = '',
+  activo = true,
+  usuario = {},
+} = {}) {
+  const destinatarios = await obtenerDestinatarios();
+
+  if (!destinatarios.length) {
+    console.warn('[oficina-nacional] no hay nadie con el rol para avisar de la directiva regional');
+    return null;
+  }
+
+  const quien =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Alguien';
+  const donde = String(nombreRegion || '').trim() || 'su región';
+  const casilla = String(nombreCargo || '').trim() || 'un cargo';
+  const aQuien = String(nombreMiembro || '').trim();
+
+  return crearNotificacionAdmin({
+    tipoNotificacion: 'directiva_region_modificada',
+    modulo: 'regiones',
+    titulo: 'Directiva regional actualizada',
+    mensaje: activo
+      ? `${quien} asignó ${casilla}${aQuien ? ` a ${aQuien}` : ''} en ${donde}.`
+      : `${quien} liberó ${casilla}${aQuien ? ` (${aQuien})` : ''} en ${donde}.`,
+    // Informativa a proposito: no hay nada que resolver, ya esta hecho.
+    prioridad: 'informativa',
+    entidadTipo: 'region',
+    entidadId: String(idRegion || ''),
+    ruta: idRegion
+      ? `/dashboard/level/regional/${idRegion}/edit/leadership`
+      : '/dashboard/level/regional',
+    etiquetaAccion: 'Ver la directiva',
+    metadatos: { idRegion: String(idRegion || ''), cargo: casilla, activo },
+    usuario,
+    idsDestinatariosPrecalculados: destinatarios,
+  });
+}
+
+/**
  * Foto de destacamento sugerida: se ve la de antes y la de despues.
  *
  * Una foto no se juzga por su nombre de archivo. El aviso lleva las dos

@@ -10,7 +10,12 @@ import {
 } from 'firebase/firestore';
 
 import {
+  canManageRegionLeadership,
+  canManageSectionLeadership,
+  canManageNationalLeadership,
+  canManageDestLeadershipDirectly,
   destLeadershipChangeNeedsNotice,
+  esProponenteNacionalDeDirectivas,
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
@@ -70,10 +75,7 @@ export const esNivelDeConsejo = (nivel) => NIVELES_CARGO_EXCLUYENTES.includes(ni
  * `idAsignacionActual` es la asignacion que se esta guardando: reescribir la
  * misma casilla no es un conflicto consigo misma.
  */
-export async function buscarConflictoDeConsejo({
-  idMiembro,
-  idAsignacionActual = '',
-} = {}) {
+export async function buscarConflictoDeConsejo({ idMiembro, idAsignacionActual = '' } = {}) {
   if (!idMiembro) return null;
 
   const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
@@ -157,9 +159,7 @@ export const describirConflictoDeConsejo = (conflicto) => {
   const cargo = POSICION_POR_ID_CARGO.get(normalizarTexto(conflicto?.idPosicionDirectiva));
   const donde = NOMBRE_CONSEJO[conflicto?.nivel] || 'otro consejo';
 
-  return cargo?.nombreCargo
-    ? `${cargo.nombreCargo} en ${donde}`
-    : `un cargo en ${donde}`;
+  return cargo?.nombreCargo ? `${cargo.nombreCargo} en ${donde}` : `un cargo en ${donde}`;
 };
 
 export const NIVELES_DIRECTIVA = DIRECTIVA_LEVELS;
@@ -337,7 +337,9 @@ export async function guardarCatalogoCargosDirectiva(cargos = CARGOS_DIRECTIVA_B
   const posiciones = cargos
     .map(normalizePosition)
     .filter((position) => position.idPosicionDirectiva);
-  const obsoleteSnapshot = await getDocs(collection(FIRESTORE, COLECCION_CARGOS_DIRECTIVA_OBSOLETA));
+  const obsoleteSnapshot = await getDocs(
+    collection(FIRESTORE, COLECCION_CARGOS_DIRECTIVA_OBSOLETA)
+  );
 
   posiciones.forEach((position) => {
     const positionRef = doc(
@@ -427,9 +429,7 @@ export async function obtenerCargosDirectiva({
         //   3) por nombre, para cargos creados a mano fuera del catalogo.
         const apiCargo =
           (position.idCargo ? apiCargoMap.get(String(position.idCargo)) : null) ||
-          (localPosition?.idCargoApi
-            ? apiCargoMap.get(String(localPosition.idCargoApi))
-            : null) ||
+          (localPosition?.idCargoApi ? apiCargoMap.get(String(localPosition.idCargoApi)) : null) ||
           apiCargoNameMap.get(normalizarClaveTexto(localPosition?.nombreCargo));
 
         return mergePositionWithApiCargo({ position, apiCargo, localPosition });
@@ -611,6 +611,20 @@ export async function guardarAsignacionDirectiva({
 } = {}) {
   asegurarFirebaseDirectivas();
 
+  const esAprobador = puedeAprobarCambiosDeOrganizacion(usuario);
+  const puedeComponer =
+    esAprobador ||
+    (nivel === DIRECTIVA_LEVELS.destacamento &&
+      (canManageDestLeadershipDirectly(usuario, idEntidad) ||
+        esProponenteNacionalDeDirectivas(usuario))) ||
+    (nivel === DIRECTIVA_LEVELS.seccional && canManageSectionLeadership(usuario, idEntidad)) ||
+    (nivel === DIRECTIVA_LEVELS.regional && canManageRegionLeadership(usuario, idEntidad)) ||
+    (nivel === DIRECTIVA_LEVELS.nacional && canManageNationalLeadership(usuario));
+
+  if (!puedeComponer) {
+    throw new Error('No tienes permiso para proponer cambios en esta directiva.');
+  }
+
   const idDirectiva = crearIdDirectivaOrganizacional({ nivel, idEntidad });
   const idMiembroResolved = String(idMiembro || idMiembros || '');
   const idAsignacion = crearIdAsignacionDirectiva({
@@ -771,10 +785,18 @@ export async function guardarAsignacionDirectiva({
     ? `Se asignó a ${personaAuditoria} el cargo de ${cargoAuditoria} en ${dondeAuditoria}.`
     : `Se asignó un cargo de directiva a ${personaAuditoria} en ${dondeAuditoria}.`;
 
+  // El Consejo Ejecutivo puede intervenir en cualquier destacamento, pero por
+  // esa autoridad nacional siempre PROPONE. La directiva local queda directa
+  // unicamente para quien ejerce uno de sus siete cargos dentro de SU entidad.
+  const propuestaNacionalSobreDestacamento =
+    nivel === DIRECTIVA_LEVELS.destacamento &&
+    esProponenteNacionalDeDirectivas(usuario) &&
+    !canManageDestLeadershipDirectly(usuario, idEntidad);
+
   // Las directivas de seccion, region y consejo nacional las aprueba la Oficina
-  // Nacional: hasta entonces la asignacion NO se escribe. La de destacamento
-  // pasa igualmente por la puerta —para que quede en Historial— pero se aplica
-  // en el momento.
+  // Nacional o el Administrador Global: hasta entonces la asignacion NO se
+  // escribe. La de destacamento sigue directa para sus cargos locales; si la
+  // propone el Consejo Ejecutivo, tambien espera aprobacion.
   const resultado = await proponerCambio({
     ambito: AMBITO_POR_NIVEL_DIRECTIVA[nivel] ?? AMBITOS_CAMBIO.directivaDestacamento,
     entidad: {
@@ -793,7 +815,8 @@ export async function guardarAsignacionDirectiva({
     ],
     usuario,
     descripcion: descripcionCambio,
-    aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+    aplicarDirecto: esAprobador,
+    esSugerencia: propuestaNacionalSobreDestacamento,
     // El lote de escritura no se puede guardar; los argumentos si. Al aprobar se
     // vuelve a llamar a esta misma funcion con ellos, ya como Oficina Nacional.
     payload: {
@@ -880,7 +903,11 @@ export async function desactivarAsignacionesDirectivaPorNivel({
 
   aDesactivar.forEach((asignacion) => {
     batch.set(
-      doc(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA, String(asignacion.idAsignacion || asignacion.id)),
+      doc(
+        FIRESTORE,
+        COLECCION_ASIGNACIONES_DIRECTIVA,
+        String(asignacion.idAsignacion || asignacion.id)
+      ),
       { activo: false, fechaFin, fechaActualizacion: serverTimestamp() },
       { merge: true }
     );

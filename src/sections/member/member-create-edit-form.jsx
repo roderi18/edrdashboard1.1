@@ -85,12 +85,12 @@ import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leaders
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
-import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
   invalidateMembersCache,
   getLeadershipAssignments,
 } from 'src/services/member-service';
+import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   guardarCorreoDeAcceso,
   consultarCodigoRestablecimiento,
@@ -2813,9 +2813,12 @@ export function MemberCreateEditForm({
               >
                 {(!isCreateView || step === 1) && (
                   <MemberGeneralSection
-                    // Sin la edad al lado: enmascarar la fecha y dejar "(26
-                    // años)" en la etiqueta seria enmascararla solo de nombre.
-                    age={fueraDeSuAlcance ? null : age}
+                    // La edad va SIEMPRE, tambien cuando la fecha esta
+                    // enmascarada: es el dato que se necesita en pantalla —si es
+                    // menor, que division le toca— y no es lo que se protege.
+                    // Lo que se oculta es el dia exacto en que nacio, que es lo
+                    // que sigue saliendo con asteriscos.
+                    age={age}
                     division={division}
                     isCreateView={isCreateView}
                     control={control}

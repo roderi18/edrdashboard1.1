@@ -27,6 +27,7 @@ import {
   canEditRegional,
   canDeleteOrgLevel,
   isSectionLevelRole,
+  puedeEntrarALaRegion,
   isForeignRegionForMembers,
   canBrowseOrgStructureCounts,
 } from 'src/utils/org-level-access';
@@ -141,6 +142,14 @@ export function RegionalListView() {
   // Excepción: los cargos de nivel sección solo entran a los Destacamentos de su
   // propia región (las Secciones sí las ven en todas).
   const destCountLimitedToOwnRegion = isSectionLevelRole(user);
+  // La región AJENA se lista igual —para que se vea que existe— pero atenuada y
+  // sin un solo enlace. Quien la ve así es todo el que no sea cargo regional,
+  // nacional o administrador. Que no se pueda entrar tampoco escribiendo la URL
+  // lo cierra `RegionalEditLayout`: esto es solo la mitad visible.
+  const esRegionAjena = useCallback(
+    (row) => !puedeEntrarALaRegion(user, row?.id, { ownRegionIds }),
+    [user, ownRegionIds]
+  );
 
   useEffect(() => {
     async function loadRegionals() {
@@ -460,6 +469,7 @@ export function RegionalListView() {
                         editHref={paths.dashboard.level.regional.edit(row.id)}
                         canManage={canEditRegional(user, row)}
                         canDelete={canDeleteOrgLevel(user)}
+                        disabled={esRegionAjena(row)}
                         disabledCounts={
                           !canBrowseStructure &&
                           isForeignRegionForMembers(user, {
@@ -508,6 +518,7 @@ export function RegionalListView() {
           <RegionalCardList
             regionals={dataFiltered.map((row) => ({
               ...row,
+              deshabilitada: esRegionAjena(row),
               disabledCounts:
                 !canBrowseStructure &&
                 isForeignRegionForMembers(user, {

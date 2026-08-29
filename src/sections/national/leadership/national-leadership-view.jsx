@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { canManageNationalLeadership } from 'src/utils/org-level-access';
 
 import { NATIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
 
@@ -206,7 +207,13 @@ function NationalLeadershipNode({
 
         <LeadershipNodeName identity={identity} />
 
-        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
+        <Typography
+          variant="caption"
+          component="div"
+          noWrap
+          title={role}
+          sx={{ color: 'text.secondary' }}
+        >
           {role}
         </Typography>
       </Card>
@@ -220,10 +227,10 @@ function NationalLeadershipNode({
 
 export function NationalLeadershipView() {
   const { user } = useAuthContext();
-  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
-  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
-  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
-  const canManageLeadership = canManageDirectiva(user);
+  // Los cargos del Consejo Ejecutivo proponen; Oficina Nacional o Administrador
+  // Global resuelven. Solo el Administrador Global modifica el diseño visual.
+  const canManageLeadership = canManageNationalLeadership(user);
+  const canManageLayout = canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -246,7 +253,7 @@ export function NationalLeadershipView() {
     nivel: 'nacional',
     idEntidad: '',
     nombreEntidad: 'Directiva Nacional',
-    canManage: canManageLeadership,
+    canManage: canManageLayout,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
   });
@@ -364,272 +371,272 @@ export function NationalLeadershipView() {
 
   return (
     <>
-    <Box
-      ref={containerRef}
-      aria-label="Mover organigrama"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      sx={{
-        width: 1,
-        mx: 'auto',
-        display: 'flex',
-        overflow: 'hidden',
-        position: 'relative',
-        minHeight: containerMinHeight,
-        justifyContent: 'center',
-        bgcolor: 'background.neutral',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 2,
-        py: { xs: 3, md: 4 },
-        px: { xs: 1.5, md: 2 },
-        cursor: isDragging ? 'grabbing' : 'grab',
-        userSelect: 'none',
-        touchAction: 'none',
-        ...getLeadershipEditGridSx(layoutEditor.editMode),
-        ...getLeadershipConnectorOverrideSx(connectorLayerActive),
-        '& button, & a, & input, & textarea, & select, & [role="button"]': {
-          cursor: 'pointer',
-          touchAction: 'auto',
-        },
-        '& .MuiCard-root': {
-          cursor: layoutEditor.editMode ? 'move' : 'default',
-          touchAction: 'auto',
-        },
-        '& .MuiCard-root button': {
-          cursor: 'pointer',
-        },
-      }}
-    >
-      <Stack
-        data-pdf-hidden="true"
-        spacing={0.75}
-        onPointerDown={(event) => event.stopPropagation()}
+      <Box
+        ref={containerRef}
+        aria-label="Mover organigrama"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          zIndex: 20,
-          pointerEvents: 'auto',
+          width: 1,
+          mx: 'auto',
+          display: 'flex',
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: containerMinHeight,
+          justifyContent: 'center',
+          bgcolor: 'background.neutral',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          py: { xs: 3, md: 4 },
+          px: { xs: 1.5, md: 2 },
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          touchAction: 'none',
+          ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipConnectorOverrideSx(connectorLayerActive),
+          '& button, & a, & input, & textarea, & select, & [role="button"]': {
+            cursor: 'pointer',
+            touchAction: 'auto',
+          },
+          '& .MuiCard-root': {
+            cursor: layoutEditor.editMode ? 'move' : 'default',
+            touchAction: 'auto',
+          },
+          '& .MuiCard-root button': {
+            cursor: 'pointer',
+          },
         }}
       >
-        <Box
+        <Stack
+          data-pdf-hidden="true"
+          spacing={0.75}
+          onPointerDown={(event) => event.stopPropagation()}
           sx={{
-            display: 'grid',
-            gap: `${CONTROL_BUTTON_GAP}px`,
-            gridTemplateColumns: `repeat(3, ${CONTROL_BUTTON_SIZE}px)`,
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 20,
+            pointerEvents: 'auto',
           }}
         >
-          <Tooltip title="Centrar vista">
-            <IconButton
-              size="small"
-              aria-label="Centrar vista"
-              onClick={handleResetView}
+          <Box
+            sx={{
+              display: 'grid',
+              gap: `${CONTROL_BUTTON_GAP}px`,
+              gridTemplateColumns: `repeat(3, ${CONTROL_BUTTON_SIZE}px)`,
+            }}
+          >
+            <Tooltip title="Centrar vista">
+              <IconButton
+                size="small"
+                aria-label="Centrar vista"
+                onClick={handleResetView}
+                sx={{
+                  width: CONTROL_BUTTON_SIZE,
+                  height: CONTROL_BUTTON_SIZE,
+                  minWidth: CONTROL_BUTTON_SIZE,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  boxShadow: 1,
+                  '&:hover': { bgcolor: 'background.paper' },
+                }}
+              >
+                <Iconify width={18} icon="solar:restart-bold" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Descargar PDF">
+              <Box component="span" sx={{ gridColumn: '1', gridRow: '2' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Descargar PDF"
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  <Iconify width={18} icon="solar:download-bold" />
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Tooltip title="Reducir zoom">
+              <Box component="span" sx={{ gridColumn: '2', gridRow: '1' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Reducir zoom"
+                  disabled={zoom <= MIN_ZOOM}
+                  onClick={handleZoomOut}
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  -
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Tooltip title="Aumentar zoom">
+              <Box component="span" sx={{ gridColumn: '3', gridRow: '1' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Aumentar zoom"
+                  disabled={zoom >= MAX_ZOOM}
+                  onClick={handleZoomIn}
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  +
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Typography
+              variant="caption"
               sx={{
-                width: CONTROL_BUTTON_SIZE,
+                width: ZOOM_PERCENT_WIDTH,
                 height: CONTROL_BUTTON_SIZE,
-                minWidth: CONTROL_BUTTON_SIZE,
+                minWidth: ZOOM_PERCENT_WIDTH,
+                display: 'flex',
+                gridColumn: '2 / 4',
+                gridRow: '2',
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'center',
+                borderRadius: 1,
+                boxShadow: 1,
+                lineHeight: 1.5,
+                fontWeight: 700,
+                color: 'text.secondary',
                 bgcolor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: 1,
-                boxShadow: 1,
-                '&:hover': { bgcolor: 'background.paper' },
               }}
             >
-              <Iconify width={18} icon="solar:restart-bold" />
-            </IconButton>
-          </Tooltip>
+              {zoomPercentage}%
+            </Typography>
+          </Box>
+        </Stack>
 
-          <Tooltip title="Descargar PDF">
-            <Box component="span" sx={{ gridColumn: '1', gridRow: '2' }}>
-              <IconButton
-                size="small"
-                aria-label="Descargar PDF"
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                <Iconify width={18} icon="solar:download-bold" />
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Tooltip title="Reducir zoom">
-            <Box component="span" sx={{ gridColumn: '2', gridRow: '1' }}>
-              <IconButton
-                size="small"
-                aria-label="Reducir zoom"
-                disabled={zoom <= MIN_ZOOM}
-                onClick={handleZoomOut}
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  fontSize: 20,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                -
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Tooltip title="Aumentar zoom">
-            <Box component="span" sx={{ gridColumn: '3', gridRow: '1' }}>
-              <IconButton
-                size="small"
-                aria-label="Aumentar zoom"
-                disabled={zoom >= MAX_ZOOM}
-                onClick={handleZoomIn}
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  fontSize: 20,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                +
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Typography
-            variant="caption"
-            sx={{
-              width: ZOOM_PERCENT_WIDTH,
-              height: CONTROL_BUTTON_SIZE,
-              minWidth: ZOOM_PERCENT_WIDTH,
-              display: 'flex',
-              gridColumn: '2 / 4',
-              gridRow: '2',
-              alignItems: 'center',
-              justifyContent: 'center',
-              alignSelf: 'center',
-              borderRadius: 1,
-              boxShadow: 1,
-              lineHeight: 1.5,
-              fontWeight: 700,
-              color: 'text.secondary',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            {zoomPercentage}%
-          </Typography>
-        </Box>
-      </Stack>
-
-      <Box
-        sx={{
-          '--chart-pan-x': `${pan.x}px`,
-          '--chart-pan-y': `${pan.y}px`,
-          '--chart-zoom': zoom,
-          width: 1440,
-          zIndex: 2,
-          position: 'relative',
-          flexShrink: 0,
-          '--chart-base-scale': {
-            xs: 0.42,
-            sm: 0.5,
-            md: 0.58,
-            lg: 0.68,
-            xl: 0.78,
-          },
-          transform: {
-            xs: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            sm: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            md: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            lg: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-          },
-          transformOrigin: 'top center',
-        }}
-      >
-        <Typography
-          variant="h3"
-          onPointerUp={titleEditProps.onPointerUp}
-          onPointerMove={titleEditProps.onPointerMove}
-          onPointerDown={titleEditProps.onPointerDown}
-          onPointerCancel={titleEditProps.onPointerCancel}
+        <Box
           sx={{
-            mb: 3,
-            mx: 'auto',
-            width: 'fit-content',
-            textAlign: 'center',
-            fontWeight: 700,
-            ...getLeadershipEditableNodeSx(titleEditProps),
+            '--chart-pan-x': `${pan.x}px`,
+            '--chart-pan-y': `${pan.y}px`,
+            '--chart-zoom': zoom,
+            width: 1440,
+            zIndex: 2,
+            position: 'relative',
+            flexShrink: 0,
+            '--chart-base-scale': {
+              xs: 0.42,
+              sm: 0.5,
+              md: 0.58,
+              lg: 0.68,
+              xl: 0.78,
+            },
+            transform: {
+              xs: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              sm: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              md: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              lg: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+            },
+            transformOrigin: 'top center',
           }}
         >
-          Directiva Nacional
-        </Typography>
+          <Typography
+            variant="h3"
+            onPointerUp={titleEditProps.onPointerUp}
+            onPointerMove={titleEditProps.onPointerMove}
+            onPointerDown={titleEditProps.onPointerDown}
+            onPointerCancel={titleEditProps.onPointerCancel}
+            sx={{
+              mb: 3,
+              mx: 'auto',
+              width: 'fit-content',
+              textAlign: 'center',
+              fontWeight: 700,
+              ...getLeadershipEditableNodeSx(titleEditProps),
+            }}
+          >
+            Directiva Nacional
+          </Typography>
 
-        <OrganizationalChart
-          lineWidth="2px"
-          lineHeight="34px"
-          lineColor="var(--palette-grey-500)"
-          data={NATIONAL_LEADERSHIP_DATA}
-          nodeClassName={layoutEditor.getNodeTreeClassName}
-          nodeItem={(props) => (
-            <NationalLeadershipNode
-              {...props}
-              layoutEditor={layoutEditor}
-              canManage={canManageLeadership}
-              miembroAsignado={leadership.getAssignedMember(props.id)}
-              onAsignarMiembro={leadership.openAssign}
-              onRemoverMiembro={leadership.pedirRemoverMiembro}
-            />
-          )}
+          <OrganizationalChart
+            lineWidth="2px"
+            lineHeight="34px"
+            lineColor="var(--palette-grey-500)"
+            data={NATIONAL_LEADERSHIP_DATA}
+            nodeClassName={layoutEditor.getNodeTreeClassName}
+            nodeItem={(props) => (
+              <NationalLeadershipNode
+                {...props}
+                layoutEditor={layoutEditor}
+                canManage={canManageLeadership}
+                miembroAsignado={leadership.getAssignedMember(props.id)}
+                onAsignarMiembro={leadership.openAssign}
+                onRemoverMiembro={leadership.pedirRemoverMiembro}
+              />
+            )}
+          />
+        </Box>
+
+        <LeadershipLayoutConnectorLayer
+          active={connectorLayerActive}
+          watchKey={connectorWatchKey}
+          connections={connections}
+          containerRef={containerRef}
+          lineWidth={2}
         />
+
+        <LeadershipLayoutOffsetStyles editor={layoutEditor} />
+
+        {canManageLayout && (
+          <LeadershipLayoutEditor
+            pan={pan}
+            zoom={zoom}
+            chartWidth={1440}
+            title="Directiva Nacional"
+            editor={layoutEditor}
+            containerMinHeight={containerMinHeight}
+            onSaveLayout={layoutStorage.guardar}
+            savingLayout={layoutStorage.guardando}
+          />
+        )}
       </Box>
-
-      <LeadershipLayoutConnectorLayer
-        active={connectorLayerActive}
-        watchKey={connectorWatchKey}
-        connections={connections}
-        containerRef={containerRef}
-        lineWidth={2}
-      />
-
-      <LeadershipLayoutOffsetStyles editor={layoutEditor} />
-
-      {canManageLeadership && (
-        <LeadershipLayoutEditor
-          pan={pan}
-          zoom={zoom}
-          chartWidth={1440}
-          title="Directiva Nacional"
-          editor={layoutEditor}
-          containerMinHeight={containerMinHeight}
-          onSaveLayout={layoutStorage.guardar}
-          savingLayout={layoutStorage.guardando}
-        />
-      )}
-    </Box>
 
       <LeadershipAssignDialog
         open={Boolean(leadership.selectedNode)}

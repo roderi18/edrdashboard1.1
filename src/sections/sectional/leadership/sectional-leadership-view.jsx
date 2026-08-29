@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import { useParams } from 'src/routes/hooks';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { canManageSectionLeadership } from 'src/utils/org-level-access';
 
 import { getSectionalById } from 'src/services/sectional-service';
 import { SECTIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
@@ -171,7 +172,13 @@ function SectionalLeadershipNode({
 
         <LeadershipNodeName identity={identity} />
 
-        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
+        <Typography
+          variant="caption"
+          component="div"
+          noWrap
+          title={role}
+          sx={{ color: 'text.secondary' }}
+        >
           {role}
         </Typography>
       </Card>
@@ -186,11 +193,12 @@ function SectionalLeadershipNode({
 export function SectionalLeadershipView() {
   const params = useParams();
   const { user } = useAuthContext();
-  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
-  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
-  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
-  const canManageLeadership = canManageDirectiva(user);
   const sectionalId = params?.id;
+  // Todos los cargos seccionales pueden proponer en SU seccion. El Consejo
+  // Ejecutivo puede hacerlo en cualquiera. Solo el Administrador Global aplica
+  // directamente y conserva la edicion visual del diagrama.
+  const canManageLeadership = canManageSectionLeadership(user, sectionalId);
+  const canManageLayout = canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -214,7 +222,7 @@ export function SectionalLeadershipView() {
     nivel: 'seccional',
     idEntidad: sectionalId,
     nombreEntidad: sectionalName,
-    canManage: canManageLeadership,
+    canManage: canManageLayout,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
   });
@@ -363,272 +371,271 @@ export function SectionalLeadershipView() {
   return (
     <>
       <Box
-      ref={containerRef}
-      aria-label="Mover organigrama seccional"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      sx={{
-        width: 1,
-        mx: 'auto',
-        display: 'flex',
-        overflow: 'hidden',
-        position: 'relative',
-        minHeight: containerMinHeight,
-        justifyContent: 'center',
-        bgcolor: 'background.neutral',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 2,
-        py: { xs: 3, md: 4 },
-        px: { xs: 1.5, md: 2 },
-        cursor: isDragging ? 'grabbing' : 'grab',
-        userSelect: 'none',
-        touchAction: 'none',
-        ...getLeadershipEditGridSx(layoutEditor.editMode),
-        ...getLeadershipConnectorOverrideSx(connectorLayerActive),
-        '& button, & a, & input, & textarea, & select, & [role="button"]': {
-          cursor: 'pointer',
-          touchAction: 'auto',
-        },
-        '& .MuiCard-root': {
-          cursor: layoutEditor.editMode ? 'move' : 'default',
-          touchAction: 'auto',
-        },
-        '& .MuiCard-root button': {
-          cursor: 'pointer',
-        },
-      }}
-    >
-      <Stack
-        data-pdf-hidden="true"
-        spacing={0.75}
-        onPointerDown={(event) => event.stopPropagation()}
+        ref={containerRef}
+        aria-label="Mover organigrama seccional"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          zIndex: 20,
-          pointerEvents: 'auto',
+          width: 1,
+          mx: 'auto',
+          display: 'flex',
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: containerMinHeight,
+          justifyContent: 'center',
+          bgcolor: 'background.neutral',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          py: { xs: 3, md: 4 },
+          px: { xs: 1.5, md: 2 },
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          touchAction: 'none',
+          ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipConnectorOverrideSx(connectorLayerActive),
+          '& button, & a, & input, & textarea, & select, & [role="button"]': {
+            cursor: 'pointer',
+            touchAction: 'auto',
+          },
+          '& .MuiCard-root': {
+            cursor: layoutEditor.editMode ? 'move' : 'default',
+            touchAction: 'auto',
+          },
+          '& .MuiCard-root button': {
+            cursor: 'pointer',
+          },
         }}
       >
-        <Box
+        <Stack
+          data-pdf-hidden="true"
+          spacing={0.75}
+          onPointerDown={(event) => event.stopPropagation()}
           sx={{
-            display: 'grid',
-            gap: `${CONTROL_BUTTON_GAP}px`,
-            gridTemplateColumns: `repeat(3, ${CONTROL_BUTTON_SIZE}px)`,
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 20,
+            pointerEvents: 'auto',
           }}
         >
-          <Tooltip title="Centrar vista">
-            <IconButton
-              size="small"
-              aria-label="Centrar vista"
-              onClick={handleResetView}
+          <Box
+            sx={{
+              display: 'grid',
+              gap: `${CONTROL_BUTTON_GAP}px`,
+              gridTemplateColumns: `repeat(3, ${CONTROL_BUTTON_SIZE}px)`,
+            }}
+          >
+            <Tooltip title="Centrar vista">
+              <IconButton
+                size="small"
+                aria-label="Centrar vista"
+                onClick={handleResetView}
+                sx={{
+                  width: CONTROL_BUTTON_SIZE,
+                  height: CONTROL_BUTTON_SIZE,
+                  minWidth: CONTROL_BUTTON_SIZE,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  boxShadow: 1,
+                  '&:hover': { bgcolor: 'background.paper' },
+                }}
+              >
+                <Iconify width={18} icon="solar:restart-bold" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Descargar PDF">
+              <Box component="span" sx={{ gridColumn: '1', gridRow: '2' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Descargar PDF"
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  <Iconify width={18} icon="solar:download-bold" />
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Tooltip title="Reducir zoom">
+              <Box component="span" sx={{ gridColumn: '2', gridRow: '1' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Reducir zoom"
+                  disabled={zoom <= MIN_ZOOM}
+                  onClick={handleZoomOut}
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  -
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Tooltip title="Aumentar zoom">
+              <Box component="span" sx={{ gridColumn: '3', gridRow: '1' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Aumentar zoom"
+                  disabled={zoom >= MAX_ZOOM}
+                  onClick={handleZoomIn}
+                  sx={{
+                    width: CONTROL_BUTTON_SIZE,
+                    height: CONTROL_BUTTON_SIZE,
+                    minWidth: CONTROL_BUTTON_SIZE,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  +
+                </IconButton>
+              </Box>
+            </Tooltip>
+
+            <Typography
+              variant="caption"
               sx={{
-                width: CONTROL_BUTTON_SIZE,
+                width: ZOOM_PERCENT_WIDTH,
                 height: CONTROL_BUTTON_SIZE,
-                minWidth: CONTROL_BUTTON_SIZE,
+                minWidth: ZOOM_PERCENT_WIDTH,
+                display: 'flex',
+                gridColumn: '2 / 4',
+                gridRow: '2',
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'center',
+                borderRadius: 1,
+                boxShadow: 1,
+                lineHeight: 1.5,
+                fontWeight: 700,
+                color: 'text.secondary',
                 bgcolor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: 1,
-                boxShadow: 1,
-                '&:hover': { bgcolor: 'background.paper' },
               }}
             >
-              <Iconify width={18} icon="solar:restart-bold" />
-            </IconButton>
-          </Tooltip>
+              {zoomPercentage}%
+            </Typography>
+          </Box>
+        </Stack>
 
-          <Tooltip title="Descargar PDF">
-            <Box component="span" sx={{ gridColumn: '1', gridRow: '2' }}>
-              <IconButton
-                size="small"
-                aria-label="Descargar PDF"
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                <Iconify width={18} icon="solar:download-bold" />
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Tooltip title="Reducir zoom">
-            <Box component="span" sx={{ gridColumn: '2', gridRow: '1' }}>
-              <IconButton
-                size="small"
-                aria-label="Reducir zoom"
-                disabled={zoom <= MIN_ZOOM}
-                onClick={handleZoomOut}
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  fontSize: 20,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                -
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Tooltip title="Aumentar zoom">
-            <Box component="span" sx={{ gridColumn: '3', gridRow: '1' }}>
-              <IconButton
-                size="small"
-                aria-label="Aumentar zoom"
-                disabled={zoom >= MAX_ZOOM}
-                onClick={handleZoomIn}
-                sx={{
-                  width: CONTROL_BUTTON_SIZE,
-                  height: CONTROL_BUTTON_SIZE,
-                  minWidth: CONTROL_BUTTON_SIZE,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  fontSize: 20,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                +
-              </IconButton>
-            </Box>
-          </Tooltip>
-
-          <Typography
-            variant="caption"
-            sx={{
-              width: ZOOM_PERCENT_WIDTH,
-              height: CONTROL_BUTTON_SIZE,
-              minWidth: ZOOM_PERCENT_WIDTH,
-              display: 'flex',
-              gridColumn: '2 / 4',
-              gridRow: '2',
-              alignItems: 'center',
-              justifyContent: 'center',
-              alignSelf: 'center',
-              borderRadius: 1,
-              boxShadow: 1,
-              lineHeight: 1.5,
-              fontWeight: 700,
-              color: 'text.secondary',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            {zoomPercentage}%
-          </Typography>
-        </Box>
-      </Stack>
-
-      <Box
-        sx={{
-          '--chart-pan-x': `${pan.x}px`,
-          '--chart-pan-y': `${pan.y}px`,
-          '--chart-zoom': zoom,
-          width: 1360,
-          zIndex: 2,
-          position: 'relative',
-          flexShrink: 0,
-          '--chart-base-scale': {
-            xs: 0.36,
-            sm: 0.44,
-            md: 0.5,
-            lg: 0.58,
-            xl: 0.66,
-          },
-          transform: {
-            xs: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            sm: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            md: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            lg: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-            xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
-          },
-          transformOrigin: 'top center',
-        }}
-      >
-        <Typography
-          variant="h3"
-          onPointerUp={titleEditProps.onPointerUp}
-          onPointerMove={titleEditProps.onPointerMove}
-          onPointerDown={titleEditProps.onPointerDown}
-          onPointerCancel={titleEditProps.onPointerCancel}
+        <Box
           sx={{
-            mb: 3,
-            mx: 'auto',
-            width: 'fit-content',
-            textAlign: 'center',
-            fontWeight: 700,
-            ...getLeadershipEditableNodeSx(titleEditProps),
+            '--chart-pan-x': `${pan.x}px`,
+            '--chart-pan-y': `${pan.y}px`,
+            '--chart-zoom': zoom,
+            width: 1360,
+            zIndex: 2,
+            position: 'relative',
+            flexShrink: 0,
+            '--chart-base-scale': {
+              xs: 0.36,
+              sm: 0.44,
+              md: 0.5,
+              lg: 0.58,
+              xl: 0.66,
+            },
+            transform: {
+              xs: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              sm: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              md: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              lg: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+              xl: 'translate(var(--chart-pan-x), var(--chart-pan-y)) scale(calc(var(--chart-base-scale) * var(--chart-zoom)))',
+            },
+            transformOrigin: 'top center',
           }}
         >
-          {structureTitle}
-        </Typography>
+          <Typography
+            variant="h3"
+            onPointerUp={titleEditProps.onPointerUp}
+            onPointerMove={titleEditProps.onPointerMove}
+            onPointerDown={titleEditProps.onPointerDown}
+            onPointerCancel={titleEditProps.onPointerCancel}
+            sx={{
+              mb: 3,
+              mx: 'auto',
+              width: 'fit-content',
+              textAlign: 'center',
+              fontWeight: 700,
+              ...getLeadershipEditableNodeSx(titleEditProps),
+            }}
+          >
+            {structureTitle}
+          </Typography>
 
-        <OrganizationalChart
-          lineWidth="2px"
-          lineHeight="34px"
-          lineColor="var(--palette-grey-500)"
-          data={SECTIONAL_LEADERSHIP_DATA}
-          nodeClassName={layoutEditor.getNodeTreeClassName}
-          nodeItem={(props) => (
-            <SectionalLeadershipNode
-              {...props}
-              layoutEditor={layoutEditor}
-              canManage={canManageLeadership}
-              miembroAsignado={leadership.getAssignedMember(props.id)}
-              onAsignarMiembro={leadership.openAssign}
-              onRemoverMiembro={leadership.pedirRemoverMiembro}
-            />
-          )}
+          <OrganizationalChart
+            lineWidth="2px"
+            lineHeight="34px"
+            lineColor="var(--palette-grey-500)"
+            data={SECTIONAL_LEADERSHIP_DATA}
+            nodeClassName={layoutEditor.getNodeTreeClassName}
+            nodeItem={(props) => (
+              <SectionalLeadershipNode
+                {...props}
+                layoutEditor={layoutEditor}
+                canManage={canManageLeadership}
+                miembroAsignado={leadership.getAssignedMember(props.id)}
+                onAsignarMiembro={leadership.openAssign}
+                onRemoverMiembro={leadership.pedirRemoverMiembro}
+              />
+            )}
+          />
+        </Box>
+
+        <LeadershipLayoutConnectorLayer
+          active={connectorLayerActive}
+          watchKey={connectorWatchKey}
+          connections={connections}
+          containerRef={containerRef}
+          lineWidth={2}
         />
+
+        <LeadershipLayoutOffsetStyles editor={layoutEditor} />
+
+        {canManageLayout && (
+          <LeadershipLayoutEditor
+            pan={pan}
+            zoom={zoom}
+            chartWidth={1360}
+            editor={layoutEditor}
+            title={structureTitle}
+            containerMinHeight={containerMinHeight}
+            onSaveLayout={layoutStorage.guardar}
+            savingLayout={layoutStorage.guardando}
+          />
+        )}
       </Box>
-
-      <LeadershipLayoutConnectorLayer
-        active={connectorLayerActive}
-        watchKey={connectorWatchKey}
-        connections={connections}
-        containerRef={containerRef}
-        lineWidth={2}
-      />
-
-      <LeadershipLayoutOffsetStyles editor={layoutEditor} />
-
-      {canManageLeadership && (
-        <LeadershipLayoutEditor
-          pan={pan}
-          zoom={zoom}
-          chartWidth={1360}
-          editor={layoutEditor}
-          title={structureTitle}
-          containerMinHeight={containerMinHeight}
-          onSaveLayout={layoutStorage.guardar}
-          savingLayout={layoutStorage.guardando}
-        />
-      )}
-
-    </Box>
 
       <LeadershipAssignDialog
         open={Boolean(leadership.selectedNode)}
@@ -684,9 +691,8 @@ export function SectionalLeadershipView() {
             ¿Realmente quieres remover a
             <strong>
               {' '}
-              {getMemberDisplayName(
-                leadership.getAssignedMember(leadership.nodoARemover?.id)
-              ) || 'este miembro'}{' '}
+              {getMemberDisplayName(leadership.getAssignedMember(leadership.nodoARemover?.id)) ||
+                'este miembro'}{' '}
             </strong>
             del cargo de {leadership.nodoARemover?.role || 'la directiva'}?
           </>

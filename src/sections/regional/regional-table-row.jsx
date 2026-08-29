@@ -23,6 +23,7 @@ export function RegionalTableRow({
   onDeleteRow,
   canManage = true,
   canDelete = true,
+  disabled = false,
   disabledCounts = false,
   disabledDestCount,
   lockMemberCount = false,
@@ -41,11 +42,16 @@ export function RegionalTableRow({
   const directorPhoneNumber = row.directorPhoneNumber || '';
   const directorPhoneLabel = formatPhoneNumber(directorPhoneNumber);
 
+  // `disabled` es la region AJENA: se lista para que se vea que existe, pero
+  // atenuada y sin un solo enlace. La ficha tampoco se abre escribiendo la URL
+  // —eso lo cierra `RegionalEditLayout`—; esto es la mitad visible de la misma
+  // regla.
+  //
   // Para cargos con visibilidad de solo lectura (p. ej. Lider de Grupo) los
   // contadores de secciones/destacamentos/miembros se muestran atenuados y sin
   // enlace.
-  const renderCount = (value, href, disabled = disabledCounts) =>
-    disabled ? (
+  const renderCount = (value, href, apagado = disabledCounts) =>
+    apagado || disabled ? (
       <Box component="span" sx={{ color: 'text.disabled' }}>
         {value}
       </Box>
@@ -60,6 +66,7 @@ export function RegionalTableRow({
       <TableCell padding="checkbox">
         <Checkbox
           checked={selected}
+          disabled={disabled}
           onClick={onSelectRow}
           slotProps={{
             input: {
@@ -72,20 +79,23 @@ export function RegionalTableRow({
 
       <CompactEntityTableCell
         title={row.regionalName}
-        href={editHref}
+        href={disabled ? '' : editHref}
         subtitle={row.email}
         avatarUrl={row.avatarUrl}
         avatarChildren={!row.avatarUrl && row.regionalName?.[0]}
+        linkSx={disabled ? { color: 'text.disabled' } : undefined}
       />
 
       <CompactEntityTableCell
         title={directorName}
-        href={directorId ? `/dashboard/level/member/${directorId}/edit` : ''}
+        href={disabled || !directorId ? '' : `/dashboard/level/member/${directorId}/edit`}
         subtitle={directorPhoneLabel}
-        subtitleHref={getPhoneHref(directorPhoneNumber)}
+        subtitleHref={disabled ? undefined : getPhoneHref(directorPhoneNumber)}
         avatarUrl={directorAvatarUrl}
         avatarChildren={!directorAvatarUrl && directorName?.[0]}
-        linkSx={{ cursor: directorId ? 'pointer' : 'default' }}
+        linkSx={
+          disabled ? { color: 'text.disabled' } : { cursor: directorId ? 'pointer' : 'default' }
+        }
       />
 
       <TableCell>
@@ -109,7 +119,7 @@ export function RegionalTableRow({
 
       <TableCell>
         <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          {lockMemberCount ? (
+          {disabled || lockMemberCount ? (
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {row.regionalXSectionalMemberCount}
             </Box>
@@ -127,8 +137,8 @@ export function RegionalTableRow({
       </TableCell>
 
       <CompactEntityRowActions
-        canManage={canManage}
-        allowDelete={canDelete}
+        canManage={canManage && !disabled}
+        allowDelete={canDelete && !disabled}
         allowQuickEdit={false}
         editHref={editHref}
         onDelete={canDelete ? onDeleteRow : undefined}

@@ -22,9 +22,13 @@ import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
-import { isAdminGlobal, isFullOrgManager } from 'src/utils/org-level-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
+import {
+  isAdminGlobal,
+  isFullOrgManager,
+  ejerceCargoSobreDestacamento,
+} from 'src/utils/org-level-access';
 import {
   isMemberSessionUser,
   canMemberManageMembers,
@@ -351,7 +355,10 @@ export function MemberListView() {
   // Coordinador de Destacamento (titular/asistente) o el Administrador Global.
   const memberAllowQuickEdit = isCoordinadorDestacamentoRole(user) || isAdminGlobal(user);
   const memberDestLabel = useMemo(() => {
-    if (!isMemberSessionUser(user)) {
+    // Con un cargo de seccion, region o nacional la lista ya no es la de su
+    // destacamento —trae la de su seccion o su region—, asi que el titulo se
+    // queda en el general.
+    if (!isMemberSessionUser(user) || ejerceCargoSobreDestacamento(user)) {
       return '';
     }
 

@@ -19,6 +19,7 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { getChurches } from './church-service';
+import { authHeaders } from './member-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { notificarFotoEntidadPropuesta } from './notificar-oficina-nacional-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
@@ -341,6 +342,10 @@ export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
 
     const res = await fetch(`/api/sectional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
+        // El token viaja: el servidor ya no borra por el mero hecho de que le
+        // llegue la peticion, comprueba que quien la manda sea el Administrador
+        // Global. Sin esta cabecera, el propio administrador se llevaria un 401.
+        headers: await authHeaders(),
     });
     const text = await res.text();
 

@@ -50,11 +50,7 @@ const CARGOS_REGIONALES_PERFIL_DIRECTOR = [
 // Cargos de consulta de solo lectura de nivel sección (Capellán Seccional, Zonas,
 // Grupos Locales): mismo perfil que los coordinadores de área seccional (ven
 // adultos, menores enmascarados/restringidos, sin editar).
-const CARGOS_SECCIONALES_CONSULTA = [
-  ROLES.CAPELLAN_SECCIONAL,
-  ROLES.ZONAS,
-  ROLES.GRUPOS_LOCALES,
-];
+const CARGOS_SECCIONALES_CONSULTA = [ROLES.CAPELLAN_SECCIONAL, ROLES.ZONAS, ROLES.GRUPOS_LOCALES];
 
 // Coordinadores de area: solo consulta dentro de su alcance. No editan/crean/
 // eliminan niveles, no editan miembros, no ven datos sensibles ni menores.
@@ -464,6 +460,12 @@ export const PERMISOS_POR_ROL = {
   ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, PERMISOS_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_NACIONAL]: [
     PERMISOS.DESTACAMENTOS_VER,
+    // Ve las SECCIONES como cualquier otro cargo de consulta. Sin este codigo la
+    // entrada del menu ni aparecia: tenia los destacamentos y los reportes
+    // seccionales, pero la lista de secciones —que es la estructura por la que se
+    // llega a ellos— le quedaba cerrada. Es consulta: su cargo va marcado de
+    // solo lectura, asi que no edita ninguna.
+    PERMISOS.SECCIONES_VER,
     // `miembros.ver` abre el modulo; a QUIENES ve lo sigue decidiendo el
     // alcance: como su cargo es nacional y no de destacamento, lo que ve son
     // los miembros del destacamento al que el mismo pertenece.
@@ -483,6 +485,9 @@ export const PERMISOS_POR_ROL = {
   ...fromCodes(CARGOS_CONSEJO_NACIONAL_PERFIL_DIRECTOR, PERMISOS_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_EJECUTIVO]: [
     PERMISOS.DESTACAMENTOS_VER,
+    // Lo mismo que el Consejo Nacional: la lista de secciones es consulta de la
+    // estructura, y sin el codigo no se le abria el modulo.
+    PERMISOS.SECCIONES_VER,
     PERMISOS.MIEMBROS_VER,
     PERMISOS.MIEMBROS_VER_ADULTOS,
     PERMISOS.MIEMBROS_VER_MENORES,

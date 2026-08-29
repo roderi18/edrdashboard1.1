@@ -160,7 +160,10 @@ export function useLeadershipAssignments({
       todas.filter(
         (asignacion) =>
           esNivelDeConsejo(asignacion?.nivel) &&
-          !(asignacion?.nivel === nivel && String(asignacion?.idEntidad || '') === String(idEntidad || ''))
+          !(
+            asignacion?.nivel === nivel &&
+            String(asignacion?.idEntidad || '') === String(idEntidad || '')
+          )
       )
     );
   }, [nivel, idEntidad]);
@@ -173,9 +176,7 @@ export function useLeadershipAssignments({
   const getAssignedMember = useCallback(
     (nodeId) => {
       const position = findPositionByNode(nivel, nodeId);
-      const asignacion = position
-        ? assignments[normalizarIdAsignacion(position.idCargo)]
-        : null;
+      const asignacion = position ? assignments[normalizarIdAsignacion(position.idCargo)] : null;
 
       return resolverMiembroAsignado({ asignacion, members });
     },
@@ -186,7 +187,6 @@ export function useLeadershipAssignments({
   // en el desplegable.
   const ocupantesPorMiembro = useMemo(() => {
     const porMiembro = new Map();
-
 
     Object.values(assignments).forEach((asignacion) => {
       if (!asignacion?.idMiembro) return;
@@ -291,7 +291,7 @@ export function useLeadershipAssignments({
       // La comprobacion de verdad esta en firestore.rules; esta solo evita
       // lanzar una escritura que el servidor va a rechazar.
       if (!canManage) {
-        toast.error('Solo el administrador global puede modificar la directiva.');
+        toast.error('No tienes permiso para modificar esta directiva.');
         return false;
       }
 
@@ -346,74 +346,73 @@ export function useLeadershipAssignments({
       setSelectedNode(null);
       setSelectedMember(null);
 
-      (async () => {
-        try {
-          const asignacionGuardada = await guardarAsignacionDirectiva({
-            usuario: user,
-            nivel,
-            idEntidad,
-            nombreEntidad,
-            idCargo: Number(position.idCargoApi) || null,
-            idMiembro,
-            idPosicionDirectiva: position.idCargo,
-            division: position.division ?? null,
-            orden: position.orden || 1,
-            origen: 'organigrama-directiva',
-            activo,
-            // Ya se le pregunto y dijo que si: el servicio deja pasar el cambio
-            // de consejo porque el cargo anterior se retira aqui debajo.
-            reemplazarCargoDeConsejo: reemplazarConsejo,
-            ...construirResumenMiembro(miembro || {}),
-          });
+      try {
+        const asignacionGuardada = await guardarAsignacionDirectiva({
+          usuario: user,
+          nivel,
+          idEntidad,
+          nombreEntidad,
+          idCargo: Number(position.idCargoApi) || null,
+          idMiembro,
+          idPosicionDirectiva: position.idCargo,
+          division: position.division ?? null,
+          orden: position.orden || 1,
+          origen: 'organigrama-directiva',
+          activo,
+          // Ya se le pregunto y dijo que si: el servicio deja pasar el cambio
+          // de consejo porque el cargo anterior se retira aqui debajo.
+          reemplazarCargoDeConsejo: reemplazarConsejo,
+          ...construirResumenMiembro(miembro || {}),
+        });
 
-          // Un miembro ocupa UNA posicion por nivel. El formulario de miembro ya
-          // lo aplicaba; el organigrama no, y asignar desde el diagrama dejaba a
-          // la persona con cargos activos en dos secciones a la vez.
-          if (activo && idMiembro) {
-            // Al traspasar se retiran ademas los cargos de los OTROS consejos:
-            // es lo que se acaba de confirmar, y es la misma lista de niveles
-            // excluyentes que aplica la ficha del miembro.
-            const niveles = reemplazarConsejo ? getNivelesARetirar(nivel) : [nivel];
+        // Un miembro ocupa UNA posicion por nivel. El formulario de miembro ya
+        // lo aplicaba; el organigrama no, y asignar desde el diagrama dejaba a
+        // la persona con cargos activos en dos secciones a la vez.
+        if (activo && idMiembro && !asignacionGuardada?.pendienteDeAprobacion) {
+          // Al traspasar se retiran ademas los cargos de los OTROS consejos:
+          // es lo que se acaba de confirmar, y es la misma lista de niveles
+          // excluyentes que aplica la ficha del miembro.
+          const niveles = reemplazarConsejo ? getNivelesARetirar(nivel) : [nivel];
 
-            await Promise.all(
-              niveles.map((nivelARetirar) =>
-                desactivarAsignacionesDirectivaPorNivel({
-                  idMiembro,
-                  nivel: nivelARetirar,
-                  conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
-                }).catch(() => 0)
-              )
-            );
-          }
-
-          // Ya no hay espejo en la API .NET: la ficha del miembro y la lista leen
-          // estas mismas asignaciones, asi que escribir aqui es suficiente para
-          // que las tres pantallas digan lo mismo.
-
-          // Pendiente de aprobacion: no se ha escrito nada todavia. Se dice y se
-          // vuelve a lo que hay, en vez de dejar la casilla pintada como si ya
-          // estuviera hecho.
-          if (asignacionGuardada?.pendienteDeAprobacion) {
-            toast.info('Cambio enviado a la Oficina Nacional. Se aplicará cuando lo apruebe.');
-          }
-
-          // Reconcilia el pintado optimista con lo que quedo escrito de verdad.
-          await loadAssignments();
-        } catch (error) {
-          console.error('[directiva] no se pudo guardar la asignación', error);
-
-          // Se deshace el cambio y se relee el servidor, que es la version
-          // buena: la instantanea local podria haberse quedado atras.
-          setAssignments(asignacionesPrevias);
-          loadAssignments().catch(() => { });
-
-          toast.error(
-            error?.message || 'No se pudo guardar la asignación. Se deshizo el cambio.'
+          await Promise.all(
+            niveles.map((nivelARetirar) =>
+              desactivarAsignacionesDirectivaPorNivel({
+                idMiembro,
+                nivel: nivelARetirar,
+                conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+              }).catch(() => 0)
+            )
           );
         }
-      })();
 
-      return true;
+        // Ya no hay espejo en la API .NET: la ficha del miembro y la lista leen
+        // estas mismas asignaciones, asi que escribir aqui es suficiente para
+        // que las tres pantallas digan lo mismo.
+
+        // Pendiente de aprobacion: no se ha escrito nada todavia. Se dice y se
+        // vuelve a lo que hay, en vez de dejar la casilla pintada como si ya
+        // estuviera hecho.
+        if (asignacionGuardada?.pendienteDeAprobacion) {
+          toast.info(
+            'Cambio enviado a la Oficina Nacional y al Administrador Global. Se aplicará cuando lo aprueben.'
+          );
+        }
+
+        // Reconcilia el pintado optimista con lo que quedo escrito de verdad.
+        await loadAssignments();
+
+        return asignacionGuardada?.pendienteDeAprobacion ? 'pendiente' : true;
+      } catch (error) {
+        console.error('[directiva] no se pudo guardar la asignación', error);
+
+        // Se deshace el cambio y se relee el servidor, que es la version
+        // buena: la instantanea local podria haberse quedado atras.
+        setAssignments(asignacionesPrevias);
+        loadAssignments().catch(() => {});
+
+        toast.error(error?.message || 'No se pudo guardar la asignación. Se deshizo el cambio.');
+        return false;
+      }
     },
     [canManage, nivel, idEntidad, nombreEntidad, loadAssignments, assignments, user]
   );
@@ -448,7 +447,10 @@ export function useLeadershipAssignments({
       return;
     }
 
-    if (await guardar({ node: selectedNode, idMiembro, miembro: selectedMember, activo: true })) {
+    if (
+      (await guardar({ node: selectedNode, idMiembro, miembro: selectedMember, activo: true })) ===
+      true
+    ) {
       toast.success('Miembro asignado correctamente.');
     }
   }, [
@@ -474,13 +476,13 @@ export function useLeadershipAssignments({
     if (!pendiente?.idMiembro) return;
 
     if (
-      await guardar({
+      (await guardar({
         node: pendiente.node,
         idMiembro: pendiente.idMiembro,
         miembro: pendiente.miembro,
         activo: true,
         reemplazarConsejo: true,
-      })
+      })) === true
     ) {
       toast.success('Miembro asignado correctamente.');
     }
@@ -515,7 +517,9 @@ export function useLeadershipAssignments({
       return;
     }
 
-    if (await guardar({ node: nodoARemover, idMiembro, miembro: asignado, activo: false })) {
+    if (
+      (await guardar({ node: nodoARemover, idMiembro, miembro: asignado, activo: false })) === true
+    ) {
       toast.success('Miembro removido del cargo.');
     }
 

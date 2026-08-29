@@ -1,6 +1,8 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
+import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
+
 export async function GET() {
     try {
         // Secciones e iglesias en paralelo (antes iban en serie) y cacheadas.
@@ -61,6 +63,12 @@ export async function GET() {
 
 export async function DELETE(req) {
     try {
+        // Eliminar una SECCION es cosa del Administrador Global, y lo comprueba el
+        // servidor: hasta ahora bastaba con conocer la URL, sin cuenta siquiera.
+        const noAutorizado = await exigirAdministradorGlobalRest(req);
+
+        if (noAutorizado) return noAutorizado;
+
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

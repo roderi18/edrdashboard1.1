@@ -761,18 +761,6 @@ service cloud.firestore {
         && codigo in datosDeAcceso().permisos;
     }
 
-    function regionesDeSuAlcance() {
-      return 'alcance' in datosDeAcceso() && 'regiones' in datosDeAcceso().alcance
-        ? datosDeAcceso().alcance.regiones
-        : [];
-    }
-
-    // Ocupa una casilla en ESA region. El alcance lo arma la sincronizacion a
-    // partir de sus cargos, asi que tenerla ahi es tener un cargo alli.
-    function esCargoDeEsaRegion(idEntidad) {
-      return string(idEntidad) in regionesDeSuAlcance();
-    }
-
     function destacamentosDeSuAlcance() {
       return 'alcance' in datosDeAcceso() && 'destacamentos' in datosDeAcceso().alcance
         ? datosDeAcceso().alcance.destacamentos
@@ -844,13 +832,6 @@ service cloud.firestore {
           || componeLaDirectivaDeSuDestacamento(
                request.resource.data.nivel,
                request.resource.data.idEntidad
-             )
-          // El DISEÑO del diagrama —donde cae cada caja— no pasa por aprobacion:
-          // no cambia quien ocupa que, solo como se ve. Un cargo de la region
-          // acomoda el de la suya.
-          || (
-               request.resource.data.nivel == 'regional'
-               && esCargoDeEsaRegion(request.resource.data.idEntidad)
              )
         )
         && request.resource.data.nodeOffsets is map

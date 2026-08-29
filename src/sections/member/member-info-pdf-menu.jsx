@@ -10,6 +10,7 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import ListItemText from '@mui/material/ListItemText';
 
+import { getMemberAge } from 'src/utils/member-age';
 import {
   canViewMemberAwardsTab,
   canViewMemberHealthTab,
@@ -191,7 +192,12 @@ function MemberInfoPdfDocument({
           <InfoRow label="Apellidos" value={values.lastName} />
           <InfoRow
             label="Fecha de nacimiento"
-            value={maskBirthdate ? MASK_PRESETS.date : values.birthdate}
+            // La edad va tambien cuando la fecha sale con asteriscos: es lo que
+            // se necesita leer de un vistazo, y no es lo que se protege.
+            value={conLaEdad(
+              maskBirthdate ? MASK_PRESETS.date : values.birthdate,
+              values.birthdate
+            )}
           />
           <InfoRow label="División" value={values.memberDivision} />
           <InfoRow
@@ -231,6 +237,21 @@ function MemberInfoPdfDocument({
     </Document>
   );
 }
+
+// La fecha de nacimiento se acompaña SIEMPRE de la edad actual, este a la vista
+// o enmascarada: "**/**/**** (17 años)". La edad se calcula de la fecha real,
+// que el componente recibe igual; lo que se oculta es el dia exacto.
+const conLaEdad = (mostrado, fechaNacimiento) => {
+  // Se formatea aqui —y no se deja para `getValue`— porque al pegarle la edad
+  // deja de ser una fecha y pasa a ser texto: sin esto el PDF imprimia la fecha
+  // cruda de dayjs en vez de "12/03/2009".
+  const texto = getValue(mostrado);
+  const edad = getMemberAge({ birthDate: fechaNacimiento });
+
+  if (edad === null || texto === '-') return texto;
+
+  return `${texto} (${edad} años)`;
+};
 
 export function MemberInfoPdfMenu({
   values,

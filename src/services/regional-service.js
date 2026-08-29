@@ -9,6 +9,7 @@ import {
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
+import { authHeaders } from './member-service';
 import { compararCambios } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { notificarFotoEntidadPropuesta } from './notificar-oficina-nacional-service';
@@ -210,6 +211,10 @@ export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
 
     const res = await fetch(`/api/regional?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
+        // El token viaja: el servidor ya no borra por el mero hecho de que le
+        // llegue la peticion, comprueba que quien la manda sea el Administrador
+        // Global. Sin esta cabecera, el propio administrador se llevaria un 401.
+        headers: await authHeaders(),
     });
     const text = await res.text();
 

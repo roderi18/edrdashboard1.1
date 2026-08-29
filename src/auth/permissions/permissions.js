@@ -139,7 +139,8 @@ export const PERMISOS_CATALOGO = [
     modulo: 'miembros',
     accion: 'aprobar_cambios',
     nombre: 'Aprobar cambios de miembros',
-    descripcion: 'Permite revisar y aprobar/rechazar las solicitudes de cambio enviadas por otros cargos.',
+    descripcion:
+      'Permite revisar y aprobar/rechazar las solicitudes de cambio enviadas por otros cargos.',
   },
   {
     codigo: PERMISOS.ORGANIZACION_APROBAR_CAMBIOS,
@@ -161,7 +162,8 @@ export const PERMISOS_CATALOGO = [
     modulo: 'salud',
     accion: 'editar',
     nombre: 'Editar Dispensa Médica',
-    descripcion: 'Permite modificar la información médica del miembro (según el rol, directo o por aprobación).',
+    descripcion:
+      'Permite modificar la información médica del miembro (según el rol, directo o por aprobación).',
   },
   {
     codigo: PERMISOS.SALUD_SUBIR_DOCUMENTOS,
@@ -182,7 +184,8 @@ export const PERMISOS_CATALOGO = [
     modulo: 'salud',
     accion: 'autorizar_acceso_menores',
     nombre: 'Autorizar acceso a salud de menores',
-    descripcion: 'Permite aprobar o rechazar las solicitudes de acceso a la Dispensa Médica de menores.',
+    descripcion:
+      'Permite aprobar o rechazar las solicitudes de acceso a la Dispensa Médica de menores.',
   },
   {
     codigo: PERMISOS.ASCENSO_VER,
@@ -196,7 +199,8 @@ export const PERMISOS_CATALOGO = [
     modulo: 'ascenso',
     accion: 'editar',
     nombre: 'Editar Sistema de Ascenso',
-    descripcion: 'Permite marcar avances, agregar certificados y modificar el progreso del Sistema de Ascenso.',
+    descripcion:
+      'Permite marcar avances, agregar certificados y modificar el progreso del Sistema de Ascenso.',
   },
   {
     codigo: PERMISOS.PADRES_VER,

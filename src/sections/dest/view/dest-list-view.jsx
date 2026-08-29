@@ -35,6 +35,7 @@ import {
   esRolDeDestacamento,
   canCreateDestInSection,
   isForeignDestForMembers,
+  ejerceCargoSobreDestacamento,
 } from 'src/utils/org-level-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
@@ -719,9 +720,12 @@ export function DestListView() {
                         // El contador de OTRO destacamento se ve, pero apagado y
                         // sin enlace. A un cargo de destacamento (o al Usuario
                         // Comun) no le vale que coincida la seccion: se compara
-                        // solo con el suyo.
+                        // solo con el suyo. Salvo que ademas ejerza un cargo de
+                        // seccion, region o nacional: entonces su gente llega
+                        // hasta ahi y lo decide `isForeignDestForMembers`.
                         lockMemberCount={
                           (esRolDeDestacamento(user) &&
+                            !ejerceCargoSobreDestacamento(user) &&
                             !ownScope.destIds.has(String(row.id ?? '').trim())) ||
                           isForeignDestForMembers(user, {
                             destId: row.id,

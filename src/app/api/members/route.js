@@ -11,7 +11,7 @@ import { getDivisions } from 'src/services/division-service';
 // ruta la tumbaba entera en Netlify (500 al cargar el modulo, antes del
 // handler), y con ella la lista de miembros. Comprobar que hay sesion no
 // necesita privilegios.
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+import { exigirSesionRest, exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 
 const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
@@ -131,10 +131,13 @@ export async function GET(req) {
 export async function DELETE(req) {
   try {
     // Borrar a un miembro sin sesion era posible: la ruta reenviaba la cabecera
-    // solo SI venia, y sin ella llamaba igual al backend.
-    const sinSesion = await exigirSesionRest(req);
+    // solo SI venia, y sin ella llamaba igual al backend. Y tener sesion no
+    // basta: eliminar miembros es cosa del Administrador Global —es lo que dice
+    // la pantalla desde siempre—, asi que aqui se comprueba el ROL, no solo que
+    // haya alguien al otro lado.
+    const noAutorizado = await exigirAdministradorGlobalRest(req);
 
-    if (sinSesion) return sinSesion;
+    if (noAutorizado) return noAutorizado;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

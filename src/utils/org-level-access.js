@@ -1,7 +1,11 @@
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
 
+import { PERMISOS } from 'src/auth/permissions/permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
-import { ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
+import {
+  PERMISOS_POR_ROL,
+  ALCANCE_PREDETERMINADO_ROL,
+} from 'src/auth/permissions/role-permissions';
 
 // ----------------------------------------------------------------------
 // Predicados de alcance para niveles organizacionales (regiones, secciones,
@@ -61,7 +65,9 @@ export const getOrgRoleId = (user = {}) => {
   const codigos = [
     principal,
     ...(Array.isArray(user?.cargos) ? user.cargos : []).map((cargo) =>
-      String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '').trim().toLowerCase()
+      String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+        .trim()
+        .toLowerCase()
     ),
   ].filter(Boolean);
 
@@ -99,7 +105,9 @@ const esUsuarioComun = (user = {}) => {
   if (roleId === ROLES.USUARIO_COMUN) return true;
 
   const esAdmin = ['admin', 'administrador'].includes(
-    String(user?.role ?? user?.rol ?? '').trim().toLowerCase()
+    String(user?.role ?? user?.rol ?? '')
+      .trim()
+      .toLowerCase()
   );
 
   // Se compara contra el catalogo y no contra la cadena vacia: la sesion sin
@@ -184,13 +192,50 @@ const REGION_CREATOR_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
   .filter(([, alcance]) => alcance === ALCANCES.REGION)
   .map(([codigo]) => codigo);
 
+// Cargos que pueden COMPONER una directiva mediante propuesta. El alcance de
+// seccion y region se comprueba contra la entidad concreta; los cargos del
+// Consejo Ejecutivo puede proponer en cualquier entidad del pais.
+// Oficina Nacional queda fuera porque revisa y aplica las propuestas.
+const SECTION_LEADERSHIP_PROPOSER_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
+  .filter(([, alcance]) => alcance === ALCANCES.SECCION)
+  .map(([codigo]) => codigo);
+const REGION_LEADERSHIP_PROPOSER_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
+  .filter(([, alcance]) => alcance === ALCANCES.REGION)
+  .map(([codigo]) => codigo);
+// Consejo Ejecutivo mostrado en el organigrama nacional. Solo estos diez cargos
+// reciben alcance para proponer en TODAS las regiones, secciones y destacamentos;
+// no se concede por el mero hecho de tener cualquier etiqueta nacional.
+const NATIONAL_LEADERSHIP_PROPOSER_ROLES = [
+  ROLES.MINISTERIOS_INFANTILES_NACIONAL,
+  ROLES.DIRECTOR_NACIONAL,
+  ROLES.CAPELLAN_NACIONAL,
+  ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
+  ROLES.SUBDIRECTOR_NACIONAL,
+  ROLES.COORDINADOR_PROMOCION_NACIONAL,
+  ROLES.COORDINADOR_PRODUCCION_NACIONAL,
+  ROLES.COORDINADOR_PROGRAMA_NACIONAL,
+  ROLES.COMITES_ESPECIALES_NACIONAL,
+  ROLES.OFICIALES_ADIESTRAMIENTOS_ESPECIALES_NACIONAL,
+];
+const DEST_LEADERSHIP_DIRECT_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
+  .filter(
+    ([codigo, alcance]) =>
+      alcance === ALCANCES.DESTACAMENTO &&
+      (PERMISOS_POR_ROL[codigo] ?? []).includes(PERMISOS.MIEMBROS_EDITAR)
+  )
+  .map(([codigo]) => codigo);
+
 // Por todos sus cargos: quien coordina su destacamento y ademas ocupa una
 // casilla en su region entraba con el de destacamento y perdia lo de la region.
 export const isRegionScopedCreator = (user = {}) =>
   rolesQueEjerce(user).some((codigo) => REGION_CREATOR_ROLES.includes(codigo));
 
 const isAdminSession = (user = {}) =>
-  ['admin', 'administrador'].includes(String(user?.role ?? user?.rol ?? '').trim().toLowerCase());
+  ['admin', 'administrador'].includes(
+    String(user?.role ?? user?.rol ?? '')
+      .trim()
+      .toLowerCase()
+  );
 
 // Administrador "pleno" sin alcance acotado: global, funcional o una sesion de
 // administrador legada (sin rol organizacional acotado). Editan cualquier nivel.
@@ -247,6 +292,43 @@ export const getDestScopeIds = (user = {}) => {
   );
 };
 
+export const esProponenteNacionalDeDirectivas = (user = {}) => {
+  const principal = getOrgRoleId(user);
+
+  if ([ROLES.OFICINA_NACIONAL, ROLES.ADMINISTRADOR_GLOBAL].includes(principal)) return false;
+
+  return rolesQueEjerce(user).some((codigo) => NATIONAL_LEADERSHIP_PROPOSER_ROLES.includes(codigo));
+};
+
+// La directiva local conserva su flujo directo para los siete cargos de
+// destacamento, pero solo dentro de la entidad exacta de su cargo.
+export const canManageDestLeadershipDirectly = (user = {}, destId = null) => {
+  if (isAdminGlobal(user)) return true;
+
+  const id = normalizeId(destId);
+
+  return (
+    Boolean(id) &&
+    getDestScopeIds(user).has(id) &&
+    rolesQueEjerce(user).some((codigo) => DEST_LEADERSHIP_DIRECT_ROLES.includes(codigo))
+  );
+};
+
+export const canManageSectionLeadership = (user = {}, sectionId = null) => {
+  if (isAdminGlobal(user) || esProponenteNacionalDeDirectivas(user)) return true;
+
+  const id = normalizeId(sectionId);
+
+  return (
+    Boolean(id) &&
+    getSectionScopeIds(user).has(id) &&
+    rolesQueEjerce(user).some((codigo) => SECTION_LEADERSHIP_PROPOSER_ROLES.includes(codigo))
+  );
+};
+
+export const canManageNationalLeadership = (user = {}) =>
+  isAdminGlobal(user) || esProponenteNacionalDeDirectivas(user);
+
 // --- Lectura de ids desde las filas/entidades ---
 
 const getSectionalOwnId = (sectional = {}) =>
@@ -261,8 +343,7 @@ const getDestSectionId = (dest = {}) =>
 const getDestRegionId = (dest = {}) =>
   normalizeId(dest?.regionalId ?? dest?.idRegion ?? dest?.regionId);
 
-const getDestOwnId = (dest = {}) =>
-  normalizeId(dest?.id ?? dest?.idDestacamento ?? dest?.destId);
+const getDestOwnId = (dest = {}) => normalizeId(dest?.id ?? dest?.idDestacamento ?? dest?.destId);
 
 // ----------------------------------------------------------------------
 // Edicion por entidad
@@ -333,16 +414,17 @@ export const destLeadershipChangeNeedsNotice = (user = {}) => {
 /**
  * ¿Puede componer la directiva de ESA region?
  *
- * Cualquier cargo de nivel region, dentro de SU region. No es una excepcion a lo
- * de que son cargos de consulta: la directiva regional la aprueba la Oficina
- * Nacional (ambito `directiva_region`), asi que lo que hacen aqui es proponer.
- * Antes la unica forma de mover una casilla de su propia directiva era pedirselo
- * al Administrador Global.
+ * Cualquier cargo de nivel region, dentro de SU region, puede proponer cambios.
+ * Ninguno los aplica directamente: todos quedan PENDIENTES de la Oficina
+ * Nacional o del Administrador Global. Los cargos del Consejo Ejecutivo pueden
+ * proponer en cualquier region.
  */
 export const canManageRegionLeadership = (user = {}, regionId = null) => {
-  if (isGlobalOrgManager(user)) return true;
+  if (isAdminGlobal(user) || esProponenteNacionalDeDirectivas(user)) return true;
 
-  if (!isRegionScopedCreator(user)) return false;
+  if (!rolesQueEjerce(user).some((codigo) => REGION_LEADERSHIP_PROPOSER_ROLES.includes(codigo))) {
+    return false;
+  }
 
   const id = normalizeId(regionId);
 
@@ -606,6 +688,51 @@ export const isSectionLevelRole = (user = {}) =>
 // los calcula (incluyendo la DERIVACION desde el destacamento/seccion del
 // usuario) se usan esos; si no, se cae al alcance explicito del token. Esto es lo
 // que permite que un cargo de destacamento reconozca su propia region/seccion.
+// Los niveles que ven TODAS las regiones. Los de nivel region las ven todas
+// —dentro de la suya mandan, las demas las consultan— y los de nivel nacional
+// (Consejo Nacional y sus cargos, Consejo Ejecutivo y Oficina Nacional) tambien.
+const NIVELES_CON_TODAS_LAS_REGIONES = [ALCANCES.REGION, ALCANCES.NACIONAL];
+
+/**
+ * ¿Ve TODAS las regiones, y puede entrar en cualquiera?
+ *
+ * Los cargos de nivel region y de nivel nacional, mas los administradores Global
+ * y Funcional (y una sesion de administrador legada). El Administrador de Tienda
+ * queda fuera aunque su alcance sea global por catalogo: no gobierna la
+ * estructura.
+ *
+ * Para todos los demas —cargos de destacamento, de seccion, Pastor y Usuario
+ * Comun— las otras regiones se LISTAN pero salen deshabilitadas, y su ficha no
+ * se abre ni escribiendo el enlace a mano: eso lo aplica `puedeEntrarALaRegion`.
+ *
+ * Se miran TODOS sus cargos, no solo el principal.
+ */
+export const puedeVerTodasLasRegiones = (user = {}) =>
+  isFullOrgManager(user) ||
+  rolesQueEjerce(user).some((codigo) =>
+    NIVELES_CON_TODAS_LAS_REGIONES.includes(ALCANCE_PREDETERMINADO_ROL[codigo])
+  );
+
+/**
+ * ¿Puede ABRIR la ficha de esta region?
+ *
+ * Quien las ve todas, en cualquiera; el resto, solo en la suya. Es la puerta que
+ * hay que cerrar en la pantalla, porque la lista deshabilitada no impide llegar
+ * con el enlace pegado.
+ *
+ * `ownRegionIds` es opcional: cuando la pantalla ya lo calculo —derivando la
+ * region desde el destacamento o la seccion propios— se usa ese; si no, se cae
+ * al alcance explicito del token, que un cargo de destacamento no trae.
+ */
+export const puedeEntrarALaRegion = (user = {}, regionId = null, { ownRegionIds } = {}) => {
+  if (puedeVerTodasLasRegiones(user)) return true;
+
+  const id = normalizeId(regionId);
+  const own = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+
+  return Boolean(id) && own.has(id);
+};
+
 export const isForeignRegionForMembers = (user = {}, { regionId, ownRegionIds } = {}) => {
   if (isUnrestrictedOrgViewer(user)) return false;
   const own = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
@@ -617,8 +744,12 @@ export const isForeignSectionForMembers = (
   { sectionId, regionId, ownRegionIds, ownSectionIds } = {}
 ) => {
   if (isUnrestrictedOrgViewer(user)) return false;
+  // Que la region coincida solo abre el contador a quien ve los miembros de la
+  // region entera. Un cargo SECCIONAL ve las secciones de su region, pero su
+  // gente llega hasta la suya: en las demas el contador lleva a una lista vacia.
+  const nivel = nivelDeSusCargosSobreElDestacamento(user);
   const ownRegion = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
-  if (ownRegion.has(normalizeId(regionId))) return false;
+  if (nivel !== ALCANCES.SECCION && ownRegion.has(normalizeId(regionId))) return false;
   const ownSection = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
   return !ownSection.has(normalizeId(sectionId));
 };
@@ -639,22 +770,70 @@ export const esRolDeDestacamento = (user = {}) => {
   return ALCANCE_PREDETERMINADO_ROL[getOrgRoleId(user)] === ALCANCES.DESTACAMENTO;
 };
 
+// Los niveles POR ENCIMA del destacamento, de menor a mayor.
+const NIVELES_SOBRE_EL_DESTACAMENTO = [ALCANCES.SECCION, ALCANCES.REGION, ALCANCES.NACIONAL];
+
+/**
+ * El nivel MAS AMPLIO de todos los cargos que ejerce, por encima del suyo.
+ *
+ * Es hasta donde llega su gente: un cargo de seccion mira a los miembros de
+ * todos los destacamentos de su seccion, uno de region a los de su region y el
+ * Consejo Nacional a los del pais. Devuelve '' para quien no tiene ningun cargo
+ * por encima del destacamento.
+ *
+ * Se miran TODOS sus cargos y no solo el principal: quien coordina su
+ * destacamento y ademas ocupa una casilla en la seccion mira a los de la
+ * seccion entera. Los cargos globales no entran: a quien ve toda la
+ * organizacion lo decide `puedeVerMiembrosDeTodaLaOrganizacion`, y el
+ * Administrador de Tienda —global por catalogo— no tiene por que leer el padron.
+ */
+export const nivelDeSusCargosSobreElDestacamento = (user = {}) =>
+  rolesQueEjerce(user).reduce((masAmplio, codigo) => {
+    const nivel = ALCANCE_PREDETERMINADO_ROL[codigo];
+
+    return NIVELES_SOBRE_EL_DESTACAMENTO.indexOf(nivel) >
+      NIVELES_SOBRE_EL_DESTACAMENTO.indexOf(masAmplio)
+      ? nivel
+      : masAmplio;
+  }, '');
+
+/** ¿Ejerce algun cargo por encima del destacamento (seccion, region o nacional)? */
+export const ejerceCargoSobreDestacamento = (user = {}) =>
+  Boolean(nivelDeSusCargosSobreElDestacamento(user));
+
 export const isForeignDestForMembers = (
   user = {},
   { destId, sectionId, regionId, ownRegionIds, ownSectionIds, ownDestIds } = {}
 ) => {
   if (isUnrestrictedOrgViewer(user)) return false;
 
+  // El contador se abre exactamente donde llega su gente, para que pulsarlo
+  // nunca lleve a una lista vacia. Va en par con `filterMembersByMemberScope`.
+  const nivel = nivelDeSusCargosSobreElDestacamento(user);
+
+  // Nivel nacional: para el Consejo Nacional y el Ejecutivo no hay destacamento
+  // ajeno.
+  if (nivel === ALCANCES.NACIONAL) return false;
+
   // El Usuario Comun consulta los destacamentos de toda su seccion, pero los
   // MIEMBROS solo los del suyo. Para el, entonces, que la seccion coincida no
   // abre el contador: se compara unicamente por destacamento. Sin esta salvedad
   // el contador de un destacamento vecino quedaba pulsable y llevaba a una lista
-  // vacia, que es peor que verlo deshabilitado.
+  // vacia, que es peor que verlo deshabilitado. Lo mismo vale para los cargos de
+  // destacamento, que tampoco salen del suyo.
   if (!esUsuarioComun(user)) {
-    const ownRegion = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
-    if (ownRegion.has(normalizeId(regionId))) return false;
-    const ownSection = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
-    if (ownSection.has(normalizeId(sectionId))) return false;
+    // La region solo cuenta para un cargo REGIONAL. El seccional consulta los
+    // destacamentos de toda su region —eso es estructura—, pero su gente llega
+    // hasta su seccion.
+    if (nivel === ALCANCES.REGION) {
+      const ownRegion = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
+      if (ownRegion.has(normalizeId(regionId))) return false;
+    }
+
+    if (nivel === ALCANCES.SECCION || nivel === ALCANCES.REGION) {
+      const ownSection = ownSectionIds instanceof Set ? ownSectionIds : getSectionScopeIds(user);
+      if (ownSection.has(normalizeId(sectionId))) return false;
+    }
   }
 
   const ownDest = ownDestIds instanceof Set ? ownDestIds : getDestScopeIds(user);

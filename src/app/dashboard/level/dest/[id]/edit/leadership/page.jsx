@@ -34,6 +34,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { canManageDestLeadershipDirectly } from 'src/utils/org-level-access';
 import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -423,7 +424,13 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
           {name}
         </Typography>
 
-        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
+        <Typography
+          variant="caption"
+          component="div"
+          noWrap
+          title={role}
+          sx={{ color: 'text.secondary' }}
+        >
           {role}
         </Typography>
       </Box>
@@ -499,11 +506,7 @@ const getMemberOptionKey = (member) =>
     .join('-');
 
 const getAssignmentKey = (asignacion) =>
-  [
-    asignacion?.cargo || '',
-    asignacion?.division || 'general',
-    asignacion?.orden || 1,
-  ].join('|');
+  [asignacion?.cargo || '', asignacion?.division || 'general', asignacion?.orden || 1].join('|');
 
 // ----------------------------------------------------------------------
 // El organigrama del destacamento se apoya en `asignacionesDirectiva`, la misma
@@ -581,9 +584,7 @@ function LeadershipNode({
   // El nodo describe el CARGO: nombre y foto los pone el ocupante, y sin
   // ocupante el cargo se dibuja como vacante.
   const identity = getLeadershipNodeIdentity(
-    miembroAsignado
-      ? { ...miembroAsignado, avatarUrl: getMemberAvatar(miembroAsignado) }
-      : null,
+    miembroAsignado ? { ...miembroAsignado, avatarUrl: getMemberAvatar(miembroAsignado) } : null,
     { restringido }
   );
   const displayName = identity.displayName;
@@ -731,7 +732,13 @@ function LeadershipNode({
           )}
         </LeadershipNodeName>
 
-        <Typography variant="caption" component="div" noWrap title={role} sx={{ color: 'text.secondary' }}>
+        <Typography
+          variant="caption"
+          component="div"
+          noWrap
+          title={role}
+          sx={{ color: 'text.secondary' }}
+        >
           {role}
         </Typography>
       </Card>
@@ -843,6 +850,9 @@ export default function Page() {
   // Quien no es el Coordinador ni su Asistente puede moverla igual, pero ellos
   // reciben aviso: ver `destLeadershipChangeNeedsNotice`.
   const canManageLeadership = canManageDestLeadership(user, params?.id);
+  // El Consejo Ejecutivo puede proponer en cualquier destacamento, pero no
+  // guardar directamente la distribución visual de sus cajas.
+  const canManageLayout = canManageDestLeadershipDirectly(user, params?.id);
   // Quien mira el organigrama de un destacamento que no es el suyo ve los cargos
   // y quien los ocupa solo en las tres cabezas; del resto, solo que estan
   // cubiertos. El Administrador Global y la Oficina Nacional lo ven todo.
@@ -873,7 +883,7 @@ export default function Page() {
     nivel: 'destacamento',
     idEntidad: destId,
     nombreEntidad: destName,
-    canManage: canManageLeadership,
+    canManage: canManageLayout,
   });
   const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
@@ -1272,6 +1282,15 @@ export default function Page() {
         }),
       ]);
 
+      if (asignacionGuardada?.pendienteDeAprobacion) {
+        setSelectedNode(null);
+        setSelectedMember(null);
+        toast.info(
+          'Cambio enviado a la Oficina Nacional y al Administrador Global. Se aplicará cuando lo aprueben.'
+        );
+        return;
+      }
+
       // Un miembro ocupa UNA casilla por destacamento: sin esto, moverlo de rol
       // lo dejaba dibujado tambien en el anterior.
       await desactivarAsignacionesDirectivaPorNivel({
@@ -1368,7 +1387,7 @@ export default function Page() {
     try {
       // Se da de baja escribiendo la misma asignacion con activo=false, igual que
       // hacen las Directivas de seccion, region y nacion.
-      await guardarAsignacionDirectiva({
+      const asignacionGuardada = await guardarAsignacionDirectiva({
         usuario: user,
         nivel: NIVEL_DESTACAMENTO,
         idEntidad: destId,
@@ -1380,6 +1399,14 @@ export default function Page() {
         origen: 'organigrama-destacamento',
         activo: false,
       });
+
+      if (asignacionGuardada?.pendienteDeAprobacion) {
+        setRemoveMemberNode(null);
+        toast.info(
+          'Cambio enviado a la Oficina Nacional y al Administrador Global. Se aplicará cuando lo aprueben.'
+        );
+        return;
+      }
 
       setAssignments((current) => {
         const nextAssignments = { ...current };
@@ -1725,7 +1752,7 @@ export default function Page() {
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
 
-        {canManageLeadership && (
+        {canManageLayout && (
           <LeadershipLayoutEditor
             pan={pan}
             zoom={zoom}
@@ -1739,12 +1766,7 @@ export default function Page() {
         )}
       </Box>
 
-      <Dialog
-        open={!!selectedNode}
-        onClose={handleCloseChangeMember}
-        fullWidth
-        maxWidth="xs"
-      >
+      <Dialog open={!!selectedNode} onClose={handleCloseChangeMember} fullWidth maxWidth="xs">
         <DialogTitle>
           {selectedNode?.miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
         </DialogTitle>
@@ -1806,7 +1828,11 @@ export default function Page() {
 
                       {/* Mismas dos lineas que en seccion, region y nacion: de
                           donde viene y que cargo ocupa ya, con su entidad. */}
-                      <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
+                      <Typography
+                        variant="caption"
+                        component="div"
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {option.subtitulo}
                       </Typography>
 
@@ -1864,7 +1890,9 @@ export default function Page() {
 
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="subtitle1">{roleInfoNode?.role || 'Rol del organigrama'}</Typography>
+            <Typography variant="subtitle1">
+              {roleInfoNode?.role || 'Rol del organigrama'}
+            </Typography>
 
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent
