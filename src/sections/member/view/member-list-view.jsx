@@ -451,7 +451,7 @@ export function MemberListView() {
               })
             );
           })
-          .catch(() => {});
+          .catch(() => { });
 
         obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
           .then((memberPhotos) => {
@@ -687,8 +687,8 @@ export function MemberListView() {
     // dice nada de quien responde ante quien.
     const porJerarquia = currentFilters.destName.length
       ? [...filtrados].sort(
-          (a, b) => (a.destPositionOrden ?? Infinity) - (b.destPositionOrden ?? Infinity)
-        )
+        (a, b) => (a.destPositionOrden ?? Infinity) - (b.destPositionOrden ?? Infinity)
+      )
       : filtrados;
 
     return sortOwnFirst(porJerarquia, (row) => esFichaDelPropioMiembro(user, row));
@@ -739,7 +739,7 @@ export function MemberListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading={
-            memberDestLabel ? `Lista de miembros del ${memberDestLabel}` : 'Lista de miembros'
+            memberDestLabel ? `Lista de miembros de ${memberDestLabel}` : 'Lista de miembros'
           }
           links={[
             { name: 'Panel', href: paths.dashboard.root },
@@ -802,7 +802,7 @@ export function MemberListView() {
                       tab.value
                     )
                       ? visibleMembers.filter((sectional) => sectional.memberDivision === tab.value)
-                          .length
+                        .length
                       : visibleMembers.length}
                   </Label>
                 }

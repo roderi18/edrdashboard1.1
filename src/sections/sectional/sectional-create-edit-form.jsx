@@ -89,7 +89,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
   // Editar una seccion lo aprueba la Oficina Nacional. Quien no puede aprobar no
   // esta guardando nada: esta enviando una propuesta, y el boton tiene que
   // decirlo con las mismas palabras que en destacamentos y en miembros.
-  const soloSugiereCambios = Boolean(currentSectional) && !puedeAprobarCambiosDeOrganizacion(user);
+  // Vale para EDITAR y para CREAR: dar de alta una seccion tambien lo aprueba la
+  // Oficina Nacional, asi que el boton dice lo mismo en los dos casos.
+  const soloSugiereCambios = !puedeAprobarCambiosDeOrganizacion(user);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
   const [pendientesAbierto, setPendientesAbierto] = useState(false);
@@ -676,10 +678,10 @@ export function SectionalCreateEditForm({ currentSectional }) {
                     {/* Lo que hace el boton, no lo que uno querria que hiciera:
                         el cambio no se aplica hasta que la Oficina Nacional lo
                         apruebe. */}
-                    {!currentSectional
-                      ? 'Crear seccional'
-                      : soloSugiereCambios
-                        ? 'Enviar a aprobación'
+                    {soloSugiereCambios
+                      ? 'Enviar a aprobación'
+                      : !currentSectional
+                        ? 'Crear seccional'
                         : 'Guardar cambios'}
                   </Button>
                 )}

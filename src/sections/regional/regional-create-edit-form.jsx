@@ -78,7 +78,9 @@ export function RegionalCreateEditForm({ currentRegional }) {
   // Editar una region la aprueba la Oficina Nacional. Quien no puede aprobar no
   // esta guardando nada: esta enviando una propuesta, y el boton lo dice con las
   // mismas palabras que en secciones, destacamentos y miembros.
-  const soloSugiereCambios = Boolean(currentRegional) && !puedeAprobarCambiosDeOrganizacion(user);
+  // Vale para EDITAR y para CREAR: el boton dice lo que va a pasar, no lo que
+  // uno querria que pasara.
+  const soloSugiereCambios = !puedeAprobarCambiosDeOrganizacion(user);
   const idRegionActual = String(currentRegional?.id ?? currentRegional?.idRegion ?? '');
   // LA FOTO NO ES LA FICHA. La region la edita la Oficina Nacional, pero la
   // imagen la puede PROPONER el Coordinador Regional y su Asistente: sugerir no
@@ -583,10 +585,10 @@ export function RegionalCreateEditForm({ currentRegional }) {
                     {/* Lo que hace el boton, no lo que uno querria que hiciera:
                         el cambio no se aplica hasta que la Oficina Nacional lo
                         apruebe. */}
-                    {!currentRegional
-                      ? 'Crear Región'
-                      : soloSugiereCambios
-                        ? 'Enviar a aprobación'
+                    {soloSugiereCambios
+                      ? 'Enviar a aprobación'
+                      : !currentRegional
+                        ? 'Crear Región'
                         : 'Guardar cambios'}
                   </Button>
                 )}

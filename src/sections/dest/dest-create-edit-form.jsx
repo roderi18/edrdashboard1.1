@@ -40,6 +40,7 @@ import {
   isRegionScopedManager,
   canCreateDestInSection,
   isSectionScopedManager,
+  soloSugiereAltasDeDestacamento,
   canEditDest as canGestionarDestPorAlcance,
 } from 'src/utils/org-level-access';
 
@@ -416,6 +417,10 @@ export function DestCreateEditForm({ currentDest }) {
   // Sus cambios no se aplican: van a la bandeja de la Oficina Nacional. Vale
   // para la foto y para los campos que si puede tocar.
   const soloSugiereCambios = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
+  // Dar de alta un destacamento tambien puede ser una propuesta: lo que sugiere
+  // un cargo de SECCION espera a la Oficina Nacional. El boton lo dice con las
+  // mismas palabras que en secciones y regiones.
+  const soloSugiereElAlta = isCreateView && soloSugiereAltasDeDestacamento(user);
   // La foto la sugiere TODO el que no puede aplicarla, no solo el destacamento.
   const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canUploadDestPhoto;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
@@ -1251,7 +1256,7 @@ export function DestCreateEditForm({ currentDest }) {
 
                   {step === 2 && (
                     <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                      Crear Destacamento
+                      {soloSugiereElAlta ? 'Enviar a aprobación' : 'Crear Destacamento'}
                     </LoadingButton>
                   )}
                 </>
