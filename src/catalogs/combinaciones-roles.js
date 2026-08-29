@@ -51,7 +51,7 @@ export const PESO_NIVEL = {
   [NIVEL_COMBINACION.destacamento]: 1,
 };
 
-const nivelDeAlcance = (alcance, codigo) => {
+export const nivelDeAlcance = (alcance, codigo) => {
   if (alcance === ALCANCES.DESTACAMENTO) return NIVEL_COMBINACION.destacamento;
   if (alcance === ALCANCES.SECCION) return NIVEL_COMBINACION.seccion;
   if (alcance === ALCANCES.REGION) return NIVEL_COMBINACION.region;

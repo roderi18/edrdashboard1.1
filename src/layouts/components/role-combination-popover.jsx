@@ -17,6 +17,9 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import FormControl from '@mui/material/FormControl';
 import ListSubheader from '@mui/material/ListSubheader';
 
+import { usePathname } from 'src/routes/hooks';
+
+import { moduloDesdeRuta, ALCANCE_QUE_MANDA } from 'src/utils/modulo-activo';
 import {
   borrarSimulacionDeRoles,
   guardarSimulacionDeRoles,
@@ -26,6 +29,7 @@ import {
   PESO_NIVEL,
   rolesDeNivel,
   ETIQUETA_NIVEL,
+  nivelDeAlcance,
   rolPrincipalDe,
   NIVEL_COMBINACION,
   ROL_COMBINABLE_POR_CODIGO,
@@ -62,9 +66,43 @@ const NIVELES_DEL_SEGUNDO = [
 
 const rolesDestacamento = rolesDeNivel(NIVEL_COMBINACION.destacamento);
 
+// Cargos que mandan en TODOS los modulos: no hay nivel por encima del suyo, asi
+// que la dominancia por modulo no se les aplica. Es la misma lista que mira
+// `getOrgRoleId`; si aqui se subrayara otro, la etiqueta mentiria sobre lo que
+// de verdad decide.
+const ROLES_SIN_DOMINANCIA_POR_MODULO = [ROLES.OFICINA_NACIONAL];
+
+/**
+ * De los dos cargos, cual MANDA en el modulo donde se esta parado.
+ *
+ * Es la misma regla que aplican los guardas (ver `modulo-activo` y
+ * `getOrgRoleId`): en Secciones manda el seccional, en Regiones el regional, y
+ * sobre miembros y destacamentos el de destacamento. Fuera de esos modulos —o
+ * cuando ninguno de los dos es de ese nivel— manda el de mayor nivel, que es el
+ * rol principal de navegacion.
+ */
+const codigoQueMandaEn = (ruta, codigos = []) => {
+  const roles = codigos.map((codigo) => ROL_COMBINABLE_POR_CODIGO[codigo]).filter(Boolean);
+  const principal = rolPrincipalDe(roles)?.codigo || '';
+
+  if (codigos.some((codigo) => ROLES_SIN_DOMINANCIA_POR_MODULO.includes(codigo))) {
+    return principal;
+  }
+
+  const nivelQueManda = nivelDeAlcance(ALCANCE_QUE_MANDA[moduloDesdeRuta(ruta)] || '');
+
+  if (!nivelQueManda) return principal;
+
+  return roles.find((rol) => rol.nivel === nivelQueManda)?.codigo || principal;
+};
+
 export function RoleCombinationPopover({ sx, ...other }) {
   const { user } = useAuthContext();
   const popover = usePopover();
+  // La ruta, no el modulo guardado: `setModuloActivo` escribe una variable
+  // suelta que no vuelve a pintar nada, y el subrayado tiene que moverse al
+  // cambiar de pantalla.
+  const pathname = usePathname();
 
   const combinacionActiva = user?.simulacion?.activa
     ? {
@@ -112,6 +150,24 @@ export function RoleCombinationPopover({ sx, ...other }) {
   );
 
   const nombreDe = (codigo) => ROL_COMBINABLE_POR_CODIGO[codigo]?.nombre || '';
+
+  // El cargo que decide AQUI va subrayado. Los dos siguen activos y sus permisos
+  // se suman; el subrayado dice cual gana cuando dicen cosas distintas sobre lo
+  // mismo, que es justo lo que no se veia por ningun lado.
+  const codigoQueManda = combinacionActiva
+    ? codigoQueMandaEn(pathname, [combinacionActiva.destacamento, combinacionActiva.acompanante])
+    : '';
+
+  const nivelQueManda = ROL_COMBINABLE_POR_CODIGO[codigoQueManda]?.nivel || '';
+
+  const estiloDelRol = (codigo) =>
+    codigo === codigoQueManda
+      ? {
+          textDecorationLine: 'underline',
+          textDecorationThickness: 2,
+          textUnderlineOffset: 3,
+        }
+      : { color: 'text.secondary' };
 
   // El mismo fondo que se enciende al abrir el selector de un solo rol.
   const fondoDelBoton = {
@@ -175,9 +231,28 @@ export function RoleCombinationPopover({ sx, ...other }) {
           component="span"
           sx={{ typography: 'subtitle2', display: { xs: 'none', sm: 'inline-flex' } }}
         >
-          {combinacionActiva
-            ? `${nombreDe(combinacionActiva.destacamento)} + ${nombreDe(combinacionActiva.acompanante)}`
-            : 'Roles combinados'}
+          {combinacionActiva ? (
+            <Box
+              component="span"
+              title={
+                nivelQueManda
+                  ? `Aquí manda tu cargo de ${ETIQUETA_NIVEL[nivelQueManda]}`
+                  : undefined
+              }
+            >
+              <Box component="span" sx={estiloDelRol(combinacionActiva.destacamento)}>
+                {nombreDe(combinacionActiva.destacamento)}
+              </Box>
+              <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
+                +
+              </Box>
+              <Box component="span" sx={estiloDelRol(combinacionActiva.acompanante)}>
+                {nombreDe(combinacionActiva.acompanante)}
+              </Box>
+            </Box>
+          ) : (
+            'Roles combinados'
+          )}
         </Box>
 
         {combinacionActiva && <Chip size="small" color="warning" variant="soft" label="Prueba" />}
