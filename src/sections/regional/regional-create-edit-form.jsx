@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -15,18 +15,26 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from 'src/routes/hooks';
 
 import { contarRegion } from 'src/utils/org-counts';
-import { subirFotoEntidad } from 'src/utils/firebase-photos';
-import { canEditRegional } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import { subirFotoEntidad, subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
+import {
+  canEditRegional,
+  puedeSugerirFotoDeRegion,
+  puedeAprobarCambiosDeOrganizacion,
+} from 'src/utils/org-level-access';
 
 import { AUTH } from 'src/lib/firebase';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { RegionalSchema } from 'src/models/regional-schema';
 import { getSectionals } from 'src/services/sectional-service';
-import { saveRegional, updateRegional } from 'src/services/regional-service';
+import { saveRegional, updateRegional, proponerFotoRegion } from 'src/services/regional-service';
+import {
+  AMBITOS_CAMBIO,
+  obtenerSolicitudesPendientesPorEntidad,
+} from 'src/services/solicitudes-cambio-service';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
@@ -34,9 +42,12 @@ import {
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
+
+import { OrgPendingChangesDialog } from 'src/sections/common/org-pending-changes-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
@@ -63,9 +74,49 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const canEdit = currentRegional
     ? canEditRegional(user, currentRegional)
     : canManageOrgLevels(user);
+  // Editar una region la aprueba la Oficina Nacional. Quien no puede aprobar no
+  // esta guardando nada: esta enviando una propuesta, y el boton lo dice con las
+  // mismas palabras que en secciones, destacamentos y miembros.
+  const soloSugiereCambios = Boolean(currentRegional) && !puedeAprobarCambiosDeOrganizacion(user);
+  const idRegionActual = String(currentRegional?.id ?? currentRegional?.idRegion ?? '');
+  // LA FOTO NO ES LA FICHA. La region la edita la Oficina Nacional, pero la
+  // imagen la puede PROPONER el Coordinador Regional y su Asistente: sugerir no
+  // es cambiar. Mismo camino que en secciones y destacamentos.
+  const puedeSugerirFoto =
+    Boolean(currentRegional) && (canEdit || puedeSugerirFotoDeRegion(user, currentRegional));
+  const soloSugiereFoto = puedeSugerirFoto && !puedeAprobarCambiosDeOrganizacion(user);
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
+  const [pendientesAbierto, setPendientesAbierto] = useState(false);
+
+  // Lo que ya se envio y sigue esperando. Se consulta al entrar y despues de
+  // cada envio: sin esto, la pantalla muestra los datos de antes y no hay forma
+  // de saber si el cambio se mando o se perdio.
+  const cargarPendientes = useCallback(async () => {
+    if (!idRegionActual) {
+      setSolicitudesPendientes([]);
+      return;
+    }
+
+    try {
+      const pendientes = await obtenerSolicitudesPendientesPorEntidad({
+        tipo: 'region',
+        id: idRegionActual,
+        ambitos: [AMBITOS_CAMBIO.region, AMBITOS_CAMBIO.fotoRegion],
+      });
+
+      setSolicitudesPendientes(pendientes);
+    } catch (error) {
+      console.warn('[regional form] no se pudieron leer los cambios pendientes', error);
+      setSolicitudesPendientes([]);
+    }
+  }, [idRegionActual]);
+
+  useEffect(() => {
+    cargarPendientes();
+  }, [cargarPendientes]);
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -96,8 +147,38 @@ export function RegionalCreateEditForm({ currentRegional }) {
       return null;
     }
 
+    if (!puedeSugerirFoto) {
+      toast.error('No tienes permiso para cambiar la foto de esta región.');
+      return null;
+    }
+
     try {
       setUploadingPhoto(true);
+
+      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
+      // queda como esta. Devolver la url nueva pintaria un cambio que todavia no
+      // existe, asi que se conserva la de antes.
+      if (soloSugiereFoto) {
+        const propuesta = await subirFotoEntidadPropuesta({
+          file,
+          tipoEntidad: 'region',
+          idEntidad: regionalId,
+          subidoPor: AUTH.currentUser?.uid || '',
+        });
+
+        await proponerFotoRegion({
+          region: { id: regionalId, nombre: currentRegional?.name || '' },
+          foto: propuesta,
+          urlAntes: values.avatarUrl || currentRegional?.avatarUrl || '',
+          usuario: user,
+        });
+
+        toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
+
+        await cargarPendientes();
+
+        return values.avatarUrl || currentRegional?.avatarUrl || null;
+      }
 
       const photo = await subirFotoEntidad({
         file,
@@ -281,6 +362,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
       }
 
       if (currentRegional) {
+        await cargarPendientes();
         router.refresh();
         return;
       }
@@ -315,7 +397,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
                 name="avatarUrl"
                 loading={uploadingPhoto}
                 disabled={uploadingPhoto}
-                readOnly={!canEdit}
+                readOnly={!puedeSugerirFoto}
                 onDrop={handleUploadRegionalPhoto}
                 optimizationToast={false}
                 helperText={
@@ -329,8 +411,17 @@ export function RegionalCreateEditForm({ currentRegional }) {
                       color: 'text.disabled',
                     }}
                   >
-                    Permitido *.jpeg, *.jpg, *.png, *.gif
-                    <br /> la imagen se optimiza al cargar.
+                    {/* A quien solo puede sugerirla, decirle los formatos no le
+                        aclara lo que necesita saber: que la foto no cambia hasta
+                        que la aprueben. */}
+                    {soloSugiereFoto ? (
+                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
+                    ) : (
+                      <>
+                        Permitido *.jpeg, *.jpg, *.png, *.gif
+                        <br /> la imagen se optimiza al cargar.
+                      </>
+                    )}
                   </Typography>
                 }
               />
@@ -444,16 +535,48 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
             </Box>
 
-            {canEdit && (
-              <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-                <Button type="submit" variant="contained" loading={isSubmitting}>
-                  {!currentRegional ? 'Crear Región' : 'Guardar cambios'}
-                </Button>
+            {(canEdit || solicitudesPendientes.length > 0) && (
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{ mt: 3, justifyContent: 'flex-end', flexWrap: 'wrap' }}
+              >
+                {solicitudesPendientes.length > 0 && (
+                  <Button
+                    type="button"
+                    color="warning"
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                    onClick={() => setPendientesAbierto(true)}
+                  >
+                    Ver cambios pendientes
+                  </Button>
+                )}
+
+                {canEdit && (
+                  <Button type="submit" variant="contained" loading={isSubmitting}>
+                    {/* Lo que hace el boton, no lo que uno querria que hiciera:
+                        el cambio no se aplica hasta que la Oficina Nacional lo
+                        apruebe. */}
+                    {!currentRegional
+                      ? 'Crear Región'
+                      : soloSugiereCambios
+                        ? 'Enviar a aprobación'
+                        : 'Guardar cambios'}
+                  </Button>
+                )}
               </Stack>
             )}
           </Card>
         </Grid>
       </Grid>
+
+      <OrgPendingChangesDialog
+        open={pendientesAbierto}
+        solicitudes={solicitudesPendientes}
+        entidad={values.name || currentRegional?.name || 'Región'}
+        onClose={() => setPendientesAbierto(false)}
+      />
     </Form>
   );
 }

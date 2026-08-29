@@ -7,11 +7,12 @@ import {
     obtenerFotosPrincipalesPorEntidad,
 } from 'src/utils/firebase-photos';
 import {
-  canEditSectional,
-  canDeleteOrgLevel,
-  canAssignSectionalToRegion,
-  canCreateSectionalInRegion,
-  puedeAprobarCambiosDeOrganizacion,
+    canEditSectional,
+    canDeleteOrgLevel,
+    canAssignSectionalToRegion,
+    canCreateSectionalInRegion,
+    soloSugiereCambiosDeSeccion,
+    puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -23,78 +24,78 @@ import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-ca
 
 // Campos que se listan en la propuesta, para que quien apruebe vea QUE cambia.
 const CAMPOS_SECCION = {
-  nombre: 'Nombre',
-  sectionalName: 'Nombre',
-  idRegion: 'Región',
-  regionalId: 'Región',
-  correo: 'Correo',
-  telefono: 'Teléfono',
-  direccion: 'Dirección',
+    nombre: 'Nombre',
+    sectionalName: 'Nombre',
+    idRegion: 'Región',
+    regionalId: 'Región',
+    correo: 'Correo',
+    telefono: 'Teléfono',
+    direccion: 'Dirección',
 };
 
 export const compararCambios = (antes, despues, campos) =>
-  Object.entries(campos)
-    .map(([campo, etiqueta]) => ({
-      campo,
-      etiqueta,
-      antes: antes?.[campo] ?? null,
-      despues: despues?.[campo] ?? null,
-    }))
-    .filter((cambio) => String(cambio.antes ?? '') !== String(cambio.despues ?? ''));
+    Object.entries(campos)
+        .map(([campo, etiqueta]) => ({
+            campo,
+            etiqueta,
+            antes: antes?.[campo] ?? null,
+            despues: despues?.[campo] ?? null,
+        }))
+        .filter((cambio) => String(cambio.antes ?? '') !== String(cambio.despues ?? ''));
 
 // Escritura real. No se llama a pelo: entra por la puerta de cambios.
 const escribirSeccion = async (sectional) => {
-  const res = await fetch('/api/sectional/put', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sectional),
-  });
+    const res = await fetch('/api/sectional/put', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sectional),
+    });
 
-  const texto = await res.text();
+    const texto = await res.text();
 
-  if (!res.ok) {
-    throw new Error(texto || `Error actualizando la sección (${res.status})`);
-  }
+    if (!res.ok) {
+        throw new Error(texto || `Error actualizando la sección (${res.status})`);
+    }
 
-  return texto;
+    return texto;
 };
 
 // Verificacion de alcance del lado del cliente (defensa en profundidad). Solo se
 // aplica cuando el llamador pasa `usuario`; es una mitigacion parcial: la API
 // externa no valida permisos, asi que el control real debe vivir en el backend.
 const assertScope = (usuario, allowed, mensaje) => {
-  if (usuario && !allowed) {
-    throw new Error(mensaje);
-  }
+    if (usuario && !allowed) {
+        throw new Error(mensaje);
+    }
 };
 
 // Region(es) propias del usuario, DERIVADAS (no solo el alcance del token, que
 // muchas sesiones no traen resuelto). Los destacamentos se piden por fetch y no
 // via dest-service para no crear un ciclo de importacion entre ambos servicios.
 const resolveOwnRegionIds = async (usuario) => {
-  try {
-    const [sectionals, churches] = await Promise.all([
-      getSectionals({ includePhotos: false }),
-      getChurches(),
-    ]);
-
-    let dests = [];
-
     try {
-      const res = await fetch('/api/dest');
-      const json = await res.json();
-      dests = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
-    } catch {
-      dests = [];
+        const [sectionals, churches] = await Promise.all([
+            getSectionals({ includePhotos: false }),
+            getChurches(),
+        ]);
+
+        let dests = [];
+
+        try {
+            const res = await fetch('/api/dest');
+            const json = await res.json();
+            dests = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
+        } catch {
+            dests = [];
+        }
+
+        return getOwnRegionIdsForUser(usuario, { dests, churches, sectionals });
+    } catch (error) {
+        // No poder comprobar el alcance no autoriza: se devuelve vacio y se deniega.
+        console.warn('[sectional-service] no se pudo resolver la region propia', error);
+
+        return new Set();
     }
-
-    return getOwnRegionIdsForUser(usuario, { dests, churches, sectionals });
-  } catch (error) {
-    // No poder comprobar el alcance no autoriza: se devuelve vacio y se deniega.
-    console.warn('[sectional-service] no se pudo resolver la region propia', error);
-
-    return new Set();
-  }
 };
 
 const SECTIONALS_STORAGE_KEY = 'sectionals';
@@ -241,9 +242,9 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
         assertScope(
             usuario,
             canEditSectional(usuario, antes ?? sectional) &&
-                canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId, {
-                    ownRegionIds,
-                }),
+            canAssignSectionalToRegion(usuario, sectional?.idRegion ?? sectional?.regionalId, {
+                ownRegionIds,
+            }),
             'No tienes permiso para editar esta sección.'
         );
     }
@@ -260,6 +261,9 @@ export const updateSectional = async (sectional, { usuario, antes = null } = {})
         },
         cambios: compararCambios(antes, sectional, CAMPOS_SECCION),
         usuario,
+        // El Sub-Coordinador maneja los mismos campos que su Coordinador, pero
+        // lo suyo se registra como sugerencia: no habla por la seccion.
+        esSugerencia: soloSugiereCambiosDeSeccion(usuario),
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
         payload: sectional,
         aplicar: () => escribirSeccion(sectional),
@@ -399,13 +403,14 @@ export const guardarNombreSecundarioSeccion = async ({
         cambios: [
             {
                 campo: 'nombreSecundario',
-                etiqueta: 'Nombre 2 de la Sección',
+                etiqueta: 'Nombre secundario de Sección',
                 antes: anterior || null,
                 despues: nombre || null,
             },
         ],
         usuario,
         descripcion: `Se cambió el segundo nombre de la sección ${nombreSeccion || id}.`,
+        esSugerencia: soloSugiereCambiosDeSeccion(usuario),
         aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
         payload: { idSeccion: id, nombreSecundario: nombre },
         aplicar: () => escribirNombreSecundario({ id, nombre, usuario }),

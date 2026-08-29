@@ -135,7 +135,7 @@ export const ROLES_CATALOGO = [
   {
     codigo: ROLES.USUARIO_SECCION_ASISTENTE,
     nombre: 'Sub-Coordinador Seccional',
-    descripcion: 'Apoyo del Coordinador Seccional; crea y edita destacamentos de su seccion sin editar la seccion.',
+    descripcion: 'Apoyo del Coordinador Seccional con los mismos permisos y alcance seccional.',
     alcancePredeterminado: ALCANCES.SECCION,
     asignableDesdeAdministradores: true,
     activo: true,

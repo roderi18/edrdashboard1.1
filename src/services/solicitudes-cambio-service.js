@@ -36,9 +36,12 @@ export const COLECCION_SOLICITUDES_CAMBIO = 'solicitudes_cambio';
 export const AMBITOS_CAMBIO = {
   destacamento: 'destacamento',
   // La FOTO va aparte de la ficha: la puede sugerir quien no edita el resto
-  // —el Coordinador de Destacamento, o el Sub-Coordinador en su seccion—.
+  // —el Coordinador de Destacamento, el Sub-Coordinador en su seccion, o el
+  // Coordinador Regional y su Asistente, que no editan la region pero si
+  // conocen su imagen—.
   fotoDestacamento: 'foto_destacamento',
   fotoSeccion: 'foto_seccion',
+  fotoRegion: 'foto_region',
   seccion: 'seccion',
   region: 'region',
   directivaSeccion: 'directiva_seccion',
@@ -63,6 +66,7 @@ export const AMBITOS_QUE_APRUEBA_OFICINA_NACIONAL = [
   AMBITOS_CAMBIO.destacamento,
   AMBITOS_CAMBIO.fotoDestacamento,
   AMBITOS_CAMBIO.fotoSeccion,
+  AMBITOS_CAMBIO.fotoRegion,
   AMBITOS_CAMBIO.seccion,
   AMBITOS_CAMBIO.region,
   AMBITOS_CAMBIO.directivaSeccion,
@@ -265,6 +269,36 @@ export async function obtenerSolicitudesCambio({ estado = ESTADOS_CAMBIO.pendien
   return snapshot.docs
     .map((documento) => ({ id: documento.id, ...documento.data() }))
     .sort((a, b) => enMilisegundos(b.creadoEn) - enMilisegundos(a.creadoEn));
+}
+
+/**
+ * Las propuestas PENDIENTES de una entidad concreta (una seccion, una region).
+ *
+ * Quien manda un cambio a la Oficina Nacional deja de ver el resultado en
+ * pantalla —no se aplica hasta que lo aprueben—, asi que necesita poder mirar
+ * que fue lo que envio. Se filtra por entidad en memoria a proposito: `entidad`
+ * es un mapa anidado y consultarlo en Firestore obligaria a un indice nuevo por
+ * cada combinacion.
+ */
+export async function obtenerSolicitudesPendientesPorEntidad({ tipo, id, ambitos = null } = {}) {
+  if (!tipo || id == null || id === '') return [];
+
+  const idBuscado = String(id);
+  const ambitosPermitidos = Array.isArray(ambitos) && ambitos.length ? ambitos.map(String) : null;
+
+  const solicitudes = await obtenerSolicitudesCambio({ estado: ESTADOS_CAMBIO.pendiente }).catch(
+    () => []
+  );
+
+  return solicitudes.filter((solicitud) => {
+    if (String(solicitud?.entidad?.tipo || '') !== String(tipo)) return false;
+    if (String(solicitud?.entidad?.id ?? '') !== idBuscado) return false;
+    if (ambitosPermitidos && !ambitosPermitidos.includes(String(solicitud?.ambito || ''))) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export async function obtenerSolicitudCambio(idSolicitud) {

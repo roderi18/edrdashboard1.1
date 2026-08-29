@@ -1,5 +1,8 @@
-import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import {
+  registrarFotoEntidadSubida,
+  obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
   canEditRegional,
   canDeleteOrgLevel,
@@ -8,6 +11,7 @@ import {
 
 import { compararCambios } from './sectional-service';
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { notificarFotoEntidadPropuesta } from './notificar-oficina-nacional-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
 const CAMPOS_REGION = {
@@ -230,3 +234,74 @@ export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
         return { raw: text };
     }
 };
+
+// ----------------------------------------------------------------------
+// Foto de la region.
+//
+// La ficha de la region la edita la Oficina Nacional; los cargos regionales
+// pasaron a consulta. La FOTO es otra cosa: sugerirla no es cambiarla. El
+// Coordinador Regional y su Asistente conocen la imagen de su region antes que
+// nadie, asi que pueden PROPONERLA por el mismo camino que la seccion y el
+// destacamento —carpeta de propuestas, aviso con las dos imagenes, y la aplica
+// quien resuelve—. La foto oficial no se mueve hasta que la Oficina Nacional o
+// el Administrador Global la aceptan.
+// ----------------------------------------------------------------------
+
+export const proponerFotoRegion = async ({ region = {}, foto = {}, urlAntes = '', usuario = {} } = {}) => {
+    const idRegion = region?.id ?? region?.idRegion ?? null;
+    const payload = {
+        idRegion,
+        rutaArchivo: foto?.rutaArchivo || '',
+        urlFoto: foto?.urlFoto || '',
+        subidoPor: usuario?.uid || usuario?.id || '',
+    };
+
+    const resultado = await proponerCambio({
+        ambito: AMBITOS_CAMBIO.fotoRegion,
+        entidad: {
+            tipo: 'region',
+            id: idRegion,
+            nombre: region?.nombre || '',
+            ruta: `/dashboard/level/regional/${idRegion ?? ''}/edit`,
+        },
+        cambios: [
+            {
+                campo: 'avatarUrl',
+                etiqueta: 'Foto de la región',
+                antes: urlAntes || null,
+                despues: foto?.urlFoto || null,
+            },
+        ],
+        usuario,
+        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        payload,
+        aplicar: () => aplicarFotoRegion(payload),
+    });
+
+    const pendienteDeAprobacion = resultado.estado === ESTADOS_CAMBIO.pendiente;
+
+    notificarFotoEntidadPropuesta({
+        tipoEntidad: 'region',
+        entidad: { id: idRegion, nombre: region?.nombre || '' },
+        urlAntes,
+        urlDespues: foto?.urlFoto || '',
+        pendiente: pendienteDeAprobacion,
+        usuario,
+    }).catch((error) => {
+        console.warn('[regiones] no se pudo avisar de la foto', error);
+    });
+
+    return { pendienteDeAprobacion, idSolicitud: resultado.idSolicitud || null };
+};
+
+// Al aprobarla, la propuesta pasa a ser la foto principal. Se apunta al archivo
+// que ya se subio: no se vuelve a subir nada.
+export const aplicarFotoRegion = async (payload = {}) =>
+    registrarFotoEntidadSubida({
+        tipoEntidad: 'region',
+        idEntidad: payload?.idRegion,
+        tipoFoto: 'perfil',
+        rutaArchivo: payload?.rutaArchivo || '',
+        urlFoto: payload?.urlFoto || '',
+        subidoPor: payload?.subidoPor || '',
+    });

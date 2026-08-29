@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -36,6 +36,10 @@ import { getRegionals } from 'src/services/regional-service';
 import { SECTIONAL_DEFAULT } from 'src/models/sectional-model';
 import { SectionalCreateSchema } from 'src/models/sectional-schema';
 import {
+  AMBITOS_CAMBIO,
+  obtenerSolicitudesPendientesPorEntidad,
+} from 'src/services/solicitudes-cambio-service';
+import {
   getSectionals,
   saveSectional,
   updateSectional,
@@ -46,9 +50,12 @@ import {
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
+
+import { OrgPendingChangesDialog } from 'src/sections/common/org-pending-changes-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { PERMISOS, puedeModificar } from 'src/auth/permissions';
@@ -77,7 +84,40 @@ export function SectionalCreateEditForm({ currentSectional }) {
   const puedeSugerirFoto =
     Boolean(currentSectional) && (canEdit || (isSectionScopedManager(user) && esSuSeccion));
   const soloSugiereFoto = puedeSugerirFoto && !puedeAprobarCambiosDeOrganizacion(user);
+  // Editar una seccion lo aprueba la Oficina Nacional. Quien no puede aprobar no
+  // esta guardando nada: esta enviando una propuesta, y el boton tiene que
+  // decirlo con las mismas palabras que en destacamentos y en miembros.
+  const soloSugiereCambios = Boolean(currentSectional) && !puedeAprobarCambiosDeOrganizacion(user);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
+  const [pendientesAbierto, setPendientesAbierto] = useState(false);
+
+  // Lo que ya se envio y sigue esperando. Se consulta al entrar y despues de
+  // cada envio: sin esto, la pantalla muestra los datos de antes y no hay forma
+  // de saber si el cambio se mando o se perdio.
+  const cargarPendientes = useCallback(async () => {
+    if (!idSeccionActual) {
+      setSolicitudesPendientes([]);
+      return;
+    }
+
+    try {
+      const pendientes = await obtenerSolicitudesPendientesPorEntidad({
+        tipo: 'seccion',
+        id: idSeccionActual,
+        ambitos: [AMBITOS_CAMBIO.seccion, AMBITOS_CAMBIO.fotoSeccion],
+      });
+
+      setSolicitudesPendientes(pendientes);
+    } catch (error) {
+      console.warn('[sectional form] no se pudieron leer los cambios pendientes', error);
+      setSolicitudesPendientes([]);
+    }
+  }, [idSeccionActual]);
+
+  useEffect(() => {
+    cargarPendientes();
+  }, [cargarPendientes]);
   const [dests, setDests] = useState([]);
   const [churches, setChurches] = useState([]);
   const [sectionals, setSectionals] = useState([]);
@@ -135,8 +175,8 @@ export function SectionalCreateEditForm({ currentSectional }) {
     const findRegional = (regionId) =>
       regionId !== null && regionId !== undefined && regionId !== ''
         ? regionals.find(
-            (r) => String(r.regionId) === String(regionId) || String(r.id) === String(regionId)
-          )
+          (r) => String(r.regionId) === String(regionId) || String(r.id) === String(regionId)
+        )
         : null;
 
     const userKeys = [user?.idMiembros, user?.id, user?.memberId, user?.codigoMiembro]
@@ -162,15 +202,15 @@ export function SectionalCreateEditForm({ currentSectional }) {
     const userChurch =
       userChurchId != null
         ? churches.find((c) =>
-            [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
-          )
+          [c?.idIglesia, c?.id].some((value) => String(value) === String(userChurchId))
+        )
         : null;
     const userSectionId = userChurch?.idSeccion ?? userChurch?.sectionId;
     const userSectional =
       userSectionId != null
         ? sectionals.find(
-            (s) => String(s.idSeccion) === String(userSectionId) || String(s.id) === String(userSectionId)
-          )
+          (s) => String(s.idSeccion) === String(userSectionId) || String(s.id) === String(userSectionId)
+        )
         : null;
 
     return findRegional(userSectional?.regionalId);
@@ -314,6 +354,8 @@ export function SectionalCreateEditForm({ currentSectional }) {
 
         toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
 
+        await cargarPendientes();
+
         return values.avatarUrl || currentSectional?.avatarUrl || null;
       }
 
@@ -397,7 +439,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
         }
       } catch (error) {
         console.error('[sectional form] no se pudo guardar el segundo nombre', error);
-        toast.error(error.message || 'No se pudo guardar el Nombre 2 de la Sección.');
+        toast.error(error.message || 'No se pudo guardar el Nombre secundario de Sección.');
       }
 
       await espera;
@@ -410,6 +452,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
       }
 
       if (currentSectional) {
+        await cargarPendientes();
         router.refresh();
         return;
       }
@@ -536,17 +579,17 @@ export function SectionalCreateEditForm({ currentSectional }) {
                     // El admin de destacamento solo puede descargar la informacion General.
                     ...(canEdit
                       ? [
-                          {
-                            value: 'destacamentos',
-                            label: 'Destacamentos',
-                            rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
-                          },
-                          {
-                            value: 'miembros',
-                            label: 'Miembros',
-                            rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
-                          },
-                        ]
+                        {
+                          value: 'destacamentos',
+                          label: 'Destacamentos',
+                          rows: [{ label: 'Cantidad', value: values.sectionalDestCount }],
+                        },
+                        {
+                          value: 'miembros',
+                          label: 'Miembros',
+                          rows: [{ label: 'Cantidad', value: values.sectionalXDestMemberCount }],
+                        },
+                      ]
                       : []),
                   ]}
                 />
@@ -575,16 +618,48 @@ export function SectionalCreateEditForm({ currentSectional }) {
               />
             </Box>
 
-            {canEdit && (
-              <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-                <Button type="submit" variant="contained" loading={isSubmitting}>
-                  {!currentSectional ? 'Crear seccional' : 'Guardar cambios'}
-                </Button>
+            {(canEdit || solicitudesPendientes.length > 0) && (
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{ mt: 3, justifyContent: 'flex-end', flexWrap: 'wrap' }}
+              >
+                {solicitudesPendientes.length > 0 && (
+                  <Button
+                    type="button"
+                    color="warning"
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                    onClick={() => setPendientesAbierto(true)}
+                  >
+                    Ver cambios pendientes
+                  </Button>
+                )}
+
+                {canEdit && (
+                  <Button type="submit" variant="contained" loading={isSubmitting}>
+                    {/* Lo que hace el boton, no lo que uno querria que hiciera:
+                        el cambio no se aplica hasta que la Oficina Nacional lo
+                        apruebe. */}
+                    {!currentSectional
+                      ? 'Crear seccional'
+                      : soloSugiereCambios
+                        ? 'Enviar a aprobación'
+                        : 'Guardar cambios'}
+                  </Button>
+                )}
               </Stack>
             )}
           </Card>
         </Grid>
       </Grid>
+
+      <OrgPendingChangesDialog
+        open={pendientesAbierto}
+        solicitudes={solicitudesPendientes}
+        entidad={values.sectionalName || currentSectional?.sectionalName || 'Sección'}
+        onClose={() => setPendientesAbierto(false)}
+      />
     </Form>
   );
 }

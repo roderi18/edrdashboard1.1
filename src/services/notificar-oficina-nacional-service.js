@@ -137,8 +137,30 @@ export async function notificarDestacamentoActualizado({
  * imagenes para que se pueda decidir sin abrir nada mas, y la ruta apunta a la
  * bandeja de aprobaciones, que es donde se resuelve.
  */
+// Como se nombra cada entidad y a donde lleva su ficha. Es lo unico que cambia
+// entre un aviso de foto y otro; el plural va escrito porque 'región' no lo hace
+// con una 's' y el modulo salia como "regións".
+const FOTO_ENTIDAD = {
+  destacamento: {
+    nombre: 'destacamento',
+    plural: 'destacamentos',
+    ruta: (id) => `/dashboard/level/dest/${id}/edit`,
+  },
+  seccion: {
+    nombre: 'sección',
+    plural: 'secciones',
+    ruta: (id) => `/dashboard/level/sectional/${id}/edit`,
+  },
+  region: {
+    nombre: 'región',
+    plural: 'regiones',
+    ruta: (id) => `/dashboard/level/regional/${id}/edit`,
+  },
+};
+
 export async function notificarFotoEntidadPropuesta({
-  // 'destacamento' o 'seccion': solo cambia como se nombra y a donde lleva.
+  // 'destacamento', 'seccion' o 'region': solo cambia como se nombra y a donde
+  // lleva.
   tipoEntidad = 'destacamento',
   entidad = {},
   urlAntes = '',
@@ -155,16 +177,14 @@ export async function notificarFotoEntidadPropuesta({
 
   const quien =
     usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Alguien';
-  const esSeccion = tipoEntidad === 'seccion';
-  const comoSeLlama = esSeccion ? 'sección' : 'destacamento';
+  const cual = FOTO_ENTIDAD[tipoEntidad] || FOTO_ENTIDAD.destacamento;
+  const comoSeLlama = cual.nombre;
   const nombre = entidad?.nombre || `una ${comoSeLlama}`;
-  const rutaDeLaFicha = esSeccion
-    ? `/dashboard/level/sectional/${entidad?.id || ''}/edit`
-    : `/dashboard/level/dest/${entidad?.id || ''}/edit`;
+  const rutaDeLaFicha = cual.ruta(entidad?.id || '');
 
   return crearNotificacionAdmin({
     tipoNotificacion: pendiente ? `foto_${tipoEntidad}_propuesta` : `foto_${tipoEntidad}_actualizada`,
-    modulo: pendiente ? 'aprobaciones' : `${comoSeLlama}s`,
+    modulo: pendiente ? 'aprobaciones' : cual.plural,
     titulo: pendiente
       ? `Foto de ${comoSeLlama} sugerida`
       : `Foto de ${comoSeLlama} actualizada`,

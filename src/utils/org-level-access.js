@@ -265,6 +265,27 @@ export const canEditRegional = (user = {}) => {
   return false;
 };
 
+/**
+ * Quien puede SUGERIR la foto de su region.
+ *
+ * El Coordinador Regional y su Asistente NO editan la region —son cargos de
+ * consulta—, pero la imagen de su region la conocen antes que nadie, y sugerir
+ * no es cambiar: lo que suben espera a la Oficina Nacional igual que la foto de
+ * una seccion o de un destacamento.
+ *
+ * Se miran TODOS sus cargos: quien ademas es Coordinador en su destacamento
+ * entraba con ese y perdia lo que le toca en su region.
+ */
+export const puedeSugerirFotoDeRegion = (user = {}, region = {}) => {
+  if (isGlobalOrgManager(user)) return true;
+
+  if (!rolesQueEjerce(user).some((codigo) => REGION_CREATOR_ROLES.includes(codigo))) return false;
+
+  const regionId = normalizeId(region?.id ?? region?.idRegion ?? region?.regionId);
+
+  return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
+};
+
 export const canEditSectional = (user = {}, sectional = {}) => {
   if (isGlobalOrgManager(user)) return true;
 
@@ -276,13 +297,38 @@ export const canEditSectional = (user = {}, sectional = {}) => {
     return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
   }
 
-  // Solo el Coordinador Seccional titular edita su seccion (el Sub-Coordinador no).
-  if (roleId === ROLES.USUARIO_SECCION) {
+  // El Coordinador Seccional y su Sub-Coordinador editan SU seccion. El
+  // Sub-Coordinador llega hasta los mismos campos que el titular: la diferencia
+  // no esta en lo que puede tocar, sino en que lo suyo entra como SUGERENCIA
+  // (ver `soloSugiereCambiosDeSeccion`). Cerrarle el formulario lo dejaba sin
+  // manera de proponer nada, que no es lo mismo que no poder decidirlo.
+  //
+  // Se miran TODOS sus cargos y no solo el principal: quien es Coordinador
+  // Asistente en su destacamento y ademas Sub-Coordinador en su seccion entraba
+  // con el cargo de destacamento y perdia lo que hace en la suya.
+  if (rolesQueEjerce(user).some((codigo) => SECTION_SCOPED_ROLES.includes(codigo))) {
     const sectionId = getSectionalOwnId(sectional);
     return Boolean(sectionId) && getSectionScopeIds(user).has(sectionId);
   }
 
   return false;
+};
+
+/**
+ * ¿Lo suyo es una SUGERENCIA y no una propuesta?
+ *
+ * El Sub-Coordinador Seccional maneja los mismos campos que su Coordinador, pero
+ * no habla por la seccion: lo que envia queda registrado como sugerido, y no se
+ * aplica solo ni aunque quien lo mande pudiera aprobar.
+ */
+export const soloSugiereCambiosDeSeccion = (user = {}) => {
+  if (puedeAprobarCambiosDeOrganizacion(user)) return false;
+
+  const suyos = rolesQueEjerce(user);
+
+  if (suyos.includes(ROLES.USUARIO_SECCION)) return false;
+
+  return suyos.includes(ROLES.USUARIO_SECCION_ASISTENTE);
 };
 
 export const canEditDest = (user = {}, dest = {}) => {
@@ -398,7 +444,9 @@ export const canAssignSectionalToRegion = (user = {}, regionId = null, { ownRegi
     return scope.has(normalizeId(regionId));
   }
 
-  if (roleId === ROLES.USUARIO_SECCION) {
+  // El Coordinador Seccional y su Sub-Coordinador editan su propia seccion sin
+  // reasignarla: su alcance es por id de seccion, no por region.
+  if (rolesQueEjerce(user).some((codigo) => SECTION_SCOPED_ROLES.includes(codigo))) {
     return true;
   }
 

@@ -406,7 +406,7 @@ export function MemberCreateEditForm({
     (maskSensitive && !adultContactVisible && !canViewMemberBirthdateWhenMasked(user));
   // Enmascarar NO implica solo lectura: quién puede editar ya lo decide el prop
   // `readOnly` (derivado de `miembros.editar`). Acoplarlos dejaba sin el botón de
-  // "Enviar cambios a aprobación" a los líderes de grupo, que sí editan aunque
+  // "Enviar a aprobación" a los líderes de grupo, que sí editan aunque
   // vean los datos personales enmascarados.
   const readOnlyEffective = readOnly;
   // Simulacion del flujo de aprobacion: el lider de grupo no guarda directo, sino
@@ -3091,7 +3091,7 @@ export function MemberCreateEditForm({
                           disabled={!isDirty}
                           onClick={handleRequestApproval}
                         >
-                          Enviar cambios a aprobación
+                          Enviar a aprobación
                         </LoadingButton>
                       )
                     ) : (

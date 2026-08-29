@@ -88,7 +88,7 @@ export default function SectionalGeneralSection({
 
             <NameInput
                 name="sectionalName2"
-                label="Nombre 2 de la Sección"
+                label="Nombre secundario de Sección"
                 allowNumbers
                 allowDash
                 allowSpecialChars
@@ -145,32 +145,32 @@ export default function SectionalGeneralSection({
                     fullWidth
                 />
             ) : (
-            <Field.Autocomplete
-                name="regionalId"
-                label="Región"
-                disabled={disabled}
-                options={regionals}
-                getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option?.name || ''
-                }
-                renderOption={(props, option) => (
-                    <li {...props} key={option.regionId}>
-                        {option.name}
-                    </li>
-                )}
-                isOptionEqualToValue={(option, value) =>
-                    option.regionId === value?.regionId
-                }
-                value={
-                    regionals.find((r) => String(r.regionId) === regionalId) || null
-                }
-                onChange={(event, option) => {
-                    methods.setValue('regionalId', option?.regionId?.toString() || '', {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                    });
-                }}
-            />
+                <Field.Autocomplete
+                    name="regionalId"
+                    label="Región"
+                    disabled={disabled}
+                    options={regionals}
+                    getOptionLabel={(option) =>
+                        typeof option === 'string' ? option : option?.name || ''
+                    }
+                    renderOption={(props, option) => (
+                        <li {...props} key={option.regionId}>
+                            {option.name}
+                        </li>
+                    )}
+                    isOptionEqualToValue={(option, value) =>
+                        option.regionId === value?.regionId
+                    }
+                    value={
+                        regionals.find((r) => String(r.regionId) === regionalId) || null
+                    }
+                    onChange={(event, option) => {
+                        methods.setValue('regionalId', option?.regionId?.toString() || '', {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                        });
+                    }}
+                />
             )}
         </>
     );
