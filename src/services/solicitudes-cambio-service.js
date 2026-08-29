@@ -1,6 +1,19 @@
-import { doc, query, where, setDoc, getDoc, getDocs, updateDoc, collection } from 'firebase/firestore';
+import {
+  doc,
+  query,
+  where,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  collection,
+} from 'firebase/firestore';
 
-import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
+import {
+  isOficinaNacional,
+  puedeAprobarCambiosDeOrganizacion,
+  requiereRevisionDeAdministradorGlobal,
+} from 'src/utils/org-level-access';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -9,6 +22,7 @@ import { crearNotificacionUsuario } from './notification-service';
 import {
   notificarCambioPropuesto,
   notificarCambioDescartado,
+  notificarCambioAprobadoAlConsejoEjecutivo,
 } from './notificar-oficina-nacional-service';
 
 // ----------------------------------------------------------------------
@@ -182,9 +196,13 @@ export async function proponerCambio({
   // aprobacion que se darian a si mismos, y basta que un llamador olvide el
   // `usuario` o el `aplicarDirecto` para que un cambio suyo —ya aplicado en
   // pantalla— aparezca en la bandeja pidiendo permiso a nadie.
-  const puedeAplicarYaMismo = aplicarDirecto || puedeAprobarCambiosDeOrganizacion(usuario);
+  const requiereAdministradorGlobal = requiereRevisionDeAdministradorGlobal(usuario, ambito);
+  const puedeAplicarYaMismo =
+    !requiereAdministradorGlobal && (aplicarDirecto || puedeAprobarCambiosDeOrganizacion(usuario));
   const necesitaAprobacion =
-    esSugerencia || (requiereAprobacionDeOficinaNacional(ambito) && !puedeAplicarYaMismo);
+    requiereAdministradorGlobal ||
+    esSugerencia ||
+    (requiereAprobacionDeOficinaNacional(ambito) && !puedeAplicarYaMismo);
   const actor = describirActor(usuario);
   const textoEntidad = entidad?.nombre ? ` ${entidad.nombre}` : '';
   const detalle =
@@ -201,7 +219,12 @@ export async function proponerCambio({
     antes: cambios.length ? Object.fromEntries(cambios.map((c) => [c.campo, c.antes])) : null,
     despues: cambios.length ? Object.fromEntries(cambios.map((c) => [c.campo, c.despues])) : null,
     usuario,
-    metadatos: { ambito, esSugerencia, requiereAprobacion: necesitaAprobacion },
+    metadatos: {
+      ambito,
+      esSugerencia,
+      requiereAprobacion: necesitaAprobacion,
+      requiereAdministradorGlobal,
+    },
   });
 
   if (!necesitaAprobacion) {
@@ -209,7 +232,12 @@ export async function proponerCambio({
       await aplicar();
     }
 
-    return { estado: ESTADOS_CAMBIO.aplicada, idSolicitud: null, idAuditoria: auditoria.id };
+    return {
+      estado: ESTADOS_CAMBIO.aplicada,
+      idSolicitud: null,
+      idAuditoria: auditoria.id,
+      requiereAdministradorGlobal: false,
+    };
   }
 
   const solicitudRef = doc(collection(FIRESTORE, COLECCION_SOLICITUDES_CAMBIO));
@@ -229,6 +257,7 @@ export async function proponerCambio({
     // cambio sin poder llevarlo a cabo despues.
     payload,
     esSugerencia,
+    requiereAdministradorGlobal,
     estado: ESTADOS_CAMBIO.pendiente,
     idAuditoria: auditoria.id,
     solicitadoPorUid: usuario?.uid || usuario?.id || '',
@@ -250,7 +279,12 @@ export async function proponerCambio({
     console.warn('[puerta de cambios] no se pudo avisar a la Oficina Nacional', error);
   });
 
-  return { estado: ESTADOS_CAMBIO.pendiente, idSolicitud: solicitudRef.id, idAuditoria: auditoria.id };
+  return {
+    estado: ESTADOS_CAMBIO.pendiente,
+    idSolicitud: solicitudRef.id,
+    idAuditoria: auditoria.id,
+    requiereAdministradorGlobal,
+  };
 }
 
 export async function obtenerSolicitudesCambio({ estado = ESTADOS_CAMBIO.pendiente } = {}) {
@@ -379,7 +413,11 @@ export async function resolverSolicitudCambio(
     antes: null,
     despues: null,
     usuario,
-    metadatos: { idSolicitud: solicitud.id, comentario, idAuditoriaPropuesta: solicitud.idAuditoria },
+    metadatos: {
+      idSolicitud: solicitud.id,
+      comentario,
+      idAuditoriaPropuesta: solicitud.idAuditoria,
+    },
   });
 
   if (estado === ESTADOS_CAMBIO.aprobada && typeof aplicar === 'function') {
@@ -402,6 +440,15 @@ export async function resolverSolicitudCambio(
       console.warn('[cambios] no se pudo avisar al solicitante', error);
     }
   );
+
+  // El Consejo Ejecutivo se entera de todo lo que la Oficina Nacional acepta,
+  // una vez aplicado y marcado como resuelto. Rechazos y decisiones del
+  // Administrador Global no generan este aviso.
+  if (estado === ESTADOS_CAMBIO.aprobada && isOficinaNacional(usuario)) {
+    notificarCambioAprobadoAlConsejoEjecutivo({ solicitud, actor, usuario }).catch((error) => {
+      console.warn('[cambios] no se pudo avisar al Consejo Ejecutivo', error);
+    });
+  }
 
   return { ...solicitud, estado };
 }
@@ -478,7 +525,8 @@ const notificarResolucionAlSolicitante = async ({
   usuario = {},
 } = {}) => {
   const destinatario = String(solicitud?.solicitadoPorUid || '').trim();
-  const resolvioElMismo = destinatario && destinatario === String(usuario?.uid || usuario?.id || '');
+  const resolvioElMismo =
+    destinatario && destinatario === String(usuario?.uid || usuario?.id || '');
 
   // Sin quien lo propuso —propuestas viejas sin uid— no hay a quien avisar, y a
   // quien resuelve su propia solicitud no hay nada que contarle.

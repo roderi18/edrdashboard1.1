@@ -1,4 +1,4 @@
-import { ROLES_ASIGNADOS_A_MANO } from 'src/catalogs/directiva-roles';
+import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
   leerAsignacionesDe,
@@ -86,18 +86,19 @@ export async function POST(req) {
   const actual = await referencia.get();
   const rolActual = normalizarRol(actual.exists ? actual.data()?.rolId : '');
 
-  // Un rol puesto a mano manda sobre cualquier cargo: se respeta y no se toca.
-  if (ROLES_ASIGNADOS_A_MANO.includes(rolActual)) {
-    return Response.json({ ok: true, omitido: 'rol asignado a mano', rolId: rolActual });
-  }
+  // Un rol puesto a mano manda sobre cualquier cargo: se conserva. Pero antes se
+  // salia de aqui sin escribir NADA, y entonces sus cargos —los permisos y el
+  // alcance de su casilla en el destacamento— nunca llegaban al documento que
+  // miran las reglas. Ahora se escribe igual, con su rol intacto.
+  const rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
 
   const idMiembros = await resolverIdMiembros(db, caller);
 
   if (!idMiembros) {
-    return Response.json({ ok: true, omitido: 'sin id de miembro' });
+    return Response.json({ ok: true, omitido: 'sin id de miembro', rolId: rolActual });
   }
 
-  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros));
+  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
   await escribirAccesoPorCargo({ db, auth, uid: caller.uid, idMiembros, acceso });
 
   return Response.json({ ok: true, rolId: acceso.rolId, cargos: acceso.cargos.length });

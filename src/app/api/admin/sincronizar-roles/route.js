@@ -1,4 +1,4 @@
-import { ROLES_ASIGNADOS_A_MANO } from 'src/catalogs/directiva-roles';
+import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
   leerAsignacionesDe,
@@ -82,15 +82,18 @@ export async function POST(req) {
     const idMiembros = String(datos.idMiembros ?? '').trim();
     const rolActual = normalizarRol(datos.rolId);
 
-    // Sin uid de Firebase no hay documento que las reglas puedan mirar, y un rol
-    // puesto a mano manda sobre cualquier cargo.
-    if (!uid || !idMiembros || ROLES_ASIGNADOS_A_MANO.includes(rolActual)) {
+    // Sin uid de Firebase no hay documento que las reglas puedan mirar.
+    if (!uid || !idMiembros) {
       resultado.omitidas += 1;
       continue;
     }
 
-     
-    const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros));
+    // Un rol puesto a mano manda sobre cualquier cargo: se conserva, pero sus
+    // cargos se escriben igual (antes la cuenta se omitia entera y se quedaba
+    // sin permisos ni alcance de su casilla).
+    const rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
+
+    const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
 
     resultado.detalle.push({
       nombre: datos.nombre ?? idMiembros,

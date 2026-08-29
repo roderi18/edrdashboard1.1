@@ -76,13 +76,29 @@ test('los diez cargos del Consejo Ejecutivo proponen en cualquier nivel inferior
 
 test('el codigo enumera exactamente los diez cargos del Consejo Ejecutivo', () => {
   const acceso = leer('src/utils/org-level-access.js');
-  const bloque = acceso.match(/const NATIONAL_LEADERSHIP_PROPOSER_ROLES = \[([\s\S]*?)\];/)?.[1];
+  const bloque = acceso.match(/export const ROLES_CONSEJO_EJECUTIVO = \[([\s\S]*?)\];/)?.[1];
 
   assert.ok(bloque);
   CONSEJO_EJECUTIVO.forEach((rolId) => {
     assert.ok(bloque.includes(`ROLES.${rolId.toUpperCase()}`));
   });
   assert.equal((bloque.match(/ROLES\./g) ?? []).length, CONSEJO_EJECUTIVO.length);
+});
+
+test('una aprobacion de Oficina Nacional avisa al Consejo Ejecutivo', () => {
+  const solicitudes = leer('src/services/solicitudes-cambio-service.js');
+  const notificaciones = leer('src/services/notificar-oficina-nacional-service.js');
+
+  assert.match(solicitudes, /estado === ESTADOS_CAMBIO\.aprobada && isOficinaNacional\(usuario\)/);
+  assert.match(solicitudes, /notificarCambioAprobadoAlConsejoEjecutivo/);
+  assert.match(notificaciones, /roles: ROLES_CONSEJO_EJECUTIVO/);
+  assert.match(notificaciones, /tipoNotificacion: 'cambio_aprobado_consejo_ejecutivo'/);
+});
+
+test('el aviso al Consejo Ejecutivo excluye a quien aprobo', () => {
+  const notificaciones = leer('src/services/notificar-oficina-nacional-service.js');
+
+  assert.match(notificaciones, /excluirIds: \[idAprobador\]/);
 });
 
 test('ya no existe permiso para aplicar directamente la directiva regional', () => {

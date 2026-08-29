@@ -2,11 +2,13 @@ import { getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
+import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES } from 'src/auth/permissions/roles';
 
-import { crearNotificacionAdmin } from './notification-service';
+import { crearNotificacionAdmin, crearNotificacionUsuario } from './notification-service';
 
 // ----------------------------------------------------------------------
 // Aviso a quien tiene que resolver.
@@ -18,10 +20,12 @@ import { crearNotificacionAdmin } from './notification-service';
 
 const ROLES_QUE_RESUELVEN = [ROLES.OFICINA_NACIONAL, ROLES.ADMINISTRADOR_GLOBAL];
 
-const obtenerDestinatarios = async () => {
+const obtenerDestinatariosPorRoles = async ({ roles = [], excluirIds = [] } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const ids = new Set();
+  const rolesPermitidos = new Set(roles);
+  const idsExcluidos = new Set(excluirIds.map((id) => String(id || '').trim()).filter(Boolean));
 
   const leer = async (nombreColeccion) => {
     try {
@@ -29,15 +33,24 @@ const obtenerDestinatarios = async () => {
 
       snapshot.docs.forEach((documento) => {
         const datos = documento.data() ?? {};
-        const rol = String(datos.rolId ?? datos.roleId ?? datos.rol ?? '')
-          .trim()
-          .toLowerCase();
+        const rolesDelDocumento = [
+          datos.rolId ?? datos.roleId ?? datos.rol ?? '',
+          ...(Array.isArray(datos.cargos)
+            ? datos.cargos.map((cargo) => cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
+            : []),
+        ]
+          .map((rol) =>
+            String(rol || '')
+              .trim()
+              .toLowerCase()
+          )
+          .filter(Boolean);
 
-        if (!ROLES_QUE_RESUELVEN.includes(rol)) return;
+        if (!rolesDelDocumento.some((rol) => rolesPermitidos.has(rol))) return;
 
         const id = datos.uid ?? datos.idUsuario ?? datos.idMiembros ?? documento.id;
 
-        if (id) ids.add(String(id));
+        if (id && !idsExcluidos.has(String(id))) ids.add(String(id));
       });
     } catch (error) {
       console.warn(`[oficina-nacional] no se pudo leer ${nombreColeccion}`, error);
@@ -49,12 +62,70 @@ const obtenerDestinatarios = async () => {
   return [...ids];
 };
 
+const obtenerDestinatarios = ({ soloAdministradorGlobal = false, excluirIds = [] } = {}) =>
+  obtenerDestinatariosPorRoles({
+    roles: soloAdministradorGlobal ? [ROLES.ADMINISTRADOR_GLOBAL] : ROLES_QUE_RESUELVEN,
+    excluirIds,
+  });
+
+/**
+ * Todo cambio que la Oficina Nacional aprueba se comunica al Consejo Ejecutivo.
+ * Son los diez cargos del organigrama nacional definidos como Consejo Ejecutivo,
+ * no cualquier rol con alcance nacional.
+ */
+export async function notificarCambioAprobadoAlConsejoEjecutivo({
+  solicitud = {},
+  actor = '',
+  usuario = {},
+} = {}) {
+  const idAprobador = String(usuario?.uid || usuario?.id || '').trim();
+  const destinatarios = await obtenerDestinatariosPorRoles({
+    roles: ROLES_CONSEJO_EJECUTIVO,
+    excluirIds: [idAprobador],
+  });
+
+  if (!destinatarios.length) {
+    console.warn('[oficina-nacional] no hay integrantes del Consejo Ejecutivo para avisar');
+    return null;
+  }
+
+  const quien = actor || 'La Oficina Nacional';
+  const que = solicitud?.entidad?.nombre || solicitud?.ambito || 'la organización';
+  const proponente = solicitud?.solicitadoPorNombre || 'un usuario';
+
+  return crearNotificacionUsuario({
+    tipoNotificacion: 'cambio_aprobado_consejo_ejecutivo',
+    modulo: 'aprobaciones',
+    titulo: 'Cambio aprobado por Oficina Nacional',
+    mensaje: `${quien} aprobó y aplicó los cambios en ${que}, propuestos por ${proponente}.`,
+    prioridad: 'informativa',
+    actorId: idAprobador || 'oficina_nacional',
+    actorTipo: 'oficina_nacional',
+    actorNombre: quien,
+    entidadTipo: solicitud?.entidad?.tipo || 'solicitud_cambio',
+    entidadId: String(solicitud?.entidad?.id || solicitud?.id || ''),
+    ruta: solicitud?.entidad?.ruta || '/dashboard',
+    etiquetaAccion: 'Ver cambio',
+    metadatos: {
+      ambito: solicitud?.ambito,
+      idSolicitud: solicitud?.id,
+      aprobadoPorOficinaNacional: true,
+    },
+    usuario,
+    idsDestinatarios: destinatarios,
+  });
+}
+
 export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } = {}) {
   // Las fotos mandan su propio aviso, con la imagen de antes y la de despues.
   // Este seria el mismo mensaje sin las imagenes.
   if (['foto_destacamento', 'foto_seccion'].includes(solicitud?.ambito)) return null;
 
-  const destinatarios = await obtenerDestinatarios();
+  const soloAdministradorGlobal = Boolean(solicitud?.requiereAdministradorGlobal);
+  const destinatarios = await obtenerDestinatarios({
+    soloAdministradorGlobal,
+    excluirIds: [solicitud?.solicitadoPorUid],
+  });
 
   // Sin nadie con el rol, no se inventa un destinatario: la propuesta ya quedo
   // guardada y en Historial, y el aviso es un extra, no la garantia.
@@ -70,13 +141,19 @@ export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } 
     tipoNotificacion: 'cambio_propuesto',
     modulo: 'aprobaciones',
     titulo: 'Cambio pendiente de aprobación',
-    mensaje: `${quien} propuso cambios en ${que}. Requiere tu revisión.`,
+    mensaje: soloAdministradorGlobal
+      ? `${quien} propuso cambios en ${que} desde una cuenta de Oficina Nacional. Requiere revisión del Administrador Global.`
+      : `${quien} propuso cambios en ${que}. Requiere tu revisión.`,
     prioridad: 'importante',
     entidadTipo: solicitud?.entidad?.tipo || 'solicitud_cambio',
     entidadId: String(solicitud?.id || ''),
     ruta: paths.dashboard.admin.aprobaciones,
     etiquetaAccion: 'Revisar',
-    metadatos: { ambito: solicitud?.ambito, idSolicitud: solicitud?.id },
+    metadatos: {
+      ambito: solicitud?.ambito,
+      idSolicitud: solicitud?.id,
+      requiereAdministradorGlobal: soloAdministradorGlobal,
+    },
     usuario,
     idsDestinatariosPrecalculados: destinatarios,
   });
@@ -90,7 +167,10 @@ export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } 
  * retiro y no da a entender que se decidio algo.
  */
 export async function notificarCambioDescartado({ solicitud = {}, actor = '', usuario = {} } = {}) {
-  const destinatarios = await obtenerDestinatarios();
+  const destinatarios = await obtenerDestinatarios({
+    soloAdministradorGlobal: Boolean(solicitud?.requiereAdministradorGlobal),
+    excluirIds: [solicitud?.solicitadoPorUid],
+  });
 
   if (!destinatarios.length) return null;
 
@@ -248,9 +328,13 @@ export async function notificarFotoEntidadPropuesta({
   urlAntes = '',
   urlDespues = '',
   pendiente = true,
+  requiereAdministradorGlobal = false,
   usuario = {},
 } = {}) {
-  const destinatarios = await obtenerDestinatarios();
+  const destinatarios = await obtenerDestinatarios({
+    soloAdministradorGlobal: pendiente && requiereAdministradorGlobal,
+    excluirIds: pendiente ? [usuario?.uid || usuario?.id] : [],
+  });
 
   if (!destinatarios.length) {
     console.warn('[oficina-nacional] no hay nadie con el rol para avisar de la foto');
@@ -265,13 +349,15 @@ export async function notificarFotoEntidadPropuesta({
   const rutaDeLaFicha = cual.ruta(entidad?.id || '');
 
   return crearNotificacionAdmin({
-    tipoNotificacion: pendiente ? `foto_${tipoEntidad}_propuesta` : `foto_${tipoEntidad}_actualizada`,
+    tipoNotificacion: pendiente
+      ? `foto_${tipoEntidad}_propuesta`
+      : `foto_${tipoEntidad}_actualizada`,
     modulo: pendiente ? 'aprobaciones' : cual.plural,
-    titulo: pendiente
-      ? `Foto de ${comoSeLlama} sugerida`
-      : `Foto de ${comoSeLlama} actualizada`,
+    titulo: pendiente ? `Foto de ${comoSeLlama} sugerida` : `Foto de ${comoSeLlama} actualizada`,
     mensaje: pendiente
-      ? `${quien} sugiere cambiar la foto de ${nombre}. Requiere tu revisión.`
+      ? requiereAdministradorGlobal
+        ? `${quien} sugiere cambiar la foto de ${nombre} desde una cuenta de Oficina Nacional. Requiere revisión del Administrador Global.`
+        : `${quien} sugiere cambiar la foto de ${nombre}. Requiere tu revisión.`
       : `${quien} cambió la foto de ${nombre}.`,
     prioridad: pendiente ? 'importante' : 'informativa',
     entidadTipo: tipoEntidad,
@@ -287,6 +373,7 @@ export async function notificarFotoEntidadPropuesta({
       idEntidad: entidad?.id,
       fotoAntes: urlAntes || '',
       fotoDespues: urlDespues || '',
+      requiereAdministradorGlobal,
     },
     usuario,
     idsDestinatariosPrecalculados: destinatarios,

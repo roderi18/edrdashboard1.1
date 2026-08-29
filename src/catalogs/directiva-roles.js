@@ -79,6 +79,28 @@ export const ROLES_ASIGNADOS_A_MANO = [
   ROLES.ADMINISTRADOR_TIENDA,
 ];
 
+/**
+ * Roles que NO salen de una casilla del organigrama, y por eso ningun cargo los
+ * borra.
+ *
+ * Los administradores de arriba y la OFICINA NACIONAL. La Oficina Nacional no
+ * ocupa ninguna casilla —se nombra a mano, como ellos—, pero no estaba en la
+ * lista: en cuanto esa persona recibia un cargo en su destacamento, el rol se
+ * recalculaba desde sus casillas y su Oficina Nacional DESAPARECIA. Perdia la
+ * bandeja de aprobaciones, las reglas de Firestore dejaban de reconocerla, y
+ * los avisos de cambios pendientes —que se reparten buscando ese rol— ya no le
+ * llegaban.
+ *
+ * Va en una lista aparte y no dentro de la de arriba a proposito: aquella
+ * significa ademas "responde de todo el pais y no hay jerarquia que comprobar"
+ * (ver `puedeGestionarAMiembro`), y la Oficina Nacional aprueba, no gobierna las
+ * claves de nadie.
+ */
+export const ROLES_QUE_NO_SALEN_DE_UNA_CASILLA = [
+  ...ROLES_ASIGNADOS_A_MANO,
+  ROLES.OFICINA_NACIONAL,
+];
+
 // Cuanto mas alto el nivel, mas manda. Quien ocupa una casilla nacional y otra
 // de destacamento entra con la nacional.
 const PESO_POR_NIVEL = {

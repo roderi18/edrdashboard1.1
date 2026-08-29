@@ -40,6 +40,12 @@ const resultado = (archivo) => {
 };
 
 export async function resolve(especificador, contexto, siguiente) {
+  // `server-only` solo sirve para que el empaquetador avise; fuera de Next lanza
+  // al importarse y tumbaria la prueba antes de empezar.
+  if (especificador === 'server-only') {
+    return { url: new URL('./modulo-vacio.mjs', import.meta.url).href, shortCircuit: true };
+  }
+
   if (especificador.startsWith('src/')) {
     const archivo = primeroQueExista(path.join(RAIZ, especificador));
 

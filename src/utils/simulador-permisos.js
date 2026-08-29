@@ -10,6 +10,7 @@ import {
   puedeEntrarAAdministracion,
   destLeadershipChangeNeedsNotice,
   puedeAprobarCambiosDeOrganizacion,
+  puedeAplicarDirectamenteCambioDeOrganizacion,
 } from 'src/utils/org-level-access';
 import {
   canEditAwards,
@@ -418,7 +419,9 @@ export const CAPACIDADES = [
     evaluar: (user) => {
       if (!canEditDest(user, ENTIDADES.destacamentoPropio)) return RESULTADO.no;
 
-      return puedeAprobarCambiosDeOrganizacion(user) ? RESULTADO.si : RESULTADO.aprobacion;
+      return puedeAplicarDirectamenteCambioDeOrganizacion(user, 'destacamento')
+        ? RESULTADO.si
+        : RESULTADO.aprobacion;
     },
     solicitaA: 'Oficina Nacional',
   },

@@ -45,13 +45,24 @@ const alcanceDeSusCargos = (cargos = []) => {
  * cargo local. Con la lista completa en el documento, las reglas lo resuelven
  * por `tienePermisoDirecto` sin depender de cual sea el principal.
  */
-export const resolverAccesoPorCargo = (asignaciones = []) => {
+export const resolverAccesoPorCargo = (asignaciones = [], { rolFijo = '' } = {}) => {
   const cargos = resolverRolesPorAsignaciones(asignaciones);
+  // `rolFijo` es el rol puesto a mano —los administradores y la Oficina
+  // Nacional—: manda sobre las casillas y no se recalcula, pero sus cargos se
+  // escriben igual. Sin esto, quien fuera Oficina Nacional y ademas Coordinador
+  // de su destacamento salia de aqui convertido en Coordinador a secas, y las
+  // reglas y los avisos dejaban de reconocerle lo otro.
+  const rolId = rolFijo || cargos[0]?.rol || ROLES.USUARIO_COMUN;
 
   return {
     cargos,
-    rolId: cargos[0]?.rol ?? ROLES.USUARIO_COMUN,
-    permisos: [...new Set(cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? []))].sort(),
+    rolId,
+    permisos: [
+      ...new Set([
+        ...(rolFijo ? (PERMISOS_POR_ROL[rolFijo] ?? []) : []),
+        ...cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? []),
+      ]),
+    ].sort(),
     alcance: alcanceDeSusCargos(cargos),
   };
 };

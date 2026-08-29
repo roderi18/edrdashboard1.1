@@ -585,6 +585,7 @@ export const proponerFotoDestacamento = async ({
         urlAntes,
         urlDespues: foto?.urlFoto || '',
         pendiente: pendienteDeAprobacion,
+        requiereAdministradorGlobal: resultado.requiereAdministradorGlobal,
         usuario,
     }).catch((error) => {
         console.warn('[destacamentos] no se pudo avisar de la foto', error);

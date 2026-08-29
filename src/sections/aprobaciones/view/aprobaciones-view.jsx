@@ -28,7 +28,10 @@ import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { aprobarSolicitud, rechazarSolicitud } from 'src/services/aplicar-solicitud-service';
-import { esSuPropiaSolicitud , obtenerSolicitudesCambio } from 'src/services/solicitudes-cambio-service';
+import {
+  esSuPropiaSolicitud,
+  obtenerSolicitudesCambio,
+} from 'src/services/solicitudes-cambio-service';
 
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -160,7 +163,12 @@ export function AprobacionesView() {
       return;
     }
 
-    setConfirmacion({ solicitud, payload: null, aprobados: solicitud?.cambios?.length || 0, total: solicitud?.cambios?.length || 0 });
+    setConfirmacion({
+      solicitud,
+      payload: null,
+      aprobados: solicitud?.cambios?.length || 0,
+      total: solicitud?.cambios?.length || 0,
+    });
   };
 
   // Lo que devuelve el dialogo: por campo, si se aprueba y con que valor. Los
@@ -247,6 +255,14 @@ export function AprobacionesView() {
                     />
                     {solicitud.esSugerencia && (
                       <Chip size="small" variant="outlined" label="Sugerencia" />
+                    )}
+                    {solicitud.requiereAdministradorGlobal && (
+                      <Chip
+                        size="small"
+                        color="error"
+                        variant="soft"
+                        label="Revisión del Administrador Global"
+                      />
                     )}
                   </Stack>
 
@@ -347,7 +363,8 @@ export function AprobacionesView() {
                 cambios: (seleccion.cambios || []).map((cambio) => ({
                   ...cambio,
                   label: cambio.etiqueta || cambio.campo,
-                  antesTexto: cambio.antes === null || cambio.antes === undefined ? '' : String(cambio.antes),
+                  antesTexto:
+                    cambio.antes === null || cambio.antes === undefined ? '' : String(cambio.antes),
                   despuesTexto:
                     cambio.despues === null || cambio.despues === undefined
                       ? ''
@@ -384,9 +401,7 @@ export function AprobacionesView() {
           <Button
             variant="contained"
             disabled={Boolean(enCurso)}
-            onClick={() =>
-              resolver(confirmacion.solicitud, 'aprobar', '', confirmacion.payload)
-            }
+            onClick={() => resolver(confirmacion.solicitud, 'aprobar', '', confirmacion.payload)}
           >
             Sí, aprobar
           </Button>

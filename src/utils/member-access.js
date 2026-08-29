@@ -18,8 +18,11 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 export { buildDefaultMemberPermissions };
 import { DIRECTIVA_LEVELS } from 'src/catalogs/directiva-positions';
-import { ROLES_ASIGNADOS_A_MANO, resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { obtenerAsignacionesDirectivaPorMiembro } from 'src/services/directivas-organizacionales-service';
+import {
+  resolverRolesPorAsignaciones,
+  ROLES_QUE_NO_SALEN_DE_UNA_CASILLA,
+} from 'src/catalogs/directiva-roles';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, isReadOnlyRole, puedeModificar } from 'src/auth/permissions/can';
@@ -626,9 +629,13 @@ const aplicarRolPorCargo = async (profile = {}) => {
     .trim()
     .toLowerCase();
 
-  if (ROLES_ASIGNADOS_A_MANO.includes(rolGuardado)) {
-    return profile;
-  }
+  // Un rol puesto a mano NO se recalcula desde las casillas... pero sus cargos
+  // tampoco se tiran. Antes se devolvia el perfil tal cual, y quien fuera
+  // Oficina Nacional y ademas Coordinador de su destacamento se quedaba sin lo
+  // segundo —o, como la Oficina Nacional no estaba protegida, sin lo primero—.
+  // Los poderes se suman: manda el rol de a mano, y debajo sigue estando lo que
+  // le da cada casilla.
+  const esRolPuestoAMano = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolGuardado);
 
   const idMiembro = profile?.idMiembros;
   const asignaciones = idMiembro
@@ -642,13 +649,16 @@ const aplicarRolPorCargo = async (profile = {}) => {
 
   const cargos = resolverRolesPorAsignaciones(asignaciones);
   const [principal] = cargos;
-  const rol = principal?.rol ?? ROLES.USUARIO_COMUN;
+  const rol = esRolPuestoAMano ? rolGuardado : (principal?.rol ?? ROLES.USUARIO_COMUN);
 
   // Los poderes se SUMAN: quien es Coordinador Asistente en su destacamento y
   // Sub Coordinador en su seccion puede lo de los dos cargos. `can()` ya une
   // `permisosRol` con los permisos directos, asi que basta con dejarlos aqui.
   const permisosDeSusCargos = [
-    ...new Set(cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? [])),
+    ...new Set([
+      ...(esRolPuestoAMano ? (PERMISOS_POR_ROL[rolGuardado] ?? []) : []),
+      ...cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? []),
+    ]),
   ];
 
   // Y el alcance tambien: cada cargo manda sobre SU entidad.
@@ -667,11 +677,17 @@ const aplicarRolPorCargo = async (profile = {}) => {
     { destacamentos: [], secciones: [], regiones: [] }
   );
 
-  // Solo lectura si TODOS sus cargos lo son: con uno que no lo sea, puede editar
-  // lo que ese cargo le permita.
+  // Solo lectura si TODOS sus roles lo son: con uno que no lo sea, puede editar
+  // lo que ese le permita. El rol de a mano cuenta como uno mas: la Oficina
+  // Nacional es de consulta, y sin contarla aqui quien solo fuera eso quedaba
+  // marcado como editor.
+  const rolesConRestriccion = [
+    ...(esRolPuestoAMano ? [rolGuardado] : []),
+    ...cargos.map((cargo) => cargo.rol),
+  ];
   const soloLectura =
-    cargos.length > 0 &&
-    cargos.every((cargo) => RESTRICCIONES_ROL[cargo.rol]?.soloLectura === true);
+    rolesConRestriccion.length > 0 &&
+    rolesConRestriccion.every((codigo) => RESTRICCIONES_ROL[codigo]?.soloLectura === true);
 
   return {
     ...profile,

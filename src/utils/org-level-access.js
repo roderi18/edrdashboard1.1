@@ -205,7 +205,7 @@ const REGION_LEADERSHIP_PROPOSER_ROLES = Object.entries(ALCANCE_PREDETERMINADO_R
 // Consejo Ejecutivo mostrado en el organigrama nacional. Solo estos diez cargos
 // reciben alcance para proponer en TODAS las regiones, secciones y destacamentos;
 // no se concede por el mero hecho de tener cualquier etiqueta nacional.
-const NATIONAL_LEADERSHIP_PROPOSER_ROLES = [
+export const ROLES_CONSEJO_EJECUTIVO = [
   ROLES.MINISTERIOS_INFANTILES_NACIONAL,
   ROLES.DIRECTOR_NACIONAL,
   ROLES.CAPELLAN_NACIONAL,
@@ -297,7 +297,7 @@ export const esProponenteNacionalDeDirectivas = (user = {}) => {
 
   if ([ROLES.OFICINA_NACIONAL, ROLES.ADMINISTRADOR_GLOBAL].includes(principal)) return false;
 
-  return rolesQueEjerce(user).some((codigo) => NATIONAL_LEADERSHIP_PROPOSER_ROLES.includes(codigo));
+  return rolesQueEjerce(user).some((codigo) => ROLES_CONSEJO_EJECUTIVO.includes(codigo));
 };
 
 // La directiva local conserva su flujo directo para los siete cargos de
@@ -847,6 +847,25 @@ export const isOficinaNacional = (user = {}) => getOrgRoleId(user) === ROLES.OFI
 
 export const puedeAprobarCambiosDeOrganizacion = (user = {}) =>
   isOficinaNacional(user) || isAdminGlobal(user);
+
+// Separacion de funciones para las dos combinaciones que pueden reunir en una
+// misma cuenta el poder LOCAL de proponer sobre un destacamento y el poder de
+// APROBAR de la Oficina Nacional. En esos casos la Oficina no se firma a si
+// misma: la revision se escala al Administrador Global.
+const CARGOS_LOCALES_QUE_ESCALAN_AL_GLOBAL = [
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+];
+
+const AMBITOS_LOCALES_QUE_ESCALAN_AL_GLOBAL = ['destacamento', 'foto_destacamento'];
+
+export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
+  isOficinaNacional(user) &&
+  AMBITOS_LOCALES_QUE_ESCALAN_AL_GLOBAL.includes(String(ambito || '').trim()) &&
+  rolesQueEjerce(user).some((codigo) => CARGOS_LOCALES_QUE_ESCALAN_AL_GLOBAL.includes(codigo));
+
+export const puedeAplicarDirectamenteCambioDeOrganizacion = (user = {}, ambito = '') =>
+  puedeAprobarCambiosDeOrganizacion(user) && !requiereRevisionDeAdministradorGlobal(user, ambito);
 
 // Quien entra al area de Administradores (incluido Historial - Logs). Es
 // informacion de gobierno de toda la organizacion: no la ve un cargo de
