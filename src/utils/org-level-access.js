@@ -276,6 +276,30 @@ export const canEditRegional = (user = {}) => {
  * Se miran TODOS sus cargos: quien ademas es Coordinador en su destacamento
  * entraba con ese y perdia lo que le toca en su region.
  */
+// Coordinador de Destacamento y su Asistente: los dueños de la directiva de su
+// destacamento. Lo que hacen ahi no le pide permiso a nadie.
+const DUENOS_DE_LA_DIRECTIVA_DEL_DESTACAMENTO = [
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+];
+
+/**
+ * ¿Su cambio en la directiva del destacamento hay que avisarselo al Coordinador?
+ *
+ * Si lo mueve el Coordinador o su Asistente, no: es su casa. Cualquier otro
+ * cargo que llegue a componerla —Pastor, Consejo, Capellan, Lider de Grupo y su
+ * Asistente— puede hacerlo, pero no a espaldas de quien responde por el
+ * destacamento. Vive aqui y no en `member-access` para no cerrar un ciclo: el
+ * servicio de directivas es quien pregunta, y `member-access` le importa cosas.
+ */
+export const destLeadershipChangeNeedsNotice = (user = {}) => {
+  if (isAdminGlobal(user)) return false;
+
+  return !rolesQueEjerce(user).some((codigo) =>
+    DUENOS_DE_LA_DIRECTIVA_DEL_DESTACAMENTO.includes(codigo)
+  );
+};
+
 export const puedeSugerirFotoDeRegion = (user = {}, region = {}) => {
   if (isGlobalOrgManager(user)) return true;
 

@@ -7,6 +7,7 @@ import {
   canEditSectional,
   canDeleteOrgLevel,
   puedeEntrarAAdministracion,
+  destLeadershipChangeNeedsNotice,
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 import {
@@ -19,6 +20,7 @@ import {
   esMiembroDeSuAlcance,
   canAccessMinorMembers,
   canMemberManageMembers,
+  canManageDestLeadership,
   canApproveMemberChanges,
   canUploadHealthDocuments,
   canViewMemberSensitiveData,
@@ -434,8 +436,21 @@ export const CAPACIDADES = [
   {
     id: 'estructura.directiva',
     area: 'Estructura',
-    etiqueta: 'Componer las directivas (organigrama)',
+    etiqueta: 'Componer las directivas de sección, región y Consejo Nacional',
     evaluar: (user) => si(canManageDirectiva(user)),
+  },
+  {
+    id: 'estructura.directiva_destacamento',
+    area: 'Estructura',
+    etiqueta: 'Componer la directiva de su destacamento',
+    // Quien no es el Coordinador ni su Asistente la mueve igual, pero ellos
+    // reciben aviso: es un cambio con testigo, no una solicitud.
+    evaluar: (user) => {
+      if (!canManageDestLeadership(user, CONTEXTO.destacamentoPropio)) return RESULTADO.no;
+
+      return destLeadershipChangeNeedsNotice(user) ? RESULTADO.aprobacion : RESULTADO.si;
+    },
+    solicitaA: 'Coordinador de Destacamento',
   },
 
   // --- Gobierno ---

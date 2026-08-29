@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { destLeadershipChangeNeedsNotice } from 'src/utils/member-access';
 import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -174,6 +175,16 @@ const normalizarId = (value = '') =>
     .replace(/^-+|-+$/g, '');
 
 const normalizarTexto = (value = '') => String(value || '').trim();
+
+// Quien mueve la casilla, con el nombre que se le pueda poner delante.
+const describirActorDirectiva = (usuario = {}) =>
+  normalizarTexto(
+    usuario?.displayName ||
+      [usuario?.nombres, usuario?.apellidos].filter(Boolean).join(' ') ||
+      usuario?.nombre ||
+      usuario?.correo ||
+      usuario?.email
+  ) || 'Alguien';
 
 const normalizarClaveTexto = (value = '') =>
   normalizarTexto(value)
@@ -807,6 +818,30 @@ export async function guardarAsignacionDirectiva({
       idSolicitud: resultado.idSolicitud,
       asignacionesLiberadas: [],
     };
+  }
+
+  // El Coordinador y su Asistente se enteran de lo que otro cargo movio en SU
+  // directiva. El cambio ya esta escrito: esto no lo detiene ni lo somete a
+  // nadie, solo evita que la directiva se recomponga a sus espaldas. Va por
+  // detras y sin `await` de bloqueo: un aviso que falla no deshace una
+  // asignacion valida. El import es dinamico para no cerrar un ciclo con el
+  // servicio de notificaciones.
+  if (nivel === DIRECTIVA_LEVELS.destacamento && destLeadershipChangeNeedsNotice(usuario)) {
+    import('./solicitudes-cambio-notificaciones-service')
+      .then(({ notificarCambioDirectivaDestacamento }) =>
+        notificarCambioDirectivaDestacamento({
+          idDestacamento: idEntidad,
+          nombreDestacamento: nombreEntidad,
+          nombreCargo: cargoAuditoria,
+          nombreMiembro: nombreCopia || personaAuditoria,
+          activo,
+          actorId: usuario?.uid || usuario?.id || '',
+          actorNombre: describirActorDirectiva(usuario),
+        })
+      )
+      .catch((error) => {
+        console.warn('[directivas] no se pudo avisar del cambio en la directiva', error);
+      });
   }
 
   return { ...asignacion, asignacionesLiberadas: asignacionesPrevias };

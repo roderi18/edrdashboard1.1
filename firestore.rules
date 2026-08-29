@@ -700,10 +700,13 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     // Directivas organizacionales.
     //
-    // La composición de las directivas es competencia EXCLUSIVA del
-    // administrador global. El rol se lee del TOKEN (lo emite el Admin SDK en
-    // /api/admin/set-user-claims), no de un documento que el propio usuario
-    // pudiera reescribir. Todos los roles pueden CONSULTAR el organigrama.
+    // Las de sección, región y Consejo Nacional son competencia EXCLUSIVA del
+    // administrador global. La de un DESTACAMENTO la compone además quien edita
+    // las fichas de sus miembros, y solo la de SU destacamento: ver
+    // `componeLaDirectivaDeSuDestacamento`. El rol se lee del TOKEN (lo emite el
+    // Admin SDK en /api/admin/set-user-claims), no de un documento que el propio
+    // usuario pudiera reescribir. Todos los roles pueden CONSULTAR el
+    // organigrama.
     // ------------------------------------------------------------------
 
     function rolDelToken() {
@@ -734,9 +737,50 @@ service cloud.firestore {
       return nivel in ['nacional', 'regional', 'seccional', 'destacamento'];
     }
 
+    // Lo que la sincronizacion de cargos escribio en `usuarios_roles/<uid>`:
+    // los permisos de TODOS sus cargos y el alcance de cada uno. El documento es
+    // de solo lectura para el cliente (ver mas abajo), asi que fiarse de el es
+    // fiarse del Admin SDK, no del propio usuario.
+    function datosDeAcceso() {
+      return request.auth != null && exists(rutaAsignacion())
+        ? get(rutaAsignacion()).data
+        : {};
+    }
+
+    function tienePermisoDeCargo(codigo) {
+      return 'permisos' in datosDeAcceso()
+        && codigo in datosDeAcceso().permisos;
+    }
+
+    function destacamentosDeSuAlcance() {
+      return 'alcance' in datosDeAcceso() && 'destacamentos' in datosDeAcceso().alcance
+        ? datosDeAcceso().alcance.destacamentos
+        : [];
+    }
+
+    // La directiva de SU destacamento la compone quien edita las fichas de sus
+    // miembros: es la misma responsabilidad sobre la misma gente. Antes hacia
+    // falta el Administrador Global hasta para mover una casilla.
+    //
+    // Solo el nivel DESTACAMENTO y solo el suyo. Seccion, region y Consejo
+    // Nacional siguen siendo del Administrador Global —ademas de pasar por la
+    // aprobacion de la Oficina Nacional—. Que el Coordinador se entere de lo que
+    // movio otro cargo es cosa del aviso que manda la app, no de esta regla.
+    function componeLaDirectivaDeSuDestacamento(nivel, idEntidad) {
+      return nivel == 'destacamento'
+        && tienePermisoDeCargo('miembros.editar')
+        && string(idEntidad) in destacamentosDeSuAlcance();
+    }
+
     match /asignacionesDirectiva/{idAsignacion} {
       allow read: if esUsuarioDelSistema();
-      allow create, update: if esAdministradorGlobal()
+      allow create, update: if (
+          esAdministradorGlobal()
+          || componeLaDirectivaDeSuDestacamento(
+               request.resource.data.nivel,
+               request.resource.data.idEntidad
+             )
+        )
         && request.resource.data.idAsignacion == idAsignacion
         && nivelDirectivaValido(request.resource.data.nivel)
         && request.resource.data.idPosicionDirectiva is string
@@ -750,7 +794,13 @@ service cloud.firestore {
 
     match /directivasOrganizacionales/{idDirectiva} {
       allow read: if esUsuarioDelSistema();
-      allow create, update: if esAdministradorGlobal()
+      allow create, update: if (
+          esAdministradorGlobal()
+          || componeLaDirectivaDeSuDestacamento(
+               request.resource.data.nivel,
+               request.resource.data.idEntidad
+             )
+        )
         && request.resource.data.idDirectiva == idDirectiva
         && nivelDirectivaValido(request.resource.data.nivel);
       allow delete: if false;
@@ -763,7 +813,13 @@ service cloud.firestore {
 
     match /disenosDirectiva/{idDiseno} {
       allow read: if esUsuarioDelSistema();
-      allow create, update: if esAdministradorGlobal()
+      allow create, update: if (
+          esAdministradorGlobal()
+          || componeLaDirectivaDeSuDestacamento(
+               request.resource.data.nivel,
+               request.resource.data.idEntidad
+             )
+        )
         && request.resource.data.nodeOffsets is map
         && request.resource.data.containerHeightOffset is int;
       allow delete: if false;

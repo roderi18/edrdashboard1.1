@@ -470,3 +470,59 @@ export const notificarCoordinadoresRecuperacionClave = async ({
 
   return { enviadas: resultado ? alcanzados : 0, coordinadores };
 };
+
+// ----------------------------------------------------------------------
+// Cambios en la DIRECTIVA de un destacamento.
+//
+// Componer el organigamo del destacamento dejo de ser cosa unica del
+// Administrador Global: lo hace quien puede editar las fichas de esos miembros.
+// Pero solo el Coordinador y su Asistente responden por el destacamento, asi que
+// cuando lo mueve otro cargo —Pastor, Consejo, Capellan, Lider de Grupo— ellos
+// se enteran. No es una aprobacion: el cambio YA esta hecho. Es que nadie
+// recomponga la directiva a sus espaldas.
+// ----------------------------------------------------------------------
+
+export const notificarCambioDirectivaDestacamento = async ({
+  idDestacamento,
+  nombreDestacamento = '',
+  nombreCargo = '',
+  nombreMiembro = '',
+  activo = true,
+  actorId = '',
+  actorNombre = 'Alguien',
+} = {}) => {
+  const destacamentoId = Number(idDestacamento) || null;
+
+  if (!destacamentoId) return 0;
+
+  const coordinadores = await obtenerCoordinadoresDestacamento(destacamentoId);
+
+  if (!coordinadores.length) return 0;
+
+  const { ids, alcanzados } = await idsDeCoordinadores(coordinadores);
+
+  if (!ids.length) return 0;
+
+  const donde = String(nombreDestacamento || '').trim() || 'tu destacamento';
+  const casilla = String(nombreCargo || '').trim() || 'un cargo';
+  const quien = String(nombreMiembro || '').trim();
+
+  const resultado = await crearNotificacionAdmin({
+    tipoNotificacion: 'directiva_destacamento_modificada',
+    modulo: 'destacamentos',
+    titulo: 'Cambio en la directiva de tu destacamento',
+    mensaje: activo
+      ? `${actorNombre} asignó ${casilla}${quien ? ` a ${quien}` : ''} en ${donde}.`
+      : `${actorNombre} liberó ${casilla}${quien ? ` (${quien})` : ''} en ${donde}.`,
+    prioridad: 'importante',
+    entidadTipo: 'destacamento',
+    entidadId: String(destacamentoId),
+    ruta: `/dashboard/level/dest/${destacamentoId}/edit/leadership`,
+    etiquetaAccion: 'Ver la directiva',
+    actorId: actorId || 'sistema',
+    actorNombre,
+    idsDestinatariosPrecalculados: ids,
+  });
+
+  return resultado ? alcanzados : 0;
+};

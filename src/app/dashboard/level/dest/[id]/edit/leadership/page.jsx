@@ -34,12 +34,12 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
-import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   getOwnDestIdsForUser,
+  canManageDestLeadership,
   puedeVerMiembrosDeTodaLaOrganizacion,
 } from 'src/utils/member-access';
 import {
@@ -56,8 +56,8 @@ import { DIRECTIVA_POSITIONS, getOrganigramaDestSlot } from 'src/catalogs/direct
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
-  desactivarAsignacionesDirectivaPorNivel,
   obtenerAsignacionesDirectivaMiembros,
+  desactivarAsignacionesDirectivaPorNivel,
 } from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
@@ -834,12 +834,15 @@ const getLeadershipPdfChartData = async (getAssignedMember) => {
 export default function Page() {
   const params = useParams();
   const { user } = useAuthContext();
-  // El administrador de destacamento consulta el organigrama en solo lectura:
-  // sin cambiar/remover miembros ni edicion visual del layout.
-  // Componer la directiva (asignar, cambiar, remover y mover el organigrama) es
-  // competencia EXCLUSIVA del administrador global. Los demas roles la consultan
-  // en solo lectura. Lo que de verdad lo impide son las reglas de Firestore.
-  const canManageLeadership = canManageDirectiva(user);
+  // Componer la directiva de un destacamento la puede quien edita las fichas de
+  // sus miembros: es la misma responsabilidad sobre la misma gente, y separarlas
+  // obligaba a pedirle al Administrador Global hasta el ultimo cambio de
+  // casilla. El alcance manda: SU destacamento. La de los demas se consulta en
+  // solo lectura. Lo que de verdad lo aplica son las reglas de Firestore.
+  //
+  // Quien no es el Coordinador ni su Asistente puede moverla igual, pero ellos
+  // reciben aviso: ver `destLeadershipChangeNeedsNotice`.
+  const canManageLeadership = canManageDestLeadership(user, params?.id);
   // Quien mira el organigrama de un destacamento que no es el suyo ve los cargos
   // y quien los ocupa solo en las tres cabezas; del resto, solo que estan
   // cubiertos. El Administrador Global y la Oficina Nacional lo ven todo.

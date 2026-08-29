@@ -1205,6 +1205,26 @@ export const canEditMembers = (user = {}) =>
   (suCargoDeDestacamentoConcede(user, PERMISOS.MIEMBROS_EDITAR) ||
     puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_EDITAR));
 
+/**
+ * ¿Puede componer la directiva de ESE destacamento?
+ *
+ * Quien edita las fichas de los miembros de un destacamento tambien compone su
+ * organigrama: es la misma responsabilidad sobre la misma gente, y separarlas
+ * obligaba a pedirle al Administrador Global hasta el ultimo cambio de casilla.
+ *
+ * El alcance manda: solo el destacamento propio. Lo de los demas se sigue
+ * consultando en solo lectura.
+ */
+export const canManageDestLeadership = (user = {}, destId = null) => {
+  if (isAdminGlobal(user)) return true;
+
+  if (!canEditMembers(user)) return false;
+
+  const id = normalizeScopeId(destId);
+
+  return Boolean(id) && getOwnDestIdsForUser(user).has(id);
+};
+
 export const canAuthorizeMinorHealthAccess = (user = {}) =>
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_AUTORIZAR_ACCESO_MENORES);
 
