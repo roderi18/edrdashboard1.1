@@ -836,7 +836,7 @@ export function DestCreateEditForm({ currentDest }) {
   });
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={onSubmit} borrador={`destacamento:${currentDest?.id ?? 'nuevo'}`}>
       <Grid container spacing={3} sx={disabledReadableFieldSx}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>

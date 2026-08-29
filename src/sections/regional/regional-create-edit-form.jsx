@@ -32,13 +32,14 @@ import { RegionalSchema } from 'src/models/regional-schema';
 import { getSectionals } from 'src/services/sectional-service';
 import { saveRegional, updateRegional, proponerFotoRegion } from 'src/services/regional-service';
 import {
-  AMBITOS_CAMBIO,
-  obtenerSolicitudesPendientesPorEntidad,
-} from 'src/services/solicitudes-cambio-service';
-import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
 } from 'src/services/directivas-organizacionales-service';
+import {
+  AMBITOS_CAMBIO,
+  cancelarSolicitudCambio,
+  obtenerSolicitudesPendientesPorEntidad,
+} from 'src/services/solicitudes-cambio-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -90,6 +91,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
   const [pendientesAbierto, setPendientesAbierto] = useState(false);
+  const [descartandoPendientes, setDescartandoPendientes] = useState(false);
 
   // Lo que ya se envio y sigue esperando. Se consulta al entrar y despues de
   // cada envio: sin esto, la pantalla muestra los datos de antes y no hay forma
@@ -117,6 +119,29 @@ export function RegionalCreateEditForm({ currentRegional }) {
   useEffect(() => {
     cargarPendientes();
   }, [cargarPendientes]);
+
+  // Retirar lo que uno mando. Se hace una por una y a proposito: cada retirada
+  // deja su rastro en Historial y avisa a quien la tenia para revisar.
+  const descartarPendientes = async (aRetirar = []) => {
+    setDescartandoPendientes(true);
+
+    try {
+      await Promise.all(
+        aRetirar.map((solicitud) => cancelarSolicitudCambio(solicitud.id, { usuario: user }))
+      );
+
+      toast.success(
+        aRetirar.length > 1 ? 'Cambios retirados.' : 'Cambio retirado.'
+      );
+      setPendientesAbierto(false);
+      await cargarPendientes();
+    } catch (error) {
+      console.error('[regional form] no se pudo retirar la propuesta', error);
+      toast.error(error?.message || 'No se pudo retirar el cambio.');
+    } finally {
+      setDescartandoPendientes(false);
+    }
+  };
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -375,7 +400,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
   });
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={onSubmit} borrador={`region:${currentRegional?.id ?? 'nueva'}`}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -575,6 +600,9 @@ export function RegionalCreateEditForm({ currentRegional }) {
         open={pendientesAbierto}
         solicitudes={solicitudesPendientes}
         entidad={values.name || currentRegional?.name || 'Región'}
+        usuario={user}
+        onDescartar={descartarPendientes}
+        descartando={descartandoPendientes}
         onClose={() => setPendientesAbierto(false)}
       />
     </Form>

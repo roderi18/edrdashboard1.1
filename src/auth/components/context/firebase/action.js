@@ -19,6 +19,8 @@ import {
 
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { borrarBorradoresDeFormulario } from 'src/components/hook-form/use-form-draft';
+
 // ----------------------------------------------------------------------
 
 const withTimeout = (promise, label, timeoutMs = 10000) =>
@@ -192,6 +194,15 @@ export const resendEmailVerification = async ({ destino } = {}) => {
  * Sign out
  *************************************** */
 export const signOut = async () => {
+  // Lo que quedo a medias es de quien lo escribio: no sigue ahi para el
+  // siguiente que use el equipo. Va ANTES de cerrar la sesion —despues ya no se
+  // sabria de quien era— y no puede impedir el cierre si falla.
+  try {
+    borrarBorradoresDeFormulario();
+  } catch (error) {
+    console.warn('[auth] no se pudieron limpiar los borradores', error);
+  }
+
   await _signOut(ensureFirebaseAuth());
 };
 

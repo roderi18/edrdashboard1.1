@@ -831,7 +831,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   );
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={onSubmit} borrador={`producto:${currentProduct?.id ?? 'nuevo'}`}>
       <Stack spacing={{ xs: 3, md: 5 }} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
         {renderDetails()}
         {renderProperties()}

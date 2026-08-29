@@ -6,7 +6,10 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSistema } from './audit-log-service';
 import { crearNotificacionUsuario } from './notification-service';
-import { notificarCambioPropuesto } from './notificar-oficina-nacional-service';
+import {
+  notificarCambioPropuesto,
+  notificarCambioDescartado,
+} from './notificar-oficina-nacional-service';
 
 // ----------------------------------------------------------------------
 // PUERTA UNICA de cambios.
@@ -79,6 +82,10 @@ export const ESTADOS_CAMBIO = {
   aprobada: 'aprobada',
   rechazada: 'rechazada',
   aplicada: 'aplicada',
+  // La retira quien la mando. No es un rechazo: nadie la juzgo, se arrepintio
+  // el que la envio. Se distingue para que la bandeja y el Historial no cuenten
+  // como rechazos de la Oficina Nacional lo que nunca llego a revisarse.
+  cancelada: 'cancelada',
 };
 
 export const requiereAprobacionDeOficinaNacional = (ambito) =>
@@ -397,6 +404,68 @@ export async function resolverSolicitudCambio(
   );
 
   return { ...solicitud, estado };
+}
+
+/**
+ * RETIRA una propuesta. La retira quien la mando, y solo mientras nadie la haya
+ * resuelto.
+ *
+ * No es un rechazo: nadie la juzgo. Quien se arrepiente de lo que envio no
+ * tenia forma de recogerlo, asi que su propuesta se quedaba en la bandeja de la
+ * Oficina Nacional ocupando una revision que ya no hacia falta.
+ *
+ * Queda en Historial igual que cualquier otro movimiento, y se avisa a quienes
+ * la tenian pendiente de revisar para que no la revisen.
+ */
+export async function cancelarSolicitudCambio(idSolicitud, { usuario = {}, motivo = '' } = {}) {
+  asegurarFirebase();
+
+  const solicitud = await obtenerSolicitudCambio(idSolicitud);
+
+  if (!solicitud) {
+    throw new Error('La solicitud ya no existe.');
+  }
+
+  if (solicitud.estado !== ESTADOS_CAMBIO.pendiente) {
+    throw new Error('Esa solicitud ya fue resuelta: no se puede retirar.');
+  }
+
+  // Solo la retira quien la mando. El Administrador Global tiene su propia via
+  // —aprobarla o rechazarla— y llamar a eso "descartar" borraria de quien fue
+  // la decision.
+  if (!esSuPropiaSolicitud(solicitud, usuario)) {
+    throw new Error('Solo quien envió el cambio puede retirarlo.');
+  }
+
+  const actor = describirActor(usuario);
+
+  await registrarEnHistorial({
+    ambito: solicitud.ambito,
+    accion: 'cambio_cancelado',
+    descripcion: `${actor} retiró los cambios que había propuesto.`,
+    entidad: solicitud.entidad,
+    antes: null,
+    despues: null,
+    usuario,
+    metadatos: { idSolicitud: solicitud.id, motivo, idAuditoriaPropuesta: solicitud.idAuditoria },
+  });
+
+  await updateDoc(doc(FIRESTORE, COLECCION_SOLICITUDES_CAMBIO, String(idSolicitud)), {
+    estado: ESTADOS_CAMBIO.cancelada,
+    resueltoEn: new Date().toISOString(),
+    resueltoPorUid: usuario?.uid || usuario?.id || '',
+    resueltoPorNombre: actor,
+    comentarioResolucion: motivo,
+  });
+
+  // La Oficina Nacional y el Administrador Global la tenian para revisar: se les
+  // dice que ya no. Va por detras —la propuesta ya esta retirada y en Historial—
+  // porque un aviso que falla no la devuelve a la bandeja.
+  notificarCambioDescartado({ solicitud, actor, usuario }).catch((error) => {
+    console.warn('[cambios] no se pudo avisar de la propuesta retirada', error);
+  });
+
+  return { ...solicitud, estado: ESTADOS_CAMBIO.cancelada };
 }
 
 // ----------------------------------------------------------------------

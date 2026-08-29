@@ -99,10 +99,36 @@ function ResultadoLabel({ valor }) {
 
 // ----------------------------------------------------------------------
 
+// Como va el repaso de una pareja, de un vistazo y sin abrirla:
+//   verde  -> las 29 preguntas marcadas como correctas: esa pareja esta cerrada.
+//   gris   -> empezada y a medias.
+//   nada   -> sin tocar. Un icono apagado en TODAS las filas sin repasar seria
+//             ruido; la ausencia ya dice lo mismo.
+function MarcaDeRepaso({ validadas, total }) {
+  if (!validadas) return null;
+
+  const completa = validadas >= total;
+
+  return (
+    <Tooltip
+      title={completa ? 'Repasada por completo' : `Repasada a medias (${validadas} de ${total})`}
+    >
+      <Iconify
+        width={18}
+        icon={completa ? 'eva:checkmark-circle-2-fill' : 'eva:radio-button-on-fill'}
+        sx={{ ml: 1, flexShrink: 0, color: completa ? 'success.main' : 'text.disabled' }}
+      />
+    </Tooltip>
+  );
+}
+
 function Simulador({
   codigoDestacamento,
   codigoAcompanante,
   onCambiar,
+  // Todas las revisiones guardadas, no solo la de la pareja abierta: el
+  // desplegable dice de un vistazo que combinaciones ya se repasaron.
+  guardadas = {},
   revisionGuardada,
   onRevisarCapacidad,
   guardandoCapacidades,
@@ -186,11 +212,23 @@ function Simulador({
 
               return [
                 <ListSubheader key={nivel}>{ETIQUETA_NIVEL[nivel]}</ListSubheader>,
-                ...roles.map((rol) => (
-                  <MenuItem key={rol.codigo} value={rol.codigo}>
-                    {rol.nombre}
-                  </MenuItem>
-                )),
+                ...roles.map((rol) => {
+                  const validadas = countValidatedCombinationCapabilities(
+                    guardadas[idCombinacion(codigoDestacamento, rol.codigo)] ?? {},
+                    CAPACIDADES.map((capacidad) => capacidad.id)
+                  );
+
+                  return (
+                    <MenuItem
+                      key={rol.codigo}
+                      value={rol.codigo}
+                      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      {rol.nombre}
+                      <MarcaDeRepaso validadas={validadas} total={CAPACIDADES.length} />
+                    </MenuItem>
+                  );
+                }),
               ];
             })}
           </TextField>
@@ -751,6 +789,7 @@ export function AdminRoleCombinationsView() {
           codigoDestacamento={codigoDestacamento}
           codigoAcompanante={codigoAcompanante}
           onCambiar={cambiarSeleccion}
+          guardadas={guardadas}
           revisionGuardada={
             guardadas[idCombinacion(codigoDestacamento, codigoAcompanante)] ?? {}
           }

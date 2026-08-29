@@ -12,6 +12,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { esSuPropiaSolicitud } from 'src/services/solicitudes-cambio-service';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -69,8 +71,21 @@ const ValorCampo = ({ valor, tachado = false }) =>
     </Typography>
   );
 
-export function OrgPendingChangesDialog({ open, solicitudes = [], entidad = '', onClose }) {
+export function OrgPendingChangesDialog({
+  open,
+  solicitudes = [],
+  entidad = '',
+  usuario = null,
+  // Retira la propuesta. Lo recibe el formulario, que es quien sabe recargar lo
+  // que queda pendiente despues.
+  onDescartar,
+  descartando = false,
+  onClose,
+}) {
   const lista = Array.isArray(solicitudes) ? solicitudes : [];
+  // Solo se retira lo propio: lo que mando otro no se toca desde aqui, y quien
+  // resuelve tiene su bandeja para aprobar o rechazar.
+  const propias = lista.filter((solicitud) => esSuPropiaSolicitud(solicitud, usuario));
 
   return (
     <Dialog fullWidth maxWidth="sm" open={open} onClose={onClose}>
@@ -152,6 +167,21 @@ export function OrgPendingChangesDialog({ open, solicitudes = [], entidad = '', 
       </DialogContent>
 
       <DialogActions>
+        {/* Retirar lo que uno mando no es rechazarlo: nadie lo juzgo, se
+            arrepintio quien lo envio. Sin esto la propuesta se quedaba en la
+            bandeja de la Oficina Nacional pidiendo una revision que ya no hacia
+            falta. */}
+        {Boolean(onDescartar) && propias.length > 0 && (
+          <Button
+            color="error"
+            variant="outlined"
+            loading={descartando}
+            onClick={() => onDescartar(propias)}
+          >
+            {propias.length > 1 ? 'Descartar los míos' : 'Descartar'}
+          </Button>
+        )}
+
         <Button variant="contained" onClick={onClose}>
           Entendido
         </Button>

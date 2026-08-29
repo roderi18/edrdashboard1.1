@@ -83,6 +83,37 @@ export async function notificarCambioPropuesto({ solicitud = {}, usuario = {} } 
 }
 
 /**
+ * Aviso de que una propuesta se RETIRO.
+ *
+ * La tenian en la bandeja para revisar: si nadie les dice que ya no esta, la van
+ * a buscar. No es un rechazo —nadie la juzgo—, asi que el mensaje dice quien la
+ * retiro y no da a entender que se decidio algo.
+ */
+export async function notificarCambioDescartado({ solicitud = {}, actor = '', usuario = {} } = {}) {
+  const destinatarios = await obtenerDestinatarios();
+
+  if (!destinatarios.length) return null;
+
+  const quien = actor || solicitud?.solicitadoPorNombre || 'Alguien';
+  const que = solicitud?.entidad?.nombre || solicitud?.ambito || 'la organización';
+
+  return crearNotificacionAdmin({
+    tipoNotificacion: 'cambio_descartado',
+    modulo: 'aprobaciones',
+    titulo: 'Cambio retirado por quien lo envió',
+    mensaje: `${quien} retiró los cambios que había propuesto en ${que}. Ya no hay nada que revisar.`,
+    prioridad: 'informativa',
+    entidadTipo: solicitud?.entidad?.tipo || 'solicitud_cambio',
+    entidadId: String(solicitud?.id || ''),
+    ruta: paths.dashboard.admin.aprobaciones,
+    etiquetaAccion: 'Ver la bandeja',
+    metadatos: { ambito: solicitud?.ambito, idSolicitud: solicitud?.id },
+    usuario,
+    idsDestinatariosPrecalculados: destinatarios,
+  });
+}
+
+/**
  * Aviso de que la ficha de un destacamento CAMBIO.
  *
  * El de arriba avisa de lo que esta pendiente de aprobar; este, de lo que ya se
