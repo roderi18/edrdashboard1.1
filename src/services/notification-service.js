@@ -1782,7 +1782,14 @@ const getBirthdayDate = (miembro = {}) =>
 const getDaysUntilBirthday = (birthDateValue, today = new Date()) => {
   if (!birthDateValue) return null;
 
-  const birthDate = new Date(birthDateValue);
+  // 'YYYY-MM-DD' se lee en la zona horaria de AQUI. `new Date('2009-08-31')` se
+  // interpreta como medianoche UTC, que en Santo Domingo es el dia anterior: el
+  // cumpleaños del 31 se leia como 30 y el aviso salia un dia antes.
+  const iso = String(birthDateValue).trim().slice(0, 10);
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const birthDate = partes
+    ? new Date(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3]), 12)
+    : new Date(birthDateValue);
   if (Number.isNaN(birthDate.getTime())) return null;
 
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());

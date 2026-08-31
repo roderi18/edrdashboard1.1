@@ -69,7 +69,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   miembro_actualizado: {
     modulo: 'miembros',
     titulo: 'Miembro actualizado',
-    mensajePlantilla: 'Se actualizó la información de {{nombres}} {{apellidos}}.',
+    mensajePlantilla: 'actualizó la información de {{nombres}} {{apellidos}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'miembro',
