@@ -17,6 +17,8 @@ import { getSectionalById } from 'src/services/sectional-service';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
+
 // ----------------------------------------------------------------------
 
 export function SectionalEditLayout({ children, ...other }) {
@@ -56,6 +58,22 @@ export function SectionalEditLayout({ children, ...other }) {
   ];
 
   return (
+
+    <CandadoDeAlcance
+
+      tipo="seccion"
+
+      id={sectionalId}
+
+      titulo="Esta sección no es la tuya"
+
+      volverA={paths.dashboard.level.sectional.root}
+
+      etiquetaVolver="Secciones"
+
+    >
+
+  return (
     <DashboardContent {...other}>
       <CustomBreadcrumbs
         heading={isMobile ? null : 'Editar sección'}
@@ -82,5 +100,7 @@ export function SectionalEditLayout({ children, ...other }) {
 
       {children}
     </DashboardContent>
+  
+  </CandadoDeAlcance>
   );
 }

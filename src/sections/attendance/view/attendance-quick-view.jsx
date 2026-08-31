@@ -8,12 +8,14 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
+import AlertTitle from '@mui/material/AlertTitle';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -28,6 +30,8 @@ import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
+import { getSectionals } from 'src/services/sectional-service';
 import {
   limpiarAsistenciaDestacamento,
   guardarAsistenciaDestacamento,
@@ -42,6 +46,8 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { PERMISOS } from 'src/auth/permissions/permissions';
+import { can, puedeModificar } from 'src/auth/permissions/can';
 
 // ----------------------------------------------------------------------
 
@@ -254,8 +260,23 @@ export function AttendanceQuickView() {
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
-  const allowedDestIds = useMemo(() => getMemberAllowedDestIds(user), [user]);
+  const [estructura, setEstructura] = useState({ churches: [], sectionals: [] });
+  // La asistencia se pasa SOBRE SU GENTE. Sin la estructura, `getMemberAllowedDestIds`
+  // no puede acotar y devuelve "sin restriccion": el desplegable ofrecia los
+  // destacamentos del pais entero.
+  const allowedDestIds = useMemo(
+    () => getMemberAllowedDestIds(user, { churches: estructura.churches, sectionals: estructura.sectionals }),
+    [user, estructura]
+  );
   const scopedToDest = allowedDestIds instanceof Set;
+  // Quien no lleva `asistencia.ver` no entra, aunque escriba la URL: el menu no
+  // le ofrecia la pantalla, pero la pantalla no comprobaba nada.
+  const puedeVerAsistencia = can(user, PERMISOS.ASISTENCIA_VER);
+  // Y pasarla es otra cosa que verla: los cargos de consulta —solo lectura— no
+  // marcan a nadie.
+  const puedePasarAsistencia =
+    puedeModificar(user, PERMISOS.ASISTENCIA_CREAR) ||
+    puedeModificar(user, PERMISOS.ASISTENCIA_EDITAR);
 
   useEffect(() => {
     let active = true;
@@ -264,9 +285,16 @@ export function AttendanceQuickView() {
       setLoading(true);
 
       try {
-        const [memberItems, destItems] = await Promise.all([getMembers(), getDestsApi()]);
+        const [memberItems, destItems, churches, sectionals] = await Promise.all([
+          getMembers(),
+          getDestsApi(),
+          getChurches().catch(() => []),
+          getSectionals({ includePhotos: false }).catch(() => []),
+        ]);
 
         if (!active) return;
+
+        setEstructura({ churches, sectionals });
 
         const nextDests = Array.isArray(destItems)
           ? destItems.filter((dest) => {
@@ -508,6 +536,15 @@ export function AttendanceQuickView() {
   }, [date, getAuditUser, handleClear, selectedDestId]);
 
   const handleSave = useCallback(async () => {
+    // Ver la asistencia y PASARLA son cosas distintas: los cargos de consulta
+    // —solo lectura— entran a mirarla y no marcan a nadie. La comprobacion de
+    // verdad la hace el servidor; esto evita lanzar una escritura que va a
+    // rechazar y, sobre todo, no ofrecer un boton que miente.
+    if (!puedePasarAsistencia) {
+      toast.error('Tu cargo no pasa asistencia.');
+      return;
+    }
+
     if (!selectedDestId) {
       return;
     }
@@ -556,7 +593,7 @@ export function AttendanceQuickView() {
     } finally {
       setSavingAttendance(false);
     }
-  }, [
+  }, puedePasarAsistencia, [
     date,
     selectedDest,
     selectedDestId,
@@ -620,6 +657,28 @@ export function AttendanceQuickView() {
       }
     />
   );
+
+  // La pantalla no comprobaba NADA: el menu no se la ofrecia a quien no lleva
+  // `asistencia.ver`, pero escribiendo la URL entraba cualquiera —y con el
+  // desplegable de destacamentos del pais entero, porque el alcance se pedia sin
+  // estructura con la que acotarlo—.
+  if (!puedeVerAsistencia) {
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Asistencia"
+          links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
+          sx={{ mb: 3 }}
+        />
+
+        <Alert severity="info" sx={{ alignItems: 'center' }}>
+          <AlertTitle>La asistencia no te toca</AlertTitle>
+          Este cargo no pasa asistencia. Si crees que deberías, pídeselo a tu Coordinador de
+          Destacamento.
+        </Alert>
+      </DashboardContent>
+    );
+  }
 
   return (
     <>

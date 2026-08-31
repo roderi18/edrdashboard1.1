@@ -17,6 +17,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
+
 export function DestEditLayout({ children, ...other }) {
 
     const pathname = usePathname();
@@ -56,6 +58,22 @@ export function DestEditLayout({ children, ...other }) {
     ];
 
     return (
+
+      <CandadoDeAlcance
+
+        tipo="destacamento"
+
+        id={destId}
+
+        titulo="Este destacamento no es el tuyo"
+
+        volverA={paths.dashboard.level.dest.root}
+
+        etiquetaVolver="Destacamentos"
+
+      >
+
+    return (
         <DashboardContent {...other}>
 
             <CustomBreadcrumbs
@@ -84,5 +102,7 @@ export function DestEditLayout({ children, ...other }) {
             {children}
 
         </DashboardContent>
-    );
+    
+  </CandadoDeAlcance>
+  );
 }
