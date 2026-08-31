@@ -257,6 +257,13 @@ export function ProfilePostItem({
   const [reportReason, setReportReason] = useState('');
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportSending, setReportSending] = useState(false);
+
+  // La foto suelta no trae medidas: hasta que no llega, el navegador no sabe
+  // cuanto va a ocupar y la publicacion mide casi cero de alto. Con veinte
+  // publicaciones apiladas en unos pocos pixeles, TODAS caen dentro del margen
+  // de carga del navegador y se descargan de golpe, aunque nadie haya deslizado.
+  // Se le guarda el sitio hasta que la imagen se mide sola.
+  const [fotoSueltaMedida, setFotoSueltaMedida] = useState(false);
   const [highlightedCommentId, setHighlightedCommentId] = useState('');
   const [visibleRootCommentsCount, setVisibleRootCommentsCount] = useState(COMMENTS_PAGE_SIZE);
 
@@ -1483,6 +1490,9 @@ export function ProfilePostItem({
               borderRadius: 1.5,
               cursor: 'pointer',
               bgcolor: 'background.neutral',
+              // Sitio reservado mientras la foto no ha llegado. En cuanto se mide
+              // sola, se suelta: la proporcion la sigue mandando la imagen.
+              ...(fotoSueltaMedida ? null : { minHeight: { xs: 320, sm: 420 } }),
             }}
           >
             <Box
@@ -1491,6 +1501,10 @@ export function ProfilePostItem({
               decoding="async"
               alt={post.message || post.media}
               src={mediaItems[0]}
+              onLoad={() => setFotoSueltaMedida(true)}
+              // Si la foto no carga, se suelta igual: dejar el hueco abierto
+              // para siempre seria peor que no haberlo reservado.
+              onError={() => setFotoSueltaMedida(true)}
               sx={{
                 width: 1,
                 height: 'auto',
