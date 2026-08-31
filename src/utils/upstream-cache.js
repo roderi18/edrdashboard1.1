@@ -18,6 +18,26 @@ const DEFAULT_TTL_MS = 60_000;
 // error que quien llama sabe manejar, que morir cortados por la plataforma.
 const DEFAULT_TIMEOUT_MS = 9_000;
 
+// Cuanto se puede seguir sirviendo una respuesta ya vencida mientras se trae la
+// nueva. Diez minutos: lo que se cachea aqui son listados de la organizacion
+// —miembros, destacamentos, secciones—, que cambian pocas veces al dia y cuyas
+// ediciones invalidan la entrada al instante.
+const MAX_STALE_MS = 10 * 60_000;
+
+// Refresco en segundo plano: nadie lo espera y un fallo no rompe nada, porque
+// quien pregunto ya se fue con la respuesta anterior en la mano.
+const refrescandose = new Set();
+
+const refrescarPorDetras = (key, url, opciones) => {
+  if (refrescandose.has(key)) return;
+
+  refrescandose.add(key);
+
+  fetchUpstreamText(key, url, { ...opciones, forzar: true })
+    .catch(() => null)
+    .finally(() => refrescandose.delete(key));
+};
+
 // globalThis para sobrevivir el hot-reload del dev server sin duplicar cachés.
 const getStore = () => {
   if (!globalThis.__upstreamTextCache) {
@@ -43,14 +63,30 @@ export const UPSTREAM_KEYS = {
 export async function fetchUpstreamText(
   key,
   url,
-  { ttlMs = DEFAULT_TTL_MS, timeoutMs = DEFAULT_TIMEOUT_MS, init } = {}
+  { ttlMs = DEFAULT_TTL_MS, timeoutMs = DEFAULT_TIMEOUT_MS, init, forzar = false } = {}
 ) {
   const store = getStore();
   const now = Date.now();
   const entry = store.get(key);
 
-  if (entry && entry.expiresAt > now) {
+  if (!forzar && entry && entry.expiresAt > now) {
     return entry.promise;
+  }
+
+  // VENCIDA PERO SERVIBLE: se devuelve lo de antes y se refresca por detras.
+  //
+  // Con solo 60 segundos de vida, casi todo inicio de sesion pagaba la descarga
+  // entera del padron —2,3 segundos medidos— para resolver una sola cosa: con
+  // que correo entra este miembro. Y un padron de hace un minuto responde eso
+  // igual de bien que uno recien traido.
+  //
+  // No hay riesgo de quedarse con datos viejos donde importa: cada mutacion
+  // llama a `invalidateUpstream`, que BORRA la entrada —y sin entrada no hay
+  // nada rancio que servir, la siguiente lectura va al origen—.
+  if (!forzar && entry?.resultado && entry.servibleHasta > now) {
+    refrescarPorDetras(key, url, { ttlMs, timeoutMs, init });
+
+    return entry.resultado;
   }
 
   const promise = (async () => {
@@ -73,13 +109,25 @@ export async function fetchUpstreamText(
     }
   })();
 
-  store.set(key, { promise, expiresAt: now + ttlMs });
+  store.set(key, {
+    promise,
+    expiresAt: now + ttlMs,
+    servibleHasta: now + ttlMs + MAX_STALE_MS,
+    resultado: entry?.resultado ?? null,
+  });
 
   try {
     const result = await promise;
 
     if (!result.ok) {
       store.delete(key);
+    } else {
+      store.set(key, {
+        promise,
+        expiresAt: Date.now() + ttlMs,
+        servibleHasta: Date.now() + ttlMs + MAX_STALE_MS,
+        resultado: result,
+      });
     }
 
     return result;
