@@ -24,6 +24,23 @@ service cloud.firestore {
         && (
           exists(/databases/$(database)/documents/usuarios_roles/$(request.auth.uid))
           || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+          // EL DOCUMENTO DE ROL NO SIEMPRE VA POR UID.
+          //
+          // A los miembros nuevos se les escribe dos veces —por numero y por
+          // uid—, pero a los de antes solo por numero: de 44 fichas, 30 estan
+          // guardadas asi. Para esas, las dos comprobaciones de arriba fallan y
+          // esta funcion les negaba TODO Firestore: dos de cada tres miembros se
+          // quedaron fuera con un "permisos insuficientes" al actualizar.
+          //
+          // Por uid no hay forma de encontrar la ficha —las reglas no consultan,
+          // solo miran rutas—, y el numero de miembro tampoco viene en el token:
+          // de 29 cuentas afectadas, solo 2 lo llevan.
+          //
+          // `users/{uid}` si esta en las 29, y sirve de ancla: lo escribe el
+          // servidor al crear la cuenta, y nadie puede creárselo por su cuenta
+          // —cae en el comodin del final, que exige haber pasado por aqui—. Es
+          // una prueba de que la cuenta la abrio el sistema, no de quien es.
+          || exists(/databases/$(database)/documents/users/$(request.auth.uid))
         );
     }
 
