@@ -86,6 +86,23 @@ const acotarProporcion = (proporcion) =>
 const proporcionValida = (ancho, alto) =>
   Number(ancho) > 0 && Number(alto) > 0 ? acotarProporcion(Number(ancho) / Number(alto)) : null;
 
+const construirSrcSet = (detalle = {}, urlMuro = '') => {
+  const candidatos = [
+    { url: detalle.miniaturaUrl, ancho: 480 },
+    { url: urlMuro, ancho: 1080 },
+    { url: detalle.urlCompleta, ancho: 1600 },
+  ].filter((item) => item.url);
+  const unicos = candidatos.filter(
+    (item, index) => candidatos.findIndex((candidato) => candidato.url === item.url) === index
+  );
+
+  // Las publicaciones anteriores solo tienen una dirección. En ellas dejamos
+  // que `src` conserve su comportamiento histórico.
+  if (unicos.length < 2) return undefined;
+
+  return unicos.map((item) => `${item.url} ${item.ancho}w`).join(', ');
+};
+
 const REMINDER_MENU_OPEN_DELAY_MS = 300;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
@@ -235,6 +252,7 @@ const renderTextWithHashtags = (text = '') =>
 export function ProfilePostItem({
   post,
   user: currentUser,
+  prioritizeImage = false,
   onAddComment,
   onToggleLike,
   onHidePost,
@@ -310,9 +328,16 @@ export function ProfilePostItem({
     () => (post.mediaItems?.length ? post.mediaItems : post.media ? [post.media] : []),
     [post.media, post.mediaItems]
   );
+  const mediaFullItems = useMemo(
+    () =>
+      post.mediaFullItems?.length === mediaItems.length ? post.mediaFullItems : mediaItems,
+    [mediaItems, post.mediaFullItems]
+  );
   const visibleMediaItems = useMemo(() => mediaItems.slice(0, MEDIA_PREVIEW_LIMIT), [mediaItems]);
   const hiddenMediaCount = Math.max(mediaItems.length - MEDIA_PREVIEW_LIMIT, 0);
   const selectedMedia = mediaItems[selectedMediaIndex] || mediaItems[0] || '';
+  const selectedMediaFull =
+    mediaFullItems[selectedMediaIndex] || mediaFullItems[0] || selectedMedia;
   const selectedMediaDetails = post.mediaDetails?.[selectedMediaIndex] || {};
   const hasMultipleMedia = mediaItems.length > 1;
 
@@ -842,7 +867,7 @@ export function ProfilePostItem({
 
   const handleSelectMedia = useCallback(
     (index) => {
-      const nextMedia = mediaItems[index];
+      const nextMedia = mediaFullItems[index] || mediaItems[index];
 
       if (!nextMedia || index === selectedMediaIndex || typeof window === 'undefined') {
         setSelectedMediaIndex(index);
@@ -855,7 +880,7 @@ export function ProfilePostItem({
       image.onerror = () => setSelectedMediaIndex(index);
       image.src = nextMedia;
     },
-    [mediaItems, selectedMediaIndex]
+    [mediaFullItems, mediaItems, selectedMediaIndex]
   );
 
   const handleOpenPreview = useCallback(
@@ -1593,6 +1618,9 @@ export function ProfilePostItem({
     if (!mediaItems.length) return null;
 
     if (mediaItems.length === 1) {
+      const detalle = post.mediaDetails?.[0] || {};
+      const miniatura = detalle.miniaturaUrl || mediaItems[0];
+
       return (
         <Box sx={{ p: 1 }}>
           <Box
@@ -1611,9 +1639,22 @@ export function ProfilePostItem({
               width: 1,
               display: 'block',
               overflow: 'hidden',
+              position: 'relative',
               borderRadius: 1.5,
               cursor: 'pointer',
               bgcolor: 'background.neutral',
+              '&::before': {
+                content: '""',
+                inset: -12,
+                position: 'absolute',
+                backgroundImage:
+                  miniatura !== mediaItems[0] ? `url(${JSON.stringify(miniatura)})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(12px)',
+                transform: 'scale(1.08)',
+                opacity: 0.72,
+              },
               // El hueco EXACTO que va a ocupar la foto, reservado de entrada.
               // Sin esto la publicacion mide cero de alto hasta que la imagen
               // llega, y al llegar todo pega un salto que deja a medio pintar las
@@ -1624,10 +1665,13 @@ export function ProfilePostItem({
           >
             <Box
               component="img"
-              loading="lazy"
+              loading={prioritizeImage ? 'eager' : 'lazy'}
+              fetchPriority={prioritizeImage ? 'high' : 'auto'}
               decoding="async"
               alt={post.message || post.media}
               src={mediaItems[0]}
+              srcSet={construirSrcSet(detalle, mediaItems[0])}
+              sizes="(max-width: 600px) calc(100vw - 32px), 827px"
               onLoad={(evento) => recordarMedida(mediaItems[0], evento)}
               sx={{
                 width: 1,
@@ -1637,6 +1681,8 @@ export function ProfilePostItem({
                 // proporcion, encaja justa, sin franjas y sin recortar nada.
                 objectFit: 'contain',
                 objectPosition: 'center',
+                position: 'relative',
+                zIndex: 1,
               }}
             />
           </Box>
@@ -1660,6 +1706,8 @@ export function ProfilePostItem({
       >
         {visibleMediaItems.map((media, index) => {
           const showMoreOverlay = index === MEDIA_PREVIEW_LIMIT - 1 && hiddenMediaCount > 0;
+          const detalle = post.mediaDetails?.[index] || {};
+          const miniatura = detalle.miniaturaUrl || media;
 
           return (
             <Box
@@ -1686,7 +1734,7 @@ export function ProfilePostItem({
                   content: '""',
                   inset: -12,
                   position: 'absolute',
-                  backgroundImage: `url(${JSON.stringify(media)})`,
+                  backgroundImage: `url(${JSON.stringify(miniatura)})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   filter: 'blur(12px)',
@@ -1697,10 +1745,13 @@ export function ProfilePostItem({
             >
               <Box
                 component="img"
-                loading="lazy"
+                loading={prioritizeImage && index === 0 ? 'eager' : 'lazy'}
+                fetchPriority={prioritizeImage && index === 0 ? 'high' : 'auto'}
                 decoding="async"
                 alt={`${post.message || 'Publicacion'} ${index + 1}`}
                 src={media}
+                srcSet={construirSrcSet(detalle, media)}
+                sizes="(max-width: 600px) calc(50vw - 20px), 405px"
                 sx={{
                   width: 1,
                   height: 1,
@@ -2235,7 +2286,7 @@ export function ProfilePostItem({
           </Typography>
         )}
 
-        {selectedMedia && (
+        {selectedMediaFull && (
           <Box
             sx={{
               position: 'relative',
@@ -2244,9 +2295,12 @@ export function ProfilePostItem({
           >
             <Box
               component="img"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
               decoding="async"
-              src={selectedMedia}
+              src={selectedMediaFull}
+              srcSet={construirSrcSet(selectedMediaDetails, selectedMedia)}
+              sizes="100vw"
               alt={post.message || 'Publicación'}
               sx={{
                 width: 1,

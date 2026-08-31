@@ -32,6 +32,22 @@ export const IMAGE_UPLOAD_PRESETS = {
     mimeType: 'image/webp',
     maxSizeBytes: 900000,
   },
+  // Versiones responsivas de una publicación. El muro nunca necesita bajar
+  // los mismos píxeles que el visor de pantalla completa.
+  publicacionMiniatura: {
+    maxWidth: 480,
+    maxHeight: 480,
+    quality: 0.72,
+    mimeType: 'image/webp',
+    maxSizeBytes: 100000,
+  },
+  publicacionMuro: {
+    maxWidth: 1080,
+    maxHeight: 1080,
+    quality: 0.8,
+    mimeType: 'image/webp',
+    maxSizeBytes: 360000,
+  },
 };
 
 const PRESERVE_MIME_TYPES = new Set(['image/svg+xml']);
@@ -149,7 +165,7 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
   let targetHeight = height;
   let bestBlob = null;
 
-  while (targetWidth >= MIN_DIMENSION && targetHeight >= MIN_DIMENSION) {
+  while (targetWidth >= 1 && targetHeight >= 1) {
     const canvas = drawImageToCanvas({ image, width: targetWidth, height: targetHeight });
     if (!canvas) return file;
 
@@ -174,10 +190,20 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
       }
     }
 
-    targetWidth = Math.max(MIN_DIMENSION, Math.round(targetWidth * DIMENSION_STEP));
-    targetHeight = Math.max(MIN_DIMENSION, Math.round(targetHeight * DIMENSION_STEP));
+    const dimensionMayor = Math.max(targetWidth, targetHeight);
+    if (dimensionMayor <= MIN_DIMENSION) break;
 
-    if (targetWidth === MIN_DIMENSION || targetHeight === MIN_DIMENSION) break;
+    // Reducir conservando la proporción. El código anterior forzaba cada lado
+    // por separado a 420px: una foto panorámica podía quedar sin optimizar o
+    // terminar deformada.
+    const siguienteDimensionMayor = Math.max(
+      MIN_DIMENSION,
+      Math.round(dimensionMayor * DIMENSION_STEP)
+    );
+    const escala = siguienteDimensionMayor / dimensionMayor;
+
+    targetWidth = Math.max(1, Math.round(targetWidth * escala));
+    targetHeight = Math.max(1, Math.round(targetHeight * escala));
   }
 
   if (!bestBlob) return file;

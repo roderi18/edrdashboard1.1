@@ -245,7 +245,7 @@ const uploadPrincipalImages = async ({
   const files = imagenes.map((image) => image.file || image).filter(Boolean);
   const uploadResults = await Promise.allSettled(
     files.map(async (file, index) => {
-      // LA FOTO SE OPTIMIZA ANTES DE SUBIR.
+      // LA FOTO SE OPTIMIZA ANTES DE SUBIR y se guarda en tres tamaños.
       //
       // Se subia el archivo tal cual sale de la camara —`calidadOriginal`— y se
       // han medido publicaciones de 11,6 MB. Quien abre el muro se las descarga
@@ -254,44 +254,96 @@ const uploadPrincipalImages = async ({
       //
       // Si la optimizacion falla —un formato que el navegador no sabe dibujar—
       // se sube el original: mejor pesado que perdido.
-      const optimizado = await optimizeImageFile(file, 'publicacion').catch(() => file);
-      const paraSubir = optimizado ?? file;
+      const [miniaturaOptimizada, muroOptimizado, completaOptimizada] =
+        tipo === 'publicacion'
+          ? await Promise.all([
+              optimizeImageFile(file, 'publicacionMiniatura').catch(() => null),
+              optimizeImageFile(file, 'publicacionMuro').catch(() => null),
+              optimizeImageFile(file, 'publicacion').catch(() => file),
+            ])
+          : [null, await optimizeImageFile(file, 'publicacionMuro').catch(() => file), null];
+      const completa = completaOptimizada ?? muroOptimizado ?? file;
+      const muro = muroOptimizado ?? completa;
+      const miniatura = miniaturaOptimizada ?? muro;
       // Las medidas viajan con la foto: son las que dejan que el muro reserve el
       // hueco exacto antes de que la imagen llegue.
-      const medidas = await leerDimensionesDeImagen(paraSubir);
-      const extension = getFileExtension(paraSubir) || getFileExtension(file);
-      const storagePath = `principal/${idPublicacion}/${tipo}_${index + 1}_${Date.now()}.${extension}`;
-      const storageRef = ref(FIREBASE_STORAGE, storagePath);
+      const medidas = await leerDimensionesDeImagen(muro);
+      const marcaTiempo = Date.now();
+      // Los comentarios usan una sola imagen en el hilo; subir tres copias ahí
+      // solo consumiría almacenamiento sin acelerar ninguna vista.
+      const versiones =
+        tipo === 'publicacion'
+          ? [
+              { nombre: 'miniatura', archivo: miniatura },
+              { nombre: 'muro', archivo: muro },
+              { nombre: 'completa', archivo: completa },
+            ]
+          : [{ nombre: 'muro', archivo: muro }];
+      const resultadosVersiones = await Promise.allSettled(
+        versiones.map(async ({ nombre, archivo }) => {
+          const extension = getFileExtension(archivo) || getFileExtension(file);
+          const storagePath =
+            `principal/${idPublicacion}/${tipo}_${index + 1}_${marcaTiempo}_${nombre}.${extension}`;
+          const storageRef = ref(FIREBASE_STORAGE, storagePath);
 
-      try {
-        await uploadBytes(storageRef, paraSubir, {
-          contentType: paraSubir?.type || file?.type || 'image/webp',
-          customMetadata: {
-            idPublicacion,
-            tipo,
-            orden: String(index),
-            nombreArchivo: file?.name || '',
-            calidadOriginal: String(paraSubir === file),
-            tamanoOriginalBytes: String(file?.size || 0),
-            uploaderUid: String(usuario?.uid || ''),
-            uploaderIdMiembros: String(getPrincipalMemberId(usuario) || ''),
-          },
-        });
+          await uploadBytes(storageRef, archivo, {
+            contentType: archivo?.type || file?.type || 'image/webp',
+            cacheControl: 'public,max-age=31536000,immutable',
+            contentDisposition: 'inline',
+            customMetadata: {
+              idPublicacion,
+              tipo,
+              version: nombre,
+              orden: String(index),
+              nombreArchivo: file?.name || '',
+              calidadOriginal: String(archivo === file),
+              tamanoOriginalBytes: String(file?.size || 0),
+              uploaderUid: String(usuario?.uid || ''),
+              uploaderIdMiembros: String(getPrincipalMemberId(usuario) || ''),
+            },
+          });
 
-        return {
-          downloadUrl: await getDownloadURL(storageRef),
-          storagePath,
-          storageRef,
-          tamanoMostradoBytes: paraSubir?.size || file?.size || 0,
-          ancho: medidas?.ancho || 0,
-          alto: medidas?.alto || 0,
-          seSubioElOriginal: paraSubir === file,
-          fechaCarga: new Date().toISOString(),
-        };
-      } catch (error) {
-        await deleteObject(storageRef).catch(() => null);
-        throw error;
+          return {
+            nombre,
+            downloadUrl: await getDownloadURL(storageRef),
+            storagePath,
+            storageRef,
+            archivo,
+          };
+        })
+      );
+      const versionFallida = resultadosVersiones.find((resultado) => resultado.status === 'rejected');
+
+      if (versionFallida) {
+        await Promise.all(
+          resultadosVersiones
+            .filter((resultado) => resultado.status === 'fulfilled')
+            .map((resultado) => deleteObject(resultado.value.storageRef).catch(() => null))
+        );
+        throw versionFallida.reason;
       }
+
+      const porNombre = Object.fromEntries(
+        resultadosVersiones.map((resultado) => [resultado.value.nombre, resultado.value])
+      );
+
+      return {
+        downloadUrl: porNombre.muro.downloadUrl,
+        miniaturaUrl: porNombre.miniatura?.downloadUrl || porNombre.muro.downloadUrl,
+        completaUrl: porNombre.completa?.downloadUrl || porNombre.muro.downloadUrl,
+        storagePath: porNombre.muro.storagePath,
+        miniaturaPath: porNombre.miniatura?.storagePath || '',
+        completaPath: porNombre.completa?.storagePath || '',
+        storageRefs: resultadosVersiones.map((resultado) => resultado.value.storageRef),
+        tipoMime: muro?.type || file?.type || 'image/webp',
+        tamanoMostradoBytes: muro?.size || file?.size || 0,
+        tamanoMiniaturaBytes: miniatura?.size || 0,
+        tamanoCompletaBytes: completa?.size || file?.size || 0,
+        ancho: medidas?.ancho || 0,
+        alto: medidas?.alto || 0,
+        seSubioElOriginal: completa === file,
+        fechaCarga: new Date().toISOString(),
+      };
     })
   );
   const failedUpload = uploadResults.find((result) => result.status === 'rejected');
@@ -300,7 +352,8 @@ const uploadPrincipalImages = async ({
     await Promise.all(
       uploadResults
         .filter((result) => result.status === 'fulfilled')
-        .map((result) => deleteObject(result.value.storageRef).catch(() => null))
+        .flatMap((result) => result.value.storageRefs || [])
+        .map((storageRef) => deleteObject(storageRef).catch(() => null))
     );
     throw failedUpload.reason;
   }
@@ -309,12 +362,18 @@ const uploadPrincipalImages = async ({
 
   return uploads.map((item, index) => ({
     url: item.downloadUrl,
+    miniaturaURL: item.miniaturaUrl,
+    urlCompleta: item.completaUrl,
     rutaArchivo: item.storagePath,
+    rutaMiniatura: item.miniaturaPath,
+    rutaCompleta: item.completaPath,
     tipoArchivo: 'imagen',
-    tipoMime: files[index]?.type || '',
+    tipoMime: item.tipoMime || files[index]?.type || '',
     nombreArchivo: files[index]?.name || `imagen-${index + 1}`,
     tamanoBytes: files[index]?.size || 0,
     tamanoMostradoBytes: item.tamanoMostradoBytes || files[index]?.size || 0,
+    tamanoMiniaturaBytes: item.tamanoMiniaturaBytes || 0,
+    tamanoCompletaBytes: item.tamanoCompletaBytes || 0,
     ancho: item.ancho || 0,
     alto: item.alto || 0,
     fechaCarga: item.fechaCarga,
@@ -330,8 +389,9 @@ const deleteUploadedPrincipalImages = async (files = []) => {
 
   await Promise.all(
     files
-      .map((file) => file?.rutaArchivo)
+      .flatMap((file) => [file?.rutaArchivo, file?.rutaMiniatura, file?.rutaCompleta])
       .filter(Boolean)
+      .filter((storagePath, index, paths) => paths.indexOf(storagePath) === index)
       .map((storagePath) => deleteObject(ref(FIREBASE_STORAGE, storagePath)).catch(() => null))
   );
 };
@@ -379,10 +439,15 @@ const publicationToUi = ({
     ? publication.archivosMultimedia
     : [];
   const mediaItems = archivosMultimedia.map((item) => item.url).filter(Boolean);
+  const mediaFullItems = archivosMultimedia
+    .filter((item) => item?.url)
+    .map((item) => item.urlCompleta || item.url);
   const mediaDetails = archivosMultimedia
     .filter((item) => item?.url)
     .map((item) => ({
       url: item.url,
+      miniaturaUrl: item.miniaturaURL || item.miniaturaUrl || item.url,
+      urlCompleta: item.urlCompleta || item.url,
       nombreOriginal: item.nombreArchivo || item.nombreOriginal || '',
       fechaHora: toIso(item.fechaCarga || item.fechaCreacion || publication.fechaCreacion),
       tamanoBytes: Number(item.tamanoMostradoBytes ?? item.tamanoBytes ?? item.tamano ?? 0),
@@ -410,6 +475,7 @@ const publicationToUi = ({
     createdAt: toIso(publication.fechaCreacion),
     media: mediaItems[0] || '',
     mediaItems,
+    mediaFullItems,
     mediaDetails,
     message: publication.mensaje || '',
     personLikes: reactions.map(reactionToLike),
@@ -873,8 +939,8 @@ export async function crearPublicacionPrincipal({
           idImagen,
           usuarioIdMiembros: getPrincipalMemberId(usuario),
           codigoMiembroUsuario: getCodigoMiembro(usuario),
-          imagenURL: archivo.url,
-          miniaturaURL: archivo.url,
+          imagenURL: archivo.urlCompleta || archivo.url,
+          miniaturaURL: archivo.miniaturaURL || archivo.url,
           descripcion: mensajeLimpio,
           origen: 'publicacion',
           idPublicacion,

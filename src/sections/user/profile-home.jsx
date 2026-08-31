@@ -948,11 +948,12 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         )}
 
         {!loadingPosts &&
-          feedPosts.map((post) => (
+          feedPosts.map((post, index) => (
             <ProfilePostItem
               key={post.id}
               post={post}
               user={user}
+              prioritizeImage={index === 0}
               onAddComment={handleAddComment}
               onToggleLike={handleToggleLike}
               onHidePost={handleHidePost}
