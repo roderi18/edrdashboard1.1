@@ -62,6 +62,7 @@ const conexion = () => {
 };
 
 const COLECCION_ACCESOS = 'usuarios_roles';
+const COLECCION_FOTOS = 'fotos';
 const MIEMBROS_UPSTREAM = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 
 const filas = (payload) => {
@@ -104,6 +105,35 @@ const leerCuentasPorMiembro = async (db) => {
   return cuentas;
 };
 
+/**
+ * La foto de perfil de cada miembro.
+ *
+ * No viene en el padron de la API: vive en Firebase, en `fotos`, con el tipo de
+ * entidad y el estado que la aplicacion usa para elegir la principal. Sin esto
+ * el aviso de cumpleaños sale con un icono generico en vez de con su cara.
+ */
+const leerFotosDeMiembros = async (db) => {
+  const snapshot = await db
+    .collection(COLECCION_FOTOS)
+    .where('tipoEntidad', '==', 'miembro')
+    .get()
+    .catch(() => null);
+
+  const fotos = {};
+
+  snapshot?.forEach((documento) => {
+    const datos = documento.data() ?? {};
+
+    if (datos.tipoFoto !== 'perfil' || datos.estado !== 'activo') return;
+
+    const idEntidad = String(datos.idEntidad ?? '').trim();
+
+    if (idEntidad && datos.urlFoto) fotos[idEntidad] = String(datos.urlFoto);
+  });
+
+  return fotos;
+};
+
 /** Quien apago los cumpleaños en sus preferencias se queda fuera. */
 const quitarALosQueNoQuieren = async (db, idsDestinatarios, tipoNotificacion) => {
   const preferencias = await Promise.all(
@@ -133,9 +163,10 @@ export default async function handler() {
   }
 
   try {
-    const [miembros, cuentasPorMiembro] = await Promise.all([
+    const [miembros, cuentasPorMiembro, fotos] = await Promise.all([
       leerMiembros(),
       leerCuentasPorMiembro(db),
+      leerFotosDeMiembros(db),
     ]);
 
     const hoy = new Date();
@@ -152,7 +183,13 @@ export default async function handler() {
 
       if (!delDestacamento.length) continue;
 
-      const aviso = construirAvisoDeCumpleanos({ miembro, dias, idsDestinatarios: [], hoy });
+      const aviso = construirAvisoDeCumpleanos({
+        miembro,
+        dias,
+        idsDestinatarios: [],
+        hoy,
+        urlFoto: fotos[idDelMiembro(miembro)] ?? '',
+      });
       const destinatarios = await quitarALosQueNoQuieren(
         db,
         delDestacamento,

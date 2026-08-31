@@ -123,6 +123,7 @@ export const construirAvisoDeCumpleanos = ({
   dias,
   idsDestinatarios,
   hoy = new Date(),
+  urlFoto = '',
 }) => {
   const esHoy = dias === 0;
   const tipoNotificacion = esHoy
@@ -158,8 +159,12 @@ export const construirAvisoDeCumpleanos = ({
     entidadId: idMiembro,
     ruta: idMiembro ? `/dashboard/level/member/${idMiembro}/edit` : '/dashboard/level/member',
     imagenTipo: 'persona',
-    imagenURL: miembro?.avatarUrl ?? miembro?.photoURL ?? null,
-    miniaturaURL: miembro?.avatarUrl ?? miembro?.photoURL ?? null,
+    // La cara del cumpleañero. NO viene en el padron de la API: las fotos viven
+    // en Firebase, en `fotos`, y hay que traerlas aparte. Sin esto el aviso
+    // salia con el icono generico de sobre, que es justo lo contrario de lo que
+    // se quiere ver en un cumpleaños.
+    imagenURL: texto(urlFoto) || miembro?.avatarUrl || miembro?.photoURL || null,
+    miniaturaURL: texto(urlFoto) || miembro?.avatarUrl || miembro?.photoURL || null,
     tipoAccion: 'ver',
     etiquetaAccion: 'Ver perfil',
     tipoAccionSecundaria: null,

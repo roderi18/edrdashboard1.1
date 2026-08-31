@@ -136,3 +136,31 @@ test('el aviso dice lo que toca segun el dia', () => {
   assert.equal(proximo.rolDestinatario, 'usuario');
   assert.equal(proximo.estado, 'no_leida');
 });
+
+// La cara del cumpleañero no viene en el padron de la API —las fotos viven en
+// Firebase—, asi que hay que pasarsela. Sin ella el aviso salia con un icono de
+// sobre, que es justo lo contrario de lo que se quiere ver en un cumpleaños.
+test('el aviso lleva la foto del miembro cuando la hay', () => {
+  const aviso = construirAvisoDeCumpleanos({
+    miembro: MIEMBROS[0],
+    dias: 0,
+    idsDestinatarios: ['uid-1'],
+    hoy: HOY,
+    urlFoto: 'https://ejemplo/adrian.jpg',
+  });
+
+  assert.equal(aviso.imagenTipo, 'persona');
+  assert.equal(aviso.imagenURL, 'https://ejemplo/adrian.jpg');
+  assert.equal(aviso.miniaturaURL, 'https://ejemplo/adrian.jpg');
+});
+
+test('y sin foto no se inventa una', () => {
+  const aviso = construirAvisoDeCumpleanos({
+    miembro: MIEMBROS[0],
+    dias: 0,
+    idsDestinatarios: ['uid-1'],
+    hoy: HOY,
+  });
+
+  assert.equal(aviso.imagenURL, null);
+});
