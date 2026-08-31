@@ -5,10 +5,20 @@ import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  doc,
+  query,
+  where,
+  limit,
+  getDoc,
+  getDocs,
+  collection,
+} from 'firebase/firestore';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
@@ -21,8 +31,8 @@ import { useRouter } from 'src/routes/hooks';
 
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 
-import { AUTH } from 'src/lib/firebase';
 import { CONFIG } from 'src/global-config';
+import { AUTH, FIRESTORE } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
   cabecerasConToken,
@@ -241,6 +251,77 @@ export function FirebasePrimerAccesoView() {
   const codigoMiembro = String(
     user?.codigoMiembro || user?.memberId || codigoDelCorreo || ''
   ).trim();
+
+  // LA BIENVENIDA NO DEPENDE DEL PADRON.
+  //
+  // El perfil completo puede no llegar —es justo cuando esta pantalla tiene que
+  // seguir funcionando—, y entonces no habia ni nombre ni codigo que enseñar. Se
+  // sacan de donde SI estan: la cuenta de Firebase y la ficha que el servidor
+  // escribio al crearla, las dos accesibles por uid y sin pasar por el padron.
+  const [cortesia, setCortesia] = useState({ nombre: '', codigo: '', foto: '' });
+
+  useEffect(() => {
+    let vigente = true;
+
+    const traerCortesia = async () => {
+      const cuenta = AUTH?.currentUser;
+
+      if (!cuenta || !FIRESTORE) return;
+
+      const ficha = await getDoc(doc(FIRESTORE, 'users', cuenta.uid)).catch(() => null);
+      const datos = ficha?.exists() ? (ficha.data() ?? {}) : {};
+
+      // El numero de miembro no vive en `users`, sino en la ficha de rol —que en
+      // la mayoria de los casos va guardada justamente por ese numero—. Hace
+      // falta para la foto, que se guarda bajo el.
+      let idMiembros = user?.idMiembros ?? datos.idMiembros ?? null;
+
+      if (!idMiembros) {
+        const porUid = await getDocs(
+          query(collection(FIRESTORE, 'usuarios_roles'), where('uid', '==', cuenta.uid), limit(1))
+        ).catch(() => null);
+        const fichaDeRol = porUid?.docs?.[0];
+
+        idMiembros = fichaDeRol?.data()?.idMiembros ?? (fichaDeRol ? Number(fichaDeRol.id) : null);
+      }
+
+      let foto = '';
+
+      if (Number.isFinite(Number(idMiembros)) && Number(idMiembros)) {
+        const guardada = await getDoc(
+          doc(FIRESTORE, 'fotos', `miembro_${Number(idMiembros)}_perfil`)
+        ).catch(() => null);
+        const datosFoto = guardada?.exists() ? guardada.data() : null;
+
+        // Solo la vigente. Las fotos se suben ya optimizadas —WebP, 900px de
+        // lado y 320 kB de tope—, asi que aqui no hay nada que encoger.
+        foto = datosFoto?.estado === 'activo' ? datosFoto.urlFoto || '' : '';
+      }
+
+      if (!vigente) return;
+
+      setCortesia({
+        nombre: String(datos.displayName || cuenta.displayName || '').trim(),
+        codigo: String(datos.codigoMiembro || '').trim(),
+        foto,
+      });
+    };
+
+    traerCortesia();
+
+    return () => {
+      vigente = false;
+    };
+  }, [user?.idMiembros, loading]);
+
+  const nombreParaMostrar = nombreDeSaludo || cortesia.nombre;
+  const codigoParaMostrar = codigoMiembro || cortesia.codigo;
+  const iniciales = nombreParaMostrar
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() ?? '')
+    .join('');
 
   const methods = useForm({
     resolver: zodResolver(PrimerAccesoSchema),
@@ -498,13 +579,32 @@ export function FirebasePrimerAccesoView() {
 
   return (
     <>
-      {!!nombreDeSaludo && (
-        <Box sx={{ mb: 3, textAlign: { xs: 'center', md: 'left' } }}>
-          <Typography variant="h5">Bienvenido, {nombreDeSaludo}</Typography>
+      {!!nombreParaMostrar && (
+        <Box
+          sx={{
+            mb: 3,
+            gap: 1,
+            display: 'flex',
+            alignItems: 'center',
+            flexDirection: 'column',
+            textAlign: 'center',
+          }}
+        >
+          <Avatar
+            src={cortesia.foto || undefined}
+            alt={nombreParaMostrar}
+            sx={{ width: 72, height: 72 }}
+          >
+            {iniciales}
+          </Avatar>
 
-          {!!codigoMiembro && (
-            <Typography variant="subtitle2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-              {codigoMiembro}
+          <Typography variant="h6" sx={{ mt: 0.5 }}>
+            {nombreParaMostrar}
+          </Typography>
+
+          {!!codigoParaMostrar && (
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
+              {codigoParaMostrar}
             </Typography>
           )}
         </Box>
