@@ -26,6 +26,11 @@ import { RecorteDeFoto } from './recorte-de-foto';
 
 const TIPOS = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
 
+// El escudo, en la esquina de la foto ampliada. Se dibuja a su tamaño nativo
+// —48px, los que trae el archivo—, asi que se ve nitido y no hace falta
+// prepararlo aparte.
+const SELLO = '/exploradores-del-rey-icono.ico';
+
 export function FotoDeMiembro({
   url,
   nombre = '',
@@ -139,12 +144,35 @@ export function FotoDeMiembro({
       )}
 
       <Dialog open={ampliada} onClose={() => setAmpliada(false)} maxWidth="sm">
-        <Box
-          component="img"
-          src={url || undefined}
-          alt={nombre}
-          sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh' }}
-        />
+        {/* La foto y el sello, en la misma caja: asi el sello se pega a la
+            esquina de LA IMAGEN y no a la del dialogo, que puede sobrarle. */}
+        <Box sx={{ display: 'block', position: 'relative', lineHeight: 0 }}>
+          <Box
+            component="img"
+            src={url || undefined}
+            alt={nombre}
+            sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh' }}
+          />
+
+          {/* Sin capturar el raton: pulsar la foto tiene que seguir cerrando el
+              dialogo, no chocar contra el sello. */}
+          <Box
+            component="img"
+            src={SELLO}
+            alt=""
+            aria-hidden
+            sx={{
+              width: 48,
+              right: 12,
+              bottom: 12,
+              opacity: 0.9,
+              position: 'absolute',
+              pointerEvents: 'none',
+              // Para que se lea igual sobre una foto clara que sobre una oscura.
+              filter: 'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55))',
+            }}
+          />
+        </Box>
       </Dialog>
 
       <RecorteDeFoto
