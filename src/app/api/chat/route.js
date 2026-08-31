@@ -926,7 +926,20 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
   const creadoEn =
     authenticatedConversationData.creadoEn ?? authenticatedConversationData.createdAt ?? nowIso();
   const conversationPath = `${COLECCION_CONVERSACIONES}/${idConversacion}`;
-  const noLeidosPorIdMiembros = Object.fromEntries(participantesIds.map((id) => [String(id), 0]));
+  // EL PRIMER MENSAJE TAMBIEN CUENTA COMO NO LEIDO.
+  //
+  // Se ponia a cero para TODOS, incluido a quien le acababan de escribir. Asi
+  // que estrenar una conversacion no le encendia la bolita a nadie: el mensaje
+  // llegaba y en el menu no aparecia nada. Solo se notaba a partir del segundo,
+  // que ya pasa por otro camino y si lo cuenta.
+  //
+  // Quien escribe lo tiene leido —acaba de escribirlo—; los demas no.
+  const noLeidosPorIdMiembros = Object.fromEntries(
+    participantesIds.map((id) => [
+      String(id),
+      primerMensaje && Number(id) !== Number(primerMensaje.remitenteIdMiembros) ? 1 : 0,
+    ])
+  );
 
   const conversationDoc = {
     idConversacion,

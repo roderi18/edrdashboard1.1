@@ -112,12 +112,12 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const atendidaPorCodigo = notification.metadatos?.atendidaMotivo === 'codigo_generado';
   const avisoAtendida = solicitudYaAtendida
     ? [
-        'Esta solicitud ya fue atendida',
-        quienAtendio ? ` por ${quienAtendio}` : '',
-        atendidaPorCodigo
-          ? ': ya se le generó un código. Generar otro anularía el suyo.'
-          : ': el miembro ya volvió a entrar a su cuenta.',
-      ].join('')
+      'Esta solicitud ya fue atendida',
+      quienAtendio ? ` por ${quienAtendio}` : '',
+      atendidaPorCodigo
+        ? ': ya se le generó un código. Generar otro anularía el suyo.'
+        : ': el miembro ya volvió a entrar a su cuenta.',
+    ].join('')
     : '';
 
   const handleClickNotification = async () => {
@@ -149,7 +149,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   // felicito y no lo haga dos veces sin querer.
   const esCumpleanos = esNotificacionDeCumpleanos(notification);
 
-  const handleFelicitar = async (event) => {
+  const handleFelicitar = (event) => {
     event.stopPropagation();
 
     if (enviandoFelicitacion) return;
@@ -157,13 +157,29 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     setEnviandoFelicitacion(true);
 
     try {
-      const enviada = await enviarFelicitacionDeCumpleanos({ notificacion: notification, usuario: user });
+      // El mensaje ya esta elegido en este mismo instante: se dice y se marca la
+      // fila enseguida. El viaje al servidor va por detras.
+      const enviada = enviarFelicitacionDeCumpleanos({
+        notificacion: notification,
+        usuario: user,
+      });
 
       toast.success(`Felicitación enviada: “${enviada.texto}”`);
       onMarkAsAttended?.(notification);
+
+      // Pero si la entrega falla, se dice. Dar por enviado algo que no salio
+      // seria mentir, y el cumpleañero no recibiria nada.
+      enviada.entrega
+        .catch((error) => {
+          toast.error(
+            error?.message || 'No se pudo enviar la felicitación. Vuelve a intentarlo.'
+          );
+        })
+        .finally(() => setEnviandoFelicitacion(false));
     } catch (error) {
+      // Lo que se comprueba antes de salir: sin cumpleañero, sin cuenta, o es su
+      // propio cumpleaños.
       toast.error(error?.message || 'No se pudo enviar la felicitación.');
-    } finally {
       setEnviandoFelicitacion(false);
     }
   };
@@ -402,7 +418,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
           onClick={esCumpleanos ? handleFelicitar : handleAttendAction}
         >
           {esCumpleanos
-            ? (enviandoFelicitacion && 'Enviando...') || 'Enviar mensaje de felicitaciones'
+            ? (enviandoFelicitacion && 'Enviando...') || 'Mensaje de felicitaciones'
             : 'Marcar como atendida'}
         </Button>
       )}
