@@ -36,12 +36,24 @@ service cloud.firestore {
           // solo miran rutas—, y el numero de miembro tampoco viene en el token:
           // de 29 cuentas afectadas, solo 2 lo llevan.
           //
-          // `users/{uid}` si esta en las 29, y sirve de ancla: lo escribe el
-          // servidor al crear la cuenta, y nadie puede creárselo por su cuenta
-          // —cae en el comodin del final, que exige haber pasado por aqui—. Es
-          // una prueba de que la cuenta la abrio el sistema, no de quien es.
-          || exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          // `users/{uid}` si esta en las 29, y sirve de ancla —pero NO a secas:
+          // ese documento se lo crea el propio navegador al registrarse, como
+          // avisa el comentario de arriba, asi que aceptarlo tal cual habria
+          // dejado entrar a 15 cuentas que nunca fueron del sistema.
+          //
+          // Lo que el navegador NO puede escribir es el codigo de miembro: al
+          // registrarse solo pone uid, correo y nombre. `codigoMiembro` lo pone
+          // el servidor al dar de alta a alguien de verdad. Ese campo es la
+          // firma, y es la que se exige aqui. Las 44 fichas reales lo tienen.
+          || tieneAltaDelServidor()
         );
+    }
+
+    // La ficha de `users` que solo el servidor pudo escribir: la que lleva
+    // codigo de miembro. Una cuenta creada desde el navegador nunca lo tiene.
+    function tieneAltaDelServidor() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && 'codigoMiembro' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function rutaAsignacion() {

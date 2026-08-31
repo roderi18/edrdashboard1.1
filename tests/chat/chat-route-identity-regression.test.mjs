@@ -10,8 +10,20 @@ const axiosSource = await readFile(new URL('../../src/lib/axios.js', import.meta
 test('cada solicitud del cliente recupera el Bearer vigente de Firebase', () => {
   assert.match(axiosSource, /interceptors\.request\.use\(async/);
   assert.match(axiosSource, /authStateReady/);
-  assert.match(axiosSource, /currentUser\?\.getIdToken/);
+  // El token sale de la cuenta viva de Firebase, no de ninguna copia guardada.
+  assert.match(axiosSource, /AUTH\?\.currentUser/);
+  assert.match(axiosSource, /getIdToken\?\.\(\)/);
   assert.match(axiosSource, /headers\.set\(['"]Authorization['"], `Bearer \$\{token\}`\)/);
+});
+
+// Las reglas de Firestore exigen `idMiembros` DENTRO del token; el servidor, en
+// cambio, te identifica aunque no venga. Con un token viejo la peticion se
+// montaba bien y la base de datos la rechazaba con un "permisos insuficientes"
+// que no explicaba nada. Si esto se cae, vuelve ese fallo.
+test('un token sin el numero de miembro se renueva antes de salir', () => {
+  assert.match(axiosSource, /getIdTokenResult/);
+  assert.match(axiosSource, /claims\?\.idMiembros == null/);
+  assert.match(axiosSource, /getIdToken\(true\)/);
 });
 
 test('los cuatro métodos autentican la solicitud', () => {

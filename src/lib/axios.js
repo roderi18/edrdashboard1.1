@@ -18,7 +18,30 @@ axiosInstance.interceptors.request.use(async (config) => {
     const { AUTH } = await import('./firebase');
 
     await AUTH?.authStateReady?.();
-    const token = await AUTH?.currentUser?.getIdToken?.();
+
+    // EL TOKEN TIENE QUE LLEVAR EL NUMERO DE MIEMBRO.
+    //
+    // El servidor es generoso identificando: si el token no lo trae, te busca en
+    // Firestore y en el padron y te reconoce igual. Las reglas de Firestore no:
+    // exigen `idMiembros` DENTRO del token y nada mas. Con un token viejo —de
+    // antes de que se le pusieran los permisos— pasaba una cosa muy fea: la ruta
+    // te reconocia, montaba bien la peticion, y la base de datos la rechazaba con
+    // un "permisos insuficientes" que no explicaba nada. Se veia al intentar
+    // enviar un mensaje por el chat.
+    //
+    // Aqui se mira antes de salir: si al token le falta, se pide uno nuevo. Los
+    // permisos se leen del que ya hay en memoria, sin ir a la red; solo cuando
+    // faltan se fuerza el refresco.
+    const cuenta = AUTH?.currentUser;
+    let token = await cuenta?.getIdToken?.();
+
+    if (cuenta && token) {
+      const resultado = await cuenta.getIdTokenResult?.().catch(() => null);
+
+      if (resultado && resultado.claims?.idMiembros == null) {
+        token = (await cuenta.getIdToken(true).catch(() => null)) ?? token;
+      }
+    }
 
     if (token) {
       const headers = AxiosHeaders.from(config.headers);
