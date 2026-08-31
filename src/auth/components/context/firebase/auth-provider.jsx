@@ -183,15 +183,23 @@ const getAuthorizationCandidateIds = (authUser = {}, profile = {}, memberAccess 
 const loadAuthorizationAccess = async (authUser, profile, memberAccess) => {
   const candidateIds = getAuthorizationCandidateIds(authUser, profile, memberAccess);
 
-  for (const candidateId of candidateIds) {
-    const access = await withTimeout(obtenerAccesoUsuario(candidateId).catch(() => null), null);
+  // EN PARALELO, NO EN FILA.
+  //
+  // Se probaba identificador por identificador, esperando a cada uno antes de
+  // pedir el siguiente: hasta ONCE lecturas encadenadas, cada una con su propio
+  // tope de cinco segundos. Con que un par tardaran, el arranque se iba a
+  // decenas de segundos —y ninguna de esas esperas dependia de la anterior—.
+  //
+  // Se piden todas a la vez y se queda la primera que responda algo, en el mismo
+  // orden de preferencia que tenia el bucle. Un tope mas corto: cada una es la
+  // lectura de un documento, no un calculo.
+  const accesos = await Promise.all(
+    candidateIds.map((candidateId) =>
+      withTimeout(obtenerAccesoUsuario(candidateId).catch(() => null), null, 3000)
+    )
+  );
 
-    if (access?.rolId || access?.alcance) {
-      return access;
-    }
-  }
-
-  return null;
+  return accesos.find((access) => access?.rolId || access?.alcance) ?? null;
 };
 
 const unirCargos = (...listas) => {

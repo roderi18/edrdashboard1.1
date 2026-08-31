@@ -117,7 +117,7 @@ export function FirebasePrimerAccesoView() {
       return undefined;
     }
 
-    const aviso = setTimeout(() => setEsperaLarga(true), 12000);
+    const aviso = setTimeout(() => setEsperaLarga(true), 15000);
 
     return () => clearTimeout(aviso);
   }, [loading, puedeMostrarse]);
