@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -102,6 +103,24 @@ export function FirebasePrimerAccesoView() {
 
   // Solo se pregunta una vez por visita.
   const estadoRevisadoRef = useRef(false);
+
+  // NINGUNA espera es infinita. Esta pantalla esperaba callada a que llegara el
+  // perfil, asi que cuando la resolucion de la sesion se atascaba —el padron
+  // tardando, por ejemplo— se quedaba girando para siempre y no habia forma de
+  // saber si estaba trabajando o rota. Pasado el tope se dice, y se puede
+  // reintentar.
+  const [esperaLarga, setEsperaLarga] = useState(false);
+
+  useEffect(() => {
+    if (!loading && puedeMostrarse) {
+      setEsperaLarga(false);
+      return undefined;
+    }
+
+    const aviso = setTimeout(() => setEsperaLarga(true), 12000);
+
+    return () => clearTimeout(aviso);
+  }, [loading, puedeMostrarse]);
 
   useEffect(() => {
     if (loading || claveCambiada) return;
@@ -375,6 +394,27 @@ export function FirebasePrimerAccesoView() {
   });
 
   if (loading || !puedeMostrarse) {
+    if (esperaLarga) {
+      return (
+        <Box sx={{ textAlign: 'center', px: 2 }}>
+          <Typography variant="h6">Esto está tardando más de lo normal</Typography>
+
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+            Tu contraseña quedó guardada. Lo que no llega es el resto de tu sesión, casi siempre por
+            una conexión lenta.
+          </Typography>
+
+          <Button
+            variant="contained"
+            sx={{ mt: 3 }}
+            onClick={() => window.location.reload()}
+          >
+            Reintentar
+          </Button>
+        </Box>
+      );
+    }
+
     return (
       <SplashScreen
         portal={false}

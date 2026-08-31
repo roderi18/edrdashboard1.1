@@ -8,6 +8,16 @@
 
 const DEFAULT_TTL_MS = 60_000;
 
+// NINGUNA espera es infinita. El upstream va de 0.3s a mas de 17s (lo dice la
+// nota de arriba) y `fetch` no se rinde solo: una peticion lenta se llevaba por
+// delante a quien la esperaba, incluida la resolucion de la sesion —el inicio se
+// quedaba en "Verificando tu acceso" para siempre—.
+//
+// 9 segundos y no mas: las funciones de Netlify se cortan a los 10, asi que
+// pasado ese punto la respuesta ya no llega igual. Mejor fallar nosotros, con un
+// error que quien llama sabe manejar, que morir cortados por la plataforma.
+const DEFAULT_TIMEOUT_MS = 9_000;
+
 // globalThis para sobrevivir el hot-reload del dev server sin duplicar cachés.
 const getStore = () => {
   if (!globalThis.__upstreamTextCache) {
@@ -30,7 +40,11 @@ export const UPSTREAM_KEYS = {
 // Devuelve { ok, status, text } del upstream, cacheado por `key` durante
 // `ttlMs`. Las peticiones concurrentes comparten la misma promesa y las
 // respuestas no-ok no se cachean.
-export async function fetchUpstreamText(key, url, { ttlMs = DEFAULT_TTL_MS, init } = {}) {
+export async function fetchUpstreamText(
+  key,
+  url,
+  { ttlMs = DEFAULT_TTL_MS, timeoutMs = DEFAULT_TIMEOUT_MS, init } = {}
+) {
   const store = getStore();
   const now = Date.now();
   const entry = store.get(key);
@@ -40,10 +54,23 @@ export async function fetchUpstreamText(key, url, { ttlMs = DEFAULT_TTL_MS, init
   }
 
   const promise = (async () => {
-    const res = await fetch(url, init);
-    const text = await res.text();
+    const controlador = new AbortController();
+    const corte = setTimeout(() => controlador.abort(), timeoutMs);
 
-    return { ok: res.ok, status: res.status, text };
+    try {
+      const res = await fetch(url, { ...init, signal: controlador.signal });
+      const text = await res.text();
+
+      return { ok: res.ok, status: res.status, text };
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error(`El servidor de datos no respondió en ${Math.round(timeoutMs / 1000)}s.`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(corte);
+    }
   })();
 
   store.set(key, { promise, expiresAt: now + ttlMs });

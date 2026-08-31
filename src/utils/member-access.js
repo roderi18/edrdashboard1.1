@@ -2414,10 +2414,13 @@ export const loadMemberAccessProfile = async (authUser) => {
       name: profileByUid?.nombre ?? '',
       memberId: profileByUid?.codigoMiembro ?? '',
     };
-    const profile = await aplicarRolPorCargo(
-      normalizeMemberProfile(profileByUid, minimalMember, authUser)
-    );
-    const photoURL = await getActiveMemberPhotoUrl(idMiembros);
+    // En paralelo: la foto no depende del cargo, y encadenarlas le sumaba a la
+    // sesion un viaje que no hacia falta esperar. En el arranque, cada ida y
+    // vuelta se nota.
+    const [profile, photoURL] = await Promise.all([
+      aplicarRolPorCargo(normalizeMemberProfile(profileByUid, minimalMember, authUser)),
+      getActiveMemberPhotoUrl(idMiembros),
+    ]);
 
     // Sincronización de usuarios_roles fuera de la ruta crítica (no se espera).
     void syncRoleProfileByAuthUid({
@@ -2510,8 +2513,11 @@ export const loadMemberAccessProfile = async (authUser) => {
         ...buildDefaultMemberPermissions(),
       },
     };
-  const profile = await aplicarRolPorCargo(normalizeMemberProfile(sourceProfile, member, authUser));
-  const photoURL = await getActiveMemberPhotoUrl(profile.idMiembros ?? member.id);
+  // En paralelo, por lo mismo que en la ruta rapida: la foto no depende del cargo.
+  const [profile, photoURL] = await Promise.all([
+    aplicarRolPorCargo(normalizeMemberProfile(sourceProfile, member, authUser)),
+    getActiveMemberPhotoUrl(sourceProfile?.idMiembros ?? member?.id),
+  ]);
 
   // Sincronización fuera de la ruta crítica (no se espera): no debe retrasar el login.
   void syncRoleProfileByAuthUid({ authUser, sourceProfile, profile, member });
