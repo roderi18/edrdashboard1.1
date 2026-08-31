@@ -114,6 +114,7 @@ test('quien todavia debe crear su contraseña no escribe', async () => {
 // ----------------------------------------------------------------------
 
 const RUTAS_ORGANIZACION = [
+  'notifications/birthdays', 'notifications/seed',
   'members', 'members/post', 'members/put',
   'dest', 'dest/post', 'dest/put',
   'sectional', 'sectional/post', 'sectional/put',

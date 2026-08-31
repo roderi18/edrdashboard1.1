@@ -5,6 +5,7 @@ import {
   sembrarPreferenciasNotificacionesUsuario,
 } from 'src/utils/firebase-notificaciones';
 
+import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -51,7 +52,13 @@ const obtenerUsuariosConPreferencias = async () => {
   return Array.from(recipients.entries()).map(([idUsuario, rol]) => ({ idUsuario, rol }));
 };
 
-export async function POST() {
+export async function POST(req) {
+  // Sembrar el catalogo de notificaciones y las preferencias escribe para todos
+  // los usuarios: sin sesion, no.
+  const sinSesion = await exigirSesionRest(req);
+
+  if (sinSesion) return sinSesion;
+
   if (!isFirebaseConfigured || !FIRESTORE) {
     return Response.json({ ok: false, message: 'Firebase no esta configurado.' }, { status: 500 });
   }

@@ -894,9 +894,22 @@ service cloud.firestore {
 
     // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
     // ni se borra desde el cliente.
+    // Una entrada de bitacora se ANADE a su nombre y de nadie mas. Se podia
+    // escribir "el Coordinador aprobo X" desde la cuenta de cualquiera, y la
+    // bitacora es justo lo que se mira cuando algo no cuadra. Las entradas del
+    // sistema —sin persona detras— siguen entrando.
+    function laAuditoriaVaASuNombre() {
+      return !('realizadoPor' in request.resource.data)
+        || !(request.resource.data.realizadoPor is map)
+        || !('idUsuario' in request.resource.data.realizadoPor)
+        || request.resource.data.realizadoPor.idUsuario == null
+        || request.resource.data.realizadoPor.idUsuario == request.auth.uid;
+    }
+
     match /auditoria_sistema/{idEvento} {
       allow read: if esUsuarioDelSistema();
-      allow create: if esUsuarioDelSistema();
+      allow create: if esUsuarioDelSistema() && laAuditoriaVaASuNombre();
+      // Se anade, nunca se corrige ni se borra: es la prueba de quien cambio que.
       allow update, delete: if false;
     }
 

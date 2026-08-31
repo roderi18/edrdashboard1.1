@@ -87,3 +87,22 @@ for (const cola of COLAS_DE_APROBACION) {
     assert.match(bloque, /allow delete: if false/);
   });
 }
+
+// ----------------------------------------------------------------------
+// La bitacora se anade a su nombre y de nadie mas.
+//
+// Se podia escribir "el Coordinador aprobo X" desde la cuenta de cualquiera, y
+// la bitacora es justo lo que se mira cuando algo no cuadra.
+// ----------------------------------------------------------------------
+
+test('una entrada de auditoria no puede ir a nombre de otro', () => {
+  const desde = reglas.indexOf('match /auditoria_sistema/');
+  const bloque = reglas.slice(desde, desde + 400);
+
+  assert.match(bloque, /allow create: if esUsuarioDelSistema\(\) && laAuditoriaVaASuNombre\(\)/);
+  assert.match(bloque, /allow update, delete: if false/);
+  assert.match(
+    reglas,
+    /realizadoPor\.idUsuario == request\.auth\.uid/
+  );
+});
