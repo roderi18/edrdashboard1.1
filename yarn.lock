@@ -8183,6 +8183,11 @@ normalize-svg-path@^1.1.0:
   dependencies:
     svg-arc-to-cubic-bezier "^3.0.0"
 
+normalize-wheel@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.npmjs.org/normalize-wheel/-/normalize-wheel-1.0.1.tgz"
+  integrity sha512-1OnlAPZ3zgrk8B91HyRj+eVv+kS5u+Z0SCsak6Xil/kmgEia50ga7zfkumayonZrImffAxPU/5WcyGhzetHNPA==
+
 nprogress@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/nprogress/-/nprogress-0.2.0.tgz"
@@ -8760,6 +8765,13 @@ react-dropzone@^14.3.8:
     attr-accept "^2.2.4"
     file-selector "^2.1.0"
     prop-types "^15.8.1"
+
+react-easy-crop@^6.2.3:
+  version "6.2.3"
+  resolved "https://registry.npmjs.org/react-easy-crop/-/react-easy-crop-6.2.3.tgz"
+  integrity sha512-ebimG3OGlzizjxEZ77Cj9CVLcg5vDZ6QVz8ud1rx4WmsCDWHIROEhgMi0GpJ/jKAuwHrH0M+QZUK4hyvxbYhOA==
+  dependencies:
+    normalize-wheel "^1.0.1"
 
 react-hook-form@^7.55.0, react-hook-form@^7.68.0:
   version "7.68.0"
