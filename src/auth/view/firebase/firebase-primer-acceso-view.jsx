@@ -338,10 +338,29 @@ export function FirebasePrimerAccesoView() {
         // contraseña" y tira las sesiones anteriores —por si alguien habia
         // entrado con la inicial—. El token que quedaba en el navegador es de
         // esos, y con el la aplicacion respondia 403 a todo.
-        await signInWithPassword({
+        // Volver a entrar es OBLIGATORIO: al guardar la clave, el servidor tira
+        // las sesiones anteriores, y la que tiene el navegador es una de esas.
+        // Si esto falla y se sigue adelante, la sesion queda zombi: la clave
+        // esta guardada, pero el token ya no vale y nada termina de resolverse
+        // —el usuario se queda mirando "Verificando tu acceso" sin que nadie le
+        // diga que paso—. Se dice, y se le manda a entrar con su clave nueva.
+        const volvioAEntrar = await signInWithPassword({
           email: correoDeAcceso || correoDelMiembro,
           password: datos.claveNueva,
-        }).catch(() => null);
+        }).catch((errorEntrada) => {
+          console.error('[primer acceso] no se pudo volver a entrar', errorEntrada);
+
+          return null;
+        });
+
+        if (!volvioAEntrar) {
+          setErrorMessage(
+            'Tu contraseña quedó guardada, pero no pudimos volver a abrir tu sesión. Entra de nuevo con tu nueva contraseña.'
+          );
+          setClaveCambiada(false);
+          router.replace(paths.auth.firebase.signIn);
+          return;
+        }
 
         await checkUserSession?.();
         router.replace(CONFIG.auth.redirectPath);

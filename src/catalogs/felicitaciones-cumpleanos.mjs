@@ -47,7 +47,7 @@ export const FELICITACIONES_CUMPLEANOS = [
 
   // --- Más sueltos ---
   { id: 'salud-alegria-aventuras', texto: '¡Feliz cumpleaños! Que este año te traiga salud, alegría y muchas aventuras. 🏕️' },
-  { id: 'toca-torta', texto: 'Hoy toca torta. ¡Feliz cumpleaños, {nombre}! 🍰' },
+  { id: 'toca-torta', texto: 'Hoy toca bizcochoooo. ¡Feliz cumpleaños, {nombre}! 🍰' },
   { id: 'pasala-lindo', texto: '¡Feliz cumpleaños! Que la pases lindo con los tuyos. 🎈' },
   { id: 'dia-tan-bueno', texto: 'Que este día sea tan bueno como tú, {nombre}. ¡Feliz cumpleaños! ☀️' },
   { id: 'un-ano-mas-de-camino', texto: 'Un año más de vida y de camino. ¡Feliz cumpleaños, {nombre}! 🥾' },

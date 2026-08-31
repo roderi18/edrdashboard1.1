@@ -370,6 +370,19 @@ export function AuthProvider({ children }) {
 
   const syncUserSession = useCallback(
     async (authUser) => {
+      // RED DE SEGURIDAD. Esta funcion es la unica que apaga `loading`, y la
+      // pantalla espera a que lo haga: si algo de aqui dentro no vuelve —una
+      // promesa que no resuelve, no que falle—, el usuario se queda mirando
+      // "Verificando tu acceso" sin error, sin pista y sin salida.
+      //
+      // Pasados 8 segundos se libera la pantalla con lo que haya. Es preferible
+      // una sesion a medias, que la aplicacion sabe manejar, a una espera que no
+      // termina nunca.
+      const red = setTimeout(() => {
+        console.warn('[sesion] la resolucion tardó demasiado; se libera la pantalla');
+        setState({ loading: false });
+      }, 8000);
+
       try {
         if (!isFirebaseConfigured || !AUTH) {
           setState({ user: null, loading: false });
@@ -379,10 +392,15 @@ export function AuthProvider({ children }) {
         }
 
         if (authUser) {
+          // `getIdToken()` NO se espera sin tope: cuando el token ya no vale
+          // —al cambiar la contraseña, el servidor tira las sesiones anteriores—
+          // Firebase se queda reintentando el refresco, y con el se quedaba
+          // colgada la resolucion entera de la sesion: "Verificando tu acceso"
+          // para siempre, sin error y sin nada que mirar.
           const accessToken =
             authUser.accessToken ??
             authUser.stsTokenManager?.accessToken ??
-            (await authUser.getIdToken?.()) ??
+            (await withTimeout(authUser.getIdToken?.(), null, 5000)) ??
             null;
 
           // La interfaz puede hidratarse desde sessionStorage antes de completar
@@ -485,6 +503,8 @@ export function AuthProvider({ children }) {
         console.error(error);
         setState({ user: null, loading: false });
         writeCachedSession(null);
+      } finally {
+        clearTimeout(red);
       }
     },
     [setState]
