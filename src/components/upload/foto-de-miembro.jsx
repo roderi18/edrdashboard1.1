@@ -26,10 +26,10 @@ import { RecorteDeFoto } from './recorte-de-foto';
 
 const TIPOS = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
 
-// El escudo, en la esquina de la foto ampliada. Se dibuja a su tamaño nativo
-// —48px, los que trae el archivo—, asi que se ve nitido y no hace falta
-// prepararlo aparte.
-const SELLO = '/exploradores-del-rey-icono.ico';
+// El escudo, en la esquina de la foto ampliada. Viene ya redondo, con
+// transparencia y a 192px: sobrado para dibujarlo a 56 y que se lea nitido
+// incluso en pantallas densas.
+const SELLO = '/watermark.webp';
 
 export function FotoDeMiembro({
   url,
@@ -145,12 +145,29 @@ export function FotoDeMiembro({
       <Dialog open={ampliada} onClose={() => setAmpliada(false)} maxWidth="lg">
         {/* La foto y el sello, en la misma caja: asi el sello se pega a la
             esquina de LA IMAGEN y no a la del dialogo, que puede sobrarle. */}
-        <Box sx={{ display: 'block', position: 'relative', lineHeight: 0 }}>
+        <Box
+          onContextMenu={(evento) => evento.preventDefault()}
+          sx={{ display: 'block', position: 'relative', lineHeight: 0 }}
+        >
           <Box
             component="img"
             src={url || undefined}
             alt={nombre}
-            sx={{ display: 'block', maxWidth: '92vw', maxHeight: '88vh' }}
+            draggable={false}
+            sx={{
+              display: 'block',
+              maxWidth: '92vw',
+              maxHeight: '88vh',
+              userSelect: 'none',
+              // El raton no llega a la imagen: llega al cristal de abajo. Sin
+              // esto, el menu del boton derecho seguiria ofreciendo "Guardar
+              // imagen como", porque el elemento senalado seria la foto.
+              pointerEvents: 'none',
+              WebkitUserSelect: 'none',
+              // En movil, mantener el dedo sobre una foto abre el menu de
+              // guardar. Esto lo apaga.
+              WebkitTouchCallout: 'none',
+            }}
           />
 
           {/* Sin capturar el raton: pulsar la foto tiene que seguir cerrando el
@@ -169,6 +186,28 @@ export function FotoDeMiembro({
               pointerEvents: 'none',
               // Para que se lea igual sobre una foto clara que sobre una oscura.
               filter: 'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55))',
+            }}
+          />
+
+          {/* EL CRISTAL.
+              Una capa transparente por encima de todo. Lo que el raton senala es
+              ESTO, no la foto, asi que el menu del boton derecho no trae
+              "Guardar imagen como" ni "Copiar imagen": no hay ninguna imagen
+              debajo del cursor que ofrecer.
+
+              Que quede dicho: esto quita las formas faciles —boton derecho,
+              arrastrar, mantener pulsado en el movil—. No es un candado. Quien
+              sepa abrir las herramientas del navegador ve la direccion del
+              archivo igual, y eso no hay CSS que lo impida. */}
+          <Box
+            onContextMenu={(evento) => evento.preventDefault()}
+            onDragStart={(evento) => evento.preventDefault()}
+            sx={{
+              inset: 0,
+              position: 'absolute',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
             }}
           />
         </Box>
