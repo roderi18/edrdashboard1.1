@@ -59,8 +59,11 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 // ----------------------------------------------------------------------
 
 const MAX_POST_IMAGES = PRINCIPAL_LIMITS.imagesPerPost;
-const PULL_REFRESH_THRESHOLD = 72;
-const PULL_REFRESH_MAX_DISTANCE = 120;
+// Requiere un arrastre real de unos 240px. Es deliberadamente más largo que
+// un gesto casual al intentar comenzar a desplazarse por el muro.
+const PULL_REFRESH_THRESHOLD = 100;
+const PULL_REFRESH_MAX_DISTANCE = 150;
+const PULL_REFRESH_RESISTANCE = 0.42;
 const BIRTHDAY_PRESET_MESSAGES = [
   'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
   'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
@@ -285,7 +288,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
       if (event.cancelable) event.preventDefault();
 
-      const distance = Math.min(PULL_REFRESH_MAX_DISTANCE, deltaY * 0.5);
+      const distance = Math.min(PULL_REFRESH_MAX_DISTANCE, deltaY * PULL_REFRESH_RESISTANCE);
       gesture.distance = distance;
 
       if (distance >= PULL_REFRESH_THRESHOLD && !gesture.thresholdNotified) {
