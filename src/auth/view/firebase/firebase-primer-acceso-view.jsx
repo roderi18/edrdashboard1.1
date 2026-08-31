@@ -38,6 +38,7 @@ import { SplashScreen } from 'src/components/loading-screen';
 import { useAuthContext } from '../../hooks';
 import { FormHead } from '../../components/form-head';
 import {
+  signOut,
   signInWithPassword,
   resendEmailVerification,
 } from '../../components/context/firebase';
@@ -96,10 +97,51 @@ export function FirebasePrimerAccesoView() {
   // que le de tiempo a leer el aviso del correo, sin que el guardia la eche.
   const [claveCambiada, setClaveCambiada] = useState(false);
 
+  // AQUI MANDA EL TOKEN, NO EL PERFIL.
+  //
+  // Esta pantalla esperaba a que se resolviera la sesion ENTERA para saber si
+  // tocaba pedir la clave. Esa resolucion pasa por el padron, y cuando el padron
+  // no contesta el perfil se queda en nada: la sesion existe en Firebase, pero
+  // la aplicacion no tiene `user`. La pantalla se quedaba entonces esperando
+  // para siempre algo que ya no iba a llegar, diciendo ademas que la contraseña
+  // habia quedado guardada cuando todavia no se habia tocado.
+  //
+  // La marca de "todavia no tiene contraseña propia" es un permiso del token,
+  // puesto por el servidor. Se lee de ahi: es la fuente de verdad, no hace falta
+  // red, y no depende de que el padron este de buenas. `null` mientras no se ha
+  // podido leer, para no decidir nada a ciegas.
+  const [marcaDelToken, setMarcaDelToken] = useState(null);
+
+  useEffect(() => {
+    let vigente = true;
+
+    const leerMarca = async () => {
+      const cuenta = AUTH?.currentUser;
+
+      if (!cuenta) {
+        if (vigente) setMarcaDelToken(null);
+        return;
+      }
+
+      const resultado = await cuenta.getIdTokenResult().catch(() => null);
+
+      if (vigente && resultado) setMarcaDelToken(resultado.claims?.debeCambiarClave === true);
+    };
+
+    leerMarca();
+
+    return () => {
+      vigente = false;
+    };
+  }, [loading, authenticated]);
+
+  /** Lo que dice el token; y si aun no se sabe, lo que diga el perfil. */
+  const debeCambiarla = marcaDelToken ?? user?.debeCambiarClave === true;
+
   // Esta pantalla no cuelga de AuthGuard, asi que se vigila sola. Sin sesion no
   // hay nada que cambiar —se va al inicio de sesion— y quien ya eligio su clave
   // no tiene por que volver a verla.
-  const puedeMostrarse = user?.debeCambiarClave === true || claveCambiada;
+  const puedeMostrarse = debeCambiarla === true || claveCambiada;
 
   // Solo se pregunta una vez por visita.
   const estadoRevisadoRef = useRef(false);
@@ -134,10 +176,11 @@ export function FirebasePrimerAccesoView() {
       return;
     }
 
-    // Con sesion pero sin perfil todavia: no se decide nada, se espera.
-    if (!user) return;
+    // Sin el token leido y sin perfil no se sabe nada: se espera. Basta con
+    // cualquiera de los dos, y el token llega sin pasar por la red.
+    if (marcaDelToken === null && !user) return;
 
-    if (user.debeCambiarClave !== true) {
+    if (debeCambiarla !== true) {
       router.replace(CONFIG.auth.redirectPath);
       return;
     }
@@ -158,7 +201,7 @@ export function FirebasePrimerAccesoView() {
         router.replace(CONFIG.auth.redirectPath);
       })
       .catch(() => null);
-  }, [loading, authenticated, user, claveCambiada, router, checkUserSession]);
+  }, [loading, authenticated, user, marcaDelToken, debeCambiarla, claveCambiada, router, checkUserSession]);
 
   // El boton "atras" del navegador no puede devolverle al panel —la sesion sigue
   // con la clave publica y el guardia le traeria de vuelta aqui, en bucle—, asi
@@ -419,17 +462,27 @@ export function FirebasePrimerAccesoView() {
           <Typography variant="h6">Esto está tardando más de lo normal</Typography>
 
           <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-            Tu contraseña quedó guardada. Lo que no llega es el resto de tu sesión, casi siempre por
-            una conexión lenta.
+            {claveCambiada
+              ? 'Tu contraseña quedó guardada. Lo que no llega es el resto de tu sesión, casi siempre por una conexión lenta.'
+              : 'Tu sesión está abierta, pero no terminamos de traer tu perfil. No se ha cambiado ninguna contraseña.'}
           </Typography>
 
-          <Button
-            variant="contained"
-            sx={{ mt: 3 }}
-            onClick={() => window.location.reload()}
-          >
-            Reintentar
-          </Button>
+          <Box sx={{ mt: 3, gap: 1.5, display: 'flex', justifyContent: 'center' }}>
+            <Button variant="contained" onClick={() => window.location.reload()}>
+              Reintentar
+            </Button>
+
+            {/* Nunca sin salida: se cierra la sesion a medias y se entra limpio. */}
+            <Button
+              variant="outlined"
+              onClick={async () => {
+                await signOut().catch(() => null);
+                window.location.assign(paths.auth.firebase.signIn);
+              }}
+            >
+              Entrar de nuevo
+            </Button>
+          </Box>
         </Box>
       );
     }
