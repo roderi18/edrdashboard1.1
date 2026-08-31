@@ -2539,6 +2539,31 @@ export async function marcarNotificacionComoAtendida(notificationId, idUsuario =
   );
 }
 
+/**
+ * Recuerda que mensajes de felicitacion ya salieron para este cumpleaños.
+ *
+ * La memoria vive en la propia notificacion —una sola por cumpleaños, compartida
+ * por todos los que la reciben—, asi que si quince personas felicitan a la misma
+ * persona, le llegan quince mensajes DISTINTOS.
+ *
+ * Va aqui y no en el servicio de felicitaciones porque las escrituras a
+ * Firestore estan reservadas a los ficheros que ya las hacian: la puerta de
+ * cambios es para lo que cambia la organizacion, y esto es la memoria de un
+ * sorteo.
+ */
+export async function recordarFelicitacionesEnviadas(notificationId, usados = []) {
+  asegurarFirebaseNotificaciones();
+
+  const id = String(notificationId || '').trim();
+
+  if (!id) return;
+
+  await updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id), {
+    'metadatos.felicitacionesUsadas': usados,
+    actualizadoEnServidor: serverTimestamp(),
+  });
+}
+
 export async function marcarNotificacionesComoLeidasPorUsuario(idUsuario) {
   asegurarFirebaseNotificaciones();
 

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
@@ -10,10 +12,17 @@ import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
 
+import {
+  esNotificacionDeCumpleanos,
+  enviarFelicitacionDeCumpleanos,
+} from 'src/services/felicitaciones-cumpleanos-service';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { notificationIcons } from './icons';
 
@@ -88,6 +97,8 @@ const getNotificationActionLabel = (notification = {}) => {
 };
 
 export function NotificationItem({ notification, onClickNotification, onMarkAsAttended }) {
+  const { user } = useAuthContext();
+  const [enviandoFelicitacion, setEnviandoFelicitacion] = useState(false);
   const router = useRouter();
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
@@ -130,6 +141,31 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     event.stopPropagation();
     // Sin await: la fila cambia en el acto y el guardado va por detras.
     onMarkAsAttended?.(notification);
+  };
+
+  // En un cumpleaños no hay nada que "atender": hay a quien felicitar. El boton
+  // manda por el chat un mensaje de la lista, elegido al azar, de parte de quien
+  // pulsa. La fila se marca como atendida despues, para que se vea que ya
+  // felicito y no lo haga dos veces sin querer.
+  const esCumpleanos = esNotificacionDeCumpleanos(notification);
+
+  const handleFelicitar = async (event) => {
+    event.stopPropagation();
+
+    if (enviandoFelicitacion) return;
+
+    setEnviandoFelicitacion(true);
+
+    try {
+      const enviada = await enviarFelicitacionDeCumpleanos({ notificacion: notification, usuario: user });
+
+      toast.success(`Felicitación enviada: “${enviada.texto}”`);
+      onMarkAsAttended?.(notification);
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo enviar la felicitación.');
+    } finally {
+      setEnviandoFelicitacion(false);
+    }
   };
 
   const renderAvatar = () => (
@@ -354,11 +390,20 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
           startIcon={<Iconify width={16} icon="eva:checkmark-fill" />}
           sx={{ pointerEvents: 'none' }}
         >
-          Atendido
+          {esCumpleanos ? 'Felicitación enviada' : 'Atendido'}
         </Button>
       ) : (
-        <Button size="small" variant="outlined" color="inherit" onClick={handleAttendAction}>
-          Marcar como atendida
+        <Button
+          size="small"
+          variant="outlined"
+          color="inherit"
+          disabled={enviandoFelicitacion}
+          startIcon={esCumpleanos ? <Iconify width={16} icon="solar:gift-bold" /> : null}
+          onClick={esCumpleanos ? handleFelicitar : handleAttendAction}
+        >
+          {esCumpleanos
+            ? (enviandoFelicitacion && 'Enviando...') || 'Enviar mensaje de felicitaciones'
+            : 'Marcar como atendida'}
         </Button>
       )}
     </Box>
