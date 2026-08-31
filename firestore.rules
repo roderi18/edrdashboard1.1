@@ -484,7 +484,19 @@ service cloud.firestore {
     }
 
     match /conversaciones_chat/{idConversacion} {
-      allow get: if esParticipante(resource.data);
+      // PREGUNTAR POR UNA CONVERSACION QUE NO EXISTE NO ES COLARSE.
+      //
+      // Antes de escribir a alguien por primera vez, el servidor comprueba si ya
+      // hay conversacion con esa persona. Si no la hay, `resource` llega nulo, y
+      // `resource.data` sobre nulo hace que la regla falle: Firestore contesta
+      // 403, no 404. El cliente solo se traga los 404, asi que ese 403 tumbaba el
+      // envio entero con un "permisos insuficientes" —y solo al ESTRENAR una
+      // conversacion; con las ya abiertas no pasaba—.
+      //
+      // Que no exista se responde con que no existe. Quien puede usar el chat
+      // puede preguntar; lo que hay dentro sigue siendo solo de sus participantes.
+      allow get: if (resource == null && puedeUsarChat())
+        || (resource != null && esParticipante(resource.data));
       allow list: if estaAutenticado()
         && 'idMiembros' in request.auth.token
         && request.auth.token.idMiembros is int

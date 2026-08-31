@@ -186,6 +186,24 @@ const guardarNotificacionConfigurada = async (notificacion) => {
     return null;
   }
 
+  // ESTA ESCRITURA ES DEL SERVIDOR, Y TIENE QUE FIRMAR COMO EL SERVIDOR.
+  //
+  // Se hacia con el SDK del navegador ejecutandose aqui, en el servidor, donde
+  // NO hay ninguna sesion: `request.auth` llega nulo y las reglas la niegan
+  // siempre. Y como el aviso se guardaba dentro del envio del mensaje, esa
+  // negativa tumbaba el envio entero: al que escribia le salia "permisos
+  // insuficientes" aunque su mensaje ya estuviera guardado.
+  //
+  // El Admin SDK escribe como lo que esto es: el servidor.
+  if (isAdminConfigured()) {
+    await getAdminDb()
+      .collection(COLECCIONES_NOTIFICACIONES.notificaciones)
+      .doc(notificacionConfigurada.id)
+      .set(notificacionConfigurada);
+
+    return notificacionConfigurada;
+  }
+
   await setDoc(
     doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacionConfigurada.id),
     notificacionConfigurada
@@ -902,6 +920,9 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
       primerMensaje
     );
 
+    // El aviso es un extra. El mensaje ya esta guardado: si el aviso falla, se
+    // anota y se sigue. Tumbar un mensaje entregado por su notificacion es
+    // exactamente el fallo que se acaba de arreglar.
     await createMessageNotifications({
       conversation: conversationDoc,
       message: primerMensaje,
