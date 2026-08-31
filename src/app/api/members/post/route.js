@@ -1,6 +1,7 @@
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
 import { getDivisions } from 'src/services/division-service';
+import { exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 
 const MEMBERS_ENDPOINT = 'https://systexploradores.somee.com/api/Miembros';
 const CREATE_ENDPOINT = `${MEMBERS_ENDPOINT}/SetMiembros`;
@@ -83,14 +84,17 @@ const esperar = (ms) =>
 // El miembro recien creado no siempre aparece en el listado al instante. Se
 // reintenta un par de veces antes de darlo por perdido: sin esto, la correccion
 // de la division se saltaba en silencio y el miembro se quedaba sin ella.
-const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = '', intentos = 3 }) => {
+const findCreatedMember = async ({
+  codigoMiembro,
+  createdMemberId,
+  authHeader = '',
+  intentos = 3,
+}) => {
   for (let intento = 0; intento < intentos; intento += 1) {
     if (intento > 0) {
-       
       await esperar(600);
     }
 
-     
     const membersRes = await fetch(`${GET_ALL_ENDPOINT}?t=${Date.now()}`, {
       cache: 'no-store',
       headers: {
@@ -101,7 +105,6 @@ const findCreatedMember = async ({ codigoMiembro, createdMemberId, authHeader = 
     });
 
     if (membersRes.ok) {
-       
       const membersJson = await membersRes.json();
       const members = getRowsFromApi(membersJson);
       const encontrado =
@@ -190,6 +193,12 @@ const ensureCreatedMemberDivision = async ({ createdMember, memberPayload, authH
 
 export async function POST(req) {
   try {
+    // Crear un miembro exige el permiso del cargo. Antes esta ruta no comprobaba
+    // NADA: con la URL y un JSON, cualquiera daba de alta a quien quisiera.
+    const noAutorizado = await exigirPermisoDeCargoRest(req, ['miembros.crear']);
+
+    if (noAutorizado) return noAutorizado;
+
     const authHeader = req.headers.get('authorization') || '';
     const body = await req.json();
     const divisions = await getDivisions();

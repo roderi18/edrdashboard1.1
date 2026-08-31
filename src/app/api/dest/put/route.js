@@ -1,33 +1,38 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
+import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+
 export async function PUT(req) {
-    try {
-        const body = await req.json();
+  try {
+    // Sin sesion no se toca un destacamento. El alcance —cual puede tocar— sigue
+    // decidiendose en el navegador.
+    const noAutorizado = await exigirSesionRest(req);
 
-        const res = await fetch(
-            'https://systexploradores.somee.com/api/Destacamentos/UpdateDestacamento',
-            {
-                method: 'POST', // 👈 tu API usa POST
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(body),
-            }
-        );
+    if (noAutorizado) return noAutorizado;
 
-        invalidateUpstream(UPSTREAM_KEYS.destacamentos);
+    const body = await req.json();
 
-        const text = await res.text();
+    const res = await fetch(
+      'https://systexploradores.somee.com/api/Destacamentos/UpdateDestacamento',
+      {
+        method: 'POST', // 👈 tu API usa POST
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
 
-        const parsed = text ? JSON.parse(text) : {};
+    invalidateUpstream(UPSTREAM_KEYS.destacamentos);
 
-        return Response.json(normalizeApiResponse(parsed), { status: res.status });
-    } catch (error) {
-        return Response.json(
-            { error: 'Error actualizando destacamento' },
-            { status: 500 }
-        );
-    }
+    const text = await res.text();
+
+    const parsed = text ? JSON.parse(text) : {};
+
+    return Response.json(normalizeApiResponse(parsed), { status: res.status });
+  } catch (error) {
+    return Response.json({ error: 'Error actualizando destacamento' }, { status: 500 });
+  }
 }

@@ -348,9 +348,7 @@ export const createDestApi = async (data, { usuario } = {}) => {
 
     const res = await fetch('/api/dest/post', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
 
@@ -400,9 +398,7 @@ export const createDestApi = async (data, { usuario } = {}) => {
 const escribirDestacamento = async (payload) => {
     const res = await fetch('/api/dest/put', {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
 

@@ -2,6 +2,8 @@ import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 
+import { authHeaders } from './member-service';
+
 const provinces = provinciasData;
 const municipios = municipiosData.map((m, index) => ({
     ...m,
@@ -69,10 +71,7 @@ export const createChurchApi = async (data) => {
 
     const res = await fetch('/api/churches/post', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json, text/plain, */*',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
         body: JSON.stringify(payload),
         cache: 'no-store',
     });
@@ -102,10 +101,7 @@ export const updateChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
     const res = await fetch('/api/churches/put', {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json, text/plain, */*',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
         body: JSON.stringify({
             id: data?.id || data?.churchId,
             name: data?.churchName,

@@ -3,7 +3,7 @@ import { generateMemberId } from 'src/utils/generate-member-id';
 
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 
-import { getMembers } from './member-service';
+import { getMembers , authHeaders } from './member-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 
 // ----------------------------------------------------------------------
@@ -95,7 +95,7 @@ export async function asegurarPastorDelDestacamento({
 
     const res = await fetch('/api/members/post/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         idMiembros: 0,
         codigoMiembro,

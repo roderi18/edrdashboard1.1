@@ -49,7 +49,7 @@ export const compararCambios = (antes, despues, campos) =>
 const escribirSeccion = async (sectional) => {
     const res = await fetch('/api/sectional/put', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(sectional),
     });
 
@@ -266,9 +266,7 @@ export const saveSectional = async (payload, { usuario } = {}) => {
 const crearSeccionEnLaApi = async (payload) => {
     const res = await fetch('/api/sectional/post', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
 

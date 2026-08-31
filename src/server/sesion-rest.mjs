@@ -70,7 +70,7 @@ export const identificarPorRest = async (req, fetchImpl = fetch) => {
  * Misma respuesta que `exigirSesion` del Admin SDK, para que las rutas no noten
  * por cual de los dos caminos se les comprobo.
  */
-export const exigirSesionRest = async (req) => {
+export const exigirSesionRest = async (req, fetchImpl = fetch) => {
   if (!claveApi()) {
     return Response.json(
       { error: 'El servidor no puede comprobar la sesión ahora mismo.' },
@@ -78,7 +78,7 @@ export const exigirSesionRest = async (req) => {
     );
   }
 
-  const quien = await identificarPorRest(req);
+  const quien = await identificarPorRest(req, fetchImpl);
 
   if (!quien) {
     return Response.json(
@@ -149,6 +149,76 @@ const rolDelDocumento = async (uid, token, fetchImpl = fetch) => {
   // Su documento de acceso y, si ahi no hay nada, el de administradores: un
   // administrador nombrado a mano puede vivir solo en `admins`.
   return (await leer('usuarios_roles')) || (await leer('admins'));
+};
+
+/**
+ * Su documento de acceso completo: el rol y la lista de permisos de TODOS sus
+ * cargos, que escribe el Admin SDK al sincronizar. Se lee por REST con su propio
+ * token, por lo mismo que arriba: importar `firebase-admin` aqui tumbaria estas
+ * rutas enteras en Netlify, y son las que sirven las listas.
+ */
+const accesoDelSolicitante = async (uid, token, fetchImpl = fetch) => {
+  const proyecto = String(
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || ''
+  ).trim();
+
+  if (!proyecto || !uid || !token) return { rol: '', permisos: [] };
+
+  const leer = async (coleccion) => {
+    const respuesta = await fetchImpl(
+      `https://firestore.googleapis.com/v1/projects/${proyecto}/databases/(default)/documents/${coleccion}/${encodeURIComponent(uid)}`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
+    ).catch(() => null);
+
+    if (!respuesta?.ok) return null;
+
+    const cuerpo = await respuesta.json().catch(() => null);
+    const campos = cuerpo?.fields ?? {};
+
+    return {
+      rol: normalizarRol(
+        campos.rolId?.stringValue ?? campos.roleId?.stringValue ?? campos.rol?.stringValue
+      ),
+      permisos: (campos.permisos?.arrayValue?.values ?? [])
+        .map((valor) => String(valor?.stringValue ?? '').trim())
+        .filter(Boolean),
+    };
+  };
+
+  const propio = await leer('usuarios_roles');
+
+  if (propio?.rol || propio?.permisos?.length) return propio;
+
+  return (await leer('admins')) ?? { rol: '', permisos: [] };
+};
+
+/**
+ * Guarda por PERMISO de cargo. Devuelve null si puede pasar, o la Response del
+ * error.
+ *
+ * Es la misma pregunta que hacen las reglas de Firestore —`tienePermisoDeCargo`—
+ * llevada a las rutas que escriben en la API .NET, donde no hay reglas que
+ * valgan: hasta ahora no comprobaban ni que hubiera sesion.
+ *
+ * El Administrador Global pasa siempre: sus permisos no salen de un cargo.
+ */
+export const exigirPermisoDeCargoRest = async (req, permisos = [], fetchImpl = fetch) => {
+  const sinSesion = await exigirSesionRest(req, fetchImpl);
+
+  if (sinSesion) return sinSesion;
+
+  const quien = await identificarPorRest(req, fetchImpl);
+  const token = leerToken(req);
+  const acceso = await accesoDelSolicitante(quien?.uid, token, fetchImpl);
+  const rol = acceso.rol || normalizarRol(quien?.claims?.rol);
+
+  if (rol === ADMINISTRADOR_GLOBAL) return null;
+
+  const requeridos = Array.isArray(permisos) ? permisos : [permisos];
+
+  if (requeridos.some((permiso) => acceso.permisos.includes(permiso))) return null;
+
+  return Response.json({ error: 'Tu cargo no puede realizar esta acción.' }, { status: 403 });
 };
 
 /**

@@ -27,7 +27,7 @@ const CAMPOS_REGION = {
 const escribirRegion = async (payload) => {
   const res = await fetch('/api/regional/put', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
 
@@ -146,9 +146,7 @@ export const saveRegional = async (payload, { usuario } = {}) => {
 
     const res = await fetch('/api/regional/post', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
 
