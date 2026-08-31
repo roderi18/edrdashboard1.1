@@ -18,8 +18,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
+import { optimizeImageFile, leerDimensionesDeImagen } from 'src/utils/image-optimizer';
 import { validatePrincipalImages, validatePrincipalMessage } from 'src/utils/principal-content';
 
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -45,6 +45,36 @@ const ESTADO_ACTIVO = 'activo';
 const VISIBILIDAD_PUBLICA = 'publico';
 const COLECCIONES_USUARIOS_NOTIFICACIONES = ['users', 'usuarios_roles', 'admins'];
 const PRINCIPAL_PAGE_SIZE = 10;
+
+const getUserAccessToken = async (usuario = {}) =>
+  usuario?.accessToken || usuario?.stsTokenManager?.accessToken || usuario?.getIdToken?.() || '';
+
+const callPrivatePublicationMetadata = async ({ accion, idPublicacion, usuario, clave = '' }) => {
+  const token = await getUserAccessToken(usuario);
+
+  if (!token) throw new Error('La sesión no está disponible. Vuelve a iniciar sesión.');
+
+  const response = await fetch('/api/principal/metadatos-privados', {
+    // Registra o consulta metadatos privados de la publicación; no modifica la
+    // ficha de ningún miembro y el servidor valida sesión, rol y contraseña.
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ accion, idPublicacion, clave }),
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'No se pudo consultar la información privada.');
+  }
+
+  return payload;
+};
+
+export const revelarIpPublicacion = async ({ idPublicacion, usuario, clave }) =>
+  callPrivatePublicationMetadata({ accion: 'revelar_ip', idPublicacion, usuario, clave });
 
 const createId = (prefix) =>
   `${prefix}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
@@ -205,6 +235,8 @@ const uploadPrincipalImages = async ({
       tipoArchivo: 'imagen',
       nombreArchivo: image.file?.name || `imagen-${index + 1}`,
       tamanoBytes: image.file?.size || 0,
+      tamanoMostradoBytes: image.file?.size || 0,
+      fechaCarga: new Date().toISOString(),
       orden: index,
       local: true,
     }));
@@ -224,6 +256,9 @@ const uploadPrincipalImages = async ({
       // se sube el original: mejor pesado que perdido.
       const optimizado = await optimizeImageFile(file, 'publicacion').catch(() => file);
       const paraSubir = optimizado ?? file;
+      // Las medidas viajan con la foto: son las que dejan que el muro reserve el
+      // hueco exacto antes de que la imagen llegue.
+      const medidas = await leerDimensionesDeImagen(paraSubir);
       const extension = getFileExtension(paraSubir) || getFileExtension(file);
       const storagePath = `principal/${idPublicacion}/${tipo}_${index + 1}_${Date.now()}.${extension}`;
       const storageRef = ref(FIREBASE_STORAGE, storagePath);
@@ -247,6 +282,11 @@ const uploadPrincipalImages = async ({
           downloadUrl: await getDownloadURL(storageRef),
           storagePath,
           storageRef,
+          tamanoMostradoBytes: paraSubir?.size || file?.size || 0,
+          ancho: medidas?.ancho || 0,
+          alto: medidas?.alto || 0,
+          seSubioElOriginal: paraSubir === file,
+          fechaCarga: new Date().toISOString(),
         };
       } catch (error) {
         await deleteObject(storageRef).catch(() => null);
@@ -274,8 +314,14 @@ const uploadPrincipalImages = async ({
     tipoMime: files[index]?.type || '',
     nombreArchivo: files[index]?.name || `imagen-${index + 1}`,
     tamanoBytes: files[index]?.size || 0,
+    tamanoMostradoBytes: item.tamanoMostradoBytes || files[index]?.size || 0,
+    ancho: item.ancho || 0,
+    alto: item.alto || 0,
+    fechaCarga: item.fechaCarga,
     orden: index,
-    calidadOriginal: true,
+    // Decia `true` siempre, pasara lo que pasara. Ahora dice lo que de verdad
+    // se subio: solo es el original cuando la optimizacion no pudo con el.
+    calidadOriginal: item.seSubioElOriginal === true,
   }));
 };
 
@@ -333,6 +379,19 @@ const publicationToUi = ({
     ? publication.archivosMultimedia
     : [];
   const mediaItems = archivosMultimedia.map((item) => item.url).filter(Boolean);
+  const mediaDetails = archivosMultimedia
+    .filter((item) => item?.url)
+    .map((item) => ({
+      url: item.url,
+      nombreOriginal: item.nombreArchivo || item.nombreOriginal || '',
+      fechaHora: toIso(item.fechaCarga || item.fechaCreacion || publication.fechaCreacion),
+      tamanoBytes: Number(item.tamanoMostradoBytes ?? item.tamanoBytes ?? item.tamano ?? 0),
+      tamanoOriginalBytes: Number(item.tamanoBytes ?? item.tamanoOriginalBytes ?? 0),
+      // Cero en las publicaciones de antes: no se guardaban. Para esas el muro
+      // mide la foto al vuelo y se acuerda.
+      ancho: Number(item.ancho ?? 0),
+      alto: Number(item.alto ?? 0),
+    }));
   const commentItems = comments.map(commentToUi);
   const repliesByParent = commentItems.reduce((acc, comment) => {
     if (!comment.idComentarioPadre) return acc;
@@ -351,6 +410,7 @@ const publicationToUi = ({
     createdAt: toIso(publication.fechaCreacion),
     media: mediaItems[0] || '',
     mediaItems,
+    mediaDetails,
     message: publication.mensaje || '',
     personLikes: reactions.map(reactionToLike),
     comments: rootComments,
@@ -831,6 +891,16 @@ export async function crearPublicacionPrincipal({
       await deleteUploadedPrincipalImages(archivosMultimedia);
       throw error;
     }
+
+    // Se guarda aparte: la IP nunca viaja dentro del documento público ni se
+    // entrega de vuelta al navegador que creó la publicación.
+    await callPrivatePublicationMetadata({
+      accion: 'registrar_ip',
+      idPublicacion,
+      usuario,
+    }).catch((error) => {
+      console.warn('[principal] no se pudo registrar la IP privada de la publicación', error);
+    });
   }
 
   registrarAuditoriaSilenciosa({

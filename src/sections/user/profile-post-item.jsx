@@ -31,8 +31,9 @@ import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fShortenNumber } from 'src/utils/format-number';
-import { fDate, fTime, fTimestamp } from 'src/utils/format-time';
+import { isAdminGlobal } from 'src/utils/org-level-access';
+import { fData, fShortenNumber } from 'src/utils/format-number';
+import { fDate, fTime, fDateTime, fTimestamp } from 'src/utils/format-time';
 import {
   PRINCIPAL_LIMITS,
   PRINCIPAL_IMAGE_ACCEPT,
@@ -40,6 +41,7 @@ import {
 } from 'src/utils/principal-content';
 
 import { CONFIG } from 'src/global-config';
+import { revelarIpPublicacion } from 'src/services/principal-service';
 import { crearNotificacionReportePublicacion } from 'src/services/notification-service';
 
 import { toast } from 'src/components/snackbar';
@@ -63,6 +65,27 @@ const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const COMMENTS_PAGE_SIZE = 6;
 const MEDIA_PREVIEW_LIMIT = 4;
+
+// Lo que se reserva mientras no se sabe cuanto mide la foto. Solo lo usan las
+// publicaciones de antes, que se subieron sin guardar sus medidas.
+const PROPORCION_POR_DEFECTO = 4 / 3;
+
+// Los limites de Instagram: ni mas ancha que 16:9 ni mas alta que 4:5. Una foto
+// muy vertical se comeria la pantalla entera y habria que deslizar solo para
+// pasarla. Fuera de esos limites la foto se sigue viendo ENTERA, con franjas.
+const PROPORCION_MAS_ANCHA = 16 / 9;
+const PROPORCION_MAS_ALTA = 4 / 5;
+
+// Memoria compartida por todo el muro: una vez medida una foto, no se vuelve a
+// medir. Es lo que evita que al volver a subir se repita el salto.
+const proporcionesMedidas = new Map();
+
+const acotarProporcion = (proporcion) =>
+  Math.min(PROPORCION_MAS_ANCHA, Math.max(PROPORCION_MAS_ALTA, proporcion));
+
+const proporcionValida = (ancho, alto) =>
+  Number(ancho) > 0 && Number(alto) > 0 ? acotarProporcion(Number(ancho) / Number(alto)) : null;
+
 const REMINDER_MENU_OPEN_DELAY_MS = 300;
 const HASHTAG_REGEX = /(#[A-Za-zÀ-ÿ0-9_]+)/g;
 const HASHTAG_EXACT_REGEX = /^#[A-Za-zÀ-ÿ0-9_]+$/;
@@ -142,6 +165,16 @@ const formatPostCreatedAt = (input) => {
   }
 
   return `${fDate(input, 'DD MMM YYYY').toLowerCase()} ${fTime(input)}`;
+};
+
+const getImageNameFromUrl = (url = '') => {
+  const encodedName = String(url).split('/').pop()?.split('?')[0] || '';
+
+  try {
+    return decodeURIComponent(encodedName);
+  } catch {
+    return encodedName;
+  }
 };
 
 const saveLocalReportNotification = ({ post, reason, user, url }) => {
@@ -246,6 +279,11 @@ export function ProfilePostItem({
   const [reminderAnchorEl, setReminderAnchorEl] = useState(null);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [imageInfoDialogOpen, setImageInfoDialogOpen] = useState(false);
+  const [ipPasswordDialogOpen, setIpPasswordDialogOpen] = useState(false);
+  const [ipPassword, setIpPassword] = useState('');
+  const [revealedIp, setRevealedIp] = useState('');
+  const [revealingIp, setRevealingIp] = useState(false);
   const [reported, setReported] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -258,12 +296,8 @@ export function ProfilePostItem({
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportSending, setReportSending] = useState(false);
 
-  // La foto suelta no trae medidas: hasta que no llega, el navegador no sabe
-  // cuanto va a ocupar y la publicacion mide casi cero de alto. Con veinte
-  // publicaciones apiladas en unos pocos pixeles, TODAS caen dentro del margen
-  // de carga del navegador y se descargan de golpe, aunque nadie haya deslizado.
-  // Se le guarda el sitio hasta que la imagen se mide sola.
-  const [fotoSueltaMedida, setFotoSueltaMedida] = useState(false);
+  // Fuerza un repintado cuando se acaba de medir una foto que no traia medidas.
+  const [, anotarMedicion] = useState(0);
   const [highlightedCommentId, setHighlightedCommentId] = useState('');
   const [visibleRootCommentsCount, setVisibleRootCommentsCount] = useState(COMMENTS_PAGE_SIZE);
 
@@ -279,7 +313,45 @@ export function ProfilePostItem({
   const visibleMediaItems = useMemo(() => mediaItems.slice(0, MEDIA_PREVIEW_LIMIT), [mediaItems]);
   const hiddenMediaCount = Math.max(mediaItems.length - MEDIA_PREVIEW_LIMIT, 0);
   const selectedMedia = mediaItems[selectedMediaIndex] || mediaItems[0] || '';
+  const selectedMediaDetails = post.mediaDetails?.[selectedMediaIndex] || {};
   const hasMultipleMedia = mediaItems.length > 1;
+
+  // La proporcion de cada foto, por este orden: la que se guardo al subirla, la
+  // que ya se midio en esta sesion, y de ultimo un 4/3 provisional para las
+  // publicaciones viejas, que se subieron sin medidas.
+  const proporcionesGuardadas = useMemo(() => {
+    const mapa = new Map();
+
+    (post.mediaDetails || []).forEach((detalle) => {
+      const proporcion = proporcionValida(detalle?.ancho, detalle?.alto);
+
+      if (detalle?.url && proporcion) mapa.set(detalle.url, proporcion);
+    });
+
+    return mapa;
+  }, [post.mediaDetails]);
+
+  const proporcionDe = useCallback(
+    (url) =>
+      proporcionesGuardadas.get(url) || proporcionesMedidas.get(url) || PROPORCION_POR_DEFECTO,
+    [proporcionesGuardadas]
+  );
+
+  /** Una foto vieja acaba de llegar: se le toman las medidas y se recuerdan. */
+  const recordarMedida = useCallback((url, evento) => {
+    if (!url || proporcionesMedidas.has(url)) return;
+
+    const proporcion = proporcionValida(
+      evento?.target?.naturalWidth,
+      evento?.target?.naturalHeight
+    );
+
+    if (!proporcion) return;
+
+    proporcionesMedidas.set(url, proporcion);
+    anotarMedicion((valor) => valor + 1);
+  }, []);
+  const canViewImageInfo = isAdminGlobal(user);
   const commentsCount = getCommentsCount(comments);
   const currentCommentFilter =
     COMMENT_FILTERS.find((filter) => filter.value === commentFilter) || COMMENT_FILTERS[0];
@@ -329,6 +401,13 @@ export function ProfilePostItem({
       user?.codigoMiembro &&
       String(author.codigoMiembro) === String(user.codigoMiembro)
     );
+
+  const imageOriginalName =
+    selectedMediaDetails.nombreOriginal ||
+    getImageNameFromUrl(selectedMedia) ||
+    'No disponible';
+  const imageDateTime = selectedMediaDetails.fechaHora || post.createdAt;
+  const imageSize = Number(selectedMediaDetails.tamanoBytes || 0);
 
   useEffect(() => {
     setComments(post.comments || []);
@@ -807,6 +886,35 @@ export function ProfilePostItem({
     handleSelectMedia(nextIndex);
   }, [handleSelectMedia, mediaItems.length, selectedMediaIndex]);
 
+  const handleCloseImageInfo = useCallback(() => {
+    setImageInfoDialogOpen(false);
+    setIpPasswordDialogOpen(false);
+    setIpPassword('');
+    setRevealedIp('');
+  }, []);
+
+  const handleRevealIp = useCallback(async () => {
+    if (!ipPassword.trim() || revealingIp) return;
+
+    setRevealingIp(true);
+
+    try {
+      const result = await revelarIpPublicacion({
+        idPublicacion: post.id,
+        usuario: user,
+        clave: ipPassword,
+      });
+
+      setRevealedIp(String(result?.ip || ''));
+      setIpPassword('');
+      setIpPasswordDialogOpen(false);
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo mostrar la IP.');
+    } finally {
+      setRevealingIp(false);
+    }
+  }, [ipPassword, post.id, revealingIp, user]);
+
   const handleOpenDeleteDialog = useCallback(() => {
     setMenuAnchorEl(null);
     setDeleteDialogOpen(true);
@@ -1073,6 +1181,20 @@ export function ProfilePostItem({
             >
               <Iconify icon="solar:trash-bin-trash-bold" />
               Borrar publicacion
+            </MenuItem>
+          )}
+
+          {canViewImageInfo && mediaItems.length > 0 && (
+            <MenuItem
+              onMouseEnter={handleCloseReminderMenu}
+              onClick={() => {
+                setMenuAnchorEl(null);
+                handleCloseReminderMenu();
+                setImageInfoDialogOpen(true);
+              }}
+            >
+              <Iconify icon="solar:info-circle-bold" />
+              Información de la imagen
             </MenuItem>
           )}
 
@@ -1478,8 +1600,10 @@ export function ProfilePostItem({
             type="button"
             onClick={() => handleOpenPreview(0)}
             aria-label="Abrir imagen de la publicacion"
-            // Sin proporcion fija: la imagen manda. Con 4/3 y `cover` se recortaba
-            // lo que no cupiera —a un certificado se le comian los bordes—.
+            // La proporcion la sigue mandando la imagen: con 4/3 y `cover` se
+            // recortaba lo que no cupiera —a un certificado se le comian los
+            // bordes—. Lo que cambia es CUANDO se sabe: ahora desde el primer
+            // pintado, no cuando la foto termina de llegar.
             sx={{
               p: 0,
               m: 0,
@@ -1490,9 +1614,12 @@ export function ProfilePostItem({
               borderRadius: 1.5,
               cursor: 'pointer',
               bgcolor: 'background.neutral',
-              // Sitio reservado mientras la foto no ha llegado. En cuanto se mide
-              // sola, se suelta: la proporcion la sigue mandando la imagen.
-              ...(fotoSueltaMedida ? null : { minHeight: { xs: 320, sm: 420 } }),
+              // El hueco EXACTO que va a ocupar la foto, reservado de entrada.
+              // Sin esto la publicacion mide cero de alto hasta que la imagen
+              // llega, y al llegar todo pega un salto que deja a medio pintar las
+              // fotos de al lado: es el "se ve cortada hasta que deslizo y vuelvo
+              // a subir". Con el hueco correcto no hay salto que dar.
+              aspectRatio: proporcionDe(mediaItems[0]),
             }}
           >
             <Box
@@ -1501,16 +1628,13 @@ export function ProfilePostItem({
               decoding="async"
               alt={post.message || post.media}
               src={mediaItems[0]}
-              onLoad={() => setFotoSueltaMedida(true)}
-              // Si la foto no carga, se suelta igual: dejar el hueco abierto
-              // para siempre seria peor que no haberlo reservado.
-              onError={() => setFotoSueltaMedida(true)}
+              onLoad={(evento) => recordarMedida(mediaItems[0], evento)}
               sx={{
                 width: 1,
-                height: 'auto',
+                height: 1,
                 display: 'block',
-                // Tope para que una foto muy vertical no ocupe la pantalla entera.
-                maxHeight: { xs: '70vh', sm: '75vh' },
+                // `contain`: la foto se ve ENTERA. Como el hueco lleva su misma
+                // proporcion, encaja justa, sin franjas y sin recortar nada.
                 objectFit: 'contain',
                 objectPosition: 'center',
               }}
@@ -1903,6 +2027,140 @@ export function ProfilePostItem({
     </Dialog>
   );
 
+  const renderImageInfoDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="xs"
+      open={imageInfoDialogOpen}
+      onClose={handleCloseImageInfo}
+    >
+      <DialogTitle>Información de la imagen</DialogTitle>
+
+      <DialogContent>
+        <Stack spacing={2.25} sx={{ pt: 1 }}>
+          {hasMultipleMedia && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Imagen {selectedMediaIndex + 1} de {mediaItems.length}
+            </Typography>
+          )}
+
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Nombre original
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
+              {imageOriginalName}
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Fecha y hora
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              {imageDateTime ? fDateTime(imageDateTime, 'DD/MM/YYYY h:mm a') : 'No disponible'}
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Tamaño de la imagen
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              {imageSize > 0 ? fData(imageSize) : 'No disponible'}
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              IP del equipo
+            </Typography>
+            <Box sx={{ gap: 0.75, mt: 0.25, display: 'flex', alignItems: 'center' }}>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                {revealedIp || '***.***.***.***'}
+              </Typography>
+              <IconButton
+                size="small"
+                aria-label={revealedIp ? 'Ocultar IP' : 'Mostrar IP'}
+                onClick={() => {
+                  if (revealedIp) {
+                    setRevealedIp('');
+                  } else {
+                    setIpPassword('');
+                    setIpPasswordDialogOpen(true);
+                  }
+                }}
+              >
+                <Iconify
+                  icon={revealedIp ? 'solar:eye-closed-bold' : 'solar:eye-bold'}
+                  width={18}
+                />
+              </IconButton>
+            </Box>
+          </Box>
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button variant="contained" onClick={handleCloseImageInfo}>
+          Cerrar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const renderIpPasswordDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="xs"
+      open={ipPasswordDialogOpen}
+      onClose={() => {
+        if (revealingIp) return;
+
+        setIpPasswordDialogOpen(false);
+        setIpPassword('');
+      }}
+    >
+      <DialogTitle>Ver IP del equipo</DialogTitle>
+
+      <DialogContent>
+        <TextField
+          fullWidth
+          autoFocus
+          type="password"
+          label="Contraseña"
+          value={ipPassword}
+          disabled={revealingIp}
+          onChange={(event) => setIpPassword(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') handleRevealIp();
+          }}
+          sx={{ mt: 1 }}
+        />
+      </DialogContent>
+
+      <DialogActions>
+        <Button
+          color="inherit"
+          disabled={revealingIp}
+          onClick={() => {
+            setIpPasswordDialogOpen(false);
+            setIpPassword('');
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button
+          variant="contained"
+          disabled={revealingIp || !ipPassword.trim()}
+          onClick={handleRevealIp}
+        >
+          {revealingIp ? 'Verificando...' : 'Mostrar IP'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   const renderDetailDialog = () => (
     <Dialog
       fullWidth
@@ -2110,6 +2368,8 @@ export function ProfilePostItem({
       {renderReportDialog()}
       {renderDeleteDialog()}
       {renderReminderDialog()}
+      {renderImageInfoDialog()}
+      {renderIpPasswordDialog()}
       {renderDetailDialog()}
     </>
   );

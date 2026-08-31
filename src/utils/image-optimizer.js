@@ -108,6 +108,29 @@ const drawImageToCanvas = ({ image, width, height }) => {
   return canvas;
 };
 
+/**
+ * Las medidas reales de una imagen, o `null` si no se pueden leer.
+ *
+ * Se guardan al subir para que el muro pueda reservar EXACTAMENTE el hueco que
+ * la foto va a ocupar, antes de que la foto llegue. Sin esto el navegador le da
+ * cero de alto, las publicaciones se amontonan, y al llegar cada imagen todo da
+ * un salto que rompe el pintado de las de al lado.
+ */
+export async function leerDimensionesDeImagen(file) {
+  if (!(file instanceof File)) return null;
+  if (!String(file.type || '').startsWith('image/')) return null;
+
+  try {
+    const image = await loadImageElement(file);
+    const ancho = image.naturalWidth || image.width || 0;
+    const alto = image.naturalHeight || image.height || 0;
+
+    return ancho > 0 && alto > 0 ? { ancho, alto } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function optimizeImageFile(file, presetOrOptions = 'general') {
   if (!(file instanceof File)) return file;
   if (!String(file.type || '').startsWith('image/')) return file;
