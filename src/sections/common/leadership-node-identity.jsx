@@ -238,6 +238,8 @@ export function LeadershipStructureNode({ name, role, avatarUrl, sx, ...other })
       {avatarUrl && (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           alt={name}
           src={avatarUrl}
           sx={{ width: 36, height: 36, flexShrink: 0, objectFit: 'contain' }}

@@ -152,6 +152,8 @@ function DivisionOptionContent({ option }) {
       {iconSrc ? (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           alt=""
           src={iconSrc}
           sx={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}

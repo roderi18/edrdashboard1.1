@@ -454,6 +454,8 @@ export function AwardsManagerTableRow({
                   return customPdf ? (
                     <Box
                       component="img"
+                      loading="lazy"
+                      decoding="async"
                       src={customPdf.src}
                       sx={{
                         width: customPdf.size,
@@ -473,6 +475,8 @@ export function AwardsManagerTableRow({
                 return (
                   <Box
                     component="img"
+                    loading="lazy"
+                    decoding="async"
                     src={customFolder?.src || '/assets/icons/files/ic-folder.svg'}
                     sx={{
                       width: customFolder?.size ?? 32,

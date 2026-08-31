@@ -69,6 +69,7 @@ export function ChatNavItem({
       <AvatarGroup variant="compact" sx={{ width: 48, height: 48 }}>
         {participants.slice(0, 2).map((participant, index) => (
           <Avatar
+            slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
             key={`${participant.id ?? participant.idMiembros ?? participant.name ?? 'participante'}-${index}`}
             alt={participant.name}
             src={participant.avatarUrl}
@@ -86,6 +87,7 @@ export function ChatNavItem({
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
     >
       <Avatar
+        slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
         alt={singleParticipant?.name}
         src={singleParticipant?.avatarUrl}
         sx={{ width: 48, height: 48 }}

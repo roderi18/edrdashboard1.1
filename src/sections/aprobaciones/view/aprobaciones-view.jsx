@@ -70,6 +70,8 @@ const mostrarValor = (valor) => {
     return (
       <Box
         component="img"
+        loading="lazy"
+        decoding="async"
         src={String(valor)}
         alt=""
         sx={{

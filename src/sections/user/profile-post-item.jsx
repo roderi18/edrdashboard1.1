@@ -1187,6 +1187,8 @@ export function ProfilePostItem({
       {comment.imageUrl && (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           src={comment.imageUrl}
           alt={comment.message || 'Comentario'}
           sx={{
@@ -1299,7 +1301,7 @@ export function ProfilePostItem({
       {visibleComments.map((comment) => (
         <Stack key={comment.id} spacing={1}>
           <Box sx={{ gap: 2, display: 'flex' }}>
-            <Avatar alt={comment.author.name} src={comment.author.avatarUrl} />
+            <Avatar alt={comment.author.name} src={comment.author.avatarUrl} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
 
             <Box sx={{ flexGrow: 1 }}>
               {renderCommentContent(comment)}
@@ -1323,6 +1325,7 @@ export function ProfilePostItem({
               {comment.replies.map((reply) => (
                 <Box key={reply.id} sx={{ gap: 1.5, display: 'flex' }}>
                   <Avatar
+                    slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
                     alt={reply.author.name}
                     src={reply.author.avatarUrl}
                     sx={{ width: 32, height: 32 }}
@@ -1371,6 +1374,8 @@ export function ProfilePostItem({
         >
           <Box
             component="img"
+            loading="lazy"
+            decoding="async"
             src={commentImage.previewUrl}
             alt={commentImage.file.name}
             sx={{ width: 42, height: 42, borderRadius: 1, objectFit: 'cover' }}
@@ -1482,6 +1487,8 @@ export function ProfilePostItem({
           >
             <Box
               component="img"
+              loading="lazy"
+              decoding="async"
               alt={post.message || post.media}
               src={mediaItems[0]}
               sx={{
@@ -1539,6 +1546,8 @@ export function ProfilePostItem({
             >
               <Box
                 component="img"
+                loading="lazy"
+                decoding="async"
                 alt={`${post.message || 'Publicacion'} ${index + 1}`}
                 src={media}
                 sx={{
@@ -1628,7 +1637,7 @@ export function ProfilePostItem({
             }}
           >
             {displayedLikes.map((person, index) => (
-              <Avatar key={`${person.name}-${index}`} alt={person.name} src={person.avatarUrl} />
+              <Avatar key={`${person.name}-${index}`} alt={person.name} src={person.avatarUrl} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
             ))}
           </AvatarGroup>
         )}
@@ -1945,6 +1954,8 @@ export function ProfilePostItem({
           >
             <Box
               component="img"
+              loading="lazy"
+              decoding="async"
               src={selectedMedia}
               alt={post.message || 'Publicación'}
               sx={{

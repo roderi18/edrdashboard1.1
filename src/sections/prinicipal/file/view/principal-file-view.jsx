@@ -121,6 +121,8 @@ export function PrincipalFileView() {
               icon={
                 <Box
                   component="img"
+                  loading="lazy"
+                  decoding="async"
                   alt="Dropbox"
                   src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-dropbox.svg`}
                   sx={{ width: 48, height: 48 }}
@@ -137,6 +139,8 @@ export function PrincipalFileView() {
               icon={
                 <Box
                   component="img"
+                  loading="lazy"
+                  decoding="async"
                   alt="Google Drive"
                   src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-drive.svg`}
                   sx={{ width: 48, height: 48 }}
@@ -153,6 +157,8 @@ export function PrincipalFileView() {
               icon={
                 <Box
                   component="img"
+                  loading="lazy"
+                  decoding="async"
                   alt="OneDrive"
                   src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-onedrive.svg`}
                   sx={{ width: 48, height: 48 }}

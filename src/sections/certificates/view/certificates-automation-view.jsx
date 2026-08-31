@@ -2130,6 +2130,8 @@ export function CertificatesAutomationView() {
                 {templateDraft.dataUrl ? (
                   <Box
                     component="img"
+                    loading="lazy"
+                    decoding="async"
                     src={templateDraft.dataUrl}
                     alt={templateDraft.name || 'Certificado importado'}
                     sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
@@ -2300,6 +2302,8 @@ export function CertificatesAutomationView() {
                         {isQrTemplateField(field) ? (
                           <Box
                             component="img"
+                            loading="lazy"
+                            decoding="async"
                             src={SAMPLE_QR_CODE_SRC}
                             alt="QR"
                             sx={{ width: 1, height: 1, display: 'block' }}
@@ -2632,6 +2636,8 @@ export function CertificatesAutomationView() {
                     >
                       <Box
                         component="img"
+                        loading="lazy"
+                        decoding="async"
                         src={selectedTemplate.dataUrl}
                         alt={selectedTemplate.name}
                         sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
@@ -2671,6 +2677,8 @@ export function CertificatesAutomationView() {
                             {isQrTemplateField(field) ? (
                               <Box
                                 component="img"
+                                loading="lazy"
+                                decoding="async"
                                 src={SAMPLE_QR_CODE_SRC}
                                 alt="QR"
                                 sx={{ width: 1, height: 1, display: 'block' }}

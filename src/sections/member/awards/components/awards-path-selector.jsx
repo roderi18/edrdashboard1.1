@@ -217,6 +217,8 @@ export function AwardsPathSelector({ value, onChange, usedRoutes = [] }) {
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ width: 1 }}>
           <Box
             component="img"
+            loading="lazy"
+            decoding="async"
             src={icon?.src || '/assets/icons/files/ic-pdf.svg'}
             className="award-route-icon"
             sx={{
@@ -285,6 +287,8 @@ export function AwardsPathSelector({ value, onChange, usedRoutes = [] }) {
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ width: 1 }}>
           <Box
             component="img"
+            loading="lazy"
+            decoding="async"
             src={icon?.src || '/assets/icons/files/ic-folder.svg'}
             className="award-route-icon"
             sx={{

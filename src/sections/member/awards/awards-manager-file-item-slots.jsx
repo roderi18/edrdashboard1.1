@@ -73,6 +73,8 @@ export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx })
       return customPdf ? (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           src={customPdf.src}
           sx={{ width: customPdf.size, height: customPdf.size, objectFit: 'contain' }}
         />
@@ -86,6 +88,8 @@ export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx })
       return (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           src={custom.src}
           sx={{ width: custom.size, height: custom.size, objectFit: 'contain' }}
         />

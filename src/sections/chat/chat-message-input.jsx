@@ -834,6 +834,8 @@ export function ChatMessageInput({
                 >
                   <Box
                     component="img"
+                    loading="lazy"
+                    decoding="async"
                     src={item.previewUrl}
                     alt={item.file.name}
                     sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
@@ -931,6 +933,8 @@ export function ChatMessageInput({
             {previewAttachment.contentType === 'image' ? (
               <Box
                 component="img"
+                loading="lazy"
+                decoding="async"
                 src={previewAttachment.previewUrl}
                 alt={previewAttachment.file.name}
                 sx={{

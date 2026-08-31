@@ -49,6 +49,8 @@ const ValorCampo = ({ valor, tachado = false }) =>
   esUrlDeImagen(valor) ? (
     <Box
       component="img"
+      loading="lazy"
+      decoding="async"
       src={String(valor)}
       alt=""
       sx={{

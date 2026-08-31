@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -191,6 +192,31 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       setLoadingMorePosts(false);
     }
   }, [autorIdMiembros, loadingMorePosts, postsCursor, usuarioIdMiembros]);
+
+  // El centinela del final del muro: mientras haya mas, deslizar hasta el trae
+  // la pagina siguiente. Se desconecta al desmontar y cada vez que cambian las
+  // condiciones, para no dejar observadores sueltos.
+  const centinelaPublicaciones = useRef(null);
+
+  useEffect(() => {
+    const nodo = centinelaPublicaciones.current;
+
+    if (!nodo || !hasMorePosts || loadingMorePosts || loadingPosts) return undefined;
+
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((entrada) => entrada.isIntersecting)) handleLoadMorePosts();
+      },
+      // Se adelanta 200px: cuando el lector llega al final, lo siguiente ya esta.
+      { rootMargin: '200px' }
+    );
+
+    observador.observe(nodo);
+
+    return () => observador.disconnect();
+  }, [hasMorePosts, loadingMorePosts, loadingPosts, handleLoadMorePosts]);
 
   useEffect(() => {
     loadSocialData();
@@ -522,7 +548,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
           return (
             <Stack key={friend.id} spacing={1.25}>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                <Avatar src={friend.urlFoto} alt={friend.nombre} sx={{ width: 56, height: 56 }} />
+                <Avatar src={friend.urlFoto} alt={friend.nombre} sx={{ width: 56, height: 56 }} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
 
                 <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
@@ -601,7 +627,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
                   alignItems="center"
                   sx={{ p: 1, borderRadius: 1, bgcolor: 'background.neutral' }}
                 >
-                  <Avatar src={friend.urlFoto} alt={friend.nombre} />
+                  <Avatar src={friend.urlFoto} alt={friend.nombre} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
 
                   <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                     <Typography noWrap variant="subtitle2">
@@ -643,7 +669,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       <Card sx={{ p: 2 }}>
         <Stack spacing={2}>
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Avatar src={firstBirthdayFriend.urlFoto} alt={firstBirthdayFriend.nombre} />
+            <Avatar src={firstBirthdayFriend.urlFoto} alt={firstBirthdayFriend.nombre} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
 
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
               <Typography variant="subtitle2">{title}</Typography>
@@ -820,6 +846,8 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
             >
               <Box
                 component="img"
+                loading="lazy"
+                decoding="async"
                 src={image.previewUrl}
                 alt={image.file.name}
                 sx={{ width: 42, height: 42, borderRadius: 1, objectFit: 'cover' }}
@@ -936,17 +964,32 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
             />
           ))}
 
+        {/* SE CARGA AL DESLIZAR, no al pulsar. Este bloque no pinta nada: es un
+            centinela. Cuando entra en pantalla —200px antes, para que las
+            siguientes ya esten cuando se llegue— pide la pagina siguiente. El
+            boton se queda debajo como salida manual: si el observador no
+            dispara (una pestaña en segundo plano, un navegador viejo), la gente
+            no se queda sin poder seguir leyendo. */}
         {!loadingPosts && hasMorePosts && (
-          <Button
-            fullWidth
-            size="large"
-            color="inherit"
-            variant="outlined"
-            loading={loadingMorePosts}
-            onClick={handleLoadMorePosts}
-          >
-            Ver más publicaciones
-          </Button>
+          <>
+            <Box ref={centinelaPublicaciones} sx={{ height: 1 }} />
+
+            {loadingMorePosts ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : (
+              <Button
+                fullWidth
+                size="large"
+                color="inherit"
+                variant="outlined"
+                onClick={handleLoadMorePosts}
+              >
+                Ver más publicaciones
+              </Button>
+            )}
+          </>
         )}
       </Grid>
 

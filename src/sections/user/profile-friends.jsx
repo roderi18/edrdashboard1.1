@@ -127,7 +127,7 @@ function FriendCard({ item }) {
         }}
       >
         <Link href={getProfileHref(item)} color="inherit" underline="none">
-          <Avatar alt={item.name} src={item.avatarUrl} sx={{ width: 64, height: 64, mb: 3 }} />
+          <Avatar alt={item.name} src={item.avatarUrl} sx={{ width: 64, height: 64, mb: 3 }} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />
         </Link>
 
         <Link href={getProfileHref(item)} variant="subtitle1" color="text.primary">

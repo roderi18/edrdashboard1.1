@@ -552,6 +552,8 @@ export function ChatMessageItem({
             <Box
               key={`${imageUrl}-${index}`}
               component="img"
+              loading="lazy"
+              decoding="async"
               alt="Adjunto"
               src={imageUrl}
               onClick={() => onOpenLightbox(imageUrl)}
@@ -947,7 +949,7 @@ export function ChatMessageItem({
         }),
       }}
     >
-      {!me && <Avatar alt={firstName} src={avatarUrl} sx={{ width: 32, height: 32, mr: 2 }} />}
+      {!me && <Avatar alt={firstName} src={avatarUrl} sx={{ width: 32, height: 32, mr: 2 }} slotProps={{ img: { loading: 'lazy', decoding: 'async' } }} />}
 
       <Stack alignItems={me ? 'flex-end' : 'flex-start'}>
         {renderInfo()}

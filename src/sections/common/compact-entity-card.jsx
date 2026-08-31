@@ -114,6 +114,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       {!!avatarUrl && (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           alt={title}
           src={avatarUrl}
           onLoad={() => setUrlCargada(avatarUrl)}
@@ -220,6 +222,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       {rightImage && (
         <Box
           component="img"
+          loading="lazy"
+          decoding="async"
           alt={rightImage.alt}
           src={rightImage.src}
           sx={{

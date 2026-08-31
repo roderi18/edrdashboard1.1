@@ -73,6 +73,7 @@ function CardItem({ follower, selected, onSelected, sx, ...other }) {
     >
       <Link href={getProfileHref(follower)} color="inherit" underline="none">
         <Avatar
+          slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
           alt={follower?.name}
           src={follower?.avatarUrl}
           sx={{ width: 48, height: 48, mr: 2 }}
