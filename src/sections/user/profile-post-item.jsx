@@ -65,6 +65,7 @@ const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const COMMENTS_PAGE_SIZE = 6;
 const MEDIA_PREVIEW_LIMIT = 4;
+const MEDIA_SWIPE_THRESHOLD = 52;
 
 // Lo que se reserva mientras no se sabe cuanto mide la foto. Solo lo usan las
 // publicaciones de antes, que se subieron sin guardar sus medidas.
@@ -278,6 +279,7 @@ export function ProfilePostItem({
   const reminderItemRef = useRef(null);
   const reminderMenuPaperRef = useRef(null);
   const reminderPointerRef = useRef({ x: 0, y: 0 });
+  const mediaSwipeRef = useRef({ active: false, startX: 0, startY: 0 });
 
   const [message, setMessage] = useState('');
   const [comments, setComments] = useState(post.comments || []);
@@ -318,6 +320,7 @@ export function ProfilePostItem({
   const [, anotarMedicion] = useState(0);
   const [highlightedCommentId, setHighlightedCommentId] = useState('');
   const [visibleRootCommentsCount, setVisibleRootCommentsCount] = useState(COMMENTS_PAGE_SIZE);
+  const [mediaSwipeOffset, setMediaSwipeOffset] = useState(0);
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const postMenuOpen = Boolean(menuAnchorEl);
@@ -910,6 +913,55 @@ export function ProfilePostItem({
 
     handleSelectMedia(nextIndex);
   }, [handleSelectMedia, mediaItems.length, selectedMediaIndex]);
+
+  const handleMediaTouchStart = useCallback(
+    (event) => {
+      if (!hasMultipleMedia || event.touches.length !== 1) return;
+      if (!window.matchMedia('(max-width: 600px)').matches) return;
+
+      const touch = event.touches[0];
+      mediaSwipeRef.current = {
+        active: true,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
+      setMediaSwipeOffset(0);
+    },
+    [hasMultipleMedia]
+  );
+
+  const handleMediaTouchMove = useCallback((event) => {
+    const gesture = mediaSwipeRef.current;
+    if (!gesture.active || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - gesture.startX;
+    const deltaY = touch.clientY - gesture.startY;
+
+    // Si predomina el movimiento vertical, el diálogo conserva su scroll.
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      gesture.active = false;
+      setMediaSwipeOffset(0);
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    setMediaSwipeOffset(Math.max(-110, Math.min(110, deltaX)));
+  }, []);
+
+  const handleMediaTouchEnd = useCallback(() => {
+    if (!mediaSwipeRef.current.active) {
+      setMediaSwipeOffset(0);
+      return;
+    }
+
+    mediaSwipeRef.current.active = false;
+
+    if (mediaSwipeOffset <= -MEDIA_SWIPE_THRESHOLD) handleNextMedia();
+    if (mediaSwipeOffset >= MEDIA_SWIPE_THRESHOLD) handlePreviousMedia();
+
+    setMediaSwipeOffset(0);
+  }, [handleNextMedia, handlePreviousMedia, mediaSwipeOffset]);
 
   const handleCloseImageInfo = useCallback(() => {
     setImageInfoDialogOpen(false);
@@ -2288,9 +2340,16 @@ export function ProfilePostItem({
 
         {selectedMediaFull && (
           <Box
+            data-mobile-image-swipe
+            onTouchStart={handleMediaTouchStart}
+            onTouchMove={handleMediaTouchMove}
+            onTouchEnd={handleMediaTouchEnd}
+            onTouchCancel={handleMediaTouchEnd}
             sx={{
               position: 'relative',
               bgcolor: 'background.neutral',
+              touchAction: { xs: 'pan-y', sm: 'auto' },
+              overflow: 'hidden',
             }}
           >
             <Box
@@ -2310,6 +2369,8 @@ export function ProfilePostItem({
                 objectFit: 'contain',
                 objectPosition: 'center',
                 bgcolor: 'background.neutral',
+                transform: { xs: `translateX(${mediaSwipeOffset}px)`, sm: 'none' },
+                transition: mediaSwipeOffset ? 'none' : 'transform 180ms ease',
               }}
             />
 
@@ -2320,6 +2381,7 @@ export function ProfilePostItem({
                   onClick={handlePreviousMedia}
                   aria-label="Imagen anterior"
                   sx={{
+                    display: { xs: 'none', sm: 'inline-flex' },
                     top: '50%',
                     left: 12,
                     position: 'absolute',
@@ -2337,6 +2399,7 @@ export function ProfilePostItem({
                   onClick={handleNextMedia}
                   aria-label="Imagen siguiente"
                   sx={{
+                    display: { xs: 'none', sm: 'inline-flex' },
                     top: '50%',
                     right: 12,
                     position: 'absolute',

@@ -59,6 +59,8 @@ import { ProfileEmojiPicker } from './profile-emoji-picker';
 // ----------------------------------------------------------------------
 
 const MAX_POST_IMAGES = PRINCIPAL_LIMITS.imagesPerPost;
+const PULL_REFRESH_THRESHOLD = 72;
+const PULL_REFRESH_MAX_DISTANCE = 120;
 const BIRTHDAY_PRESET_MESSAGES = [
   'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
   'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
@@ -91,6 +93,15 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   const [birthdayAnchorEl, setBirthdayAnchorEl] = useState(null);
   const [showUpcomingBirthdays, setShowUpcomingBirthdays] = useState(false);
   const [birthdayMessages, setBirthdayMessages] = useState({});
+  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
+  const [refreshingByPull, setRefreshingByPull] = useState(false);
+  const pullRefreshRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    distance: 0,
+    thresholdNotified: false,
+  });
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const birthdayPopoverOpen = Boolean(birthdayAnchorEl);
@@ -221,6 +232,100 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   useEffect(() => {
     loadSocialData();
   }, [loadSocialData]);
+
+  useEffect(() => {
+    const isSmallScreen = () => window.matchMedia('(max-width: 600px)').matches;
+
+    const resetPull = () => {
+      pullRefreshRef.current = {
+        active: false,
+        startX: 0,
+        startY: 0,
+        distance: 0,
+        thresholdNotified: false,
+      };
+      setPullRefreshDistance(0);
+    };
+
+    const handleTouchStart = (event) => {
+      if (!isSmallScreen() || refreshingByPull || window.scrollY > 0 || event.touches.length !== 1) {
+        return;
+      }
+
+      if (event.target.closest('input, textarea, select, [role="dialog"]')) return;
+
+      const touch = event.touches[0];
+      pullRefreshRef.current = {
+        active: true,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        distance: 0,
+        thresholdNotified: false,
+      };
+    };
+
+    const handleTouchMove = (event) => {
+      const gesture = pullRefreshRef.current;
+      if (!gesture.active || event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - gesture.startX;
+      const deltaY = touch.clientY - gesture.startY;
+
+      // Un movimiento horizontal pertenece a la galería, no a la recarga.
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        resetPull();
+        return;
+      }
+
+      if (deltaY <= 0 || window.scrollY > 0) {
+        resetPull();
+        return;
+      }
+
+      if (event.cancelable) event.preventDefault();
+
+      const distance = Math.min(PULL_REFRESH_MAX_DISTANCE, deltaY * 0.5);
+      gesture.distance = distance;
+
+      if (distance >= PULL_REFRESH_THRESHOLD && !gesture.thresholdNotified) {
+        gesture.thresholdNotified = true;
+        navigator.vibrate?.(24);
+      }
+
+      setPullRefreshDistance(distance);
+    };
+
+    const handleTouchEnd = () => {
+      const shouldRefresh = pullRefreshRef.current.distance >= PULL_REFRESH_THRESHOLD;
+
+      if (!shouldRefresh) {
+        resetPull();
+        return;
+      }
+
+      pullRefreshRef.current.active = false;
+      setPullRefreshDistance(PULL_REFRESH_THRESHOLD);
+      setRefreshingByPull(true);
+      navigator.vibrate?.([32, 28, 42]);
+
+      // Deja que el usuario alcance a ver el estado de recarga antes de que el
+      // navegador sustituya el documento.
+      window.setTimeout(() => window.location.reload(), 180);
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', resetPull, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', resetPull);
+    };
+  }, [refreshingByPull]);
 
   useEffect(() => {
     setBirthdayMessages((currentMessages) => ({
@@ -912,6 +1017,43 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
   return (
     <Grid container spacing={3} sx={sx} {...other}>
+      <Box
+        role="status"
+        aria-live="polite"
+        data-pull-refresh-indicator
+        sx={{
+          top: 72,
+          left: '50%',
+          zIndex: 1400,
+          gap: 1,
+          px: 1.5,
+          py: 1,
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          alignItems: 'center',
+          borderRadius: 999,
+          bgcolor: 'background.paper',
+          boxShadow: (theme) => theme.vars.customShadows.z8,
+          pointerEvents: 'none',
+          opacity: pullRefreshDistance > 0 || refreshingByPull ? 1 : 0,
+          transform: `translate(-50%, ${Math.min(0, pullRefreshDistance - PULL_REFRESH_THRESHOLD)}px)`,
+          transition: pullRefreshDistance > 0 ? 'opacity 120ms ease' : 'all 180ms ease',
+        }}
+      >
+        <CircularProgress
+          size={22}
+          variant={refreshingByPull ? 'indeterminate' : 'determinate'}
+          value={Math.min(100, (pullRefreshDistance / PULL_REFRESH_THRESHOLD) * 100)}
+        />
+        <Typography variant="caption" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+          {refreshingByPull
+            ? 'Actualizando...'
+            : pullRefreshDistance >= PULL_REFRESH_THRESHOLD
+              ? 'Suelta para actualizar'
+              : 'Hala para actualizar'}
+        </Typography>
+      </Box>
+
       <Grid size={{ xs: 12, md: 8 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
         {canPublish && renderPostInput()}
 
