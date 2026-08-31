@@ -433,7 +433,6 @@ export function ChatMessageItem({
   );
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [localReactions, setLocalReactions] = useState(message.reactions || {});
-  const [reactionPending, setReactionPending] = useState(false);
   const isSent = me && message.estadoEnvio !== 'enviando';
   const deliveryStatus = message.deliveryStatus ?? message.estadoEntrega ?? 'enviado';
   const reactionGroups = buildReactionGroups({
@@ -465,25 +464,27 @@ export function ChatMessageItem({
     return () => clearTimeout(timeout);
   }, [currentTime]);
 
-  const handleSelectEmoji = async (emoji) => {
-    if (reactionPending) return;
-
+  // REACCIONAR NO ESPERA A NADIE.
+  //
+  // La reaccion ya se pintaba al momento, pero los botones se quedaban
+  // bloqueados hasta que el servidor contestaba: se pulsaba un emoji y no se
+  // podia pulsar otro, ni cambiar de idea, hasta que volviera la respuesta. Eso
+  // es lo que se sentia lento, no el dibujo.
+  //
+  // Ahora se pinta y se sigue. Si el guardado falla, se deshace ESA reaccion
+  // —la de antes de este toque, no la que haya quedado despues— y se dice.
+  const handleSelectEmoji = (emoji) => {
     const previousReactions = localReactions;
     const nextReactions = toggleChatReaction(previousReactions, reactionKey, emoji);
 
     setEmojiAnchorEl(null);
     setShowAllReactionEmojis(false);
     setLocalReactions(nextReactions);
-    setReactionPending(true);
 
-    try {
-      await onReact?.(message, emoji);
-    } catch (error) {
+    Promise.resolve(onReact?.(message, emoji)).catch((error) => {
       setLocalReactions(previousReactions);
       toast.error(error?.message || 'No se pudo guardar la reacción.');
-    } finally {
-      setReactionPending(false);
-    }
+    });
   };
 
   const renderInfo = () => (
@@ -681,7 +682,6 @@ export function ChatMessageItem({
             <Box
               component="button"
               type="button"
-              disabled={reactionPending}
               aria-label={`${group.emoji}: ${group.names.join(', ')}`}
               aria-pressed={selectedReactionEmoji === group.emoji}
               onClick={() => handleSelectEmoji(group.emoji)}
@@ -797,7 +797,6 @@ export function ChatMessageItem({
             <IconButton
               key={`${emoji}-${index}`}
               size="small"
-              disabled={reactionPending}
               aria-label={`Reaccionar con ${emoji}`}
               aria-pressed={selectedReactionEmoji === emoji}
               onClick={() => {
@@ -821,7 +820,6 @@ export function ChatMessageItem({
 
           <IconButton
             size="small"
-            disabled={reactionPending}
             aria-label={showAllReactionEmojis ? 'Ocultar más emojis' : 'Mostrar más emojis'}
             aria-expanded={showAllReactionEmojis}
             onClick={() => setShowAllReactionEmojis((value) => !value)}
@@ -881,8 +879,7 @@ export function ChatMessageItem({
                 <IconButton
                   key={`${emoji}-${index}`}
                   size="small"
-                  disabled={reactionPending}
-                  aria-label={`Reaccionar con ${emoji}`}
+                      aria-label={`Reaccionar con ${emoji}`}
                   aria-pressed={selectedReactionEmoji === emoji}
                   onClick={() => handleSelectEmoji(emoji)}
                   sx={{
