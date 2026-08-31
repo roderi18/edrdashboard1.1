@@ -972,7 +972,10 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
             no se queda sin poder seguir leyendo. */}
         {!loadingPosts && hasMorePosts && (
           <>
-            <Box ref={centinelaPublicaciones} sx={{ height: 1 }} />
+            {/* En `sx`, el numero 1 para `height` significa 100%, no 1px. Ese
+                100% invisible encogia las tarjetas del flex y, como Card usa
+                overflow hidden, terminaba cortando las fotos. */}
+            <Box ref={centinelaPublicaciones} sx={{ height: '1px', flexShrink: 0 }} />
 
             {loadingMorePosts ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>

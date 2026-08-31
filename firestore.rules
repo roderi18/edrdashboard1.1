@@ -884,6 +884,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // La IP desde la que se publicó una imagen es un dato sensible. Solo la
+    // ruta del servidor la escribe y la revela después de comprobar rol y clave.
+    match /metadatos_privados_publicaciones/{idPublicacion} {
+      allow read, write: if false;
+    }
+
     // El catálogo de lo que puede hacer cada combinación de cargos. Lo lee
     // cualquiera con sesión —de él salen los permisos— pero solo lo escribe el
     // Administrador Global: quien pudiera editarlo se concedería lo que quisiera.
@@ -1094,6 +1100,7 @@ service cloud.firestore {
         && coleccion != 'usuarios_roles'
         && coleccion != 'admins'
         && coleccion != 'secretos_acceso'
+        && coleccion != 'metadatos_privados_publicaciones'
         && coleccion != 'auditoria_sistema'
         && coleccion != 'combinaciones_roles'
         // La dispensa medica y la puerta de cambios tienen su propio bloque mas
