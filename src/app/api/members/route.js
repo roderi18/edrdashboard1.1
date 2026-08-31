@@ -11,10 +11,12 @@ import { getDivisions } from 'src/services/division-service';
 // ruta la tumbaba entera en Netlify (500 al cargar el modulo, antes del
 // handler), y con ella la lista de miembros. Comprobar que hay sesion no
 // necesita privilegios.
-import { miembrosDelAlcance } from 'src/server/alcance-miembros-core.mjs';
 import {
-  exigirSesionRest,
-  identificarPorRest,
+  miembrosDelAlcance,
+  nivelDeAlcanceDeMiembros,
+} from 'src/server/alcance-miembros-core.mjs';
+import {
+  identificarConSesionRest,
   exigirAdministradorGlobalRest,
 } from 'src/server/sesion-rest.mjs';
 
@@ -73,6 +75,19 @@ const withCalculatedDivision = (member, divisions) => {
   };
 };
 
+// Ninguna espera puede colgar el padron: es lo que resuelve la sesion al entrar.
+// Si la estructura no llega a tiempo, se devuelve la lista sin acotar y se avisa;
+// tener que esperar es peor que no acotar, porque deja a la gente fuera.
+const TIEMPO_MAXIMO_ESTRUCTURA_MS = 4000;
+
+const conTiempoLimite = (promesa, ms) =>
+  Promise.race([
+    promesa,
+    new Promise((resolver) => {
+      setTimeout(() => resolver({}), ms);
+    }),
+  ]).catch(() => ({}));
+
 // La estructura con la que se resuelve a que seccion y region pertenece cada
 // destacamento. Va por el cache de upstream, asi que no anade una peticion por
 // cada consulta del padron.
@@ -102,9 +117,14 @@ export async function GET(req) {
     // tienen sesion. Ya no: lo que necesitan se resuelve en el servidor
     // (`/api/auth/correo-acceso`, `/api/auth/recuperacion`,
     // `/api/auth/correo-disponible`) y de ahi solo sale el dato concreto.
-    const sinSesion = await exigirSesionRest(req);
+    // La sesion y quien es, en UNA sola consulta: identificar cuesta una llamada
+    // a Firebase, y esta es la ruta que espera el inicio de sesion.
+    const { error: sinSesion, quien } = await identificarConSesionRest(req);
 
     if (sinSesion) return sinSesion;
+
+    const acceso = quien?.claims ?? {};
+    const nivel = nivelDeAlcanceDeMiembros(acceso);
 
     // Reenviar la identidad del llamante al upstream para que autorice/filtre por
     // alcance (ver contrato en docs/seguridad-miembros-por-region.md). El caché se
@@ -138,11 +158,15 @@ export async function GET(req) {
     // que no responde— se deja pasar la lista y se avisa por consola: dejar a
     // media organizacion con la pantalla vacia por no saber acotar seria peor
     // que el problema. El upstream sigue siendo la otra mitad de la respuesta.
-    const quien = await identificarPorRest(req).catch(() => null);
-    const acceso = quien?.claims ?? {};
-    const permitidos = await leerEstructura()
-      .then((estructura) => miembrosDelAlcance({ acceso, miembros: rows, estructura }))
-      .catch(() => null);
+    // La estructura solo hace falta para acotar por SECCION o por REGION: quien
+    // se queda en su destacamento ya lo lleva en su token. Pedirla siempre le
+    // sumaba tres peticiones al upstream a la ruta que espera el inicio de
+    // sesion, y el upstream no tiene tiempo limite: bastaba con que tardara para
+    // dejar a alguien mirando "Verificando tu acceso" para siempre.
+    const estructura = ['seccion', 'region'].includes(nivel)
+      ? await conTiempoLimite(leerEstructura(), TIEMPO_MAXIMO_ESTRUCTURA_MS)
+      : {};
+    const permitidos = miembrosDelAlcance({ acceso, miembros: rows, estructura });
 
     if (!permitidos) {
       console.warn('[api/members] no se pudo acotar el padron por alcance; se devuelve completo');

@@ -70,29 +70,51 @@ export const identificarPorRest = async (req, fetchImpl = fetch) => {
  * Misma respuesta que `exigirSesion` del Admin SDK, para que las rutas no noten
  * por cual de los dos caminos se les comprobo.
  */
-export const exigirSesionRest = async (req, fetchImpl = fetch) => {
+/**
+ * La sesion Y quien es, en una sola consulta.
+ *
+ * Identificar a alguien cuesta una llamada a Firebase. Las rutas que ademas
+ * necesitan saber QUIEN es —para acotar lo que devuelven— la hacian dos veces:
+ * una para el guarda y otra para los claims. En la ruta del padron, que es la
+ * que espera el inicio de sesion, eso se nota.
+ *
+ * Devuelve `{ error }` con la Response si no puede pasar, o `{ quien }`.
+ */
+export const identificarConSesionRest = async (req, fetchImpl = fetch) => {
   if (!claveApi()) {
-    return Response.json(
-      { error: 'El servidor no puede comprobar la sesión ahora mismo.' },
-      { status: 503 }
-    );
+    return {
+      error: Response.json(
+        { error: 'El servidor no puede comprobar la sesión ahora mismo.' },
+        { status: 503 }
+      ),
+    };
   }
 
   const quien = await identificarPorRest(req, fetchImpl);
 
   if (!quien) {
-    return Response.json(
-      { error: 'Inicia sesión para consultar esta información.' },
-      { status: 401 }
-    );
+    return {
+      error: Response.json(
+        { error: 'Inicia sesión para consultar esta información.' },
+        { status: 401 }
+      ),
+    };
   }
 
   // Quien todavia no ha elegido contraseña no pasa de "Crea tu contraseña".
   if (quien.claims?.debeCambiarClave === true) {
-    return Response.json({ error: 'Crea tu contraseña antes de continuar.' }, { status: 403 });
+    return {
+      error: Response.json({ error: 'Crea tu contraseña antes de continuar.' }, { status: 403 }),
+    };
   }
 
-  return null;
+  return { quien };
+};
+
+export const exigirSesionRest = async (req, fetchImpl = fetch) => {
+  const { error } = await identificarConSesionRest(req, fetchImpl);
+
+  return error ?? null;
 };
 
 // ----------------------------------------------------------------------
