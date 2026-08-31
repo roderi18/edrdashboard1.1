@@ -900,6 +900,153 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ------------------------------------------------------------------
+    // DISPENSA MEDICA.
+    //
+    // Estas colecciones caian bajo el comodin del final: CUALQUIER usuario con
+    // cuenta —un Usuario Comun incluido— leia y escribia la ficha medica de
+    // cualquier miembro, menores incluidos, desde la consola del navegador. El
+    // enmascarado, el acceso temporal y el flujo de aprobacion de la pantalla no
+    // pintaban nada aqui.
+    //
+    // Ahora se exige el PERMISO DEL CARGO, que escribe el Admin SDK en
+    // `usuarios_roles` y el propio usuario no puede tocar (`allow write: if false`).
+    //
+    // LIMITE CONOCIDO: aqui no se puede comprobar de que destacamento es el
+    // miembro, porque los miembros viven en la API .NET y no en Firestore. Un
+    // cargo con `salud.ver` alcanza la ficha de otro destacamento si se salta la
+    // pantalla. Cerrar eso exige grabar el destacamento en cada documento
+    // medico: es un cambio de datos, no de reglas.
+    // ------------------------------------------------------------------
+
+    function idMiembroDelToken() {
+      return request.auth != null && 'idMiembros' in request.auth.token
+        ? string(request.auth.token.idMiembros)
+        : '';
+    }
+
+    // Su propia ficha: por el id del documento —en salud basica, alergias y
+    // condiciones el documento ES el miembro— o por el campo, que llevan todos.
+    function esSuPropiaFichaMedica(idDocumento) {
+      return idMiembroDelToken() != ''
+        && (
+          string(idDocumento) == idMiembroDelToken()
+          || (
+               resource != null
+               && 'idMiembros' in resource.data
+               && string(resource.data.idMiembros) == idMiembroDelToken()
+             )
+        );
+    }
+
+    function puedeVerSalud() {
+      return esAdministradorGlobal() || tienePermisoDeCargo('salud.ver');
+    }
+
+    function puedeEditarSalud() {
+      return esAdministradorGlobal() || tienePermisoDeCargo('salud.editar');
+    }
+
+    // La ficha medica propiamente dicha. El documento es el miembro.
+    match /informacion_medica_basica_miembros/{idMiembro} {
+      allow read: if puedeVerSalud() || esSuPropiaFichaMedica(idMiembro);
+      allow create, update: if puedeEditarSalud();
+      allow delete: if false;
+    }
+
+    match /alergias_miembros/{idMiembro} {
+      allow read: if puedeVerSalud() || esSuPropiaFichaMedica(idMiembro);
+      allow create, update: if puedeEditarSalud();
+      allow delete: if false;
+    }
+
+    match /condiciones_medicas_miembros/{idMiembro} {
+      allow read: if puedeVerSalud() || esSuPropiaFichaMedica(idMiembro);
+      allow create, update: if puedeEditarSalud();
+      allow delete: if false;
+    }
+
+    // Los medicamentos llevan id propio y el miembro en un campo. Guardar la
+    // lista BORRA los que ya no estan, asi que aqui el delete si va con quien
+    // edita.
+    match /medicamentos_miembros/{idMedicamento} {
+      allow read: if puedeVerSalud() || esSuPropiaFichaMedica(idMedicamento);
+      allow create, update, delete: if puedeEditarSalud();
+    }
+
+    // Los documentos medicos: subirlos y eliminarlos son permisos distintos, y
+    // esa diferencia es justo la que separa al Coordinador de los demas cargos
+    // del destacamento.
+    match /documentos_salud_miembros/{idDocumento} {
+      allow read: if puedeVerSalud() || esSuPropiaFichaMedica(idDocumento);
+      allow create, update: if esAdministradorGlobal()
+        || tienePermisoDeCargo('salud.subir_documentos');
+      allow delete: if esAdministradorGlobal()
+        || tienePermisoDeCargo('salud.eliminar_documentos');
+    }
+
+    // Peticiones de acceso temporal a la dispensa de un menor: las crea quien
+    // pide y las resuelve quien puede autorizar. Nadie puede aprobarse la suya:
+    // crear exige que la peticion vaya a su nombre, y resolver exige el permiso
+    // de autorizacion, que el solicitante no tiene.
+    match /solicitudes_acceso_dispensa_medica/{idSolicitud} {
+      allow read: if esUsuarioDelSistema();
+      allow create: if esUsuarioDelSistema()
+        && request.resource.data.solicitadoPorUid == request.auth.uid;
+      allow update: if
+        // Quien autoriza: aprueba o rechaza.
+        esAdministradorGlobal()
+        || tienePermisoDeCargo('salud.autorizar_acceso_menores')
+        // O el propio solicitante, y SOLO para marcar que ya gasto su permiso de
+        // una vez. No puede tocar el estado: aprobarse a si mismo el acceso a la
+        // ficha medica de un menor es exactamente lo que esto impide.
+        || (
+             resource != null
+             && resource.data.solicitadoPorUid == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['fechaConsumo', 'consumidoPorUid', 'actualizadoEnServidor'])
+           );
+      allow delete: if false;
+    }
+
+    // Los cambios de una FICHA que un cargo del destacamento envia a su
+    // Coordinador. Misma familia que la de arriba, un piso mas abajo: la
+    // resuelve quien puede aprobar cambios de miembros, no la Oficina Nacional.
+    // Llevan dentro los datos propuestos del miembro, asi que estaban tan
+    // abiertos como la dispensa.
+    match /solicitudes_cambio_miembro/{idSolicitud} {
+      allow read: if esUsuarioDelSistema();
+      allow create: if esUsuarioDelSistema()
+        && request.resource.data.solicitadoPorUid == request.auth.uid;
+      allow update: if esAdministradorGlobal()
+        || tienePermisoDeCargo('miembros.aprobar_cambios')
+        || (resource != null && resource.data.solicitadoPorUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // La PUERTA DE CAMBIOS (lo que espera aprobacion).
+    //
+    // Tambien caia en el comodin: cualquier usuario con cuenta podia borrar una
+    // propuesta pendiente, cambiarle el estado a "aprobada" o crear una a nombre
+    // de otro. Lo que se cierra es la ESCRITURA; la lectura se deja como estaba
+    // —varias pantallas leen la solicitud por su id— y queda para la siguiente
+    // tanda.
+    // ------------------------------------------------------------------
+    match /solicitudes_cambio/{idSolicitud} {
+      allow read: if esUsuarioDelSistema();
+      // A su nombre y de nadie mas.
+      allow create: if esUsuarioDelSistema()
+        && request.resource.data.solicitadoPorUid == request.auth.uid;
+      // Resolverla es de quien aprueba; retirarla, de quien la envio.
+      allow update: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || tienePermisoDeCargo('organizacion.aprobar_cambios')
+        || (resource != null && resource.data.solicitadoPorUid == request.auth.uid);
+      // Una propuesta resuelta es historial: no se borra.
+      allow delete: if false;
+    }
+
     // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar
     // el acceso especial del chat. Las reglas específicas de otros módulos deben
     // continuar endureciéndose en sus propias fases.
@@ -936,6 +1083,16 @@ service cloud.firestore {
         && coleccion != 'secretos_acceso'
         && coleccion != 'auditoria_sistema'
         && coleccion != 'combinaciones_roles'
+        // La dispensa medica y la puerta de cambios tienen su propio bloque mas
+        // arriba: sin excluirlas aqui, el comodin se lo devolveria a cualquiera.
+        && coleccion != 'informacion_medica_basica_miembros'
+        && coleccion != 'alergias_miembros'
+        && coleccion != 'medicamentos_miembros'
+        && coleccion != 'condiciones_medicas_miembros'
+        && coleccion != 'documentos_salud_miembros'
+        && coleccion != 'solicitudes_acceso_dispensa_medica'
+        && coleccion != 'solicitudes_cambio'
+        && coleccion != 'solicitudes_cambio_miembro'
         && esUsuarioDelSistema();
     }
   }
