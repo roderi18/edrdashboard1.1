@@ -11,7 +11,12 @@ import { getDivisions } from 'src/services/division-service';
 // ruta la tumbaba entera en Netlify (500 al cargar el modulo, antes del
 // handler), y con ella la lista de miembros. Comprobar que hay sesion no
 // necesita privilegios.
-import { exigirSesionRest, exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
+import { miembrosDelAlcance } from 'src/server/alcance-miembros-core.mjs';
+import {
+  exigirSesionRest,
+  identificarPorRest,
+  exigirAdministradorGlobalRest,
+} from 'src/server/sesion-rest.mjs';
 
 const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
@@ -68,6 +73,27 @@ const withCalculatedDivision = (member, divisions) => {
   };
 };
 
+// La estructura con la que se resuelve a que seccion y region pertenece cada
+// destacamento. Va por el cache de upstream, asi que no anade una peticion por
+// cada consulta del padron.
+const leerEstructura = async () => {
+  const pedir = async (clave, url) => {
+    const respuesta = await fetchUpstreamText(clave, url).catch(() => null);
+
+    if (!respuesta?.text) return [];
+
+    return getRowsFromNormalizedResponse(normalizeApiResponse(JSON.parse(respuesta.text)));
+  };
+
+  const [destacamentos, iglesias, secciones] = await Promise.all([
+    pedir(UPSTREAM_KEYS.destacamentos, 'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos'),
+    pedir(UPSTREAM_KEYS.iglesias, 'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'),
+    pedir(UPSTREAM_KEYS.secciones, 'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'),
+  ]);
+
+  return { destacamentos, iglesias, secciones };
+};
+
 export async function GET(req) {
   try {
     // Sin sesion no se pasa. Esta ruta devuelve el padron completo —nombres,
@@ -101,10 +127,33 @@ export async function GET(req) {
     const normalized = normalizeApiResponse(data);
     const rows = getRowsFromNormalizedResponse(normalized);
 
+    // EL PADRON NO SALE ENTERO.
+    //
+    // El navegador ya decide a quien ve cada quien, pero eso solo ordena lo que
+    // PINTA: la lista completa —telefonos, direcciones y fechas de nacimiento de
+    // menores— ya habia viajado hasta el, y con el token se podia leer tal cual.
+    // Aqui se aplica la misma regla al salir.
+    //
+    // Si no se puede resolver su alcance —sesion sin claims todavia, estructura
+    // que no responde— se deja pasar la lista y se avisa por consola: dejar a
+    // media organizacion con la pantalla vacia por no saber acotar seria peor
+    // que el problema. El upstream sigue siendo la otra mitad de la respuesta.
+    const quien = await identificarPorRest(req).catch(() => null);
+    const acceso = quien?.claims ?? {};
+    const permitidos = await leerEstructura()
+      .then((estructura) => miembrosDelAlcance({ acceso, miembros: rows, estructura }))
+      .catch(() => null);
+
+    if (!permitidos) {
+      console.warn('[api/members] no se pudo acotar el padron por alcance; se devuelve completo');
+    }
+
+    const visibles = permitidos ?? rows;
+
     if (Array.isArray(normalized?.data)) {
       return Response.json({
         ...normalized,
-        data: rows.map((member) => withCalculatedDivision(member, divisions)),
+        data: visibles.map((member) => withCalculatedDivision(member, divisions)),
       });
     }
 
