@@ -1556,6 +1556,19 @@ export function ProfilePostItem({
                 borderRadius: 1.5,
                 cursor: 'pointer',
                 bgcolor: 'background.neutral',
+                // La foto completa queda al frente. La misma imagen, ampliada y
+                // suavizada, rellena el espacio que sobra en el recuadro.
+                '&::before': {
+                  content: '""',
+                  inset: -12,
+                  position: 'absolute',
+                  backgroundImage: `url(${JSON.stringify(media)})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(12px)',
+                  transform: 'scale(1.08)',
+                  opacity: 0.72,
+                },
               }}
             >
               <Box
@@ -1568,8 +1581,12 @@ export function ProfilePostItem({
                   width: 1,
                   height: 1,
                   display: 'block',
-                  objectFit: 'cover',
+                  // La cuadricula conserva su forma, pero la foto se muestra
+                  // completa dentro de cada recuadro en vez de recortarse.
+                  objectFit: 'contain',
                   objectPosition: 'center',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
               />
 
@@ -1586,6 +1603,7 @@ export function ProfilePostItem({
                     bgcolor: 'rgba(0, 0, 0, 0.48)',
                     typography: { xs: 'h5', sm: 'h4' },
                     fontWeight: 700,
+                    zIndex: 2,
                   }}
                 >
                   +{hiddenMediaCount}

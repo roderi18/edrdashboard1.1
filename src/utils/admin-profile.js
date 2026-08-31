@@ -165,20 +165,33 @@ export const findAdminProfileByLoginValue = async (loginValue) => {
 };
 
 export const resolveAdminSignInEmail = async (loginValue) => {
-  const profile = await findAdminProfileByLoginValue(loginValue);
+  const value = String(loginValue ?? '').trim().toLowerCase();
 
-  if (profile?.data?.correo) {
-    return String(profile.data.correo).trim().toLowerCase();
+  if (!value) return '';
+
+  // Si ya escribió su correo, Firebase puede comprobarlo directamente. Cuando
+  // escribe el nombre de usuario (por ejemplo, admin001), la equivalencia con
+  // su correo se resuelve en el servidor: `admins` está protegida y no se puede
+  // consultar desde una pantalla que todavía no ha iniciado sesión.
+  if (value.includes('@')) return value;
+
+  const response = await fetch('/api/auth/correo-acceso-administrador', {
+    // Es una consulta previa al acceso, no modifica ninguna ficha. Va por POST
+    // para que el usuario administrativo no quede escrito en la URL ni en sus
+    // registros intermedios.
+    // eslint-disable-next-line no-restricted-syntax
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario: value }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'No pudimos comprobar ese usuario de administrador.');
   }
 
-  return String(loginValue ?? '')
-    .trim()
-    .toLowerCase()
-    .includes('@')
-    ? String(loginValue ?? '')
-        .trim()
-        .toLowerCase()
-    : '';
+  return String(payload?.correo ?? '').trim().toLowerCase();
 };
 
 export const buildAdminDisplayName = (profile = {}, authUser = {}) => {
