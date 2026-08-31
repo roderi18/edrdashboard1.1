@@ -136,7 +136,7 @@ export function DestTableToolbar({
         if (!nombre) throw new Error('La columna nombre es requerida.');
         if (!idIglesia) throw new Error('La columna idIglesia es requerida.');
 
-        const res = await fetch('/api/dest/post', {
+        const res = await fetch('/api/dest/post/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

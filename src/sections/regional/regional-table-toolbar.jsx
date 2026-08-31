@@ -66,7 +66,7 @@ export function RegionalTableToolbar({ filters, options, onResetPage, displayMod
 
         if (!nombre) throw new Error('La columna nombre es requerida.');
 
-        const res = await fetch('/api/regional/post', {
+        const res = await fetch('/api/regional/post/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -454,27 +454,53 @@ export function AuthProvider({ children }) {
               ...pickAuthorizationProfile(authorizationAccess, memberAccess),
             });
           } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
-            const authorizationAccess = await loadAuthorizationAccess(
-              authUser,
-              memberAccess?.profile,
-              memberAccess
-            );
-            const authorizationProfile = pickAuthorizationProfile(authorizationAccess, memberAccess);
+            // PINTAR YA, REFINAR DESPUES.
+            //
+            // La sesion de un miembro ya esta COMPLETA con lo que traen sus
+            // cargos: su rol, sus permisos y su alcance salen de ahi.
+            // `loadAuthorizationAccess` solo anade lo que un administrador le
+            // haya concedido a mano, que casi nunca es nada — y esperarlo son
+            // hasta tres segundos mirando un splash.
+            //
+            // Asi que se publica la sesion con lo que ya se sabe y la pantalla
+            // arranca; si el refinamiento trae algo, se publica otra vez encima.
+            // Es el mismo dato al final, pero la aplicacion ya se esta usando.
+            const armarSesion = (accesoDeAutorizacion) => {
+              const perfilDeAutorizacion = pickAuthorizationProfile(
+                accesoDeAutorizacion,
+                memberAccess
+              );
+              const accesoCombinado = {
+                ...memberAccess,
+                profile: { ...(memberAccess.profile ?? {}), ...perfilDeAutorizacion },
+              };
 
-            const combinedMemberAccess = {
-              ...memberAccess,
-              profile: {
-                ...(memberAccess.profile ?? {}),
-                ...authorizationProfile,
-              },
+              return isAdminRole(memberRole) ||
+                isAdminRoleId(memberRoleId) ||
+                isAdminRoleId(perfilDeAutorizacion.rolId)
+                ? buildAdminSessionFromMemberAccess(authUser, accesoCombinado)
+                : buildMemberSessionUser(authUser, accesoCombinado);
             };
 
-            sessionUser =
-              isAdminRole(memberRole) ||
-              isAdminRoleId(memberRoleId) ||
-              isAdminRoleId(authorizationProfile.rolId)
-                ? buildAdminSessionFromMemberAccess(authUser, combinedMemberAccess)
-                : buildMemberSessionUser(authUser, combinedMemberAccess);
+            const publicar = (usuario) => {
+              const resuelto = { ...usuario, accessToken };
+
+              setState({ user: aplicarSimulacionDeRoles(resuelto), loading: false });
+              writeCachedSession(resuelto);
+            };
+
+            publicar(armarSesion(null));
+
+            // Y por detras, sin que nadie espere.
+            sincronizarRolPorCargo(accessToken).catch(() => {});
+
+            loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess)
+              .then((acceso) => {
+                if (acceso?.rolId || acceso?.alcance) publicar(armarSesion(acceso));
+              })
+              .catch(() => {});
+
+            return;
           } else if (isSocialAuthUser(authUser)) {
             await _signOut(AUTH).catch(() => {});
             setState({ user: null, loading: false });

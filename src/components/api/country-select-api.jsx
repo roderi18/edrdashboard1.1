@@ -21,7 +21,7 @@ export default function CountrySelectApi({
 
     useEffect(() => {
         const loadCountries = async () => {
-            const res = await fetch('/api/countries', { cache: 'no-store' });
+            const res = await fetch('/api/countries/', { cache: 'no-store' });
             const data = await res.json();
             const list = data?.data || data?.Data || data;
 

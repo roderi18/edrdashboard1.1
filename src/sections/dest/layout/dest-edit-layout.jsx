@@ -29,7 +29,7 @@ export function DestEditLayout({ children, ...other }) {
 
     useEffect(() => {
         const load = async () => {
-            const res = await fetch('/api/dest');
+            const res = await fetch('/api/dest/');
             const data = await res.json();
 
             const found = (data?.data || []).find((d) => String(d.idDestacamento) === String(destId));

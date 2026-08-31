@@ -1009,7 +1009,7 @@ export default function Page() {
   useEffect(() => {
     const loadMembers = async () => {
       try {
-        const res = await fetch('/api/members', { headers: await authHeaders() });
+        const res = await fetch('/api/members/', { headers: await authHeaders() });
         const data = await res.json();
         const loadedMembers = Array.isArray(data?.data) ? data.data : [];
         const memberPhotos = await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' });
@@ -1122,7 +1122,7 @@ export default function Page() {
   useEffect(() => {
     const loadDest = async () => {
       try {
-        const res = await fetch('/api/dest');
+        const res = await fetch('/api/dest/');
         const data = await res.json();
         const found = (data?.data || []).find(
           (dest) =>

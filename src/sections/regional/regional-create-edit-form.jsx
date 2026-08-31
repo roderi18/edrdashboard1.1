@@ -259,7 +259,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
       let dests = [];
 
       try {
-        const res = await fetch('/api/dest');
+        const res = await fetch('/api/dest/');
         const json = await res.json();
         dests = Array.isArray(json?.data) ? json.data : (json?.Data ?? []);
       } catch {

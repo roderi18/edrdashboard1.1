@@ -69,7 +69,7 @@ export const createChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
 
 
-    const res = await fetch('/api/churches/post', {
+    const res = await fetch('/api/churches/post/', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
         body: JSON.stringify(payload),
@@ -99,7 +99,7 @@ export const createChurchApi = async (data) => {
 
 export const updateChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
-    const res = await fetch('/api/churches/put', {
+    const res = await fetch('/api/churches/put/', {
         method: 'PUT',
         headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
         body: JSON.stringify({
@@ -137,7 +137,7 @@ export const updateChurchApi = async (data) => {
 
 export const getChurches = async () => {
     try {
-        const res = await fetch('/api/churches', {
+        const res = await fetch('/api/churches/', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

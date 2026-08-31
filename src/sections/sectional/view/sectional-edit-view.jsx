@@ -19,7 +19,7 @@ export function SectionalEditView({ sectionalId }) {
         getSectionalById(sectionalId),
         getChurches(),
         getMembers(),
-        fetch('/api/dest').then((res) => res.json()),
+        fetch('/api/dest/').then((res) => res.json()),
       ]);
 
       const dests = destsResponse?.Data || [];

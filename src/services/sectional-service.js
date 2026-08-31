@@ -47,7 +47,7 @@ export const compararCambios = (antes, despues, campos) =>
 
 // Escritura real. No se llama a pelo: entra por la puerta de cambios.
 const escribirSeccion = async (sectional) => {
-    const res = await fetch('/api/sectional/put', {
+    const res = await fetch('/api/sectional/put/', {
         method: 'PUT',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(sectional),
@@ -84,7 +84,7 @@ const resolveOwnRegionIds = async (usuario) => {
         let dests = [];
 
         try {
-            const res = await fetch('/api/dest');
+            const res = await fetch('/api/dest/');
             const json = await res.json();
             dests = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
         } catch {
@@ -132,7 +132,7 @@ export const getCachedSectionals = () => getStorageCollection(SECTIONALS_STORAGE
 
 export const getSectionals = async ({ includePhotos = true } = {}) => {
     try {
-        const res = await fetch('/api/sectional');
+        const res = await fetch('/api/sectional/');
 
         if (!res.ok) throw new Error('Error al obtener seccionales');
 
@@ -264,7 +264,7 @@ export const saveSectional = async (payload, { usuario } = {}) => {
 // La escritura real del alta. No se llama a pelo: entra por la puerta de
 // cambios, que la ejecuta ahora o al aprobarla.
 const crearSeccionEnLaApi = async (payload) => {
-    const res = await fetch('/api/sectional/post', {
+    const res = await fetch('/api/sectional/post/', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
@@ -338,7 +338,7 @@ export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
         'No tienes permiso para eliminar secciones.'
     );
 
-    const res = await fetch(`/api/sectional?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`/api/sectional/?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         // El token viaja: el servidor ya no borra por el mero hecho de que le
         // llegue la peticion, comprueba que quien la manda sea el Administrador

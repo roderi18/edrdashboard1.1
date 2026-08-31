@@ -164,7 +164,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
       ]);
       let destsData = [];
       try {
-        const res = await fetch('/api/dest');
+        const res = await fetch('/api/dest/');
         const json = await res.json();
         destsData = Array.isArray(json?.data) ? json.data : Array.isArray(json?.Data) ? json.Data : [];
       } catch {

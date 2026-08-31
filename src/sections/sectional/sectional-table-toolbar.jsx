@@ -69,7 +69,7 @@ export function SectionalTableToolbar({ filters, options, onResetPage, displayMo
         if (!nombre) throw new Error('La columna nombre es requerida.');
         if (!idRegion) throw new Error('La columna idRegion es requerida.');
 
-        const res = await fetch('/api/sectional/post', {
+        const res = await fetch('/api/sectional/post/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idSeccion: 0, nombre, idRegion }),

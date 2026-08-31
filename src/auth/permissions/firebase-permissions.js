@@ -193,10 +193,25 @@ export async function guardarAsignacionRolUsuario({
  * sincroniza a si mismo. Va sin bloquear y sin recargar; si el servidor de
  * administracion no esta configurado responde 503 y no pasa nada.
  */
+// Una vez por sesion y no una por refresco de token. Se llamaba en CADA
+// resolucion —y el token cambia varias veces al entrar—, asi que la misma
+// sincronizacion salia tres y cuatro veces seguidas, tardando segundos cada una.
+// No cambia nada de lo que se ve: solo alinea al servidor con el cargo que la
+// sesion ya resolvio.
+const yaSincronizados = new Set();
+
 export async function sincronizarRolPorCargo(accessToken) {
   if (!accessToken) return { ok: false, omitido: 'sin token' };
 
-  const res = await fetch('/api/auth/sincronizar-rol', {
+  // La huella basta: dos tokens distintos del mismo usuario comparten cabecera y
+  // sujeto, y lo que importa es no repetir la misma sincronizacion en rafaga.
+  const huella = String(accessToken).slice(-32);
+
+  if (yaSincronizados.has(huella)) return { ok: true, omitido: 'ya sincronizado' };
+
+  yaSincronizados.add(huella);
+
+  const res = await fetch('/api/auth/sincronizar-rol/', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
   }).catch(() => null);
@@ -217,7 +232,7 @@ export async function actualizarClaimsAutorizacion({ uidUsuario, correo = '' } =
 
   const token = await AUTH.currentUser.getIdToken();
 
-  const res = await fetch('/api/admin/set-user-claims', {
+  const res = await fetch('/api/admin/set-user-claims/', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

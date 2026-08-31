@@ -252,7 +252,7 @@ export function UserAccountGeneral() {
       try {
         setLoadingMember(true);
 
-        const response = await fetch('/api/members', { headers: await authHeaders() });
+        const response = await fetch('/api/members/', { headers: await authHeaders() });
         const data = await response.json();
         const rawMembers = data?.Data || data?.data || data?.items || data || [];
 
@@ -328,7 +328,7 @@ export function UserAccountGeneral() {
 
     const loadDests = async () => {
       try {
-        const response = await fetch('/api/dest');
+        const response = await fetch('/api/dest/');
         const data = await response.json();
         const items = (data?.Data || data?.data || data?.items || []).map((dest) => ({
           id: String(dest?.idDestacamento ?? dest?.id ?? ''),
@@ -384,7 +384,7 @@ export function UserAccountGeneral() {
 
       try {
         const birthdateValue = dayjs(birthdate).format('YYYY-MM-DD');
-        const response = await fetch(`/api/divisions/calculate?birthdate=${birthdateValue}`);
+        const response = await fetch(`/api/divisions/calculate/?birthdate=${birthdateValue}`);
         const data = await response.json();
         setValue('division', data?.name || '');
       } catch (error) {

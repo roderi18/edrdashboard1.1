@@ -164,7 +164,7 @@ export function getDests() {
 
 export async function getDestsApi({ includePhotos = true } = {}) {
     try {
-        const res = await fetch('/api/dest');
+        const res = await fetch('/api/dest/');
 
         const text = await res.text();
 
@@ -346,7 +346,7 @@ export const createDestApi = async (data, { usuario } = {}) => {
         return { pendienteDeAprobacion: true, idSolicitud: resultado.idSolicitud };
     }
 
-    const res = await fetch('/api/dest/post', {
+    const res = await fetch('/api/dest/post/', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
@@ -396,7 +396,7 @@ export const createDestApi = async (data, { usuario } = {}) => {
 // pelo: entra por la puerta de cambios, que decide si se ejecuta ahora o si
 // espera a que la Oficina Nacional la apruebe.
 const escribirDestacamento = async (payload) => {
-    const res = await fetch('/api/dest/put', {
+    const res = await fetch('/api/dest/put/', {
         method: 'PUT',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
@@ -468,7 +468,7 @@ export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
         'No tienes permiso para eliminar destacamentos.'
     );
 
-    const res = await fetch(`/api/dest?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`/api/dest/?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         // El token viaja: el servidor ya no borra por el mero hecho de que le
         // llegue la peticion, comprueba que quien la manda sea el Administrador

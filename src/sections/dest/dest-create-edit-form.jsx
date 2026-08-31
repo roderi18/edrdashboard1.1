@@ -312,7 +312,7 @@ export function DestCreateEditForm({ currentDest }) {
         }
       }
 
-      const res = await fetch('/api/dest');
+      const res = await fetch('/api/dest/');
       const data = await res.json();
       // La API responde { data: [...] } (minúscula). Antes se leía data.Data y
       // el listado quedaba vacío, rompiendo la resolución de la sección del

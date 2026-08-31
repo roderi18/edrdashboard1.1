@@ -33,7 +33,7 @@ export const cabecerasConToken = async () => {
 
 /** Cambia la clave del miembro que tiene la sesion abierta. */
 export async function cambiarClaveMiembro({ clave }) {
-  const respuesta = await fetch('/api/auth/clave-miembro', {
+  const respuesta = await fetch('/api/auth/clave-miembro/', {
     method: 'POST',
     headers: await cabecerasConToken(),
     body: JSON.stringify({ clave }),
@@ -54,7 +54,7 @@ export async function cambiarClaveMiembro({ clave }) {
  * entrar y para recuperar la clave; el numero de miembro sigue sirviendo.
  */
 export async function guardarCorreoDeAcceso({ idMiembros, codigoMiembro, correo }) {
-  const respuesta = await fetch('/api/auth/correo-cuenta-miembro', {
+  const respuesta = await fetch('/api/auth/correo-cuenta-miembro/', {
     method: 'POST',
     headers: await cabecerasConToken(),
     body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
@@ -75,7 +75,7 @@ export async function guardarCorreoDeAcceso({ idMiembros, codigoMiembro, correo 
  * que tenia. El codigo solo le deja elegir una nueva sin iniciar sesion.
  */
 export async function generarCodigoRestablecimientoMiembro({ idMiembros, codigoMiembro, correo }) {
-  const respuesta = await fetch('/api/auth/codigo-restablecimiento', {
+  const respuesta = await fetch('/api/auth/codigo-restablecimiento/', {
     method: 'POST',
     headers: await cabecerasConToken(),
     body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
@@ -97,7 +97,7 @@ export async function generarCodigoRestablecimientoMiembro({ idMiembros, codigoM
  * que contar —el de la contraseña— si esto tampoco cuela.
  */
 export async function accederConCodigoDeCoordinador({ numeroUsuario, codigo }) {
-  const respuesta = await fetch('/api/auth/acceso-con-codigo', {
+  const respuesta = await fetch('/api/auth/acceso-con-codigo/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ numeroUsuario, codigo }),
@@ -117,7 +117,7 @@ export async function accederConCodigoDeCoordinador({ numeroUsuario, codigo }) {
  * generar uno hace un rato y generar otro lo anularia.
  */
 export async function consultarCodigoRestablecimiento({ idMiembros, codigoMiembro, correo }) {
-  const respuesta = await fetch('/api/auth/codigo-restablecimiento', {
+  const respuesta = await fetch('/api/auth/codigo-restablecimiento/', {
     method: 'PUT',
     headers: await cabecerasConToken(),
     body: JSON.stringify({ idMiembros, codigoMiembro, correo }),
@@ -133,7 +133,7 @@ export async function consultarCodigoRestablecimiento({ idMiembros, codigoMiembr
  * de sesion, asi que se llama sin esperar respuesta.
  */
 export async function marcarRecuperacionAtendida() {
-  const respuesta = await fetch('/api/notificaciones/recuperacion-atendida', {
+  const respuesta = await fetch('/api/notificaciones/recuperacion-atendida/', {
     method: 'POST',
     headers: await cabecerasConToken(),
   }).catch(() => null);
@@ -149,7 +149,7 @@ export async function marcarRecuperacionAtendida() {
  * acceso aunque ya tenga una clave suya.
  */
 export async function revisarEstadoClave() {
-  const respuesta = await fetch('/api/auth/estado-clave', {
+  const respuesta = await fetch('/api/auth/estado-clave/', {
     method: 'POST',
     headers: await cabecerasConToken(),
   });

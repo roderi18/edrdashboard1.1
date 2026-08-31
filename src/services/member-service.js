@@ -205,7 +205,7 @@ export function invalidateMembersCache() {
 
 async function fetchMembersFresh() {
   try {
-    const res = await fetch('/api/members', { headers: await authHeaders() });
+    const res = await fetch('/api/members/', { headers: await authHeaders() });
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -262,7 +262,7 @@ const getMemberDisplayName = (member = {}) =>
   'Miembro';
 
 export async function createMemberApi(payload, { usuario } = {}) {
-  const res = await fetch('/api/members/post', {
+  const res = await fetch('/api/members/post/', {
     method: 'POST',
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
@@ -297,7 +297,7 @@ export async function createMemberApi(payload, { usuario } = {}) {
 }
 
 export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
-  const res = await fetch('/api/members/put', {
+  const res = await fetch('/api/members/put/', {
     method: 'PUT',
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
@@ -338,7 +338,7 @@ export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
 }
 
 export async function deleteMember(memberId, { usuario, antes = null } = {}) {
-  const res = await fetch(`/api/members?id=${encodeURIComponent(memberId)}`, {
+  const res = await fetch(`/api/members/?id=${encodeURIComponent(memberId)}`, {
     method: 'DELETE',
     headers: await authHeaders(),
   });

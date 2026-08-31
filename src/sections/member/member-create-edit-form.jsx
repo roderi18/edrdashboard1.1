@@ -1002,7 +1002,7 @@ export function MemberCreateEditForm({
 
     const load = async () => {
       const res = await fetch(
-        `/api/divisions/calculate?birthdate=${encodeURIComponent(normalizedBirthdate)}`
+        `/api/divisions/calculate/?birthdate=${encodeURIComponent(normalizedBirthdate)}`
       );
       const data = await res.json();
       setDivision(data?.name || '');

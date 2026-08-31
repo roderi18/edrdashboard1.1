@@ -837,7 +837,7 @@ export function MemberTableToolbar({
 
           codigosReservados.push(codigoMiembro);
 
-          const res = await fetch('/api/members/post', {
+          const res = await fetch('/api/members/post/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1033,7 +1033,7 @@ export function MemberTableToolbar({
     try {
       const templateDestId = getTemplateDestIdForUser(user);
       const query = templateDestId ? `?destId=${encodeURIComponent(templateDestId)}` : '';
-      const response = await fetch(`/api/members/template${query}`, { cache: 'no-store' });
+      const response = await fetch(`/api/members/template/${query}`, { cache: 'no-store' });
 
       if (!response.ok) {
         const payload = await readApiResponse(response);

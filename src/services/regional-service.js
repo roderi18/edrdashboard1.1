@@ -25,7 +25,7 @@ const CAMPOS_REGION = {
 
 // Escritura real. No se llama a pelo: entra por la puerta de cambios.
 const escribirRegion = async (payload) => {
-  const res = await fetch('/api/regional/put', {
+  const res = await fetch('/api/regional/put/', {
     method: 'PUT',
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
@@ -80,7 +80,7 @@ export const getCachedRegionals = () => getStorageCollection(REGIONALS_STORAGE_K
 
 export const getRegionals = async ({ includePhotos = true } = {}) => {
     try {
-        const res = await fetch('/api/regional');
+        const res = await fetch('/api/regional/');
 
         if (!res.ok) {
             await res.text();
@@ -144,7 +144,7 @@ export const saveRegional = async (payload, { usuario } = {}) => {
     // Crear regiones queda reservado a los administradores global/funcional.
     assertScope(usuario, canDeleteOrgLevel(usuario), 'No tienes permiso para crear regiones.');
 
-    const res = await fetch('/api/regional/post', {
+    const res = await fetch('/api/regional/post/', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
@@ -207,7 +207,7 @@ export const updateRegional = async (payload, { usuario, antes = null } = {}) =>
 export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
     assertScope(usuario, canDeleteOrgLevel(usuario), 'No tienes permiso para eliminar regiones.');
 
-    const res = await fetch(`/api/regional?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`/api/regional/?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         // El token viaja: el servidor ya no borra por el mero hecho de que le
         // llegue la peticion, comprueba que quien la manda sea el Administrador
