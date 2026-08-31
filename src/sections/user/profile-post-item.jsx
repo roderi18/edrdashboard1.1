@@ -25,6 +25,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import CircularProgress from '@mui/material/CircularProgress';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
 
@@ -254,6 +255,7 @@ export function ProfilePostItem({
   post,
   user: currentUser,
   prioritizeImage = false,
+  edgeToEdgeMobile = false,
   onAddComment,
   onToggleLike,
   onHidePost,
@@ -280,6 +282,7 @@ export function ProfilePostItem({
   const reminderMenuPaperRef = useRef(null);
   const reminderPointerRef = useRef({ x: 0, y: 0 });
   const mediaSwipeRef = useRef({ active: false, startX: 0, startY: 0 });
+  const imageFullscreenRef = useRef(null);
 
   const [message, setMessage] = useState('');
   const [comments, setComments] = useState(post.comments || []);
@@ -299,6 +302,7 @@ export function ProfilePostItem({
   const [reminderAnchorEl, setReminderAnchorEl] = useState(null);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [imageFullscreen, setImageFullscreen] = useState(false);
   const [imageInfoDialogOpen, setImageInfoDialogOpen] = useState(false);
   const [ipPasswordDialogOpen, setIpPasswordDialogOpen] = useState(false);
   const [ipPassword, setIpPassword] = useState('');
@@ -321,6 +325,7 @@ export function ProfilePostItem({
   const [highlightedCommentId, setHighlightedCommentId] = useState('');
   const [visibleRootCommentsCount, setVisibleRootCommentsCount] = useState(COMMENTS_PAGE_SIZE);
   const [mediaSwipeOffset, setMediaSwipeOffset] = useState(0);
+  const [validatedMediaUrls, setValidatedMediaUrls] = useState(() => new Set());
 
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const postMenuOpen = Boolean(menuAnchorEl);
@@ -361,23 +366,32 @@ export function ProfilePostItem({
 
   const proporcionDe = useCallback(
     (url) =>
-      proporcionesGuardadas.get(url) || proporcionesMedidas.get(url) || PROPORCION_POR_DEFECTO,
+      proporcionesMedidas.get(url) || proporcionesGuardadas.get(url) || PROPORCION_POR_DEFECTO,
     [proporcionesGuardadas]
   );
 
-  /** Una foto vieja acaba de llegar: se le toman las medidas y se recuerdan. */
-  const recordarMedida = useCallback((url, evento) => {
-    if (!url || proporcionesMedidas.has(url)) return;
-
+  /** Valida las medidas reales antes de permitir que la foto sea visible. */
+  const validarYRecordarMedida = useCallback((url, eventoOElemento) => {
+    const elemento = eventoOElemento?.target || eventoOElemento;
     const proporcion = proporcionValida(
-      evento?.target?.naturalWidth,
-      evento?.target?.naturalHeight
+      elemento?.naturalWidth,
+      elemento?.naturalHeight
     );
 
-    if (!proporcion) return;
+    if (!url || !proporcion) return;
 
+    const proporcionAnterior = proporcionesMedidas.get(url);
     proporcionesMedidas.set(url, proporcion);
-    anotarMedicion((valor) => valor + 1);
+    setValidatedMediaUrls((currentUrls) => {
+      if (currentUrls.has(url)) return currentUrls;
+
+      const nextUrls = new Set(currentUrls);
+      nextUrls.add(url);
+      return nextUrls;
+    });
+    if (proporcionAnterior !== proporcion) {
+      anotarMedicion((valor) => valor + 1);
+    }
   }, []);
   const canViewImageInfo = isAdminGlobal(user);
   const commentsCount = getCommentsCount(comments);
@@ -447,6 +461,26 @@ export function ProfilePostItem({
 
     setVisibleRootCommentsCount(COMMENTS_PAGE_SIZE);
   }, [commentFilter, detailDialogOpen, post.id]);
+
+  useEffect(() => {
+    if (!detailDialogOpen) return undefined;
+
+    const syncFullscreenState = () => {
+      const fullscreenElement =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+
+      setImageFullscreen(Boolean(fullscreenElement && fullscreenElement === imageFullscreenRef.current));
+    };
+
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenState);
+    syncFullscreenState();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+      document.removeEventListener('webkitfullscreenchange', syncFullscreenState);
+    };
+  }, [detailDialogOpen]);
 
   const commentExistsInPost = useCallback(
     (commentId) =>
@@ -895,6 +929,14 @@ export function ProfilePostItem({
   );
 
   const handleClosePreview = useCallback(() => {
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement || null;
+
+    if (fullscreenElement && fullscreenElement === imageFullscreenRef.current) {
+      const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+      Promise.resolve(exitFullscreen?.call(document)).catch(() => null);
+    }
+
     setSelectedMediaIndex(0);
     setDetailDialogOpen(false);
     setCommentFilterAnchorEl(null);
@@ -913,6 +955,36 @@ export function ProfilePostItem({
 
     handleSelectMedia(nextIndex);
   }, [handleSelectMedia, mediaItems.length, selectedMediaIndex]);
+
+  const handleToggleImageFullscreen = useCallback(async () => {
+    const container = imageFullscreenRef.current;
+    if (!container) return;
+
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement || null;
+
+    try {
+      if (fullscreenElement === container) {
+        const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+        await exitFullscreen?.call(document);
+        return;
+      }
+
+      const requestFullscreen = container.requestFullscreen || container.webkitRequestFullscreen;
+
+      if (requestFullscreen) {
+        await requestFullscreen.call(container);
+        return;
+      }
+
+      // Algunos Safari móviles no permiten pantalla completa para elementos
+      // arbitrarios. En ese caso se abre la imagen sola en una pestaña.
+      window.open(selectedMediaFull, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo abrir la imagen en pantalla completa.');
+    }
+  }, [selectedMediaFull]);
 
   const handleMediaTouchStart = useCallback(
     (event) => {
@@ -1672,14 +1744,16 @@ export function ProfilePostItem({
     if (mediaItems.length === 1) {
       const detalle = post.mediaDetails?.[0] || {};
       const miniatura = detalle.miniaturaUrl || mediaItems[0];
+      const estaValidada = validatedMediaUrls.has(mediaItems[0]);
 
       return (
-        <Box sx={{ p: 1 }}>
+        <Box sx={{ p: edgeToEdgeMobile ? { xs: 0, sm: 1 } : 1, flexShrink: 0 }}>
           <Box
             component="button"
             type="button"
             onClick={() => handleOpenPreview(0)}
             aria-label="Abrir imagen de la publicacion"
+            aria-busy={!estaValidada}
             // La proporcion la sigue mandando la imagen: con 4/3 y `cover` se
             // recortaba lo que no cupiera —a un certificado se le comian los
             // bordes—. Lo que cambia es CUANDO se sabe: ahora desde el primer
@@ -1692,7 +1766,8 @@ export function ProfilePostItem({
               display: 'block',
               overflow: 'hidden',
               position: 'relative',
-              borderRadius: 1.5,
+              flexShrink: 0,
+              borderRadius: edgeToEdgeMobile ? { xs: 0, sm: 1.5 } : 1.5,
               cursor: 'pointer',
               bgcolor: 'background.neutral',
               '&::before': {
@@ -1715,6 +1790,22 @@ export function ProfilePostItem({
               aspectRatio: proporcionDe(mediaItems[0]),
             }}
           >
+            {!estaValidada && (
+              <Box
+                sx={{
+                  inset: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  position: 'absolute',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'background.neutral',
+                }}
+              >
+                <CircularProgress size={28} />
+              </Box>
+            )}
+
             <Box
               component="img"
               loading={prioritizeImage ? 'eager' : 'lazy'}
@@ -1723,8 +1814,17 @@ export function ProfilePostItem({
               alt={post.message || post.media}
               src={mediaItems[0]}
               srcSet={construirSrcSet(detalle, mediaItems[0])}
-              sizes="(max-width: 600px) calc(100vw - 32px), 827px"
-              onLoad={(evento) => recordarMedida(mediaItems[0], evento)}
+              sizes={
+                edgeToEdgeMobile
+                  ? '(max-width: 600px) 100vw, 827px'
+                  : '(max-width: 600px) calc(100vw - 32px), 827px'
+              }
+              ref={(elemento) => {
+                // En una recarga normal la imagen puede venir de cache y
+                // terminar antes de que React alcance a escuchar `load`.
+                if (elemento?.complete) validarYRecordarMedida(mediaItems[0], elemento);
+              }}
+              onLoad={(evento) => validarYRecordarMedida(mediaItems[0], evento)}
               sx={{
                 width: 1,
                 height: 1,
@@ -1735,6 +1835,8 @@ export function ProfilePostItem({
                 objectPosition: 'center',
                 position: 'relative',
                 zIndex: 1,
+                opacity: estaValidada ? 1 : 0,
+                transition: 'opacity 180ms ease',
               }}
             />
           </Box>
@@ -1747,8 +1849,9 @@ export function ProfilePostItem({
         sx={[
           {
             gap: 1,
-            p: 1,
+            p: edgeToEdgeMobile ? { xs: 0, sm: 1 } : 1,
             display: 'grid',
+            flexShrink: 0,
             gridTemplateColumns: {
               xs: 'repeat(2, minmax(0, 1fr))',
               sm: 'repeat(2, minmax(0, 1fr))',
@@ -1760,6 +1863,7 @@ export function ProfilePostItem({
           const showMoreOverlay = index === MEDIA_PREVIEW_LIMIT - 1 && hiddenMediaCount > 0;
           const detalle = post.mediaDetails?.[index] || {};
           const miniatura = detalle.miniaturaUrl || media;
+          const estaValidada = validatedMediaUrls.has(media);
 
           return (
             <Box
@@ -1768,6 +1872,7 @@ export function ProfilePostItem({
               key={`${media}-${index}`}
               onClick={() => handleOpenPreview(index)}
               aria-label={`Abrir imagen ${index + 1} de ${mediaItems.length}`}
+              aria-busy={!estaValidada}
               sx={{
                 p: 0,
                 m: 0,
@@ -1777,7 +1882,7 @@ export function ProfilePostItem({
                 display: 'block',
                 position: 'relative',
                 overflow: 'hidden',
-                borderRadius: 1.5,
+                borderRadius: edgeToEdgeMobile ? { xs: 0, sm: 1.5 } : 1.5,
                 cursor: 'pointer',
                 bgcolor: 'background.neutral',
                 // La foto completa queda al frente. La misma imagen, ampliada y
@@ -1795,6 +1900,22 @@ export function ProfilePostItem({
                 },
               }}
             >
+              {!estaValidada && (
+                <Box
+                  sx={{
+                    inset: 0,
+                    zIndex: 2,
+                    display: 'flex',
+                    position: 'absolute',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'background.neutral',
+                  }}
+                >
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+
               <Box
                 component="img"
                 loading={prioritizeImage && index === 0 ? 'eager' : 'lazy'}
@@ -1803,7 +1924,15 @@ export function ProfilePostItem({
                 alt={`${post.message || 'Publicacion'} ${index + 1}`}
                 src={media}
                 srcSet={construirSrcSet(detalle, media)}
-                sizes="(max-width: 600px) calc(50vw - 20px), 405px"
+                sizes={
+                  edgeToEdgeMobile
+                    ? '(max-width: 600px) calc(50vw - 4px), 405px'
+                    : '(max-width: 600px) calc(50vw - 20px), 405px'
+                }
+                ref={(elemento) => {
+                  if (elemento?.complete) validarYRecordarMedida(media, elemento);
+                }}
+                onLoad={(evento) => validarYRecordarMedida(media, evento)}
                 sx={{
                   width: 1,
                   height: 1,
@@ -1814,6 +1943,8 @@ export function ProfilePostItem({
                   objectPosition: 'center',
                   position: 'relative',
                   zIndex: 1,
+                  opacity: estaValidada ? 1 : 0,
+                  transition: 'opacity 180ms ease',
                 }}
               />
 
@@ -2340,6 +2471,7 @@ export function ProfilePostItem({
 
         {selectedMediaFull && (
           <Box
+            ref={imageFullscreenRef}
             data-mobile-image-swipe
             onTouchStart={handleMediaTouchStart}
             onTouchMove={handleMediaTouchMove}
@@ -2350,6 +2482,17 @@ export function ProfilePostItem({
               bgcolor: 'background.neutral',
               touchAction: { xs: 'pan-y', sm: 'auto' },
               overflow: 'hidden',
+              '&:fullscreen, &:-webkit-full-screen': {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'common.black',
+                '& > img': {
+                  width: '100vw',
+                  height: '100vh',
+                  maxHeight: 'none',
+                },
+              },
             }}
           >
             <Box
@@ -2373,6 +2516,30 @@ export function ProfilePostItem({
                 transition: mediaSwipeOffset ? 'none' : 'transform 180ms ease',
               }}
             />
+
+            <IconButton
+              color="inherit"
+              title={imageFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              aria-label={imageFullscreen ? 'Salir de pantalla completa' : 'Ver en pantalla completa'}
+              onClick={handleToggleImageFullscreen}
+              sx={{
+                top: 12,
+                right: 12,
+                zIndex: 3,
+                position: 'absolute',
+                color: 'common.white',
+                bgcolor: 'rgba(0, 0, 0, 0.48)',
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.68)' },
+              }}
+            >
+              <Iconify
+                icon={
+                  imageFullscreen
+                    ? 'solar:quit-full-screen-square-outline'
+                    : 'solar:full-screen-square-outline'
+                }
+              />
+            </IconButton>
 
             {hasMultipleMedia && (
               <>
@@ -2464,7 +2631,13 @@ export function ProfilePostItem({
       {hidden ? (
         renderHiddenPost()
       ) : (
-        <Card id={`post-${post.id}`}>
+        <Card
+          id={`post-${post.id}`}
+          sx={{
+            flexShrink: 0,
+            borderRadius: edgeToEdgeMobile ? { xs: 0, sm: 2 } : 2,
+          }}
+        >
           {renderHead()}
 
           {post.message && (

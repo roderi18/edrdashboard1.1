@@ -64,6 +64,9 @@ const MAX_POST_IMAGES = PRINCIPAL_LIMITS.imagesPerPost;
 const PULL_REFRESH_THRESHOLD = 100;
 const PULL_REFRESH_MAX_DISTANCE = 150;
 const PULL_REFRESH_RESISTANCE = 0.42;
+// Interruptor temporal: ponerlo en `false` devuelve el espaciado móvil anterior
+// sin tocar la carga, proporción ni optimización de las imágenes.
+const MOBILE_EDGE_TO_EDGE_POSTS = true;
 const BIRTHDAY_PRESET_MESSAGES = [
   'Dios te bendiga, feliz cumpleaños. 🙏 🎉',
   'Que Dios te regale un año lleno de salud, gozo y paz. 🙌 🎂',
@@ -884,7 +887,11 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
   const renderPostInput = () => (
     <Card
-      sx={{ p: { xs: 2, sm: 3 }, border: (theme) => `solid 1px ${theme.vars.palette.divider}` }}
+      sx={{
+        p: { xs: 2, sm: 3 },
+        flexShrink: 0,
+        border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+      }}
     >
       <Stack direction="row" spacing={1.5} alignItems="flex-start">
         <Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 44, height: 44 }}>
@@ -1019,7 +1026,20 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   );
 
   return (
-    <Grid container spacing={3} sx={sx} {...other}>
+    <Grid
+      container
+      spacing={3}
+      sx={[
+        MOBILE_EDGE_TO_EDGE_POSTS
+          ? {
+              mx: { xs: -2, sm: 0 },
+              width: { xs: 'calc(100% + 32px)', sm: 1 },
+            }
+          : {},
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      {...other}
+    >
       <Box
         role="status"
         aria-live="polite"
@@ -1057,7 +1077,19 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         </Typography>
       </Box>
 
-      <Grid size={{ xs: 12, md: 8 }} sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+      <Grid
+        size={{ xs: 12, md: 8 }}
+        sx={{
+          gap: 3,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          // Una foto servida desde cache puede conocer su altura antes del
+          // primer pintado. Ninguna tarjeta debe encogerse para acomodar de
+          // golpe la altura total del muro.
+          '& > *': { flexShrink: 0 },
+        }}
+      >
         {canPublish && renderPostInput()}
 
         {loadingPosts &&
@@ -1099,6 +1131,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
               post={post}
               user={user}
               prioritizeImage={index === 0}
+              edgeToEdgeMobile={MOBILE_EDGE_TO_EDGE_POSTS}
               onAddComment={handleAddComment}
               onToggleLike={handleToggleLike}
               onHidePost={handleHidePost}

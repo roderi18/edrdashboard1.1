@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v1';
+const VERSION = 'edr-pwa-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const STATIC_ASSETS = [
   '/',
@@ -11,7 +11,6 @@ const STATIC_ASSETS = [
 ];
 
 const STATIC_PATHS = [
-  '/_next/static/',
   '/assets/',
   '/fonts/',
   '/icons/',
@@ -109,6 +108,11 @@ async function cacheFirst(request) {
   }
 
   const response = await fetch(request);
+
+  if (!response.ok) {
+    return response;
+  }
+
   const cache = await caches.open(STATIC_CACHE);
 
   cache.put(request, response.clone());
