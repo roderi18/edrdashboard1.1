@@ -145,6 +145,7 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { ContextInfo } from 'src/components/info/context-info';
 import { BotonCopiar } from 'src/components/common/boton-copiar';
 import { UnderlineLink } from 'src/components/link/underline-link';
+import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 // form sections
 import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
 import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
@@ -2544,30 +2545,29 @@ export function MemberCreateEditForm({
               )}
 
               <Box sx={{ mb: 5 }}>
-                <Field.UploadAvatar
-                  name="avatarUrl"
-                  loading={uploadingPhoto}
-                  disabled={uploadingPhoto}
-                  readOnly={!canUploadMemberPhoto}
-                  onDrop={handleUploadMemberPhoto}
-                  optimizationToast={false}
-                  onDropRejected={handlePhotoDropRejected}
-                  hideFilesRejected
-                  helperText={
+                <FotoDeMiembro
+                  url={values.avatarUrl?.preview || values.avatarUrl || ''}
+                  nombre={memberFullName}
+                  cargando={uploadingPhoto}
+                  puedeEditar={canUploadMemberPhoto}
+                  onFoto={(archivo) => handleUploadMemberPhoto([archivo])}
+                  ayuda={
                     <>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          mt: 3,
-                          mx: 'auto',
-                          display: 'block',
-                          textAlign: 'center',
-                          color: 'text.disabled',
-                        }}
-                      >
-                        Permitido *.jpeg, *.jpg, *.png, *.gif
-                        <br /> la imagen se optimiza al cargar.
-                      </Typography>
+                      {canUploadMemberPhoto && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            mt: 3,
+                            mx: 'auto',
+                            display: 'block',
+                            textAlign: 'center',
+                            color: 'text.disabled',
+                          }}
+                        >
+                          Permitido *.jpeg, *.jpg, *.png, *.gif
+                          <br /> se encuadra y se sube ligera, en WebP.
+                        </Typography>
+                      )}
 
                       {!!photoUploadErrorMessage && (
                         <Typography
