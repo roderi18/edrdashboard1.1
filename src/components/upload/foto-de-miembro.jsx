@@ -9,6 +9,9 @@ import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import axios from 'src/lib/axios';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { RecorteDeFoto } from './recorte-de-foto';
@@ -43,6 +46,40 @@ export function FotoDeMiembro({
   const entrada = useRef(null);
   const [ampliada, setAmpliada] = useState(false);
   const [porRecortar, setPorRecortar] = useState(null);
+  const [descargando, setDescargando] = useState(false);
+
+  // DESCARGAR LA FOTO CON EL SELLO DENTRO.
+  //
+  // El sello de la pantalla es una capa encima; al guardar el archivo esa capa
+  // no viaja y quedaria la foto pelada. Se pide al servidor, que lo compone de
+  // verdad. Va por axios y no por un enlace normal porque la ruta exige sesion,
+  // y un enlace no lleva el token.
+  const descargar = async () => {
+    if (!url || descargando) return;
+
+    setDescargando(true);
+
+    try {
+      const { data } = await axios.get('/api/fotos/sellada/', {
+        params: { url, nombre },
+        responseType: 'blob',
+      });
+
+      const temporal = URL.createObjectURL(data);
+      const enlace = document.createElement('a');
+
+      enlace.href = temporal;
+      enlace.download = `${(nombre || 'foto').trim().replace(/\s+/g, '-').toLowerCase()}.webp`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      URL.revokeObjectURL(temporal);
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo descargar la foto.');
+    } finally {
+      setDescargando(false);
+    }
+  };
 
   const iniciales = String(nombre)
     .split(/\s+/)
@@ -143,7 +180,7 @@ export function FotoDeMiembro({
         />
       )}
 
-      <Dialog open={ampliada} onClose={() => setAmpliada(false)} maxWidth="sm">
+      <Dialog open={ampliada} onClose={() => setAmpliada(false)} maxWidth="lg">
         {/* La foto y el sello, en la misma caja: asi el sello se pega a la
             esquina de LA IMAGEN y no a la del dialogo, que puede sobrarle. */}
         <Box sx={{ display: 'block', position: 'relative', lineHeight: 0 }}>
@@ -151,8 +188,30 @@ export function FotoDeMiembro({
             component="img"
             src={url || undefined}
             alt={nombre}
-            sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh' }}
+            sx={{ display: 'block', maxWidth: '92vw', maxHeight: '88vh' }}
           />
+
+          <Tooltip title="Descargar con el escudo">
+            <IconButton
+              onClick={descargar}
+              disabled={descargando}
+              aria-label="Descargar la foto"
+              sx={{
+                top: 12,
+                right: 12,
+                position: 'absolute',
+                color: 'common.white',
+                bgcolor: 'rgba(0, 0, 0, 0.48)',
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.72)' },
+              }}
+            >
+              {descargando ? (
+                <CircularProgress size={20} sx={{ color: 'common.white' }} />
+              ) : (
+                <Iconify icon="eva:download-fill" width={20} />
+              )}
+            </IconButton>
+          </Tooltip>
 
           {/* Sin capturar el raton: pulsar la foto tiene que seguir cerrando el
               dialogo, no chocar contra el sello. */}
@@ -162,9 +221,9 @@ export function FotoDeMiembro({
             alt=""
             aria-hidden
             sx={{
-              width: 48,
-              right: 12,
-              bottom: 12,
+              width: 56,
+              right: 14,
+              bottom: 14,
               opacity: 0.9,
               position: 'absolute',
               pointerEvents: 'none',
