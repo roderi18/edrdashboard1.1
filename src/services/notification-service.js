@@ -2473,6 +2473,16 @@ export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
   return notificaciones.filter((notificacion) => {
     const rolDestinatario = String(notificacion.rolDestinatario ?? '').toLowerCase();
 
+    // LO PERSONAL LLEGA SIEMPRE, SE MANDE O NO EN LA ORGANIZACION.
+    //
+    // El reparto por rol existe para que un aviso que se envia dos veces —una
+    // version para administradores y otra para el resto— no salga duplicado a
+    // quien es las dos cosas. Los cumpleaños no tienen esa doble version: son
+    // del destacamento de uno. Con la regla general, a quien ademas administra
+    // se le tiraba el aviso a la basura y se quedaba sin enterarse del
+    // cumpleaños de su propio compañero.
+    if (String(notificacion.modulo ?? '').toLowerCase() === 'cumpleanos') return true;
+
     if (rolDestinatario === 'admin') return usuarioEsAdmin;
     if (rolDestinatario === 'usuario') return !usuarioEsAdmin;
 

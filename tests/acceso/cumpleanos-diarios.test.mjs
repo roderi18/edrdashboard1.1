@@ -164,3 +164,52 @@ test('y sin foto no se inventa una', () => {
 
   assert.equal(aviso.imagenURL, null);
 });
+
+// ----------------------------------------------------------------------
+// EL CUMPLEAÑERO NO SE FELICITA A SI MISMO.
+//
+// El aviso salia a TODO el destacamento, el propio cumpleañero incluido: se
+// encontraba en sus notificaciones un "hoy esta de cumpleaños <su nombre>" que
+// no le decia nada nuevo, y con un boton de felicitar que le habria rechazado.
+// ----------------------------------------------------------------------
+test('el cumpleañero queda fuera del reparto', () => {
+  const cuentasPorMiembro = { 1: ['uid-1'], 2: ['uid-2'], 3: ['uid-3'] };
+
+  const conEl = destinatariosDelDestacamento({
+    idDestacamento: '231',
+    miembros: MIEMBROS,
+    cuentasPorMiembro,
+  });
+
+  const sinEl = destinatariosDelDestacamento({
+    idDestacamento: '231',
+    miembros: MIEMBROS,
+    cuentasPorMiembro,
+    exceptoMiembro: '1',
+  });
+
+  assert.deepEqual(conEl, ['uid-1', 'uid-2', 'uid-3']);
+  assert.deepEqual(sinEl, ['uid-2', 'uid-3']);
+});
+
+test('y queda fuera por todas sus cuentas, no solo por una', () => {
+  const salen = destinatariosDelDestacamento({
+    idDestacamento: '231',
+    miembros: MIEMBROS,
+    cuentasPorMiembro: { 1: ['uid-1', 'uid-1-bis'], 2: ['uid-2'] },
+    exceptoMiembro: 1,
+  });
+
+  assert.deepEqual(salen, ['uid-2']);
+});
+
+test('sin excepcion, el reparto no cambia', () => {
+  const salen = destinatariosDelDestacamento({
+    idDestacamento: '231',
+    miembros: MIEMBROS,
+    cuentasPorMiembro: { 1: ['uid-1'], 2: ['uid-2'] },
+    exceptoMiembro: null,
+  });
+
+  assert.deepEqual(salen, ['uid-1', 'uid-2']);
+});

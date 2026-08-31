@@ -179,6 +179,9 @@ export default async function handler() {
         idDestacamento,
         miembros,
         cuentasPorMiembro,
+        // El cumpleañero no se entera por una notificacion de su propio
+        // cumpleaños: ya lo sabe, y felicitarse a si mismo no esta permitido.
+        exceptoMiembro: idDelMiembro(miembro),
       });
 
       if (!delDestacamento.length) continue;

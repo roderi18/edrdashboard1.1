@@ -87,18 +87,36 @@ export const cumpleanosDelDia = (miembros = [], { hoy = new Date(), diasAviso = 
     .map((miembro) => ({ miembro, dias: diasHastaCumpleanos(fechaDeNacimiento(miembro), hoy) }))
     .filter(({ dias }) => dias !== null && diasAviso.includes(dias));
 
-/** Los ids de acceso de quienes pertenecen a ese destacamento. */
-export const destinatariosDelDestacamento = ({ idDestacamento, miembros = [], cuentasPorMiembro = {} }) => {
+/**
+ * Los ids de acceso de quienes pertenecen a ese destacamento.
+ *
+ * `exceptoMiembro` deja fuera a alguien: al cumpleañero, que no tiene por que
+ * enterarse por una notificacion de que hoy cumple años. Ademas el boton de
+ * felicitar le rechazaria —no se felicita uno a si mismo—, asi que el aviso solo
+ * le ocuparia sitio.
+ */
+export const destinatariosDelDestacamento = ({
+  idDestacamento,
+  miembros = [],
+  cuentasPorMiembro = {},
+  exceptoMiembro = null,
+}) => {
   const destino = texto(idDestacamento);
 
   if (!destino) return [];
+
+  const excluido = texto(exceptoMiembro);
+  // Todas sus cuentas, no solo una: quien tiene dos no debe recibirlo por la otra.
+  const cuentasExcluidas = new Set(excluido ? (cuentasPorMiembro[excluido] ?? []).map(texto) : []);
 
   return [
     ...new Set(
       (Array.isArray(miembros) ? miembros : [])
         .filter((miembro) => destacamentoDelMiembro(miembro) === destino)
+        .filter((miembro) => !excluido || idDelMiembro(miembro) !== excluido)
         .flatMap((miembro) => cuentasPorMiembro[idDelMiembro(miembro)] ?? [])
         .filter(Boolean)
+        .filter((idCuenta) => !cuentasExcluidas.has(texto(idCuenta)))
     ),
   ];
 };
