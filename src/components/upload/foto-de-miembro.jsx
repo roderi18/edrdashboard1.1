@@ -178,9 +178,12 @@ export function FotoDeMiembro({
             alt=""
             aria-hidden
             sx={{
-              width: 56,
-              right: 14,
-              bottom: 14,
+              // Un 14% del ancho de la foto, con tope: en una foto grande se ve
+              // de verdad, y en una pequeña no se la come. El archivo tiene
+              // 192px, asi que hasta ahi se lee nitido.
+              width: { xs: 72, sm: 96 },
+              right: { xs: 12, sm: 18 },
+              bottom: { xs: 12, sm: 18 },
               opacity: 0.9,
               position: 'absolute',
               pointerEvents: 'none',
