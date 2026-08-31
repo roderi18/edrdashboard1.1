@@ -668,10 +668,10 @@ export function ProfilePostItem({
     try {
       const nextComment = onAddComment
         ? await onAddComment(post, {
-            mensaje: nextMessage,
-            imagen: commentImage,
-            optimisticId: optimisticComment.id,
-          })
+          mensaje: nextMessage,
+          imagen: commentImage,
+          optimisticId: optimisticComment.id,
+        })
         : optimisticComment;
 
       setComments((currentComments) =>
@@ -722,22 +722,22 @@ export function ProfilePostItem({
       try {
         const nextReply = onAddComment
           ? await onAddComment(post, {
-              mensaje: nextMessage,
-              idComentarioPadre: comment.id,
-              comentarioPadre: comment,
-              optimisticId: optimisticReply.id,
-            })
+            mensaje: nextMessage,
+            idComentarioPadre: comment.id,
+            comentarioPadre: comment,
+            optimisticId: optimisticReply.id,
+          })
           : optimisticReply;
 
         setComments((currentComments) =>
           currentComments.map((currentComment) =>
             currentComment.id === comment.id
               ? {
-                  ...currentComment,
-                  replies: (currentComment.replies || []).map((reply) =>
-                    reply.id === optimisticReply.id ? { ...nextReply, pending: false } : reply
-                  ),
-                }
+                ...currentComment,
+                replies: (currentComment.replies || []).map((reply) =>
+                  reply.id === optimisticReply.id ? { ...nextReply, pending: false } : reply
+                ),
+              }
               : currentComment
           )
         );
@@ -747,13 +747,13 @@ export function ProfilePostItem({
           currentComments.map((currentComment) =>
             currentComment.id === comment.id
               ? {
-                  ...currentComment,
-                  replies: (currentComment.replies || []).map((reply) =>
-                    reply.id === optimisticReply.id
-                      ? { ...reply, failed: true, pending: false }
-                      : reply
-                  ),
-                }
+                ...currentComment,
+                replies: (currentComment.replies || []).map((reply) =>
+                  reply.id === optimisticReply.id
+                    ? { ...reply, failed: true, pending: false }
+                    : reply
+                ),
+              }
               : currentComment
           )
         );
@@ -1281,6 +1281,7 @@ export function ProfilePostItem({
     <>
       <CardHeader
         disableTypography
+        sx={{ px: 2, pt: 2, pb: 1 }}
         avatar={
           <Link href={getProfileHref(author)} color="inherit" underline="none">
             <Avatar src={authorPhotoURL} alt={authorName}>
@@ -1294,7 +1295,7 @@ export function ProfilePostItem({
           </Link>
         }
         subheader={
-          <Box sx={{ color: 'text.disabled', typography: 'caption', mt: 0.5 }}>
+          <Box sx={{ color: 'text.disabled', typography: 'caption', mt: 0 }}>
             {formatPostCreatedAt(post.createdAt)}
             {reported && ' · Reportada'}
           </Box>
@@ -2643,7 +2644,7 @@ export function ProfilePostItem({
           {post.message && (
             <Typography
               variant="body2"
-              sx={[(theme) => ({ p: theme.spacing(3, 3, 2, 3), whiteSpace: 'pre-wrap' })]}
+              sx={[(theme) => ({ p: theme.spacing(0, 2, 0.5, 2), whiteSpace: 'pre-wrap' })]}
             >
               {renderTextWithHashtags(post.message)}
             </Typography>
