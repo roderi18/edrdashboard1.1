@@ -2,8 +2,8 @@ import 'server-only';
 
 import { limiteSuperado } from 'src/server/limite-intentos';
 import { isAdminConfigured } from 'src/server/firebase-admin';
-import { buscarCuentaMiembro } from 'src/server/claves-miembro';
 import { datosMinimosDeMiembro, buscarMiembroPorNumero } from 'src/server/miembros-directorio';
+import { buscarCuentaMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
 
 export const runtime = 'nodejs';
 
@@ -35,6 +35,30 @@ export async function POST(req) {
     if (frenado) return frenado;
 
     const { numeroUsuario, idMiembros, codigoMiembro, correo } = await req.json();
+
+    // PRIMERO EN FIRESTORE, que es donde vive la cuenta.
+    //
+    // Esta ruta contesta una sola cosa —con que correo entra este miembro— y lo
+    // hacia DESCARGANDO EL PADRON ENTERO del .NET: 2,3 segundos medidos, en el
+    // camino del inicio de sesion. Pero quien puede entrar TIENE cuenta, y su
+    // perfil guarda el numero de miembro indexado desde que se creo
+    // (`numeroMiembroBusqueda`, que escribe `crear-cuenta-miembro`). Una consulta
+    // por ese campo responde en decenas de milisegundos.
+    //
+    // El padron queda de respaldo, para las cuentas anteriores a ese campo.
+    const perfiles = numeroUsuario ? await buscarPerfilesPorNumeroMiembro(numeroUsuario) : [];
+    const perfil = perfiles[0];
+    const desdeElPerfil = perfil?.data?.() ?? null;
+
+    if (desdeElPerfil) {
+      const cuentaDelPerfil = await buscarCuentaMiembro({
+        idMiembros: desdeElPerfil.idMiembros ?? perfil.id,
+        codigoMiembro: desdeElPerfil.codigoMiembro,
+        correo: desdeElPerfil.correo,
+      });
+
+      if (cuentaDelPerfil?.email) return Response.json({ correo: cuentaDelPerfil.email });
+    }
 
     // Por numero: es lo que teclea el miembro y lo unico que se acepta desde una
     // pantalla sin sesion. El resto de los datos siguen valiendo para quien ya
