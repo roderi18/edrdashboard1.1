@@ -13,6 +13,7 @@ import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
 import { getChatMemberDirectory } from 'src/server/chat-identity-directory.mjs';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
@@ -515,7 +516,44 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
   return promise;
 }
 
+// LA FOTO SE BUSCA COMO EL SERVIDOR, NO COMO UN NAVEGADOR SIN SESION.
+//
+// Esto se leia con el SDK del navegador ejecutandose aqui, donde no hay sesion
+// ninguna: `request.auth` llega nulo y las reglas niegan la lectura. Devolvia
+// siempre vacio, en silencio, y por eso en el chat NADIE tenia cara: ni en la
+// lista, ni en la cabecera, ni en los mensajes. Se veia el monigote gris.
+const fotoDelMiembroSegunElServidor = async (memberId) => {
+  const db = getAdminDb();
+  const guardada = await db.collection(COLECCION_FOTOS).doc(`miembro_${memberId}_perfil`).get();
+  const foto = guardada.exists ? (guardada.data() ?? {}) : null;
+
+  if (foto?.estado === 'activo' && foto.urlFoto) {
+    return String(foto.urlFoto);
+  }
+
+  // Sin foto propia vigente, se mira si algun perfil suyo trae una.
+  const perfiles = await Promise.all(
+    COLECCIONES_USUARIOS.map((nombreColeccion) =>
+      db
+        .collection(nombreColeccion)
+        .where('idMiembros', '==', memberId)
+        .get()
+        .catch(() => ({ docs: [] }))
+    )
+  );
+
+  const conFoto = perfiles
+    .flatMap((snapshot) => snapshot.docs.map((item) => item.data() ?? {}))
+    .find((perfil) => perfil.photoURL || perfil.avatarUrl || perfil.urlFoto);
+
+  return conFoto?.photoURL || conFoto?.avatarUrl || conFoto?.urlFoto || '';
+};
+
 async function loadMemberPhotoUrl(memberId) {
+  if (isAdminConfigured()) {
+    return fotoDelMiembroSegunElServidor(memberId).catch(() => '');
+  }
+
   const snapshot = await getDoc(
     doc(FIRESTORE, COLECCION_FOTOS, `miembro_${memberId}_perfil`)
   ).catch(() => null);
@@ -784,7 +822,10 @@ async function getConversations(
         conversationToUi(conversation, null, viewerId, chatStore, {
           summaryOnly: true,
           includeReceipts: false,
-          enrichParticipantPhotos: false,
+          // La lista tambien necesita la cara: es lo primero que se ve. Cuesta
+          // poco, porque las fotos se guardan en memoria un rato y una lista
+          // repite a las mismas personas una y otra vez.
+          enrichParticipantPhotos: true,
         })
       )
     ),
