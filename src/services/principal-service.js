@@ -18,6 +18,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { validatePrincipalImages, validatePrincipalMessage } from 'src/utils/principal-content';
 
@@ -212,19 +213,31 @@ const uploadPrincipalImages = async ({
   const files = imagenes.map((image) => image.file || image).filter(Boolean);
   const uploadResults = await Promise.allSettled(
     files.map(async (file, index) => {
-      const extension = getFileExtension(file);
+      // LA FOTO SE OPTIMIZA ANTES DE SUBIR.
+      //
+      // Se subia el archivo tal cual sale de la camara —`calidadOriginal`— y se
+      // han medido publicaciones de 11,6 MB. Quien abre el muro se las descarga
+      // enteras para verlas en una tarjeta de 600px: cuatro fotos asi eran 25 de
+      // los 27 MB que pesaba el panel, y una tardaba 9 segundos en llegar.
+      //
+      // Si la optimizacion falla —un formato que el navegador no sabe dibujar—
+      // se sube el original: mejor pesado que perdido.
+      const optimizado = await optimizeImageFile(file, 'publicacion').catch(() => file);
+      const paraSubir = optimizado ?? file;
+      const extension = getFileExtension(paraSubir) || getFileExtension(file);
       const storagePath = `principal/${idPublicacion}/${tipo}_${index + 1}_${Date.now()}.${extension}`;
       const storageRef = ref(FIREBASE_STORAGE, storagePath);
 
       try {
-        await uploadBytes(storageRef, file, {
-          contentType: file?.type || 'image/jpeg',
+        await uploadBytes(storageRef, paraSubir, {
+          contentType: paraSubir?.type || file?.type || 'image/webp',
           customMetadata: {
             idPublicacion,
             tipo,
             orden: String(index),
             nombreArchivo: file?.name || '',
-            calidadOriginal: 'true',
+            calidadOriginal: String(paraSubir === file),
+            tamanoOriginalBytes: String(file?.size || 0),
             uploaderUid: String(usuario?.uid || ''),
             uploaderIdMiembros: String(getPrincipalMemberId(usuario) || ''),
           },

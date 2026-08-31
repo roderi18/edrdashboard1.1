@@ -19,6 +19,19 @@ export const IMAGE_UPLOAD_PRESETS = {
     mimeType: 'image/webp',
     maxSizeBytes: 1050000,
   },
+  // Las fotos del muro. Se subian TAL CUAL salen de la camara: se han medido
+  // publicaciones de 11,6 MB, 5,6 MB y 5,4 MB —cuatro fotos eran 25 de los 27 MB
+  // que pesaba abrir el panel—, y se muestran en una tarjeta de unos 600px.
+  //
+  // 1600px de lado cubre de sobra una pantalla grande y el zoom del visor; el
+  // tope de 900 kB es la red de seguridad para las fotos con mucho detalle.
+  publicacion: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.85,
+    mimeType: 'image/webp',
+    maxSizeBytes: 900000,
+  },
 };
 
 const PRESERVE_MIME_TYPES = new Set(['image/svg+xml']);
