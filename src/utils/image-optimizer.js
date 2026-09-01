@@ -5,6 +5,16 @@ export const IMAGE_UPLOAD_PRESETS = {
     quality: 0.9,
     mimeType: 'image/webp',
   },
+  // La cara en una LISTA: el buscador de chat, los contactos, las menciones. Se
+  // dibuja a unos 40px, asi que 128 sobra para pantallas densas. Una foto de
+  // perfil normal ronda los 300 kB; esta se queda en unos 10.
+  miniatura: {
+    maxWidth: 128,
+    maxHeight: 128,
+    quality: 0.78,
+    mimeType: 'image/webp',
+    maxSizeBytes: 20000,
+  },
   avatar: {
     maxWidth: 900,
     maxHeight: 900,

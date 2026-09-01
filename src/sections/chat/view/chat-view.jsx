@@ -433,6 +433,23 @@ export function ChatView() {
                     typingParticipantNames={typingParticipantNames}
                   />
                 )
+              ) : recipients.length ? (
+                // CHAT NUEVO, TODAVIA SIN CONVERSACION.
+                //
+                // Aqui solo se miraba si habia conversacion seleccionada, asi que
+                // al abrirle el chat a alguien nuevo el nombre salia arriba en
+                // "Para:" pero el centro seguia diciendo "Selecciona una
+                // conversacion". Parecia que pulsar a la persona no hacia nada.
+                //
+                // Se enseña el hilo vacio, listo para escribir. La conversacion
+                // se crea con el primer mensaje.
+                <ChatMessageList
+                  messages={[]}
+                  participants={recipients}
+                  currentContact={currentContact}
+                  loading={false}
+                  hasMoreMessages={false}
+                />
               ) : (
                 <EmptyContent
                   title="Selecciona una conversación"

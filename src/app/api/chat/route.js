@@ -109,7 +109,11 @@ const mapaDeFotosDeMiembros = async () => {
 
       const idEntidad = String(datos.idEntidad ?? '').trim();
 
-      if (idEntidad && datos.urlFoto) fotos.set(idEntidad, String(datos.urlFoto));
+      // La miniatura primero: en una lista de cientos, la diferencia entre
+      // 10 kB y 300 kB por cara es la diferencia entre abrir y esperar.
+      const cara = datos.urlFotoMiniatura || datos.urlFoto;
+
+      if (idEntidad && cara) fotos.set(idEntidad, String(cara));
     });
   }
 

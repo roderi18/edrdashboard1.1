@@ -54,6 +54,7 @@ export async function registrarFotoEntidadSubida({
   tipoFoto = 'perfil',
   rutaArchivo,
   urlFoto,
+  urlFotoMiniatura = '',
   subidoPor,
 }) {
   asegurarFirebaseFotos();
@@ -70,6 +71,9 @@ export async function registrarFotoEntidadSubida({
     idEntidad: String(idEntidad),
     rutaArchivo: rutaArchivo || '',
     urlFoto,
+    // La misma cara, pero para listas. Vacia en las fotos de antes: quien la lee
+    // se queda con `urlFoto`, que siempre esta.
+    urlFotoMiniatura: urlFotoMiniatura || '',
     tipoFoto,
     esPrincipal: true,
     subidoPor: subidoPor || null,
@@ -107,17 +111,29 @@ export async function subirFotoEntidad({
 
   const folder = carpetaDeEntidad(tipoEntidad);
   const basePath = `${folder}/${idEntidad}/${tipoFoto}.webp`;
-  const uploadResult = await uploadOptimizedImage({
-    file,
-    preset: 'avatar',
-    storagePath: basePath,
-    metadata: {
-      tipoEntidad,
-      idEntidad: String(idEntidad),
-      tipoFoto,
-      subidoPor: subidoPor || '',
-    },
-  });
+  const metadatos = {
+    tipoEntidad,
+    idEntidad: String(idEntidad),
+    tipoFoto,
+    subidoPor: subidoPor || '',
+  };
+
+  // DOS TAMAÑOS, DE UNA VEZ.
+  //
+  // La grande es la que se ve al abrir la ficha. La pequeña es para las listas
+  // —el buscador del chat, los contactos—, donde la cara se dibuja a 40px y
+  // bajarse 300 kB por cada persona no tiene ningun sentido.
+  const [uploadResult, miniatura] = await Promise.all([
+    uploadOptimizedImage({ file, preset: 'avatar', storagePath: basePath, metadata: metadatos }),
+    uploadOptimizedImage({
+      file,
+      preset: 'miniatura',
+      storagePath: `${folder}/${idEntidad}/${tipoFoto}-mini.webp`,
+      metadata: { ...metadatos, variante: 'miniatura' },
+      // Si la miniatura falla, la foto se sube igual: es una comodidad, no un
+      // requisito. Sin ella las listas usan la grande, como hasta ahora.
+    }).catch(() => null),
+  ]);
 
   return registrarFotoEntidadSubida({
     tipoEntidad,
@@ -125,6 +141,7 @@ export async function subirFotoEntidad({
     tipoFoto,
     rutaArchivo: uploadResult.storagePath,
     urlFoto: uploadResult.downloadUrl,
+    urlFotoMiniatura: miniatura?.downloadUrl || '',
     subidoPor,
   });
 }
