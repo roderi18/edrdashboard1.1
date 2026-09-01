@@ -1338,6 +1338,12 @@ export const academiaMinisterialRequiresApproval = (user = {}) => isDestacamento
 
 export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PADRES_VER);
 
+// Editar a los padres pasa por `puedeEditarPorCatalogo`, no por `puedePorCatalogo`:
+// un rol de solo lectura —el Pastor, los cargos de consulta— puede verlos pero no
+// tocarlos, aunque el token arrastre permisos de edicion de una asignacion vieja.
+export const canEditParents = (user = {}) =>
+  puedeEditarPorCatalogo(user, PERMISOS.PADRES_EDITAR);
+
 // Roles de administración que ven SIEMPRE la información personal completa del
 // miembro, aunque el catálogo no les otorgue `miembros.ver_datos_sensibles`.
 const FULL_MEMBER_TEXT_ROLE_IDS = new Set([
