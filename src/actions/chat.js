@@ -372,16 +372,37 @@ export async function removeLocalMessage(conversationId, messageId) {
 
 // ----------------------------------------------------------------------
 
-export async function createConversation(conversationData) {
-  /**
-   * Work on server
-   */
+export async function createConversation(conversationData, idMiembros) {
   const data = { conversationData };
   const res = await axios.post(CHAT_ENDPOINT, data);
+  const conversation = res.data?.conversation;
 
-  /**
-   * Work in local
-   */
+  // LA CONVERSACION RECIEN CREADA YA LA TENEMOS: NO SE VUELVE A PEDIR.
+  //
+  // Al enviar el primer mensaje se navegaba a `?id=<nueva>` y la pantalla se
+  // ponia a cargarla desde cero: el chat entero se llenaba de esqueletos grises
+  // durante un segundo, solo para acabar enseñando el mensaje que se acababa de
+  // escribir. Y el servidor ya la habia devuelto entera en esta misma respuesta.
+  //
+  // Se guarda en la cache con su clave antes de navegar, asi que al llegar ya
+  // esta ahi y no hay nada que cargar.
+  if (conversation?.id) {
+    await mutate(
+      [
+        CHAT_ENDPOINT,
+        {
+          params: {
+            conversationId: `${conversation.id}`,
+            endpoint: 'conversation',
+            idMiembros,
+          },
+        },
+      ],
+      { conversation },
+      { revalidate: false }
+    );
+  }
+
   await mutate((key) => isConversationsKey(key));
 
   return res.data;
