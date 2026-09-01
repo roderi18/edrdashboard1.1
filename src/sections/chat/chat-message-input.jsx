@@ -31,6 +31,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { SelectorDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
 import { buildChatDraftKey } from './utils/productivity.mjs';
 import { initialConversation } from './utils/initial-conversation';
@@ -47,85 +48,9 @@ const ALLOWED_DOCUMENT_TYPES = new Set([
   'application/zip',
   'application/x-zip-compressed',
 ]);
-export const CHAT_EMOJI_CATEGORIES = [
-  {
-    label: 'Caras',
-    emojis:
-      '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🫣 🤗 🤔 🫡 🤭 🫢 🫠 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Gestos',
-    emojis:
-      '👍 👎 👊 ✊ 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💪 🦾 🖐️ ✋ 🤚 👋 🤙 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 👌 👈 👉 👆 👇 ☝️ ✋ 🫵'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Personas',
-    emojis:
-      '👶 🧒 👦 👧 🧑 👨 👩 🧔 👱 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 👷 💂 🕵️ 👩‍⚕️ 👨‍⚕️ 👩‍🏫 👨‍🏫 👩‍🍳 👨‍🍳 👩‍💻 👨‍💻 👩‍🎤 👨‍🎤 👩‍🚀 👨‍🚀 🧙 🧚 🧛 🧜 🧝 🧞 🧟'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Corazones',
-    emojis:
-      '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 💋 💯 💢 💥 💫 💦 💨 🕳️'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Animales',
-    emojis:
-      '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🦟 🦗 🕷️ 🦂 🐢 🐍 🦎 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Comida',
-    emojis:
-      '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🫘 🌰 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Actividad',
-    emojis:
-      '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚴 🚵 🎮 🕹️ 🎲 ♟️ 🎯 🎳'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Viajes',
-    emojis:
-      '🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ 🛟 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Objetos',
-    emojis:
-      '⌚ 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🕹️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 ⏱️ ⏲️ ⏰ 🕰️ ⌛ ⏳ 📡 🔋 🪫 🔌 💡 🔦 🕯️ 🪔 🧯 🛢️ 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🪛 🔧 🔨 ⚒️ 🛠️ ⛏️ 🪚 🔩 ⚙️ 🧱'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Símbolos',
-    emojis:
-      '✅ ☑️ ✔️ ❌ ❎ ➕ ➖ ➗ ✖️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ❕ ❔ ❗ ❓ ‼️ ⁉️ 💬 💭 🗯️ ♠️ ♥️ ♦️ ♣️ 🃏 🀄 🎴 🔇 🔈 🔉 🔊 📢 📣 🔔 🔕 🎵 🎶 💹 🛐 ⚛️ 🕉️ ✡️ ☸️ ☯️ ✝️ ☦️ ☪️ ☮️ 🕎 🔯 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓'.split(
-        ' '
-      ),
-  },
-  {
-    label: 'Banderas',
-    emojis:
-      '🇩🇴 🇺🇸 🇵🇷 🇪🇸 🇲🇽 🇨🇴 🇻🇪 🇨🇺 🇭🇹 🇵🇦 🇨🇷 🇭🇳 🇳🇮 🇸🇻 🇬🇹 🇧🇷 🇦🇷 🇨🇱 🇵🇪 🇪🇨 🇺🇾 🇵🇾 🇧🇴 🇨🇦 🇬🇧 🇫🇷 🇩🇪 🇮🇹 🇵🇹 🇯🇵 🇨🇳 🇰🇷 🇮🇳 🇦🇺'.split(
-        ' '
-      ),
-  },
-];
+// Los emojis viven ahora en `src/catalogs/emojis.mjs`, con su nombre en español
+// y su buscador. Aqui eran cadenas separadas por espacios, sin nombre, y estaban
+// duplicados en otros dos sitios.
 
 const isZipOrPdf = (file) => {
   const name = String(file?.name || '').toLowerCase();
@@ -181,12 +106,8 @@ export function ChatMessageInput({
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
-  const [emojiCategory, setEmojiCategory] = useState(CHAT_EMOJI_CATEGORIES[0].label);
   const [mentionQuery, setMentionQuery] = useState(null);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
-  const currentEmojiCategory =
-    CHAT_EMOJI_CATEGORIES.find((category) => category.label === emojiCategory) ||
-    CHAT_EMOJI_CATEGORIES[0];
   const draftKey = useMemo(
     () =>
       buildChatDraftKey({
@@ -1075,65 +996,12 @@ export function ChatMessageInput({
         </Box>
       </Popover>
 
-      <Popover
+      <SelectorDeEmojis
         open={emojiPickerOpen}
         anchorEl={emojiAnchorEl}
         onClose={() => setEmojiAnchorEl(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{
-          paper: { sx: { width: 360, maxWidth: 'calc(100vw - 32px)', borderRadius: 1.5 } },
-        }}
-      >
-        <Box sx={{ p: 1 }}>
-          <Box sx={{ gap: 0.5, mb: 1, display: 'flex', overflowX: 'auto' }}>
-            {CHAT_EMOJI_CATEGORIES.map((category) => (
-              <Box
-                key={category.label}
-                component="button"
-                type="button"
-                aria-pressed={emojiCategory === category.label}
-                onClick={() => setEmojiCategory(category.label)}
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  border: 0,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  typography: 'caption',
-                  color: emojiCategory === category.label ? 'primary.contrastText' : 'text.primary',
-                  bgcolor: emojiCategory === category.label ? 'primary.main' : 'background.neutral',
-                }}
-              >
-                {category.label}
-              </Box>
-            ))}
-          </Box>
-
-          <Box
-            sx={{
-              gap: 0.25,
-              display: 'grid',
-              maxHeight: 260,
-              overflowY: 'auto',
-              gridTemplateColumns: 'repeat(8, 1fr)',
-            }}
-          >
-            {currentEmojiCategory.emojis.map((emoji, index) => (
-              <IconButton
-                key={`${emoji}-${index}`}
-                size="small"
-                aria-label={`Insertar ${emoji}`}
-                onClick={() => handleInsertEmoji(emoji)}
-                sx={{ width: 38, height: 38, fontSize: 22 }}
-              >
-                {emoji}
-              </IconButton>
-            ))}
-          </Box>
-        </Box>
-      </Popover>
+        onSelectEmoji={handleInsertEmoji}
+      />
 
       <input
         multiple
