@@ -41,6 +41,17 @@ export async function uploadOptimizedImage({
 
   await uploadBytes(storageRef, optimizedFile, {
     contentType: optimizedFile?.type || file?.type || 'image/webp',
+    // QUE EL NAVEGADOR LA GUARDE.
+    //
+    // Sin esta cabecera, Storage no dice cuanto vale la foto, asi que el
+    // navegador la vuelve a pedir cada vez que se pinta: las caras de las listas
+    // parpadeaban al cambiar de pantalla, como si se cargaran de nuevo. Es que
+    // se cargaban de nuevo.
+    //
+    // Marcarla como inmutable es seguro: al cambiar la foto, Storage genera otra
+    // direccion —el objeto se reemplaza y con el su token—, asi que la nueva no
+    // se confunde con la vieja que quedo guardada.
+    cacheControl: 'public, max-age=31536000, immutable',
     customMetadata: metadata,
   });
 

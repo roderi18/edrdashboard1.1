@@ -98,11 +98,13 @@ export function ChatView() {
 
       setRecipients([contacto]);
 
-      // Se limpia el `?id=` que hubiera: si no, seguiria abierta la conversacion
-      // anterior y el destinatario nuevo no se veria por ningun lado.
-      router.push(paths.dashboard.chat);
+      // Solo se navega si hace falta. Si ya hay un `?id=` abierto hay que
+      // quitarlo —si no, seguiria viendose la conversacion anterior—, pero si no
+      // lo hay, navegar a la misma direccion volvia a montar la pantalla entera
+      // y las caras de la lista parpadeaban por nada.
+      if (selectedConversationId) router.replace(paths.dashboard.chat);
     },
-    [router]
+    [router, selectedConversationId]
   );
   const [groupName, setGroupName] = useState('');
   const [replyMessage, setReplyMessage] = useState(null);

@@ -83,7 +83,11 @@ const isRestrictedForRoute = (user, pathname = '', member) => {
   // En Dispensa Médica, los cargos de supervisión solicitan acceso al expediente
   // restringido.
   if (pathname.includes('/edit/health')) {
-    return isSupervisoryMemberViewer(user);
+    // Tambien cuando el miembro no es de los suyos. Antes esta pestaña solo
+    // avisaba a los cargos de seccion y region: un cargo de destacamento abria
+    // la dispensa de alguien de OTRO destacamento, veia los datos tapados y
+    // ningun aviso que dijera por que ni como pedirlos.
+    return isSupervisoryMemberViewer(user) || !esMiembroDeSuAlcance(user, member);
   }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
