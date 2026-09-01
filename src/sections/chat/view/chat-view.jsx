@@ -85,26 +85,25 @@ export function ChatView() {
   //
   // Al pulsar a una persona en el buscador, antes se creaba la conversacion en
   // el servidor y solo entonces se entraba: un viaje de ida y vuelta mirando la
-  // lista. Ahora se entra al momento con esa persona ya puesta como
-  // destinatario, y la conversacion se crea sola al enviar el primer mensaje
-  // —que es cuando hay algo que guardar—.
-  const destinatarioPedido = searchParams.get('destinatario') || '';
+  // lista. Ahora se entra al momento con esa persona ya puesta de destinatario,
+  // y la conversacion se crea sola al enviar el primer mensaje —que es cuando
+  // hay algo que guardar—.
+  //
+  // El contacto llega EN MANO desde la lista, no por la barra de direcciones:
+  // pasarlo por el URL obligaba a buscarlo despues entre los contactos, y si esa
+  // busqueda no casaba se quedaba todo en blanco sin decir por que.
+  const abrirChatCon = useCallback(
+    (contacto) => {
+      if (!contacto) return;
 
-  useEffect(() => {
-    if (!destinatarioPedido || selectedConversationId) return;
+      setRecipients([contacto]);
 
-    const contacto = contacts.find(
-      (item) => String(item.id) === destinatarioPedido || String(item.idMiembros) === destinatarioPedido
-    );
-
-    // Mientras los contactos no hayan llegado no se decide nada: volver a
-    // intentarlo cuando lleguen es justo lo que hace este efecto.
-    if (!contacto) return;
-
-    setRecipients((actuales) =>
-      actuales.some((item) => String(item.id) === String(contacto.id)) ? actuales : [contacto]
-    );
-  }, [contacts, destinatarioPedido, selectedConversationId]);
+      // Se limpia el `?id=` que hubiera: si no, seguiria abierta la conversacion
+      // anterior y el destinatario nuevo no se veria por ningun lado.
+      router.push(paths.dashboard.chat);
+    },
+    [router]
+  );
   const [groupName, setGroupName] = useState('');
   const [replyMessage, setReplyMessage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
@@ -390,6 +389,7 @@ export function ChatView() {
           ) : (
             <ChatHeaderCompose
               contacts={contacts}
+              recipients={recipients}
               onAddRecipients={handleAddRecipients}
               groupName={groupName}
               onChangeGroupName={handleChangeGroupName}
@@ -397,6 +397,7 @@ export function ChatView() {
           ),
           nav: (
             <ChatNav
+              onStartChat={abrirChatCon}
               contacts={contacts}
               conversations={conversations}
               selectedConversationId={selectedConversationId}

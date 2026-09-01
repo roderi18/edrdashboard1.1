@@ -12,14 +12,26 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function ChatHeaderCompose({ contacts, onAddRecipients, groupName, onChangeGroupName }) {
+// EL CAMPO "PARA:" MANDA LO QUE LE DIGAN, NO LO QUE RECUERDE.
+//
+// Guardaba su propia lista de destinatarios y arrancaba con `defaultValue={[]}`:
+// no controlado. Asi que cuando la pantalla ponia a alguien de destinatario
+// —al pulsarlo en el buscador de contactos—, este campo ni se enteraba y seguia
+// enseñando "+ Destinatarios". Parecia que pulsar a la persona no hacia nada.
+//
+// Ahora la lista viene de fuera y este campo solo la enseña.
+export function ChatHeaderCompose({
+  contacts,
+  recipients = [],
+  onAddRecipients,
+  groupName,
+  onChangeGroupName,
+}) {
   const [searchRecipients, setSearchRecipients] = useState('');
-  const [selectedRecipients, setSelectedRecipients] = useState([]);
 
   const handleAddRecipients = useCallback(
     (selected) => {
       setSearchRecipients('');
-      setSelectedRecipients(selected);
       onAddRecipients(selected);
     },
     [onAddRecipients]
@@ -36,7 +48,7 @@ export function ChatHeaderCompose({ contacts, onAddRecipients, groupName, onChan
         multiple
         limitTags={3}
         popupIcon={null}
-        defaultValue={[]}
+        value={recipients}
         disableCloseOnSelect
         noOptionsText={searchRecipients ? 'No se encontraron destinatarios' : 'Escribe para buscar'}
         onChange={(event, newValue) => handleAddRecipients(newValue)}
@@ -103,7 +115,7 @@ export function ChatHeaderCompose({ contacts, onAddRecipients, groupName, onChan
         }
       />
 
-      {selectedRecipients.length > 1 && (
+      {recipients.length > 1 && (
         <TextField
           size="small"
           value={groupName}

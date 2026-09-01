@@ -47,6 +47,7 @@ export function ChatNav({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  onStartChat,
 }) {
   const router = useRouter();
   const conversationsInFlightRef = useRef(new Set());
@@ -189,13 +190,21 @@ export function ChatNav({
         // Ahora se entra ya, con esa persona puesta de destinatario, y la
         // conversacion se crea al enviar el primer mensaje, que es cuando hay
         // algo que guardar.
-        router.push(`${paths.dashboard.chat}?destinatario=${encodeURIComponent(resultId)}`);
+        // Se entrega el contacto EN MANO, no por la barra de direcciones.
+        //
+        // Antes se navegaba con `?destinatario=<id>` y la vista lo buscaba en su
+        // lista de contactos. Un rodeo con dos formas de fallar —que la lista no
+        // hubiera llegado, o que el id no casara— y el resultado era una
+        // pantalla en blanco: pulsabas y no pasaba nada.
+        //
+        // La lista ya tiene el contacto aqui mismo. Se pasa y listo.
+        onStartChat?.(recipient);
       } catch (error) {
         logChatClientError('open-conversation', error);
         toast.error(getChatErrorMessage(error, 'No se pudo abrir la conversación.'));
       }
     },
-    [contacts, conversations.byId, handleClickAwaySearch, myContact, router]
+    [contacts, conversations.byId, handleClickAwaySearch, onStartChat, router]
   );
 
   const renderLoading = () => <ChatNavItemSkeleton />;
