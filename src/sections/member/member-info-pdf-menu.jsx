@@ -254,7 +254,13 @@ const conLaEdad = (mostrado, fechaNacimiento) => {
 };
 
 export function MemberInfoPdfMenu({
-  values,
+  // Se recibe un LECTOR, no los valores.
+  //
+  // Antes llegaban ya leidos, y para tenerlos siempre frescos el formulario
+  // tenia que suscribirse a TODOS sus campos: cada tecla repintaba tres mil
+  // lineas. El PDF se arma solo al pulsar descargar, asi que basta con poder
+  // leerlos en ese instante —y ademas asi son mas frescos que antes—.
+  obtenerValores,
   memberCode,
   fullName,
   destName,
@@ -267,13 +273,17 @@ export function MemberInfoPdfMenu({
   const menuActions = usePopover();
   const [selectedSections, setSelectedSections] = useState(['general']);
 
+  // Para decidir QUE pestañas se ofrecen basta con leerlos ahora; el contenido
+  // del PDF se lee otra vez al descargar, que es cuando tiene que estar fresco.
+  const valoresActuales = obtenerValores?.() ?? {};
+
   // Cada pestaña de la ficha se ofrece en el PDF solo si el usuario puede verla.
   const canExportSection = {
     general: true,
     health: canViewMemberHealthTab(user),
     awards: canViewMemberAwardsTab(user),
     parents: canViewMemberParentsTab(user),
-    history: canViewMemberHistoryTab(user, values),
+    history: canViewMemberHistoryTab(user, valoresActuales),
   };
   const availableSections = SECTION_OPTIONS.filter((option) => canExportSection[option.value]);
 
@@ -286,6 +296,7 @@ export function MemberInfoPdfMenu({
   };
 
   const handleDownload = async () => {
+    const values = obtenerValores?.() ?? {};
     const avatarSrc = await getAvatarForPdf(values.avatarUrl || avatarUrl);
     const blob = await pdf(
       <MemberInfoPdfDocument

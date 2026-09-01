@@ -79,7 +79,7 @@ export function FotoDeMiembro({
                 borderRadius: '50%',
                 overflow: 'hidden',
                 bgcolor: 'transparent',
-                cursor: url ? 'zoom-in' : 'default',
+                cursor: url ? 'pointer' : 'default',
               }}
             >
               <Avatar

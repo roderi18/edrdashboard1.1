@@ -954,6 +954,7 @@ export function MemberCreateEditForm({
     reset,
     watch,
     control,
+    getValues,
     handleSubmit,
     formState: { isSubmitting, errors, isDirty },
   } = methods;
@@ -1100,7 +1101,17 @@ export function MemberCreateEditForm({
     };
   }, []);
 
-  const values = watch();
+  // OJO CON `watch()` A SECAS.
+  //
+  // Suscribe al formulario ENTERO: cada tecla en cualquier campo repintaba este
+  // componente completo —tres mil lineas, con sus listas, sus selectores y la
+  // foto—, y escribir se sentia pastoso. De todo eso solo se necesitaban dos
+  // valores, asi que se piden esos dos.
+  //
+  // Los demas `watch('campo')` de arriba son correctos: repintan cuando cambia
+  // SU campo, que es justo cuando hace falta.
+  const status = watch('status');
+  const avatarUrl = watch('avatarUrl');
   const firstName = watch('firstName');
   const lastName = watch('lastName');
   const memberFullName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
@@ -2534,19 +2545,19 @@ export function MemberCreateEditForm({
               {currentMember && (
                 <Label
                   color={
-                    (values.status === 'active' && 'success') ||
-                    (values.status === 'banned' && 'error') ||
+                    (status === 'active' && 'success') ||
+                    (status === 'banned' && 'error') ||
                     'warning'
                   }
                   sx={{ position: 'absolute', top: 24, right: 24 }}
                 >
-                  {values.status}
+                  {status}
                 </Label>
               )}
 
               <Box sx={{ mb: 5 }}>
                 <FotoDeMiembro
-                  url={values.avatarUrl?.preview || values.avatarUrl || ''}
+                  url={avatarUrl?.preview || avatarUrl || ''}
                   nombre={memberFullName}
                   cargando={uploadingPhoto}
                   puedeEditar={canUploadMemberPhoto}
@@ -2720,7 +2731,7 @@ export function MemberCreateEditForm({
                   sx={{ mt: 3, width: 1, maxWidth: 260, mx: 'auto', alignItems: 'stretch' }}
                 >
                   <MemberInfoPdfMenu
-                    values={values}
+                    obtenerValores={getValues}
                     memberCode={currentMember?.memberId}
                     fullName={memberFullName}
                     destName={destName}
