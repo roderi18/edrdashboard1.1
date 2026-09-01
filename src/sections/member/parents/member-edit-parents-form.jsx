@@ -1,145 +1,135 @@
 'use client';
 
 import { z as zod } from 'zod';
-import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, useFieldArray } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import CardHeader from '@mui/material/CardHeader';
-import LoadingButton from '@mui/lab/LoadingButton';
+import IconButton from '@mui/material/IconButton';
 
-import {
-  PADRES_VACIO,
-  obtenerPadresDelMiembro,
-  guardarPadresDelMiembro,
-} from 'src/services/padres-miembro-service';
-
-import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 
 // ----------------------------------------------------------------------
-// Padres o tutores.
+// Padre, madre o tutor.
 //
-// Dos personas y una nota. Los campos son los MISMOS que en la ficha del
-// miembro —el de nombre con su contador y sus reglas, el de telefono con su
-// bandera—: si en un sitio no se dejan escribir numeros en un nombre, aqui
-// tampoco.
+// Hasta TRES. Una persona tiene padre y madre, y a veces un tutor ademas; mas de
+// tres no hace falta y una lista sin tope acaba llena de gente que nadie llama.
 //
-// No hay foto, a proposito: de los padres se guarda a quien llamar, no su cara.
+// De cada uno se guarda a quien llamar y nada mas: nombre y telefono. Sin foto,
+// a proposito.
+//
+// PENDIENTE DE ENGANCHAR. La primera version guardaba en Firestore, con un padre
+// y una madre fijos. Se retiro entera al aparecer los endpoints de la API
+// —`/api/Tutores` y `/api/Parentesco`—, que llevan este mismo modelo de lista:
+//
+//   Tutores:     idTutor, nombres, telefono, idParentesco, idMiembro
+//   Parentesco:  idParentesco, nombre
+//
+// Falta el guardado contra esa API. La nota no tiene sitio en `TutoresDTO`:
+// queda por decidir si se le pide una columna al backend o se guarda aparte.
 // ----------------------------------------------------------------------
 
 const TOPE_NOTA = 500;
+const TOPE_NOMBRE = 100;
+const MAXIMO_TUTORES = 3;
 
-const PersonaSchema = zod.object({
-  nombres: zod.string().max(60).optional().or(zod.literal('')),
-  apellidos: zod.string().max(60).optional().or(zod.literal('')),
+const TUTOR_VACIO = { nombres: '', telefono: '' };
+
+const TutorSchema = zod.object({
+  nombres: zod.string().max(TOPE_NOMBRE).optional().or(zod.literal('')),
   telefono: zod.string().max(14).optional().or(zod.literal('')),
 });
 
 const PadresSchema = zod.object({
-  padre: PersonaSchema,
-  madre: PersonaSchema,
+  tutores: zod.array(TutorSchema).max(MAXIMO_TUTORES),
   nota: zod.string().max(TOPE_NOTA, `La nota no puede pasar de ${TOPE_NOTA} caracteres.`),
 });
 
-function BloqueDePersona({ prefijo, titulo, readOnly }) {
-  return (
-    <Card>
-      <CardHeader title={titulo} />
-
-      <Box
-        sx={{
-          p: 3,
-          gap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-        }}
-      >
-        <NameInput name={`${prefijo}.nombres`} label="Nombres" maxLength={60} disabled={readOnly} />
-
-        <NameInput
-          name={`${prefijo}.apellidos`}
-          label="Apellidos"
-          maxLength={60}
-          disabled={readOnly}
-        />
-
-        <Field.Phone
-          name={`${prefijo}.telefono`}
-          label="Núm. Teléfono"
-          defaultCountry="DO"
-          inputProps={{ maxLength: 14 }}
-          disabled={readOnly}
-        />
-      </Box>
-    </Card>
-  );
-}
-
-export function MemberEditParentsForm({ currentMember, readOnly = false }) {
-  const idMiembro = currentMember?.id ?? currentMember?.idMiembros ?? '';
-  const [cargando, setCargando] = useState(true);
-
+export function MemberEditParentsForm({ readOnly = false }) {
   const methods = useForm({
     resolver: zodResolver(PadresSchema),
-    defaultValues: PADRES_VACIO,
+    defaultValues: { tutores: [TUTOR_VACIO], nota: '' },
   });
 
-  const {
-    reset,
-    watch,
-    handleSubmit,
-    formState: { isSubmitting, isDirty },
-  } = methods;
-
-  const nota = watch('nota') ?? '';
-
-  useEffect(() => {
-    let cancelado = false;
-
-    const cargar = async () => {
-      try {
-        const guardado = await obtenerPadresDelMiembro(idMiembro);
-
-        if (!cancelado) reset(guardado);
-      } catch (error) {
-        if (!cancelado) toast.error(error?.message || 'No se pudo cargar la información.');
-      } finally {
-        if (!cancelado) setCargando(false);
-      }
-    };
-
-    cargar();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [idMiembro, reset]);
-
-  // Guardar SI espera al servidor. Esto no es un "me gusta": son los telefonos a
-  // los que se llama cuando a un menor le pasa algo, y decir "guardado" sin
-  // estar seguro seria justo la clase de mentira que aqui no se puede permitir.
-  const onSubmit = handleSubmit(async (datos) => {
-    try {
-      const guardado = await guardarPadresDelMiembro({ idMiembro, ...datos });
-
-      reset(guardado ?? datos);
-      toast.success('Información guardada.');
-    } catch (error) {
-      toast.error(error?.message || 'No se pudo guardar la información.');
-    }
+  const { fields, append, remove } = useFieldArray({
+    control: methods.control,
+    name: 'tutores',
   });
+
+  const nota = methods.watch('nota') ?? '';
+  const puedeAgregar = !readOnly && fields.length < MAXIMO_TUTORES;
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={(evento) => evento.preventDefault()}>
       <Stack spacing={3}>
-        <BloqueDePersona prefijo="padre" titulo="Padre o tutor" readOnly={readOnly || cargando} />
+        <Card>
+          <CardHeader
+            title="Padre, madre o tutor"
+            subheader={`Hasta ${MAXIMO_TUTORES}. A quién llamar y su número.`}
+          />
 
-        <BloqueDePersona prefijo="madre" titulo="Madre o tutora" readOnly={readOnly || cargando} />
+          <Stack spacing={2} sx={{ p: 3 }}>
+            {fields.map((campo, indice) => (
+              <Box
+                key={campo.id}
+                sx={{
+                  gap: 2,
+                  display: 'grid',
+                  alignItems: 'center',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: `repeat(2, 1fr)${readOnly || fields.length === 1 ? '' : ' 40px'}`,
+                  },
+                }}
+              >
+                <NameInput
+                  name={`tutores.${indice}.nombres`}
+                  label="Nombres"
+                  maxLength={TOPE_NOMBRE}
+                  disabled={readOnly}
+                />
+
+                <Field.Phone
+                  name={`tutores.${indice}.telefono`}
+                  label="Núm. Teléfono"
+                  defaultCountry="DO"
+                  inputProps={{ maxLength: 14 }}
+                  disabled={readOnly}
+                />
+
+                {/* Poder añadir sin poder quitar seria una trampa: el primero se
+                    queda siempre, porque la lista vacia no tendria sentido. */}
+                {!readOnly && fields.length > 1 && (
+                  <Tooltip title="Quitar">
+                    <IconButton color="error" onClick={() => remove(indice)}>
+                      <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            ))}
+
+            {puedeAgregar && (
+              <Box>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => append(TUTOR_VACIO)}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Agregar tutor
+                </Button>
+              </Box>
+            )}
+          </Stack>
+        </Card>
 
         <Card>
           <CardHeader
@@ -153,25 +143,12 @@ export function MemberEditParentsForm({ currentMember, readOnly = false }) {
               label="Nota"
               multiline
               rows={4}
-              disabled={readOnly || cargando}
+              disabled={readOnly}
               inputProps={{ maxLength: TOPE_NOTA }}
               helperText={`${nota.length}/${TOPE_NOTA}`}
             />
           </Box>
         </Card>
-
-        {!readOnly && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <LoadingButton
-              type="submit"
-              variant="contained"
-              loading={isSubmitting}
-              disabled={cargando || !isDirty}
-            >
-              Guardar cambios
-            </LoadingButton>
-          </Box>
-        )}
       </Stack>
     </Form>
   );

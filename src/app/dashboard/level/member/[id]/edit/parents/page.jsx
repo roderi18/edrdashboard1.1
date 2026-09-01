@@ -71,7 +71,7 @@ export default function Page() {
   return (
     <MemberEditLayout member={currentMember}>
       {puedeVer && (
-        <MemberEditParentsForm currentMember={currentMember} readOnly={!puedeEditar} />
+        <MemberEditParentsForm readOnly={!puedeEditar} />
       )}
     </MemberEditLayout>
   );
