@@ -284,9 +284,13 @@ export function ChatHeaderDetails({
           />
         </IconButton>
 
-        <IconButton onClick={menuActions.onOpen}>
-          <Iconify icon="eva:more-vertical-fill" />
-        </IconButton>
+        {/* En un chat que todavia no existe no hay nada que silenciar, reportar
+            ni vaciar: el menu solo aparece cuando hay conversacion. */}
+        {!!conversation && (
+          <IconButton onClick={menuActions.onOpen}>
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
+        )}
       </Box>
 
       {renderMenuActions()}

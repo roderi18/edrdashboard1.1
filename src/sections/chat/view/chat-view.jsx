@@ -374,11 +374,21 @@ export function ChatView() {
 
       <ChatLayout
         slots={{
-          header: selectedConversationId ? (
+          // UN CHAT NUEVO SE VE COMO UN CHAT, NO COMO UN FORMULARIO.
+          //
+          // Al elegir a alguien en el buscador, su nombre caia en el campo
+          // "Para:" y habia que mirarlo ahi arriba, entre etiquetas, como si
+          // faltara algo por rellenar. Ahora se abre con su cara y su nombre en
+          // la cabecera, igual que una conversacion de siempre: lo unico que la
+          // distingue es que todavia no tiene mensajes.
+          //
+          // El campo "Para:" sigue ahi para lo que sirve de verdad: empezar un
+          // grupo con varias personas cuando aun no se ha elegido a ninguna.
+          header: selectedConversationId || recipients.length === 1 ? (
             <ChatHeaderDetails
               collapseNav={roomNav}
-              conversation={conversation}
-              participants={filteredParticipants}
+              conversation={selectedConversationId ? conversation : null}
+              participants={selectedConversationId ? filteredParticipants : recipients}
               loading={conversationLoading}
               onToggleMute={handleToggleMuteConversation}
               onReport={handleReportConversation}
