@@ -1,6 +1,7 @@
 'use client';
 
 import { z as zod } from 'zod';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 
@@ -9,8 +10,12 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
 import CardHeader from '@mui/material/CardHeader';
 import IconButton from '@mui/material/IconButton';
+
+import { PARENTESCOS } from 'src/catalogs/parentescos';
+import { obtenerSaludMiembro } from 'src/services/member-health-service';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -40,11 +45,37 @@ const TOPE_NOTA = 500;
 const TOPE_NOMBRE = 100;
 const MAXIMO_TUTORES = 3;
 
-const TUTOR_VACIO = { nombres: '', telefono: '' };
+const TUTOR_VACIO = { nombres: '', telefono: '', parentesco: '' };
+
+/**
+ * El telefono, como lo entiende el campo internacional.
+ *
+ * La Dispensa Medica lo guarda tal como se ve —`(829) 447-4866`—, y con eso el
+ * campo de aqui no pinta nada: espera el formato internacional. Se convierte al
+ * traerlo, o el numero llegaria vacio y el traspaso quedaria a medias.
+ *
+ * Diez digitos es un numero dominicano sin el pais; once que empiezan por 1, uno
+ * con el. Lo que no encaje se devuelve tal cual: mejor un dato raro visible que
+ * un numero inventado.
+ */
+const enFormatoInternacional = (valor) => {
+  const bruto = String(valor ?? '').trim();
+
+  if (!bruto) return '';
+  if (bruto.startsWith('+')) return bruto;
+
+  const digitos = bruto.replace(/\D/g, '');
+
+  if (digitos.length === 10) return `+1${digitos}`;
+  if (digitos.length === 11 && digitos.startsWith('1')) return `+${digitos}`;
+
+  return bruto;
+};
 
 const TutorSchema = zod.object({
   nombres: zod.string().max(TOPE_NOMBRE).optional().or(zod.literal('')),
   telefono: zod.string().max(14).optional().or(zod.literal('')),
+  parentesco: zod.string().optional().or(zod.literal('')),
 });
 
 const PadresSchema = zod.object({
@@ -52,11 +83,72 @@ const PadresSchema = zod.object({
   nota: zod.string().max(TOPE_NOTA, `La nota no puede pasar de ${TOPE_NOTA} caracteres.`),
 });
 
-export function MemberEditParentsForm({ readOnly = false, puedeEliminar = false }) {
+export function MemberEditParentsForm({
+  idMiembro = '',
+  readOnly = false,
+  puedeEliminar = false,
+  // Solo se prellena desde la Dispensa Medica a quien puede VERLA. Traer de ahi
+  // un nombre y un telefono para quien no tiene ese permiso seria colarselos por
+  // la puerta de atras.
+  puedePrellenarDesdeSalud = false,
+}) {
+  const [prellenado, setPrellenado] = useState(false);
+
   const methods = useForm({
     resolver: zodResolver(PadresSchema),
     defaultValues: { tutores: [TUTOR_VACIO], nota: '' },
   });
+
+  // EL CONTACTO MEDICO YA ES UN TUTOR: NO SE ESCRIBE DOS VECES.
+  //
+  // Quien llena la Dispensa Medica pone ahi el nombre, el parentesco y el
+  // telefono de quien responde por esa persona. Es exactamente lo que pide esta
+  // pestaña, asi que se trae solo.
+  //
+  // Menos si es el conyuge: un conyuge no es padre, madre ni tutor de nadie, y
+  // meterlo aqui seria decir algo que no es.
+  useEffect(() => {
+    if (prellenado || readOnly || !puedePrellenarDesdeSalud || !idMiembro) return undefined;
+
+    let cancelado = false;
+
+    const traer = async () => {
+      const salud = await obtenerSaludMiembro(idMiembro, { secciones: ['general'] }).catch(
+        () => null
+      );
+
+      if (cancelado || !salud) return;
+
+      const nombre = String(salud.medicalContactName ?? '').trim();
+      const parentesco = String(salud.medicalRelationship ?? '').trim();
+
+      if (!nombre || parentesco === 'spouse') return;
+
+      // Solo si la primera fila sigue en blanco: lo que alguien haya escrito
+      // aqui manda sobre lo que venga de la otra pantalla.
+      const actuales = methods.getValues('tutores') ?? [];
+      const primera = actuales[0] ?? {};
+
+      if (primera.nombres || primera.telefono || primera.parentesco) return;
+
+      methods.setValue(
+        'tutores.0',
+        {
+          nombres: nombre.slice(0, TOPE_NOMBRE),
+          telefono: enFormatoInternacional(salud.medicalPrimaryPhone),
+          parentesco,
+        },
+        { shouldDirty: false }
+      );
+      setPrellenado(true);
+    };
+
+    traer();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [idMiembro, methods, prellenado, puedePrellenarDesdeSalud, readOnly]);
 
   const { fields, append, remove } = useFieldArray({
     control: methods.control,
@@ -85,7 +177,7 @@ export function MemberEditParentsForm({ readOnly = false, puedeEliminar = false 
                   alignItems: 'center',
                   gridTemplateColumns: {
                     xs: '1fr',
-                    sm: `repeat(2, 1fr)${!puedeEliminar || readOnly || fields.length === 1 ? '' : ' 40px'}`,
+                    md: `2fr 2fr 1.4fr${!puedeEliminar || readOnly || fields.length === 1 ? '' : ' 40px'}`,
                   },
                 }}
               >
@@ -103,6 +195,21 @@ export function MemberEditParentsForm({ readOnly = false, puedeEliminar = false 
                   inputProps={{ maxLength: 14 }}
                   disabled={readOnly}
                 />
+
+                {/* El MISMO catalogo que la Dispensa Medica. Si un sitio dijera
+                    "Tutor" y el otro "Tutor legal", serian dos cosas distintas
+                    para la base de datos y nadie sabria cual mirar. */}
+                <Field.Select
+                  name={`tutores.${indice}.parentesco`}
+                  label="Relación con el miembro"
+                  disabled={readOnly}
+                >
+                  {PARENTESCOS.map((opcion) => (
+                    <MenuItem key={opcion.value} value={opcion.value}>
+                      {opcion.label}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
 
                 {/* Borrar es del Coordinador y su Asistente, no de cualquier
                     cargo: un telefono que desaparece no deja rastro, y el dia que

@@ -30,13 +30,11 @@ export const BLOOD_TYPE_OPTIONS = [
     { value: 'O-', label: 'O-' },
 ];
 
-export const MEDICAL_RELATIONSHIP_OPTIONS = [
-    { value: 'mother', label: 'Madre' },
-    { value: 'father', label: 'Padre' },
-    { value: 'guardian', label: 'Tutor' },
-    { value: 'spouse', label: 'Cónyuge' },
-    { value: 'other', label: 'Otro' },
-];
+// La relacion con el miembro se mudo a `src/catalogs/parentescos.js`: ahora la
+// usan dos pantallas —la Dispensa Medica y los tutores de Padres— y tiene que
+// ser la MISMA lista. Se sigue exportando desde aqui para no romper lo que ya la
+// importaba por este nombre.
+export { PARENTESCOS as MEDICAL_RELATIONSHIP_OPTIONS } from 'src/catalogs/parentescos';
 
 
 export const MEDICAL_DOCUMENTS = [

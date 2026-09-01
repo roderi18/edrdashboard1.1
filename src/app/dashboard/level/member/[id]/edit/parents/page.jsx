@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
 import {
+  canViewHealth,
   canEditMemberTutors,
   esMiembroDeSuAlcance,
   canDeleteMemberTutors,
@@ -75,7 +76,12 @@ export default function Page() {
   return (
     <MemberEditLayout member={currentMember}>
       {puedeVer && (
-        <MemberEditParentsForm readOnly={!puedeEditar} puedeEliminar={puedeEliminar} />
+        <MemberEditParentsForm
+          idMiembro={currentMember?.id ?? currentMember?.idMiembros ?? ''}
+          readOnly={!puedeEditar}
+          puedeEliminar={puedeEliminar}
+          puedePrellenarDesdeSalud={canViewHealth(user) && esDeSuAlcance}
+        />
       )}
     </MemberEditLayout>
   );
