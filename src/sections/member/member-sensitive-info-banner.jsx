@@ -18,7 +18,6 @@ import {
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
-  isPastorDestacamentoRole,
   isSupervisoryMemberViewer,
   canViewMemberSensitiveData,
 } from 'src/utils/member-access';
@@ -36,6 +35,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { esMenorDeEdad } from 'src/auth/permissions/can';
 
 // ----------------------------------------------------------------------
 // Aviso de "información oculta por motivos de seguridad" + solicitud de acceso al
@@ -61,19 +61,29 @@ const SUPERVISORY_HIDDEN_INFO_TEXT =
 const HISTORY_HIDDEN_INFO_TEXT =
   'Por motivos de seguridad, el historial de cambios está reservado al Coordinador de Destacamento, su Asistente y el Líder de Grupo del propio destacamento. Puedes solicitar acceso indicando el motivo.';
 
-const getHiddenInfoText = (user, pathname = '') => {
+// No siempre se oculta por la edad. A un cargo de destacamento tambien se le
+// oculta la ficha de alguien de OTRO destacamento, tenga la edad que tenga: ahi
+// el motivo es de quien es el miembro, no cuantos años tiene.
+const OTHER_DEST_HIDDEN_INFO_TEXT =
+  'Parte de la información de este miembro está oculta por motivos de seguridad, ya que pertenece a otro destacamento. Puedes solicitar acceso indicando el motivo.';
+
+const getHiddenInfoText = (user, pathname = '', member) => {
   if (pathname.includes('/edit/history')) return HISTORY_HIDDEN_INFO_TEXT;
-  return isSectionOrRegionLevelRole(user) ? SUPERVISORY_HIDDEN_INFO_TEXT : HIDDEN_INFO_TEXT;
+  if (isSectionOrRegionLevelRole(user)) return SUPERVISORY_HIDDEN_INFO_TEXT;
+
+  // Decia "ya que es menor de edad" siempre, y se leia en la ficha de personas
+  // de 26 años. El aviso quedaba diciendo algo que no era verdad, y encima
+  // sugiriendo el motivo equivocado a quien lo leia.
+  return esMenorDeEdad(member ?? {}) ? HIDDEN_INFO_TEXT : OTHER_DEST_HIDDEN_INFO_TEXT;
 };
 
 // ¿El usuario tiene restringido el contenido de la pestaña actual? (Entonces se
 // muestra el aviso.) Cada ruta se evalúa contra su permiso correspondiente.
 const isRestrictedForRoute = (user, pathname = '', member) => {
-  // En Dispensa Médica, los cargos del Consejo Nacional solicitan acceso a los
-  // datos del seguro enmascarados de menores; el Pastor solicita acceso a la
-  // sección de Documentos, que tiene deshabilitada.
+  // En Dispensa Médica, los cargos de supervisión solicitan acceso al expediente
+  // restringido.
   if (pathname.includes('/edit/health')) {
-    return isSupervisoryMemberViewer(user) || isPastorDestacamentoRole(user);
+    return isSupervisoryMemberViewer(user);
   }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
@@ -154,14 +164,10 @@ export function MemberSensitiveInfoBanner({ member }) {
   // a cualquier miembro, no solo a los menores: el expediente completo les queda
   // en consulta restringida hasta que el Coordinador les conceda el acceso.
   const isHealthAccessRequest = isHealthRoute && isSupervisoryMemberViewer(user);
-  // El Pastor tiene deshabilitada la sección de Documentos de la Dispensa Médica y
-  // solicita acceso al Coordinador (flujo de notificación, no el de menores).
-  const isPastorDocsRestricted = isHealthRoute && isPastorDestacamentoRole(user);
   const shouldShow =
     Boolean(member) &&
     isRestrictedForRoute(user, pathname, member) &&
     (!isHealthRoute ||
-      isPastorDocsRestricted ||
       (isHealthAccessRequest && !healthAccessLoading && !healthAccessState.permiso));
 
   useEffect(() => {
@@ -268,7 +274,7 @@ export function MemberSensitiveInfoBanner({ member }) {
         sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
       >
         <Typography variant="body2" sx={{ color: 'inherit' }}>
-          {getHiddenInfoText(user, pathname)}
+          {getHiddenInfoText(user, pathname, member)}
         </Typography>
 
         <Button

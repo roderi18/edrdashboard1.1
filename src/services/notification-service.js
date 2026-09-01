@@ -2261,7 +2261,11 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
   return {
     id,
     idsNotificaciones: notificacion.idsNotificaciones || [id],
-    avatarUrl: notificacion.imagenURL || notificacion.actorFotoURL || null,
+    // La miniatura PRIMERO. En la campana la cara se dibuja a 40px, y hasta
+    // ahora se bajaba la foto entera —se han visto de 497 kB— por cada aviso de
+    // la lista. El campo ya existia; simplemente no se miraba.
+    avatarUrl:
+      notificacion.miniaturaURL || notificacion.imagenURL || notificacion.actorFotoURL || null,
     type: obtenerTipoVisualNotificacion(notificacion.tipoNotificacion),
     tipoNotificacion: notificacion.tipoNotificacion || '',
     category: obtenerCategoriaNotificacion(notificacion.modulo),

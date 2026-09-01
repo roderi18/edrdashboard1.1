@@ -142,6 +142,7 @@ export const construirAvisoDeCumpleanos = ({
   idsDestinatarios,
   hoy = new Date(),
   urlFoto = '',
+  urlFotoMiniatura = '',
 }) => {
   const esHoy = dias === 0;
   const tipoNotificacion = esHoy
@@ -182,7 +183,10 @@ export const construirAvisoDeCumpleanos = ({
     // salia con el icono generico de sobre, que es justo lo contrario de lo que
     // se quiere ver en un cumpleaños.
     imagenURL: texto(urlFoto) || miembro?.avatarUrl || miembro?.photoURL || null,
-    miniaturaURL: texto(urlFoto) || miembro?.avatarUrl || miembro?.photoURL || null,
+    // La chica para la lista de la campana, donde la cara mide 40px. Si no hay,
+    // se queda la grande: mas vale pesada que ninguna.
+    miniaturaURL:
+      texto(urlFotoMiniatura) || texto(urlFoto) || miembro?.avatarUrl || miembro?.photoURL || null,
     tipoAccion: 'ver',
     etiquetaAccion: 'Ver perfil',
     tipoAccionSecundaria: null,

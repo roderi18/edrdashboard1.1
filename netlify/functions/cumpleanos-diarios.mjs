@@ -128,7 +128,12 @@ const leerFotosDeMiembros = async (db) => {
 
     const idEntidad = String(datos.idEntidad ?? '').trim();
 
-    if (idEntidad && datos.urlFoto) fotos[idEntidad] = String(datos.urlFoto);
+    if (!idEntidad || !datos.urlFoto) return;
+
+    fotos[idEntidad] = {
+      grande: String(datos.urlFoto),
+      mini: String(datos.urlFotoMiniatura || ''),
+    };
   });
 
   return fotos;
@@ -191,7 +196,8 @@ export default async function handler() {
         dias,
         idsDestinatarios: [],
         hoy,
-        urlFoto: fotos[idDelMiembro(miembro)] ?? '',
+        urlFoto: fotos[idDelMiembro(miembro)]?.grande ?? '',
+        urlFotoMiniatura: fotos[idDelMiembro(miembro)]?.mini ?? '',
       });
       const destinatarios = await quitarALosQueNoQuieren(
         db,
