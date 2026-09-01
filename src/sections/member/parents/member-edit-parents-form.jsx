@@ -118,16 +118,39 @@ export function MemberEditParentsForm({ readOnly = false, puedeEliminar = false 
               </Box>
             ))}
 
-            {puedeAgregar && (
-              <Box>
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={() => append(TUTOR_VACIO)}
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                >
-                  Agregar tutor
-                </Button>
+            {!readOnly && (
+              <Box
+                sx={{
+                  gap: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                {/* El hueco se reserva aunque no haya boton: si desapareciera,
+                    Guardar saltaria de sitio al llegar al tercer tutor. */}
+                {puedeAgregar ? (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() => append(TUTOR_VACIO)}
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                  >
+                    Agregar tutor
+                  </Button>
+                ) : (
+                  <span />
+                )}
+
+                <Tooltip title="Todavía no guarda: falta conectar /api/Tutores.">
+                  {/* El `span` es para que el tooltip funcione sobre un boton
+                      apagado; sin el, el navegador no lanza el evento. */}
+                  <span>
+                    <Button type="submit" variant="contained" disabled>
+                      Guardar
+                    </Button>
+                  </span>
+                </Tooltip>
               </Box>
             )}
           </Stack>
