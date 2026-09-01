@@ -51,6 +51,35 @@ const obtenerCoordinadoresDestacamento = async (idDestacamento) => {
   return asignaciones.filter((item) => cargos.includes(item.cargo) && item.activo !== false);
 };
 
+/**
+ * A quien avisar cuando cambian los tutores de un miembro: el Coordinador de
+ * Destacamento y su Asistente, los dos.
+ *
+ * Son quienes responden de esa ficha. Si alguien de su destacamento apunta o
+ * corrige un telefono de emergencia, tienen que enterarse sin que nadie se lo
+ * cuente: es un dato del que van a depender el dia que haga falta llamar.
+ *
+ * Devuelve los IDS DE CUENTA, que es lo que entienden las notificaciones.
+ */
+export const obtenerCuentasDeCoordinadores = async (idDestacamento) => {
+  const destId = Number(idDestacamento) || null;
+
+  if (!destId) return [];
+
+  const coordinadores = await obtenerCoordinadoresDestacamento(destId).catch(() => []);
+
+  if (!coordinadores.length) return [];
+
+  const listas = await Promise.all(
+    coordinadores
+      .map((item) => Number(item.idMiembros))
+      .filter(Boolean)
+      .map((idMiembros) => resolverDestinatariosPorIdMiembros(idMiembros).catch(() => []))
+  );
+
+  return [...new Set(listas.flat().filter(Boolean))];
+};
+
 // Nombre del Coordinador de Destacamento (titular; si no hay, el asistente) del
 // destacamento indicado, para mostrarlo en el banner de la ficha del miembro.
 export const obtenerCoordinadorDestacamentoInfo = async (idDestacamento) => {

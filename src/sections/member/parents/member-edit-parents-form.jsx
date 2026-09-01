@@ -1,7 +1,7 @@
 'use client';
 
 import { z as zod } from 'zod';
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 
@@ -13,10 +13,19 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import CardHeader from '@mui/material/CardHeader';
 import IconButton from '@mui/material/IconButton';
+import LoadingButton from '@mui/lab/LoadingButton';
 
-import { PARENTESCOS_DE_TUTOR } from 'src/catalogs/parentescos';
 import { obtenerSaludMiembro } from 'src/services/member-health-service';
+import { crearNotificacionUsuario } from 'src/services/notification-service';
+import { PARENTESCOS_DE_TUTOR, etiquetaDeParentesco } from 'src/catalogs/parentescos';
+import { obtenerCuentasDeCoordinadores } from 'src/services/member-info-access-service';
+import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
+import {
+  obtenerTutoresDelMiembro,
+  guardarTutoresDelMiembro,
+} from 'src/services/tutores-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
@@ -45,7 +54,7 @@ const TOPE_NOTA = 500;
 const TOPE_NOMBRE = 100;
 const MAXIMO_TUTORES = 3;
 
-const TUTOR_VACIO = { nombres: '', telefono: '', parentesco: '' };
+const TUTOR_VACIO = { idTutor: 0, nombres: '', telefono: '', parentesco: '' };
 
 /**
  * El telefono, como lo entiende el campo internacional.
@@ -73,6 +82,7 @@ const enFormatoInternacional = (valor) => {
 };
 
 const TutorSchema = zod.object({
+  idTutor: zod.number().optional(),
   nombres: zod.string().max(TOPE_NOMBRE).optional().or(zod.literal('')),
   telefono: zod.string().max(14).optional().or(zod.literal('')),
   parentesco: zod.string().optional().or(zod.literal('')),
@@ -83,8 +93,19 @@ const PadresSchema = zod.object({
   nota: zod.string().max(TOPE_NOTA, `La nota no puede pasar de ${TOPE_NOTA} caracteres.`),
 });
 
+/** Como se cuenta en el Historial: nombres y parentesco, que es lo que importa. */
+const describirTutores = (tutores = []) =>
+  tutores
+    .map((tutor) =>
+      `${tutor.nombres || 'sin nombre'} (${etiquetaDeParentesco(tutor.parentesco)})`.trim()
+    )
+    .join(', ') || 'ninguno';
+
 export function MemberEditParentsForm({
   idMiembro = '',
+  idDestacamento = null,
+  nombreDelMiembro = '',
+  usuario = null,
   readOnly = false,
   puedeEliminar = false,
   // Solo se prellena desde la Dispensa Medica a quien puede VERLA. Traer de ahi
@@ -93,10 +114,124 @@ export function MemberEditParentsForm({
   puedePrellenarDesdeSalud = false,
 }) {
   const [prellenado, setPrellenado] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  // Lo que habia al abrir, para poder contar en el Historial que cambio.
+  const tutoresIniciales = useRef([]);
 
   const methods = useForm({
     resolver: zodResolver(PadresSchema),
     defaultValues: { tutores: [TUTOR_VACIO], nota: '' },
+  });
+
+  // Lo que ya esta guardado manda. Se carga primero; el prellenado desde la
+  // Dispensa solo entra si esto no trajo nada.
+  useEffect(() => {
+    let cancelado = false;
+
+    const cargar = async () => {
+      if (!idMiembro) {
+        setCargando(false);
+        return;
+      }
+
+      try {
+        const guardados = await obtenerTutoresDelMiembro(idMiembro);
+
+        if (cancelado) return;
+
+        tutoresIniciales.current = guardados;
+
+        if (guardados.length) {
+          methods.reset({ tutores: guardados, nota: methods.getValues('nota') ?? '' });
+          setPrellenado(true);
+        }
+      } catch (error) {
+        if (!cancelado) toast.error(error?.message || 'No se pudieron cargar los tutores.');
+      } finally {
+        if (!cancelado) setCargando(false);
+      }
+    };
+
+    cargar();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [idMiembro, methods]);
+
+  /** Se avisa al Coordinador de Destacamento y a su Asistente, los dos. */
+  const avisarALaCoordinacion = async ({ despues }) => {
+    const cuentas = await obtenerCuentasDeCoordinadores(idDestacamento);
+
+    if (!cuentas.length) return;
+
+    await crearNotificacionUsuario({
+      tipoNotificacion: 'tutores_actualizados',
+      modulo: 'miembros',
+      titulo: 'Tutores actualizados',
+      mensaje: `${nombreDeQuienEdita} actualizó los tutores de ${nombreDelMiembro || 'un miembro'}.`,
+      prioridad: 'informativa',
+      entidadTipo: 'miembro',
+      entidadId: String(idMiembro),
+      ruta: `/dashboard/level/member/${idMiembro}/edit/parents`,
+      tipoAccion: 'ver',
+      etiquetaAccion: 'Ver tutores',
+      metadatos: { idMiembro: String(idMiembro), cuantos: despues.length },
+      usuario,
+      idsDestinatarios: cuentas,
+    });
+  };
+
+  // TODO CAMBIO PASA POR LA PUERTA.
+  //
+  // No se guarda contra la API a pelo: `proponerCambio` lo registra en Historial
+  // ANTES de aplicarlo. Los tutores son a quien se llama cuando a un menor le
+  // pasa algo; que quede quien los cambio, y cuando, no es un adorno.
+  const onSubmit = methods.handleSubmit(async (datos) => {
+    const antes = tutoresIniciales.current;
+    const despues = datos.tutores.filter((tutor) => tutor.nombres || tutor.telefono);
+
+    try {
+      await proponerCambio({
+        ambito: AMBITOS_CAMBIO.miembro,
+        entidad: { id: String(idMiembro), nombre: nombreDelMiembro },
+        cambios: [
+          {
+            campo: 'tutores',
+            antes: describirTutores(antes),
+            despues: describirTutores(despues),
+          },
+        ],
+        usuario,
+        aplicarDirecto: true,
+        descripcion: `Se actualizaron los tutores de ${nombreDelMiembro || 'un miembro'}.`,
+        aplicar: async () => {
+          const guardados = await guardarTutoresDelMiembro({
+            idMiembro,
+            tutores: datos.tutores,
+          });
+
+          tutoresIniciales.current = guardados;
+          methods.reset({
+            tutores: guardados.length ? guardados : [TUTOR_VACIO],
+            nota: datos.nota,
+          });
+        },
+      });
+
+      toast.success('Tutores guardados.');
+
+      // EL AVISO VA DESPUES, Y NO PUEDE TUMBAR EL GUARDADO.
+      //
+      // Los tutores ya estan guardados. Si el aviso falla —no hay coordinador
+      // asignado, la red se cae—, se anota y se sigue: quedarse sin avisar es un
+      // problema, perder el guardado por eso seria mucho peor.
+      avisarALaCoordinacion({ despues }).catch((error) => {
+        console.warn('[tutores] no se pudo avisar a la coordinación', error);
+      });
+    } catch (error) {
+      toast.error(error?.message || 'No se pudieron guardar los tutores.');
+    }
   });
 
   // EL CONTACTO MEDICO YA ES UN TUTOR: NO SE ESCRIBE DOS VECES.
@@ -108,7 +243,9 @@ export function MemberEditParentsForm({
   // Menos si es el conyuge: un conyuge no es padre, madre ni tutor de nadie, y
   // meterlo aqui seria decir algo que no es.
   useEffect(() => {
-    if (prellenado || readOnly || !puedePrellenarDesdeSalud || !idMiembro) return undefined;
+    if (cargando || prellenado || readOnly || !puedePrellenarDesdeSalud || !idMiembro) {
+      return undefined;
+    }
 
     let cancelado = false;
 
@@ -148,7 +285,7 @@ export function MemberEditParentsForm({
     return () => {
       cancelado = true;
     };
-  }, [idMiembro, methods, prellenado, puedePrellenarDesdeSalud, readOnly]);
+  }, [cargando, idMiembro, methods, prellenado, puedePrellenarDesdeSalud, readOnly]);
 
   const { fields, append, remove } = useFieldArray({
     control: methods.control,
@@ -156,10 +293,11 @@ export function MemberEditParentsForm({
   });
 
   const nota = methods.watch('nota') ?? '';
+  const nombreDeQuienEdita = usuario?.displayName || usuario?.nombre || 'Alguien';
   const puedeAgregar = !readOnly && fields.length < MAXIMO_TUTORES;
 
   return (
-    <Form methods={methods} onSubmit={(evento) => evento.preventDefault()}>
+    <Form methods={methods} onSubmit={onSubmit}>
       <Stack spacing={3}>
         <Card>
           <CardHeader
@@ -249,15 +387,14 @@ export function MemberEditParentsForm({
                   <span />
                 )}
 
-                <Tooltip title="Todavía no guarda: falta conectar /api/Tutores.">
-                  {/* El `span` es para que el tooltip funcione sobre un boton
-                      apagado; sin el, el navegador no lanza el evento. */}
-                  <span>
-                    <Button type="submit" variant="contained" disabled>
-                      Guardar
-                    </Button>
-                  </span>
-                </Tooltip>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  loading={methods.formState.isSubmitting}
+                  disabled={cargando}
+                >
+                  Guardar
+                </LoadingButton>
               </Box>
             )}
           </Stack>

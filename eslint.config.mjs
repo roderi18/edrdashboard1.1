@@ -277,6 +277,11 @@ export default [
       'src/sections/sectional/sectional-table-toolbar.jsx',
       'src/services/cargos-api-service.js',
       'src/services/pastor-destacamento-service.js',
+      // Mismo caso que `primer-acceso-service.js`: solo contiene la funcion que
+      // `proponerCambio` ejecuta DESPUES de haber registrado el cambio en
+      // Historial. Es el brazo que aplica, no una puerta paralela. La regla mira
+      // la sintaxis y no puede distinguir una cosa de la otra.
+      'src/services/tutores-service.js',
     ],
     rules: {
       'no-restricted-syntax': [

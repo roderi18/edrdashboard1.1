@@ -78,6 +78,9 @@ export default function Page() {
       {puedeVer && (
         <MemberEditParentsForm
           idMiembro={currentMember?.id ?? currentMember?.idMiembros ?? ''}
+          nombreDelMiembro={`${currentMember?.firstName ?? ''} ${currentMember?.lastName ?? ''}`.trim()}
+          usuario={user}
+          idDestacamento={currentMember?.destId ?? currentMember?.idDestacamento ?? null}
           readOnly={!puedeEditar}
           puedeEliminar={puedeEliminar}
           puedePrellenarDesdeSalud={canViewHealth(user) && esDeSuAlcance}

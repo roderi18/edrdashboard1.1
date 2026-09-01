@@ -243,6 +243,37 @@ export const exigirPermisoDeCargoRest = async (req, permisos = [], fetchImpl = f
   return Response.json({ error: 'Tu cargo no puede realizar esta acción.' }, { status: 403 });
 };
 
+// Coordinador de Destacamento y su Asistente. Se nombran los dos codigos aunque
+// el asistente se normalice al titular: quien lea esto tiene que ver A QUIEN se
+// le esta dando el permiso, sin ir a buscar la normalizacion a otro fichero.
+const COORDINACION_DE_DESTACAMENTO = ['usuario_destacamento', 'usuario_destacamento_asistente'];
+
+/**
+ * Guarda para lo que solo pueden hacer el Coordinador de Destacamento y su
+ * Asistente. Devuelve null si puede pasar, o la Response del error.
+ *
+ * Se comprueba en el SERVIDOR y no solo en la pantalla: esconder un boton evita
+ * el error de quien no queria hacerlo, no el intento de quien si.
+ */
+export const exigirCoordinadorDeDestacamentoRest = async (req, fetchImpl = fetch) => {
+  const sinSesion = await exigirSesionRest(req, fetchImpl);
+
+  if (sinSesion) return sinSesion;
+
+  const quien = await identificarPorRest(req, fetchImpl);
+  const token = leerToken(req);
+  const acceso = await accesoDelSolicitante(quien?.uid, token, fetchImpl);
+  const rol = acceso.rol || normalizarRol(quien?.claims?.rol);
+
+  if (rol === ADMINISTRADOR_GLOBAL) return null;
+  if (COORDINACION_DE_DESTACAMENTO.includes(rol)) return null;
+
+  return Response.json(
+    { error: 'Solo el Coordinador de Destacamento y su Asistente pueden hacer esto.' },
+    { status: 403 }
+  );
+};
+
 /**
  * Guarda de borrado. Devuelve null si puede pasar, o la Response del error.
  *
