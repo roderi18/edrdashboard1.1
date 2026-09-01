@@ -16,8 +16,6 @@ import { useRouter } from 'src/routes/hooks';
 
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
 
-import { createConversation } from 'src/actions/chat';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -28,7 +26,6 @@ import { ChatNavAccount } from './chat-nav-account';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatNavSearchResults } from './chat-nav-search-results';
 import { usePresenceStatuses } from './hooks/use-presence-status';
-import { initialConversation } from './utils/initial-conversation';
 import { useChatCurrentContact } from './hooks/use-chat-current-contact';
 import {
   searchChatDirectory,
@@ -176,33 +173,26 @@ export function ChatNav({
           return;
         }
 
-        conversationsInFlightRef.current.add(resultId);
-
         const recipient = contacts.find((contact) => contact.id === result.id);
+
         if (!recipient) {
           toast.error('No se pudo identificar el contacto seleccionado.');
           return;
         }
 
-        const { conversationData } = initialConversation({
-          recipients: [recipient],
-          me: myContact,
-        });
-
-        const res = await createConversation(conversationData, myContact.idMiembros);
-
-        if (!res || !res.conversation) {
-          toast.error('No se recibió la conversación creada.');
-          return;
-        }
-
-        // Navigate to the new conversation
-        linkTo(res.conversation.id);
+        // SE ENTRA AL MOMENTO.
+        //
+        // Antes se creaba la conversacion en el servidor y solo entonces se
+        // entraba: un viaje de ida y vuelta mirando la lista, y encima quedaba
+        // una conversacion vacia aunque al final no se escribiera nada.
+        //
+        // Ahora se entra ya, con esa persona puesta de destinatario, y la
+        // conversacion se crea al enviar el primer mensaje, que es cuando hay
+        // algo que guardar.
+        router.push(`${paths.dashboard.chat}?destinatario=${encodeURIComponent(resultId)}`);
       } catch (error) {
-        logChatClientError('create-conversation', error);
-        toast.error(getChatErrorMessage(error, 'No se pudo iniciar la conversación.'));
-      } finally {
-        conversationsInFlightRef.current.delete(resultId);
+        logChatClientError('open-conversation', error);
+        toast.error(getChatErrorMessage(error, 'No se pudo abrir la conversación.'));
       }
     },
     [contacts, conversations.byId, handleClickAwaySearch, myContact, router]

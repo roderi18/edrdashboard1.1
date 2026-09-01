@@ -82,6 +82,56 @@ const COLECCION_FOTOS = 'fotos';
 const MEMBER_PHOTO_CACHE_TTL_MS = 5 * 60_000;
 const memberPhotoCache = new Map();
 
+// TODAS las fotos de miembro, de una sola lectura.
+//
+// La lista de contactos son cientos de personas: pedir su foto una por una
+// serian cientos de lecturas cada vez que alguien abre el buscador del chat.
+// Se traen juntas y se guardan un rato.
+let fotosDeTodos = null;
+let fotosDeTodosHasta = 0;
+
+const mapaDeFotosDeMiembros = async () => {
+  if (fotosDeTodos && fotosDeTodosHasta > Date.now()) return fotosDeTodos;
+
+  const fotos = new Map();
+
+  if (isAdminConfigured()) {
+    const snapshot = await getAdminDb()
+      .collection(COLECCION_FOTOS)
+      .where('tipoEntidad', '==', 'miembro')
+      .get()
+      .catch(() => null);
+
+    snapshot?.forEach((documento) => {
+      const datos = documento.data() ?? {};
+
+      if (datos.tipoFoto !== 'perfil' || datos.estado !== 'activo') return;
+
+      const idEntidad = String(datos.idEntidad ?? '').trim();
+
+      if (idEntidad && datos.urlFoto) fotos.set(idEntidad, String(datos.urlFoto));
+    });
+  }
+
+  fotosDeTodos = fotos;
+  fotosDeTodosHasta = Date.now() + MEMBER_PHOTO_CACHE_TTL_MS;
+
+  return fotos;
+};
+
+/** Los contactos, con su cara. */
+const conSusFotos = async (contactos = []) => {
+  const fotos = await mapaDeFotosDeMiembros().catch(() => new Map());
+
+  if (!fotos.size) return contactos;
+
+  return contactos.map((contacto) =>
+    contacto.avatarUrl
+      ? contacto
+      : { ...contacto, avatarUrl: fotos.get(String(contacto.idMiembros ?? contacto.id)) || '' }
+  );
+};
+
 const chatAuthorizationErrorResponse = (error) => {
   if (!(error instanceof ChatAuthorizationError)) return null;
 
@@ -1840,8 +1890,10 @@ export async function GET(req) {
         getMembersFromFirestoreProfiles(),
       ]);
 
+      // Las fotos NO vienen en el padron: viven en Firestore. Sin esto, el
+      // buscador del chat enseñaba a todo el mundo con el monigote gris.
       return Response.json(
-        { contacts: getAllContacts([...members, ...firestoreProfiles]) },
+        { contacts: await conSusFotos(getAllContacts([...members, ...firestoreProfiles])) },
         { headers: { 'Cache-Control': 'private, no-store' } }
       );
     }

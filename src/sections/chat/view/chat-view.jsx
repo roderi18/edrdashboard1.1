@@ -80,6 +80,31 @@ export function ChatView() {
   const conversationsNav = useCollapseNav();
 
   const [recipients, setRecipients] = useState([]);
+
+  // ABRIR UN CHAT NUEVO NO ESPERA A NADIE.
+  //
+  // Al pulsar a una persona en el buscador, antes se creaba la conversacion en
+  // el servidor y solo entonces se entraba: un viaje de ida y vuelta mirando la
+  // lista. Ahora se entra al momento con esa persona ya puesta como
+  // destinatario, y la conversacion se crea sola al enviar el primer mensaje
+  // —que es cuando hay algo que guardar—.
+  const destinatarioPedido = searchParams.get('destinatario') || '';
+
+  useEffect(() => {
+    if (!destinatarioPedido || selectedConversationId) return;
+
+    const contacto = contacts.find(
+      (item) => String(item.id) === destinatarioPedido || String(item.idMiembros) === destinatarioPedido
+    );
+
+    // Mientras los contactos no hayan llegado no se decide nada: volver a
+    // intentarlo cuando lleguen es justo lo que hace este efecto.
+    if (!contacto) return;
+
+    setRecipients((actuales) =>
+      actuales.some((item) => String(item.id) === String(contacto.id)) ? actuales : [contacto]
+    );
+  }, [contacts, destinatarioPedido, selectedConversationId]);
   const [groupName, setGroupName] = useState('');
   const [replyMessage, setReplyMessage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
