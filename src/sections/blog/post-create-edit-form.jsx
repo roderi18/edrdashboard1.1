@@ -226,7 +226,11 @@ export function PostCreateEditForm({ currentPost }) {
   );
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form
+      methods={methods}
+      onSubmit={onSubmit}
+      borrador={`publicacion:${currentPost?.id ?? 'nueva'}`}
+    >
       <Stack spacing={5} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
         {renderDetails()}
         {renderProperties()}

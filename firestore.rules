@@ -925,6 +925,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // La nota libre de Padres/Tutores puede contener datos familiares sensibles.
+    // Solo la ruta autenticada del servidor la lee y escribe mediante Admin SDK.
+    match /notas_tutores_miembros/{idMiembro} {
+      allow read, write: if false;
+    }
+
     // La IP desde la que se publicó una imagen es un dato sensible. Solo la
     // ruta del servidor la escribe y la revela después de comprobar rol y clave.
     match /metadatos_privados_publicaciones/{idPublicacion} {

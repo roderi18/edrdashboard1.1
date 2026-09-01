@@ -262,6 +262,39 @@ export async function actualizarClaimsAutorizacion({ uidUsuario, correo = '' } =
   return data;
 }
 
+// Cambia el rol de la propia sesión mediante el servidor. La ruta valida el
+// correo firmado del token y usa Admin SDK; el navegador nunca recibe permiso
+// para escribir directamente en `usuarios_roles`.
+export async function cambiarRolPropioDesdeSelector({ rolId } = {}) {
+  if (!AUTH?.currentUser) {
+    throw new Error('No hay una sesión activa.');
+  }
+
+  if (!rolId) {
+    throw new Error('rolId es requerido para cambiar el rol.');
+  }
+
+  const token = await AUTH.currentUser.getIdToken();
+  const res = await fetch('/api/admin/switch-own-role/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ rolId }),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.error || 'No se pudo cambiar el rol de la sesión.');
+  }
+
+  // El endpoint acaba de cambiar los custom claims de esta misma cuenta.
+  await AUTH.currentUser.getIdToken(true);
+
+  return data;
+}
+
 export async function guardarPermisosDirectosUsuario({
   uidUsuario,
   permisos = [],

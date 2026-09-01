@@ -24,6 +24,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { Form, Field } from 'src/components/hook-form';
 import { ColorPicker } from 'src/components/color-utils';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { puedeDescartarCambios } from 'src/components/hook-form/use-unsaved-changes-guard';
 
 // ----------------------------------------------------------------------
 
@@ -79,6 +80,9 @@ export function CalendarForm({
   const values = watch();
 
   const dateError = fIsAfter(values.start, values.end);
+  const closeSafely = () => {
+    if (puedeDescartarCambios(methods)) onClose();
+  };
 
   const onSubmit = handleSubmit(async (data) => {
     const eventData = {
@@ -121,7 +125,11 @@ export function CalendarForm({
 
   return (
     <>
-      <Form methods={methods} onSubmit={onSubmit}>
+      <Form
+        methods={methods}
+        onSubmit={onSubmit}
+        borrador={`calendario:${currentEvent?.id ?? 'nuevo'}:${scopeLevel ?? 'global'}:${scopeValue ?? 'todos'}`}
+      >
         <Scrollbar sx={{ p: 3, bgcolor: 'background.neutral' }}>
           <Stack spacing={3}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -206,7 +214,7 @@ export function CalendarForm({
 
           <Box component="span" sx={{ flexGrow: 1 }} />
 
-          <Button variant="outlined" color="inherit" onClick={onClose}>
+          <Button variant="outlined" color="inherit" onClick={closeSafely}>
             Cancelar
           </Button>
           <Button type="submit" variant="contained" loading={isSubmitting} disabled={dateError}>

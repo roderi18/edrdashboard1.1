@@ -14,8 +14,6 @@ import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -23,7 +21,8 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
-import { guardarAsignacionRolUsuario, actualizarClaimsAutorizacion } from 'src/auth/permissions';
+import { cambiarRolPropioDesdeSelector } from 'src/auth/permissions';
+import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
 
 import { RolePermissionsDialog } from './role-permissions-dialog';
 
@@ -144,19 +143,9 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
     setSubmenuOption(null);
   }, []);
 
-  // El desplegable pertenece a la CUENTA, no al rol que tenga puesto en ese
-  // momento. Mirando solo el rol activo, el Administrador Global que se cambiaba
-  // a Oficina Nacional perdia el desplegable y se quedaba encerrado sin forma de
-  // volver.
-  //
-  // Una cuenta de administrador de verdad (admin001) llega con `role: 'admin'`;
-  // una sesion que es administrativa por ocupar un cargo del organigrama llega
-  // con `'administrador'`, y esa no debe tenerlo.
-  const esCuentaDeAdministrador =
-    String(user?.role ?? '').trim().toLowerCase() === 'admin' ||
-    String(user?.rol ?? '').trim().toLowerCase() === 'admin';
-
-  const puedeCambiarDeRol = isAdminGlobal(user) || esCuentaDeAdministrador;
+  // Este selector pertenece exclusivamente a la cuenta global autorizada. Se
+  // comprueba también en el servidor usando el correo del token firmado.
+  const puedeCambiarDeRol = puedeUsarSelectorDeRol(user?.email || user?.correo);
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
   const selectedWorkspace = useMemo(() => {
     const match = data.find((option) => option.id === currentRoleId);
@@ -196,25 +185,7 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
 
       try {
         setLoadingRoleId(newValue.id);
-        await guardarAsignacionRolUsuario({
-          uidUsuario: user.uid,
-          correo: user.email || user.correo || '',
-          nombre: user.displayName || [user.nombres, user.apellidos].filter(Boolean).join(' '),
-          rolId: newValue.id,
-          rolNombre: newValue.name,
-          alcance: newValue.plan ? { tipo: newValue.plan, modo: newValue.plan } : {},
-          usuario: user,
-        });
-
-        // Sincronizar claims del propio usuario (refresca el token) antes de recargar.
-        try {
-          await actualizarClaimsAutorizacion({
-            uidUsuario: user.uid,
-            correo: user.email || user.correo || '',
-          });
-        } catch (claimsError) {
-          console.warn('[claims] no se pudieron actualizar los claims de autorización', claimsError);
-        }
+        await cambiarRolPropioDesdeSelector({ rolId: newValue.id });
 
         window.location.reload();
       } catch (error) {

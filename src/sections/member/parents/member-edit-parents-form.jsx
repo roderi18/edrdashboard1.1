@@ -23,12 +23,15 @@ import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-
 import {
   obtenerTutoresDelMiembro,
   guardarTutoresDelMiembro,
+  obtenerNotaTutoresDelMiembro,
+  guardarNotaTutoresDelMiembro,
 } from 'src/services/tutores-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 // ----------------------------------------------------------------------
 // Padre, madre o tutor.
@@ -39,15 +42,13 @@ import NameInput from 'src/components/common/name-input';
 // De cada uno se guarda a quien llamar y nada mas: nombre y telefono. Sin foto,
 // a proposito.
 //
-// PENDIENTE DE ENGANCHAR. La primera version guardaba en Firestore, con un padre
-// y una madre fijos. Se retiro entera al aparecer los endpoints de la API
-// —`/api/Tutores` y `/api/Parentesco`—, que llevan este mismo modelo de lista:
+// Los tutores se guardan mediante los endpoints de la API:
 //
 //   Tutores:     idTutor, nombres, telefono, idParentesco, idMiembro
 //   Parentesco:  idParentesco, nombre
 //
-// Falta el guardado contra esa API. La nota no tiene sitio en `TutoresDTO`:
-// queda por decidir si se le pide una columna al backend o se guarda aparte.
+// La nota no tiene sitio en `TutoresDTO`; se almacena por separado mediante
+// `/api/miembros/tutores/nota` y se autoguarda mientras el usuario escribe.
 // ----------------------------------------------------------------------
 
 const TOPE_NOTA = 500;
@@ -117,6 +118,15 @@ export function MemberEditParentsForm({
   const [cargando, setCargando] = useState(true);
   // Lo que habia al abrir, para poder contar en el Historial que cambio.
   const tutoresIniciales = useRef([]);
+  const notaActual = useRef('');
+  const notaGuardada = useRef('');
+  const notaListaParaAutoguardar = useRef(false);
+  const notaEnviadaAlSalir = useRef('');
+  // Que fila se esta a punto de borrar. `null` es "ninguna": el cero es una fila
+  // valida y con un booleano se habria perdido cual.
+  const [porBorrar, setPorBorrar] = useState(null);
+  const [guardandoBorrado, setGuardandoBorrado] = useState(false);
+  const [estadoNota, setEstadoNota] = useState('idle');
 
   const methods = useForm({
     resolver: zodResolver(PadresSchema),
@@ -135,14 +145,32 @@ export function MemberEditParentsForm({
       }
 
       try {
-        const guardados = await obtenerTutoresDelMiembro(idMiembro);
+        const [guardados, resultadoNota] = await Promise.all([
+          obtenerTutoresDelMiembro(idMiembro),
+          obtenerNotaTutoresDelMiembro(idMiembro)
+            .then((notaPersistida) => ({ ok: true, notaPersistida }))
+            .catch((error) => ({ ok: false, notaPersistida: '', error })),
+        ]);
 
         if (cancelado) return;
 
         tutoresIniciales.current = guardados;
+        notaActual.current = resultadoNota.notaPersistida;
+        notaGuardada.current = resultadoNota.notaPersistida;
+        notaEnviadaAlSalir.current = resultadoNota.notaPersistida;
+        notaListaParaAutoguardar.current = resultadoNota.ok;
+
+        methods.reset({
+          tutores: guardados.length ? guardados : [TUTOR_VACIO],
+          nota: resultadoNota.notaPersistida,
+        });
+
+        if (!resultadoNota.ok) {
+          setEstadoNota('error');
+          toast.error(resultadoNota.error?.message || 'No se pudo cargar la nota de tutores.');
+        }
 
         if (guardados.length) {
-          methods.reset({ tutores: guardados, nota: methods.getValues('nota') ?? '' });
           setPrellenado(true);
         }
       } catch (error) {
@@ -187,7 +215,7 @@ export function MemberEditParentsForm({
   // No se guarda contra la API a pelo: `proponerCambio` lo registra en Historial
   // ANTES de aplicarlo. Los tutores son a quien se llama cuando a un menor le
   // pasa algo; que quede quien los cambio, y cuando, no es un adorno.
-  const onSubmit = methods.handleSubmit(async (datos) => {
+  const guardarCambios = async (datos) => {
     const antes = tutoresIniciales.current;
     const despues = datos.tutores.filter((tutor) => tutor.nombres || tutor.telefono);
 
@@ -229,10 +257,16 @@ export function MemberEditParentsForm({
       avisarALaCoordinacion({ despues }).catch((error) => {
         console.warn('[tutores] no se pudo avisar a la coordinación', error);
       });
+
+      return true;
     } catch (error) {
       toast.error(error?.message || 'No se pudieron guardar los tutores.');
+
+      return false;
     }
-  });
+  };
+
+  const onSubmit = methods.handleSubmit(guardarCambios);
 
   // EL CONTACTO MEDICO YA ES UN TUTOR: NO SE ESCRIBE DOS VECES.
   //
@@ -287,14 +321,118 @@ export function MemberEditParentsForm({
     };
   }, [cargando, idMiembro, methods, prellenado, puedePrellenarDesdeSalud, readOnly]);
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append } = useFieldArray({
     control: methods.control,
     name: 'tutores',
   });
 
   const nota = methods.watch('nota') ?? '';
   const nombreDeQuienEdita = usuario?.displayName || usuario?.nombre || 'Alguien';
+
+  useEffect(() => {
+    notaActual.current = nota;
+  }, [nota]);
+
+  // Se guarda después de una pausa breve. Así navegar o recargar no es el
+  // mecanismo principal de persistencia: para entonces la nota normalmente ya
+  // está en el servidor. No se muestran toasts por cada pausa; el estado queda
+  // junto al contador del campo.
+  useEffect(() => {
+    if (
+      cargando ||
+      readOnly ||
+      !idMiembro ||
+      !notaListaParaAutoguardar.current ||
+      nota === notaGuardada.current
+    ) {
+      return undefined;
+    }
+
+    setEstadoNota('pending');
+
+    const timeout = window.setTimeout(async () => {
+      const valorAEnviar = nota;
+      setEstadoNota('saving');
+
+      try {
+        const guardada = await guardarNotaTutoresDelMiembro({
+          idMiembro,
+          nota: valorAEnviar,
+        });
+
+        notaGuardada.current = guardada;
+        notaEnviadaAlSalir.current = guardada;
+
+        if (notaActual.current === valorAEnviar) {
+          methods.resetField('nota', { defaultValue: guardada });
+          setEstadoNota('saved');
+        }
+      } catch (error) {
+        setEstadoNota('error');
+        console.warn('[tutores] no se pudo autoguardar la nota', error);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [cargando, idMiembro, methods, nota, readOnly]);
+
+  // Respaldo para una salida inmediata antes de que venzan los 700 ms. `keepalive`
+  // permite al navegador terminar esta petición corta mientras abandona la página.
+  useEffect(() => {
+    const guardarAntesDeSalir = () => {
+      const pendiente = notaActual.current;
+
+      if (
+        readOnly ||
+        !idMiembro ||
+        !notaListaParaAutoguardar.current ||
+        pendiente === notaGuardada.current ||
+        pendiente === notaEnviadaAlSalir.current
+      ) {
+        return;
+      }
+
+      notaEnviadaAlSalir.current = pendiente;
+      guardarNotaTutoresDelMiembro({ idMiembro, nota: pendiente, keepalive: true }).catch(
+        (error) => console.warn('[tutores] no se pudo guardar la nota al salir', error)
+      );
+    };
+
+    window.addEventListener('pagehide', guardarAntesDeSalir);
+
+    return () => {
+      window.removeEventListener('pagehide', guardarAntesDeSalir);
+      guardarAntesDeSalir();
+    };
+  }, [idMiembro, readOnly]);
+
+  /** Como se llama la fila que se va a quitar, para poder decirlo en la pregunta. */
+  const nombreDeLaFila = (indice) =>
+    String(methods.getValues(`tutores.${indice}.nombres`) ?? '').trim();
   const puedeAgregar = !readOnly && fields.length < MAXIMO_TUTORES;
+
+  // Confirmar "Quitar" es una accion completa: calcula la lista sin esa fila y
+  // la guarda por la misma puerta que el boton Guardar (historial, API y aviso).
+  // Si falla, el dialogo y la fila permanecen para que se pueda reintentar.
+  const confirmarBorrado = async () => {
+    if (porBorrar === null || guardandoBorrado) return;
+
+    const datos = methods.getValues();
+    const datosSinTutor = {
+      ...datos,
+      tutores: (datos.tutores ?? []).filter((_, indice) => indice !== porBorrar),
+    };
+
+    setGuardandoBorrado(true);
+
+    try {
+      const guardado = await guardarCambios(datosSinTutor);
+
+      if (guardado) setPorBorrar(null);
+    } finally {
+      setGuardandoBorrado(false);
+    }
+  };
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -355,7 +493,7 @@ export function MemberEditParentsForm({
                     siempre, porque la lista vacia no tendria sentido. */}
                 {puedeEliminar && !readOnly && fields.length > 1 && (
                   <Tooltip title="Quitar">
-                    <IconButton color="error" onClick={() => remove(indice)}>
+                    <IconButton color="error" onClick={() => setPorBorrar(indice)}>
                       <Iconify icon="solar:trash-bin-trash-bold" width={20} />
                     </IconButton>
                   </Tooltip>
@@ -414,11 +552,47 @@ export function MemberEditParentsForm({
               rows={4}
               disabled={readOnly}
               inputProps={{ maxLength: TOPE_NOTA }}
-              helperText={`${nota.length}/${TOPE_NOTA}`}
+              helperText={`${nota.length}/${TOPE_NOTA} · ${
+                estadoNota === 'saving' || estadoNota === 'pending'
+                  ? 'Guardando…'
+                  : estadoNota === 'saved'
+                    ? 'Guardado automáticamente'
+                    : estadoNota === 'error'
+                      ? 'No se pudo guardar; se reintentará al salir'
+                      : 'Autoguardado activado'
+              }`}
             />
           </Box>
         </Card>
       </Stack>
+
+      {/* SE PREGUNTA ANTES DE QUITAR.
+          La papelera esta al lado de los campos y se pulsa sin querer. Y lo que
+          se quita es un telefono de emergencia: no deja rastro de que existio, y
+          el dia que haga falta llamar no habra a quien. Una pregunta cuesta un
+          segundo; recuperarlo, una llamada a la familia. */}
+      <ConfirmDialog
+        open={porBorrar !== null}
+        onClose={() => {
+          if (!guardandoBorrado) setPorBorrar(null);
+        }}
+        title="Quitar este tutor"
+        content={
+          porBorrar === null
+            ? ''
+            : `Se quitará a ${nombreDeLaFila(porBorrar) || 'este tutor'} de la ficha y el cambio se guardará de inmediato.`
+        }
+        action={
+          <LoadingButton
+            color="error"
+            variant="contained"
+            loading={guardandoBorrado}
+            onClick={confirmarBorrado}
+          >
+            Quitar
+          </LoadingButton>
+        }
+      />
     </Form>
   );
 }

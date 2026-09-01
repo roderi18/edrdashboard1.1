@@ -26,6 +26,17 @@ const cargo = (rol) => ({
   permisos: { padres: { ver: true, editar: true } },
 });
 
+test('el Administrador Global agrega, corrige y borra tutores', () => {
+  const usuario = {
+    role: 'admin',
+    rolId: 'administrador_global',
+    alcance: { tipo: 'global', modo: 'global' },
+  };
+
+  assert.equal(canEditMemberTutors(usuario), true);
+  assert.equal(canDeleteMemberTutors(usuario), true);
+});
+
 test('el Coordinador de Destacamento borra', () => {
   const usuario = cargo('usuario_destacamento');
 

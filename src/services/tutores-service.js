@@ -10,6 +10,7 @@ import { AUTH } from 'src/lib/firebase';
 // ----------------------------------------------------------------------
 
 const RUTA = '/api/miembros/tutores/';
+const RUTA_NOTA = '/api/miembros/tutores/nota/';
 
 const cabeceras = async () => {
   const cuenta = AUTH?.currentUser;
@@ -60,4 +61,27 @@ export async function guardarTutoresDelMiembro({ idMiembro, tutores }) {
   const datos = await leerRespuesta(respuesta);
 
   return Array.isArray(datos?.tutores) ? datos.tutores : [];
+}
+
+export async function obtenerNotaTutoresDelMiembro(idMiembro) {
+  if (!idMiembro) return '';
+
+  const respuesta = await fetch(`${RUTA_NOTA}?idMiembro=${encodeURIComponent(idMiembro)}`, {
+    headers: await cabeceras(),
+  });
+  const datos = await leerRespuesta(respuesta);
+
+  return String(datos?.nota ?? '');
+}
+
+export async function guardarNotaTutoresDelMiembro({ idMiembro, nota, keepalive = false }) {
+  const respuesta = await fetch(RUTA_NOTA, {
+    method: 'PUT',
+    headers: await cabeceras(),
+    body: JSON.stringify({ idMiembro, nota }),
+    keepalive,
+  });
+  const datos = await leerRespuesta(respuesta);
+
+  return String(datos?.nota ?? '');
 }

@@ -4,6 +4,7 @@ import { FormProvider as RHFForm } from 'react-hook-form';
 
 import { useFormDraft } from './use-form-draft';
 import { FormDraftNotice } from './form-draft-notice';
+import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 
 // ----------------------------------------------------------------------
 
@@ -20,9 +21,14 @@ import { FormDraftNotice } from './form-draft-notice';
  * proposito: un formulario de busqueda o un filtro no tiene borrador que
  * ofrecer, y un formulario con datos personales no debe guardarlo hasta que se
  * filtren los campos enmascarados.
+ *
+ * `protegerSalida` enciende el aviso global de cambios pendientes. Esta activo
+ * por defecto para que los formularios generales no pierdan datos al navegar,
+ * recargar, cerrar la pestaña o usar Atrás. Filtros y buscadores pueden apagarlo.
  */
-export function Form({ children, onSubmit, methods, borrador = '' }) {
+export function Form({ children, onSubmit, methods, borrador = '', protegerSalida = true }) {
   const { borrador: guardado, recuperar, descartar } = useFormDraft(methods, borrador);
+  useUnsavedChangesGuard(methods, protegerSalida);
 
   return (
     <RHFForm {...methods}>

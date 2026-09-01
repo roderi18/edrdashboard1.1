@@ -1354,7 +1354,9 @@ export const canEditParents = (user = {}) =>
 // dia que haga falta llamar no habra a quien. Por eso queda para el Coordinador
 // de Destacamento y su Asistente, que son quienes responden de la ficha.
 export const canEditMemberTutors = (user = {}) =>
-  canEditParents(user) && tieneCargoDeDestacamento(user);
+  isAdminGlobal(user) ||
+  isLegacyFullDashboardAdmin(user) ||
+  (canEditParents(user) && tieneCargoDeDestacamento(user));
 
 const COORDINACION_DE_DESTACAMENTO = [
   ROLES.USUARIO_DESTACAMENTO,
@@ -1366,8 +1368,10 @@ const COORDINACION_DE_DESTACAMENTO = [
 // igualmente porque quien lea esto tiene que ver a QUIEN se le esta dando el
 // borrado, sin ir a buscar una normalizacion tres archivos mas alla.
 export const canDeleteMemberTutors = (user = {}) =>
-  canEditParents(user) &&
-  rolesQueEjerce(user).some((codigo) => COORDINACION_DE_DESTACAMENTO.includes(codigo));
+  isAdminGlobal(user) ||
+  isLegacyFullDashboardAdmin(user) ||
+  (canEditParents(user) &&
+    rolesQueEjerce(user).some((codigo) => COORDINACION_DE_DESTACAMENTO.includes(codigo)));
 
 // Roles de administración que ven SIEMPRE la información personal completa del
 // miembro, aunque el catálogo no les otorgue `miembros.ver_datos_sensibles`.

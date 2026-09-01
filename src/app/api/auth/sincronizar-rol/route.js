@@ -7,6 +7,8 @@ import {
   COLECCION_USUARIOS_ROLES,
 } from 'src/server/rol-por-cargo';
 
+import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
+
 export const runtime = 'nodejs';
 
 // ----------------------------------------------------------------------
@@ -79,6 +81,13 @@ export async function POST(req) {
     caller = await auth.verifyIdToken(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
+  }
+
+  // La cuenta global autorizada elige aquí un rol manual para probar la
+  // aplicación. No debe recalcularse desde sus posibles casillas de directiva,
+  // porque eso desharía la selección justo después de recargar la página.
+  if (puedeUsarSelectorDeRol(caller.email)) {
+    return Response.json({ ok: true, omitido: 'rol manual del Administrador Global' });
   }
 
   // Solo se sincroniza a si misma: no hay parametro para apuntar a otra persona.
