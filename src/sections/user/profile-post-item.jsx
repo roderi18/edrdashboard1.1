@@ -288,11 +288,8 @@ export function ProfilePostItem({
   const [comments, setComments] = useState(post.comments || []);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
-  const [replySending, setReplySending] = useState(false);
   const [liked, setLiked] = useState(Boolean(post.isLikedByMe));
-  const [likeSending, setLikeSending] = useState(false);
   const [commentImage, setCommentImage] = useState(null);
-  const [commentSending, setCommentSending] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [emojiCategory, setEmojiCategory] = useState('Caras');
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -648,7 +645,6 @@ export function ProfilePostItem({
   const handleSubmitComment = useCallback(async () => {
     const nextMessage = message.trim();
 
-    if (commentSending) return;
     if (!nextMessage && !commentImage) return;
 
     const optimisticComment = createPendingComment({
@@ -663,7 +659,6 @@ export function ProfilePostItem({
     );
     setMessage('');
     setCommentImage(null);
-    setCommentSending(true);
 
     try {
       const nextComment = onAddComment
@@ -690,16 +685,14 @@ export function ProfilePostItem({
         )
       );
       toast.error('No se pudo enviar el comentario.');
-    } finally {
-      setCommentSending(false);
     }
-  }, [commentImage, commentSending, comments.length, message, onAddComment, post, user]);
+  }, [commentImage, comments.length, message, onAddComment, post, user]);
 
   const handleSubmitReply = useCallback(
     async (comment) => {
       const nextMessage = replyMessage.trim();
 
-      if (replySending || !nextMessage) return;
+      if (!nextMessage) return;
 
       const optimisticReply = createPendingComment({
         message: nextMessage,
@@ -717,7 +710,6 @@ export function ProfilePostItem({
       );
       setReplyMessage('');
       setReplyingTo(null);
-      setReplySending(true);
 
       try {
         const nextReply = onAddComment
@@ -758,11 +750,9 @@ export function ProfilePostItem({
           )
         );
         toast.error('No se pudo enviar la respuesta.');
-      } finally {
-        setReplySending(false);
-      }
+    }
     },
-    [onAddComment, post, replyMessage, replySending, user]
+    [onAddComment, post, replyMessage, user]
   );
 
   const getPostShareUrl = useCallback(() => {
@@ -1505,7 +1495,7 @@ export function ProfilePostItem({
               <IconButton
                 size="small"
                 color="primary"
-                disabled={replySending || !replyMessage.trim()}
+                disabled={!replyMessage.trim()}
                 onClick={() => handleSubmitReply(comment)}
               >
                 <Iconify icon="solar:plain-bold" />
@@ -1697,7 +1687,10 @@ export function ProfilePostItem({
               <IconButton
                 size="small"
                 color="primary"
-                disabled={commentSending || (!message.trim() && !commentImage)}
+                // Sin `commentSending`: el comentario ya aparece en la lista y
+                // el campo ya se vacio. Bloquear el boton hasta que conteste el
+                // servidor solo impide escribir el siguiente.
+                disabled={!message.trim() && !commentImage}
                 onClick={handleSubmitComment}
               >
                 <Iconify icon="solar:plain-bold" />
@@ -1984,16 +1977,20 @@ export function ProfilePostItem({
           control={
             <Checkbox
               checked={liked}
-              disabled={likeSending}
               color="error"
               icon={<Iconify icon="solar:heart-bold" />}
               checkedIcon={<Iconify icon="solar:heart-bold" />}
+              // DAR "ME GUSTA" NO ESPERA A NADIE.
+              //
+              // El corazon ya se pintaba al momento, pero la casilla se
+              // BLOQUEABA hasta que el servidor contestaba: se pulsaba y no se
+              // podia quitar, ni volver a poner, hasta que volviera la
+              // respuesta. Es lo que se sentia lento, no el dibujo.
               onChange={async (event) => {
                 const nextLiked = event.target.checked;
                 const previousLiked = liked;
 
                 setLiked(nextLiked);
-                setLikeSending(true);
 
                 try {
                   await onToggleLike?.(post, nextLiked);
@@ -2001,8 +1998,6 @@ export function ProfilePostItem({
                   console.error(error);
                   setLiked(previousLiked);
                   toast.error('No se pudo actualizar el like.');
-                } finally {
-                  setLikeSending(false);
                 }
               }}
               slotProps={{

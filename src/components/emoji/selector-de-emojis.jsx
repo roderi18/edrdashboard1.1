@@ -124,27 +124,43 @@ export function PanelDeEmojis({
 
       {/* Buscando no hacen falta: la busqueda ya cruza todas las categorias. */}
       {!buscando && (
-        <Box sx={{ gap: 0.5, mb: 1, display: 'flex', overflowX: 'auto' }}>
+        <Box
+          sx={(theme) => ({
+            mb: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            borderBottom: `solid 1px ${theme.vars.palette.divider}`,
+          })}
+        >
           {CATEGORIAS_EMOJI.map((item) => (
             <Box
               key={item.id}
               component="button"
               type="button"
               title={item.nombre}
+              aria-label={item.nombre}
+              aria-pressed={categoria === item.id}
+              onMouseEnter={() => setEncima(item.nombre)}
               onClick={() => setCategoria(item.id)}
               sx={{
-                px: 1,
-                py: 0.5,
+                px: 0,
+                py: 0.75,
                 border: 0,
-                borderRadius: 1,
+                flex: 1,
+                fontSize: 18,
+                lineHeight: 1,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                typography: 'caption',
-                color: categoria === item.id ? 'primary.contrastText' : 'text.primary',
-                bgcolor: categoria === item.id ? 'primary.main' : 'background.neutral',
+                bgcolor: 'transparent',
+                // La pestaña activa se marca con una linea debajo, no con un
+                // fondo de color: asi el emoji se ve tal cual, sin teñir.
+                borderBottom: '2px solid',
+                borderBottomColor: categoria === item.id ? 'primary.main' : 'transparent',
+                filter: categoria === item.id ? 'none' : 'grayscale(0.4)',
+                opacity: categoria === item.id ? 1 : 0.75,
+                '&:hover': { filter: 'none', opacity: 1 },
               }}
             >
-              {item.nombre}
+              {item.icono}
             </Box>
           ))}
         </Box>

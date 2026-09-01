@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { varAlpha } from 'minimal-shared/utils';
 import { useRef, useState, useEffect, useCallback } from 'react';
 
@@ -86,7 +87,6 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [postsCursor, setPostsCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
-  const [publishingPost, setPublishingPost] = useState(false);
   const [postMessage, setPostMessage] = useState('');
   const [postImages, setPostImages] = useState([]);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
@@ -424,27 +424,70 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
     if (!nextMessage && !postImages.length) return;
 
-    setPublishingPost(true);
+    // LA PUBLICACION APARECE AL MOMENTO.
+    //
+    // Antes no salia hasta que terminaba TODO: subir las fotos a Storage y
+    // guardar el documento. Con varias fotos eso son segundos mirando un boton
+    // girar, con el texto todavia en la caja, sin saber si se estaba enviando.
+    //
+    // Ahora se pinta enseguida, marcada como pendiente, y con las fotos que ya
+    // estan en el navegador —las mismas que se ven en la vista previa, asi que
+    // no hay que esperar a que suban para verlas—. Cuando el servidor devuelve
+    // la de verdad, se sustituye en su sitio.
+    const idOptimista = uuidv4();
+    const publicacionOptimista = {
+      id: idOptimista,
+      pending: true,
+      createdAt: new Date().toISOString(),
+      message: nextMessage,
+      media: postImages[0]?.previewUrl || '',
+      mediaItems: postImages.map((imagen) => imagen.previewUrl).filter(Boolean),
+      mediaDetails: [],
+      personLikes: [],
+      comments: [],
+      isLikedByMe: false,
+      author: {
+        id: user?.idMiembros || user?.id || user?.uid || 'usuario-actual',
+        uid: user?.uid || '',
+        idMiembros: user?.idMiembros,
+        codigoMiembro: user?.codigoMiembro,
+        correo: user?.correo || user?.email || '',
+        name: user?.displayName || user?.nombre || 'Usuario',
+        avatarUrl: user?.photoURL,
+      },
+    };
+
+    const imagenesEnviadas = postImages;
+
+    setFeedPosts((currentPosts) => [publicacionOptimista, ...currentPosts]);
+    setPostMessage('');
+    setPostImages([]);
 
     try {
       const nextPost = await crearPublicacionPrincipal({
         mensaje: nextMessage,
-        imagenes: postImages,
+        imagenes: imagenesEnviadas,
         usuario: user,
       });
 
-      setFeedPosts((currentPosts) => [nextPost, ...currentPosts]);
-      setPostMessage('');
-      postImages.forEach((image) => {
+      setFeedPosts((currentPosts) =>
+        currentPosts.map((post) => (post.id === idOptimista ? nextPost : post))
+      );
+      // Las vistas previas se sueltan DESPUES de sustituirla: hasta ese momento
+      // son lo que se esta viendo en pantalla.
+      imagenesEnviadas.forEach((image) => {
         if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
       });
-      setPostImages([]);
-      toast.success('Publicación creada.');
     } catch (error) {
       console.error(error);
-      toast.error(error?.message || 'No se pudo crear la publicación.');
-    } finally {
-      setPublishingPost(false);
+
+      // Se retira lo que no llego a existir y se DEVUELVE lo escrito: perder el
+      // texto de alguien porque fallo la red seria lo peor que podria pasar
+      // aqui.
+      setFeedPosts((currentPosts) => currentPosts.filter((post) => post.id !== idOptimista));
+      setPostMessage(nextMessage);
+      setPostImages(imagenesEnviadas);
+      toast.error(error?.message || 'No se pudo crear la publicación. Vuelve a intentarlo.');
     }
   }, [postImages, postMessage, user]);
 
@@ -997,8 +1040,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
 
         <Button
           variant="contained"
-          loading={publishingPost}
-          disabled={publishingPost || (!postMessage.trim() && !postImages.length)}
+          disabled={!postMessage.trim() && !postImages.length}
           onClick={handlePublishPost}
         >
           Publicar
