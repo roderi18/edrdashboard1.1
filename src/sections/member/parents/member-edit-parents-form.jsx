@@ -52,7 +52,7 @@ const PadresSchema = zod.object({
   nota: zod.string().max(TOPE_NOTA, `La nota no puede pasar de ${TOPE_NOTA} caracteres.`),
 });
 
-export function MemberEditParentsForm({ readOnly = false }) {
+export function MemberEditParentsForm({ readOnly = false, puedeEliminar = false }) {
   const methods = useForm({
     resolver: zodResolver(PadresSchema),
     defaultValues: { tutores: [TUTOR_VACIO], nota: '' },
@@ -85,7 +85,7 @@ export function MemberEditParentsForm({ readOnly = false }) {
                   alignItems: 'center',
                   gridTemplateColumns: {
                     xs: '1fr',
-                    sm: `repeat(2, 1fr)${readOnly || fields.length === 1 ? '' : ' 40px'}`,
+                    sm: `repeat(2, 1fr)${!puedeEliminar || readOnly || fields.length === 1 ? '' : ' 40px'}`,
                   },
                 }}
               >
@@ -104,9 +104,11 @@ export function MemberEditParentsForm({ readOnly = false }) {
                   disabled={readOnly}
                 />
 
-                {/* Poder añadir sin poder quitar seria una trampa: el primero se
-                    queda siempre, porque la lista vacia no tendria sentido. */}
-                {!readOnly && fields.length > 1 && (
+                {/* Borrar es del Coordinador y su Asistente, no de cualquier
+                    cargo: un telefono que desaparece no deja rastro, y el dia que
+                    haga falta llamar no habra a quien. El primero se queda
+                    siempre, porque la lista vacia no tendria sentido. */}
+                {puedeEliminar && !readOnly && fields.length > 1 && (
                   <Tooltip title="Quitar">
                     <IconButton color="error" onClick={() => remove(indice)}>
                       <Iconify icon="solar:trash-bin-trash-bold" width={20} />

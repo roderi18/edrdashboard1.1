@@ -1344,6 +1344,31 @@ export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PAD
 export const canEditParents = (user = {}) =>
   puedeEditarPorCatalogo(user, PERMISOS.PADRES_EDITAR);
 
+// AÑADIR Y CORREGIR LO PUEDE CUALQUIER CARGO DEL DESTACAMENTO; BORRAR, NO.
+//
+// Apuntar a un tutor o corregirle el telefono es trabajo de campo: lo hace quien
+// esta con la gente —el Pastor, el Consejo, el Capellan, los Lideres de Grupo—.
+// Equivocarse ahi se arregla escribiendo encima.
+//
+// Borrarlo no. Un telefono que desaparece no deja rastro de que existio, y el
+// dia que haga falta llamar no habra a quien. Por eso queda para el Coordinador
+// de Destacamento y su Asistente, que son quienes responden de la ficha.
+export const canEditMemberTutors = (user = {}) =>
+  canEditParents(user) && tieneCargoDeDestacamento(user);
+
+const COORDINACION_DE_DESTACAMENTO = [
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
+];
+
+// Los dos codigos, a la vista. El asistente se normaliza a titular en
+// `getScopeUserRoleId`, asi que bastaria con el primero; se nombran los dos
+// igualmente porque quien lea esto tiene que ver a QUIEN se le esta dando el
+// borrado, sin ir a buscar una normalizacion tres archivos mas alla.
+export const canDeleteMemberTutors = (user = {}) =>
+  canEditParents(user) &&
+  rolesQueEjerce(user).some((codigo) => COORDINACION_DE_DESTACAMENTO.includes(codigo));
+
 // Roles de administración que ven SIEMPRE la información personal completa del
 // miembro, aunque el catálogo no les otorgue `miembros.ver_datos_sensibles`.
 const FULL_MEMBER_TEXT_ROLE_IDS = new Set([

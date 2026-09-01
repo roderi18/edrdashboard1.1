@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
 import {
-  canEditParents,
+  canEditMemberTutors,
   esMiembroDeSuAlcance,
+  canDeleteMemberTutors,
   canViewMemberParentsTab,
 } from 'src/utils/member-access';
 
@@ -29,8 +30,11 @@ export default function Page() {
   // los padres de alguien les llama quien acompaña a esa persona, no cualquiera
   // que tenga el permiso. Quien solo puede ver, ve; el aviso de "informacion
   // oculta" y la solicitud de acceso los pone el propio layout.
-  const puedeEditar =
-    canEditParents(user) && esMiembroDeSuAlcance(user, currentMember);
+  const esDeSuAlcance = esMiembroDeSuAlcance(user, currentMember);
+  // Añadir y corregir lo puede cualquier cargo del destacamento; borrar, solo el
+  // Coordinador y su Asistente.
+  const puedeEditar = canEditMemberTutors(user) && esDeSuAlcance;
+  const puedeEliminar = canDeleteMemberTutors(user) && esDeSuAlcance;
   const puedeVer = canViewMemberParentsTab(user);
 
   useEffect(() => {
@@ -71,7 +75,7 @@ export default function Page() {
   return (
     <MemberEditLayout member={currentMember}>
       {puedeVer && (
-        <MemberEditParentsForm readOnly={!puedeEditar} />
+        <MemberEditParentsForm readOnly={!puedeEditar} puedeEliminar={puedeEliminar} />
       )}
     </MemberEditLayout>
   );
