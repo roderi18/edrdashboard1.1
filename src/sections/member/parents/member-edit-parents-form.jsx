@@ -14,7 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import CardHeader from '@mui/material/CardHeader';
 import IconButton from '@mui/material/IconButton';
 
-import { PARENTESCOS } from 'src/catalogs/parentescos';
+import { PARENTESCOS_DE_TUTOR } from 'src/catalogs/parentescos';
 import { obtenerSaludMiembro } from 'src/services/member-health-service';
 
 import { Iconify } from 'src/components/iconify';
@@ -204,7 +204,7 @@ export function MemberEditParentsForm({
                   label="Relación con el miembro"
                   disabled={readOnly}
                 >
-                  {PARENTESCOS.map((opcion) => (
+                  {PARENTESCOS_DE_TUTOR.map((opcion) => (
                     <MenuItem key={opcion.value} value={opcion.value}>
                       {opcion.label}
                     </MenuItem>

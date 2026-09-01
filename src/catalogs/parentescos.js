@@ -28,6 +28,16 @@ export const PARENTESCOS = [
   { value: 'other', label: 'Otro' },
 ];
 
+// EL CONYUGE NO ES UN TUTOR.
+//
+// En la Dispensa Medica tiene todo el sentido: quien responde por un adulto suele
+// ser su pareja. En la pestaña de Padres no: ahi se apunta a quien es padre,
+// madre o tutor de esa persona, y un conyuge no es ninguna de las tres cosas.
+//
+// Es la misma razon por la que el traspaso desde la Dispensa se salta al
+// conyuge. Si se pudiera elegir aqui, la regla de alla no tendria sentido.
+export const PARENTESCOS_DE_TUTOR = PARENTESCOS.filter((opcion) => opcion.value !== 'spouse');
+
 /** Como se lee en pantalla. Si no esta en la lista, se devuelve lo guardado. */
 export const etiquetaDeParentesco = (valor) =>
   PARENTESCOS.find((opcion) => opcion.value === valor)?.label ?? String(valor ?? '');
