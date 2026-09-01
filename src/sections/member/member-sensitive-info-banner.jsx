@@ -167,7 +167,16 @@ export function MemberSensitiveInfoBanner({ member }) {
   // Médica deshabilitada y solicitan acceso al Coordinador de Destacamento. Aplica
   // a cualquier miembro, no solo a los menores: el expediente completo les queda
   // en consulta restringida hasta que el Coordinador les conceda el acceso.
-  const isHealthAccessRequest = isHealthRoute && isSupervisoryMemberViewer(user);
+  //
+  // Y tambien a quien SI tiene cargo de destacamento cuando el miembro no es de
+  // los suyos. Aqui se pedia unicamente ser cargo de supervision, y eso deja
+  // fuera a quien tiene los dos —Coordinador de Destacamento Y Coordinador
+  // Regional, por ejemplo—: veia la dispensa apagada, sin una linea que dijera
+  // por que ni un boton para pedirla. La peticion va al Coordinador del
+  // destacamento del miembro, que es quien puede concederla en los dos casos.
+  const fueraDeSuAlcance = !esMiembroDeSuAlcance(user, member);
+  const isHealthAccessRequest =
+    isHealthRoute && (isSupervisoryMemberViewer(user) || fueraDeSuAlcance);
   const shouldShow =
     Boolean(member) &&
     isRestrictedForRoute(user, pathname, member) &&
