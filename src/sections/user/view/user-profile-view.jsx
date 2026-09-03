@@ -315,7 +315,9 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
         />
       )}
 
-      {selectedTab === 'followers' && <ProfileFollowers followers={_userFollowers} />}
+      {selectedTab === 'followers' && (
+        <ProfileFollowers followers={_userFollowers} info={profileInfo} />
+      )}
 
       {selectedTab === 'friends' && (
         <ProfileFriends

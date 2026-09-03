@@ -54,12 +54,12 @@ const HIDDEN_INFO_TEXT = 'Parte de la información de este miembro está oculta 
 const SUPERVISORY_HIDDEN_INFO_TEXT =
   'Por motivos de seguridad, la información personal de los miembros está reservada a los Coordinadores de Destacamento. Puedes solicitar acceso indicando el motivo.';
 
-// El Historial solo lo ven el Coordinador de Destacamento (y su Asistente) y el
-// Lider de Grupo, y unicamente de su propio destacamento. El resto de cargos
+// El Historial solo lo ven el Coordinador de Destacamento (y su Asistente), el
+// Pastor y el Lider de Grupo, y unicamente de su propio destacamento. El resto de cargos
 // (aunque no sean de seccion/region) ven este aviso en vez del texto de "menor
 // de edad", que no aplica aqui.
 const HISTORY_HIDDEN_INFO_TEXT =
-  'Por motivos de seguridad, el historial de cambios está reservado al Coordinador de Destacamento, su Asistente y el Líder de Grupo del propio destacamento. Puedes solicitar acceso indicando el motivo.';
+  'Por motivos de seguridad, el historial de cambios está reservado al Coordinador de Destacamento, su Asistente, el Pastor y el Líder de Grupo del propio destacamento. Puedes solicitar acceso indicando el motivo.';
 
 // No siempre se oculta por la edad. A un cargo de destacamento tambien se le
 // oculta la ficha de alguien de OTRO destacamento, tenga la edad que tenga: ahi

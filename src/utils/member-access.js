@@ -1507,12 +1507,17 @@ export const canViewMemberParentsTab = (user = {}) =>
 // El Historial expone cambios de datos generales, salud y ascenso: por eso su
 // acceso es mas estrecho que el del resto de tabs. Solo lo ven, y unicamente
 // para miembros de SU PROPIO destacamento: el Coordinador de Destacamento (y su
-// Asistente, normalizado al titular en getScopeUserRoleId) y el Lider de Grupo.
-// El resto de cargos (incluido Lider Asistente de Grupo, Pastor, Consejo,
-// Capellan y los niveles de seccion/region) NO ven el contenido: se les muestra
+// Asistente, normalizado al titular en getScopeUserRoleId), el Pastor de
+// Destacamento y el Lider de Grupo.
+// El resto de cargos (incluido Lider Asistente de Grupo, Consejo, Capellan y
+// los niveles de seccion/region) NO ven el contenido: se les muestra
 // el aviso de "informacion oculta" con boton de "Solicitar acceso" (mismo patron
 // que MemberSensitiveInfoBanner usa para Dispensa Medica).
-const HISTORY_TAB_ROLE_IDS = new Set([ROLES.USUARIO_DESTACAMENTO, ROLES.LIDER_GRUPO]);
+const HISTORY_TAB_ROLE_IDS = new Set([
+  ROLES.USUARIO_DESTACAMENTO,
+  ROLES.PASTOR_DESTACAMENTO,
+  ROLES.LIDER_GRUPO,
+]);
 
 export const canViewMemberHistoryTab = (user = {}, member = {}) => {
   if (isLegacyFullDashboardAdmin(user)) return true;

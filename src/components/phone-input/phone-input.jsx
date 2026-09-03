@@ -30,6 +30,7 @@ export function PhoneInput({
   defaultCountry,
   /********/
   hideSelect,
+  disableCountrySelect = false,
   ...other
 }) {
   const theme = useTheme();
@@ -44,6 +45,7 @@ export function PhoneInput({
 
   const hasLabel = !!label;
   const isCountryLocked = !!country;
+  const isCountrySelectDisabled = isCountryLocked || disableCountrySelect;
 
   const activeCountry = useMemo(() => {
     const parsedCountry = parseCountryFromPhone(normalizedValue);
@@ -86,7 +88,7 @@ export function PhoneInput({
       selectedCountry={activeCountry}
       onSearchCountry={handleSearchCountry}
       onSelectedCountry={handleSelectedCountry}
-      disabled={isCountryLocked}
+      disabled={isCountrySelectDisabled}
       sx={{
         pl: variant === 'standard' ? 0 : 1.5,
         ...(variant === 'standard' && hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
@@ -137,7 +139,7 @@ export function PhoneInput({
 
   const baseButtonWidth = variant === 'standard' ? '48px' : '60px';
   const disabledButtonWidth = `calc(${baseButtonWidth} - 16px)`;
-  const buttonWidth = isCountryLocked ? disabledButtonWidth : baseButtonWidth;
+  const buttonWidth = isCountrySelectDisabled ? disabledButtonWidth : baseButtonWidth;
 
   return (
     <Box

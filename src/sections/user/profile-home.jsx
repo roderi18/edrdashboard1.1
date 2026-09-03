@@ -22,7 +22,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fNumber } from 'src/utils/format-number';
 import {
   PRINCIPAL_LIMITS,
   PRINCIPAL_IMAGE_ACCEPT,
@@ -897,29 +896,6 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       </Stack>
     );
 
-  const renderFollows = () => (
-    <Card sx={{ py: 3, textAlign: 'center', typography: 'h4' }}>
-      <Stack
-        divider={<Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />}
-        sx={{ flexDirection: 'row' }}
-      >
-        <Stack sx={{ width: 1 }}>
-          {fNumber(info.totalFollowers)}
-          <Box component="span" sx={{ color: 'text.secondary', typography: 'body2' }}>
-            Seguidores
-          </Box>
-        </Stack>
-
-        <Stack sx={{ width: 1 }}>
-          {fNumber(info.totalFollowing)}
-          <Box component="span" sx={{ color: 'text.secondary', typography: 'body2' }}>
-            Siguiendo
-          </Box>
-        </Stack>
-      </Stack>
-    </Card>
-  );
-
   const renderAdsSlider = () => (
     <AppFeatured
       list={_appFeatured}
@@ -1228,7 +1204,6 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         >
           {renderFriendRequests()}
           {renderBirthdayFriends()}
-          {renderFollows()}
           {renderAdsSlider()}
         </Stack>
       </Grid>

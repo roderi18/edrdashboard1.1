@@ -23,7 +23,6 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { listarHistorialMiembroPagina } from 'src/services/member-history-service';
 
-import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -31,8 +30,7 @@ import { useTable, TableHeadCustom, TablePaginationCustom } from 'src/components
 
 const TABLE_HEAD = [
   { id: 'fecha', label: 'Fecha', width: 120, sx: { pl: 3 } },
-  { id: 'modulo', label: 'Módulo', width: 180 },
-  { id: 'afectado', label: 'Qué se afectó', width: 220 },
+  { id: 'afectado', label: 'Qué se afectó', width: 260 },
   { id: 'antes', label: 'Valor anterior', width: 260 },
   { id: 'despues', label: 'Valor nuevo', width: 260 },
   { id: 'realizadoPor', label: 'Quién lo realizó', width: 220 },
@@ -452,12 +450,13 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
                   </Stack>
                 </TableCell>
 
-                <TableCell>
-                  <Label color="info">{row.modulo}</Label>
-                </TableCell>
-
                 <TableCell sx={{ maxWidth: 0 }}>
-                  <Typography variant="body2">{row.afectado}</Typography>
+                  <Stack spacing={0.25}>
+                    <Typography variant="body2">{row.afectado}</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                      {row.modulo || 'Historial'}
+                    </Typography>
+                  </Stack>
                 </TableCell>
 
                 <TableCell sx={{ maxWidth: 0 }}>
@@ -476,7 +475,7 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
 
             {!dataInPage.length && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ py: 6, textAlign: 'center' }}>
+                <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center' }}>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {loadingPage ? 'Cargando historial...' : 'No hay registros con esos filtros.'}
                   </Typography>

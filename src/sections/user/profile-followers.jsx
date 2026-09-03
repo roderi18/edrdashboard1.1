@@ -3,10 +3,14 @@ import { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
+
+import { fNumber } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -14,7 +18,7 @@ import { Iconify } from 'src/components/iconify';
 
 const getProfileHref = (person) => `/dashboard/user/${person?.id || 'profile'}`;
 
-export function ProfileFollowers({ followers }) {
+export function ProfileFollowers({ followers, info = {} }) {
   const _mockFollowed = followers.slice(4, 8).map((i) => i.id);
 
   const [followed, setFollowed] = useState(_mockFollowed);
@@ -32,9 +36,38 @@ export function ProfileFollowers({ followers }) {
 
   return (
     <>
-      <Typography variant="h4" sx={{ my: 5 }}>
-        Seguidores
-      </Typography>
+      <Stack
+        sx={{
+          my: 5,
+          gap: 2,
+          alignItems: { xs: 'stretch', sm: 'center' },
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+        }}
+      >
+        <Typography variant="h4">Seguidores</Typography>
+
+        <Card sx={{ py: 1.5, width: { xs: 1, sm: 300 }, textAlign: 'center' }}>
+          <Stack
+            divider={<Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />}
+            sx={{ flexDirection: 'row' }}
+          >
+            <Stack sx={{ width: 1 }}>
+              <Typography variant="h6">{fNumber(info.totalFollowers)}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Seguidores
+              </Typography>
+            </Stack>
+
+            <Stack sx={{ width: 1 }}>
+              <Typography variant="h6">{fNumber(info.totalFollowing)}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Siguiendo
+              </Typography>
+            </Stack>
+          </Stack>
+        </Card>
+      </Stack>
 
       <Box
         sx={{

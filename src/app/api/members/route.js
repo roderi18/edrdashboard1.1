@@ -22,6 +22,13 @@ import {
 
 const isPositiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
+const MEMBERS_PAGINATED_URL =
+  'https://systexploradores.somee.com/api/Miembros/GetAllMiembrosPagination';
+const MEMBERS_PAGE_SIZE = 250;
+// En localhost no existe el corte de 10 s de Netlify. Dar margen al primer
+// arranque de Somee evita un 500 espurio al reanudar el equipo o iniciar dev.
+const MEMBERS_TIMEOUT_MS = process.env.NODE_ENV === 'development' ? 25_000 : 9_000;
+
 const getDivisionIdByBirthdate = (birthDate, divisions) => {
   if (!birthDate) return null;
 
@@ -62,6 +69,52 @@ const getRowsFromNormalizedResponse = (payload) => {
   if (Array.isArray(payload?.items)) return payload.items;
 
   return [];
+};
+
+const leerPaginaDeMiembros = async ({ cacheKey, page, authHeader }) => {
+  const upstream = await fetchUpstreamText(`${cacheKey}:pagina:${page}`, MEMBERS_PAGINATED_URL, {
+    timeoutMs: MEMBERS_TIMEOUT_MS,
+    init: {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+      body: JSON.stringify({ page, pageSize: MEMBERS_PAGE_SIZE }),
+    },
+  });
+
+  if (!upstream.ok) {
+    throw new Error(`El servidor de datos respondió ${upstream.status} al obtener miembros.`);
+  }
+
+  const payload = JSON.parse(upstream.text);
+  const pagina = payload?.data ?? payload?.Data ?? payload;
+
+  return {
+    items: getRowsFromNormalizedResponse(pagina),
+    totalPages: Math.max(1, Number(pagina?.totalPages ?? pagina?.TotalPages ?? 1) || 1),
+  };
+};
+
+// Las fichas antes descargaban GetAllMiembros. Ese endpoint puede tardar mas de
+// 9 segundos y deja inutilizable hasta la consulta de UN solo miembro. La API
+// ofrece la misma información paginada y responde mucho antes. Se trae la
+// primera página para conocer el total y, si hiciera falta, las restantes en
+// paralelo. Cada página conserva caché y alcance propios por usuario.
+const leerPadronPaginado = async ({ cacheKey, authHeader }) => {
+  const primera = await leerPaginaDeMiembros({ cacheKey, page: 1, authHeader });
+
+  if (primera.totalPages === 1) return primera.items;
+
+  const restantes = await Promise.all(
+    Array.from({ length: primera.totalPages - 1 }, (_, index) =>
+      leerPaginaDeMiembros({ cacheKey, page: index + 2, authHeader })
+    )
+  );
+
+  return [primera, ...restantes].flatMap((pagina) => pagina.items);
 };
 
 const withCalculatedDivision = (member, divisions) => {
@@ -132,20 +185,10 @@ export async function GET(req) {
     const authHeader = req.headers.get('authorization') || '';
     const cacheKey = buildScopedUpstreamKey(UPSTREAM_KEYS.miembros, authHeader);
 
-    const [upstream, divisions] = await Promise.all([
-      fetchUpstreamText(
-        cacheKey,
-        'https://systexploradores.somee.com/api/Miembros/GetAllMiembros',
-        authHeader
-          ? { init: { headers: { Authorization: authHeader, Accept: 'application/json' } } }
-          : undefined
-      ),
+    const [rows, divisions] = await Promise.all([
+      leerPadronPaginado({ cacheKey, authHeader }),
       getDivisions(),
     ]);
-
-    const data = JSON.parse(upstream.text);
-    const normalized = normalizeApiResponse(data);
-    const rows = getRowsFromNormalizedResponse(normalized);
 
     // EL PADRON NO SALE ENTERO.
     //
@@ -174,14 +217,9 @@ export async function GET(req) {
 
     const visibles = permitidos ?? rows;
 
-    if (Array.isArray(normalized?.data)) {
-      return Response.json({
-        ...normalized,
-        data: visibles.map((member) => withCalculatedDivision(member, divisions)),
-      });
-    }
-
-    return Response.json(normalized);
+    return Response.json({
+      data: visibles.map((member) => withCalculatedDivision(member, divisions)),
+    });
   } catch (error) {
     const cause = error?.cause;
     const details = {

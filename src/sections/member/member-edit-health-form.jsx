@@ -27,7 +27,6 @@ import {
   canApproveMemberChanges,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
-  isPastorDestacamentoRole,
   isSupervisoryMemberViewer,
   isDestacamentoApprovalRole,
   isCoordinadorDestacamentoRole,
@@ -122,11 +121,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // pero no eliminarlos.
     const isApprovalUser = isDestacamentoApprovalRole(user);
     const isCoordinador = isCoordinadorDestacamentoRole(user);
-    // Excepción del Pastor: aunque comparte el perfil del Coordinador, NO tiene
-    // acceso a la sección de Documentos de la Dispensa Médica (se deshabilita/
-    // enmascara con el mecanismo de secciones); puede solicitar acceso desde el
-    // banner de costumbre.
-    const isPastor = isPastorDestacamentoRole(user);
     const isMinor = esMiembroMenorDeEdad(currentMember);
     // Quien puede AUTORIZAR el acceso a la salud de menores no necesita pedirlo
     // (coordinadores y Administrador Global, según el catálogo de permisos).
@@ -148,7 +142,6 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // Capellan y los dos Lideres de Grupo— ven y EDITAN la Dispensa Medica de sus
     // miembros, menores incluidos, sin pedir autorizacion previa: el control es
     // que sus cambios van a APROBACION de los Coordinadores (`mustRequestApproval`).
-    // Al Pastor le sigue quedando fuera la seccion de Documentos.
     // Los cargos del destacamento que envian sus cambios a aprobacion —Pastor,
     // Consejo, Capellan y los dos Lideres de Grupo— ven y editan la Dispensa de
     // sus menores sin pedir acceso temporal: el control es que lo que tocan lo
@@ -202,12 +195,7 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
         : requiresTemporaryAccess || supervisoryNeedsHealthAccess
           ? accessPermission?.secciones || EMPTY_HEALTH_SECTIONS
           : TODAS_SECCIONES_ACCESO_SALUD;
-    // El Pastor no accede a la sección de Documentos (se deshabilita/enmascara con
-    // el mismo mecanismo de secciones); usa el banner de costumbre para solicitar
-    // acceso al Coordinador de Destacamento.
-    const allowedHealthSections = isPastor
-        ? baseHealthSections.filter((section) => section !== 'documentos')
-        : baseHealthSections;
+    const allowedHealthSections = baseHealthSections;
     const canAccessSection = (section) => allowedHealthSections.includes(section);
 
     const normalizedMember = {

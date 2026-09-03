@@ -470,6 +470,7 @@ export function MemberEditParentsForm({
                   defaultCountry="DO"
                   inputProps={{ maxLength: 14 }}
                   disabled={readOnly}
+                  disableCountrySelect={readOnly}
                 />
 
                 {/* El MISMO catalogo que la Dispensa Medica. Si un sitio dijera
