@@ -161,6 +161,16 @@ const getStatusLabel = (status) => {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+// EL CALENDARIO EMPIEZA DONDE EMPIEZA LA ASISTENCIA.
+//
+// Antes de agosto de 2026 no hay nada que consultar, asi que enero a julio se
+// ven pero no se pueden abrir. El año llega entero hasta diciembre —los meses
+// que faltan siguen siendo del año y se pueden mirar—, y es dentro del mes
+// donde se apagan los dias que todavia no llegaron.
+const PRIMER_DIA_CON_ASISTENCIA = dayjs('2026-08-01');
+
+const ULTIMO_DIA_CON_ASISTENCIA = dayjs().endOf('year');
+
 const getMemberDestId = (member) =>
   member?.idDestacamento ?? member?.destId ?? member?.destacamentoId ?? member?.idDest ?? '';
 
@@ -1369,11 +1379,21 @@ export function AttendanceQuickView() {
               <DatePicker
                 label="Fecha"
                 value={date ? dayjs(date) : null}
-                // Los demas dias quedan apagados: no hay asistencia que pasar un
-                // dia en el que el destacamento no se reune.
-                shouldDisableDate={(fecha) =>
-                  diaDeReunion !== null && dayjs(fecha).day() !== diaDeReunion
-                }
+                minDate={PRIMER_DIA_CON_ASISTENCIA}
+                maxDate={ULTIMO_DIA_CON_ASISTENCIA}
+                // Se pasa por el año y por el mes antes de llegar al dia, para
+                // poder saltar a un mes de atras sin ir flecha a flecha.
+                views={['year', 'month', 'day']}
+                // Un dia queda apagado por dos razones: todavia no llego, o el
+                // destacamento no se reune ese dia de la semana y no hay
+                // asistencia que pasar.
+                shouldDisableDate={(fecha) => {
+                  const dia = dayjs(fecha);
+
+                  if (dia.isAfter(dayjs(), 'day')) return true;
+
+                  return diaDeReunion !== null && dia.day() !== diaDeReunion;
+                }}
                 onChange={(newValue) => {
                   const parsed = dayjs(newValue);
                   setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
