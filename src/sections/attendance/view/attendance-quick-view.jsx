@@ -155,6 +155,43 @@ const getDestName = (dest) => dest?.name || dest?.nombre || dest?.destName || ''
 
 const getDestNumber = (dest) => dest?.destNumber || dest?.numero || dest?.numeroDestacamento || '';
 
+// EL DESTACAMENTO SE REUNE UN DIA, Y ESE ES EL DIA QUE SE PASA LISTA.
+//
+// El dia se guarda escrito ("Domingos", "Miercoles") en la ficha del
+// destacamento. Aqui se traduce al numero que usa dayjs —0 es domingo— para
+// poder apagar en el calendario los dias en que ese destacamento no se reune.
+//
+// Lunes, martes, miercoles, jueves y viernes se escriben igual en singular y en
+// plural; sabado y domingo, no. Se aceptan las dos formas para no depender de
+// como se escribiera el dia el dia que se creo el destacamento.
+const DIA_SEMANA_POR_NOMBRE = {
+  domingo: 0,
+  domingos: 0,
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sabado: 6,
+  sabados: 6,
+};
+
+const getDestMeetingDay = (dest) => {
+  const nombre = normalizeText(dest?.destMeetingDays ?? dest?.diaReunion ?? '').trim();
+  const dia = DIA_SEMANA_POR_NOMBRE[nombre];
+
+  // Un destacamento sin dia apuntado no se queda sin poder pasar lista: se le
+  // dejan todos los dias hasta que alguien complete su ficha.
+  return dia === undefined ? null : dia;
+};
+
+// "Domingos · 10:00 AM", para el encabezado. Sin dia ni hora no se escribe nada.
+const getDestSchedule = (dest) =>
+  [dest?.destMeetingDays, dest?.destMeetingTimes]
+    .map((valor) => String(valor ?? '').trim())
+    .filter(Boolean)
+    .join(' · ');
+
 const getDestTitle = (dest, fallbackId = '') => {
   const name = getDestName(dest);
   const number = getDestNumber(dest);
@@ -518,6 +555,26 @@ export function AttendanceQuickView() {
       ),
     [dests, selectedDestId]
   );
+  // Dia de la semana en que se reune el destacamento elegido, o null si su ficha
+  // no lo dice.
+  const diaDeReunion = getDestMeetingDay(selectedDest);
+  const horarioDeReunion = getDestSchedule(selectedDest);
+
+  // LA FECHA CAE SOLA EN SU DIA. Al entrar, la pantalla se pone en hoy; si el
+  // destacamento se reune los domingos y hoy es jueves, esa fecha ni siquiera se
+  // puede elegir en el calendario. Se retrocede al ultimo dia de reunion, que es
+  // el que se viene a pasar.
+  useEffect(() => {
+    if (diaDeReunion === null || !date) return;
+
+    const fecha = dayjs(date);
+    const diasDeMas = (fecha.day() - diaDeReunion + 7) % 7;
+
+    if (diasDeMas) {
+      setDate(fecha.subtract(diasDeMas, 'day').format('YYYY-MM-DD'));
+    }
+  }, [date, diaDeReunion]);
+
   const attendanceTitle = selectedDestId
     ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
     : 'Asistencia';
@@ -1209,7 +1266,22 @@ export function AttendanceQuickView() {
     <>
       <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
         <CustomBreadcrumbs
-          heading={attendanceTitle}
+          heading={
+            <>
+              {attendanceTitle}
+              {/* Cuando se reune, al lado del nombre: es el dato que explica por
+                  que el calendario solo deja elegir unos dias. */}
+              {!!horarioDeReunion && (
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ ml: 1.5, color: 'text.secondary', fontWeight: 'fontWeightRegular' }}
+                >
+                  {horarioDeReunion}
+                </Typography>
+              )}
+            </>
+          }
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -1272,6 +1344,11 @@ export function AttendanceQuickView() {
               <DatePicker
                 label="Fecha"
                 value={date ? dayjs(date) : null}
+                // Los demas dias quedan apagados: no hay asistencia que pasar un
+                // dia en el que el destacamento no se reune.
+                shouldDisableDate={(fecha) =>
+                  diaDeReunion !== null && dayjs(fecha).day() !== diaDeReunion
+                }
                 onChange={(newValue) => {
                   const parsed = dayjs(newValue);
                   setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
