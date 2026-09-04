@@ -384,6 +384,7 @@ export function ProductListView() {
                   <ProductTableToolbar
                     filters={filters}
                     canReset={canReset}
+                    rows={dataFiltered}
                     filteredResults={dataFiltered.length}
                     selectedRowCount={selectedRows.ids.size}
                     onOpenConfirmDeleteRows={confirmDialog.onTrue}

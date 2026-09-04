@@ -69,6 +69,10 @@ export function ExportTableButton({
   rows = [],
   columns = [],
   pdfColumns,
+  // Documento propio para el PDF, cuando la tabla generica no sirve: la lista de
+  // precios de la tienda sale con la forma del documento oficial. Recibe las
+  // filas y devuelve el elemento de `@react-pdf`.
+  renderPdfDocument = null,
   title = 'Exportación',
   fileNamePrefix = 'exportacion',
   disabled = false,
@@ -119,6 +123,7 @@ export function ExportTableButton({
             title,
             rows,
             columns: currentPdfColumns,
+            documento: renderPdfDocument ? renderPdfDocument(rows) : null,
             fileName: getExportFileName(fileNamePrefix, 'pdf'),
           });
         }
@@ -132,7 +137,7 @@ export function ExportTableButton({
         setExporting(false);
       }
     },
-    [columns, currentPdfColumns, fileNamePrefix, rows, title]
+    [columns, currentPdfColumns, fileNamePrefix, renderPdfDocument, rows, title]
   );
 
   return (

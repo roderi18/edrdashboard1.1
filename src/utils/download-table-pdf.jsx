@@ -71,8 +71,15 @@ function TablePdfDocument({ title, rows, columns }) {
   );
 }
 
-export const downloadTablePdf = async ({ title, fileName, rows, columns }) => {
-  const blob = await pdf(<TablePdfDocument title={title} rows={rows} columns={columns} />).toBlob();
+/**
+ * `documento` sustituye a la tabla generica cuando el PDF tiene que salir con una
+ * forma propia —la lista de precios de la tienda imita al documento oficial—.
+ * Sin el, se sigue pintando la tabla de siempre.
+ */
+export const downloadTablePdf = async ({ title, fileName, rows, columns, documento = null }) => {
+  const blob = await pdf(
+    documento || <TablePdfDocument title={title} rows={rows} columns={columns} />
+  ).toBlob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 

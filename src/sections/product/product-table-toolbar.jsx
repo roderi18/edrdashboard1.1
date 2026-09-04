@@ -12,26 +12,55 @@ import FormControl from '@mui/material/FormControl';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { Iconify } from 'src/components/iconify';
+import { ExportTableButton } from 'src/components/export-table-button';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
   ToolbarRightPanel,
   CustomToolbarQuickFilter,
-  CustomToolbarExportButton,
   CustomToolbarFilterButton,
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
+import { ProductPriceListPdfDocument } from './product-price-list-pdf';
 import { ProductTableFiltersResult } from './product-table-filters-result';
 
 // ----------------------------------------------------------------------
+
+// Las columnas del documento oficial, en su orden: el renglon, el articulo y los
+// dos precios de venta. Son las mismas para el CSV y para el Excel, asi que lo
+// que se lee en pantalla, lo que se imprime y lo que se abre en la hoja de
+// calculo dicen lo mismo.
+const PRODUCT_EXPORT_COLUMNS = [
+  {
+    id: 'renglon',
+    label: 'Renglón',
+    value: (row) =>
+      String(row?.renglon || '').toLowerCase() === 'restringido' ? 'Restringido' : 'General',
+  },
+  { id: 'name', label: 'Artículo', value: (row) => row?.name || '' },
+  {
+    id: 'precioRegistrado',
+    label: 'Precio de venta - Destacamentos registrados',
+    // Sin precio no se escribe un cero: o esta pendiente de fijar, o a ese
+    // publico no se le vende el articulo.
+    value: (row) => (row?.precioPendiente ? 'Pendiente' : Number(row?.precioRegistrado || 0) || ''),
+  },
+  {
+    id: 'precioNoRegistrado',
+    label: 'Precio de venta - No registrados',
+    value: (row) =>
+      row?.precioPendiente ? 'Pendiente' : Number(row?.precioNoRegistrado || 0) || 'N/A',
+  },
+];
 
 export function ProductTableToolbar({
   options,
   filters,
   canReset,
+  rows = [],
   filteredResults,
   selectedRowCount,
   onOpenConfirmDeleteRows,
@@ -152,7 +181,27 @@ export function ProductTableToolbar({
 
       <CustomToolbarColumnsButton />
       <CustomToolbarFilterButton />
-      <CustomToolbarExportButton />
+      {/* DESCARGAR, no "Exportar": es la palabra que usa el resto de la
+          aplicacion para lo mismo.
+
+          Y no es el boton que trae la tabla —que solo sabia imprimir y hacer un
+          CSV—, sino el del proyecto: en PDF sale la lista de precios con la
+          forma del documento oficial, y en Excel con las mismas columnas. */}
+      <ExportTableButton
+        rows={rows}
+        columns={PRODUCT_EXPORT_COLUMNS}
+        title="TIENDA ERRD"
+        buttonLabel="Descargar"
+        fileNamePrefix="tienda-errd-precios"
+        renderPdfDocument={(filas) => (
+          <ProductPriceListPdfDocument
+            title="TIENDA ERRD"
+            anio={String(new Date().getFullYear())}
+            rows={filas}
+          />
+        )}
+        buttonProps={{ size: 'small', color: 'inherit', variant: 'text', endIcon: null }}
+      />
       <CustomToolbarSettingsButton
         label="Configuracion"
         settings={settings}
