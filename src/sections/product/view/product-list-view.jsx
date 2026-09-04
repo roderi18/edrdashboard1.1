@@ -346,17 +346,16 @@ export function ProductListView() {
             )}
           </>
         ) : (
-          <Card
-            sx={{
-              minHeight: 640,
-              flexGrow: { md: 1 },
-              display: { md: 'flex' },
-              height: { xs: 800, md: '1px' },
-              flexDirection: { md: 'column' },
-            }}
-          >
+          <Card sx={{ display: 'flex', flexDirection: 'column' }}>
+            {/* LA TABLA CRECE CON SUS FILAS, como la de miembros.
+                Tenia una altura fija —640 de minimo y el alto de la pantalla en
+                escritorio—: con cinco filas por pagina sobraba media pantalla en
+                blanco, y con veinte la tabla se desplazaba por dentro mientras la
+                pagina se quedaba quieta. Con `autoHeight` mide lo que miden sus
+                filas y es la pagina la que se desplaza. */}
             <DataGrid
               {...toolbarOptions.settings}
+              autoHeight
               checkboxSelection
               disableRowSelectionOnClick
               rows={dataFiltered}
