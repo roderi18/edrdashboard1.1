@@ -1,6 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
+import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
@@ -11,6 +12,8 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
@@ -18,6 +21,9 @@ import TextField from '@mui/material/TextField';
 import AlertTitle from '@mui/material/AlertTitle';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -338,6 +344,7 @@ export function AttendanceQuickView() {
   const { user } = useAuthContext();
   const menuActions = usePopover();
   const confirmClear = useBoolean();
+  const resumenDelDia = useBoolean();
 
   const [date, setDate] = useState(TODAY);
   const [search, setSearch] = useState('');
@@ -358,7 +365,11 @@ export function AttendanceQuickView() {
   // no puede acotar y devuelve "sin restriccion": el desplegable ofrecia los
   // destacamentos del pais entero.
   const allowedDestIds = useMemo(
-    () => getMemberAllowedDestIds(user, { churches: estructura.churches, sectionals: estructura.sectionals }),
+    () =>
+      getMemberAllowedDestIds(user, {
+        churches: estructura.churches,
+        sectionals: estructura.sectionals,
+      }),
     [user, estructura]
   );
   const scopedToDest = allowedDestIds instanceof Set;
@@ -391,12 +402,12 @@ export function AttendanceQuickView() {
 
         const nextDests = Array.isArray(destItems)
           ? destItems.filter((dest) => {
-            if (!(allowedDestIds instanceof Set)) {
-              return true;
-            }
+              if (!(allowedDestIds instanceof Set)) {
+                return true;
+              }
 
-            return allowedDestIds.has(getDestId(dest));
-          })
+              return allowedDestIds.has(getDestId(dest));
+            })
           : [];
         const nextMembers = Array.isArray(memberItems) ? memberItems : [];
 
@@ -404,11 +415,10 @@ export function AttendanceQuickView() {
         setMembers(nextMembers);
 
         if (nextDests.length) {
-          setSelectedDestId(
-            (current) =>
-              nextDests.some((dest) => getDestId(dest) === String(current))
-                ? current
-                : getDestId(nextDests[0])
+          setSelectedDestId((current) =>
+            nextDests.some((dest) => getDestId(dest) === String(current))
+              ? current
+              : getDestId(nextDests[0])
           );
         } else {
           setSelectedDestId('');
@@ -463,7 +473,9 @@ export function AttendanceQuickView() {
   const selectedDest = useMemo(
     () =>
       dests.find((dest) =>
-        [dest?.id, dest?.idDestacamento, dest?.destId].some((value) => String(value ?? '') === String(selectedDestId))
+        [dest?.id, dest?.idDestacamento, dest?.destId].some(
+          (value) => String(value ?? '') === String(selectedDestId)
+        )
       ),
     [dests, selectedDestId]
   );
@@ -608,6 +620,48 @@ export function AttendanceQuickView() {
     return base;
   }, [divisionFilteredMembers, statusByMemberId]);
 
+  // EL RESUMEN ES DEL DESTACAMENTO ENTERO, no de lo que se este viendo.
+  //
+  // Los contadores de arriba siguen a la lista —se acotan con la busqueda, la
+  // division y el propio contador pulsado—, pero "Resumen del dia" se abre
+  // justamente para ver el cuadro completo: acotarlo con un filtro puesto haria
+  // que dos personas leyeran numeros distintos del mismo dia.
+  const resumen = useMemo(() => {
+    const conteo = { present: 0, absent: 0, excused: 0, sick: 0, other: 0, pending: 0 };
+
+    const miembros = selectedDestMembers.map((member) => {
+      const memberId = getMemberId(member);
+      const status = statusByMemberId[memberId];
+      const clave =
+        status === AUTO_ABSENT_STATUS
+          ? 'absent'
+          : conteo[status] !== undefined
+            ? status
+            : 'pending';
+
+      conteo[clave] += 1;
+
+      return {
+        id: memberId,
+        nombre: getMemberName(member),
+        codigo: getMemberCode(member),
+        division: resolveMemberDivision(member),
+        estado: getStatusLabel(status),
+      };
+    });
+
+    const total = miembros.length;
+
+    return {
+      total,
+      conteo,
+      miembros,
+      // Sobre el total del destacamento: es el numero que se mira para saber si
+      // hubo reunion de verdad.
+      porcentajePresentes: total ? Math.round((conteo.present / total) * 100) : 0,
+    };
+  }, [selectedDestMembers, statusByMemberId]);
+
   // Lo que se lleva quien pulsa "Exportar": la misma lista que esta viendo, con
   // la marca de cada quien en palabras y no en el codigo interno.
   const exportRows = useMemo(
@@ -671,15 +725,15 @@ export function AttendanceQuickView() {
     () =>
       user
         ? {
-          uid: user.uid || user.id || '',
-          nombre:
-            user.displayName ||
-            user.name ||
-            [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
-            user.email ||
-            '',
-          correo: user.email || '',
-        }
+            uid: user.uid || user.id || '',
+            nombre:
+              user.displayName ||
+              user.name ||
+              [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
+              user.email ||
+              '',
+            correo: user.email || '',
+          }
         : null,
     [user]
   );
@@ -719,9 +773,15 @@ export function AttendanceQuickView() {
       return;
     }
 
+    // SE GUARDA EL DESTACAMENTO ENTERO, no lo que se este viendo.
+    //
+    // Antes se guardaba `divisionFilteredMembers`: con el filtro de division
+    // puesto, la asistencia del dia quedaba escrita a medias —y lo marcado en
+    // otra division antes de cambiar de filtro no llegaba a Firebase—. La
+    // asistencia es del destacamento y de la fecha, no de la vista.
     const statusesToSave = { ...statusByMemberId };
 
-    divisionFilteredMembers.forEach((member) => {
+    selectedDestMembers.forEach((member) => {
       const memberId = getMemberId(member);
 
       if (!statusesToSave[memberId]) {
@@ -738,7 +798,7 @@ export function AttendanceQuickView() {
           idDestacamento: selectedDestId,
           nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
         },
-        miembros: divisionFilteredMembers,
+        miembros: selectedDestMembers,
         estados: statusesToSave,
         usuario: getAuditUser(),
       });
@@ -747,7 +807,7 @@ export function AttendanceQuickView() {
       setLastPresentByMemberId((current) => {
         const next = { ...current };
 
-        divisionFilteredMembers.forEach((member) => {
+        selectedDestMembers.forEach((member) => {
           const memberId = getMemberId(member);
 
           if (statusesToSave[memberId] === 'present') {
@@ -763,12 +823,17 @@ export function AttendanceQuickView() {
     } finally {
       setSavingAttendance(false);
     }
-  }, puedePasarAsistencia, [
+    // El segundo argumento era `puedePasarAsistencia` —un booleano— y la lista de
+    // dependencias iba de tercero, donde `useCallback` no la mira: la funcion se
+    // rehacia en cada pintado. Ahora las dependencias van donde toca, con el
+    // permiso dentro.
+  }, [
     date,
     selectedDest,
     selectedDestId,
     statusByMemberId,
-    divisionFilteredMembers,
+    selectedDestMembers,
+    puedePasarAsistencia,
     getAuditUser,
   ]);
 
@@ -804,6 +869,105 @@ export function AttendanceQuickView() {
         </MenuItem>
       </MenuList>
     </CustomPopover>
+  );
+
+  // Ventana flotante con el cuadro del dia: cuantos hay de cada marca y, debajo,
+  // uno por uno todos los miembros del destacamento con la suya.
+  const renderResumenDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="sm"
+      open={resumenDelDia.value}
+      onClose={resumenDelDia.onFalse}
+      slotProps={{ paper: { sx: { maxHeight: '90vh' } } }}
+    >
+      <DialogTitle sx={{ pb: 2 }}>
+        Resumen del día
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          {getDestTitle(selectedDest, selectedDestId)} · {formatAttendanceDate(date)}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent dividers sx={{ p: 0 }}>
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
+            <Typography variant="h3">{resumen.porcentajePresentes}%</Typography>
+            <Box>
+              <Typography variant="subtitle2">Asistencia del destacamento</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {resumen.conteo.present} de {resumen.total}{' '}
+                {resumen.total === 1 ? 'miembro' : 'miembros'}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Box
+            sx={{
+              gap: 1,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+            }}
+          >
+            {[...STATUS_OPTIONS, { value: 'pending', ...SIN_REGISTRO }].map((option) => (
+              <Stack
+                key={option.value}
+                spacing={0.25}
+                sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}
+              >
+                <Typography variant="h6">{resumen.conteo[option.value] ?? 0}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {option.label}
+                </Typography>
+              </Stack>
+            ))}
+          </Box>
+        </Box>
+
+        <Divider />
+
+        <Stack divider={<Divider />}>
+          {resumen.miembros.map((miembro) => (
+            <Stack
+              key={miembro.id}
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ px: { xs: 2, md: 3 }, py: 1.25 }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2" noWrap>
+                  {miembro.nombre}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                  {[miembro.codigo, miembro.division].filter(Boolean).join(' • ')}
+                </Typography>
+              </Box>
+
+              <Label
+                variant="soft"
+                color={miembro.estado.color === 'inherit' ? 'default' : miembro.estado.color}
+                sx={{ width: 104, height: 28, flexShrink: 0 }}
+              >
+                {miembro.estado.label}
+              </Label>
+            </Stack>
+          ))}
+
+          {!resumen.total && (
+            <Typography variant="body2" sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+              Este destacamento no tiene miembros.
+            </Typography>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button color="inherit" onClick={resumenDelDia.onFalse}>
+          Cerrar
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   const renderConfirmClearDialog = () => (
@@ -973,9 +1137,7 @@ export function AttendanceQuickView() {
                       color={filter.color}
                       variant={activo ? 'filled' : 'soft'}
                       onClick={() =>
-                        setStatusFilter((current) =>
-                          current === filter.value ? '' : filter.value
-                        )
+                        setStatusFilter((current) => (current === filter.value ? '' : filter.value))
                       }
                       aria-pressed={activo}
                       label={
@@ -1115,7 +1277,12 @@ export function AttendanceQuickView() {
                           en su columna: con el ancho pegado al texto, "Excusa" y
                           "Sin registro" empezaban en sitios distintos y la
                           columna se leia torcida. */}
-                      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' } }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: { xs: 'flex-start', md: 'center' },
+                        }}
+                      >
                         <Label
                           variant="soft"
                           color={estado.color === 'inherit' ? 'default' : estado.color}
@@ -1234,34 +1401,100 @@ export function AttendanceQuickView() {
                   </Typography>
                 </Card>
               )}
-
-              {!!visibleMembers.length && (
-                <Stack
-                  sx={(theme) => ({
-                    pt: 1,
-                    bottom: { xs: 16, md: 24 },
-                    zIndex: theme.zIndex.appBar - 1,
-                    position: 'sticky',
-                  })}
-                >
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<Iconify icon="solar:diskette-bold" />}
-                    onClick={handleSave}
-                    disabled={!selectedDestId || savingAttendance}
-                  >
-                    {savingAttendance ? 'Guardando...' : 'Guardar'}
-                  </Button>
-                </Stack>
-              )}
             </>
+          )}
+          {/* LA BARRA SE QUEDA ABAJO, PEGADA. Pasar lista es ir bajando por la
+              lista, y el boton de guardar no puede estar al final del todo:
+              quien marca a treinta personas tendria que recorrerlas otra vez
+              para guardar.
+              
+              Y DEBAJO DE ELLA NO SE VE NADA. Los botones flotaban sueltos sobre
+              la lista: por los huecos asomaban medias filas, y lo que quedaba
+              tapado seguia respondiendo al raton. La barra lleva ahora su propio
+              fondo —opaco, del color de la pagina, asi que no se lee como una
+              caja— que tapa lo que pasa por detras y se queda con los clics. El
+              velo de encima desvanece las filas al llegar, en vez de cortarlas a
+              media altura. */}
+          {!loading && !!visibleMembers.length && (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={(theme) => ({
+                py: 2,
+                bottom: 0,
+                position: 'sticky',
+                bgcolor: 'background.default',
+                zIndex: theme.zIndex.appBar - 1,
+                '&::before': {
+                  left: 0,
+                  right: 0,
+                  height: 32,
+                  content: '""',
+                  bottom: '100%',
+                  position: 'absolute',
+                  pointerEvents: 'none',
+                  background: `linear-gradient(to top, ${theme.vars.palette.background.default}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0)})`,
+                },
+              })}
+            >
+              <Button
+                size="large"
+                color="inherit"
+                variant="outlined"
+                onClick={resumenDelDia.onTrue}
+                disabled={!selectedDestId}
+                startIcon={<Iconify icon="solar:chart-2-bold" width={24} />}
+                sx={{
+                  py: 1.25,
+                  flex: 1,
+                  bgcolor: 'background.paper',
+                  justifyContent: 'flex-start',
+                  '&:hover': { bgcolor: 'background.paper' },
+                }}
+              >
+                <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    Resumen del día
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}
+                  >
+                    Ver estadísticas completas de asistencia
+                  </Typography>
+                </Box>
+              </Button>
+
+              <Button
+                size="large"
+                variant="contained"
+                onClick={handleSave}
+                disabled={!selectedDestId || savingAttendance}
+                startIcon={<Iconify icon="solar:diskette-bold" width={24} />}
+                sx={{ py: 1.25, flex: 1, justifyContent: 'flex-start' }}
+              >
+                <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {savingAttendance ? 'Guardando asistencia...' : 'Guardar asistencia'}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{ display: 'block', opacity: 0.72, fontWeight: 400 }}
+                  >
+                    Se guardarán los cambios realizados
+                  </Typography>
+                </Box>
+              </Button>
+            </Stack>
           )}
         </Stack>
       </DashboardContent>
 
       {renderMenuActions()}
       {renderConfirmClearDialog()}
+      {renderResumenDialog()}
     </>
   );
 }
