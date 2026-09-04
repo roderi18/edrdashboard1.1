@@ -1709,11 +1709,7 @@ export function AttendanceQuickView() {
                 // todavia no existen en ninguna parte seria ensenar un dia que
                 // se pierde al recargar.
                 disabled={!selectedDestId || !hayResumenGuardado}
-                // La libreta en la que se pasa lista y la planilla firmada: dos
-                // iconos de lo que se hace aqui, y ademas registrados en el
-                // juego offline del proyecto —el grafico y el disquete no lo
-                // estaban, y se pedian a internet cada vez—.
-                startIcon={<Iconify icon="solar:notebook-bold-duotone" width={24} />}
+                startIcon={<Iconify icon="solar:chart-2-bold" width={24} />}
                 sx={{
                   py: 1.25,
                   flex: 1,
@@ -1741,7 +1737,7 @@ export function AttendanceQuickView() {
                 variant="contained"
                 onClick={handleSave}
                 disabled={!selectedDestId || savingAttendance}
-                startIcon={<Iconify icon="solar:file-check-bold-duotone" width={24} />}
+                startIcon={<Iconify icon="solar:diskette-bold" width={24} />}
                 sx={{ py: 1.25, flex: 1, justifyContent: 'flex-start' }}
               >
                 <Box sx={{ textAlign: 'left', minWidth: 0 }}>
