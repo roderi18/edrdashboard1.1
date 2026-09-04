@@ -15,6 +15,20 @@ const getValue = (value) => {
   return value ? String(value) : '-';
 };
 
+// Como se saca el dato de la fila. La columna puede traer una FUNCION —lo que
+// hacen las tablas de miembros y destacamentos— o solo el nombre del campo, que
+// es como se declaran las columnas mas sencillas.
+//
+// Aqui se llamaba a `column.value(row)` a secas: una columna declarada como
+// `{ id, label }` reventaba con "column.value is not a function" y el PDF no se
+// descargaba. El CSV y el Excel si salian, porque ellos ya miraban las dos
+// formas. Ahora las tres exportaciones leen la fila igual.
+const getCellValue = (column, row) => {
+  if (typeof column?.value === 'function') return column.value(row);
+
+  return row?.[column?.value || column?.id];
+};
+
 function TablePdfDocument({ title, rows, columns }) {
   const width = `${100 / columns.length}%`;
 
@@ -46,7 +60,7 @@ function TablePdfDocument({ title, rows, columns }) {
                     { width, borderRightWidth: columnIndex === columns.length - 1 ? 0 : 1 },
                   ]}
                 >
-                  {getValue(column.value(row))}
+                  {getValue(getCellValue(column, row))}
                 </Text>
               ))}
             </View>

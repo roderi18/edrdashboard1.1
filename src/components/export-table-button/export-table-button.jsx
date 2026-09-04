@@ -162,6 +162,11 @@ export function ExportTableButton({
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        // El desplegable, del ancho del boton que lo abre: colgaba una lista
+        // estrecha bajo un boton mas largo y no se leia como una sola pieza.
+        slotProps={{
+          paper: { sx: { width: anchorEl?.offsetWidth, minWidth: 120 } },
+        }}
       >
         <MenuItem disabled={exporting} onClick={() => handleExport('pdf')}>
           <Iconify icon="solar:file-text-bold" sx={{ mr: 1 }} />

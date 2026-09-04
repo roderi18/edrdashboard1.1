@@ -670,6 +670,30 @@ export function AttendanceQuickView() {
     };
   }, [selectedDestMembers, statusByMemberId]);
 
+  // El resumen, para llevarselo. Son las MISMAS filas que se estan leyendo en la
+  // ventana —nombre, codigo, division y su marca del dia—, no una segunda
+  // consulta que pudiera contar otra cosa.
+  const resumenExportRows = useMemo(
+    () =>
+      resumen.miembros.map((miembro) => ({
+        codigo: miembro.codigo,
+        nombre: miembro.nombre,
+        division: miembro.division,
+        estado: miembro.estado.label,
+      })),
+    [resumen]
+  );
+
+  const resumenExportColumns = useMemo(
+    () => [
+      { id: 'codigo', label: 'Código' },
+      { id: 'nombre', label: 'Miembro' },
+      { id: 'division', label: 'División' },
+      { id: 'estado', label: 'Estado' },
+    ],
+    []
+  );
+
   // Lo que se lleva quien pulsa "Exportar": la misma lista que esta viendo, con
   // la marca de cada quien en palabras y no en el codigo interno.
   const exportRows = useMemo(
@@ -890,10 +914,27 @@ export function AttendanceQuickView() {
       slotProps={{ paper: { sx: { maxHeight: '90vh' } } }}
     >
       <DialogTitle sx={{ pb: 2 }}>
-        Resumen del día
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {getDestTitle(selectedDest, selectedDestId)} · {formatAttendanceDate(date)}
-        </Typography>
+        <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
+          <Box sx={{ minWidth: 0 }}>
+            Resumen del día
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {getDestTitle(selectedDest, selectedDestId)} · {formatAttendanceDate(date)}
+            </Typography>
+          </Box>
+
+          {/* El resumen se descarga desde donde se lee. Quien lo abre para
+              enviarlo no tiene que cerrarlo y buscar el "Exportar" de la
+              pantalla, que ademas se lleva otra cosa: aquel exporta la lista que
+              se este viendo y este, el destacamento entero. */}
+          <ExportTableButton
+            rows={resumenExportRows}
+            columns={resumenExportColumns}
+            title={`Resumen del día · ${getDestTitle(selectedDest, selectedDestId)} · ${formatAttendanceDate(date)}`}
+            fileNamePrefix="resumen-del-dia"
+            buttonLabel="Descargar"
+            buttonProps={{ size: 'small' }}
+          />
+        </Stack>
       </DialogTitle>
 
       <DialogContent dividers sx={{ p: 0 }}>
