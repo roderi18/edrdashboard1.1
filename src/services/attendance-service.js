@@ -91,6 +91,39 @@ export const obtenerAsistenciaDestacamento = async ({ fecha, idDestacamento } = 
   );
 };
 
+/**
+ * TODO lo que se ha pasado en un destacamento, para el informe.
+ *
+ * Se leen los REGISTROS —uno por miembro y dia— y no el resumen diario, porque
+ * el informe se filtra por division y esa solo esta en el registro de cada
+ * persona. Un destacamento de treinta miembros que se reune cada semana suma
+ * unos mil quinientos registros al año: se traen de una vez y se agrupan en el
+ * navegador, que es mas barato que una consulta por cada periodo.
+ */
+export const obtenerHistorialAsistenciaDestacamento = async ({ idDestacamento } = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_REGISTROS_ASISTENCIA),
+      where('idDestacamento', '==', String(idDestacamento))
+    )
+  ).catch(() => ({ docs: [] }));
+
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data() || {};
+
+      return {
+        fecha: String(data.fecha || ''),
+        idMiembro: String(data.idMiembro || ''),
+        division: String(data.division || ''),
+        estado: convertirEstadoAsistenciaAUi(data.estado),
+      };
+    })
+    .filter((registro) => registro.fecha && registro.idMiembro);
+};
+
 export const obtenerUltimasPresenciasMiembros = async (idMiembros = []) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idMiembros.length) {
     return {};

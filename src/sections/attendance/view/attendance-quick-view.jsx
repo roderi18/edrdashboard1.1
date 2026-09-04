@@ -33,6 +33,7 @@ import { paths } from 'src/routes/paths';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { rolesQueEjerce, ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
@@ -56,12 +57,37 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { ExportTableButton } from 'src/components/export-table-button';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { ROLES } from 'src/auth/permissions/roles';
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, puedeModificar } from 'src/auth/permissions/can';
+
+import { AttendanceAdvancedReportDialog } from '../attendance-advanced-report-dialog';
 
 // ----------------------------------------------------------------------
 
 const AUTO_ABSENT_STATUS = 'absent-unmarked';
+
+// EL DESPLEGABLE DE DESTACAMENTOS ES PARA QUIEN RESPONDE POR VARIOS.
+//
+// El Administrador Global, el Funcional y los cargos del Consejo Ejecutivo miran
+// la asistencia de cualquier destacamento del pais, asi que necesitan elegir. Al
+// resto —el Coordinador de su destacamento, los cargos de seccion o region— la
+// pantalla les abre el suyo y ya: ofrecerles un selector era ensenarles una
+// pregunta con una sola respuesta util.
+const ROLES_QUE_ELIGEN_DESTACAMENTO = [
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  // El rol del Consejo Ejecutivo y, con el, cada una de sus casillas —Director
+  // Nacional, Capellan, los coordinadores de area—: quien ocupa una de ellas
+  // ejerce en el Consejo aunque su rol principal se llame de otra forma.
+  ROLES.CONSEJO_EJECUTIVO,
+  ...ROLES_CONSEJO_EJECUTIVO,
+];
+
+// Por TODOS sus cargos, no solo por el principal: quien ejerce uno del Consejo
+// Ejecutivo lo ejerce aunque entre con otro.
+const puedeElegirDestacamento = (user = {}) =>
+  rolesQueEjerce(user).some((codigo) => ROLES_QUE_ELIGEN_DESTACAMENTO.includes(codigo));
 
 // PASAR LISTA NO ES SOLO "VINO O NO VINO".
 //
@@ -466,6 +492,7 @@ export function AttendanceQuickView() {
   const menuActions = usePopover();
   const confirmClear = useBoolean();
   const resumenDelDia = useBoolean();
+  const informeAvanzado = useBoolean();
 
   const [date, setDate] = useState(TODAY);
   const [search, setSearch] = useState('');
@@ -631,7 +658,7 @@ export function AttendanceQuickView() {
   const attendanceTitle = selectedDestId
     ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
     : 'Asistencia';
-  const showDestFilter = !scopedToDest;
+  const showDestFilter = !scopedToDest && puedeElegirDestacamento(user);
 
   const selectedDestMembers = useMemo(
     () =>
@@ -1472,6 +1499,20 @@ export function AttendanceQuickView() {
               </Stack>
 
               <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                {/* La pantalla responde por UN dia; el informe, por la racha:
+                    como va la asistencia semana a semana, mes a mes, hasta el
+                    historico completo. */}
+                <Button
+                  size="small"
+                  color="inherit"
+                  variant="outlined"
+                  disabled={!selectedDestId}
+                  onClick={informeAvanzado.onTrue}
+                  startIcon={<Iconify icon="solar:chart-square-outline" />}
+                >
+                  Informe avanzado
+                </Button>
+
                 <ExportTableButton
                   rows={exportRows}
                   columns={exportColumns}
@@ -1825,6 +1866,13 @@ export function AttendanceQuickView() {
       {renderMenuActions()}
       {renderConfirmClearDialog()}
       {renderResumenDialog()}
+
+      <AttendanceAdvancedReportDialog
+        open={informeAvanzado.value}
+        onClose={informeAvanzado.onFalse}
+        destId={selectedDestId}
+        dest={getDestTitle(selectedDest, selectedDestId)}
+      />
     </>
   );
 }
