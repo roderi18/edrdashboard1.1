@@ -20,6 +20,7 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
@@ -40,11 +41,13 @@ import {
   obtenerUltimasPresenciasMiembros,
 } from 'src/services/attendance-service';
 
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { ExportTableButton } from 'src/components/export-table-button';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { PERMISOS } from 'src/auth/permissions/permissions';
@@ -52,29 +55,76 @@ import { can, puedeModificar } from 'src/auth/permissions/can';
 
 // ----------------------------------------------------------------------
 
+const AUTO_ABSENT_STATUS = 'absent-unmarked';
+
+// PASAR LISTA NO ES SOLO "VINO O NO VINO".
+//
+// A las tres marcas de siempre —asistio, ausente, excusa— se suman "Enfermo",
+// que ya no es lo mismo que una excusa cualquiera y conviene poder contarlo
+// aparte, y "Otro", para lo que no entra en ninguna: sin ella, quien pasa lista
+// tenia que elegir la marca menos falsa.
+//
+// El orden es el de la fila: de lo mas frecuente a lo menos.
 const STATUS_OPTIONS = [
   {
-    value: 'excused',
-    label: 'Excusa',
-    color: 'info',
-    icon: 'solar:info-circle-bold',
-    width: { xs: 42, sm: 50 },
+    value: 'present',
+    label: 'Asistió',
+    color: 'success',
+    icon: 'solar:check-circle-bold',
   },
   {
     value: 'absent',
     label: 'Ausente',
     color: 'warning',
     icon: 'solar:minus-circle-bold',
-    width: { xs: 48, sm: 58 },
   },
   {
-    value: 'present',
-    label: 'Presente',
-    color: 'success',
-    icon: 'solar:check-circle-bold',
-    width: { xs: 48, sm: 58 },
+    value: 'excused',
+    label: 'Excusa',
+    color: 'info',
+    icon: 'solar:document-text-bold',
+  },
+  {
+    value: 'sick',
+    label: 'Enfermo',
+    color: 'secondary',
+    icon: 'solar:health-bold',
+  },
+  {
+    value: 'other',
+    label: 'Otro',
+    color: 'inherit',
+    icon: 'solar:menu-dots-bold',
   },
 ];
+
+const STATUS_OPTION_BY_VALUE = Object.fromEntries(
+  STATUS_OPTIONS.map((option) => [option.value, option])
+);
+
+// Los contadores de arriba, que ademas FILTRAN la lista. "Otro" no tiene el
+// suyo: es el cajon de lo que no encaja, y un contador de "otros" no dice nada
+// que se pueda mirar de un vistazo.
+const STATUS_FILTERS = [
+  { value: 'present', label: 'Presentes', color: 'success' },
+  { value: 'absent', label: 'Ausentes', color: 'warning' },
+  { value: 'excused', label: 'Con excusa', color: 'info' },
+  { value: 'sick', label: 'Enfermos', color: 'secondary' },
+];
+
+// Lo que se lee en la columna ESTADO. Sin marcar no es lo mismo que ausente:
+// nadie ha dicho todavia nada de esta persona.
+const SIN_REGISTRO = { label: 'Sin registro', color: 'default' };
+
+const getStatusLabel = (status) => {
+  if (status === AUTO_ABSENT_STATUS) {
+    return { label: 'Ausente', color: 'warning' };
+  }
+
+  const option = STATUS_OPTION_BY_VALUE[status];
+
+  return option ? { label: option.label, color: option.color } : SIN_REGISTRO;
+};
 
 const DIVISION_ICON_PATHS = {
   // "Todos" es el valor `all` del desplegable, no una division: lleva el icono
@@ -89,7 +139,6 @@ const DIVISION_ICON_PATHS = {
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
-const AUTO_ABSENT_STATUS = 'absent-unmarked';
 
 const getMemberDestId = (member) =>
   member?.idDestacamento ?? member?.destId ?? member?.destacamentoId ?? member?.idDest ?? '';
@@ -143,6 +192,21 @@ const getMemberName = (member) => {
 
   return [fallbackFirstName, fallbackLastName].filter(Boolean).join(' ') || 'Miembro sin nombre';
 };
+
+// La MISMA rejilla para la cabecera y para cada fila: es lo unico que mantiene
+// las columnas alineadas. En movil se apila —una fila de cuatro columnas no cabe
+// en 375px— y la cabecera se esconde, porque cada dato ya se explica solo.
+const FILA_ASISTENCIA_SX = {
+  display: 'grid',
+  alignItems: 'center',
+  gap: { xs: 1.5, md: 2 },
+  gridTemplateColumns: {
+    xs: 'minmax(0, 1fr)',
+    md: 'minmax(0, 1.6fr) 130px 190px auto',
+  },
+};
+
+const getMemberCode = (member) => member?.memberId || member?.codigoMiembro || '';
 
 const getMemberAvatar = (member) =>
   member?.avatarUrl || member?.photoURL || member?.urlFoto || member?.fotoUrl || member?.foto || '';
@@ -263,6 +327,8 @@ export function AttendanceQuickView() {
   const [loading, setLoading] = useState(true);
   const [selectedDestId, setSelectedDestId] = useState('');
   const [selectedDivision, setSelectedDivision] = useState('all');
+  // Contador pulsado arriba: '' es "todos". Se pulsa de nuevo y se suelta.
+  const [statusFilter, setStatusFilter] = useState('');
   const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [statusByMemberId, setStatusByMemberId] = useState({});
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
@@ -405,7 +471,7 @@ export function AttendanceQuickView() {
     );
   }, [selectedDestMembers, selectedDivision]);
 
-  const visibleMembers = useMemo(() => {
+  const searchedMembers = useMemo(() => {
     const query = normalizeText(search);
 
     if (!query) {
@@ -424,6 +490,23 @@ export function AttendanceQuickView() {
         .some((value) => value.includes(query))
     );
   }, [search, divisionFilteredMembers]);
+
+  // Los contadores de arriba filtran: pulsar "2 Ausentes" deja en pantalla esos
+  // dos. Va DESPUES de la busqueda para que las dos cosas se sumen en vez de
+  // pisarse.
+  const visibleMembers = useMemo(() => {
+    if (!statusFilter) return searchedMembers;
+
+    return searchedMembers.filter((member) => {
+      const status = statusByMemberId[getMemberId(member)];
+
+      if (statusFilter === 'absent') {
+        return status === 'absent' || status === AUTO_ABSENT_STATUS;
+      }
+
+      return status === statusFilter;
+    });
+  }, [searchedMembers, statusByMemberId, statusFilter]);
 
   useEffect(() => {
     let active = true;
@@ -489,7 +572,7 @@ export function AttendanceQuickView() {
   }, [selectedDestMembers]);
 
   const counts = useMemo(() => {
-    const base = { present: 0, absent: 0, excused: 0, pending: 0 };
+    const base = { present: 0, absent: 0, excused: 0, sick: 0, other: 0, pending: 0 };
 
     divisionFilteredMembers.forEach((member) => {
       const status = statusByMemberId[getMemberId(member)];
@@ -505,6 +588,35 @@ export function AttendanceQuickView() {
 
     return base;
   }, [divisionFilteredMembers, statusByMemberId]);
+
+  // Lo que se lleva quien pulsa "Exportar": la misma lista que esta viendo, con
+  // la marca de cada quien en palabras y no en el codigo interno.
+  const exportRows = useMemo(
+    () =>
+      visibleMembers.map((member) => {
+        const memberId = getMemberId(member);
+
+        return {
+          codigo: member?.memberId || member?.codigoMiembro || '',
+          nombre: getMemberName(member),
+          division: resolveMemberDivision(member),
+          estado: getStatusLabel(statusByMemberId[memberId]).label,
+          ultimaPresencia: formatAttendanceDate(lastPresentByMemberId[memberId]),
+        };
+      }),
+    [visibleMembers, statusByMemberId, lastPresentByMemberId]
+  );
+
+  const exportColumns = useMemo(
+    () => [
+      { id: 'codigo', label: 'Código' },
+      { id: 'nombre', label: 'Miembro' },
+      { id: 'division', label: 'División' },
+      { id: 'estado', label: 'Estado' },
+      { id: 'ultimaPresencia', label: 'Última presencia' },
+    ],
+    []
+  );
 
   const handleStatusChange = useCallback((memberId, status) => {
     setStatusByMemberId((current) => {
@@ -829,23 +941,94 @@ export function AttendanceQuickView() {
               justifyContent="space-between"
               sx={{ width: 1 }}
             >
+              {/* Cada contador es tambien un filtro: se pulsa y la lista se
+                  queda con esa marca. Vuelto a pulsar, se suelta. */}
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Chip color="success" label={`${counts.present} presentes`} />
-                <Chip color="warning" label={`${counts.absent} ausentes`} />
-                <Chip color="info" label={`${counts.excused} excusas`} />
+                {STATUS_FILTERS.map((filter) => {
+                  const activo = statusFilter === filter.value;
+
+                  return (
+                    <Chip
+                      key={filter.value}
+                      clickable
+                      color={filter.color}
+                      variant={activo ? 'filled' : 'soft'}
+                      onClick={() =>
+                        setStatusFilter((current) =>
+                          current === filter.value ? '' : filter.value
+                        )
+                      }
+                      aria-pressed={activo}
+                      label={
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                          <Box
+                            component="span"
+                            sx={{
+                              px: 0.75,
+                              minWidth: 20,
+                              borderRadius: 0.75,
+                              textAlign: 'center',
+                              typography: 'caption',
+                              fontWeight: 'fontWeightBold',
+                              bgcolor: activo ? 'common.white' : `${filter.color}.main`,
+                              color: activo ? `${filter.color}.main` : 'common.white',
+                            }}
+                          >
+                            {counts[filter.value]}
+                          </Box>
+                          <Box component="span">{filter.label}</Box>
+                        </Stack>
+                      }
+                    />
+                  );
+                })}
               </Stack>
-              <IconButton
-                color="inherit"
-                onClick={menuActions.onOpen}
-                edge="end"
-                sx={{ width: 32, height: 32 }}
-                aria-label="Acciones de asistencia"
-              >
-                <Iconify icon="eva:more-vertical-fill" />
-              </IconButton>
+
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                <ExportTableButton
+                  rows={exportRows}
+                  columns={exportColumns}
+                  title={attendanceTitle}
+                  fileNamePrefix="asistencia"
+                  buttonProps={{ size: 'small', endIcon: null }}
+                />
+
+                <IconButton
+                  color="inherit"
+                  onClick={menuActions.onOpen}
+                  edge="end"
+                  sx={{ width: 32, height: 32 }}
+                  aria-label="Acciones de asistencia"
+                >
+                  <Iconify icon="eva:more-vertical-fill" />
+                </IconButton>
+              </Stack>
             </Stack>
           </Stack>
         </Card>
+
+        {/* Cabecera de la tabla. Solo en pantalla ancha: en movil la fila se
+            apila y unos titulos sueltos arriba no dirian a que se refieren. */}
+        {!loading && !!visibleMembers.length && (
+          <Box
+            sx={{
+              ...FILA_ASISTENCIA_SX,
+              px: 2.5,
+              pb: 1.5,
+              display: { xs: 'none', md: 'grid' },
+            }}
+          >
+            {['Miembro', 'Estado', 'Asistencia del día', 'Acciones'].map((titulo) => (
+              <Typography
+                key={titulo}
+                variant="overline"
+                sx={{ color: 'text.disabled', letterSpacing: 0.6 }}
+              >
+                {titulo}
+              </Typography>
+            ))}
+          </Box>
+        )}
 
         <Stack spacing={1.5}>
           {loading ? (
@@ -862,29 +1045,31 @@ export function AttendanceQuickView() {
                 const status = statusByMemberId[memberId] || '';
                 const avatarUrl = memberPhotoUrls[memberId] || getMemberAvatar(member);
 
+                const estado = getStatusLabel(status);
+                // La reunion del dia cuenta como UNA actividad, y la persona la
+                // tiene puesta si asistio. No hay asistencia por actividad en
+                // ningun sitio todavia: cuando la haya, este es el punto que
+                // cambia, y el resto de la fila se queda igual.
+                const actividadesDelDia = 1;
+                const asistidas = status === 'present' ? 1 : 0;
+                const porcentaje = Math.round((asistidas / actividadesDelDia) * 100);
+
                 return (
-                  <Card
-                    key={memberId}
-                    sx={{ p: { xs: 2, md: 2.5 }, minHeight: { xs: 82, sm: 92 } }}
-                  >
-                    <Stack
-                      direction="row"
-                      spacing={{ xs: 1, sm: 2 }}
-                      alignItems="center"
-                      sx={{ minWidth: 0 }}
-                    >
+                  <Card key={memberId} sx={{ p: { xs: 2, md: 2.5 } }}>
+                    <Box sx={FILA_ASISTENCIA_SX}>
+                      {/* MIEMBRO */}
                       <Stack
                         direction="row"
                         spacing={{ xs: 1, sm: 2 }}
                         alignItems="center"
-                        sx={{ flex: '1 1 auto', minWidth: 0 }}
+                        sx={{ minWidth: 0 }}
                       >
                         <Avatar
                           src={avatarUrl}
                           alt={memberName}
                           sx={{
-                            width: { xs: 42, sm: 50 },
-                            height: { xs: 42, sm: 50 },
+                            width: { xs: 42, sm: 48 },
+                            height: { xs: 42, sm: 48 },
                             flexShrink: 0,
                           }}
                         >
@@ -896,12 +1081,91 @@ export function AttendanceQuickView() {
                             {memberName}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" noWrap>
+                            {[getMemberCode(member), resolveMemberDivision(member)]
+                              .filter(Boolean)
+                              .join(' • ')}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      {/* ESTADO */}
+                      <Box>
+                        <Label
+                          variant="soft"
+                          color={estado.color === 'inherit' ? 'default' : estado.color}
+                          startIcon={
+                            <Box
+                              component="span"
+                              sx={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                bgcolor: 'currentColor',
+                              }}
+                            />
+                          }
+                        >
+                          {estado.label}
+                        </Label>
+                      </Box>
+
+                      {/* ASISTENCIA DEL DÍA */}
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 42,
+                            height: 42,
+                            flexShrink: 0,
+                            display: 'inline-flex',
+                            position: 'relative',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <CircularProgress
+                            variant="determinate"
+                            value={100}
+                            size={42}
+                            thickness={4}
+                            sx={{ color: 'divider', position: 'absolute' }}
+                          />
+                          <CircularProgress
+                            variant="determinate"
+                            value={porcentaje}
+                            size={42}
+                            thickness={4}
+                            color="success"
+                            sx={{ position: 'absolute' }}
+                          />
+                          <Typography variant="caption" sx={{ fontWeight: 'fontWeightBold' }}>
+                            {porcentaje}%
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {asistidas} de {actividadesDelDia}{' '}
+                            {actividadesDelDia === 1 ? 'actividad' : 'actividades'}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.disabled"
+                            noWrap
+                            sx={{ display: 'block' }}
+                          >
                             Última: {formatAttendanceDate(lastPresentByMemberId[memberId])}
                           </Typography>
                         </Box>
                       </Stack>
 
-                      <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} sx={{ flexShrink: 0 }}>
+                      {/* ACCIONES */}
+                      <Stack
+                        useFlexGap
+                        direction="row"
+                        flexWrap="wrap"
+                        spacing={{ xs: 0.5, sm: 1 }}
+                        sx={{ flexShrink: 0, rowGap: 1 }}
+                      >
                         {STATUS_OPTIONS.map((option) => (
                           <Button
                             key={option.value}
@@ -912,17 +1176,21 @@ export function AttendanceQuickView() {
                             variant={status === option.value ? 'contained' : 'outlined'}
                             onClick={() => handleStatusChange(memberId, option.value)}
                             sx={{
-                              width: option.width,
-                              minWidth: option.width,
-                              height: 50,
                               px: 0,
+                              gap: 0.25,
+                              height: 56,
+                              width: { xs: 58, sm: 64 },
+                              minWidth: { xs: 58, sm: 64 },
+                              flexDirection: 'column',
+                              typography: 'caption',
                             }}
                           >
-                            <Iconify icon={option.icon} width={18} />
+                            <Iconify icon={option.icon} width={20} />
+                            {option.label}
                           </Button>
                         ))}
                       </Stack>
-                    </Stack>
+                    </Box>
                   </Card>
                 );
               })}

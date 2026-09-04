@@ -17,10 +17,16 @@ export const COLECCION_ASISTENCIAS = 'asistencias';
 export const COLECCION_REGISTROS_ASISTENCIA = 'registrosAsistencia';
 export const COLECCION_ULTIMAS_ASISTENCIAS_MIEMBROS = 'ultimasAsistenciasMiembros';
 
+// Las marcas que se pueden pasar. "Enfermo" y "Otro" se suman a las tres de
+// siempre: una enfermedad ya no se cuenta como una excusa cualquiera —interesa
+// poder contarla aparte— y "Otro" recoge lo que no entra en ninguna, que antes
+// obligaba a elegir la marca menos falsa.
 const ESTADO_UI_A_FIREBASE = {
   present: 'presente',
   absent: 'ausente',
   excused: 'excusa',
+  sick: 'enfermo',
+  other: 'otro',
   'absent-unmarked': 'ausente_sin_marcar',
 };
 
@@ -28,6 +34,8 @@ const ESTADO_FIREBASE_A_UI = {
   presente: 'present',
   ausente: 'absent',
   excusa: 'excused',
+  enfermo: 'sick',
+  otro: 'other',
   ausente_sin_marcar: 'absent-unmarked',
 };
 
@@ -177,6 +185,8 @@ export const guardarAsistenciaDestacamento = async ({
     presentes: 0,
     ausentes: 0,
     excusas: 0,
+    enfermos: 0,
+    otros: 0,
     ausentesSinMarcar: 0,
   };
   const estadosResumen = {};
@@ -192,6 +202,8 @@ export const guardarAsistenciaDestacamento = async ({
     if (estado === 'presente') conteo.presentes += 1;
     if (estado === 'ausente') conteo.ausentes += 1;
     if (estado === 'excusa') conteo.excusas += 1;
+    if (estado === 'enfermo') conteo.enfermos += 1;
+    if (estado === 'otro') conteo.otros += 1;
     if (estado === 'ausente_sin_marcar') conteo.ausentesSinMarcar += 1;
 
     estadosResumen[idMiembro] = estado;
