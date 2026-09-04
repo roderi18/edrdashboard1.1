@@ -136,9 +136,14 @@ function AccessRequestForm({ coordinador, sending, onCancel, onSend }) {
         spacing={1}
         sx={{ mt: 1.5, alignItems: 'center', justifyContent: 'flex-end' }}
       >
-        {coordinador?.nombre && (
+        {/* Los dos, con su cargo: la solicitud le llega al Coordinador y a su
+            Asistente. Nombrar solo al titular hacia creer que todo dependia de
+            una sola persona. La etiqueta la arma el servicio, que es quien sabe
+            quien ocupa cada casilla. */}
+        {(coordinador?.etiqueta || coordinador?.nombre) && (
           <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
-            Se notificará a {coordinador.nombre} (Coordinador de Destacamento).
+            Se notificará a{' '}
+            {coordinador.etiqueta || `${coordinador.nombre} (Coordinador de Destacamento)`}.
           </Typography>
         )}
 
@@ -266,13 +271,13 @@ export function MemberSensitiveInfoBanner({ member }) {
         return;
       }
 
-      const { nombreCoordinador } = await solicitarAccesoInformacionMiembro({
+      const { nombreCoordinador, nombresCoordinadores } = await solicitarAccesoInformacionMiembro({
         member,
         usuario: user,
         justificacion,
       });
 
-      toast.success(`Solicitud enviada a ${nombreCoordinador}.`);
+      toast.success(`Solicitud enviada a ${nombresCoordinadores || nombreCoordinador}.`);
       open.onFalse();
     } catch (error) {
       toast.error(error?.message || 'No se pudo enviar la solicitud.');

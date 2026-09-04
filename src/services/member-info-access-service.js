@@ -80,8 +80,47 @@ export const obtenerCuentasDeCoordinadores = async (idDestacamento) => {
   return [...new Set(listas.flat().filter(Boolean))];
 };
 
-// Nombre del Coordinador de Destacamento (titular; si no hay, el asistente) del
-// destacamento indicado, para mostrarlo en el banner de la ficha del miembro.
+const ETIQUETA_CARGO_COORDINADOR = {
+  [CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento]:
+    'Coordinador de Destacamento',
+  [CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorAsistenteDestacamento]:
+    'Coordinador Asistente',
+};
+
+// "A" / "A y B": une los nombres como se leen, sin comas de mas ni un "y"
+// colgando cuando solo hay uno.
+const unirNombres = (partes = []) => {
+  if (partes.length <= 1) return partes[0] || '';
+
+  return `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+};
+
+/**
+ * Como se nombra a quien va a recibir la solicitud.
+ *
+ * Aparte y sin Firestore de por medio: es texto que se lee en pantalla, y se
+ * comprueba solo.
+ *
+ * @returns {{ etiqueta: string, nombres: string }} `etiqueta` con el cargo entre
+ * parentesis, para el aviso; `nombres` a secas, para el mensaje de confirmacion.
+ */
+export const describirCoordinadores = (listado = []) => ({
+  etiqueta: unirNombres(listado.map((item) => `${item.nombre} (${item.etiquetaCargo})`)),
+  nombres: unirNombres(listado.map((item) => item.nombre)),
+});
+
+/**
+ * A quien se va a avisar de la solicitud, con nombre y cargo, para el aviso de
+ * la ficha del miembro.
+ *
+ * LOS DOS, no solo el titular. La notificacion siempre le ha llegado al
+ * Coordinador y a su Asistente —los dos responden de esa ficha—, pero el aviso
+ * nombraba unicamente al primero: quien pedia el acceso se quedaba creyendo que
+ * dependia de una sola persona, y si esa estaba de viaje, esperando de balde.
+ *
+ * `nombre` e `idMiembros` siguen siendo los del titular: de ahi salen el mensaje
+ * de confirmacion y el registro en Historial.
+ */
 export const obtenerCoordinadorDestacamentoInfo = async (idDestacamento) => {
   const destId = Number(idDestacamento) || null;
 
@@ -91,19 +130,41 @@ export const obtenerCoordinadorDestacamentoInfo = async (idDestacamento) => {
 
   if (!coordinadores.length) return null;
 
-  const titular =
-    coordinadores.find(
-      (item) => item.cargo === CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento
-    ) || coordinadores[0];
-
   const miembros = await getMembers().catch(() => []);
-  const coordinadorMiembro = miembros.find(
-    (item) => Number(item.id ?? item.idMiembros) === Number(titular.idMiembros)
-  );
+
+  const nombreDe = (asignacion) => {
+    const miembro = miembros.find(
+      (item) => Number(item.id ?? item.idMiembros) === Number(asignacion.idMiembros)
+    );
+
+    return miembro
+      ? getMemberName(miembro)
+      : ETIQUETA_CARGO_COORDINADOR[asignacion.cargo] || 'Coordinador de Destacamento';
+  };
+
+  // El titular delante, su Asistente detras: es el orden en que se nombran.
+  const ordenados = [...coordinadores].sort((uno, otro) => {
+    const esTitular = (item) =>
+      item.cargo === CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO.coordinadorDestacamento ? 0 : 1;
+
+    return esTitular(uno) - esTitular(otro);
+  });
+
+  const listado = ordenados.map((asignacion) => ({
+    idMiembros: Number(asignacion.idMiembros),
+    nombre: nombreDe(asignacion),
+    cargo: asignacion.cargo,
+    etiquetaCargo:
+      ETIQUETA_CARGO_COORDINADOR[asignacion.cargo] || 'Coordinador de Destacamento',
+  }));
+
+  const titular = listado[0];
 
   return {
-    idMiembros: Number(titular.idMiembros),
-    nombre: coordinadorMiembro ? getMemberName(coordinadorMiembro) : 'Coordinador de Destacamento',
+    idMiembros: titular.idMiembros,
+    nombre: titular.nombre,
+    coordinadores: listado,
+    ...describirCoordinadores(listado),
   };
 };
 
@@ -143,6 +204,9 @@ export async function solicitarAccesoInformacionMiembro({
 
   const coordinadorInfo = await obtenerCoordinadorDestacamentoInfo(idDestacamento);
   const nombreCoordinador = coordinadorInfo?.nombre || 'Coordinador de Destacamento';
+  // A quienes se les mando, para decirlo tal cual al confirmar: el Coordinador y
+  // su Asistente, no solo el titular.
+  const nombresCoordinadores = coordinadorInfo?.nombres || nombreCoordinador;
 
   let enviadas = 0;
 
@@ -182,5 +246,5 @@ export async function solicitarAccesoInformacionMiembro({
     metadatos: { justificacion: texto, idDestacamento, nombreCoordinador },
   }).catch(() => {});
 
-  return { enviadas, nombreCoordinador };
+  return { enviadas, nombreCoordinador, nombresCoordinadores };
 }
