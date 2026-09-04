@@ -967,43 +967,46 @@ export function AttendanceQuickView() {
         </Stack>
       </DialogTitle>
 
-      <DialogContent dividers sx={{ p: 0 }}>
-        <Box sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
-            <Typography variant="h3">{resumen.porcentajePresentes}%</Typography>
-            <Box>
-              <Typography variant="subtitle2">Asistencia del destacamento</Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {resumen.conteo.present} de {resumen.total}{' '}
-                {resumen.total === 1 ? 'miembro' : 'miembros'}
-              </Typography>
-            </Box>
-          </Stack>
-
-          <Box
-            sx={{
-              gap: 1,
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
-            }}
-          >
-            {[...STATUS_OPTIONS, { value: 'pending', ...SIN_REGISTRO }].map((option) => (
-              <Stack
-                key={option.value}
-                spacing={0.25}
-                sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}
-              >
-                <Typography variant="h6">{resumen.conteo[option.value] ?? 0}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {option.label}
-                </Typography>
-              </Stack>
-            ))}
+      {/* EL CUADRO DEL DIA NO SE VA CON EL DESPLAZAMIENTO. Es el resumen de
+          verdad —el porcentaje y cuantos hay de cada marca—, y con veintisiete
+          miembros debajo desaparecia en cuanto se bajaba a buscar a alguien. Va
+          fuera del `DialogContent`, que es la parte que se desplaza; asi lo unico
+          que corre es la lista. */}
+      <Box sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 }, flexShrink: 0 }}>
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
+          <Typography variant="h3">{resumen.porcentajePresentes}%</Typography>
+          <Box>
+            <Typography variant="subtitle2">Asistencia del destacamento</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {resumen.conteo.present} de {resumen.total}{' '}
+              {resumen.total === 1 ? 'miembro' : 'miembros'}
+            </Typography>
           </Box>
+        </Stack>
+
+        <Box
+          sx={{
+            gap: 1,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+          }}
+        >
+          {[...STATUS_OPTIONS, { value: 'pending', ...SIN_REGISTRO }].map((option) => (
+            <Stack
+              key={option.value}
+              spacing={0.25}
+              sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}
+            >
+              <Typography variant="h6">{resumen.conteo[option.value] ?? 0}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {option.label}
+              </Typography>
+            </Stack>
+          ))}
         </Box>
+      </Box>
 
-        <Divider />
-
+      <DialogContent dividers sx={{ p: 0 }}>
         <Stack divider={<Divider />}>
           {resumen.miembros.map((miembro) => (
             <Stack
