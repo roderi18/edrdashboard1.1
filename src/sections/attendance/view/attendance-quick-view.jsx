@@ -196,15 +196,34 @@ const getMemberName = (member) => {
 // La MISMA rejilla para la cabecera y para cada fila: es lo unico que mantiene
 // las columnas alineadas. En movil se apila —una fila de cuatro columnas no cabe
 // en 375px— y la cabecera se esconde, porque cada dato ya se explica solo.
+//
+// Las tres ultimas columnas van con ANCHO FIJO a proposito. Con `auto` cada
+// rejilla se medía por su contenido: en la cabecera la ultima columna era el
+// ancho de la palabra "Acciones" y en la fila el de cinco botones, asi que los
+// titulos aparecian corridos respecto de lo que nombraban.
+//
+// Los 352px de "Acciones" son exactamente los cinco botones: 5 x 64 mas los
+// cuatro huecos de 8. Si cambia el tamaño del boton, cambia aqui.
+const ANCHO_ACCIONES = 5 * 64 + 4 * 8;
+
 const FILA_ASISTENCIA_SX = {
   display: 'grid',
   alignItems: 'center',
   gap: { xs: 1.5, md: 2 },
   gridTemplateColumns: {
     xs: 'minmax(0, 1fr)',
-    md: 'minmax(0, 1.6fr) 130px 190px auto',
+    md: `minmax(0, 1fr) 132px 200px ${ANCHO_ACCIONES}px`,
   },
 };
+
+// Cada titulo sobre lo que nombra: el nombre a la izquierda y las otras tres
+// centradas, que es como se reparte el contenido de la fila.
+const COLUMNAS_ASISTENCIA = [
+  { titulo: 'Miembro', alineacion: 'left' },
+  { titulo: 'Estado', alineacion: 'center' },
+  { titulo: 'Asistencia del día', alineacion: 'center' },
+  { titulo: 'Acciones', alineacion: 'center' },
+];
 
 const getMemberCode = (member) => member?.memberId || member?.codigoMiembro || '';
 
@@ -1018,13 +1037,17 @@ export function AttendanceQuickView() {
               display: { xs: 'none', md: 'grid' },
             }}
           >
-            {['Miembro', 'Estado', 'Asistencia del día', 'Acciones'].map((titulo) => (
+            {COLUMNAS_ASISTENCIA.map((columna) => (
               <Typography
-                key={titulo}
+                key={columna.titulo}
                 variant="overline"
-                sx={{ color: 'text.disabled', letterSpacing: 0.6 }}
+                sx={{
+                  color: 'text.disabled',
+                  letterSpacing: 0.6,
+                  textAlign: columna.alineacion,
+                }}
               >
-                {titulo}
+                {columna.titulo}
               </Typography>
             ))}
           </Box>
@@ -1088,29 +1111,27 @@ export function AttendanceQuickView() {
                         </Box>
                       </Stack>
 
-                      {/* ESTADO */}
-                      <Box>
+                      {/* ESTADO. Todas las etiquetas miden lo mismo y van centradas
+                          en su columna: con el ancho pegado al texto, "Excusa" y
+                          "Sin registro" empezaban en sitios distintos y la
+                          columna se leia torcida. */}
+                      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' } }}>
                         <Label
                           variant="soft"
                           color={estado.color === 'inherit' ? 'default' : estado.color}
-                          startIcon={
-                            <Box
-                              component="span"
-                              sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                bgcolor: 'currentColor',
-                              }}
-                            />
-                          }
+                          sx={{ width: 104, height: 28 }}
                         >
                           {estado.label}
                         </Label>
                       </Box>
 
                       {/* ASISTENCIA DEL DÍA */}
-                      <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        sx={{ justifyContent: { xs: 'flex-start', md: 'center' } }}
+                      >
                         <Box
                           sx={{
                             width: 42,
@@ -1164,7 +1185,11 @@ export function AttendanceQuickView() {
                         direction="row"
                         flexWrap="wrap"
                         spacing={{ xs: 0.5, sm: 1 }}
-                        sx={{ flexShrink: 0, rowGap: 1 }}
+                        sx={{
+                          rowGap: 1,
+                          flexShrink: 0,
+                          justifyContent: { xs: 'flex-start', md: 'center' },
+                        }}
                       >
                         {STATUS_OPTIONS.map((option) => (
                           <Button
