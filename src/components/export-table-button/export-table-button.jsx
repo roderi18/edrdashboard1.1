@@ -73,6 +73,9 @@ export function ExportTableButton({
   // precios de la tienda sale con la forma del documento oficial. Recibe las
   // filas y devuelve el elemento de `@react-pdf`.
   renderPdfDocument = null,
+  // Lo mismo para el Excel: recibe las filas y devuelve el Blob del .xlsx ya
+  // armado. Sin el, se escribe la hoja simple de siempre.
+  buildExcelBlob = null,
   title = 'Exportación',
   fileNamePrefix = 'exportacion',
   disabled = false,
@@ -111,11 +114,18 @@ export function ExportTableButton({
         }
 
         if (format === 'excel') {
-          await downloadExcel({
-            rows,
-            columns,
-            fileName: getExportFileName(fileNamePrefix, 'xlsx'),
-          });
+          if (buildExcelBlob) {
+            downloadBlob({
+              blob: await buildExcelBlob(rows),
+              fileName: getExportFileName(fileNamePrefix, 'xlsx'),
+            });
+          } else {
+            await downloadExcel({
+              rows,
+              columns,
+              fileName: getExportFileName(fileNamePrefix, 'xlsx'),
+            });
+          }
         }
 
         if (format === 'pdf') {
@@ -137,7 +147,7 @@ export function ExportTableButton({
         setExporting(false);
       }
     },
-    [columns, currentPdfColumns, fileNamePrefix, renderPdfDocument, rows, title]
+    [buildExcelBlob, columns, currentPdfColumns, fileNamePrefix, renderPdfDocument, rows, title]
   );
 
   return (

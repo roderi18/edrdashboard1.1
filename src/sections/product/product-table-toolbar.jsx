@@ -26,6 +26,7 @@ import {
 
 import { ProductPriceListPdfDocument } from './product-price-list-pdf';
 import { ProductTableFiltersResult } from './product-table-filters-result';
+import { construirLibroListaDePrecios } from './product-price-list-workbook';
 
 // ----------------------------------------------------------------------
 
@@ -200,6 +201,13 @@ export function ProductTableToolbar({
             rows={filas}
           />
         )}
+        buildExcelBlob={(filas) =>
+          construirLibroListaDePrecios({
+            title: 'TIENDA ERRD',
+            anio: String(new Date().getFullYear()),
+            rows: filas,
+          })
+        }
         buttonProps={{ size: 'small', color: 'inherit', variant: 'text', endIcon: null }}
       />
       <CustomToolbarSettingsButton
