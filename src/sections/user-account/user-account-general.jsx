@@ -15,6 +15,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { capitalizeWords } from 'src/utils/text-format';
 import { getMemberCodeLabel } from 'src/utils/member-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
@@ -32,6 +33,11 @@ import {
   crearNotificacionPerfilActualizado,
   crearNotificacionErrorSubidaArchivoImagen,
 } from 'src/services/notification-service';
+import {
+  NIVELES_DIRECTIVA,
+  obtenerCargosDirectivaCached,
+  obtenerAsignacionesDirectivaPorMiembro,
+} from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -125,6 +131,58 @@ const buildAddress = ({ provinceId, municipioId, sectorId, street }) => {
   return [province, municipio, sector, street].filter(Boolean).join(', ');
 };
 
+// UN DESTACAMENTO SE NOMBRA, NO SE NUMERA POR DENTRO.
+//
+// El API de miembros no devuelve el nombre ni el numero del destacamento, asi
+// que en "Mi cuenta" se leia "Destacamento 231": el id interno, que no sale en
+// ningun carnet ni en ninguna lista.
+//
+// Se escribe IGUAL que en la lista de miembros —nombre y numero, sin adornos ni
+// parentesis (ver member-table-row)—: es el mismo dato en dos pantallas y leerlo
+// de dos formas distintas hace dudar de si es el mismo.
+const formatDestDisplay = (dest = null, destId = '') => {
+  const nombre = capitalizeWords(String(dest?.name ?? '').trim());
+  const numero = String(dest?.destNumber ?? '').trim();
+  const etiqueta = `${nombre} ${numero}`.trim();
+
+  if (etiqueta) return etiqueta;
+
+  // Sin la lista cargada todavia, o con un destacamento que ya no existe: el id
+  // es lo unico que hay, y peor seria dejar el campo en blanco.
+  return destId ? `Destacamento ${destId}` : '';
+};
+
+// LOS CARGOS SE LEEN DE LA DIRECTIVA, QUE ES DONDE SE ELIGEN.
+//
+// `idCargoLocal` e `idCargoInstitucional` son campos heredados: la ficha del
+// miembro ya no los escribe —guarda la asignacion en la Directiva— y en
+// "Mi cuenta" salian vacios o con un numero suelto. Lo que se ve aqui es lo
+// MISMO que se elige alli: "Nivel posicion en tu Destacamento" es el cargo
+// local, y "Cargo Nacional" —seccion, region o Consejo Nacional— el
+// institucional.
+//
+// La etiqueta se arma como en el desplegable (ver cargo-institucional-select-api):
+// el nombre del cargo y, si la casilla es de una division, la division entre
+// parentesis.
+const NIVELES_CARGO_INSTITUCIONAL = [
+  NIVELES_DIRECTIVA.nacional,
+  NIVELES_DIRECTIVA.regional,
+  NIVELES_DIRECTIVA.seccional,
+];
+
+const etiquetaDeCargo = (cargo) => {
+  const nombre = cargo?.nombreCargo || cargo?.nombre || cargo?.label || '';
+
+  return cargo?.nombreDivision ? `${nombre} (${cargo.nombreDivision})` : nombre;
+};
+
+const mismaPosicion = (cargo, asignacion) =>
+  [cargo?.idPosicionDirectiva, cargo?.id, cargo?.idCargo, cargo?.idCargoApi].some(
+    (valor) =>
+      String(valor || '') === String(asignacion?.idPosicionDirectiva || '') ||
+      String(valor || '') === String(asignacion?.idCargo || '')
+  );
+
 const mapMemberToValues = (member) => {
   const provinces = provinciasData;
   const municipios = municipiosData.map((item, index) => ({
@@ -158,11 +216,17 @@ const mapMemberToValues = (member) => {
     statusDisplay: formatStatus(member?.estatusMiembro),
     idCargoLocal: member?.idCargoLocal ?? '',
     idCargoInstitucional: member?.idCargoInstitucional ?? '',
+    // Se rellenan cuando llegan las asignaciones de la Directiva. Vacio mientras
+    // tanto, y vacio se queda si la persona no ocupa ninguna casilla.
+    cargoLocalDisplay: '',
+    cargoInstitucionalDisplay: '',
     destId,
+    // Valor de partida, para el primer pintado. En cuanto llega la lista de
+    // destacamentos se reescribe con el nombre y el numero de verdad.
     destDisplay:
       `${member?.destacamentoName ?? member?.destacamento ?? ''} ${
         member?.destacamentoNumero ?? ''
-      }`.trim() || (destId ? `Destacamento ${destId}` : ''),
+      }`.trim() || formatDestDisplay(null, destId),
     instructorCertificadoCi:
       member?.instructorCertificadoCi === true || member?.instructorCertificadoCi === 1
         ? 'Sí'
@@ -402,6 +466,71 @@ export function UserAccountGeneral() {
     }
   }, [member, reset]);
 
+  // El nombre y el numero del destacamento llegan con la lista, que carga por su
+  // cuenta y casi siempre DESPUES que el miembro. Se escribe solo este campo
+  // —con `setValue`, no con `reset`— para no tirar por la borda una direccion a
+  // medio escribir cuando la lista termine de llegar.
+  //
+  // `member` va en las dependencias para que esto vuelva a correr despues del
+  // `reset` de arriba, que deja el campo con el valor de partida.
+  const destIdSeleccionado = watch('destId');
+
+  useEffect(() => {
+    if (!destIdSeleccionado || !dests.length) return;
+
+    setValue(
+      'destDisplay',
+      formatDestDisplay(
+        dests.find((item) => String(item.id) === String(destIdSeleccionado)),
+        destIdSeleccionado
+      )
+    );
+  }, [destIdSeleccionado, dests, member, setValue]);
+
+  // Los cargos, de la Directiva y con el mismo texto del desplegable de la ficha
+  // del miembro. Si Firestore no responde, los campos se quedan vacios: no se
+  // inventa un cargo ni se bloquea el resto de la pantalla.
+  const idMiembroDeLaCuenta = Number(member?.idMiembros ?? member?.id ?? 0) || null;
+
+  useEffect(() => {
+    if (!idMiembroDeLaCuenta) return undefined;
+
+    let activo = true;
+
+    const cargarCargos = async () => {
+      try {
+        const [cargos, asignaciones] = await Promise.all([
+          obtenerCargosDirectivaCached({ incluirNoAsignables: false }),
+          obtenerAsignacionesDirectivaPorMiembro({ idMiembro: idMiembroDeLaCuenta }),
+        ]);
+
+        if (!activo) return;
+
+        const posiciones = asignaciones
+          .map((asignacion) => cargos.find((cargo) => mismaPosicion(cargo, asignacion)))
+          .filter(Boolean);
+
+        const local = posiciones.find(
+          (cargo) => String(cargo.nivel) === String(NIVELES_DIRECTIVA.destacamento)
+        );
+        const institucional = posiciones.find((cargo) =>
+          NIVELES_CARGO_INSTITUCIONAL.map(String).includes(String(cargo.nivel))
+        );
+
+        setValue('cargoLocalDisplay', local ? etiquetaDeCargo(local) : '');
+        setValue('cargoInstitucionalDisplay', institucional ? etiquetaDeCargo(institucional) : '');
+      } catch (error) {
+        console.error('[user-account] load cargos failed', error);
+      }
+    };
+
+    cargarCargos();
+
+    return () => {
+      activo = false;
+    };
+  }, [idMiembroDeLaCuenta, member, setValue]);
+
   const handleUploadAvatar = async (acceptedFiles) => {
     const file = acceptedFiles?.[0];
     const memberId = Number(member?.idMiembros ?? user?.idMiembros ?? 0) || null;
@@ -540,12 +669,12 @@ export function UserAccountGeneral() {
           street: data.street,
         }),
         correo: data.email?.trim() || null,
-        idCargoLocal: canEditAll
-          ? (data.idCargoLocal ?? member.idCargoLocal ?? null)
-          : (member.idCargoLocal ?? null),
-        idCargoInstitucional: canEditAll
-          ? (data.idCargoInstitucional ?? member.idCargoInstitucional ?? null)
-          : (member.idCargoInstitucional ?? null),
+        // Se conservan tal cual vinieron: esta pantalla los MUESTRA, y quien los
+        // cambia es la Directiva. Antes el administrador podia escribirlos a
+        // mano, y ahora los dos campos ensenan el nombre del cargo, que no es lo
+        // que este payload espera.
+        idCargoLocal: member.idCargoLocal ?? null,
+        idCargoInstitucional: member.idCargoInstitucional ?? null,
         idDivision: canEditAll
           ? Number(data.idDivision ?? member.idDivision ?? 0) || null
           : (member.idDivision ?? null),
@@ -754,16 +883,11 @@ export function UserAccountGeneral() {
               ) : (
                 <ReadOnlyTextField name="destDisplay" label="Destacamento" />
               )}
-              <Field.Text
-                name="idCargoLocal"
-                label="Cargo local"
-                slotProps={{ htmlInput: { readOnly: !canEditAll } }}
-              />
-              <Field.Text
-                name="idCargoInstitucional"
-                label="Cargo institucional"
-                slotProps={{ htmlInput: { readOnly: !canEditAll } }}
-              />
+              {/* De solo lectura tambien para el administrador: el cargo se
+                  asigna en la ficha del miembro y en la Directiva, no
+                  escribiendo un numero a mano aqui. */}
+              <ReadOnlyTextField name="cargoLocalDisplay" label="Cargo local" />
+              <ReadOnlyTextField name="cargoInstitucionalDisplay" label="Cargo institucional" />
               <Field.Text
                 name="instructorCertificadoCi"
                 label="Instructor certificado CI"
