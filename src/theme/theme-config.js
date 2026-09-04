@@ -4,7 +4,10 @@ export const themeConfig = {
   /** **************************************
    * Base
    *************************************** */
-  defaultMode: 'light',
+  // El telefono manda mientras nadie diga lo contrario: 'system' engancha el
+  // tema a `prefers-color-scheme`, que en el movil es el ajuste de oscuro del
+  // sistema, y lo sigue en vivo. Quien lo fije a mano desde Ajustes gana.
+  defaultMode: 'system',
   modeStorageKey: 'theme-mode',
   direction: 'ltr',
   classesPrefix: 'minimal',

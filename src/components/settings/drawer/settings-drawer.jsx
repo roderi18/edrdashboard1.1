@@ -29,6 +29,20 @@ import { NavColorOptions, NavLayoutOptions } from './nav-layout-option';
 
 // ----------------------------------------------------------------------
 
+// TRES ESTADOS, NO DOS.
+//
+// "Sistema" es el de partida: decide el telefono y cambia solo cuando el
+// telefono cambia. Con dos estados, el primer toque fijaba el tema para
+// siempre y no habia forma de devolverle el mando; por eso el tercer toque
+// vuelve a "Sistema".
+const MODOS = ['system', 'light', 'dark'];
+
+const ETIQUETA_MODO = {
+  system: 'Sistema',
+  light: 'Claro',
+  dark: 'Oscuro',
+};
+
 export function SettingsDrawer({ sx, defaultSettings }) {
   const settings = useSettingsContext();
   const { mode, setMode, colorScheme } = useColorScheme();
@@ -89,13 +103,20 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     </Box>
   );
 
-  const renderMode = () => (
-    <BaseOption
-      label="Modo"
-      selected={settings.state.mode === 'dark'}
-      icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
-      action={
-        mode === 'system' ? (
+  const renderMode = () => {
+    // En el primer pintado del servidor todavia no hay modo resuelto; se
+    // ensena el de partida para no estrenar la tarjeta en blanco.
+    const modoActual = MODOS.includes(mode) ? mode : themeConfig.defaultMode;
+    const siguiente = MODOS[(MODOS.indexOf(modoActual) + 1) % MODOS.length];
+
+    return (
+      <BaseOption
+        label="Modo"
+        // Lo que se pinta es el tema que se esta VIENDO, no el elegido: con
+        // "Sistema" la tarjeta se enciende sola cuando el telefono se oscurece.
+        selected={colorScheme === 'dark'}
+        icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
+        action={
           <Label
             sx={{
               height: 20,
@@ -104,16 +125,16 @@ export function SettingsDrawer({ sx, defaultSettings }) {
               fontWeight: 'fontWeightSemiBold',
             }}
           >
-            System
+            {ETIQUETA_MODO[modoActual]}
           </Label>
-        ) : null
-      }
-      onChangeOption={() => {
-        setMode(colorScheme === 'light' ? 'dark' : 'light');
-        settings.setState({ mode: colorScheme === 'light' ? 'dark' : 'light' });
-      }}
-    />
-  );
+        }
+        onChangeOption={() => {
+          setMode(siguiente);
+          settings.setState({ mode: siguiente });
+        }}
+      />
+    );
+  };
 
   const renderContrast = () => (
     <BaseOption

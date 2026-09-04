@@ -7,7 +7,7 @@ import { CONFIG } from 'src/global-config';
 import { LocalizationProvider } from 'src/locales';
 import { I18nProvider } from 'src/locales/i18n-provider';
 import { fallbackLng } from 'src/locales/locales-config';
-import { themeConfig, ThemeProvider, primary as primaryColor } from 'src/theme';
+import { background, themeConfig, ThemeProvider, primary as primaryColor } from 'src/theme';
 
 import { Snackbar } from 'src/components/snackbar';
 import { ProgressBar } from 'src/components/progress-bar';
@@ -35,7 +35,16 @@ const AuthProvider =
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: primaryColor.main,
+  // LA BARRA DE ESTADO SE TINE CON EL TEMA QUE SE ESTA VIENDO.
+  //
+  // Era un solo color, asi que la app se ponia oscura y arriba quedaba la
+  // franja verde de siempre. Con las dos medidas, el telefono elige la que le
+  // toca: el verde de la marca en claro, y el mismo fondo de la app en oscuro
+  // para que la franja no se note.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: primaryColor.main },
+    { media: '(prefers-color-scheme: dark)', color: background.dark.default },
+  ],
 };
 
 export const metadata = {
