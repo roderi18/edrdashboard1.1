@@ -61,6 +61,7 @@ import { ROLES } from 'src/auth/permissions/roles';
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, puedeModificar } from 'src/auth/permissions/can';
 
+import { DivisionOptionContent } from '../division-option-content';
 import { AttendanceAdvancedReportDialog } from '../attendance-advanced-report-dialog';
 
 // ----------------------------------------------------------------------
@@ -156,18 +157,6 @@ const getStatusLabel = (status) => {
   const option = STATUS_OPTION_BY_VALUE[status];
 
   return option ? { label: option.label, color: option.color } : SIN_REGISTRO;
-};
-
-const DIVISION_ICON_PATHS = {
-  // "Todos" es el valor `all` del desplegable, no una division: lleva el icono
-  // de Exploradores del Rey, que es la casa entera. Sin el, la unica opcion sin
-  // imagen era justamente la primera, y la lista arrancaba con un hueco.
-  all: '/exploradores-del-rey-icono.ico',
-  Liderazgo: '/assets/images/divisions/member/liderazgo-ico.png',
-  Exploradores: '/assets/images/divisions/member/exploradores-ico.png',
-  Seguidores: '/assets/images/divisions/member/seguidores-ico.png',
-  Pioneros: '/assets/images/divisions/member/pioneros-ico.png',
-  Navegantes: '/assets/images/divisions/member/navegantes-ico.png',
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -321,35 +310,6 @@ const construirPrefijoDescarga = (prefijo, dest, fallbackId = '') => {
 
 const getMemberAvatar = (member) =>
   member?.avatarUrl || member?.photoURL || member?.urlFoto || member?.fotoUrl || member?.foto || '';
-
-const getDivisionIconSrc = (division) => DIVISION_ICON_PATHS[division] || '';
-
-function DivisionOptionContent({ option }) {
-  const iconSrc = getDivisionIconSrc(option?.value);
-
-  return (
-    <Stack component="span" direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-      {iconSrc ? (
-        <Box
-          component="img"
-          loading="lazy"
-          decoding="async"
-          alt=""
-          src={iconSrc}
-          sx={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
-        />
-      ) : (
-        <Box component="span" sx={{ width: 24, height: 24, flexShrink: 0 }} />
-      )}
-      <Box
-        component="span"
-        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-      >
-        {option?.label || 'Todos'}
-      </Box>
-    </Stack>
-  );
-}
 
 const getMemberAge = (birthdate) => {
   if (!birthdate) return null;

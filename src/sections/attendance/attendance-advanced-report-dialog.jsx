@@ -20,6 +20,8 @@ import { obtenerHistorialAsistenciaDestacamento } from 'src/services/attendance-
 
 import { Chart, useChart } from 'src/components/chart';
 
+import { DivisionOptionContent } from './division-option-content';
+
 // ----------------------------------------------------------------------
 // INFORME AVANZADO: COMO VA LA ASISTENCIA CON EL TIEMPO.
 //
@@ -173,10 +175,13 @@ export function AttendanceAdvancedReportDialog({ open, onClose, dest, destId }) 
       </DialogTitle>
 
       <DialogContent dividers>
+        {/* `pt` para el nombre del campo: la etiqueta flota por encima del
+            borde y, pegada al techo del contenido —que se desplaza—, salia
+            cortada por arriba. */}
         <Stack
           spacing={2}
           direction={{ xs: 'column', sm: 'row' }}
-          sx={{ mb: 3, alignItems: { sm: 'center' } }}
+          sx={{ pt: 1, mb: 3, alignItems: { sm: 'center' } }}
         >
           <TextField
             select
@@ -184,6 +189,7 @@ export function AttendanceAdvancedReportDialog({ open, onClose, dest, destId }) 
             label="Periodo"
             value={periodo}
             onChange={(event) => setPeriodo(event.target.value)}
+            sx={{ minWidth: 180 }}
           >
             {PERIODOS.map((opcion) => (
               <MenuItem key={opcion.value} value={opcion.value}>
@@ -192,23 +198,37 @@ export function AttendanceAdvancedReportDialog({ open, onClose, dest, destId }) 
             ))}
           </TextField>
 
+          {/* El MISMO desplegable de la lista, con el escudo de cada division:
+              es el mismo dato y se reconoce antes por la imagen. */}
           <TextField
             select
             fullWidth
             label="División"
             value={division}
             onChange={(event) => setDivision(event.target.value)}
+            sx={{ minWidth: 180 }}
+            slotProps={{
+              select: {
+                renderValue: (elegida) => {
+                  const opcion =
+                    MEMBER_DIVISION_OPTIONS.find((item) => item.value === elegida) ||
+                    MEMBER_DIVISION_OPTIONS[0];
+
+                  return <DivisionOptionContent option={opcion} />;
+                },
+              },
+            }}
           >
             {MEMBER_DIVISION_OPTIONS.map((opcion) => (
               <MenuItem key={opcion.value} value={opcion.value}>
-                {opcion.label}
+                <DivisionOptionContent option={opcion} />
               </MenuItem>
             ))}
           </TextField>
 
           {/* El resumen de lo que se esta viendo: sin el hay que sumar las
               barras a ojo para saber como va el conjunto. */}
-          <Stack sx={{ minWidth: 132 }}>
+          <Stack sx={{ minWidth: 132, flexShrink: 0 }}>
             <Typography variant="h4">{porcentaje}%</Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {totalAsistencias} de {totalEsperados}
