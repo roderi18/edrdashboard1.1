@@ -134,7 +134,21 @@ export const getSectionals = async ({ includePhotos = true } = {}) => {
     try {
         const res = await fetch('/api/sectional/');
 
-        if (!res.ok) throw new Error('Error al obtener seccionales');
+        if (!res.ok) {
+            // El motivo lo manda la ruta (upstream caido, o los 9 segundos de
+            // corte agotados). Sin el, en consola solo se leia "Error al obtener
+            // seccionales" y no habia forma de saber cual de los dos fue.
+            const detalle = await res
+                .json()
+                .then((cuerpo) => cuerpo?.message || cuerpo?.error || '')
+                .catch(() => '');
+
+            throw new Error(
+                detalle
+                    ? `Error al obtener seccionales: ${detalle}`
+                    : `Error al obtener seccionales (${res.status})`
+            );
+        }
 
         const response = await res.json();
 

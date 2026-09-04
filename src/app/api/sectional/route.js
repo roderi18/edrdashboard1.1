@@ -54,8 +54,16 @@ export async function GET() {
 
         return Response.json(normalizeApiResponse({ ...data, data: newData }));
     } catch (error) {
+        // CON EL MOTIVO. Antes salia un 'Error fetching sectionals' pelado y en
+        // el navegador solo se leia "Error al obtener seccionales": ni si el
+        // upstream se cayo, ni si tardo mas de los 9 segundos de corte.
+        console.error('[api/sectional] no se pudieron obtener las secciones', error);
+
         return Response.json(
-            { error: 'Error fetching sectionals' },
+            {
+                error: 'Error fetching sectionals',
+                message: error?.message || 'El servidor de datos no respondió.',
+            },
             { status: 500 }
         );
     }

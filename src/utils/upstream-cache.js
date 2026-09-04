@@ -116,11 +116,45 @@ export async function fetchUpstreamText(
     resultado: entry?.resultado ?? null,
   });
 
+  // UN FALLO NO BORRA LO QUE YA FUNCIONABA.
+  //
+  // Antes, cualquier tropiezo del upstream —un 500 suyo, o los 9 segundos
+  // agotados— borraba la entrada entera, incluida la ultima respuesta BUENA. Y
+  // el tropiezo tipico ni siquiera lo espera nadie: es el refresco por detras
+  // que arranca cuando la entrada vence. Con la entrada borrada, la peticion
+  // siguiente ya no tenia nada rancio que servir y salia un 500; de ahi el
+  // "Error al obtener seccionales" en pantalla con el upstream levantado un
+  // segundo despues.
+  //
+  // Ahora se conserva la respuesta anterior con SU MISMA ventana de servible:
+  // no se alarga ni un milisegundo, asi que un upstream caido de verdad deja de
+  // servirse cuando le tocaba y no se queda pintando datos viejos para siempre.
+  const conservarLoBueno = () => {
+    if (entry?.resultado && entry.servibleHasta > Date.now()) {
+      store.set(key, {
+        promise: Promise.resolve(entry.resultado),
+        // Vencida a proposito: la proxima lectura vuelve a intentar el origen.
+        expiresAt: 0,
+        servibleHasta: entry.servibleHasta,
+        resultado: entry.resultado,
+      });
+
+      return true;
+    }
+
+    store.delete(key);
+
+    return false;
+  };
+
   try {
     const result = await promise;
 
     if (!result.ok) {
-      store.delete(key);
+      // Un 500 del upstream tampoco se le pasa a quien llama si tenemos algo
+      // bueno que darle: el cuerpo de error no es JSON y la ruta acabaria
+      // devolviendo su propio 500.
+      if (conservarLoBueno()) return entry.resultado;
     } else {
       store.set(key, {
         promise,
@@ -132,7 +166,8 @@ export async function fetchUpstreamText(
 
     return result;
   } catch (error) {
-    store.delete(key);
+    if (conservarLoBueno()) return entry.resultado;
+
     throw error;
   }
 }
