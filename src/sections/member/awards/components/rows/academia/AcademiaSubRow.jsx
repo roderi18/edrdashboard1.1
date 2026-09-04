@@ -125,6 +125,8 @@ export function AcademiaSubRow({
         onClose={pdfViewer.onFalse}
         fileBase64={certificateFile?.fileBase64}
         urlPdf={certificateFile?.urlPdf || certificateFile?.pdfUrl}
+        // El nombre dice si es foto o PDF cuando la URL no lo deja claro.
+        fileName={certificateFile?.name}
       />
 
       <ConfirmDialog
