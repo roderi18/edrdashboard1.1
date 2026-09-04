@@ -386,6 +386,15 @@ export function AttendanceQuickView() {
   // Contador pulsado arriba: '' es "todos". Se pulsa de nuevo y se suelta.
   const [statusFilter, setStatusFilter] = useState('');
   const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
+  // LO QUE HAY GUARDADO, aparte de lo que se esta marcando. El resumen del dia
+  // se lee de aqui: si contara las marcas sin guardar, ensenaria un cuadro que
+  // no existe en ninguna parte y que se pierde al recargar. `null` = todavia no
+  // se ha guardado nada de este dia.
+  const [estadosGuardados, setEstadosGuardados] = useState(null);
+  // Presentes del MISMO destacamento siete dias antes, para la comparacion.
+  // `null` cuando esa semana no tiene asistencia guardada, que no es lo mismo
+  // que cero.
+  const [presentesSemanaAnterior, setPresentesSemanaAnterior] = useState(null);
   const [statusByMemberId, setStatusByMemberId] = useState({});
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -575,6 +584,7 @@ export function AttendanceQuickView() {
     const loadAttendance = async () => {
       if (!selectedDestId) {
         setStatusByMemberId({});
+        setEstadosGuardados(null);
         return;
       }
 
@@ -587,10 +597,15 @@ export function AttendanceQuickView() {
 
         if (active) {
           setStatusByMemberId(statuses);
+          // Lo que viene de Firebase ES lo guardado: un dia ya pasado abre con
+          // su resumen listo. Un dia sin nada escrito deja el resumen apagado
+          // hasta que se guarde.
+          setEstadosGuardados(Object.keys(statuses || {}).length ? statuses : null);
         }
       } catch (error) {
         if (active) {
           setStatusByMemberId({});
+          setEstadosGuardados(null);
           toast.error(error?.message || 'No se pudo cargar la asistencia desde Firebase.');
         }
       } finally {
@@ -656,12 +671,53 @@ export function AttendanceQuickView() {
   // division y el propio contador pulsado—, pero "Resumen del dia" se abre
   // justamente para ver el cuadro completo: acotarlo con un filtro puesto haria
   // que dos personas leyeran numeros distintos del mismo dia.
+  // LA SEMANA ANTERIOR, para saber si se sube o se baja. Se pide el mismo dia de
+  // la semana pasada del mismo destacamento: comparar contra "el ultimo dia que
+  // hubo algo" mezclaria una reunion normal con un campamento.
+  useEffect(() => {
+    let active = true;
+
+    const cargarSemanaAnterior = async () => {
+      if (!selectedDestId || !date) {
+        setPresentesSemanaAnterior(null);
+        return;
+      }
+
+      try {
+        const estados = await obtenerAsistenciaDestacamento({
+          fecha: dayjs(date).subtract(7, 'day').format('YYYY-MM-DD'),
+          idDestacamento: selectedDestId,
+        });
+
+        if (!active) return;
+
+        const marcas = Object.values(estados || {});
+
+        setPresentesSemanaAnterior(
+          marcas.length ? marcas.filter((estado) => estado === 'present').length : null
+        );
+      } catch {
+        // Sin el dato no se compara y ya esta: el resumen del dia no depende de
+        // esto para leerse.
+        if (active) setPresentesSemanaAnterior(null);
+      }
+    };
+
+    cargarSemanaAnterior();
+
+    return () => {
+      active = false;
+    };
+  }, [date, selectedDestId]);
+
   const resumen = useMemo(() => {
     const conteo = { present: 0, absent: 0, excused: 0, sick: 0, other: 0, pending: 0 };
 
+    const guardados = estadosGuardados || {};
+
     const miembros = selectedDestMembers.map((member) => {
       const memberId = getMemberId(member);
-      const status = statusByMemberId[memberId];
+      const status = guardados[memberId];
       const clave =
         status === AUTO_ABSENT_STATUS
           ? 'absent'
@@ -692,8 +748,16 @@ export function AttendanceQuickView() {
       // Sobre el total del destacamento: es el numero que se mira para saber si
       // hubo reunion de verdad.
       porcentajePresentes: total ? Math.round((conteo.present / total) * 100) : 0,
+      // Cuantos presentes mas o menos que la semana pasada. `null` cuando no hay
+      // con que comparar.
+      diferenciaSemanal:
+        presentesSemanaAnterior === null ? null : conteo.present - presentesSemanaAnterior,
+      presentesSemanaAnterior,
     };
-  }, [selectedDestMembers, statusByMemberId, memberPhotoUrls]);
+  }, [selectedDestMembers, estadosGuardados, memberPhotoUrls, presentesSemanaAnterior]);
+
+  // El resumen se abre cuando hay algo guardado que resumir.
+  const hayResumenGuardado = Boolean(estadosGuardados && Object.keys(estadosGuardados).length);
 
   // El resumen, para llevarselo. Son las MISMAS filas que se estan leyendo en la
   // ventana —nombre, codigo, division y su marca del dia—, no una segunda
@@ -808,6 +872,7 @@ export function AttendanceQuickView() {
         usuario: getAuditUser(),
       });
       handleClear();
+      setEstadosGuardados(null);
       toast.success('Asistencia limpiada.');
     } catch (error) {
       toast.error(error?.message || 'No se pudo limpiar la asistencia.');
@@ -861,6 +926,9 @@ export function AttendanceQuickView() {
       });
 
       setStatusByMemberId(statusesToSave);
+      // Lo recien escrito pasa a ser "lo guardado": si el resumen se abre otra
+      // vez, cuenta esto y no lo de antes.
+      setEstadosGuardados(statusesToSave);
       setLastPresentByMemberId((current) => {
         const next = { ...current };
 
@@ -994,7 +1062,7 @@ export function AttendanceQuickView() {
             gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          {[...STATUS_OPTIONS, { value: 'pending', ...SIN_REGISTRO }].map((option) => (
+          {STATUS_OPTIONS.map((option) => (
             <Stack
               key={option.value}
               spacing={0.25}
@@ -1006,6 +1074,34 @@ export function AttendanceQuickView() {
               </Typography>
             </Stack>
           ))}
+
+          {/* EN VEZ DE "SIN REGISTRO", CUANTO SE SUBIO O SE BAJO.
+              Al guardar, quien no se marco queda como ausente, asi que ese
+              recuadro salia siempre en cero. Lo que si dice algo es la
+              comparacion con la semana pasada: dos presentes menos es una
+              noticia; que nadie quedara sin marcar, no. */}
+          <Stack spacing={0.25} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}>
+            <Typography
+              variant="h6"
+              sx={{
+                color:
+                  resumen.diferenciaSemanal === null || resumen.diferenciaSemanal === 0
+                    ? 'text.primary'
+                    : resumen.diferenciaSemanal > 0
+                      ? 'success.main'
+                      : 'error.main',
+              }}
+            >
+              {resumen.diferenciaSemanal === null
+                ? '—'
+                : `${resumen.diferenciaSemanal > 0 ? '+' : ''}${resumen.diferenciaSemanal}`}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {resumen.diferenciaSemanal === null
+                ? 'Sin asistencia la semana anterior'
+                : 'Presentes a la semana anterior'}
+            </Typography>
+          </Stack>
         </Box>
       </Box>
 
@@ -1555,7 +1651,10 @@ export function AttendanceQuickView() {
                 color="inherit"
                 variant="outlined"
                 onClick={resumenDelDia.onTrue}
-                disabled={!selectedDestId}
+                // Hasta que no se guarda no hay resumen: contar marcas que
+                // todavia no existen en ninguna parte seria ensenar un dia que
+                // se pierde al recargar.
+                disabled={!selectedDestId || !hayResumenGuardado}
                 startIcon={<Iconify icon="solar:chart-2-bold" width={24} />}
                 sx={{
                   py: 1.25,
