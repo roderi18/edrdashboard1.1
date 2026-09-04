@@ -18,6 +18,7 @@ import { MenuButton } from '../components/menu-button';
 import { navData as mainNavData } from '../nav-config-main';
 import { SignInButton } from '../components/sign-in-button';
 import { SettingsButton } from '../components/settings-button';
+import { ThemeModeButton } from '../components/theme-mode-button';
 import { MainSection, LayoutSection, HeaderSection } from '../core';
 
 // ----------------------------------------------------------------------
@@ -67,6 +68,9 @@ export function MainLayout({ sx, cssVars, children, slotProps, layoutQuery = 'md
           />
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+            {/** @slot Theme mode button */}
+            <ThemeModeButton />
+
             {/** @slot Settings button */}
             <SettingsButton />
 

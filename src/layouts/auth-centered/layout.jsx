@@ -15,6 +15,7 @@ import { Logo } from 'src/components/logo';
 
 import { AuthCenteredContent } from './content';
 import { SettingsButton } from '../components/settings-button';
+import { ThemeModeButton } from '../components/theme-mode-button';
 import { MainSection, LayoutSection, HeaderSection } from '../core';
 
 // ----------------------------------------------------------------------
@@ -46,6 +47,9 @@ export function AuthCenteredLayout({ sx, cssVars, children, slotProps, layoutQue
           >
             ¿Necesitas ayuda?
           </Link>
+
+          {/** @slot Theme mode button */}
+          <ThemeModeButton />
 
           {/** @slot Settings button */}
           <SettingsButton />

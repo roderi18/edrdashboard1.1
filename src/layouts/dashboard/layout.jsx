@@ -48,6 +48,7 @@ import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
+import { ThemeModeButton } from '../components/theme-mode-button';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
@@ -121,7 +122,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
   // una sesion que es administrativa por ocupar un cargo, no.
   const esAdministradorGlobal =
-    isAdminGlobal(user) || String(user?.role ?? user?.rol ?? '').trim().toLowerCase() === 'admin';
+    isAdminGlobal(user) ||
+    String(user?.role ?? user?.rol ?? '')
+      .trim()
+      .toLowerCase() === 'admin';
   // Prueba de dos cargos en curso: la enciende el Administrador Global y, hasta
   // que la apague, esta sesion ejerce esa pareja y no la suya.
   const pruebaDeRolesActiva = Boolean(user?.simulacion?.activa);
@@ -375,6 +379,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
           {/** @slot Contacts popover */}
           <ContactsPopover data={_contacts} />
+
+          {/** @slot Theme mode button */}
+          <ThemeModeButton />
 
           {/** @slot Settings button */}
           <SettingsButton />
