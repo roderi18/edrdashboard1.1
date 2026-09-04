@@ -185,13 +185,6 @@ const getDestMeetingDay = (dest) => {
   return dia === undefined ? null : dia;
 };
 
-// "Domingos · 10:00 AM", para el encabezado. Sin dia ni hora no se escribe nada.
-const getDestSchedule = (dest) =>
-  [dest?.destMeetingDays, dest?.destMeetingTimes]
-    .map((valor) => String(valor ?? '').trim())
-    .filter(Boolean)
-    .join(' · ');
-
 const getDestTitle = (dest, fallbackId = '') => {
   const name = getDestName(dest);
   const number = getDestNumber(dest);
@@ -558,7 +551,6 @@ export function AttendanceQuickView() {
   // Dia de la semana en que se reune el destacamento elegido, o null si su ficha
   // no lo dice.
   const diaDeReunion = getDestMeetingDay(selectedDest);
-  const horarioDeReunion = getDestSchedule(selectedDest);
 
   // LA FECHA CAE SOLA EN SU DIA. Al entrar, la pantalla se pone en hoy; si el
   // destacamento se reune los domingos y hoy es jueves, esa fecha ni siquiera se
@@ -1266,22 +1258,7 @@ export function AttendanceQuickView() {
     <>
       <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
         <CustomBreadcrumbs
-          heading={
-            <>
-              {attendanceTitle}
-              {/* Cuando se reune, al lado del nombre: es el dato que explica por
-                  que el calendario solo deja elegir unos dias. */}
-              {!!horarioDeReunion && (
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{ ml: 1.5, color: 'text.secondary', fontWeight: 'fontWeightRegular' }}
-                >
-                  {horarioDeReunion}
-                </Typography>
-              )}
-            </>
-          }
+          heading={attendanceTitle}
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
