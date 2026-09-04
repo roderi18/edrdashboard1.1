@@ -225,7 +225,10 @@ const FILA_ASISTENCIA_SX = {
     md: `minmax(0, 1fr) 132px 200px ${ANCHO_ACCIONES}px`,
   },
   gridTemplateAreas: {
-    xs: `"miembro estado" "asistencia asistencia" "acciones acciones"`,
+    // En el movil no hay franja de "asistencia": el porcentaje y la ultima
+    // presencia no caben sin robarle sitio a lo que se viene a hacer aqui, que
+    // es marcar. La etiqueta de estado, que es el dato del dia, si esta.
+    xs: `"miembro estado" "acciones acciones"`,
     md: `"miembro estado asistencia acciones"`,
   },
 };
@@ -1398,7 +1401,8 @@ export function AttendanceQuickView() {
                         alignItems="center"
                         sx={{
                           gridArea: 'asistencia',
-                          justifyContent: { xs: 'flex-start', md: 'center' },
+                          display: { xs: 'none', md: 'flex' },
+                          justifyContent: 'center',
                         }}
                       >
                         <Box
