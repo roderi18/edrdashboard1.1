@@ -25,6 +25,7 @@ import { paths } from 'src/routes/paths';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
+import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { getDestsApi } from 'src/services/dest-service';
@@ -258,6 +259,7 @@ export function AttendanceQuickView() {
   const [loading, setLoading] = useState(true);
   const [selectedDestId, setSelectedDestId] = useState('');
   const [selectedDivision, setSelectedDivision] = useState('all');
+  const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
   const [statusByMemberId, setStatusByMemberId] = useState({});
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -337,6 +339,37 @@ export function AttendanceQuickView() {
       active = false;
     };
   }, [allowedDestIds]);
+
+  // LA CARA DE CADA UNO. Pasar lista es reconocer a la persona, y aqui salian
+  // todos con la inicial en un circulo de color: el mismo grupo que en la lista
+  // de miembros se ve con su foto.
+  //
+  // Las fotos viven en Firebase, no en el padron, asi que van por su cuenta y
+  // sin bloquear la lista: aparecen cuando llegan, y si no llegan queda la
+  // inicial de siempre.
+  useEffect(() => {
+    let active = true;
+
+    obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
+      .then((fotos) => {
+        if (!active) return;
+
+        setMemberPhotoUrls(
+          Object.fromEntries(
+            Object.entries(fotos)
+              .filter(([, foto]) => foto?.urlFoto)
+              .map(([idMiembro, foto]) => [String(idMiembro), foto.urlFoto])
+          )
+        );
+      })
+      .catch((error) => {
+        console.error('[asistencia] no se pudieron cargar las fotos de los miembros', error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const selectedDest = useMemo(
     () =>
@@ -823,7 +856,7 @@ export function AttendanceQuickView() {
                 const memberId = getMemberId(member);
                 const memberName = getMemberName(member);
                 const status = statusByMemberId[memberId] || '';
-                const avatarUrl = getMemberAvatar(member);
+                const avatarUrl = memberPhotoUrls[memberId] || getMemberAvatar(member);
 
                 return (
                   <Card
