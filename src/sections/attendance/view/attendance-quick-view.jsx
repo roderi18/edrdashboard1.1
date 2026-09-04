@@ -77,6 +77,10 @@ const STATUS_OPTIONS = [
 ];
 
 const DIVISION_ICON_PATHS = {
+  // "Todos" es el valor `all` del desplegable, no una division: lleva el icono
+  // de Exploradores del Rey, que es la casa entera. Sin el, la unica opcion sin
+  // imagen era justamente la primera, y la lista arrancaba con un hueco.
+  all: '/exploradores-del-rey-icono.ico',
   Liderazgo: '/assets/images/divisions/member/liderazgo-ico.png',
   Exploradores: '/assets/images/divisions/member/exploradores-ico.png',
   Seguidores: '/assets/images/divisions/member/seguidores-ico.png',
