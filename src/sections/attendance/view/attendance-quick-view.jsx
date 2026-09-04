@@ -674,6 +674,9 @@ export function AttendanceQuickView() {
         codigo: getMemberCode(member),
         division: resolveMemberDivision(member),
         estado: getStatusLabel(status),
+        // La misma foto que en la lista: quien repasa el resumen busca caras,
+        // igual que al pasar lista.
+        avatarUrl: memberPhotoUrls[memberId] || getMemberAvatar(member),
       };
     });
 
@@ -687,7 +690,7 @@ export function AttendanceQuickView() {
       // hubo reunion de verdad.
       porcentajePresentes: total ? Math.round((conteo.present / total) * 100) : 0,
     };
-  }, [selectedDestMembers, statusByMemberId]);
+  }, [selectedDestMembers, statusByMemberId, memberPhotoUrls]);
 
   // El resumen, para llevarselo. Son las MISMAS filas que se estan leyendo en la
   // ventana —nombre, codigo, division y su marca del dia—, no una segunda
@@ -1011,14 +1014,24 @@ export function AttendanceQuickView() {
               justifyContent="space-between"
               sx={{ px: { xs: 2, md: 3 }, py: 1.25 }}
             >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle2" noWrap>
-                  {miembro.nombre}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
-                  {[miembro.codigo, miembro.division].filter(Boolean).join(' • ')}
-                </Typography>
-              </Box>
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0 }}>
+                <Avatar
+                  src={miembro.avatarUrl}
+                  alt={miembro.nombre}
+                  sx={{ width: 40, height: 40, flexShrink: 0 }}
+                >
+                  {miembro.nombre.charAt(0)}
+                </Avatar>
+
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {miembro.nombre}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                    {[miembro.codigo, miembro.division].filter(Boolean).join(' • ')}
+                  </Typography>
+                </Box>
+              </Stack>
 
               <Label
                 variant="soft"
