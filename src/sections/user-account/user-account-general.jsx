@@ -858,7 +858,16 @@ export function UserAccountGeneral() {
                 disabled={!canEditAll}
               />
               <ReadOnlyTextField name="division" label={divisionLabel} />
-              <Field.Text name="phoneNumber" label="Núm. Teléfono" />
+              {/* El MISMO campo de telefono que la ficha del miembro y la del
+                  destacamento: con la bandera y el prefijo del pais. Aqui habia
+                  quedado un cuadro de texto a secas, y el numero se escribia sin
+                  el formato que el resto de la aplicacion espera. */}
+              <Field.Phone
+                name="phoneNumber"
+                label="Núm. Teléfono"
+                defaultCountry="DO"
+                inputProps={{ maxLength: 14 }}
+              />
               <Field.Text name="email" label="Correo electrónico" />
               <Field.Select name="status" label="Estatus miembro" disabled={!canEditAll}>
                 <MenuItem value="active">Activo</MenuItem>
