@@ -212,23 +212,31 @@ const getMemberName = (member) => {
 // cuatro huecos de 8. Si cambia el tamaño del boton, cambia aqui.
 const ANCHO_ACCIONES = 5 * 64 + 4 * 8;
 
+// Se reparte por AREAS y no por orden, porque en cada tamaño van en sitios
+// distintos: en pantalla ancha las cuatro en una fila, y en el movil el nombre y
+// su estado arriba —el estado a la derecha, que es donde se busca—, el resumen
+// del dia debajo y los botones al final, ocupando el ancho.
 const FILA_ASISTENCIA_SX = {
   display: 'grid',
   alignItems: 'center',
   gap: { xs: 1.5, md: 2 },
   gridTemplateColumns: {
-    xs: 'minmax(0, 1fr)',
+    xs: 'minmax(0, 1fr) auto',
     md: `minmax(0, 1fr) 132px 200px ${ANCHO_ACCIONES}px`,
+  },
+  gridTemplateAreas: {
+    xs: `"miembro estado" "asistencia asistencia" "acciones acciones"`,
+    md: `"miembro estado asistencia acciones"`,
   },
 };
 
 // Cada titulo sobre lo que nombra: el nombre a la izquierda y las otras tres
 // centradas, que es como se reparte el contenido de la fila.
 const COLUMNAS_ASISTENCIA = [
-  { titulo: 'Miembro', alineacion: 'left' },
-  { titulo: 'Estado', alineacion: 'center' },
-  { titulo: 'Asistencia del día', alineacion: 'center' },
-  { titulo: 'Acciones', alineacion: 'center' },
+  { titulo: 'Miembro', alineacion: 'left', area: 'miembro' },
+  { titulo: 'Estado', alineacion: 'center', area: 'estado' },
+  { titulo: 'Asistencia del día', alineacion: 'center', area: 'asistencia' },
+  { titulo: 'Acciones', alineacion: 'center', area: 'acciones' },
 ];
 
 const getMemberCode = (member) => member?.memberId || member?.codigoMiembro || '';
@@ -1206,6 +1214,7 @@ export function AttendanceQuickView() {
                 sx={{
                   color: 'text.disabled',
                   letterSpacing: 0.6,
+                  gridArea: columna.area,
                   textAlign: columna.alineacion,
                 }}
               >
@@ -1247,7 +1256,7 @@ export function AttendanceQuickView() {
                         direction="row"
                         spacing={{ xs: 1, sm: 2 }}
                         alignItems="center"
-                        sx={{ minWidth: 0 }}
+                        sx={{ minWidth: 0, gridArea: 'miembro' }}
                       >
                         <Avatar
                           src={avatarUrl}
@@ -1280,7 +1289,8 @@ export function AttendanceQuickView() {
                       <Box
                         sx={{
                           display: 'flex',
-                          justifyContent: { xs: 'flex-start', md: 'center' },
+                          gridArea: 'estado',
+                          justifyContent: { xs: 'flex-end', md: 'center' },
                         }}
                       >
                         <Label
@@ -1297,7 +1307,10 @@ export function AttendanceQuickView() {
                         direction="row"
                         spacing={1.5}
                         alignItems="center"
-                        sx={{ justifyContent: { xs: 'flex-start', md: 'center' } }}
+                        sx={{
+                          gridArea: 'asistencia',
+                          justifyContent: { xs: 'flex-start', md: 'center' },
+                        }}
                       >
                         <Box
                           sx={{
@@ -1355,6 +1368,9 @@ export function AttendanceQuickView() {
                         sx={{
                           rowGap: 1,
                           flexShrink: 0,
+                          gridArea: 'acciones',
+                          // Los botones ya se reparten el ancho con `flex: 1`;
+                          // aqui solo importa como se centran de `md` en adelante.
                           justifyContent: { xs: 'flex-start', md: 'center' },
                         }}
                       >
@@ -1371,8 +1387,12 @@ export function AttendanceQuickView() {
                               px: 0,
                               gap: 0.25,
                               height: 56,
-                              width: { xs: 58, sm: 64 },
-                              minWidth: { xs: 58, sm: 64 },
+                              // En el movil los cinco se reparten el ancho de la
+                              // tarjeta —con 58px fijos se salian de 375px—; de
+                              // `sm` en adelante vuelven a su tamaño de columna.
+                              flex: { xs: 1, sm: '0 0 auto' },
+                              width: { sm: 64 },
+                              minWidth: { xs: 0, sm: 64 },
                               flexDirection: 'column',
                               typography: 'caption',
                             }}
