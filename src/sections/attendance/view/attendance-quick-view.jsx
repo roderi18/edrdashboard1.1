@@ -383,17 +383,78 @@ const formatAttendanceDate = (value) => {
   return parsed.isValid() ? parsed.format('DD/MM/YYYY') : 'sin registro';
 };
 
+// EL ESQUELETO SE PARECE A LA FILA QUE VIENE.
+//
+// Se habia quedado con la fila de antes —foto, nombre y un bloque de tres
+// botones—, asi que al cargar se veia una lista corta que, al llegar los datos,
+// se estiraba de golpe y movia todo hacia abajo. Usa la MISMA rejilla que la
+// fila y las mismas medidas, de modo que lo que aparece ocupa lo que ya estaba
+// ocupado.
 function AttendanceMemberSkeleton() {
   return (
-    <Card sx={{ p: 2.5 }}>
-      <Stack direction="row" spacing={2} alignItems="center">
-        <Skeleton variant="circular" width={44} height={44} />
-        <Box sx={{ flex: 1 }}>
-          <Skeleton variant="text" width="52%" />
-          <Skeleton variant="text" width="36%" />
+    <Card sx={{ p: { xs: 2, md: 2.5 } }}>
+      <Box sx={FILA_ASISTENCIA_SX}>
+        <Stack
+          direction="row"
+          spacing={{ xs: 1, sm: 2 }}
+          alignItems="center"
+          sx={{ minWidth: 0, gridArea: 'miembro' }}
+        >
+          <Skeleton variant="circular" width={48} height={48} sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Skeleton variant="text" width="60%" />
+            <Skeleton variant="text" width="40%" />
+          </Box>
+        </Stack>
+
+        <Box
+          sx={{
+            display: 'flex',
+            gridArea: 'estado',
+            justifyContent: { xs: 'flex-end', md: 'center' },
+          }}
+        >
+          <Skeleton variant="rounded" width={104} height={28} />
         </Box>
-        <Skeleton variant="rounded" width={172} height={50} />
-      </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="center"
+          sx={{
+            gridArea: 'asistencia',
+            justifyContent: 'center',
+            display: { xs: 'none', md: 'flex' },
+          }}
+        >
+          <Skeleton variant="circular" width={42} height={42} sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Skeleton variant="text" width="80%" />
+            <Skeleton variant="text" width="60%" />
+          </Box>
+        </Stack>
+
+        <Stack
+          useFlexGap
+          direction="row"
+          flexWrap="wrap"
+          spacing={{ xs: 0.5, sm: 1 }}
+          sx={{ rowGap: 1, gridArea: 'acciones', justifyContent: 'center' }}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <Skeleton
+              key={option.value}
+              variant="rounded"
+              height={56}
+              sx={{
+                flex: { xs: 1, sm: '0 0 auto' },
+                width: { sm: 64 },
+                minWidth: { xs: 0, sm: 64 },
+              }}
+            />
+          ))}
+        </Stack>
+      </Box>
     </Card>
   );
 }
@@ -1439,8 +1500,11 @@ export function AttendanceQuickView() {
         </Card>
 
         {/* Cabecera de la tabla. Solo en pantalla ancha: en movil la fila se
-            apila y unos titulos sueltos arriba no dirian a que se refieren. */}
-        {!loading && !!visibleMembers.length && (
+            apila y unos titulos sueltos arriba no dirian a que se refieren.
+
+            Se mantiene mientras carga: es la cabecera de lo que va a venir, y
+            hacerla aparecer despues empujaba la lista hacia abajo. */}
+        {(loading || loadingAttendance || !!visibleMembers.length) && (
           <Box
             sx={{
               ...FILA_ASISTENCIA_SX,
