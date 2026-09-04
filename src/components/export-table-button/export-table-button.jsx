@@ -162,10 +162,16 @@ export function ExportTableButton({
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        // El desplegable, del ancho del boton que lo abre: colgaba una lista
-        // estrecha bajo un boton mas largo y no se leia como una sola pieza.
+        // El desplegable, EXACTAMENTE del ancho del boton que lo abre: colgaba
+        // una lista de otro ancho y las dos piezas no se leian como una sola.
+        //
+        // Sin suelo de `minWidth`: los 120px que habia aqui eran mas de lo que
+        // mide el boton pequeño, asi que la lista sobresalia por la izquierda —el
+        // borde derecho si coincidia, porque es por donde se ancla—.
         slotProps={{
-          paper: { sx: { width: anchorEl?.offsetWidth, minWidth: 120 } },
+          paper: {
+            sx: { width: anchorEl?.offsetWidth, minWidth: anchorEl?.offsetWidth },
+          },
         }}
       >
         <MenuItem disabled={exporting} onClick={() => handleExport('pdf')}>
