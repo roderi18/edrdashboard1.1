@@ -370,6 +370,14 @@ export function ProductListView() {
               onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
               onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
               slots={{
+                // SIN FLECHITA DE ORDEN. El encabezado ya ordena al pulsarlo
+                // —nombre incluido—, asi que el boton de al lado hacia lo mismo
+                // dos veces y le robaba sitio al titulo. Se quitan los tres
+                // iconos: el de ascendente, el de descendente y el que asoma al
+                // pasar por encima. Ordenar sigue funcionando igual.
+                columnSortedAscendingIcon: null,
+                columnSortedDescendingIcon: null,
+                columnUnsortedIcon: null,
                 noRowsOverlay: () => <EmptyContent />,
                 noResultsOverlay: () => <EmptyContent title="No se encontraron resultados" />,
                 toolbar: () => (
