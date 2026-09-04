@@ -1195,7 +1195,31 @@ const puedePorCatalogo = (user = {}, permiso) =>
 const puedeEditarPorCatalogo = (user = {}, permiso) =>
   !isReadOnlyRole(user) && puedePorCatalogo(user, permiso);
 
-export const canViewHealth = (user = {}) => puedePorCatalogo(user, PERMISOS.SALUD_VER);
+// ADMINISTRAN EL SISTEMA, NO A LAS PERSONAS.
+//
+// El Administrador Funcional mantiene la plataforma y el Administrador de
+// Gestion de Tienda lleva la parte comercial. Ninguno de los dos acompaña a un
+// miembro, asi que su informacion personal les llega ENMASCARADA y el expediente
+// medico, cerrado —lo piden desde el aviso de la ficha, como cualquier otro—.
+//
+// Para ellos manda el CATALOGO del rol y no los permisos sumados de la sesion:
+// un token con `salud.ver` o `miembros.ver_datos_sensibles` pegado de una
+// asignacion anterior no vuelve a abrir lo que el catalogo cerro.
+const ADMIN_DE_SISTEMA_ROLE_IDS = new Set([
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  ROLES.ADMINISTRADOR_TIENDA,
+]);
+
+export const esAdministradorDeSistema = (user = {}) =>
+  ADMIN_DE_SISTEMA_ROLE_IDS.has(getUserRoleId(user));
+
+const catalogoDelRolConcede = (user = {}, permiso) =>
+  (PERMISOS_POR_ROL[getUserRoleId(user)] ?? []).includes(permiso);
+
+export const canViewHealth = (user = {}) =>
+  esAdministradorDeSistema(user)
+    ? catalogoDelRolConcede(user, PERMISOS.SALUD_VER)
+    : puedePorCatalogo(user, PERMISOS.SALUD_VER);
 
 // Cargos de SUPERVISION (seccion, region y Consejo Nacional). Consultan la ficha
 // del miembro pero NUNCA la modifican, y en Dispensa Medica tienen el expediente
@@ -1241,13 +1265,18 @@ export const isSupervisoryMemberViewer = (user = {}) =>
 // Los cargos de supervision consultan Salud, pero nunca modifican el expediente
 // ni gestionan sus documentos.
 export const canEditHealth = (user = {}) =>
-  !isSupervisoryMemberViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.SALUD_EDITAR);
+  !isSupervisoryMemberViewer(user) &&
+  !esAdministradorDeSistema(user) &&
+  puedeEditarPorCatalogo(user, PERMISOS.SALUD_EDITAR);
 
 export const canUploadHealthDocuments = (user = {}) =>
-  !isSupervisoryMemberViewer(user) && puedeEditarPorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
+  !isSupervisoryMemberViewer(user) &&
+  !esAdministradorDeSistema(user) &&
+  puedeEditarPorCatalogo(user, PERMISOS.SALUD_SUBIR_DOCUMENTOS);
 
 export const canDeleteHealthDocuments = (user = {}) =>
   !isSupervisoryMemberViewer(user) &&
+  !esAdministradorDeSistema(user) &&
   puedeEditarPorCatalogo(user, PERMISOS.SALUD_ELIMINAR_DOCUMENTOS);
 
 // Edicion de la ficha del miembro (pestaña General). Los cargos de supervision
@@ -1256,6 +1285,7 @@ export const canDeleteHealthDocuments = (user = {}) =>
 // documento del usuario.
 export const canEditMembers = (user = {}) =>
   !isSupervisoryMemberViewer(user) &&
+  !esAdministradorDeSistema(user) &&
   (suCargoDeDestacamentoConcede(user, PERMISOS.MIEMBROS_EDITAR) ||
     puedeEditarPorCatalogo(user, PERMISOS.MIEMBROS_EDITAR));
 
@@ -1289,7 +1319,7 @@ export const canViewAwards = (user = {}) => puedePorCatalogo(user, PERMISOS.ASCE
 // Aqui habia ademas un bloqueo por ROL para el Pastor; se retira con el permiso,
 // que es de donde tiene que salir la respuesta.
 export const canEditAwards = (user = {}) =>
-  puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
+  !esAdministradorDeSistema(user) && puedeEditarPorCatalogo(user, PERMISOS.ASCENSO_EDITAR);
 
 // --- Academia Ministerial -----------------------------------------------------
 // La Academia Ministerial tiene sus PROPIOS permisos de edicion, distintos del
@@ -1342,7 +1372,7 @@ export const canViewParents = (user = {}) => puedePorCatalogo(user, PERMISOS.PAD
 // un rol de solo lectura —el Pastor, los cargos de consulta— puede verlos pero no
 // tocarlos, aunque el token arrastre permisos de edicion de una asignacion vieja.
 export const canEditParents = (user = {}) =>
-  puedeEditarPorCatalogo(user, PERMISOS.PADRES_EDITAR);
+  !esAdministradorDeSistema(user) && puedeEditarPorCatalogo(user, PERMISOS.PADRES_EDITAR);
 
 // AÑADIR Y CORREGIR LO PUEDE CUALQUIER CARGO DEL DESTACAMENTO; BORRAR, NO.
 //
@@ -1375,10 +1405,10 @@ export const canDeleteMemberTutors = (user = {}) =>
 
 // Roles de administración que ven SIEMPRE la información personal completa del
 // miembro, aunque el catálogo no les otorgue `miembros.ver_datos_sensibles`.
-const FULL_MEMBER_TEXT_ROLE_IDS = new Set([
-  ROLES.ADMINISTRADOR_GLOBAL,
-  ROLES.ADMINISTRADOR_FUNCIONAL,
-]);
+// Solo el Administrador Global. El Funcional salio de aqui: mantiene la
+// plataforma, no acompaña a los miembros, y la informacion personal de la gente
+// no es parte del mantenimiento.
+const FULL_MEMBER_TEXT_ROLE_IDS = new Set([ROLES.ADMINISTRADOR_GLOBAL]);
 
 // Puede ver la información personal/sensible del miembro en texto plano
 // (dirección, teléfono, correo, etc.). Quien NO lo tenga verá esos datos
@@ -1396,6 +1426,9 @@ const SENSITIVE_DATA_CATALOG_AUTHORITATIVE_ROLE_IDS = new Set([
   ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
   ROLES.CAPELLAN_DESTACAMENTO,
+  // Los administradores de sistema y de tienda, por lo mismo: lo que el catalogo
+  // no les da, el token no se lo devuelve.
+  ...ADMIN_DE_SISTEMA_ROLE_IDS,
 ]);
 
 /**
@@ -1474,6 +1507,14 @@ const ADULT_CONTACT_VISIBLE_ROLE_IDS = new Set([ROLES.USUARIO_SECCION, ROLES.USU
 export const canViewAdultMemberContactData = (user = {}) =>
   ADULT_CONTACT_VISIBLE_ROLE_IDS.has(getUserRoleId(user));
 
+// LA DIRECCION, PARA QUIEN DESPACHA. El Administrador de Gestion de Tienda ve la
+// ficha enmascarada como cualquier otro cargo sin acceso a los datos personales,
+// con dos excepciones: el telefono —que ya se muestra a todo el que abre la
+// ficha— y la direccion completa, que es a donde va el pedido. Sin ella habria
+// que pedirsela al destacamento envio por envio.
+export const canViewMemberAddressWhenMasked = (user = {}) =>
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA;
+
 // ¿Al usuario se le deben mostrar en texto plano la fecha de nacimiento, el
 // telefono y el correo de ESTE miembro por ser mayor de edad?
 export const canViewMemberContactDataByAge = (user = {}, member = {}) => {
@@ -1496,7 +1537,9 @@ export const isFullMemberViewer = (user = {}) =>
 // módulos con permiso puntual: un visor completo los ve todos; el resto solo los
 // que su permiso autorice.
 export const canViewMemberHealthTab = (user = {}) =>
-  isFullMemberViewer(user) || canViewHealth(user);
+  esAdministradorDeSistema(user)
+    ? canViewHealth(user)
+    : isFullMemberViewer(user) || canViewHealth(user);
 
 export const canViewMemberAwardsTab = (user = {}) =>
   isFullMemberViewer(user) || canViewAwards(user);
@@ -1579,6 +1622,10 @@ export const getOwnRegionIdsForUser = (
 export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
   isAdminGlobal(user) ||
   isOficinaNacional(user) ||
+  // El Administrador de Gestion de Tienda despacha pedidos de todo el pais: la
+  // lista de miembros no se le acota a un destacamento. VER, nada mas: su ficha
+  // sigue enmascarada (salvo telefono y direccion) y en solo lectura.
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA ||
   ['admin', 'administrador_global'].includes(
     String(user?.role ?? user?.rol ?? '')
       .trim()

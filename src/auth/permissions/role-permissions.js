@@ -514,7 +514,30 @@ export const PERMISOS_POR_ROL = {
     PERMISOS.ADMINISTRACION_VER_AUDITORIA,
     PERMISOS.CORREOS_ENVIAR,
   ],
+  // ADMINISTRADOR DE GESTION DE TIENDA: CONSULTA DE TODO EL PAIS, SIN TOCAR NADA.
+  //
+  // Despacha pedidos de cualquier destacamento, asi que ve la estructura entera
+  // —destacamentos, secciones, regiones y Consejo Nacional— y la lista de
+  // miembros del pais. Ni uno solo de sus permisos es de escritura: no crea, no
+  // edita y no elimina en ningun nivel.
+  //
+  // De la ficha del miembro ve lo que le hace falta para enviar: el telefono y
+  // la direccion. El resto de la informacion personal le llega enmascarada
+  // (`miembros.ver_datos_sensibles` no esta aqui a proposito) y la Dispensa
+  // Medica queda cerrada —sin `salud.ver`—: la pide desde el aviso de la ficha,
+  // como cualquier otro cargo sin acceso. El Historial tampoco es suyo. Padres y
+  // Sistema de Ascenso si los consulta, en solo lectura.
   [ROLES.ADMINISTRADOR_TIENDA]: [
+    // Consulta todos los destacamentos del pais. Su alcance GLOBAL evita que la
+    // lista se acote, pero no recibe permisos para crear, editar ni eliminar.
+    PERMISOS.DESTACAMENTOS_VER,
+    PERMISOS.SECCIONES_VER,
+    PERMISOS.REGIONES_VER,
+    PERMISOS.MIEMBROS_VER,
+    PERMISOS.MIEMBROS_VER_ADULTOS,
+    PERMISOS.MIEMBROS_VER_MENORES,
+    PERMISOS.ASCENSO_VER,
+    PERMISOS.PADRES_VER,
     PERMISOS.TIENDA_VER,
     PERMISOS.TIENDA_GESTIONAR,
     PERMISOS.TIENDA_ACCESO_ADMINISTRATIVO,

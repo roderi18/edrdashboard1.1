@@ -18,6 +18,7 @@ import {
   canViewMemberAwardsTab,
   canViewMemberParentsTab,
   canViewMemberHistoryTab,
+  esAdministradorDeSistema,
   isSupervisoryMemberViewer,
   canViewMemberSensitiveData,
 } from 'src/utils/member-access';
@@ -58,6 +59,12 @@ const SUPERVISORY_HIDDEN_INFO_TEXT =
 // Pastor y el Lider de Grupo, y unicamente de su propio destacamento. El resto de cargos
 // (aunque no sean de seccion/region) ven este aviso en vez del texto de "menor
 // de edad", que no aplica aqui.
+// El Administrador Funcional y el de Gestion de Tienda administran el sistema y
+// la tienda; no acompañan a nadie. La informacion personal y el expediente
+// medico no son parte de ese trabajo, y si algun caso lo pide, se solicita.
+const ADMIN_HIDDEN_INFO_TEXT =
+  'Por motivos de seguridad, la información personal de los miembros está reservada a los Coordinadores de Destacamento. Puedes solicitar acceso indicando el motivo.';
+
 const HISTORY_HIDDEN_INFO_TEXT =
   'Por motivos de seguridad, el historial de cambios está reservado al Coordinador de Destacamento, su Asistente, el Pastor y el Líder de Grupo del propio destacamento. Puedes solicitar acceso indicando el motivo.';
 
@@ -70,6 +77,7 @@ const OTHER_DEST_HIDDEN_INFO_TEXT =
 const getHiddenInfoText = (user, pathname = '', member) => {
   if (pathname.includes('/edit/history')) return HISTORY_HIDDEN_INFO_TEXT;
   if (isSectionOrRegionLevelRole(user)) return SUPERVISORY_HIDDEN_INFO_TEXT;
+  if (esAdministradorDeSistema(user)) return ADMIN_HIDDEN_INFO_TEXT;
 
   // Decia "ya que es menor de edad" siempre, y se leia en la ficha de personas
   // de 26 años. El aviso quedaba diciendo algo que no era verdad, y encima
@@ -87,7 +95,11 @@ const isRestrictedForRoute = (user, pathname = '', member) => {
     // avisaba a los cargos de seccion y region: un cargo de destacamento abria
     // la dispensa de alguien de OTRO destacamento, veia los datos tapados y
     // ningun aviso que dijera por que ni como pedirlos.
-    return isSupervisoryMemberViewer(user) || !esMiembroDeSuAlcance(user, member);
+    return (
+      isSupervisoryMemberViewer(user) ||
+      esAdministradorDeSistema(user) ||
+      !esMiembroDeSuAlcance(user, member)
+    );
   }
   if (pathname.includes('/edit/awards')) return !canViewMemberAwardsTab(user);
   if (pathname.includes('/edit/parents')) return !canViewMemberParentsTab(user);
@@ -176,7 +188,8 @@ export function MemberSensitiveInfoBanner({ member }) {
   // destacamento del miembro, que es quien puede concederla en los dos casos.
   const fueraDeSuAlcance = !esMiembroDeSuAlcance(user, member);
   const isHealthAccessRequest =
-    isHealthRoute && (isSupervisoryMemberViewer(user) || fueraDeSuAlcance);
+    isHealthRoute &&
+    (isSupervisoryMemberViewer(user) || esAdministradorDeSistema(user) || fueraDeSuAlcance);
   const shouldShow =
     Boolean(member) &&
     isRestrictedForRoute(user, pathname, member) &&

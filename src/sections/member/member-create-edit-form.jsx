@@ -62,6 +62,7 @@ import {
   canViewMemberSensitiveData,
   isCoordinadorDestacamentoRole,
   canViewMemberContactDataByAge,
+  canViewMemberAddressWhenMasked,
   filtrarMiembrosDeSuDestacamento,
   canViewMemberBirthdateWhenMasked,
   puedeVerMiembrosDeTodaLaOrganizacion,
@@ -399,6 +400,10 @@ export function MemberCreateEditForm({
   // contacto, y ocultarlos obligaba a pedirlos por otro lado. Lo que se protege
   // es donde vive la persona, que sigue enmascarado.
   const maskContact = false;
+  // La DIRECCION es lo unico que quedaba tapado de los datos de contacto, y hay
+  // quien la necesita para trabajar: el Administrador de Gestion de Tienda
+  // despacha ahi los pedidos. El resto de la ficha le sigue enmascarada.
+  const maskAddress = maskSensitive && !canViewMemberAddressWhenMasked(user);
   // La fecha de nacimiento es la única excepción al enmascarado para los cargos
   // del destacamento que la necesitan (edad y division del miembro) — pero solo
   // sobre los suyos: fuera de su destacamento va enmascarada igual.
@@ -2738,6 +2743,7 @@ export function MemberCreateEditForm({
                     avatarUrl={currentMember?.avatarUrl}
                     // El PDF hereda el mismo enmascarado que la ficha en pantalla.
                     masked={maskSensitive}
+                    maskAddress={maskAddress}
                     maskContact={maskContact}
                     maskBirthdate={maskBirthdate}
                   />
@@ -2848,7 +2854,7 @@ export function MemberCreateEditForm({
                     <MemberAddressSection
                       isEdit
                       readOnly={readOnlyEffective}
-                      masked={maskSensitive}
+                      masked={maskAddress}
                     />
 
                     {isCreateView && (

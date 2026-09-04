@@ -857,7 +857,11 @@ const CARGOS_LOCALES_QUE_ESCALAN_AL_GLOBAL = [
   ROLES.USUARIO_DESTACAMENTO_ASISTENTE,
 ];
 
-const AMBITOS_LOCALES_QUE_ESCALAN_AL_GLOBAL = ['destacamento', 'foto_destacamento'];
+const AMBITOS_LOCALES_QUE_ESCALAN_AL_GLOBAL = [
+  'destacamento',
+  'foto_destacamento',
+  'pastor_destacamento',
+];
 
 export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
   isOficinaNacional(user) &&

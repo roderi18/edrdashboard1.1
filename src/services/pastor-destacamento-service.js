@@ -1,10 +1,13 @@
 import { normalizeText } from 'src/utils/normalize-text';
 import { generateMemberId } from 'src/utils/generate-member-id';
+import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 
+import { updateChurchApi } from './church-service';
 import { getMembers , authHeaders } from './member-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
+import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
 // ----------------------------------------------------------------------
 // El pastor de la iglesia es una PERSONA, no un texto.
@@ -162,3 +165,100 @@ export async function asegurarPastorDelDestacamento({
   return idMiembro;
 }
 
+
+
+// ----------------------------------------------------------------------
+// El Pastor, a solas.
+//
+// El Coordinador de Destacamento y su Asistente, y el Coordinador Seccional y el
+// suyo, llevan el Pastor de SU PROPIO destacamento: son quienes saben quien
+// pastorea la iglesia y quienes se enteran cuando cambia. Lo que NO llevan es el
+// resto de la ficha de la iglesia —nombre, direccion, seccion—, asi que este
+// dato viaja por su cuenta y con su propio ambito.
+//
+// No se aplica solo: entra por la puerta de cambios y lo aprueba la Oficina
+// Nacional, igual que cualquier otro cambio del destacamento. Quien si puede
+// aplicar directo (Administrador Global, Oficina Nacional) lo escribe en el
+// momento, por el mismo camino.
+// ----------------------------------------------------------------------
+
+// Sin `undefined`: Firestore no los admite y la propuesta se guarda tal cual
+// para poder aplicarla cuando la aprueben.
+const sinIndefinidos = (valor) => JSON.parse(JSON.stringify(valor ?? null));
+
+/**
+ * La escritura real. Se llama desde la puerta de cambios —ahora si el actor
+ * puede aplicar, o al aprobarse la propuesta— y nunca a pelo.
+ *
+ * Escribe el nombre en la ficha de la iglesia y, con el, deja al pastor como
+ * miembro con su casilla del organigrama: las dos cosas son el mismo dato.
+ */
+export async function aplicarPastorDelDestacamento(payload = {}) {
+  const { iglesia = null, idDestacamento = null, nombreDestacamento = '', usuario = null } =
+    payload || {};
+
+  if (iglesia) {
+    await updateChurchApi(iglesia);
+  }
+
+  const nombrePastor = iglesia?.pastor ?? payload?.pastor ?? '';
+
+  if (nombrePastor && idDestacamento) {
+    await asegurarPastorDelDestacamento({
+      nombrePastor,
+      idDestacamento,
+      nombreDestacamento,
+      usuario,
+    });
+  }
+
+  return { aplicado: true };
+}
+
+/**
+ * Propone el cambio de Pastor del destacamento.
+ *
+ * @returns {{ pendienteDeAprobacion: boolean, idSolicitud: string|null }}
+ */
+export async function proponerPastorDelDestacamento({
+  iglesia,
+  pastorAnterior = '',
+  idDestacamento = null,
+  nombreDestacamento = '',
+  usuario = null,
+} = {}) {
+  const pastorNuevo = String(iglesia?.pastor ?? '').trim();
+
+  const payload = sinIndefinidos({
+    iglesia,
+    idDestacamento: Number(idDestacamento) || null,
+    nombreDestacamento,
+  });
+
+  const resultado = await proponerCambio({
+    ambito: AMBITOS_CAMBIO.pastorDestacamento,
+    entidad: {
+      tipo: 'destacamento',
+      id: idDestacamento,
+      nombre: nombreDestacamento,
+      ruta: '/dashboard/level/dest',
+    },
+    cambios: [
+      {
+        campo: 'pastor',
+        etiqueta: 'Pastor',
+        antes: String(pastorAnterior ?? ''),
+        despues: pastorNuevo,
+      },
+    ],
+    usuario,
+    aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+    payload,
+    aplicar: () => aplicarPastorDelDestacamento({ ...payload, usuario }),
+  });
+
+  return {
+    pendienteDeAprobacion: resultado.estado === ESTADOS_CAMBIO.pendiente,
+    idSolicitud: resultado.idSolicitud ?? null,
+  };
+}

@@ -25,6 +25,7 @@ import {
   canViewHealth,
   esMiembroDeSuAlcance,
   canApproveMemberChanges,
+  esAdministradorDeSistema,
   canDeleteHealthDocuments,
   canUploadHealthDocuments,
   isSupervisoryMemberViewer,
@@ -153,7 +154,12 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // Médica les queda BLOQUEADA por completo —secciones sin desplegar y campos
     // deshabilitados— hasta que un Coordinador de Destacamento les conceda acceso
     // desde el aviso de la ficha. No depende de que el miembro sea menor.
-    const supervisoryNeedsHealthAccess = isSupervisoryViewerRole;
+    //
+    // Igual el Administrador Funcional y el de Gestion de Tienda: administran el
+    // sistema y la tienda, no acompañan a nadie, y el expediente medico de una
+    // persona no es parte de ese trabajo. Si un caso lo pide, se solicita por el
+    // mismo aviso.
+    const supervisoryNeedsHealthAccess = isSupervisoryViewerRole || esAdministradorDeSistema(user);
     const shouldCheckAccess =
         requiresTemporaryAccess || requiresMaskedInsuranceAccess || supervisoryNeedsHealthAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;

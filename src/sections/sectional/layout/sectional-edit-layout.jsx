@@ -72,8 +72,6 @@ export function SectionalEditLayout({ children, ...other }) {
       etiquetaVolver="Secciones"
 
     >
-
-  return (
     <DashboardContent {...other}>
       <CustomBreadcrumbs
         heading={isMobile ? null : 'Editar sección'}

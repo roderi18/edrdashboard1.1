@@ -5,15 +5,18 @@ import assert from 'node:assert/strict';
 
 const leer = (ruta) => fs.readFileSync(path.join(process.cwd(), ruta), 'utf8');
 
-test('Form protege globalmente los cambios sin guardar', () => {
+// EL AVISO DE CAMBIOS SIN GUARDAR SE RETIRO: salir de un formulario ya no
+// pregunta nada. Lo que se comprueba ahora es justo lo contrario que antes —que
+// no queda ni el mensaje ni el `beforeunload` que lo disparaba—, y que el
+// cableado sigue en su sitio por si algun dia se quiere volver a poner.
+test('salir de un formulario no pregunta por los cambios sin guardar', () => {
   const form = leer('src/components/hook-form/form-provider.jsx');
   const guardia = leer('src/components/hook-form/use-unsaved-changes-guard.js');
 
-  assert.match(form, /protegerSalida = true/);
   assert.match(form, /useUnsavedChangesGuard\(methods, protegerSalida\)/);
-  assert.match(guardia, /beforeunload/);
-  assert.match(guardia, /navigation\?\.addEventListener\?\.\('navigate', alNavegar\)/);
-  assert.match(guardia, /Tienes cambios sin guardar/);
+  assert.doesNotMatch(guardia, /Tienes cambios sin guardar/);
+  assert.doesNotMatch(guardia, /beforeunload/);
+  assert.doesNotMatch(guardia, /addEventListener/);
 });
 
 test('las confirmaciones bloquean dobles ejecuciones mientras guardan', () => {

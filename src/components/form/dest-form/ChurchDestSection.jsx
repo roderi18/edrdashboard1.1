@@ -24,6 +24,10 @@ export default function ChurchDestSection({
     // Destacamento, asi que no comparten candado con el resto de la ficha de la
     // iglesia.
     contactDisabled = disabled,
+    // El Pastor tampoco comparte candado con la ficha de la iglesia: lo llevan
+    // el Coordinador de Destacamento y su Asistente, y los cargos de seccion,
+    // sobre su propio destacamento. Su cambio va a la Oficina Nacional.
+    pastorDisabled = disabled,
     lockedSectional = null,
     // Ids de region a los que se acota el desplegable de Sección (Coordinador
     // Regional y Sub-Director Regional: solo las secciones de su propia región).
@@ -145,7 +149,7 @@ export default function ChurchDestSection({
                     name="pastor"
                     label="Pastor"
                     maxLength={100}
-                    disabled={disabled}
+                    disabled={pastorDisabled}
                 />
 
                 <Controller

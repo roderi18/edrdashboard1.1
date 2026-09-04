@@ -54,13 +54,16 @@ import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
-import { asegurarPastorDelDestacamento } from 'src/services/pastor-destacamento-service';
 import {
   getChurches,
   createChurchApi,
   updateChurchApi,
   buildChurchPayload,
 } from 'src/services/church-service';
+import {
+  asegurarPastorDelDestacamento,
+  proponerPastorDelDestacamento,
+} from 'src/services/pastor-destacamento-service';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
@@ -390,6 +393,19 @@ export function DestCreateEditForm({ currentDest }) {
     !isCreateView &&
     isCoordinadorDestacamentoRole(user) &&
     estaDentroDelAlcance(user, currentDestResource);
+  // EL PASTOR, APARTE. Es el unico dato de la ficha de la iglesia que llevan el
+  // Coordinador de Destacamento y su Asistente, y el Coordinador Seccional y el
+  // suyo, sobre su propio destacamento: son quienes conocen a quien pastorea la
+  // iglesia y quienes se enteran cuando cambia. Lo escriben ellos, pero no se
+  // aplica solo: va a la Oficina Nacional como cualquier otro cambio de la
+  // ficha. El resto de la iglesia —nombre, direccion, seccion— sigue siendo del
+  // Administrador Global.
+  const canEditPastor =
+    !isCreateView &&
+    (isAdminGlobal(user) ||
+      ((isCoordinadorDestacamentoRole(user) || isSectionScopedManager(user)) &&
+        (estaDentroDelAlcance(user, currentDestResource) ||
+          canGestionarDestPorAlcance(user, currentDestResource))));
   // Alcance sobre ESTE destacamento para la foto de perfil. Ademas del alcance del
   // token (`estaDentroDelAlcance`), se acepta `canEditDest`, que resuelve la
   // seccion del Coordinador Seccional y de su Sub-Coordinador aunque la sesion no
@@ -424,6 +440,12 @@ export function DestCreateEditForm({ currentDest }) {
   // La foto la sugiere TODO el que no puede aplicarla, no solo el destacamento.
   const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canUploadDestPhoto;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
+  // Hay quien entra al formulario solo por el Pastor —los cargos de seccion—: el
+  // boton de guardar tiene que estar vivo para ellos aunque no lleven ningun
+  // otro campo del destacamento.
+  const canSubmitDest = canSaveDest || canEditPastor;
+  // Tampoco el suyo se aplica solo: el boton dice lo mismo que a los demas.
+  const soloSugiereElPastor = !isAdminGlobal(user) && canEditPastor;
   // El admin de destacamento solo puede descargar la informacion de miembros de
   // su propio destacamento; en otros destacamentos esa opcion no se ofrece.
   const canDownloadMembersInfo =
@@ -627,7 +649,7 @@ export function DestCreateEditForm({ currentDest }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      if (currentDest && !canSaveDest) {
+      if (currentDest && !canSubmitDest) {
         toast.error('No tienes permiso para editar este destacamento.');
         return;
       }
@@ -654,6 +676,63 @@ export function DestCreateEditForm({ currentDest }) {
       // Lo que devuelve la puerta de cambios: si el cambio quedo pendiente de la
       // Oficina Nacional, el mensaje final no puede ser el de guardado.
       let resultadoDest = null;
+      // Mientras la Oficina Nacional no apruebe el nombre nuevo, el pastor de
+      // antes sigue siendo el pastor: ni se da de alta al nuevo como miembro ni
+      // se le asigna la casilla del organigrama.
+      let pastorPendiente = false;
+
+      // El correo y el telefono se toman del REGISTRO DE LA IGLESIA y no del
+      // formulario: esos dos campos se ven bajo el titulo "Iglesia" pero
+      // pertenecen al destacamento (de ahi se cargan y ahi se guardan), asi que
+      // enviarlos aqui pisaba los de la iglesia con datos ajenos.
+      const iglesiaActual = currentDest
+        ? churches.find((church) => String(church.id) === String(data.churchId))
+        : null;
+      const datosIglesia = currentDest
+        ? {
+            ...data,
+            id: data.churchId,
+            churchId: data.churchId,
+            sectionId: data.sectionId,
+            correo: iglesiaActual?.correo ?? '',
+            telefono: iglesiaActual?.telefono ?? '',
+          }
+        : null;
+      const cambioElPastor =
+        String(datosIglesia?.pastor ?? '').trim() !== String(iglesiaActual?.pastor ?? '').trim();
+
+      const enviarPastorAAprobacion = () =>
+        proponerPastorDelDestacamento({
+          iglesia: datosIglesia,
+          pastorAnterior: iglesiaActual?.pastor ?? '',
+          idDestacamento: currentDest?.id ?? null,
+          nombreDestacamento: data.name || currentDest?.name || '',
+          usuario: user,
+        });
+
+      // EL PASTOR A SOLAS. El Coordinador Seccional y su Asistente no editan el
+      // destacamento: entran al formulario solo por este campo. Mandar aqui el
+      // resto —la ficha, el coordinador, la directiva— habria dejado en la
+      // bandeja de la Oficina Nacional una propuesta sin un solo cambio.
+      if (currentDest && !canSaveDest) {
+        if (!cambioElPastor) {
+          toast.info('No hay cambios que enviar.');
+          return;
+        }
+
+        const resultadoPastor = await enviarPastorAAprobacion();
+
+        await espera;
+
+        toast[resultadoPastor.pendienteDeAprobacion ? 'info' : 'success'](
+          resultadoPastor.pendienteDeAprobacion
+            ? 'Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.'
+            : 'Actualización exitosa!'
+        );
+
+        router.refresh();
+        return;
+      }
 
       if (currentDest) {
         // LA IGLESIA SOLO SE ESCRIBE SI CAMBIO ALGO SUYO.
@@ -663,23 +742,13 @@ export function DestCreateEditForm({ currentDest }) {
         // inutil que, con el endpoint caido, sacaba el aviso de fallo sin que
         // hubiera nada que actualizar.
         //
-        // El correo y el telefono se toman del REGISTRO DE LA IGLESIA y no del
-        // formulario: esos dos campos se ven bajo el titulo "Iglesia" pero
-        // pertenecen al destacamento (de ahi se cargan y ahi se guardan), asi que
-        // enviarlos aqui pisaba los de la iglesia con datos ajenos.
-        const iglesiaActual = churches.find(
-          (church) => String(church.id) === String(data.churchId)
-        );
-        const datosIglesia = {
-          ...data,
-          id: data.churchId,
-          churchId: data.churchId,
-          sectionId: data.sectionId,
-          correo: iglesiaActual?.correo ?? '',
-          telefono: iglesiaActual?.telefono ?? '',
-        };
+        // Y solo la escribe quien lleva la ficha de la iglesia. Quien solo lleva
+        // el Pastor manda ese dato por su cuenta, a la espera de aprobacion.
+        if (!canEditDest && canEditPastor && cambioElPastor) {
+          const resultadoPastor = await enviarPastorAAprobacion();
 
-        if (hayCambiosDeIglesia(datosIglesia, iglesiaActual)) {
+          pastorPendiente = resultadoPastor.pendienteDeAprobacion;
+        } else if (canEditDest && hayCambiosDeIglesia(datosIglesia, iglesiaActual)) {
           try {
             await updateChurchApi(datosIglesia);
           } catch (churchUpdateError) {
@@ -690,6 +759,7 @@ export function DestCreateEditForm({ currentDest }) {
             console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
           }
         }
+
         resultadoDest = await updateDestApi(destPayloadData, { usuario: user, antes: currentDest });
       } else {
         await createDestApi(destPayloadData, { usuario: user });
@@ -710,7 +780,7 @@ export function DestCreateEditForm({ currentDest }) {
       //
       // Va aparte del guardado del destacamento: si falla, el destacamento ya
       // quedo guardado y no tiene sentido perderlo por esto.
-      if (destIdForCoordinator && data.pastor) {
+      if (destIdForCoordinator && data.pastor && !pastorPendiente) {
         try {
           await asegurarPastorDelDestacamento({
             nombrePastor: data.pastor,
@@ -1169,6 +1239,7 @@ export function DestCreateEditForm({ currentDest }) {
                       <ChurchDestSection
                         disabled={!canEditDest}
                         contactDisabled={!canSaveDest}
+                        pastorDisabled={!canEditPastor}
                       />
                     </DashedAccordion>
                   </Box>
@@ -1272,13 +1343,15 @@ export function DestCreateEditForm({ currentDest }) {
                   type="submit"
                   variant="contained"
                   loading={isSubmitting}
-                  disabled={!canSaveDest}
+                  disabled={!canSubmitDest}
                 >
                   {/* Lo que hace el boton, no lo que uno querria que hiciera: a
                       quien no puede aplicar el cambio, "Guardar cambios" le
                       prometia algo que no pasa hasta que la Oficina Nacional lo
                       apruebe. */}
-                  {soloSugiereCambios ? 'Enviar a aprobación' : 'Guardar cambios'}
+                  {soloSugiereCambios || soloSugiereElPastor
+                    ? 'Enviar a aprobación'
+                    : 'Guardar cambios'}
                 </LoadingButton>
               )}
             </Stack>

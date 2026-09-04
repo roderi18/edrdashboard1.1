@@ -59,6 +59,12 @@ export const AMBITOS_CAMBIO = {
   fotoDestacamento: 'foto_destacamento',
   fotoSeccion: 'foto_seccion',
   fotoRegion: 'foto_region',
+  // EL PASTOR VA APARTE DE LA FICHA DE LA IGLESIA. Es el unico dato de la
+  // iglesia que llevan el Coordinador de Destacamento y su Asistente, y los
+  // cargos de seccion, sobre su propio destacamento: lo escriben ellos —son
+  // quienes saben quien pastorea— pero lo aprueba la Oficina Nacional, igual
+  // que el resto de la ficha.
+  pastorDestacamento: 'pastor_destacamento',
   seccion: 'seccion',
   region: 'region',
   directivaSeccion: 'directiva_seccion',
@@ -84,6 +90,7 @@ export const AMBITOS_QUE_APRUEBA_OFICINA_NACIONAL = [
   AMBITOS_CAMBIO.fotoDestacamento,
   AMBITOS_CAMBIO.fotoSeccion,
   AMBITOS_CAMBIO.fotoRegion,
+  AMBITOS_CAMBIO.pastorDestacamento,
   AMBITOS_CAMBIO.seccion,
   AMBITOS_CAMBIO.region,
   AMBITOS_CAMBIO.directivaSeccion,

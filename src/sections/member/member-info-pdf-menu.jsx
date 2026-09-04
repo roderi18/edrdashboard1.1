@@ -173,6 +173,9 @@ function MemberInfoPdfDocument({
   // Teléfono y correo se enmascaran aparte de la dirección: los cargos
   // seccionales/regionales los ven en texto plano si el miembro es mayor de edad.
   maskContact = masked,
+  // Y la dirección aparte de los dos: quien la ve en pantalla —el Administrador
+  // de Gestión de Tienda, que despacha ahí los pedidos— la ve también aquí.
+  maskAddress = masked,
   maskBirthdate = false,
 }) {
   return (
@@ -202,7 +205,7 @@ function MemberInfoPdfDocument({
           <InfoRow label="División" value={values.memberDivision} />
           <InfoRow
             label="Dirección"
-            value={masked ? MASK_PRESETS.text : values.address || values.street}
+            value={maskAddress ? MASK_PRESETS.text : values.address || values.street}
           />
           <InfoRow label="Teléfono" value={maskContact ? MASK_PRESETS.phone : values.phoneNumber} />
           <InfoRow label="Correo" value={maskContact ? MASK_PRESETS.text : values.email} />
@@ -267,6 +270,7 @@ export function MemberInfoPdfMenu({
   avatarUrl,
   masked = false,
   maskContact = masked,
+  maskAddress = masked,
   maskBirthdate = false,
 }) {
   const { user } = useAuthContext();
@@ -310,6 +314,7 @@ export function MemberInfoPdfMenu({
         selectedSections={selectedSections.filter((section) => canExportSection[section])}
         masked={masked}
         maskContact={maskContact}
+        maskAddress={maskAddress}
         maskBirthdate={maskBirthdate}
       />
     ).toBlob();

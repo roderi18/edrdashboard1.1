@@ -72,8 +72,6 @@ export function DestEditLayout({ children, ...other }) {
         etiquetaVolver="Destacamentos"
 
       >
-
-    return (
         <DashboardContent {...other}>
 
             <CustomBreadcrumbs

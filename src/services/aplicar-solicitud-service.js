@@ -1,6 +1,7 @@
 import { eliminarArchivoDeStorage } from 'src/utils/firebase-photos';
 
 import { updateRegional, aplicarFotoRegion } from './regional-service';
+import { aplicarPastorDelDestacamento } from './pastor-destacamento-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { createDestApi, updateDestApi, aplicarFotoDestacamento } from './dest-service';
 import { saveSectional, updateSectional, aplicarFotoSeccion } from './sectional-service';
@@ -30,6 +31,10 @@ const APLICADORES = {
     Number(payload?.idDestacamento ?? payload?.id ?? 0) > 0
       ? updateDestApi(payload, { usuario })
       : createDestApi(payload, { usuario }),
+  // El Pastor se escribe en la ficha de la iglesia y, con el, queda como miembro
+  // con su casilla en el organigrama del destacamento.
+  [AMBITOS_CAMBIO.pastorDestacamento]: (payload, usuario) =>
+    aplicarPastorDelDestacamento({ ...payload, usuario }),
   // La foto ya esta subida: aprobarla es apuntarla como principal.
   [AMBITOS_CAMBIO.fotoDestacamento]: (payload) => aplicarFotoDestacamento(payload),
   [AMBITOS_CAMBIO.fotoSeccion]: (payload) => aplicarFotoSeccion(payload),
