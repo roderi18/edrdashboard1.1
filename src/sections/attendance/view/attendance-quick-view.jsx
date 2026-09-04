@@ -241,6 +241,25 @@ const COLUMNAS_ASISTENCIA = [
 
 const getMemberCode = (member) => member?.memberId || member?.codigoMiembro || '';
 
+// EL ARCHIVO DICE DE QUE DESTACAMENTO ES.
+//
+// Se descargaban como "asistencia-2026-09-04...": con dos destacamentos bajados
+// el mismo dia, los dos archivos se llamaban casi igual y no habia forma de
+// saber cual era cual sin abrirlos. Aqui siempre se baja UNO —la pantalla
+// trabaja sobre el destacamento elegido—, asi que su nombre y su numero van en
+// el nombre del archivo. Sin destacamento resuelto se queda el prefijo a secas,
+// que es lo que habia.
+const construirPrefijoDescarga = (prefijo, dest, fallbackId = '') => {
+  const nombre = [getDestName(dest), getDestNumber(dest)].filter(Boolean).join(' ').trim();
+  const etiqueta = normalizeText(nombre || '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (etiqueta) return `${prefijo}-${etiqueta}`;
+
+  return fallbackId ? `${prefijo}-destacamento-${fallbackId}` : prefijo;
+};
+
 const getMemberAvatar = (member) =>
   member?.avatarUrl || member?.photoURL || member?.urlFoto || member?.fotoUrl || member?.foto || '';
 
@@ -930,9 +949,17 @@ export function AttendanceQuickView() {
             rows={resumenExportRows}
             columns={resumenExportColumns}
             title={`Resumen del día · ${getDestTitle(selectedDest, selectedDestId)} · ${formatAttendanceDate(date)}`}
-            fileNamePrefix="resumen-del-dia"
+            fileNamePrefix={construirPrefijoDescarga(
+              'resumen-del-dia',
+              selectedDest,
+              selectedDestId
+            )}
             buttonLabel="Descargar"
-            buttonProps={{ size: 'small' }}
+            // EL MISMO BOTON QUE EL DE LA BARRA: mismo tamaño y misma forma. Lo
+            // que cambia es lo que se lleva cada uno —el de la barra, la lista
+            // que se este viendo; este, el destacamento entero, como los numeros
+            // de encima—.
+            buttonProps={{ size: 'small', endIcon: null }}
           />
         </Stack>
       </DialogTitle>
@@ -1219,7 +1246,12 @@ export function AttendanceQuickView() {
                   rows={exportRows}
                   columns={exportColumns}
                   title={attendanceTitle}
-                  fileNamePrefix="asistencia"
+                  fileNamePrefix={construirPrefijoDescarga(
+                    'asistencia',
+                    selectedDest,
+                    selectedDestId
+                  )}
+                  buttonLabel="Descargar"
                   buttonProps={{ size: 'small', endIcon: null }}
                 />
 
