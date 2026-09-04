@@ -61,11 +61,6 @@ const PRODUCT_RENGLON_OPTIONS = [
   { value: 'restringido', label: 'Restringido' },
 ];
 
-// HASTA DIEZ FILAS. La tabla crece con lo que se le pida, asi que ofrecer "20" o
-// "Todos" era ofrecer una pagina que se estira sin fin: con el catalogo entero de
-// la tienda delante, quien busca un articulo se pasa el rato bajando.
-const PRODUCT_PAGE_SIZE_OPTIONS = [5, 10];
-
 const HIDE_COLUMNS = {};
 const HIDE_COLUMNS_TOGGLABLE = ['actions'];
 
@@ -83,10 +78,7 @@ export function ProductListView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const confirmDialog = useBoolean();
-  // Vista compacta de entrada: son filas de una linea —foto, nombre y precio— y
-  // con la densidad estandar cada una ocupaba casi el doble de alto sin llenarse
-  // de nada.
-  const toolbarOptions = useToolbarSettings({ density: 'compact' });
+  const toolbarOptions = useToolbarSettings();
   const { products, productsLoading } = useGetProducts();
   const { user } = useAuthContext();
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
@@ -354,16 +346,17 @@ export function ProductListView() {
             )}
           </>
         ) : (
-          <Card sx={{ display: 'flex', flexDirection: 'column' }}>
-            {/* LA TABLA CRECE CON SUS FILAS, como la de miembros.
-                Tenia una altura fija —640 de minimo y el alto de la pantalla en
-                escritorio—: con cinco filas por pagina sobraba media pantalla en
-                blanco, y con veinte la tabla se desplazaba por dentro mientras la
-                pagina se quedaba quieta. Con `autoHeight` mide lo que miden sus
-                filas y es la pagina la que se desplaza. */}
+          <Card
+            sx={{
+              minHeight: 640,
+              flexGrow: { md: 1 },
+              display: { md: 'flex' },
+              height: { xs: 800, md: '1px' },
+              flexDirection: { md: 'column' },
+            }}
+          >
             <DataGrid
               {...toolbarOptions.settings}
-              autoHeight
               checkboxSelection
               disableRowSelectionOnClick
               rows={dataFiltered}
@@ -371,7 +364,7 @@ export function ProductListView() {
               loading={productsLoading}
               localeText={esES.components.MuiDataGrid.defaultProps.localeText}
               getRowHeight={() => 'auto'}
-              pageSizeOptions={PRODUCT_PAGE_SIZE_OPTIONS}
+              pageSizeOptions={[5, 10, 20, { value: -1, label: 'Todos' }]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               columnVisibilityModel={columnVisibilityModel}
               onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
