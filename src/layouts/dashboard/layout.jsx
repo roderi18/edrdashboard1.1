@@ -48,7 +48,6 @@ import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
-import { ThemeModeButton } from '../components/theme-mode-button';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
@@ -379,9 +378,6 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
           {/** @slot Contacts popover */}
           <ContactsPopover data={_contacts} />
-
-          {/** @slot Theme mode button */}
-          <ThemeModeButton />
 
           {/** @slot Settings button */}
           <SettingsButton />
