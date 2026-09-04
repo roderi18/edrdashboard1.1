@@ -1,4 +1,4 @@
-import { Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
+import { Text, View, Page, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
 // ----------------------------------------------------------------------
 // LA LISTA DE PRECIOS, COMO LA IMPRIME LA OFICINA NACIONAL.
@@ -15,7 +15,12 @@ import { Text, View, Page, Document, StyleSheet } from '@react-pdf/renderer';
 // La tipografia del original es Bahnschrift SemiBold, que no viaja con el
 // documento; se usa Helvetica, que es la sans-serif que trae `@react-pdf` de
 // serie. Registrar la fuente real exigiria meter el .ttf en el repositorio.
+//
+// El emblema va en PNG y no en el .webp del que salio: `@react-pdf` solo sabe
+// leer PNG y JPEG, y con el webp la imagen no se dibuja —sin aviso—.
 // ----------------------------------------------------------------------
+
+export const LOGO_LISTA_PRECIOS = '/logo/watermark.png';
 
 const COLORES = {
   azulTitulo: '#16365c',
@@ -37,6 +42,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: COLORES.azulTitulo,
   },
+  logo: { width: 32, height: 32, marginLeft: 10 },
   titulo: { fontSize: 14, color: COLORES.blanco, fontFamily: 'Helvetica-Bold' },
   subtitulo: { fontSize: 8, color: COLORES.blanco, marginTop: 2 },
   anio: { fontSize: 16, color: COLORES.blanco, fontFamily: 'Helvetica-Bold' },
@@ -89,14 +95,24 @@ const formatearPrecio = (valor) => {
 const etiquetaRenglon = (renglon) =>
   String(renglon || '').toLowerCase() === 'restringido' ? 'Restringido' : 'General';
 
-export function ProductPriceListPdfDocument({ title = 'TIENDA ERRD', anio = '', rows = [] }) {
+export function ProductPriceListPdfDocument({
+  title = 'TIENDA ERRD',
+  anio = '',
+  rows = [],
+  // Ruta del emblema. Es prop para poder dibujar el documento fuera del
+  // navegador —donde "/logo/..." no resuelve— sin tocar el componente.
+  logo = LOGO_LISTA_PRECIOS,
+}) {
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.encabezado} fixed>
-          <View>
-            <Text style={styles.titulo}>{title}</Text>
-            <Text style={styles.subtitulo}>Precios de insignias y artículos</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View>
+              <Text style={styles.titulo}>{title}</Text>
+              <Text style={styles.subtitulo}>Precios de insignias y artículos</Text>
+            </View>
+            {!!logo && <Image src={logo} style={styles.logo} />}
           </View>
           {!!anio && <Text style={styles.anio}>{anio}</Text>}
         </View>
