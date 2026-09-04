@@ -6,7 +6,11 @@ import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 export async function GET() {
     try {
         // Regiones y secciones en paralelo (antes iban en serie) y cacheadas.
-        const [{ text }, { text: textSections }] = await Promise.all([
+        //
+        // Mismo reparto que en /api/sectional: las regiones SON la respuesta y
+        // las secciones solo cuentan cuantas cuelgan de cada region. Una
+        // seccion lenta no puede llevarse por delante la lista de regiones.
+        const [resultadoRegiones, resultadoSecciones] = await Promise.allSettled([
             fetchUpstreamText(
                 UPSTREAM_KEYS.regiones,
                 'https://systexploradores.somee.com/api/Regiones/GetAllRegiones'
@@ -16,6 +20,14 @@ export async function GET() {
                 'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
             ),
         ]);
+
+        if (resultadoRegiones.status === 'rejected') {
+            throw resultadoRegiones.reason;
+        }
+
+        const { text } = resultadoRegiones.value;
+        const textSections =
+            resultadoSecciones.status === 'fulfilled' ? resultadoSecciones.value.text : '';
 
         let data;
 
@@ -52,8 +64,15 @@ export async function GET() {
 
         return Response.json(normalizeApiResponse({ ...data, data: newData }));
     } catch (error) {
+        // Con el motivo: sin el, en el navegador solo se leia "Error obteniendo
+        // regionales" y no se sabia si el upstream se cayo o tardo de mas.
+        console.error('[api/regional] no se pudieron obtener las regiones', error);
+
         return Response.json(
-            { error: 'Error obteniendo regionales' },
+            {
+                error: 'Error obteniendo regionales',
+                message: error?.message || 'El servidor de datos no respondió.',
+            },
             { status: 500 }
         );
     }

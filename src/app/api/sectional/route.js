@@ -6,7 +6,15 @@ import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 export async function GET() {
     try {
         // Secciones e iglesias en paralelo (antes iban en serie) y cacheadas.
-        const [{ text }, { text: textChurches }] = await Promise.all([
+        //
+        // ALLSETTLED, NO ALL: las dos peticiones NO valen lo mismo. Las
+        // secciones SON la respuesta; las iglesias solo sirven para contar
+        // cuantas cuelgan de cada seccion. Con `Promise.all`, una iglesias
+        // lenta —el upstream va de 0.3s a mas de 17s— tumbaba la ruta entera
+        // con "El servidor de datos no respondió en 9s.", aunque las secciones
+        // hubieran llegado perfectamente. Ahora un fallo suyo solo cuesta el
+        // contador, que sale en 0.
+        const [resultadoSecciones, resultadoIglesias] = await Promise.allSettled([
             fetchUpstreamText(
                 UPSTREAM_KEYS.secciones,
                 'https://systexploradores.somee.com/api/Secciones/GetAllSecciones'
@@ -16,6 +24,15 @@ export async function GET() {
                 'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias'
             ),
         ]);
+
+        // Sin secciones no hay nada que devolver: ese fallo si sube.
+        if (resultadoSecciones.status === 'rejected') {
+            throw resultadoSecciones.reason;
+        }
+
+        const { text } = resultadoSecciones.value;
+        const textChurches =
+            resultadoIglesias.status === 'fulfilled' ? resultadoIglesias.value.text : '';
 
         let data;
 
