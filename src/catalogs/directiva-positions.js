@@ -145,9 +145,14 @@ const createPosition = ({
   asignable = true,
   idCargoApi = null,
   activo = true,
+  // Cual de las casillas de ese cargo es. Casi siempre hay una sola y vale 1;
+  // en Lideres Juveniles hay dos Asistentes de Grupo y tres Guias de Patrulla,
+  // y esto es lo unico que las distingue dentro del organigrama.
+  ordenCasilla = 1,
 }) => ({
   idCargo,
   idCargoApi,
+  ordenCasilla,
   nivel,
   nivelOrganizacional: nivel,
   nombreCargo,
@@ -206,6 +211,95 @@ const createDestDivisionPositions = (division, ordenBase) => {
       orden: ordenBase + 2,
     }),
   ];
+};
+
+// ----------------------------------------------------------------------
+// LIDERES JUVENILES: lo que cuelga del Lider de Grupo de cada division.
+//
+// El Lider de Grupo y su primer Asistente ya existen arriba —son los mismos de
+// la Directiva Local, no se repiten aqui—; esto anade el resto del equipo. El
+// `orden` del catalogo solo identifica la posicion; el de la casilla, que es
+// otro numero, dice cual de las tres patrullas es.
+// ----------------------------------------------------------------------
+const EQUIPO_JUVENIL = [
+  { sufijo: 'lider-juvenil-grupo', nombre: 'Líder Juvenil de Grupo', cargo: 'lider_juvenil_grupo' },
+  { sufijo: 'guia-mayor', nombre: 'Guía Mayor', cargo: 'guia_mayor' },
+  { sufijo: 'guia-mayor-auxiliar', nombre: 'Guía Mayor Auxiliar', cargo: 'guia_mayor_auxiliar' },
+  {
+    sufijo: 'especialista-comunicaciones',
+    nombre: 'Especialista de Comunicaciones',
+    cargo: 'especialista_comunicaciones',
+  },
+  { sufijo: 'supervisor-equipo', nombre: 'Supervisor de Equipo', cargo: 'supervisor_equipo' },
+  { sufijo: 'historiador', nombre: 'Historiador', cargo: 'historiador' },
+  { sufijo: 'capellan-auxiliar', nombre: 'Capellán Auxiliar', cargo: 'capellan_auxiliar' },
+];
+
+const PATRULLAS_POR_GRUPO = 3;
+
+const createDestYouthPositions = (division, ordenBase) => {
+  const idCargoLider = `destacamento-${division}-lider-grupo`;
+  const idCargoGuiaMayor = `destacamento-${division}-guia-mayor`;
+  const nombreDivision = DIRECTIVA_DIVISION_NAMES[division];
+
+  const comun = {
+    nivel: DIRECTIVA_LEVELS.destacamento,
+    division,
+  };
+
+  return [
+    // El SEGUNDO asistente. El primero ya esta con la Directiva Local; este
+    // comparte cargo y se distingue por la casilla.
+    createPosition({
+      ...comun,
+      idCargo: `destacamento-${division}-lider-asistente-grupo-2`,
+      nombreCargo: 'Líder Asistente de Grupo',
+      idNodoDiagrama: `lider-asistente-grupo-2-${division}`,
+      idCargoPadre: idCargoLider,
+      idNodoPadre: `lider-grupo-${division}`,
+      nombreCargoPadre: 'Líder de Grupo',
+      orden: ordenBase,
+      ordenCasilla: 2,
+    }),
+    ...EQUIPO_JUVENIL.map(({ sufijo, nombre }, indice) => {
+      const cuelgaDelLider = sufijo === 'lider-juvenil-grupo' || sufijo === 'guia-mayor';
+
+      return createPosition({
+        ...comun,
+        idCargo: `destacamento-${division}-${sufijo}`,
+        nombreCargo: nombre,
+        idNodoDiagrama: `${sufijo}-${division}`,
+        idCargoPadre: cuelgaDelLider ? idCargoLider : idCargoGuiaMayor,
+        idNodoPadre: cuelgaDelLider ? `lider-grupo-${division}` : `guia-mayor-${division}`,
+        nombreCargoPadre: cuelgaDelLider ? 'Líder de Grupo' : 'Guía Mayor',
+        orden: ordenBase + 1 + indice,
+      });
+    }),
+    ...Array.from({ length: PATRULLAS_POR_GRUPO }, (_, indice) => [
+      createPosition({
+        ...comun,
+        idCargo: `destacamento-${division}-guia-patrulla-${indice + 1}`,
+        nombreCargo: 'Guía de Patrulla',
+        idNodoDiagrama: `guia-patrulla-${indice + 1}-${division}`,
+        idCargoPadre: idCargoGuiaMayor,
+        idNodoPadre: `guia-mayor-${division}`,
+        nombreCargoPadre: 'Guía Mayor',
+        orden: ordenBase + 10 + indice * 2,
+        ordenCasilla: indice + 1,
+      }),
+      createPosition({
+        ...comun,
+        idCargo: `destacamento-${division}-guia-auxiliar-patrulla-${indice + 1}`,
+        nombreCargo: 'Guía Auxiliar de Patrulla',
+        idNodoDiagrama: `guia-auxiliar-patrulla-${indice + 1}-${division}`,
+        idCargoPadre: `destacamento-${division}-guia-patrulla-${indice + 1}`,
+        idNodoPadre: `guia-patrulla-${indice + 1}-${division}`,
+        nombreCargoPadre: 'Guía de Patrulla',
+        orden: ordenBase + 11 + indice * 2,
+        ordenCasilla: indice + 1,
+      }),
+    ]).flat(),
+  ].map((position) => ({ ...position, nombreDivision }));
 };
 
 const DIRECTIVA_POSITIONS_DECLARADAS = [
@@ -701,6 +795,12 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
   ...createDestDivisionPositions(DIRECTIVA_DIVISIONS.pioneros, 30),
   ...createDestDivisionPositions(DIRECTIVA_DIVISIONS.seguidores, 40),
   ...createDestDivisionPositions(DIRECTIVA_DIVISIONS.exploradores, 50),
+  // Lideres Juveniles: rango 100+ para no pisar los `orden` ya guardados en las
+  // asignaciones existentes, que forman parte del id del documento.
+  ...createDestYouthPositions(DIRECTIVA_DIVISIONS.navegantes, 100),
+  ...createDestYouthPositions(DIRECTIVA_DIVISIONS.pioneros, 130),
+  ...createDestYouthPositions(DIRECTIVA_DIVISIONS.seguidores, 160),
+  ...createDestYouthPositions(DIRECTIVA_DIVISIONS.exploradores, 190),
 
   createPosition({
     idCargo: 'api-cargo-string-15',
@@ -790,6 +890,24 @@ const ORGANIGRAMA_CARGO_POR_POSICION = {
       ...acc,
       [`destacamento-${division}-lider-grupo`]: 'lider_grupo',
       [`destacamento-${division}-lider-asistente-grupo`]: 'lider_asistente_grupo',
+      // Lideres Juveniles. El segundo asistente comparte cargo con el primero:
+      // los separa la casilla, no el nombre.
+      [`destacamento-${division}-lider-asistente-grupo-2`]: 'lider_asistente_grupo',
+      [`destacamento-${division}-lider-juvenil-grupo`]: 'lider_juvenil_grupo',
+      [`destacamento-${division}-guia-mayor`]: 'guia_mayor',
+      [`destacamento-${division}-guia-mayor-auxiliar`]: 'guia_mayor_auxiliar',
+      [`destacamento-${division}-especialista-comunicaciones`]: 'especialista_comunicaciones',
+      [`destacamento-${division}-supervisor-equipo`]: 'supervisor_equipo',
+      [`destacamento-${division}-historiador`]: 'historiador',
+      [`destacamento-${division}-capellan-auxiliar`]: 'capellan_auxiliar',
+      ...[1, 2, 3].reduce(
+        (patrullas, numero) => ({
+          ...patrullas,
+          [`destacamento-${division}-guia-patrulla-${numero}`]: 'guia_patrulla',
+          [`destacamento-${division}-guia-auxiliar-patrulla-${numero}`]: 'guia_auxiliar_patrulla',
+        }),
+        {}
+      ),
     }),
     {}
   ),
@@ -803,9 +921,14 @@ export const getOrganigramaDestSlot = (position = {}) => {
 
   if (!cargo) return null;
 
-  // `orden` es 1 siempre: en el organigrama identifica la casilla dentro de un
-  // mismo cargo+division (hoy hay una sola de cada), no el orden del catalogo.
-  return { cargo, division: position?.division ?? null, orden: 1 };
+  // El `orden` de la casilla NO es el `orden` del catalogo: identifica cual de
+  // las casillas de ese mismo cargo+division es. Vale 1 salvo donde hay varias
+  // (los dos Asistentes de Grupo, las tres Guias de Patrulla).
+  return {
+    cargo,
+    division: position?.division ?? null,
+    orden: Number(position?.ordenCasilla) || 1,
+  };
 };
 
 export const DIRECTIVA_DEST_POSITIONS_BY_DIVISION = DIRECTIVA_POSITIONS.filter(
