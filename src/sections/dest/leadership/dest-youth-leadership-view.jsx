@@ -8,6 +8,7 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -195,6 +196,43 @@ const convertirDiseno = (diseno = {}, convertir) => ({
     to: convertir(vinculo.to),
   })),
 });
+
+// EL ESQUELETO MIENTRAS LLEGA EL DISENO.
+//
+// El cuadro no se pinta hasta saber donde va cada caja: con las posiciones de
+// partida primero y las guardadas despues, se veia el organigrama saltar de un
+// sitio a otro al recargar. Se ensena esto y se cambia una sola vez.
+//
+// Tiene la forma del cuadro —una caja arriba, una fila de tres, otra sola y una
+// fila ancha— para que el cambio no de tirones.
+function CuadroCargando() {
+  const caja = (ancho = 200) => (
+    <Skeleton variant="rounded" width={ancho} height={116} sx={{ borderRadius: 1.5 }} />
+  );
+
+  return (
+    <Stack spacing={4} alignItems="center" sx={{ py: 6, width: 1 }}>
+      <Skeleton variant="text" width={240} height={28} />
+
+      {caja()}
+
+      <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+        {caja()}
+        {caja()}
+        {caja()}
+      </Stack>
+
+      {caja()}
+
+      <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+        {caja()}
+        {caja()}
+        {caja()}
+        {caja()}
+      </Stack>
+    </Stack>
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -580,7 +618,13 @@ export function DestYouthLeadershipView() {
         <Stack
           spacing={0.75}
           onPointerDown={(event) => event.stopPropagation()}
-          sx={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 20,
+            display: layoutStorage.cargando ? 'none' : 'flex',
+          }}
         >
           <Box
             sx={{
@@ -631,8 +675,13 @@ export function DestYouthLeadershipView() {
           </Box>
         </Stack>
 
+        {layoutStorage.cargando && <CuadroCargando />}
+
         <Box
           sx={{
+            // Ni pintado ni ocupando sitio hasta tener el diseno: si solo se
+            // ocultara, el esqueleto quedaria descolocado por el hueco.
+            display: layoutStorage.cargando ? 'none' : 'block',
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'top center',
             transition: isDragging ? 'none' : 'transform 120ms ease-out',
