@@ -2238,6 +2238,10 @@ export function MemberCreateEditForm({
               });
             } catch (cargoError) {
               algoFallo = true;
+              // Al usuario le basta el aviso, pero en consola hace falta la
+              // traza: el mensaje suelto no dice QUE llamada fallo, y los demas
+              // catches de este archivo ya la dejan.
+              console.error('[member form] no se pudo guardar el cargo', cargoError);
               toast.error(cargoError.message || 'No se pudo guardar el cargo del miembro.');
             }
           }
@@ -2337,6 +2341,7 @@ export function MemberCreateEditForm({
           }
         } catch (error) {
           algoFallo = true;
+          console.error('[member form] fallo el guardado', error);
           toast.error(error.message || 'Error guardando en API');
         }
       })();
