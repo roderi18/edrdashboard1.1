@@ -49,6 +49,8 @@ export function useLeadershipLayoutStorage({
         connectionGroups: diseno.connectionGroups?.length
           ? diseno.connectionGroups
           : defaultConnectionGroups,
+        hiddenConnections: diseno.hiddenConnections,
+        extraConnections: diseno.extraConnections,
       });
     };
 
@@ -81,6 +83,8 @@ export function useLeadershipLayoutStorage({
         containerHeightOffset: editor.containerHeightOffset,
         containerWidthOffset: editor.containerWidthOffset,
         connectionGroups: editor.connectionGroups,
+        hiddenConnections: editor.hiddenConnections,
+        extraConnections: editor.extraConnections,
       });
 
       toast.success('Diseño del organigrama guardado.');
@@ -103,6 +107,8 @@ export function useLeadershipLayoutStorage({
     editor.containerHeightOffset,
     editor.containerWidthOffset,
     editor.connectionGroups,
+    editor.hiddenConnections,
+    editor.extraConnections,
   ]);
 
   return { guardar, guardando };

@@ -989,6 +989,8 @@ export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
     containerHeightOffset: Number(data?.containerHeightOffset) || 0,
     containerWidthOffset: Number(data?.containerWidthOffset) || 0,
     connectionGroups: Array.isArray(data?.connectionGroups) ? data.connectionGroups : [],
+    hiddenConnections: Array.isArray(data?.hiddenConnections) ? data.hiddenConnections : [],
+    extraConnections: Array.isArray(data?.extraConnections) ? data.extraConnections : [],
   };
 }
 
@@ -1000,6 +1002,8 @@ export async function guardarDisenoDirectiva({
   containerHeightOffset = 0,
   containerWidthOffset = 0,
   connectionGroups = [],
+  hiddenConnections = [],
+  extraConnections = [],
   usuario = {},
 } = {}) {
   asegurarFirebaseDirectivas();
@@ -1038,6 +1042,14 @@ export async function guardarDisenoDirectiva({
         (Array.isArray(grupo) ? grupo : []).map((clave) => String(clave || '')).filter(Boolean)
       )
       .filter((grupo) => grupo.length > 1),
+    // Lineas que el cuadro no dibuja, y lineas puestas a mano entre dos
+    // casillas. Como el resto del diseno, se saneen antes de guardarse.
+    hiddenConnections: (Array.isArray(hiddenConnections) ? hiddenConnections : [])
+      .map((id) => String(id || ''))
+      .filter(Boolean),
+    extraConnections: (Array.isArray(extraConnections) ? extraConnections : [])
+      .map((vinculo) => ({ from: String(vinculo?.from || ''), to: String(vinculo?.to || '') }))
+      .filter((vinculo) => vinculo.from && vinculo.to && vinculo.from !== vinculo.to),
     fechaActualizacion: serverTimestamp(),
   };
 

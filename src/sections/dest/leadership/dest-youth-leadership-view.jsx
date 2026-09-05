@@ -42,6 +42,7 @@ import {
   getLeadershipEditGridSx,
   getLeadershipConnections,
   useLeadershipLayoutEditor,
+  aplicarVinculosDelDiagrama,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
@@ -307,12 +308,24 @@ export function DestYouthLeadershipView() {
   });
 
   const arbol = useMemo(() => construirArbolJuvenil(divisionId), [divisionId]);
-  const connections = useMemo(() => getLeadershipConnections(arbol), [arbol]);
+  const connections = useMemo(() => {
+    // El arbol dice de quien cuelga cada cargo; el diseno puede quitar lineas y
+    // poner otras a mano, y es esa lista la que se dibuja.
+    const delArbol = getLeadershipConnections(arbol);
+
+    return aplicarVinculosDelDiagrama(delArbol, {
+      hiddenConnections: layoutEditor.hiddenConnections,
+      extraConnections: layoutEditor.extraConnections,
+    });
+  }, [arbol, layoutEditor.hiddenConnections, layoutEditor.extraConnections]);
   // La capa SVG sustituye a las lineas nativas del arbol. Hace falta tanto si
   // hay cajas desplazadas como si hay lineas unidas: las nativas no saben
   // compartir barra.
   const connectorLayerActive =
-    hasLeadershipLayoutOffsets(layoutEditor) || layoutEditor.connectionGroups.length > 0;
+    hasLeadershipLayoutOffsets(layoutEditor) ||
+    layoutEditor.connectionGroups.length > 0 ||
+    layoutEditor.hiddenConnections.length > 0 ||
+    layoutEditor.extraConnections.length > 0;
   const containerMinHeight = 760 + layoutEditor.containerHeightOffset;
   const connectorWatchKey = `${divisionId}:${JSON.stringify(layoutEditor.connectionGroups)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 

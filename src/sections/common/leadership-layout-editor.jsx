@@ -49,11 +49,35 @@ function normalizarGrupos(grupos) {
     .filter((grupo) => grupo.ids.length > 1);
 }
 
+// Pares { from, to } limpios y sin repetir.
+function normalizarVinculos(vinculos) {
+  const vistos = new Set();
+
+  return (Array.isArray(vinculos) ? vinculos : [])
+    .map((vinculo) => ({
+      from: String(vinculo?.from || ''),
+      to: String(vinculo?.to || ''),
+    }))
+    .filter((vinculo) => {
+      const clave = `${vinculo.from}-${vinculo.to}`;
+
+      if (!vinculo.from || !vinculo.to || vinculo.from === vinculo.to || vistos.has(clave)) {
+        return false;
+      }
+
+      vistos.add(clave);
+
+      return true;
+    });
+}
+
 export function useLeadershipLayoutEditor({
   initialNodeOffsets = {},
   initialContainerHeightOffset = 0,
   initialContainerWidthOffset = 0,
   initialConnectionGroups = [],
+  initialHiddenConnections = [],
+  initialExtraConnections = [],
 } = {}) {
   const nodeDragRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
@@ -76,6 +100,19 @@ export function useLeadershipLayoutEditor({
   );
   // Seleccion MULTIPLE: se van marcando lineas y despues se pulsa "Unir".
   const [selectedConnections, setSelectedConnections] = useState([]);
+  // LINEAS QUITADAS. El arbol dice de quien cuelga cada cargo, pero el cuadro no
+  // siempre se dibuja asi: a veces una casilla se cuelga de otra distinta. Estas
+  // dejan de pintarse.
+  const [hiddenConnections, setHiddenConnections] = useState(() =>
+    [...new Set((initialHiddenConnections || []).map((id) => String(id || '')).filter(Boolean))]
+  );
+  // LINEAS PUESTAS A MANO: las que se dibujan entre dos casillas que el arbol no
+  // relaciona. Solo cambian el DIBUJO; los cargos y sus asignaciones no se tocan.
+  const [extraConnections, setExtraConnections] = useState(() =>
+    normalizarVinculos(initialExtraConnections)
+  );
+  // Primer nodo de un vinculo a mano, esperando al segundo.
+  const [origenVinculo, setOrigenVinculo] = useState(null);
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
@@ -260,6 +297,52 @@ export function useLeadershipLayoutEditor({
     );
   }, []);
 
+  // Quitar una linea del cuadro. Sale tambien de cualquier barra en la que
+  // estuviera: una linea que no se dibuja no puede estar unida a otras.
+  const desvincularConexion = useCallback((id) => {
+    if (!id) return;
+
+    setHiddenConnections((actuales) =>
+      actuales.includes(id) ? actuales : [...actuales, id]
+    );
+    setConnectionGroups((grupos) =>
+      grupos
+        .map((grupo) => ({ ...grupo, ids: grupo.ids.filter((clave) => clave !== id) }))
+        .filter((grupo) => grupo.ids.length > 1)
+    );
+    setSelectedConnections((actuales) => actuales.filter((clave) => clave !== id));
+  }, []);
+
+  const revincularConexion = useCallback((id) => {
+    setHiddenConnections((actuales) => actuales.filter((clave) => clave !== id));
+  }, []);
+
+  const quitarVinculoAMano = useCallback((from, to) => {
+    setExtraConnections((actuales) =>
+      actuales.filter((vinculo) => !(vinculo.from === from && vinculo.to === to))
+    );
+  }, []);
+
+  // Vincular dos casillas va en dos pasos: se marca el origen y despues el
+  // destino. Marcar el mismo dos veces lo cancela.
+  const marcarExtremoDeVinculo = useCallback((nodeId) => {
+    if (!nodeId) {
+      setOrigenVinculo(null);
+      return;
+    }
+
+    setOrigenVinculo((origen) => {
+      if (!origen) return nodeId;
+      if (origen === nodeId) return null;
+
+      setExtraConnections((actuales) =>
+        normalizarVinculos([...actuales, { from: origen, to: nodeId }])
+      );
+
+      return null;
+    });
+  }, []);
+
   const cambiarOrientacionDe = useCallback((id, orientacion) => {
     setConnectionGroups((grupos) =>
       grupos.map((grupo) => (grupo.ids.includes(id) ? { ...grupo, orientacion } : grupo))
@@ -273,6 +356,8 @@ export function useLeadershipLayoutEditor({
       containerHeightOffset: heightOffset,
       containerWidthOffset: widthOffset,
       connectionGroups: grupos,
+      hiddenConnections: ocultas,
+      extraConnections: extras,
     } = {}) => {
       if (offsets && typeof offsets === 'object') {
         setNodeOffsets(offsets);
@@ -289,6 +374,14 @@ export function useLeadershipLayoutEditor({
       if (Array.isArray(grupos)) {
         setConnectionGroups(normalizarGrupos(grupos));
       }
+
+      if (Array.isArray(ocultas)) {
+        setHiddenConnections([...new Set(ocultas.map((id) => String(id || '')).filter(Boolean))]);
+      }
+
+      if (Array.isArray(extras)) {
+        setExtraConnections(normalizarVinculos(extras));
+      }
     },
     []
   );
@@ -302,6 +395,9 @@ export function useLeadershipLayoutEditor({
       containerWidthOffset,
       connectionGroups,
       selectedConnections,
+      hiddenConnections,
+      extraConnections,
+      origenVinculo,
       applyLayout,
       resizeContainer,
       resizeContainerWidth,
@@ -312,6 +408,10 @@ export function useLeadershipLayoutEditor({
       grupoDeConexion,
       moverEnGrupo,
       cambiarOrientacionDe,
+      desvincularConexion,
+      revincularConexion,
+      quitarVinculoAMano,
+      marcarExtremoDeVinculo,
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
@@ -337,6 +437,13 @@ export function useLeadershipLayoutEditor({
       grupoDeConexion,
       moverEnGrupo,
       cambiarOrientacionDe,
+      hiddenConnections,
+      extraConnections,
+      origenVinculo,
+      desvincularConexion,
+      revincularConexion,
+      quitarVinculoAMano,
+      marcarExtremoDeVinculo,
     ]
   );
 }
@@ -507,6 +614,21 @@ function buildRailPath({ startX, startY, railX, entryX, entryY, esPrimera }) {
   if (!esPrimera) return rama;
 
   return `M ${startX} ${startY} V ${entryY} H ${entryX}`;
+}
+
+// LAS LINEAS QUE DE VERDAD SE DIBUJAN: las del arbol, menos las quitadas, mas
+// las puestas a mano. El arbol sigue siendo la verdad de quien depende de quien;
+// esto solo cambia el dibujo.
+export function aplicarVinculosDelDiagrama(
+  connections = [],
+  { hiddenConnections = [], extraConnections = [] } = {}
+) {
+  const ocultas = new Set(hiddenConnections);
+  const delArbol = connections.filter(
+    (connection) => !ocultas.has(`${connection.from}-${connection.to}`)
+  );
+
+  return [...delArbol, ...extraConnections];
 }
 
 export function LeadershipLayoutConnectorLayer({
@@ -1003,6 +1125,103 @@ export function LeadershipLayoutEditor({
                     </Button>
                   </Stack>
                 )}
+
+              {/* QUITAR UNA LINEA DEL CUADRO. El arbol sigue diciendo de quien
+                  cuelga cada cargo; esto solo deja de dibujar la linea, para
+                  poder colgar esa casilla de otra. */}
+              {editor.selectedConnections.length === 1 && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => editor.desvincularConexion(editor.selectedConnections[0])}
+                >
+                  Desvincular esta linea
+                </Button>
+              )}
+
+              {!!editor.hiddenConnections.length && (
+                <Stack spacing={0.25}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Quitadas: {editor.hiddenConnections.length}
+                  </Typography>
+
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="inherit"
+                    onClick={() =>
+                      editor.hiddenConnections.forEach((id) => editor.revincularConexion(id))
+                    }
+                  >
+                    Devolver todas
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+
+            {/* VINCULAR DOS CASILLAS A MANO: se pulsa una tarjeta, luego otra, y
+                queda dibujada la linea entre ellas aunque el arbol no las
+                relacione. */}
+            <Stack spacing={0.5}>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                Vincular casillas
+                {editor.extraConnections.length ? ` · ${editor.extraConnections.length}` : ''}
+              </Typography>
+
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {editor.origenVinculo
+                  ? `Desde ${editor.origenVinculo}. Pulsa la casilla de destino.`
+                  : 'Pulsa una casilla para empezar la linea.'}
+              </Typography>
+
+              <Stack direction="row" spacing={0.5}>
+                <Button
+                  size="small"
+                  variant={editor.origenVinculo ? 'contained' : 'outlined'}
+                  color="inherit"
+                  disabled={!editor.selectedNode}
+                  onClick={() => editor.marcarExtremoDeVinculo(editor.selectedNode?.id)}
+                >
+                  {editor.origenVinculo ? 'Unir con la seleccionada' : 'Empezar desde la seleccionada'}
+                </Button>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  color="inherit"
+                  disabled={!editor.origenVinculo}
+                  onClick={() => editor.marcarExtremoDeVinculo(null)}
+                >
+                  Cancelar
+                </Button>
+              </Stack>
+
+              {editor.extraConnections.map((vinculo) => (
+                <Stack
+                  key={`${vinculo.from}-${vinculo.to}`}
+                  direction="row"
+                  spacing={0.5}
+                  alignItems="center"
+                >
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{ color: 'text.secondary', flexGrow: 1, minWidth: 0 }}
+                  >
+                    {vinculo.from} - {vinculo.to}
+                  </Typography>
+
+                  <IconButton
+                    size="small"
+                    aria-label="Quitar este vinculo"
+                    onClick={() => editor.quitarVinculoAMano(vinculo.from, vinculo.to)}
+                    sx={{ width: 24, height: 24 }}
+                  >
+                    <Iconify width={13} icon="mingcute:close-line" />
+                  </IconButton>
+                </Stack>
+              ))}
             </Stack>
 
             {editor.selectedNode ? (
