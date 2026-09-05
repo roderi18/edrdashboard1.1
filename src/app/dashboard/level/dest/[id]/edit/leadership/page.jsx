@@ -34,7 +34,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
-import { canManageDestLeadershipDirectly } from 'src/utils/org-level-access';
+import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -851,9 +851,13 @@ export default function Page() {
   // Quien no es el Coordinador ni su Asistente puede moverla igual, pero ellos
   // reciben aviso: ver `destLeadershipChangeNeedsNotice`.
   const canManageLeadership = canManageDestLeadership(user, params?.id);
-  // El Consejo Ejecutivo puede proponer en cualquier destacamento, pero no
-  // guardar directamente la distribución visual de sus cajas.
-  const canManageLayout = canManageDestLeadershipDirectly(user, params?.id);
+  // MOVER LAS CAJAS es del Administrador Global, aqui y en los cuatro niveles.
+  //
+  // Era el unico organigrama que ademas se lo ofrecia a los cargos del propio
+  // destacamento: Seccion, Region y Nacion ya lo tenian cerrado. La colocacion
+  // del cuadro es como se lee la directiva para todos los que la miran, no una
+  // preferencia de quien la compone, asi que la mueve quien manda en el diseno.
+  const canManageLayout = canManageDirectiva(user);
   // Quien mira el organigrama de un destacamento que no es el suyo ve los cargos
   // y quien los ocupa solo en las tres cabezas; del resto, solo que estan
   // cubiertos. El Administrador Global y la Oficina Nacional lo ven todo.
