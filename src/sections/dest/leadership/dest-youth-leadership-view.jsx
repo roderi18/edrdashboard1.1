@@ -16,7 +16,7 @@ import Typography from '@mui/material/Typography';
 
 import { useParams } from 'src/routes/hooks';
 
-import { canManageDestLeadershipDirectly } from 'src/utils/org-level-access';
+import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { getOwnDestIdsForUser, canManageDestLeadership } from 'src/utils/member-access';
 
 import { getDestsApi } from 'src/services/dest-service';
@@ -200,10 +200,20 @@ export function DestYouthLeadershipView() {
   const { user } = useAuthContext();
   const destId = params?.id;
 
-  // Las mismas reglas que la Directiva Local: quien edita las fichas de su
-  // destacamento compone tambien su directiva; la de los demas se consulta.
+  // Componer la directiva: las mismas reglas que la Directiva Local. Quien edita
+  // las fichas de su destacamento la compone; la de los demas se consulta.
   const canManageLeadership = canManageDestLeadership(user, destId);
-  const canManageLayout = canManageDestLeadershipDirectly(user, destId);
+
+  // MOVER LAS CAJAS es otra cosa, y solo la hace el Administrador Global.
+  //
+  // El diseno se guarda con un `nivel` propio —`destacamento-juvenil`— y con la
+  // division dentro del `idEntidad`, para no pisar la colocacion de la Directiva
+  // Local. Pero la regla de `disenosDirectiva` deja escribir al cargo del
+  // destacamento solo cuando el nivel es exactamente 'destacamento' y el
+  // idEntidad es su destacamento a secas, asi que con esas claves su escritura
+  // se rechazaba: se ensenaba el lapiz y al guardar saltaba "Missing or
+  // insufficient permissions".
+  const canManageLayout = canManageDirectiva(user);
 
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
