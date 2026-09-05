@@ -988,6 +988,7 @@ export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
     nodeOffsets: data?.nodeOffsets && typeof data.nodeOffsets === 'object' ? data.nodeOffsets : {},
     containerHeightOffset: Number(data?.containerHeightOffset) || 0,
     containerWidthOffset: Number(data?.containerWidthOffset) || 0,
+    connectionGroups: Array.isArray(data?.connectionGroups) ? data.connectionGroups : [],
   };
 }
 
@@ -998,6 +999,7 @@ export async function guardarDisenoDirectiva({
   nodeOffsets = {},
   containerHeightOffset = 0,
   containerWidthOffset = 0,
+  connectionGroups = [],
   usuario = {},
 } = {}) {
   asegurarFirebaseDirectivas();
@@ -1029,6 +1031,13 @@ export async function guardarDisenoDirectiva({
     // Nunca negativo: el cuadro se ensancha por fuera de su columna, no se
     // estrecha por dentro.
     containerWidthOffset: Math.max(0, Math.round(Number(containerWidthOffset) || 0)),
+    // Solo listas de textos, y de dos en adelante: los grupos se arman en el
+    // navegador y no pueden acabar guardando lo que llegue.
+    connectionGroups: (Array.isArray(connectionGroups) ? connectionGroups : [])
+      .map((grupo) =>
+        (Array.isArray(grupo) ? grupo : []).map((clave) => String(clave || '')).filter(Boolean)
+      )
+      .filter((grupo) => grupo.length > 1),
     fechaActualizacion: serverTimestamp(),
   };
 

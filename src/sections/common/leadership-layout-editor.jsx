@@ -37,6 +37,7 @@ export function useLeadershipLayoutEditor({
   initialNodeOffsets = {},
   initialContainerHeightOffset = 0,
   initialContainerWidthOffset = 0,
+  initialConnectionGroups = [],
 } = {}) {
   const nodeDragRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
@@ -47,6 +48,11 @@ export function useLeadershipLayoutEditor({
   // organigrama ancho se salia por los lados y las cajas de los extremos
   // quedaban cortadas; esto le da sitio sin encoger la letra.
   const [containerWidthOffset, setContainerWidthOffset] = useState(initialContainerWidthOffset);
+  // LINEAS UNIDAS. Cada grupo es un puñado de conexiones que comparten la barra
+  // horizontal del codo, asi que se dibujan como un solo trazo del que salen
+  // varias bajadas —que es como el documento oficial dibuja los equipos—.
+  const [connectionGroups, setConnectionGroups] = useState(initialConnectionGroups);
+  const [selectedConnection, setSelectedConnection] = useState(null);
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
@@ -151,12 +157,56 @@ export function useLeadershipLayoutEditor({
     setContainerWidthOffset((currentValue) => Math.max(0, currentValue + delta));
   }, []);
 
+  // Pulsar una linea la selecciona; pulsar una segunda las UNE. Volver a pulsar
+  // la que ya estaba seleccionada la suelta.
+  const selectConnection = useCallback((id) => {
+    if (!id) {
+      setSelectedConnection(null);
+      return;
+    }
+
+    setSelectedConnection((anterior) => {
+      if (!anterior) return id;
+      if (anterior === id) return null;
+
+      setConnectionGroups((grupos) => {
+        // Si alguna de las dos ya estaba unida a otras, todo se junta en un
+        // grupo: unir A con B cuando B ya iba con C deja las tres en una linea.
+        const tocados = grupos.filter((grupo) => grupo.includes(anterior) || grupo.includes(id));
+        const resto = grupos.filter((grupo) => !tocados.includes(grupo));
+        const fusionado = [...new Set([...tocados.flat(), anterior, id])];
+
+        return [...resto, fusionado];
+      });
+
+      return null;
+    });
+  }, []);
+
+  const separarConexion = useCallback((id) => {
+    if (!id) return;
+
+    setConnectionGroups((grupos) =>
+      grupos
+        .map((grupo) => grupo.filter((clave) => clave !== id))
+        // Un grupo de una sola linea ya no es una union.
+        .filter((grupo) => grupo.length > 1)
+    );
+    setSelectedConnection(null);
+  }, []);
+
+  const grupoDeConexion = useCallback(
+    (id) => connectionGroups.find((grupo) => grupo.includes(id)) || null,
+    [connectionGroups]
+  );
+
   // Hidrata el diagrama con el diseno guardado en Firestore.
   const applyLayout = useCallback(
     ({
       nodeOffsets: offsets,
       containerHeightOffset: heightOffset,
       containerWidthOffset: widthOffset,
+      connectionGroups: grupos,
     } = {}) => {
       if (offsets && typeof offsets === 'object') {
         setNodeOffsets(offsets);
@@ -169,6 +219,10 @@ export function useLeadershipLayoutEditor({
       if (Number.isFinite(Number(widthOffset))) {
         setContainerWidthOffset(Number(widthOffset));
       }
+
+      if (Array.isArray(grupos)) {
+        setConnectionGroups(grupos.filter((grupo) => Array.isArray(grupo) && grupo.length > 1));
+      }
     },
     []
   );
@@ -180,9 +234,14 @@ export function useLeadershipLayoutEditor({
       nodeOffsets,
       containerHeightOffset,
       containerWidthOffset,
+      connectionGroups,
+      selectedConnection,
       applyLayout,
       resizeContainer,
       resizeContainerWidth,
+      selectConnection,
+      separarConexion,
+      grupoDeConexion,
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
@@ -199,6 +258,11 @@ export function useLeadershipLayoutEditor({
       containerHeightOffset,
       containerWidthOffset,
       resizeContainerWidth,
+      connectionGroups,
+      selectedConnection,
+      selectConnection,
+      separarConexion,
+      grupoDeConexion,
     ]
   );
 }
@@ -330,8 +394,12 @@ export function LeadershipLayoutOffsetStyles({ editor, lineStyles }) {
   return <GlobalStyles styles={styles} />;
 }
 
-function buildConnectorPath({ startX, startY, endX, endY }) {
-  const middleY = startY + (endY - startY) / 2;
+// `barraY` es la altura de la barra horizontal por la que pasa el codo. Si no se
+// dice, cada linea usa su propio punto medio —que es lo que hace que dos lineas
+// entre las mismas alturas se dibujen por separado—; pasandola, varias lineas
+// comparten barra y se leen como un solo trazo.
+function buildConnectorPath({ startX, startY, endX, endY, barraY }) {
+  const middleY = Number.isFinite(barraY) ? barraY : startY + (endY - startY) / 2;
   const direction = endX >= startX ? 1 : -1;
   const radius = Math.max(
     0,
@@ -358,6 +426,12 @@ export function LeadershipLayoutConnectorLayer({
   containerRef,
   connections = [],
   lineWidth = 2,
+  // Lineas unidas: cada grupo comparte la barra del codo y se lee como un trazo.
+  connectionGroups = [],
+  // Con el lapiz abierto las lineas se pueden pulsar para unirlas.
+  editMode = false,
+  selectedConnection = null,
+  onSelectConnection,
 }) {
   const [paths, setPaths] = useState([]);
 
@@ -382,7 +456,7 @@ export function LeadershipLayoutConnectorLayer({
         ])
       );
 
-      const nextPaths = connections
+      const medidas = connections
         .map((connection) => {
           const fromElement = nodeElements.get(String(connection.from));
           const toElement = nodeElements.get(String(connection.to));
@@ -400,10 +474,37 @@ export function LeadershipLayoutConnectorLayer({
 
           return {
             id: `${connection.from}-${connection.to}`,
-            d: buildConnectorPath({ startX, startY, endX, endY }),
+            startX,
+            startY,
+            endX,
+            endY,
           };
         })
         .filter(Boolean);
+
+      // La barra de un grupo se pone donde la mas ALTA de sus lineas: asi la
+      // union sale pegada al padre y de ella bajan las demas, en vez de quedar
+      // una barra a media altura cruzando las tarjetas.
+      const medidaPorId = new Map(medidas.map((medida) => [medida.id, medida]));
+      const barraPorId = new Map();
+
+      connectionGroups.forEach((grupo) => {
+        const delGrupo = grupo.map((id) => medidaPorId.get(id)).filter(Boolean);
+
+        if (delGrupo.length < 2) return;
+
+        const barraY = Math.min(
+          ...delGrupo.map((medida) => medida.startY + (medida.endY - medida.startY) / 2)
+        );
+
+        delGrupo.forEach((medida) => barraPorId.set(medida.id, barraY));
+      });
+
+      const nextPaths = medidas.map((medida) => ({
+        id: medida.id,
+        unida: barraPorId.has(medida.id),
+        d: buildConnectorPath({ ...medida, barraY: barraPorId.get(medida.id) }),
+      }));
 
       setPaths((actuales) => (mismasRutas(actuales, nextPaths) ? actuales : nextPaths));
     };
@@ -475,7 +576,7 @@ export function LeadershipLayoutConnectorLayer({
       window.removeEventListener('resize', programarActualizacion);
       window.removeEventListener('scroll', programarActualizacion, true);
     };
-  }, [active, connections, watchKey, containerRef]);
+  }, [active, connections, watchKey, containerRef, connectionGroups]);
 
   if (!active || !paths.length) {
     return null;
@@ -496,18 +597,51 @@ export function LeadershipLayoutConnectorLayer({
         pointerEvents: 'none',
       }}
     >
-      {paths.map((path) => (
-        <Box
-          key={path.id}
-          d={path.d}
-          component="path"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={lineWidth}
-          stroke="var(--palette-grey-500)"
-        />
-      ))}
+      {paths.map((path) => {
+        const seleccionada = selectedConnection === path.id;
+
+        return (
+          <Box component="g" key={path.id}>
+            <Box
+              d={path.d}
+              component="path"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={seleccionada ? lineWidth + 1.5 : lineWidth}
+              stroke={
+                seleccionada
+                  ? 'var(--palette-primary-main)'
+                  : path.unida
+                    ? 'var(--palette-grey-600)'
+                    : 'var(--palette-grey-500)'
+              }
+            />
+
+            {/* Una copia gruesa e invisible: el trazo real mide dos pixeles y
+                acertarle con el raton seria una loteria. Solo existe con el
+                lapiz abierto, para no robarle el arrastre al organigrama. */}
+            {editMode && (
+              <Box
+                d={path.d}
+                component="path"
+                fill="none"
+                stroke="transparent"
+                strokeWidth={14}
+                sx={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                onPointerDown={(event) => {
+                  // Sin esto, pulsar la linea empieza a arrastrar el cuadro.
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectConnection?.(path.id);
+                }}
+              />
+            )}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -620,6 +754,37 @@ export function LeadershipLayoutEditor({
               Vista: x {Math.round(pan.x)}px, y {Math.round(pan.y)}px, zoom{' '}
               {Math.round(zoom * 100)}%
             </Typography>
+
+            {/* UNIR LINEAS: se pulsa una y luego otra, y pasan a compartir el
+                mismo trazo. Es como el documento dibuja los equipos: una barra
+                de la que bajan varias. */}
+            <Stack spacing={0.25}>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                Lineas {editor.connectionGroups.length ? `(${editor.connectionGroups.length} unidas)` : ''}
+              </Typography>
+
+              {editor.selectedConnection ? (
+                <>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Pulsa otra linea para unirla con esta.
+                  </Typography>
+
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="inherit"
+                    onClick={() => editor.separarConexion(editor.selectedConnection)}
+                    disabled={!editor.grupoDeConexion(editor.selectedConnection)}
+                  >
+                    Separar esta linea
+                  </Button>
+                </>
+              ) : (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Pulsa una linea para unirla con otra.
+                </Typography>
+              )}
+            </Stack>
 
             {editor.selectedNode ? (
               <Stack spacing={0.25}>

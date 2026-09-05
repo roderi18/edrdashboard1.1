@@ -308,9 +308,13 @@ export function DestYouthLeadershipView() {
 
   const arbol = useMemo(() => construirArbolJuvenil(divisionId), [divisionId]);
   const connections = useMemo(() => getLeadershipConnections(arbol), [arbol]);
-  const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
+  // La capa SVG sustituye a las lineas nativas del arbol. Hace falta tanto si
+  // hay cajas desplazadas como si hay lineas unidas: las nativas no saben
+  // compartir barra.
+  const connectorLayerActive =
+    hasLeadershipLayoutOffsets(layoutEditor) || layoutEditor.connectionGroups.length > 0;
   const containerMinHeight = 760 + layoutEditor.containerHeightOffset;
-  const connectorWatchKey = `${divisionId}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  const connectorWatchKey = `${divisionId}:${JSON.stringify(layoutEditor.connectionGroups)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 
   const structureTitle = destNombreCompleto
     ? `${destNombreCompleto} · ${division?.nombre ?? ''}`
@@ -569,6 +573,10 @@ export function DestYouthLeadershipView() {
           connections={connections}
           containerRef={containerRef}
           lineWidth={2}
+          connectionGroups={layoutEditor.connectionGroups}
+          editMode={layoutEditor.editMode}
+          selectedConnection={layoutEditor.selectedConnection}
+          onSelectConnection={layoutEditor.selectConnection}
         />
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
