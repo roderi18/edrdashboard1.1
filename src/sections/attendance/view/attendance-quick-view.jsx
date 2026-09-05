@@ -56,12 +56,13 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { ExportTableButton } from 'src/components/export-table-button';
 
+import { DivisionOptionContent } from 'src/sections/common/division-option-content';
+
 import { useAuthContext } from 'src/auth/hooks';
 import { ROLES } from 'src/auth/permissions/roles';
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { can, puedeModificar } from 'src/auth/permissions/can';
 
-import { DivisionOptionContent } from '../division-option-content';
 import { AttendanceAdvancedReportDialog } from '../attendance-advanced-report-dialog';
 
 // ----------------------------------------------------------------------

@@ -8,7 +8,7 @@
 // aparece puesto aqui, porque es la misma persona en el mismo puesto.
 //
 // Hay UN cuadro por division y se ve de uno en uno, elegido con el desplegable.
-// Dibujar los cuatro a la vez no cabe: cada uno tiene diecisiete casillas.
+// Dibujar los cuatro a la vez no cabe: cada uno tiene dieciseis casillas.
 //
 // El "Equipo de Liderazgo de Grupo" del documento oficial NO esta aqui: es un
 // recuadro que agrupa visualmente al Guia Mayor con su equipo, no un cargo que
@@ -69,10 +69,15 @@ export const construirArbolJuvenil = (division) =>
     cargo: 'lider_grupo',
     division,
     children: [
-      // Dos asistentes: el `orden` es lo unico que los separa.
+      // Dos asistentes: el `orden` es lo unico que los separa. El PRIMERO se
+      // llama como en la Directiva Local —sin numero— porque es el mismo nodo
+      // del catalogo; ponerle un "1" lo dejaria sin cargo que lo respalde.
       ...Array.from({ length: ASISTENTES_DE_GRUPO }, (_, indice) =>
         nodo({
-          id: `lider-asistente-grupo-${indice + 1}-${division}`,
+          id:
+            indice === 0
+              ? `lider-asistente-grupo-${division}`
+              : `lider-asistente-grupo-${indice + 1}-${division}`,
           role: 'Líder Asistente de Grupo',
           cargo: 'lider_asistente_grupo',
           division,

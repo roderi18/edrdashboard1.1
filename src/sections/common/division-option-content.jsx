@@ -5,9 +5,9 @@ import Stack from '@mui/material/Stack';
 // EL DESPLEGABLE DE DIVISION, CON SUS ESCUDOS.
 //
 // Cada division tiene el suyo y se reconoce antes por la imagen que por el
-// nombre. Vive aparte porque lo usan las dos pantallas de asistencia —la lista y
-// el informe avanzado—: repetido en cada una, una acababa con escudos y la otra
-// sin ellos.
+// nombre. Vive en `common` porque ya lo usan tres pantallas de dos modulos —la
+// lista de asistencia, su informe avanzado y la Directiva de Lideres
+// Juveniles—: repetido en cada una, unas acababan con escudos y otras sin ellos.
 //
 // "Todos" es el valor `all` del desplegable y no una division: lleva el icono de
 // Exploradores del Rey, que es la casa entera. Sin el, la unica opcion sin

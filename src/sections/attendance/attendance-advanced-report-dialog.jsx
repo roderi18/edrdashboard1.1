@@ -20,7 +20,7 @@ import { obtenerHistorialAsistenciaDestacamento } from 'src/services/attendance-
 
 import { Chart, useChart } from 'src/components/chart';
 
-import { DivisionOptionContent } from './division-option-content';
+import { DivisionOptionContent } from 'src/sections/common/division-option-content';
 
 // ----------------------------------------------------------------------
 // INFORME AVANZADO: COMO VA LA ASISTENCIA CON EL TIEMPO.

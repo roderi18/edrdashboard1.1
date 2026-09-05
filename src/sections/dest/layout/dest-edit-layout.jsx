@@ -57,6 +57,13 @@ export function DestEditLayout({ children, ...other }) {
             icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
             href: `/dashboard/level/dest/${destId}/edit/leadership`,
         },
+        {
+            // El equipo que dirige el Lider de Grupo de cada division: continua
+            // hacia abajo lo que la Directiva Local termina.
+            label: 'Directiva Líderes Juveniles',
+            icon: <Iconify width={24} icon="solar:users-group-two-rounded-bold" />,
+            href: `/dashboard/level/dest/${destId}/edit/youth-leadership`,
+        },
     ];
 
     return (
