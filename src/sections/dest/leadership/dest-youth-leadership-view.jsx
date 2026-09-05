@@ -1,7 +1,7 @@
 'use client';
 
 import { usePopover } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -392,6 +392,22 @@ export function DestYouthLeadershipView() {
   // El almacenamiento no ve los ids de esta division, sino los de la plantilla:
   // lo que se guarde sirve para las cuatro, y lo que se lea se trae a la que se
   // este mirando.
+  // ESTA FUNCION TIENE QUE SER ESTABLE.
+  //
+  // El efecto que trae el diseno guardado depende de ella. Si se recreara en cada
+  // render, el efecto volveria a lanzarse, aplicaria el diseno, eso cambiaria el
+  // editor, y vuelta a empezar: un bucle que con el esqueleto se veia como un
+  // parpadeo continuo. Solo depende de la division y de `applyLayout`, que el
+  // editor si mantiene estable.
+  const { applyLayout: aplicarEnElEditor } = layoutEditor;
+
+  const applyLayoutCompartido = useCallback(
+    (diseno) => aplicarEnElEditor(convertirDiseno(diseno, (id) => desdePlantilla(id, divisionId))),
+    [aplicarEnElEditor, divisionId]
+  );
+
+  // Lo que el almacenamiento lee del editor va en forma de plantilla; lo que le
+  // devuelve pasa por la funcion de arriba.
   const editorCompartido = useMemo(
     () => ({
       ...layoutEditor,
@@ -404,12 +420,9 @@ export function DestYouthLeadershipView() {
         },
         (id) => aPlantilla(id, divisionId)
       ),
-      applyLayout: (diseno) =>
-        layoutEditor.applyLayout(
-          convertirDiseno(diseno, (id) => desdePlantilla(id, divisionId))
-        ),
+      applyLayout: applyLayoutCompartido,
     }),
-    [layoutEditor, divisionId]
+    [layoutEditor, divisionId, applyLayoutCompartido]
   );
 
   const layoutStorage = useLeadershipLayoutStorage({
