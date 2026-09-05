@@ -64,6 +64,7 @@ import {
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
 import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
@@ -1944,27 +1945,27 @@ export default function Page() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!removeMemberNode} onClose={handleCloseRemoveMember} fullWidth maxWidth="xs">
-        <DialogTitle>Remover miembro</DialogTitle>
-
-        <DialogContent>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+      {/* Se escribe "Remover" para confirmar, igual que en los organigramas de
+          Nacion, Region y Seccion: quitar a alguien de su cargo le retira el rol
+          con el que entra, y un boton rojo se pulsa sin querer. Este era el unico
+          de los cuatro que se conformaba con un clic. */}
+      <ConfirmEscribiendoDialog
+        open={!!removeMemberNode}
+        onClose={handleCloseRemoveMember}
+        title="Remover miembro"
+        content={
+          <>
             ¿Realmente quieres remover a{' '}
             <Box component="strong" sx={{ color: 'text.primary' }}>
               {getMemberName(getAssignedMember(removeMemberNode)) || 'este miembro'}
             </Box>{' '}
             del rol {removeMemberNode?.role || 'seleccionado'}?
-          </Typography>
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={handleCloseRemoveMember}>Cancelar</Button>
-
-          <Button variant="contained" color="error" onClick={handleConfirmRemoveMember}>
-            Remover
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+        onConfirm={handleConfirmRemoveMember}
+        palabra="Remover"
+        confirmLabel="Remover"
+      />
     </DestEditLayout>
   );
 }
