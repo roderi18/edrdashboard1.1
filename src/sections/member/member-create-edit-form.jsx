@@ -86,12 +86,12 @@ import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leaders
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
   invalidateMembersCache,
   getLeadershipAssignments,
 } from 'src/services/member-service';
-import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   guardarCorreoDeAcceso,
   consultarCodigoRestablecimiento,
@@ -1878,6 +1878,15 @@ export function MemberCreateEditForm({
       // Al CREAR si se espera de verdad: despues vienen la redireccion, el alta
       // del usuario de acceso y las notificaciones, y soltar la pantalla a medias
       // dejaria al miembro sin cuenta y al usuario en otra pagina sin saberlo.
+      //
+      // EL EXITO NO SE CANTA SI ALGO FALLO.
+      //
+      // El aviso verde salia en un temporizador, pasara lo que pasara con la
+      // escritura: al fallar el cargo se veian los dos a la vez —"Actualizacion
+      // exitosa!" encima del error— y el guardado parecia haber funcionado. La
+      // bandera la levanta quien atrapa el fallo; abajo se mira antes de anunciar.
+      let algoFallo = false;
+
       const tareaGuardado = (async () => {
         try {
           const submittedFirstName = formData.firstName;
@@ -2228,6 +2237,7 @@ export function MemberCreateEditForm({
                 formData,
               });
             } catch (cargoError) {
+              algoFallo = true;
               toast.error(cargoError.message || 'No se pudo guardar el cargo del miembro.');
             }
           }
@@ -2326,16 +2336,23 @@ export function MemberCreateEditForm({
             router.push(paths.dashboard.level.member.root);
           }
         } catch (error) {
+          algoFallo = true;
           toast.error(error.message || 'Error guardando en API');
         }
       })();
 
       if (currentMember) {
-        // La pantalla vuelve a la normalidad aqui, pase lo que pase con la
-        // escritura. El "exito" se anuncia en este punto y no cuando termine de
-        // guardarse: es el compromiso de mostrar el guardado como instantaneo.
-        await esperar(RETARDO_GUARDADO_MS);
-        toast.success('Actualizacion exitosa!');
+        // La pantalla vuelve a la normalidad aqui: el guardado se muestra como
+        // instantaneo y no se espera a que la base de datos termine. Lo que si
+        // se espera es a que la tarea termine SI acaba antes del retardo, que es
+        // el caso normal: asi da tiempo a saber si fallo y no se canta un exito
+        // que no fue. Si tarda mas, se anuncia igual y el fallo —si llega— lo
+        // dira su propio aviso.
+        await Promise.race([tareaGuardado, esperar(RETARDO_GUARDADO_MS)]);
+
+        if (!algoFallo) {
+          toast.success('Actualizacion exitosa!');
+        }
 
         return;
       }
