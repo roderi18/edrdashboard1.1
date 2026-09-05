@@ -20,9 +20,7 @@ import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { getOwnDestIdsForUser, canManageDestLeadership } from 'src/utils/member-access';
 
 import { getDestsApi } from 'src/services/dest-service';
-import { guardarDisenoDirectiva } from 'src/services/directivas-organizacionales-service';
 
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
@@ -148,51 +146,54 @@ const DESPLAZAMIENTOS_DE_LA_ESPINA = DIVISIONES_JUVENILES.reduce((acc, { id }) =
   return acc;
 }, {});
 
+// La misma espina, con el marcador en lugar de la division: es la forma que
+// entiende el diseno compartido por las cuatro.
+const ESPINA_EN_PLANTILLA = Object.entries(DESPLAZAMIENTOS_DE_LA_ESPINA).reduce(
+  (acc, [id, offset]) =>
+    id.endsWith('-exploradores') ? { ...acc, [id.replace(/-exploradores$/, '-@div')]: offset } : acc,
+  {}
+);
+
 // El tronco baja dos escalones, asi que el cuadro necesita ese alto de mas.
 const DESPLAZAMIENTO_ALTO_CONTENEDOR = ESCALON * 2;
 
-// COPIAR EL DISENO DE UNA DIVISION A OTRA.
+// UN SOLO DISENO PARA LAS CUATRO DIVISIONES.
 //
-// Los cuatro cuadros son iguales en forma, asi que colocar uno y repetirlo tres
-// veces a mano es trabajo tirado. Lo unico que hay que traducir son los ids: cada
-// casilla lleva su division dentro (`guia-mayor-exploradores`), y las lineas se
-// identifican por los ids de sus dos extremos, asi que basta con cambiar ese
-// tramo por el de la division de destino.
-const traducirIdDeDivision = (id, desde, hasta) =>
-  String(id || '').split(`-${desde}`).join(`-${hasta}`);
-
-// SOLO LO DE LA DIVISION QUE SE COPIA.
+// Los cuatro cuadros son identicos en forma: las mismas dieciseis casillas con
+// los mismos parentescos. Lo que cambia es a quien tienen dentro, no como se
+// colocan. Guardar una copia por division obligaba a repetir el trabajo cuatro
+// veces y a mantenerlas en sincronia a mano.
 //
-// El editor tiene en la mano las posiciones de las CUATRO divisiones a la vez
-// —los valores por defecto las traen todas—, asi que sin filtrar antes, al
-// traducir se pisaban unas a otras: la copia de Exploradores y el original de
-// Seguidores acababan con la misma clave y ganaba el ultimo.
-const esDeLaDivision = (id, division) => String(id || '').endsWith(`-${division}`);
+// Se guarda UNO, sin division en la clave. Los ids si la llevan
+// (`guia-mayor-exploradores`), asi que se cambia por un marcador al guardar y se
+// devuelve al leer, con la division que toque.
+//
+// El marcador hace falta porque el id de una LINEA son los de sus dos extremos
+// pegados: quitarle la division a esa cadena no se podria deshacer, pero
+// sustituirla si.
+const MARCA_DIVISION = '@div';
 
-const traducirDisenoDeDivision = (diseno, desde, hasta) => ({
-  nodeOffsets: Object.entries(diseno.nodeOffsets || {})
-    .filter(([id]) => esDeLaDivision(id, desde))
-    .reduce((acc, [id, offset]) => ({ ...acc, [traducirIdDeDivision(id, desde, hasta)]: offset }), {}),
-  connectionGroups: (diseno.connectionGroups || [])
-    .filter((grupo) => grupo.ids.every((id) => esDeLaDivision(id, desde)))
-    .map((grupo) => ({
-      ...grupo,
-      ids: grupo.ids.map((id) => traducirIdDeDivision(id, desde, hasta)),
-    })),
-  hiddenConnections: (diseno.hiddenConnections || [])
-    .filter((id) => esDeLaDivision(id, desde))
-    .map((id) => traducirIdDeDivision(id, desde, hasta)),
-  extraConnections: (diseno.extraConnections || [])
-    .filter(
-      (vinculo) => esDeLaDivision(vinculo.from, desde) && esDeLaDivision(vinculo.to, desde)
-    )
-    .map((vinculo) => ({
-      ...vinculo,
-      from: traducirIdDeDivision(vinculo.from, desde, hasta),
-      to: traducirIdDeDivision(vinculo.to, desde, hasta),
-    })),
-  containerHeightOffset: diseno.containerHeightOffset,
-  containerWidthOffset: diseno.containerWidthOffset,
+const aPlantilla = (id, division) => String(id || '').split(`-${division}`).join(`-${MARCA_DIVISION}`);
+
+const desdePlantilla = (id, division) =>
+  String(id || '').split(`-${MARCA_DIVISION}`).join(`-${division}`);
+
+const convertirDiseno = (diseno = {}, convertir) => ({
+  ...diseno,
+  nodeOffsets: Object.entries(diseno.nodeOffsets || {}).reduce(
+    (acc, [id, offset]) => ({ ...acc, [convertir(id)]: offset }),
+    {}
+  ),
+  connectionGroups: (diseno.connectionGroups || []).map((grupo) => ({
+    ...grupo,
+    ids: (grupo.ids || []).map(convertir),
+  })),
+  hiddenConnections: (diseno.hiddenConnections || []).map(convertir),
+  extraConnections: (diseno.extraConnections || []).map((vinculo) => ({
+    ...vinculo,
+    from: convertir(vinculo.from),
+    to: convertir(vinculo.to),
+  })),
 });
 
 // ----------------------------------------------------------------------
@@ -350,14 +351,38 @@ export function DestYouthLeadershipView() {
     canManage: canManageLeadership,
   });
 
+  // El almacenamiento no ve los ids de esta division, sino los de la plantilla:
+  // lo que se guarde sirve para las cuatro, y lo que se lea se trae a la que se
+  // este mirando.
+  const editorCompartido = useMemo(
+    () => ({
+      ...layoutEditor,
+      ...convertirDiseno(
+        {
+          nodeOffsets: layoutEditor.nodeOffsets,
+          connectionGroups: layoutEditor.connectionGroups,
+          hiddenConnections: layoutEditor.hiddenConnections,
+          extraConnections: layoutEditor.extraConnections,
+        },
+        (id) => aPlantilla(id, divisionId)
+      ),
+      applyLayout: (diseno) =>
+        layoutEditor.applyLayout(
+          convertirDiseno(diseno, (id) => desdePlantilla(id, divisionId))
+        ),
+    }),
+    [layoutEditor, divisionId]
+  );
+
   const layoutStorage = useLeadershipLayoutStorage({
-    editor: layoutEditor,
+    editor: editorCompartido,
     nivel: NIVEL_DISENO,
-    // La division va en la clave: cada cuadro se recoloca por su cuenta.
-    idEntidad: destId ? `${destId}-${divisionId}` : '',
+    // SIN division: un solo diseño para las cuatro.
+    idEntidad: destId ? String(destId) : '',
     nombreEntidad: destNombreCompleto,
     canManage: canManageLayout,
-    defaultNodeOffsets: DESPLAZAMIENTOS_DE_LA_ESPINA,
+    // Los valores por defecto, tambien en forma de plantilla.
+    defaultNodeOffsets: ESPINA_EN_PLANTILLA,
     defaultContainerHeightOffset: DESPLAZAMIENTO_ALTO_CONTENEDOR,
   });
 
@@ -419,43 +444,6 @@ export function DestYouthLeadershipView() {
   useEffect(() => {
     setPan(DEFAULT_PAN);
   }, [divisionId]);
-
-  const [copiando, setCopiando] = useState(false);
-
-  const copiarDisenoALasDemas = async () => {
-    const otras = DIVISIONES_JUVENILES.filter(({ id }) => id !== divisionId);
-
-    setCopiando(true);
-
-    try {
-      const actual = {
-        nodeOffsets: layoutEditor.nodeOffsets,
-        connectionGroups: layoutEditor.connectionGroups,
-        hiddenConnections: layoutEditor.hiddenConnections,
-        extraConnections: layoutEditor.extraConnections,
-        containerHeightOffset: layoutEditor.containerHeightOffset,
-        containerWidthOffset: layoutEditor.containerWidthOffset,
-      };
-
-      await Promise.all(
-        otras.map((otra) =>
-          guardarDisenoDirectiva({
-            nivel: NIVEL_DISENO,
-            idEntidad: `${destId}-${otra.id}`,
-            nombreEntidad: `${destNombreCompleto} · ${otra.nombre}`,
-            ...traducirDisenoDeDivision(actual, divisionId, otra.id),
-          })
-        )
-      );
-
-      toast.success(`Diseño copiado a ${otras.map(({ nombre }) => nombre).join(', ')}.`);
-    } catch (error) {
-      console.error('[directiva juvenil] no se pudo copiar el diseño', error);
-      toast.error(error?.message || 'No se pudo copiar el diseño.');
-    } finally {
-      setCopiando(false);
-    }
-  };
 
   const handlePointerDown = (event) => {
     const interactivo = event.target.closest?.(
@@ -547,21 +535,6 @@ export function DestYouthLeadershipView() {
           {esDeOtroDestacamento ? ' Este destacamento no es el tuyo: solo se consulta.' : ''}
         </Typography>
 
-        {/* Los cuatro cuadros son iguales en forma: se coloca uno y se reparte.
-            Solo lo ve quien puede guardar disenos. */}
-        {canManageLayout && (
-          <Button
-            size="small"
-            variant="outlined"
-            color="inherit"
-            disabled={copiando}
-            startIcon={<Iconify icon="solar:copy-bold" />}
-            onClick={copiarDisenoALasDemas}
-            sx={{ flexShrink: 0 }}
-          >
-            {copiando ? 'Copiando…' : 'Copiar diseño a las demás'}
-          </Button>
-        )}
       </Stack>
 
       <Box
