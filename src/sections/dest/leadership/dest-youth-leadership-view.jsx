@@ -575,7 +575,7 @@ export function DestYouthLeadershipView() {
           lineWidth={2}
           connectionGroups={layoutEditor.connectionGroups}
           editMode={layoutEditor.editMode}
-          selectedConnection={layoutEditor.selectedConnection}
+          selectedConnections={layoutEditor.selectedConnections}
           onSelectConnection={layoutEditor.selectConnection}
         />
 

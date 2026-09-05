@@ -33,6 +33,22 @@ export const getLeadershipNodeKey = (node) =>
   node?.role ||
   node?.name;
 
+// Acepta la forma vieja —lista de listas— y la nueva. Asi un diseno guardado
+// antes de que existiera la orientacion se sigue leyendo, como barra horizontal.
+function normalizarGrupos(grupos) {
+  return (Array.isArray(grupos) ? grupos : [])
+    .map((grupo) => {
+      const ids = Array.isArray(grupo) ? grupo : grupo?.ids;
+      const limpios = (Array.isArray(ids) ? ids : []).map((id) => String(id || '')).filter(Boolean);
+
+      return {
+        ids: [...new Set(limpios)],
+        orientacion: grupo?.orientacion === 'vertical' ? 'vertical' : 'horizontal',
+      };
+    })
+    .filter((grupo) => grupo.ids.length > 1);
+}
+
 export function useLeadershipLayoutEditor({
   initialNodeOffsets = {},
   initialContainerHeightOffset = 0,
@@ -48,11 +64,18 @@ export function useLeadershipLayoutEditor({
   // organigrama ancho se salia por los lados y las cajas de los extremos
   // quedaban cortadas; esto le da sitio sin encoger la letra.
   const [containerWidthOffset, setContainerWidthOffset] = useState(initialContainerWidthOffset);
-  // LINEAS UNIDAS. Cada grupo es un puñado de conexiones que comparten la barra
-  // horizontal del codo, asi que se dibujan como un solo trazo del que salen
-  // varias bajadas —que es como el documento oficial dibuja los equipos—.
-  const [connectionGroups, setConnectionGroups] = useState(initialConnectionGroups);
-  const [selectedConnection, setSelectedConnection] = useState(null);
+  // LINEAS UNIDAS. Cada grupo es un puñado de conexiones que comparten una barra
+  // y se leen como un solo trazo. La barra puede ir en horizontal —codo comun,
+  // del que bajan varias— o en VERTICAL, que es como el documento dibuja el
+  // equipo del Guia Mayor: una barra a la izquierda y salidas laterales.
+  //
+  // Cada grupo es { ids, orientacion }. El ORDEN de `ids` manda: es el que decide
+  // cual queda encima de cual cuando la barra es vertical.
+  const [connectionGroups, setConnectionGroups] = useState(() =>
+    normalizarGrupos(initialConnectionGroups)
+  );
+  // Seleccion MULTIPLE: se van marcando lineas y despues se pulsa "Unir".
+  const [selectedConnections, setSelectedConnections] = useState([]);
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
@@ -157,48 +180,91 @@ export function useLeadershipLayoutEditor({
     setContainerWidthOffset((currentValue) => Math.max(0, currentValue + delta));
   }, []);
 
-  // Pulsar una linea la selecciona; pulsar una segunda las UNE. Volver a pulsar
-  // la que ya estaba seleccionada la suelta.
+  // Pulsar una linea la marca o la desmarca. Unir es un boton aparte: asi se
+  // juntan tantas como haga falta de una vez, y pulsar por error no deshace nada.
   const selectConnection = useCallback((id) => {
     if (!id) {
-      setSelectedConnection(null);
+      setSelectedConnections([]);
       return;
     }
 
-    setSelectedConnection((anterior) => {
-      if (!anterior) return id;
-      if (anterior === id) return null;
+    setSelectedConnections((actuales) =>
+      actuales.includes(id) ? actuales.filter((clave) => clave !== id) : [...actuales, id]
+    );
+  }, []);
 
+  const unirSeleccionadas = useCallback(
+    (orientacion = 'horizontal') => {
       setConnectionGroups((grupos) => {
-        // Si alguna de las dos ya estaba unida a otras, todo se junta en un
-        // grupo: unir A con B cuando B ya iba con C deja las tres en una linea.
-        const tocados = grupos.filter((grupo) => grupo.includes(anterior) || grupo.includes(id));
-        const resto = grupos.filter((grupo) => !tocados.includes(grupo));
-        const fusionado = [...new Set([...tocados.flat(), anterior, id])];
+        if (selectedConnections.length < 2) return grupos;
 
-        return [...resto, fusionado];
+        // Si alguna de las marcadas ya iba con otras, todo se junta: unir A con B
+        // cuando B ya iba con C deja las tres en la misma barra.
+        const tocados = grupos.filter((grupo) =>
+          grupo.ids.some((id) => selectedConnections.includes(id))
+        );
+        const resto = grupos.filter((grupo) => !tocados.includes(grupo));
+        // El orden de marcado manda: es el que decide cual va encima.
+        const ids = [
+          ...new Set([...tocados.flatMap((grupo) => grupo.ids), ...selectedConnections]),
+        ];
+
+        return [...resto, { ids, orientacion }];
       });
 
-      return null;
-    });
-  }, []);
+      setSelectedConnections([]);
+    },
+    [selectedConnections]
+  );
 
   const separarConexion = useCallback((id) => {
     if (!id) return;
 
     setConnectionGroups((grupos) =>
       grupos
-        .map((grupo) => grupo.filter((clave) => clave !== id))
+        .map((grupo) => ({ ...grupo, ids: grupo.ids.filter((clave) => clave !== id) }))
         // Un grupo de una sola linea ya no es una union.
-        .filter((grupo) => grupo.length > 1)
+        .filter((grupo) => grupo.ids.length > 1)
     );
-    setSelectedConnection(null);
+    setSelectedConnections((actuales) => actuales.filter((clave) => clave !== id));
+  }, []);
+
+  const separarGrupoDe = useCallback((id) => {
+    if (!id) return;
+
+    setConnectionGroups((grupos) => grupos.filter((grupo) => !grupo.ids.includes(id)));
+    setSelectedConnections([]);
   }, []);
 
   const grupoDeConexion = useCallback(
-    (id) => connectionGroups.find((grupo) => grupo.includes(id)) || null,
+    (id) => connectionGroups.find((grupo) => grupo.ids.includes(id)) || null,
     [connectionGroups]
   );
+
+  // Sube o baja una linea dentro de su barra. En vertical ese orden es el de
+  // arriba abajo, asi que es lo que decide cual queda encima.
+  const moverEnGrupo = useCallback((id, direccion) => {
+    setConnectionGroups((grupos) =>
+      grupos.map((grupo) => {
+        const indice = grupo.ids.indexOf(id);
+        const destino = indice + direccion;
+
+        if (indice === -1 || destino < 0 || destino >= grupo.ids.length) return grupo;
+
+        const ids = [...grupo.ids];
+
+        [ids[indice], ids[destino]] = [ids[destino], ids[indice]];
+
+        return { ...grupo, ids };
+      })
+    );
+  }, []);
+
+  const cambiarOrientacionDe = useCallback((id, orientacion) => {
+    setConnectionGroups((grupos) =>
+      grupos.map((grupo) => (grupo.ids.includes(id) ? { ...grupo, orientacion } : grupo))
+    );
+  }, []);
 
   // Hidrata el diagrama con el diseno guardado en Firestore.
   const applyLayout = useCallback(
@@ -221,7 +287,7 @@ export function useLeadershipLayoutEditor({
       }
 
       if (Array.isArray(grupos)) {
-        setConnectionGroups(grupos.filter((grupo) => Array.isArray(grupo) && grupo.length > 1));
+        setConnectionGroups(normalizarGrupos(grupos));
       }
     },
     []
@@ -235,13 +301,17 @@ export function useLeadershipLayoutEditor({
       containerHeightOffset,
       containerWidthOffset,
       connectionGroups,
-      selectedConnection,
+      selectedConnections,
       applyLayout,
       resizeContainer,
       resizeContainerWidth,
       selectConnection,
+      unirSeleccionadas,
       separarConexion,
+      separarGrupoDe,
       grupoDeConexion,
+      moverEnGrupo,
+      cambiarOrientacionDe,
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
@@ -259,10 +329,14 @@ export function useLeadershipLayoutEditor({
       containerWidthOffset,
       resizeContainerWidth,
       connectionGroups,
-      selectedConnection,
+      selectedConnections,
       selectConnection,
+      unirSeleccionadas,
       separarConexion,
+      separarGrupoDe,
       grupoDeConexion,
+      moverEnGrupo,
+      cambiarOrientacionDe,
     ]
   );
 }
@@ -420,6 +494,21 @@ function buildConnectorPath({ startX, startY, endX, endY, barraY }) {
   ].join(' ');
 }
 
+// BARRA VERTICAL: un tronco a la izquierda del que salen ramas hacia cada
+// tarjeta, entrando por su costado. Es como el documento dibuja el equipo del
+// Guia Mayor —Supervisor, Historiador y Capellan colgando de la misma barra— y
+// no se consigue con el codo horizontal, que entra siempre por arriba.
+//
+// La PRIMERA rama ademas baja desde el padre hasta la barra; las demas salen ya
+// de ella, para no repintar el mismo tronco una vez por rama.
+function buildRailPath({ startX, startY, railX, entryX, entryY, esPrimera }) {
+  const rama = `M ${railX} ${entryY} H ${entryX}`;
+
+  if (!esPrimera) return rama;
+
+  return `M ${startX} ${startY} V ${entryY} H ${entryX}`;
+}
+
 export function LeadershipLayoutConnectorLayer({
   active,
   watchKey,
@@ -430,7 +519,7 @@ export function LeadershipLayoutConnectorLayer({
   connectionGroups = [],
   // Con el lapiz abierto las lineas se pueden pulsar para unirlas.
   editMode = false,
-  selectedConnection = null,
+  selectedConnections = [],
   onSelectConnection,
 }) {
   const [paths, setPaths] = useState([]);
@@ -478,33 +567,79 @@ export function LeadershipLayoutConnectorLayer({
             startY,
             endX,
             endY,
+            // Para la barra vertical hace falta el costado de la tarjeta, no su
+            // borde de arriba.
+            leftX: toRect.left - containerRect.left,
+            rightX: toRect.right - containerRect.left,
+            midY: toRect.top - containerRect.top + toRect.height / 2,
           };
         })
         .filter(Boolean);
 
-      // La barra de un grupo se pone donde la mas ALTA de sus lineas: asi la
-      // union sale pegada al padre y de ella bajan las demas, en vez de quedar
-      // una barra a media altura cruzando las tarjetas.
       const medidaPorId = new Map(medidas.map((medida) => [medida.id, medida]));
-      const barraPorId = new Map();
+      // Lo que cada linea unida tiene que dibujar, ya resuelto por su grupo.
+      const trazoDeGrupo = new Map();
 
       connectionGroups.forEach((grupo) => {
-        const delGrupo = grupo.map((id) => medidaPorId.get(id)).filter(Boolean);
+        // En el orden del grupo, que es el que el usuario decide con las flechas.
+        const delGrupo = grupo.ids.map((id) => medidaPorId.get(id)).filter(Boolean);
 
         if (delGrupo.length < 2) return;
 
+        if (grupo.orientacion === 'vertical') {
+          // La barra se planta un poco a la izquierda de la tarjeta mas a la
+          // izquierda, y cada rama entra por el costado.
+          const railX = Math.min(...delGrupo.map((medida) => medida.leftX)) - 28;
+
+          delGrupo.forEach((medida, indice) => {
+            trazoDeGrupo.set(medida.id, {
+              d: buildRailPath({
+                startX: medida.startX,
+                startY: medida.startY,
+                railX,
+                entryX: medida.leftX,
+                entryY: medida.midY,
+                esPrimera: indice === 0,
+              }),
+              // El tronco de la primera va de su salida hasta la ultima rama.
+              tronco:
+                indice === 0
+                  ? {
+                      x: railX,
+                      desde: delGrupo[0].midY,
+                      hasta: delGrupo[delGrupo.length - 1].midY,
+                    }
+                  : null,
+            });
+          });
+
+          return;
+        }
+
+        // Barra HORIZONTAL: el codo comun se pone donde la linea mas alta, asi
+        // sale pegada al padre en vez de cruzar las tarjetas a media altura.
         const barraY = Math.min(
           ...delGrupo.map((medida) => medida.startY + (medida.endY - medida.startY) / 2)
         );
 
-        delGrupo.forEach((medida) => barraPorId.set(medida.id, barraY));
+        delGrupo.forEach((medida) => {
+          trazoDeGrupo.set(medida.id, {
+            d: buildConnectorPath({ ...medida, barraY }),
+            tronco: null,
+          });
+        });
       });
 
-      const nextPaths = medidas.map((medida) => ({
-        id: medida.id,
-        unida: barraPorId.has(medida.id),
-        d: buildConnectorPath({ ...medida, barraY: barraPorId.get(medida.id) }),
-      }));
+      const nextPaths = medidas.map((medida) => {
+        const unida = trazoDeGrupo.get(medida.id);
+
+        return {
+          id: medida.id,
+          unida: Boolean(unida),
+          d: unida ? unida.d : buildConnectorPath(medida),
+          tronco: unida?.tronco ?? null,
+        };
+      });
 
       setPaths((actuales) => (mismasRutas(actuales, nextPaths) ? actuales : nextPaths));
     };
@@ -598,10 +733,27 @@ export function LeadershipLayoutConnectorLayer({
       }}
     >
       {paths.map((path) => {
-        const seleccionada = selectedConnection === path.id;
+        const seleccionada = selectedConnections.includes(path.id);
 
         return (
           <Box component="g" key={path.id}>
+            {/* El tronco de la barra vertical: se dibuja una sola vez, con la
+                primera rama del grupo. */}
+            {path.tronco && (
+              <Box
+                component="line"
+                x1={path.tronco.x}
+                y1={path.tronco.desde}
+                x2={path.tronco.x}
+                y2={path.tronco.hasta}
+                strokeLinecap="round"
+                strokeWidth={seleccionada ? lineWidth + 1.5 : lineWidth}
+                stroke={
+                  seleccionada ? 'var(--palette-primary-main)' : 'var(--palette-grey-600)'
+                }
+              />
+            )}
+
             <Box
               d={path.d}
               component="path"
@@ -755,35 +907,102 @@ export function LeadershipLayoutEditor({
               {Math.round(zoom * 100)}%
             </Typography>
 
-            {/* UNIR LINEAS: se pulsa una y luego otra, y pasan a compartir el
-                mismo trazo. Es como el documento dibuja los equipos: una barra
-                de la que bajan varias. */}
-            <Stack spacing={0.25}>
+            {/* UNIR LINEAS. Se marcan las que se quieran y se pulsa el boton;
+                el orden en que se marcan es el que decide cual queda encima
+                cuando la barra es vertical. */}
+            <Stack spacing={0.5}>
               <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                Lineas {editor.connectionGroups.length ? `(${editor.connectionGroups.length} unidas)` : ''}
+                Lineas
+                {editor.connectionGroups.length ? ` · ${editor.connectionGroups.length} unidas` : ''}
               </Typography>
 
-              {editor.selectedConnection ? (
-                <>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Pulsa otra linea para unirla con esta.
-                  </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {editor.selectedConnections.length
+                  ? `${editor.selectedConnections.length} marcada(s). El orden de marcado manda.`
+                  : 'Pulsa las lineas que quieras unir.'}
+              </Typography>
 
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="inherit"
-                    onClick={() => editor.separarConexion(editor.selectedConnection)}
-                    disabled={!editor.grupoDeConexion(editor.selectedConnection)}
-                  >
-                    Separar esta linea
-                  </Button>
-                </>
-              ) : (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Pulsa una linea para unirla con otra.
-                </Typography>
-              )}
+              <Stack direction="row" spacing={0.5}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={editor.selectedConnections.length < 2}
+                  onClick={() => editor.unirSeleccionadas('vertical')}
+                >
+                  Unir en barra
+                </Button>
+
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  disabled={editor.selectedConnections.length < 2}
+                  onClick={() => editor.unirSeleccionadas('horizontal')}
+                >
+                  En codo
+                </Button>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  color="inherit"
+                  disabled={!editor.selectedConnections.length}
+                  onClick={() => editor.selectConnection(null)}
+                >
+                  Quitar
+                </Button>
+              </Stack>
+
+              {/* Con UNA sola marcada se puede ordenar y deshacer su union. */}
+              {editor.selectedConnections.length === 1 &&
+                editor.grupoDeConexion(editor.selectedConnections[0]) && (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+                      Orden en la barra
+                    </Typography>
+
+                    <IconButton
+                      size="small"
+                      aria-label="Subir esta linea"
+                      onClick={() => editor.moverEnGrupo(editor.selectedConnections[0], -1)}
+                      sx={{ width: 28, height: 28, border: '1px solid', borderColor: 'divider' }}
+                    >
+                      <Iconify width={14} icon="eva:arrow-ios-upward-fill" />
+                    </IconButton>
+
+                    <IconButton
+                      size="small"
+                      aria-label="Bajar esta linea"
+                      onClick={() => editor.moverEnGrupo(editor.selectedConnections[0], 1)}
+                      sx={{ width: 28, height: 28, border: '1px solid', borderColor: 'divider' }}
+                    >
+                      <Iconify width={14} icon="eva:arrow-ios-downward-fill" />
+                    </IconButton>
+                  </Stack>
+                )}
+
+              {editor.selectedConnections.length === 1 &&
+                editor.grupoDeConexion(editor.selectedConnections[0]) && (
+                  <Stack direction="row" spacing={0.5}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => editor.separarConexion(editor.selectedConnections[0])}
+                    >
+                      Separar esta
+                    </Button>
+
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => editor.separarGrupoDe(editor.selectedConnections[0])}
+                    >
+                      Deshacer union
+                    </Button>
+                  </Stack>
+                )}
             </Stack>
 
             {editor.selectedNode ? (
