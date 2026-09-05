@@ -19,7 +19,7 @@ import { useParams } from 'src/routes/hooks';
 import { canManageDestLeadershipDirectly } from 'src/utils/org-level-access';
 import { getOwnDestIdsForUser, canManageDestLeadership } from 'src/utils/member-access';
 
-import { getDestById } from 'src/services/dest-service';
+import { getDestsApi } from 'src/services/dest-service';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -251,12 +251,20 @@ export function DestYouthLeadershipView() {
     let montado = true;
 
     const cargar = async () => {
-      const dest = await getDestById(destId).catch(() => null);
+      // `getDestById` lee del espejo en localStorage y es SINCRONA: en una
+      // pestana recien abierta ese espejo puede estar vacio y el titulo saldria
+      // sin nombre. Se pide a la API, igual que hace la Directiva Local.
+      const dests = await getDestsApi({ includePhotos: false }).catch(() => []);
 
       if (!montado) return;
 
+      const dest = (Array.isArray(dests) ? dests : []).find(
+        (fila) =>
+          String(fila?.id) === String(destId) || String(fila?.idDestacamento) === String(destId)
+      );
+
       setDestName(dest?.name || dest?.nombre || '');
-      setDestNumber(dest?.destNumber || dest?.numero || '');
+      setDestNumber(String(dest?.destNumber || dest?.numero || ''));
     };
 
     if (destId) cargar();
