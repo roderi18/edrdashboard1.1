@@ -945,6 +945,36 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
+    // ------------------------------------------------------------------
+    // EL CATALOGO DE PREMIOS.
+    //
+    // Las divisiones, sus carpetas y los premios que contienen: lo mismo que se
+    // navega en el Sistema de Ascenso y lo que ofrece el selector de rutas de
+    // los certificados. Lo lee cualquiera con sesion —hace falta para pintar el
+    // arbol y para elegir donde depositar un certificado—, pero escribirlo es
+    // cambiar la estructura entera del ascenso de la organizacion.
+    //
+    // Caian bajo el comodin del final, que da lectura Y ESCRITURA a cualquier
+    // usuario con cuenta: desde la consola del navegador se podia renombrar un
+    // premio, moverlo de carpeta o borrar el catalogo. Mientras ahi no hubo casi
+    // nada daba igual; ahora vive el catalogo completo.
+    //
+    // Lo siembra `scripts/sembrar-catalogo-ascenso.mjs` con el Admin SDK, que se
+    // salta estas reglas, asi que restringir la escritura no le afecta. Lo que
+    // si deja de escribir es el espejo que hacia `guardarProgresoAscensoMiembro`
+    // al guardar un progreso: ya iba con `.catch(() => null)` y ahora sobra,
+    // porque el catalogo esta completo de antemano.
+    // ------------------------------------------------------------------
+    match /itemsAscenso/{idItem} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal() || esOficinaNacional();
+    }
+
+    match /carpetasAscenso/{idCarpeta} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal() || esOficinaNacional();
+    }
+
     // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
     // ni se borra desde el cliente.
     // Una entrada de bitacora se ANADE a su nombre y de nadie mas. Se podia
@@ -1150,6 +1180,10 @@ service cloud.firestore {
         && coleccion != 'metadatos_privados_publicaciones'
         && coleccion != 'auditoria_sistema'
         && coleccion != 'combinaciones_roles'
+        // El catalogo de premios tiene su bloque arriba: sin excluirlo aqui, el
+        // comodin devolveria la escritura a cualquiera con cuenta.
+        && coleccion != 'itemsAscenso'
+        && coleccion != 'carpetasAscenso'
         // La dispensa medica y la puerta de cambios tienen su propio bloque mas
         // arriba: sin excluirlas aqui, el comodin se lo devolveria a cualquiera.
         && coleccion != 'informacion_medica_basica_miembros'
