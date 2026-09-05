@@ -108,6 +108,11 @@ export function useLeadershipLayoutEditor({
   const nodeDragRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
+  // VARIOS A LA VEZ. Con Ctrl (o Cmd) se van sumando casillas y todas se mueven
+  // juntas: colocar una fila entera de siete de una en una era el trabajo lento
+  // de verdad. `selectedNode` sigue siendo la ultima marcada, que es de la que
+  // el panel ensena las coordenadas.
+  const [selectedNodeIds, setSelectedNodeIds] = useState([]);
   const [nodeOffsets, setNodeOffsets] = useState(initialNodeOffsets);
   const [containerHeightOffset, setContainerHeightOffset] = useState(initialContainerHeightOffset);
   // Cuanto se ensancha el cuadro POR FUERA de la columna de la pagina. Un
@@ -144,6 +149,15 @@ export function useLeadershipLayoutEditor({
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
+    // Al cerrar el lapiz no queda nada marcado: al volver a abrirlo, arrastrar
+    // una casilla habria movido tambien las de la sesion anterior.
+    setSelectedNodeIds([]);
+    setSelectedNode(null);
+  }, []);
+
+  const limpiarSeleccionDeNodos = useCallback(() => {
+    setSelectedNodeIds([]);
+    setSelectedNode(null);
   }, []);
 
   const handleNodePointerDown = useCallback(
@@ -159,14 +173,42 @@ export function useLeadershipLayoutEditor({
       event.stopPropagation();
       event.currentTarget.setPointerCapture(event.pointerId);
 
-      const currentOffset = nodeOffsets[node.id] ?? EMPTY_OFFSET;
+      const conCtrl = event.ctrlKey || event.metaKey;
+      const yaMarcado = selectedNodeIds.includes(node.id);
+
+      // Con Ctrl se suma o se quita de la seleccion; sin Ctrl, si se agarra una
+      // que ya estaba marcada se mantiene el grupo —asi se arrastran todas—, y
+      // si se agarra otra se empieza de cero con esa.
+      const marcados = (() => {
+        if (conCtrl) {
+          return yaMarcado
+            ? selectedNodeIds.filter((id) => id !== node.id)
+            : [...selectedNodeIds, node.id];
+        }
+
+        return yaMarcado ? selectedNodeIds : [node.id];
+      })();
+
+      setSelectedNodeIds(marcados);
+
+      // Quitar una del grupo con Ctrl no arrastra nada.
+      if (conCtrl && yaMarcado) {
+        nodeDragRef.current = null;
+        setSelectedNode(null);
+
+        return;
+      }
 
       nodeDragRef.current = {
         id: node.id,
         startX: event.clientX,
         startY: event.clientY,
-        offsetX: currentOffset.x,
-        offsetY: currentOffset.y,
+        // El punto de partida de CADA una de las marcadas: se mueven todas la
+        // misma distancia, cada una desde donde estaba.
+        inicioPorNodo: marcados.reduce(
+          (acc, id) => ({ ...acc, [id]: nodeOffsets[id] ?? EMPTY_OFFSET }),
+          {}
+        ),
       };
 
       setSelectedNode({
@@ -175,7 +217,7 @@ export function useLeadershipLayoutEditor({
         role: node.role,
       });
     },
-    [editMode, nodeOffsets]
+    [editMode, nodeOffsets, selectedNodeIds]
   );
 
   const handleNodePointerMove = useCallback((event) => {
@@ -187,15 +229,21 @@ export function useLeadershipLayoutEditor({
 
     event.stopPropagation();
 
-    const nextOffset = {
-      x: Math.round(dragState.offsetX + event.clientX - dragState.startX),
-      y: Math.round(dragState.offsetY + event.clientY - dragState.startY),
-    };
+    const avanceX = event.clientX - dragState.startX;
+    const avanceY = event.clientY - dragState.startY;
 
-    setNodeOffsets((currentOffsets) => ({
-      ...currentOffsets,
-      [dragState.id]: nextOffset,
-    }));
+    setNodeOffsets((currentOffsets) => {
+      const siguientes = { ...currentOffsets };
+
+      Object.entries(dragState.inicioPorNodo).forEach(([id, inicio]) => {
+        siguientes[id] = {
+          x: Math.round(inicio.x + avanceX),
+          y: Math.round(inicio.y + avanceY),
+        };
+      });
+
+      return siguientes;
+    });
   }, []);
 
   const handleNodePointerUp = useCallback((event) => {
@@ -213,7 +261,7 @@ export function useLeadershipLayoutEditor({
       return {
         offset,
         editMode,
-        selected: selectedNode?.id === node.id,
+        selected: selectedNodeIds.includes(node.id) || selectedNode?.id === node.id,
         onPointerUp: handleNodePointerUp,
         onPointerMove: handleNodePointerMove,
         onPointerCancel: handleNodePointerUp,
@@ -224,6 +272,7 @@ export function useLeadershipLayoutEditor({
       editMode,
       nodeOffsets,
       selectedNode?.id,
+      selectedNodeIds,
       handleNodePointerUp,
       handleNodePointerMove,
       handleNodePointerDown,
@@ -459,6 +508,8 @@ export function useLeadershipLayoutEditor({
     () => ({
       editMode,
       selectedNode,
+      selectedNodeIds,
+      limpiarSeleccionDeNodos,
       nodeOffsets,
       containerHeightOffset,
       containerWidthOffset,
@@ -491,6 +542,8 @@ export function useLeadershipLayoutEditor({
     [
       editMode,
       selectedNode,
+      selectedNodeIds,
+      limpiarSeleccionDeNodos,
       nodeOffsets,
       applyLayout,
       resizeContainer,
@@ -1153,6 +1206,59 @@ export function LeadershipLayoutEditor({
     ? (editor.nodeOffsets[editor.selectedNode.id] ?? EMPTY_OFFSET)
     : EMPTY_OFFSET;
 
+  // DONDE ESTA EL PANEL. `null` es su sitio de siempre —al costado en pantalla
+  // grande, sobre el cuadro en pequeña—; en cuanto se arrastra pasa a guardar
+  // sus coordenadas en la ventana. Se queda en memoria mientras dure la visita:
+  // es una comodidad de quien esta colocando, no parte del diseño.
+  const [posicionPanel, setPosicionPanel] = useState(null);
+  const panelRef = useRef(null);
+  const arrastreDelPanel = useRef(null);
+
+  const iniciarArrastreDelPanel = (event) => {
+    const panel = panelRef.current;
+
+    if (!panel || event.button !== 0) return;
+
+    const rect = panel.getBoundingClientRect();
+
+    arrastreDelPanel.current = {
+      dx: event.clientX - rect.left,
+      dy: event.clientY - rect.top,
+      ancho: rect.width,
+      alto: rect.height,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.stopPropagation();
+  };
+
+  const moverElPanel = (event) => {
+    const arrastre = arrastreDelPanel.current;
+
+    if (!arrastre) return;
+
+    // Sin salirse de la ventana: si se suelta fuera, el panel ya no se alcanza
+    // para volver a traerlo.
+    const x = Math.min(
+      Math.max(0, event.clientX - arrastre.dx),
+      Math.max(0, window.innerWidth - arrastre.ancho)
+    );
+    const y = Math.min(
+      Math.max(0, event.clientY - arrastre.dy),
+      Math.max(0, window.innerHeight - arrastre.alto)
+    );
+
+    setPosicionPanel({ x, y });
+  };
+
+  const soltarElPanel = (event) => {
+    arrastreDelPanel.current = null;
+
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
   return (
     <Box
       data-pdf-hidden="true"
@@ -1166,18 +1272,87 @@ export function LeadershipLayoutEditor({
     >
       {editor.editMode && (
         <Paper
+          ref={panelRef}
           variant="outlined"
-          sx={{
+          sx={(theme) => ({
             p: 1.5,
             mb: 1,
             width: 300,
             maxWidth: 'calc(100vw - 48px)',
             bgcolor: 'background.paper',
             boxShadow: 6,
-          }}
+            // EN PANTALLA GRANDE, FUERA DEL CUADRO.
+            //
+            // El panel se dibujaba dentro del contenedor del organigrama y le
+            // tapaba una esquina justo mientras se colocan las cajas, que es
+            // cuando hace falta verlas todas. Con `fixed` se sale del recuadro
+            // —y de su `overflow: hidden`, que si no lo recortaria— y se queda
+            // pegado al costado de la ventana.
+            //
+            // En pantallas pequeñas se queda donde estaba: al lado no cabe.
+            [theme.breakpoints.up('lg')]: {
+              position: 'fixed',
+              top: '50%',
+              right: 24,
+              mb: 0,
+              transform: 'translateY(-50%)',
+              maxHeight: 'calc(100vh - 48px)',
+              overflowY: 'auto',
+            },
+            // Arrastrado: manda lo que diga el usuario, en cualquier tamaño de
+            // pantalla. Va al final para pisar al bloque de arriba.
+            ...(posicionPanel && {
+              position: 'fixed',
+              top: posicionPanel.y,
+              left: posicionPanel.x,
+              right: 'auto',
+              bottom: 'auto',
+              mb: 0,
+              transform: 'none',
+              maxHeight: 'calc(100vh - 32px)',
+              overflowY: 'auto',
+            }),
+          })}
         >
           <Stack spacing={0.75}>
-            <Typography variant="subtitle2">Edicion visual</Typography>
+            {/* El titulo es el asa: se agarra aqui y el panel se lleva donde
+                estorbe menos. Doble clic lo devuelve a su sitio. */}
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              onPointerDown={iniciarArrastreDelPanel}
+              onPointerMove={moverElPanel}
+              onPointerUp={soltarElPanel}
+              onPointerCancel={soltarElPanel}
+              onDoubleClick={() => setPosicionPanel(null)}
+              sx={{
+                cursor: 'grab',
+                touchAction: 'none',
+                userSelect: 'none',
+                '&:active': { cursor: 'grabbing' },
+              }}
+            >
+              <Iconify width={16} icon="solar:hamburger-menu-linear" sx={{ color: 'text.disabled' }} />
+
+              <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+                Edicion visual
+              </Typography>
+
+              {posicionPanel && (
+                <Tooltip title="Devolver a su sitio">
+                  <IconButton
+                    size="small"
+                    aria-label="Devolver el panel a su sitio"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => setPosicionPanel(null)}
+                    sx={{ width: 22, height: 22 }}
+                  >
+                    <Iconify width={13} icon="solar:restart-bold" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Titulo: {title}
@@ -1440,6 +1615,23 @@ export function LeadershipLayoutEditor({
                 </Stack>
               ))}
             </Stack>
+
+            {editor.selectedNodeIds.length > 1 && (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+                  {editor.selectedNodeIds.length} casillas marcadas
+                </Typography>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  color="inherit"
+                  onClick={editor.limpiarSeleccionDeNodos}
+                >
+                  Soltar
+                </Button>
+              </Stack>
+            )}
 
             {editor.selectedNode ? (
               <Stack spacing={0.25}>
