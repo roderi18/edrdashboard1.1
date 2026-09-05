@@ -598,6 +598,7 @@ export function DestYouthLeadershipView() {
           editMode={layoutEditor.editMode}
           selectedConnections={layoutEditor.selectedConnections}
           onSelectConnection={layoutEditor.selectConnection}
+          lineasRectas
         />
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />

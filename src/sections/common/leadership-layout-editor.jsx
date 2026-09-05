@@ -49,8 +49,27 @@ function normalizarGrupos(grupos) {
     .filter((grupo) => grupo.ids.length > 1);
 }
 
-// Las cuatro esquinas de una tarjeta, como las nombra el tirador.
-export const ESQUINAS_VINCULO = ['arriba-izq', 'arriba-der', 'abajo-izq', 'abajo-der'];
+// Los cuatro lados de una tarjeta, cada uno por su centro. En las esquinas la
+// linea salia en diagonal desde el vertice y se leia torcida; desde el centro
+// del lado sale perpendicular, que es como estan trazados los organigramas.
+export const LADOS_VINCULO = ['arriba', 'abajo', 'izquierda', 'derecha'];
+
+// Los primeros vinculos se guardaron por esquinas. Se leen igual, quedandose con
+// el lado al que pertenecia cada una.
+const LADO_DE_ESQUINA_ANTIGUA = {
+  'arriba-izq': 'arriba',
+  'arriba-der': 'arriba',
+  'abajo-izq': 'abajo',
+  'abajo-der': 'abajo',
+};
+
+const normalizarLado = (valor) => {
+  const lado = String(valor || '');
+
+  if (LADOS_VINCULO.includes(lado)) return lado;
+
+  return LADO_DE_ESQUINA_ANTIGUA[lado] || null;
+};
 
 // Pares { from, to } limpios y sin repetir.
 function normalizarVinculos(vinculos) {
@@ -60,10 +79,10 @@ function normalizarVinculos(vinculos) {
     .map((vinculo) => ({
       from: String(vinculo?.from || ''),
       to: String(vinculo?.to || ''),
-      // Por que esquina sale y por cual entra. Sin esto la linea va del borde de
+      // Por que lado sale y por cual entra. Sin esto la linea va del borde de
       // abajo del padre al de arriba del hijo, que es lo que hace el arbol.
-      fromEsquina: ESQUINAS_VINCULO.includes(vinculo?.fromEsquina) ? vinculo.fromEsquina : null,
-      toEsquina: ESQUINAS_VINCULO.includes(vinculo?.toEsquina) ? vinculo.toEsquina : null,
+      fromLado: normalizarLado(vinculo?.fromLado ?? vinculo?.fromEsquina),
+      toLado: normalizarLado(vinculo?.toLado ?? vinculo?.toEsquina),
     }))
     .filter((vinculo) => {
       const clave = `${vinculo.from}-${vinculo.to}`;
@@ -356,10 +375,10 @@ export function useLeadershipLayoutEditor({
   // suelta en el de otra: ahi queda la linea, saliendo y entrando justo por esas
   // esquinas. Es la forma directa de hacer lo que los botones hacen en dos
   // pasos.
-  const empezarArrastreDeVinculo = useCallback((nodeId, esquina) => {
+  const empezarArrastreDeVinculo = useCallback((nodeId, lado) => {
     if (!nodeId) return;
 
-    setArrastreDeVinculo({ nodeId, esquina });
+    setArrastreDeVinculo({ nodeId, lado });
   }, []);
 
   // Soltar en el aire cancela. Sin esto, un arrastre fallido dejaba el origen
@@ -377,7 +396,7 @@ export function useLeadershipLayoutEditor({
     return () => window.removeEventListener('pointerup', cancelar);
   }, [arrastreDeVinculo]);
 
-  const soltarArrastreDeVinculo = useCallback((nodeId, esquina) => {
+  const soltarArrastreDeVinculo = useCallback((nodeId, lado) => {
     setArrastreDeVinculo((origen) => {
       // Soltar en el aire, o en la misma tarjeta, no crea nada.
       if (!origen || !nodeId || origen.nodeId === nodeId) return null;
@@ -385,7 +404,7 @@ export function useLeadershipLayoutEditor({
       setExtraConnections((actuales) =>
         normalizarVinculos([
           ...actuales,
-          { from: origen.nodeId, fromEsquina: origen.esquina, to: nodeId, toEsquina: esquina },
+          { from: origen.nodeId, fromLado: origen.lado, to: nodeId, toLado: lado },
         ])
       );
 
@@ -635,8 +654,31 @@ export function LeadershipLayoutOffsetStyles({ editor, lineStyles }) {
 // dice, cada linea usa su propio punto medio —que es lo que hace que dos lineas
 // entre las mismas alturas se dibujen por separado—; pasandola, varias lineas
 // comparten barra y se leen como un solo trazo.
-function buildConnectorPath({ startX, startY, endX, endY, barraY }) {
+// Codo en angulo recto, sin redondear. `lineasRectas` lo pide el organigrama que
+// sigue el trazado del documento oficial, donde las esquinas son vivas.
+function buildConnectorPath({
+  startX,
+  startY,
+  endX,
+  endY,
+  barraY,
+  lineasRectas = false,
+  saleDeCostado = false,
+}) {
   const middleY = Number.isFinite(barraY) ? barraY : startY + (endY - startY) / 2;
+
+  if (lineasRectas) {
+    // Por un costado se sale en horizontal y por arriba o abajo en vertical: si
+    // no, la linea nace hacia dentro de la tarjeta y se ve salir de su cara.
+    if (saleDeCostado) {
+      const middleX = startX + (endX - startX) / 2;
+
+      return `M ${startX} ${startY} H ${middleX} V ${endY} H ${endX}`;
+    }
+
+    return `M ${startX} ${startY} V ${middleY} H ${endX} V ${endY}`;
+  }
+
   const direction = endX >= startX ? 1 : -1;
   const radius = Math.max(
     0,
@@ -675,40 +717,41 @@ function buildRailPath({ startX, startY, railX, entryX, entryY, esPrimera }) {
 // LAS LINEAS QUE DE VERDAD SE DIBUJAN: las del arbol, menos las quitadas, mas
 // las puestas a mano. El arbol sigue siendo la verdad de quien depende de quien;
 // esto solo cambia el dibujo.
-// LOS CUATRO CIRCULITOS DE UNA TARJETA.
+// LOS CUATRO PUNTOS DE UNA TARJETA, uno por lado y en su centro.
 //
 // Solo existen con el lapiz abierto. Se agarra uno y se suelta en el de otra
-// tarjeta: ahi queda la linea. Van por encima de todo (`zIndex` alto) para que
-// se puedan agarrar aunque la tarjeta de al lado los solape.
+// tarjeta: ahi queda la linea. Van por encima de todo para que se puedan agarrar
+// aunque la tarjeta de al lado los solape.
 export function LeadershipNodeAnchors({ editor, nodeId }) {
   if (!editor?.editMode || !nodeId) return null;
 
   const arrastrando = editor.arrastreDeVinculo?.nodeId === nodeId;
 
+  // Centrados en su lado: la mitad del punto sobresale hacia fuera.
   const posiciones = {
-    'arriba-izq': { top: -6, left: -6 },
-    'arriba-der': { top: -6, right: -6 },
-    'abajo-izq': { bottom: -6, left: -6 },
-    'abajo-der': { bottom: -6, right: -6 },
+    arriba: { top: -6, left: '50%', ml: '-6px' },
+    abajo: { bottom: -6, left: '50%', ml: '-6px' },
+    izquierda: { left: -6, top: '50%', mt: '-6px' },
+    derecha: { right: -6, top: '50%', mt: '-6px' },
   };
 
-  return ESQUINAS_VINCULO.map((esquina) => (
+  return LADOS_VINCULO.map((lado) => (
     <Box
-      key={esquina}
-      data-leadership-anchor={`${nodeId}|${esquina}`}
-      aria-label={`Conectar desde ${esquina}`}
+      key={lado}
+      data-leadership-anchor={`${nodeId}|${lado}`}
+      aria-label={`Conectar por ${lado}`}
       onPointerDown={(event) => {
         // Sin esto empieza a arrastrarse la tarjeta, no la linea.
         event.stopPropagation();
         event.preventDefault();
-        editor.empezarArrastreDeVinculo(nodeId, esquina);
+        editor.empezarArrastreDeVinculo(nodeId, lado);
       }}
       onPointerUp={(event) => {
         event.stopPropagation();
-        editor.soltarArrastreDeVinculo(nodeId, esquina);
+        editor.soltarArrastreDeVinculo(nodeId, lado);
       }}
       sx={{
-        ...posiciones[esquina],
+        ...posiciones[lado],
         width: 12,
         height: 12,
         zIndex: 5,
@@ -748,6 +791,8 @@ export function LeadershipLayoutConnectorLayer({
   editMode = false,
   selectedConnections = [],
   onSelectConnection,
+  // Esquinas vivas en vez de redondeadas.
+  lineasRectas = false,
 }) {
   const [paths, setPaths] = useState([]);
 
@@ -786,31 +831,33 @@ export function LeadershipLayoutConnectorLayer({
 
           // Un vinculo hecho a mano sale y entra por la ESQUINA que se agarro;
           // los del arbol, del borde de abajo del padre al de arriba del hijo.
-          const punto = (rect, esquina, porDefecto) => {
+          const punto = (rect, lado, porDefecto) => {
             const izquierda = rect.left - containerRect.left;
             const derecha = rect.right - containerRect.left;
             const arriba = rect.top - containerRect.top;
             const abajo = rect.bottom - containerRect.top;
+            const centroX = izquierda + rect.width / 2;
+            const centroY = arriba + rect.height / 2;
 
-            switch (esquina) {
-              case 'arriba-izq':
-                return { x: izquierda, y: arriba };
-              case 'arriba-der':
-                return { x: derecha, y: arriba };
-              case 'abajo-izq':
-                return { x: izquierda, y: abajo };
-              case 'abajo-der':
-                return { x: derecha, y: abajo };
+            switch (lado) {
+              case 'arriba':
+                return { x: centroX, y: arriba };
+              case 'abajo':
+                return { x: centroX, y: abajo };
+              case 'izquierda':
+                return { x: izquierda, y: centroY };
+              case 'derecha':
+                return { x: derecha, y: centroY };
               default:
                 return porDefecto;
             }
           };
 
-          const salida = punto(fromRect, connection.fromEsquina, {
+          const salida = punto(fromRect, connection.fromLado, {
             x: fromRect.left - containerRect.left + fromRect.width / 2,
             y: fromRect.bottom - containerRect.top,
           });
-          const entrada = punto(toRect, connection.toEsquina, {
+          const entrada = punto(toRect, connection.toLado, {
             x: toRect.left - containerRect.left + toRect.width / 2,
             y: toRect.top - containerRect.top,
           });
@@ -826,6 +873,13 @@ export function LeadershipLayoutConnectorLayer({
             startY,
             endX,
             endY,
+            // Un vinculo hecho a mano manda sobre el trazado: sale y entra por
+            // donde se dijo, y en recto.
+            aMano: Boolean(connection.fromLado || connection.toLado),
+            saleDeCostado:
+              connection.fromLado === 'izquierda' || connection.fromLado === 'derecha',
+            fromLado: connection.fromLado,
+            toLado: connection.toLado,
             // Para la barra vertical hace falta el costado de la tarjeta, no su
             // borde de arriba.
             leftX: toRect.left - containerRect.left,
@@ -883,7 +937,7 @@ export function LeadershipLayoutConnectorLayer({
 
         delGrupo.forEach((medida) => {
           trazoDeGrupo.set(medida.id, {
-            d: buildConnectorPath({ ...medida, barraY }),
+            d: buildConnectorPath({ ...medida, barraY, lineasRectas }),
             tronco: null,
           });
         });
@@ -895,7 +949,9 @@ export function LeadershipLayoutConnectorLayer({
         return {
           id: medida.id,
           unida: Boolean(unida),
-          d: unida ? unida.d : buildConnectorPath(medida),
+          d: unida
+            ? unida.d
+            : buildConnectorPath({ ...medida, lineasRectas: lineasRectas || medida.aMano }),
           tronco: unida?.tronco ?? null,
         };
       });
@@ -970,7 +1026,7 @@ export function LeadershipLayoutConnectorLayer({
       window.removeEventListener('resize', programarActualizacion);
       window.removeEventListener('scroll', programarActualizacion, true);
     };
-  }, [active, connections, watchKey, containerRef, connectionGroups]);
+  }, [active, connections, watchKey, containerRef, connectionGroups, lineasRectas]);
 
   if (!active || !paths.length) {
     return null;
