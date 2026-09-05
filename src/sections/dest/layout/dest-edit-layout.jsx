@@ -51,7 +51,9 @@ export function DestEditLayout({ children, ...other }) {
             href: paths.dashboard.level.dest.edit(destId),
         },
         {
-            label: 'Directiva',
+            // "Local" la distingue de las otras tres: Nacion, Region y Seccion
+            // tienen su propia Directiva y en el destacamento se llaman igual.
+            label: 'Directiva Local',
             icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
             href: `/dashboard/level/dest/${destId}/edit/leadership`,
         },
