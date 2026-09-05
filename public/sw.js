@@ -1,6 +1,7 @@
-const VERSION = 'edr-pwa-v3';
+const VERSION = 'edr-pwa-v4';
 const STATIC_CACHE = `${VERSION}-static`;
 const DATOS_CACHE = `${VERSION}-datos`;
+const PAGINAS_CACHE = `${VERSION}-paginas`;
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
@@ -12,6 +13,10 @@ const STATIC_ASSETS = [
 ];
 
 const STATIC_PATHS = [
+  // Los bundles de Next. Llevan un hash en el nombre, asi que un archivo nunca
+  // cambia de contenido: guardarlos para siempre es seguro. Sin ellos, la
+  // pagina abria en blanco sin conexion aunque el HTML si estuviera guardado.
+  '/_next/static/',
   '/assets/',
   '/fonts/',
   '/icons/',
@@ -19,6 +24,10 @@ const STATIC_PATHS = [
   '/icon-',
   '/maskable-icon-',
 ];
+
+// Las pantallas cuyo HTML se guarda para poder RECARGAR sin conexion. Solo el
+// panel: el resto no tiene sentido sin servidor.
+const PAGINAS_CON_MEMORIA = '/dashboard/';
 
 // ----------------------------------------------------------------------
 // LO QUE HACE FALTA PARA PASAR LISTA SIN SEÑAL.
@@ -82,7 +91,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
+    event.respondWith(navegacion(request, url));
     return;
   }
 
@@ -128,6 +137,34 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// RECARGAR SIN CONEXION.
+//
+// Antes cualquier navegacion sin red acababa en `/offline.html`: la aplicacion
+// estaba guardada a trozos pero no habia por donde entrar. Ahora el HTML del
+// panel se guarda al visitarlo y se devuelve cuando la red falla, de modo que
+// recargar en mitad del campo abre la pantalla y no el dinosaurio.
+//
+// La red sigue mandando cuando la hay: asi una version nueva se recoge sola.
+async function navegacion(request, url) {
+  try {
+    const response = await fetch(request);
+
+    if (response && response.ok && url.pathname.startsWith(PAGINAS_CON_MEMORIA)) {
+      const cache = await caches.open(PAGINAS_CACHE);
+
+      cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch (error) {
+    const guardada = await caches.match(request, { ignoreSearch: true });
+
+    if (guardada) return guardada;
+
+    return caches.match('/offline.html');
+  }
+}
 
 // LA RED MANDA, Y LA MEMORIA SALVA.
 //
