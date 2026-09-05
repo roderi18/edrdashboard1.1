@@ -38,6 +38,7 @@ import {
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
+  LeadershipNodeAnchors,
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
   getLeadershipConnections,
@@ -180,12 +181,19 @@ function YouthLeadershipNode({
           borderRadius: 1.5,
           textAlign: 'left',
           position: 'relative',
+          // Por encima de la capa de lineas, que va en 0: una linea que pase por
+          // debajo de esta casilla tiene que quedar tapada, no cruzarle la cara.
+          zIndex: 1,
           overflow: 'visible',
           display: 'inline-flex',
           flexDirection: 'column',
           ...getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }),
         }}
       >
+        {/* Los circulitos de las esquinas: se arrastra de uno al de otra
+            tarjeta y queda hecha la linea. Solo con el lapiz abierto. */}
+        <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
+
         <IconButton
           color={menuActions.open ? 'inherit' : 'default'}
           onClick={menuActions.onOpen}

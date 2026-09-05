@@ -49,6 +49,9 @@ function normalizarGrupos(grupos) {
     .filter((grupo) => grupo.ids.length > 1);
 }
 
+// Las cuatro esquinas de una tarjeta, como las nombra el tirador.
+export const ESQUINAS_VINCULO = ['arriba-izq', 'arriba-der', 'abajo-izq', 'abajo-der'];
+
 // Pares { from, to } limpios y sin repetir.
 function normalizarVinculos(vinculos) {
   const vistos = new Set();
@@ -57,6 +60,10 @@ function normalizarVinculos(vinculos) {
     .map((vinculo) => ({
       from: String(vinculo?.from || ''),
       to: String(vinculo?.to || ''),
+      // Por que esquina sale y por cual entra. Sin esto la linea va del borde de
+      // abajo del padre al de arriba del hijo, que es lo que hace el arbol.
+      fromEsquina: ESQUINAS_VINCULO.includes(vinculo?.fromEsquina) ? vinculo.fromEsquina : null,
+      toEsquina: ESQUINAS_VINCULO.includes(vinculo?.toEsquina) ? vinculo.toEsquina : null,
     }))
     .filter((vinculo) => {
       const clave = `${vinculo.from}-${vinculo.to}`;
@@ -113,6 +120,8 @@ export function useLeadershipLayoutEditor({
   );
   // Primer nodo de un vinculo a mano, esperando al segundo.
   const [origenVinculo, setOrigenVinculo] = useState(null);
+  // El tirador del que se esta arrastrando ahora mismo: { nodeId, esquina }.
+  const [arrastreDeVinculo, setArrastreDeVinculo] = useState(null);
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
@@ -343,6 +352,47 @@ export function useLeadershipLayoutEditor({
     });
   }, []);
 
+  // ARRASTRAR DE UNA ESQUINA A OTRA. Se agarra el circulito de una tarjeta y se
+  // suelta en el de otra: ahi queda la linea, saliendo y entrando justo por esas
+  // esquinas. Es la forma directa de hacer lo que los botones hacen en dos
+  // pasos.
+  const empezarArrastreDeVinculo = useCallback((nodeId, esquina) => {
+    if (!nodeId) return;
+
+    setArrastreDeVinculo({ nodeId, esquina });
+  }, []);
+
+  // Soltar en el aire cancela. Sin esto, un arrastre fallido dejaba el origen
+  // colgado y el siguiente circulito que se pulsara creaba una linea que nadie
+  // habia pedido.
+  useEffect(() => {
+    if (!arrastreDeVinculo) return undefined;
+
+    // En el siguiente tic: primero tiene que correr el `onPointerUp` del
+    // circulito de destino, que es quien crea la linea de verdad.
+    const cancelar = () => window.setTimeout(() => setArrastreDeVinculo(null), 0);
+
+    window.addEventListener('pointerup', cancelar);
+
+    return () => window.removeEventListener('pointerup', cancelar);
+  }, [arrastreDeVinculo]);
+
+  const soltarArrastreDeVinculo = useCallback((nodeId, esquina) => {
+    setArrastreDeVinculo((origen) => {
+      // Soltar en el aire, o en la misma tarjeta, no crea nada.
+      if (!origen || !nodeId || origen.nodeId === nodeId) return null;
+
+      setExtraConnections((actuales) =>
+        normalizarVinculos([
+          ...actuales,
+          { from: origen.nodeId, fromEsquina: origen.esquina, to: nodeId, toEsquina: esquina },
+        ])
+      );
+
+      return null;
+    });
+  }, []);
+
   const cambiarOrientacionDe = useCallback((id, orientacion) => {
     setConnectionGroups((grupos) =>
       grupos.map((grupo) => (grupo.ids.includes(id) ? { ...grupo, orientacion } : grupo))
@@ -398,6 +448,7 @@ export function useLeadershipLayoutEditor({
       hiddenConnections,
       extraConnections,
       origenVinculo,
+      arrastreDeVinculo,
       applyLayout,
       resizeContainer,
       resizeContainerWidth,
@@ -412,6 +463,8 @@ export function useLeadershipLayoutEditor({
       revincularConexion,
       quitarVinculoAMano,
       marcarExtremoDeVinculo,
+      empezarArrastreDeVinculo,
+      soltarArrastreDeVinculo,
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
@@ -444,6 +497,9 @@ export function useLeadershipLayoutEditor({
       revincularConexion,
       quitarVinculoAMano,
       marcarExtremoDeVinculo,
+      arrastreDeVinculo,
+      empezarArrastreDeVinculo,
+      soltarArrastreDeVinculo,
     ]
   );
 }
@@ -619,6 +675,55 @@ function buildRailPath({ startX, startY, railX, entryX, entryY, esPrimera }) {
 // LAS LINEAS QUE DE VERDAD SE DIBUJAN: las del arbol, menos las quitadas, mas
 // las puestas a mano. El arbol sigue siendo la verdad de quien depende de quien;
 // esto solo cambia el dibujo.
+// LOS CUATRO CIRCULITOS DE UNA TARJETA.
+//
+// Solo existen con el lapiz abierto. Se agarra uno y se suelta en el de otra
+// tarjeta: ahi queda la linea. Van por encima de todo (`zIndex` alto) para que
+// se puedan agarrar aunque la tarjeta de al lado los solape.
+export function LeadershipNodeAnchors({ editor, nodeId }) {
+  if (!editor?.editMode || !nodeId) return null;
+
+  const arrastrando = editor.arrastreDeVinculo?.nodeId === nodeId;
+
+  const posiciones = {
+    'arriba-izq': { top: -6, left: -6 },
+    'arriba-der': { top: -6, right: -6 },
+    'abajo-izq': { bottom: -6, left: -6 },
+    'abajo-der': { bottom: -6, right: -6 },
+  };
+
+  return ESQUINAS_VINCULO.map((esquina) => (
+    <Box
+      key={esquina}
+      data-leadership-anchor={`${nodeId}|${esquina}`}
+      aria-label={`Conectar desde ${esquina}`}
+      onPointerDown={(event) => {
+        // Sin esto empieza a arrastrarse la tarjeta, no la linea.
+        event.stopPropagation();
+        event.preventDefault();
+        editor.empezarArrastreDeVinculo(nodeId, esquina);
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        editor.soltarArrastreDeVinculo(nodeId, esquina);
+      }}
+      sx={{
+        ...posiciones[esquina],
+        width: 12,
+        height: 12,
+        zIndex: 5,
+        position: 'absolute',
+        borderRadius: '50%',
+        cursor: 'crosshair',
+        bgcolor: 'background.paper',
+        border: '2px solid',
+        borderColor: arrastrando ? 'primary.main' : 'text.disabled',
+        '&:hover': { borderColor: 'primary.main', transform: 'scale(1.25)' },
+      }}
+    />
+  ));
+}
+
 export function aplicarVinculosDelDiagrama(
   connections = [],
   { hiddenConnections = [], extraConnections = [] } = {}
@@ -678,10 +783,42 @@ export function LeadershipLayoutConnectorLayer({
 
           const fromRect = fromElement.getBoundingClientRect();
           const toRect = toElement.getBoundingClientRect();
-          const startX = fromRect.left - containerRect.left + fromRect.width / 2;
-          const startY = fromRect.bottom - containerRect.top;
-          const endX = toRect.left - containerRect.left + toRect.width / 2;
-          const endY = toRect.top - containerRect.top;
+
+          // Un vinculo hecho a mano sale y entra por la ESQUINA que se agarro;
+          // los del arbol, del borde de abajo del padre al de arriba del hijo.
+          const punto = (rect, esquina, porDefecto) => {
+            const izquierda = rect.left - containerRect.left;
+            const derecha = rect.right - containerRect.left;
+            const arriba = rect.top - containerRect.top;
+            const abajo = rect.bottom - containerRect.top;
+
+            switch (esquina) {
+              case 'arriba-izq':
+                return { x: izquierda, y: arriba };
+              case 'arriba-der':
+                return { x: derecha, y: arriba };
+              case 'abajo-izq':
+                return { x: izquierda, y: abajo };
+              case 'abajo-der':
+                return { x: derecha, y: abajo };
+              default:
+                return porDefecto;
+            }
+          };
+
+          const salida = punto(fromRect, connection.fromEsquina, {
+            x: fromRect.left - containerRect.left + fromRect.width / 2,
+            y: fromRect.bottom - containerRect.top,
+          });
+          const entrada = punto(toRect, connection.toEsquina, {
+            x: toRect.left - containerRect.left + toRect.width / 2,
+            y: toRect.top - containerRect.top,
+          });
+
+          const startX = salida.x;
+          const startY = salida.y;
+          const endX = entrada.x;
+          const endY = entrada.y;
 
           return {
             id: `${connection.from}-${connection.to}`,
@@ -846,7 +983,10 @@ export function LeadershipLayoutConnectorLayer({
       data-leadership-connectors="true"
       sx={{
         inset: 0,
-        zIndex: 1,
+        // POR DEBAJO DE LAS TARJETAS. Iba al mismo nivel que ellas y, al pasar
+        // una linea bajo una casilla, se le dibujaba encima y la cruzaba por la
+        // cara. Las tarjetas se pintan a partir del 1.
+        zIndex: 0,
         width: 1,
         height: 1,
         position: 'absolute',
@@ -862,18 +1002,39 @@ export function LeadershipLayoutConnectorLayer({
             {/* El tronco de la barra vertical: se dibuja una sola vez, con la
                 primera rama del grupo. */}
             {path.tronco && (
-              <Box
-                component="line"
-                x1={path.tronco.x}
-                y1={path.tronco.desde}
-                x2={path.tronco.x}
-                y2={path.tronco.hasta}
-                strokeLinecap="round"
-                strokeWidth={seleccionada ? lineWidth + 1.5 : lineWidth}
-                stroke={
-                  seleccionada ? 'var(--palette-primary-main)' : 'var(--palette-grey-600)'
-                }
-              />
+              <>
+                <Box
+                  component="line"
+                  x1={path.tronco.x}
+                  y1={path.tronco.desde}
+                  x2={path.tronco.x}
+                  y2={path.tronco.hasta}
+                  strokeLinecap="round"
+                  strokeWidth={seleccionada ? lineWidth + 1.5 : lineWidth}
+                  stroke={seleccionada ? 'var(--palette-primary-main)' : 'var(--palette-grey-600)'}
+                />
+
+                {/* El tronco es lo mas visible de una barra vertical: sin zona
+                    de pulsacion propia, pulsarlo no seleccionaba nada y la
+                    linea ya no se podia separar ni desvincular. */}
+                {editMode && (
+                  <Box
+                    component="line"
+                    x1={path.tronco.x}
+                    y1={path.tronco.desde}
+                    x2={path.tronco.x}
+                    y2={path.tronco.hasta}
+                    stroke="transparent"
+                    strokeWidth={14}
+                    sx={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectConnection?.(path.id);
+                    }}
+                  />
+                )}
+              </>
             )}
 
             <Box

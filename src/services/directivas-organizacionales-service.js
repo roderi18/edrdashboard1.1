@@ -1048,7 +1048,13 @@ export async function guardarDisenoDirectiva({
       .map((id) => String(id || ''))
       .filter(Boolean),
     extraConnections: (Array.isArray(extraConnections) ? extraConnections : [])
-      .map((vinculo) => ({ from: String(vinculo?.from || ''), to: String(vinculo?.to || '') }))
+      .map((vinculo) => ({
+        from: String(vinculo?.from || ''),
+        to: String(vinculo?.to || ''),
+        // Por que esquina sale y por cual entra, si se hizo arrastrando.
+        fromEsquina: vinculo?.fromEsquina ? String(vinculo.fromEsquina) : '',
+        toEsquina: vinculo?.toEsquina ? String(vinculo.toEsquina) : '',
+      }))
       .filter((vinculo) => vinculo.from && vinculo.to && vinculo.from !== vinculo.to),
     fechaActualizacion: serverTimestamp(),
   };
