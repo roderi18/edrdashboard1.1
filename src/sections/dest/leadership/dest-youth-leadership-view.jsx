@@ -161,23 +161,36 @@ const DESPLAZAMIENTO_ALTO_CONTENEDOR = ESCALON * 2;
 const traducirIdDeDivision = (id, desde, hasta) =>
   String(id || '').split(`-${desde}`).join(`-${hasta}`);
 
+// SOLO LO DE LA DIVISION QUE SE COPIA.
+//
+// El editor tiene en la mano las posiciones de las CUATRO divisiones a la vez
+// —los valores por defecto las traen todas—, asi que sin filtrar antes, al
+// traducir se pisaban unas a otras: la copia de Exploradores y el original de
+// Seguidores acababan con la misma clave y ganaba el ultimo.
+const esDeLaDivision = (id, division) => String(id || '').endsWith(`-${division}`);
+
 const traducirDisenoDeDivision = (diseno, desde, hasta) => ({
-  nodeOffsets: Object.entries(diseno.nodeOffsets || {}).reduce(
-    (acc, [id, offset]) => ({ ...acc, [traducirIdDeDivision(id, desde, hasta)]: offset }),
-    {}
-  ),
-  connectionGroups: (diseno.connectionGroups || []).map((grupo) => ({
-    ...grupo,
-    ids: grupo.ids.map((id) => traducirIdDeDivision(id, desde, hasta)),
-  })),
-  hiddenConnections: (diseno.hiddenConnections || []).map((id) =>
-    traducirIdDeDivision(id, desde, hasta)
-  ),
-  extraConnections: (diseno.extraConnections || []).map((vinculo) => ({
-    ...vinculo,
-    from: traducirIdDeDivision(vinculo.from, desde, hasta),
-    to: traducirIdDeDivision(vinculo.to, desde, hasta),
-  })),
+  nodeOffsets: Object.entries(diseno.nodeOffsets || {})
+    .filter(([id]) => esDeLaDivision(id, desde))
+    .reduce((acc, [id, offset]) => ({ ...acc, [traducirIdDeDivision(id, desde, hasta)]: offset }), {}),
+  connectionGroups: (diseno.connectionGroups || [])
+    .filter((grupo) => grupo.ids.every((id) => esDeLaDivision(id, desde)))
+    .map((grupo) => ({
+      ...grupo,
+      ids: grupo.ids.map((id) => traducirIdDeDivision(id, desde, hasta)),
+    })),
+  hiddenConnections: (diseno.hiddenConnections || [])
+    .filter((id) => esDeLaDivision(id, desde))
+    .map((id) => traducirIdDeDivision(id, desde, hasta)),
+  extraConnections: (diseno.extraConnections || [])
+    .filter(
+      (vinculo) => esDeLaDivision(vinculo.from, desde) && esDeLaDivision(vinculo.to, desde)
+    )
+    .map((vinculo) => ({
+      ...vinculo,
+      from: traducirIdDeDivision(vinculo.from, desde, hasta),
+      to: traducirIdDeDivision(vinculo.to, desde, hasta),
+    })),
   containerHeightOffset: diseno.containerHeightOffset,
   containerWidthOffset: diseno.containerWidthOffset,
 });
