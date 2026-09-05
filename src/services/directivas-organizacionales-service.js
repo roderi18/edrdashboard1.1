@@ -987,6 +987,7 @@ export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
     idDiseno,
     nodeOffsets: data?.nodeOffsets && typeof data.nodeOffsets === 'object' ? data.nodeOffsets : {},
     containerHeightOffset: Number(data?.containerHeightOffset) || 0,
+    containerWidthOffset: Number(data?.containerWidthOffset) || 0,
   };
 }
 
@@ -996,6 +997,7 @@ export async function guardarDisenoDirectiva({
   nombreEntidad = '',
   nodeOffsets = {},
   containerHeightOffset = 0,
+  containerWidthOffset = 0,
   usuario = {},
 } = {}) {
   asegurarFirebaseDirectivas();
@@ -1024,6 +1026,9 @@ export async function guardarDisenoDirectiva({
     nombreEntidad: normalizarTexto(nombreEntidad),
     nodeOffsets: offsetsNormalizados,
     containerHeightOffset: Math.round(Number(containerHeightOffset) || 0),
+    // Nunca negativo: el cuadro se ensancha por fuera de su columna, no se
+    // estrecha por dentro.
+    containerWidthOffset: Math.max(0, Math.round(Number(containerWidthOffset) || 0)),
     fechaActualizacion: serverTimestamp(),
   };
 

@@ -26,6 +26,7 @@ export function useLeadershipLayoutStorage({
   canManage = false,
   defaultNodeOffsets = {},
   defaultContainerHeightOffset = 0,
+  defaultContainerWidthOffset = 0,
 }) {
   const [guardando, setGuardando] = useState(false);
   const { applyLayout } = editor;
@@ -43,6 +44,7 @@ export function useLeadershipLayoutStorage({
       applyLayout({
         nodeOffsets: { ...defaultNodeOffsets, ...diseno.nodeOffsets },
         containerHeightOffset: diseno.containerHeightOffset || defaultContainerHeightOffset,
+        containerWidthOffset: diseno.containerWidthOffset || defaultContainerWidthOffset,
       });
     };
 
@@ -73,6 +75,7 @@ export function useLeadershipLayoutStorage({
         nombreEntidad,
         nodeOffsets: editor.nodeOffsets,
         containerHeightOffset: editor.containerHeightOffset,
+        containerWidthOffset: editor.containerWidthOffset,
       });
 
       toast.success('Diseño del organigrama guardado.');
@@ -86,7 +89,15 @@ export function useLeadershipLayoutStorage({
     } finally {
       setGuardando(false);
     }
-  }, [canManage, nivel, idEntidad, nombreEntidad, editor.nodeOffsets, editor.containerHeightOffset]);
+  }, [
+    canManage,
+    nivel,
+    idEntidad,
+    nombreEntidad,
+    editor.nodeOffsets,
+    editor.containerHeightOffset,
+    editor.containerWidthOffset,
+  ]);
 
   return { guardar, guardando };
 }

@@ -45,6 +45,7 @@ import {
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
+  getLeadershipContainerWidthSx,
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
@@ -463,6 +464,9 @@ export function DestYouthLeadershipView() {
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
           touchAction: 'none',
+          // El margen que se anade con el lapiz: el cuadro crece hacia los dos
+          // lados por igual, saliendose de la columna de la pagina.
+          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
           ...getLeadershipEditGridSx(layoutEditor.editMode),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
@@ -579,6 +583,7 @@ export function DestYouthLeadershipView() {
             containerMinHeight={containerMinHeight}
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
+            mostrarMargenHorizontal
           />
         )}
       </Box>

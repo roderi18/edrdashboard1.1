@@ -36,12 +36,17 @@ export const getLeadershipNodeKey = (node) =>
 export function useLeadershipLayoutEditor({
   initialNodeOffsets = {},
   initialContainerHeightOffset = 0,
+  initialContainerWidthOffset = 0,
 } = {}) {
   const nodeDragRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [nodeOffsets, setNodeOffsets] = useState(initialNodeOffsets);
   const [containerHeightOffset, setContainerHeightOffset] = useState(initialContainerHeightOffset);
+  // Cuanto se ensancha el cuadro POR FUERA de la columna de la pagina. Un
+  // organigrama ancho se salia por los lados y las cajas de los extremos
+  // quedaban cortadas; esto le da sitio sin encoger la letra.
+  const [containerWidthOffset, setContainerWidthOffset] = useState(initialContainerWidthOffset);
 
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
@@ -140,15 +145,29 @@ export function useLeadershipLayoutEditor({
     setContainerHeightOffset((currentValue) => Math.max(-520, currentValue + delta));
   }, []);
 
+  // No baja de 0: en negativo el cuadro seria mas estrecho que su columna, que
+  // es justo lo contrario de lo que se busca.
+  const resizeContainerWidth = useCallback((delta) => {
+    setContainerWidthOffset((currentValue) => Math.max(0, currentValue + delta));
+  }, []);
+
   // Hidrata el diagrama con el diseno guardado en Firestore.
   const applyLayout = useCallback(
-    ({ nodeOffsets: offsets, containerHeightOffset: heightOffset } = {}) => {
+    ({
+      nodeOffsets: offsets,
+      containerHeightOffset: heightOffset,
+      containerWidthOffset: widthOffset,
+    } = {}) => {
       if (offsets && typeof offsets === 'object') {
         setNodeOffsets(offsets);
       }
 
       if (Number.isFinite(Number(heightOffset))) {
         setContainerHeightOffset(Number(heightOffset));
+      }
+
+      if (Number.isFinite(Number(widthOffset))) {
+        setContainerWidthOffset(Number(widthOffset));
       }
     },
     []
@@ -160,8 +179,10 @@ export function useLeadershipLayoutEditor({
       selectedNode,
       nodeOffsets,
       containerHeightOffset,
+      containerWidthOffset,
       applyLayout,
       resizeContainer,
+      resizeContainerWidth,
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
@@ -176,8 +197,24 @@ export function useLeadershipLayoutEditor({
       getNodeEditProps,
       getNodeTreeClassName,
       containerHeightOffset,
+      containerWidthOffset,
+      resizeContainerWidth,
     ]
   );
+}
+
+// El ensanche, listo para el `sx` del contenedor: crece hacia los dos lados por
+// igual, saliendose de la columna de la pagina en vez de estrecharla.
+export function getLeadershipContainerWidthSx(containerWidthOffset = 0) {
+  const margen = Number(containerWidthOffset) || 0;
+
+  if (margen <= 0) return {};
+
+  return {
+    width: `calc(100% + ${margen}px)`,
+    mx: `${-margen / 2}px`,
+    maxWidth: 'none',
+  };
 }
 
 export function getLeadershipEditGridSx(editMode) {
@@ -484,6 +521,8 @@ export function LeadershipLayoutEditor({
   containerMinHeight,
   onSaveLayout,
   savingLayout = false,
+  // Solo lo pide el organigrama cuyo cuadro es mas ancho que su columna.
+  mostrarMargenHorizontal = false,
 }) {
   const selectedOffset = editor.selectedNode
     ? (editor.nodeOffsets[editor.selectedNode.id] ?? EMPTY_OFFSET)
@@ -521,6 +560,7 @@ export function LeadershipLayoutEditor({
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Contenedor: alto {containerMinHeight}px / ancho grafico {chartWidth}px
+              {mostrarMargenHorizontal ? ` / margen ${editor.containerWidthOffset}px` : ''}
             </Typography>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -546,6 +586,35 @@ export function LeadershipLayoutEditor({
                 <Iconify width={14} icon="solar:add-square-bold" />
               </IconButton>
             </Stack>
+
+            {/* Solo donde el cuadro es mas ancho que su columna. En los demas
+                organigramas no hace falta y seria un boton sin efecto. */}
+            {mostrarMargenHorizontal && (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+                  Margen horizontal
+                </Typography>
+
+                <IconButton
+                  size="small"
+                  aria-label="Reducir margen horizontal"
+                  onClick={() => editor.resizeContainerWidth(-80)}
+                  disabled={!editor.containerWidthOffset}
+                  sx={{ width: 28, height: 28, border: '1px solid', borderColor: 'divider' }}
+                >
+                  <Iconify width={14} icon="solar:arrow-to-top-right-bold" />
+                </IconButton>
+
+                <IconButton
+                  size="small"
+                  aria-label="Aumentar margen horizontal"
+                  onClick={() => editor.resizeContainerWidth(80)}
+                  sx={{ width: 28, height: 28, border: '1px solid', borderColor: 'divider' }}
+                >
+                  <Iconify width={14} icon="solar:full-screen-square-bold" />
+                </IconButton>
+              </Stack>
+            )}
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Vista: x {Math.round(pan.x)}px, y {Math.round(pan.y)}px, zoom{' '}
