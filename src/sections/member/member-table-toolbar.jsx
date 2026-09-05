@@ -36,8 +36,8 @@ import {
 } from 'src/utils/excel-upload';
 
 import { getDestsApi } from 'src/services/dest-service';
-import { invalidateMembersCache } from 'src/services/member-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { authHeaders, invalidateMembersCache } from 'src/services/member-service';
 import { crearNotificacionCuentaCreada } from 'src/services/notification-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { guardarAsignacionDirectiva } from 'src/services/directivas-organizacionales-service';
@@ -839,7 +839,9 @@ export function MemberTableToolbar({
 
           const res = await fetch('/api/members/post/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            // Con el token: la ruta exige permiso de cargo y sin cabecera de
+            // sesion contesta 401 y la importacion no llegaba a escribir.
+            headers: await authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
               idMiembros: 0,
               codigoMiembro,

@@ -89,6 +89,7 @@ import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/membe
 import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
+  authHeaders,
   invalidateMembersCache,
   getLeadershipAssignments,
 } from 'src/services/member-service';
@@ -1992,11 +1993,15 @@ export function MemberCreateEditForm({
                 : null,
           };
 
+          // CON EL TOKEN. Las dos rutas exigen el permiso del cargo
+          // (`exigirPermisoDeCargoRest`), y sin cabecera de sesion contestan 401
+          // "Inicia sesión para consultar esta información.": la ficha se veia
+          // guardar y no se guardaba nada. El resto del proyecto llama por
+          // `member-service`, que ya pone la cabecera; esta era la unica llamada
+          // suelta que se la saltaba.
           const res = await fetch(currentMember ? '/api/members/put/' : '/api/members/post/', {
             method: currentMember ? 'PUT' : 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: await authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload),
           });
 

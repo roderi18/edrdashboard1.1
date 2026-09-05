@@ -16,6 +16,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { printTablePdf } from 'src/utils/download-table-pdf';
 import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
+import { authHeaders } from 'src/services/member-service';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ExportTableButton } from 'src/components/export-table-button';
@@ -138,7 +140,9 @@ export function DestTableToolbar({
 
         const res = await fetch('/api/dest/post/', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // Con el token: la ruta exige permiso de cargo y sin cabecera de
+          // sesion contesta 401 y la importacion no llegaba a escribir.
+          headers: await authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             nombre,
             idIglesia,
