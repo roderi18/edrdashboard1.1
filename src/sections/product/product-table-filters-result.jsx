@@ -5,6 +5,8 @@ import Chip from '@mui/material/Chip';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
 
+import { etiquetaDeCategoria } from './product-table-row';
+
 // ----------------------------------------------------------------------
 
 const FILTER_LABELS = {
@@ -27,6 +29,15 @@ export function ProductTableFiltersResult({ filters, totalResults, sx }) {
     [updateFilters, currentFilters.stock]
   );
 
+  const handleRemoveCategoria = useCallback(
+    (inputValue) => {
+      const newValue = (currentFilters.categoria || []).filter((item) => item !== inputValue);
+
+      updateFilters({ categoria: newValue });
+    },
+    [updateFilters, currentFilters.categoria]
+  );
+
   const handleRemoveRenglon = useCallback(
     (inputValue) => {
       const newValue = currentFilters.renglon.filter((item) => item !== inputValue);
@@ -45,6 +56,18 @@ export function ProductTableFiltersResult({ filters, totalResults, sx }) {
             key={item}
             label={FILTER_LABELS[item] || upperFirst(item)}
             onDelete={() => handleRemoveStock(item)}
+          />
+        ))}
+      </FiltersBlock>
+
+      <FiltersBlock label="Categoría:" isShow={!!currentFilters.categoria?.length}>
+        {(currentFilters.categoria || []).map((item) => (
+          <Chip
+            {...chipProps}
+            key={item}
+            // La misma etiqueta que bajo el nombre del producto.
+            label={etiquetaDeCategoria(item)}
+            onDelete={() => handleRemoveCategoria(item)}
           />
         ))}
       </FiltersBlock>

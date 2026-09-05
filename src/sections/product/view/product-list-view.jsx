@@ -41,13 +41,14 @@ import { ProductMobileCard } from '../product-mobile-card';
 import { useCheckoutContext } from '../../checkout/context';
 import { ProductTableToolbar } from '../product-table-toolbar';
 import { ProductTableFiltersResult } from '../product-table-filters-result';
-import {
-  RenderCellStock,
+import { RenderCellStock ,
   RenderCellPrice,
   RenderCellRenglon,
   RenderCellProduct,
   RenderCellCategory,
+  etiquetaDeCategoria,
 } from '../product-table-row';
+
 
 // ----------------------------------------------------------------------
 
@@ -100,6 +101,7 @@ export function ProductListView() {
     publish: [],
     stock: [],
     renglon: [],
+    categoria: [],
   });
 
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
@@ -116,7 +118,28 @@ export function ProductListView() {
   const canReset =
     filters.state.publish.length > 0 ||
     filters.state.stock.length > 0 ||
-    filters.state.renglon.length > 0;
+    filters.state.renglon.length > 0 ||
+    filters.state.categoria.length > 0;
+
+  // LAS CATEGORIAS SALEN DE LOS PRODUCTOS, no de una lista escrita a mano.
+  //
+  // Son las mismas que se leen bajo el nombre en la lista ('barras-numeros',
+  // 'parches'...), las pone quien crea el producto y cambian con el catalogo;
+  // una lista fija se quedaria corta el dia que alguien anada una categoria y el
+  // filtro no podria encontrar sus productos.
+  const categoriaOptions = useMemo(() => {
+    const vistas = new Map();
+
+    tableData.forEach((product) => {
+      const valor = String(product?.category || '').trim();
+
+      if (!valor || vistas.has(valor)) return;
+
+      vistas.set(valor, { value: valor, label: etiquetaDeCategoria(valor) });
+    });
+
+    return [...vistas.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'));
+  }, [tableData]);
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -282,6 +305,13 @@ export function ProductListView() {
                     onChange: (event) => filters.setState({ stock: event.target.value }),
                     options: PRODUCT_STOCK_OPTIONS,
                   },
+                  {
+                    key: 'categoria',
+                    label: 'Categoría',
+                    value: filters.state.categoria,
+                    onChange: (event) => filters.setState({ categoria: event.target.value }),
+                    options: categoriaOptions,
+                  },
                   ...(!isMemberUser
                     ? [
                       {
@@ -392,6 +422,7 @@ export function ProductListView() {
                       stocks: PRODUCT_STOCK_OPTIONS,
                       publishs: PUBLISH_OPTIONS,
                       renglones: PRODUCT_RENGLON_OPTIONS,
+                      categorias: categoriaOptions,
                     }}
                     isMemberUser={isMemberUser}
                     canManageStore={canManageStore}
@@ -581,7 +612,7 @@ const useGetColumns = ({
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, filters }) {
-  const { stock, publish, renglon } = filters;
+  const { stock, publish, renglon, categoria } = filters;
 
   if (stock.length) {
     inputData = inputData.filter((product) => stock.includes(product.inventoryType));
@@ -589,6 +620,12 @@ function applyFilter({ inputData, filters }) {
 
   if (publish.length) {
     inputData = inputData.filter((product) => publish.includes(product.publish));
+  }
+
+  if (categoria?.length) {
+    inputData = inputData.filter((product) =>
+      categoria.includes(String(product.category || '').trim())
+    );
   }
 
   if (renglon.length) {

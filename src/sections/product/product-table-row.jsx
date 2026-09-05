@@ -21,7 +21,7 @@ export function RenderCellPrice({ params }) {
 }
 
 export function RenderCellCategory({ params }) {
-  return toTitleCase(translateProductCategory(params.row.category));
+  return etiquetaDeCategoria(params.row.category);
 }
 
 export function RenderCellPublish({ params }) {
@@ -99,6 +99,13 @@ export function RenderCellProduct({ params, href }) {
       />
     </Box>
   );
+}
+
+// La MISMA etiqueta que se lee bajo el nombre del producto. La usa tambien el
+// desplegable de Categoria: si cada uno la formatea por su cuenta, el filtro
+// acaba ofreciendo un texto que en la lista no aparece igual.
+export function etiquetaDeCategoria(category) {
+  return toTitleCase(translateProductCategory(category));
 }
 
 function translateProductCategory(category) {

@@ -77,11 +77,13 @@ export function ProductTableToolbar({
 
   const [stock, setStock] = useState(currentFilters.stock || []);
   const [renglon, setRenglon] = useState(currentFilters.renglon || []);
+  const [categoria, setCategoria] = useState(currentFilters.categoria || []);
 
   useEffect(() => {
     setStock(currentFilters.stock || []);
     setRenglon(currentFilters.renglon || []);
-  }, [currentFilters.stock, currentFilters.renglon]);
+    setCategoria(currentFilters.categoria || []);
+  }, [currentFilters.stock, currentFilters.renglon, currentFilters.categoria]);
 
   const handleSelect = useCallback(
     (setter) => (event) => {
@@ -116,7 +118,11 @@ export function ProductTableToolbar({
         />
 
         <TableToolbarMobileFilter
-          hasActiveFilters={currentFilters.stock.length || currentFilters.renglon.length}
+          hasActiveFilters={
+            currentFilters.stock.length ||
+            currentFilters.renglon.length ||
+            currentFilters.categoria?.length
+          }
           filtersConfig={[
             {
               key: 'stock',
@@ -124,6 +130,13 @@ export function ProductTableToolbar({
               value: stock,
               onChange: handleMobileSelect('stock', setStock),
               options: options.stocks,
+            },
+            {
+              key: 'categoria',
+              label: 'Categoría',
+              value: categoria,
+              onChange: handleMobileSelect('categoria', setCategoria),
+              options: options.categorias,
             },
             {
               key: 'renglon',
@@ -154,6 +167,16 @@ export function ProductTableToolbar({
           onChange={handleSelect(setStock)}
           onApply={() => updateFilters({ stock })}
           width={isMemberUser ? 200 : 170}
+        />
+
+        {/* Filtra por lo que se lee bajo el nombre del producto. */}
+        <FilterSelect
+          label="Categoría"
+          value={categoria}
+          options={options.categorias}
+          onChange={handleSelect(setCategoria)}
+          onApply={() => updateFilters({ categoria })}
+          width={180}
         />
 
         <FilterSelect
