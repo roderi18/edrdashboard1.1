@@ -376,12 +376,28 @@ export function useLeadershipLayoutEditor({
 
   // Quitar una linea del cuadro. Sale tambien de cualquier barra en la que
   // estuviera: una linea que no se dibuja no puede estar unida a otras.
+  //
+  // Un vinculo hecho a mano se BORRA, no se esconde: esconderlo lo dejaba en la
+  // lista para siempre, y ademas el filtro de escondidas solo miraba las lineas
+  // del arbol, asi que el vinculo seguia dibujandose igual.
   const desvincularConexion = useCallback((id) => {
     if (!id) return;
 
-    setHiddenConnections((actuales) =>
-      actuales.includes(id) ? actuales : [...actuales, id]
-    );
+    let eraAMano = false;
+
+    setExtraConnections((actuales) => {
+      const quedan = actuales.filter((vinculo) => `${vinculo.from}-${vinculo.to}` !== id);
+
+      eraAMano = quedan.length !== actuales.length;
+
+      return eraAMano ? quedan : actuales;
+    });
+
+    setHiddenConnections((actuales) => {
+      if (eraAMano || actuales.includes(id)) return actuales;
+
+      return [...actuales, id];
+    });
     setConnectionGroups((grupos) =>
       grupos
         .map((grupo) => ({ ...grupo, ids: grupo.ids.filter((clave) => clave !== id) }))
@@ -825,11 +841,12 @@ export function aplicarVinculosDelDiagrama(
   { hiddenConnections = [], extraConnections = [] } = {}
 ) {
   const ocultas = new Set(hiddenConnections);
-  const delArbol = connections.filter(
+
+  // El filtro se aplica a la lista ENTERA. Antes solo miraba las del arbol, asi
+  // que esconder un vinculo hecho a mano no hacia nada.
+  return [...connections, ...extraConnections].filter(
     (connection) => !ocultas.has(`${connection.from}-${connection.to}`)
   );
-
-  return [...delArbol, ...extraConnections];
 }
 
 export function LeadershipLayoutConnectorLayer({
@@ -846,8 +863,47 @@ export function LeadershipLayoutConnectorLayer({
   onSelectConnection,
   // Esquinas vivas en vez de redondeadas.
   lineasRectas = false,
+  // El tirador del que se esta arrastrando ahora, para ir dibujando la linea.
+  arrastreDeVinculo = null,
 }) {
   const [paths, setPaths] = useState([]);
+  // La linea provisional que sigue al cursor mientras se arrastra.
+  const [previa, setPrevia] = useState(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!arrastreDeVinculo || !container) {
+      setPrevia(null);
+
+      return undefined;
+    }
+
+    const origen = container.querySelector(
+      `[data-leadership-anchor="${arrastreDeVinculo.nodeId}|${arrastreDeVinculo.lado}"]`
+    );
+
+    if (!origen) return undefined;
+
+    const seguirAlCursor = (event) => {
+      const containerRect = container.getBoundingClientRect();
+      const origenRect = origen.getBoundingClientRect();
+
+      setPrevia({
+        x1: origenRect.left - containerRect.left + origenRect.width / 2,
+        y1: origenRect.top - containerRect.top + origenRect.height / 2,
+        x2: event.clientX - containerRect.left,
+        y2: event.clientY - containerRect.top,
+      });
+    };
+
+    window.addEventListener('pointermove', seguirAlCursor);
+
+    return () => {
+      window.removeEventListener('pointermove', seguirAlCursor);
+      setPrevia(null);
+    };
+  }, [arrastreDeVinculo, containerRef]);
 
   useEffect(() => {
     const mismasRutas = (anteriores, siguientes) =>
@@ -1081,7 +1137,7 @@ export function LeadershipLayoutConnectorLayer({
     };
   }, [active, connections, watchKey, containerRef, connectionGroups, lineasRectas]);
 
-  if (!active || !paths.length) {
+  if ((!active || !paths.length) && !previa) {
     return null;
   }
 
@@ -1103,6 +1159,22 @@ export function LeadershipLayoutConnectorLayer({
         pointerEvents: 'none',
       }}
     >
+      {/* La linea que se esta trazando: a rayas y en el color de acento, para
+          que se distinga de las que ya existen. */}
+      {previa && (
+        <Box
+          component="line"
+          x1={previa.x1}
+          y1={previa.y1}
+          x2={previa.x2}
+          y2={previa.y2}
+          strokeWidth={2}
+          strokeDasharray="6 4"
+          strokeLinecap="round"
+          stroke="var(--palette-primary-main)"
+        />
+      )}
+
       {paths.map((path) => {
         const seleccionada = selectedConnections.includes(path.id);
 
