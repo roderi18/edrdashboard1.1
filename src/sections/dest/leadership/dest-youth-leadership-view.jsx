@@ -93,6 +93,59 @@ const OPCIONES_DIVISION = DIVISIONES_JUVENILES.map(({ id, nombre, edades }) => (
   label: `${nombre} · ${edades}`,
 }));
 
+
+// ----------------------------------------------------------------------
+// LA ESPINA DE ARRIBA: un tronco vertical con ramas a los lados.
+//
+// El documento oficial no dibuja a los tres primeros en fila bajo el Lider de
+// Grupo: baja una linea desde el y le cuelga el Asistente a la izquierda, el
+// otro Asistente a la derecha y el Lider Juvenil otra vez a la izquierda, mas
+// abajo. El Guia Mayor queda al final del tronco, centrado.
+//
+// `react-organizational-chart` solo sabe poner a los hijos en fila, asi que la
+// forma se consigue desplazando cajas: mover un nodo arrastra a todo lo que
+// cuelga de el —el desplazamiento es un `translate` sobre su rama entera— y la
+// capa SVG redibuja las lineas entre las posiciones reales.
+//
+// LOS NUMEROS SALEN DE LA GEOMETRIA, no de una medida en pantalla: la tarjeta
+// mide 200 (LEADERSHIP_NODE_WIDTH) y el arbol le pone 4 de aire a cada lado, asi
+// que cada hueco de la fila ocupa 208. Con cuatro hijos, sus centros caen a
+// -312, -104, +104 y +312 del centro del padre; el desplazamiento es lo que hay
+// que sumarle a cada uno para llevarlo a su sitio.
+//
+// Son un punto de partida razonado, no una medicion: el Administrador Global
+// puede afinarlos con el lapiz y lo que guarde manda sobre esto.
+// ----------------------------------------------------------------------
+
+const HUECO_DE_FILA = 208;
+// A donde van, medido desde el centro del Lider de Grupo.
+const RAMA_IZQUIERDA = -230;
+const RAMA_DERECHA = 230;
+// Alto de la tarjeta mas su aire: lo que baja cada escalon del tronco.
+const ESCALON = 150;
+
+const centroDelHijo = (indice, totalHijos) =>
+  (indice - (totalHijos - 1) / 2) * HUECO_DE_FILA;
+
+// Los cuatro hijos del Lider de Grupo, en el orden en que se declaran.
+const DESPLAZAMIENTOS_DE_LA_ESPINA = DIVISIONES_JUVENILES.reduce((acc, { id }) => {
+  const destino = [
+    [`lider-asistente-grupo-${id}`, RAMA_IZQUIERDA, 0],
+    [`lider-asistente-grupo-2-${id}`, RAMA_DERECHA, 0],
+    [`lider-juvenil-grupo-${id}`, RAMA_IZQUIERDA, ESCALON],
+    [`guia-mayor-${id}`, 0, ESCALON * 2],
+  ];
+
+  destino.forEach(([nodo, x, y], indice) => {
+    acc[nodo] = { x: Math.round(x - centroDelHijo(indice, destino.length)), y };
+  });
+
+  return acc;
+}, {});
+
+// El tronco baja dos escalones, asi que el cuadro necesita ese alto de mas.
+const DESPLAZAMIENTO_ALTO_CONTENEDOR = ESCALON * 2;
+
 // ----------------------------------------------------------------------
 
 function YouthLeadershipNode({
@@ -226,7 +279,10 @@ export function DestYouthLeadershipView() {
   const [pan, setPan] = useState(DEFAULT_PAN);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
-  const layoutEditor = useLeadershipLayoutEditor();
+  const layoutEditor = useLeadershipLayoutEditor({
+    initialNodeOffsets: DESPLAZAMIENTOS_DE_LA_ESPINA,
+    initialContainerHeightOffset: DESPLAZAMIENTO_ALTO_CONTENEDOR,
+  });
 
   const division = DIVISIONES_JUVENILES.find(({ id }) => id === divisionId);
   const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
@@ -245,6 +301,8 @@ export function DestYouthLeadershipView() {
     idEntidad: destId ? `${destId}-${divisionId}` : '',
     nombreEntidad: destNombreCompleto,
     canManage: canManageLayout,
+    defaultNodeOffsets: DESPLAZAMIENTOS_DE_LA_ESPINA,
+    defaultContainerHeightOffset: DESPLAZAMIENTO_ALTO_CONTENEDOR,
   });
 
   const arbol = useMemo(() => construirArbolJuvenil(divisionId), [divisionId]);
