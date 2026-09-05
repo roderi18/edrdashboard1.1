@@ -30,6 +30,10 @@ export function useLeadershipLayoutStorage({
   defaultConnectionGroups = [],
 }) {
   const [guardando, setGuardando] = useState(false);
+  // Mientras se trae el diseno guardado el cuadro no se puede pintar: saldria
+  // con las posiciones de partida y daria un salto al llegar el bueno. Quien
+  // dibuja espera a que esto sea falso.
+  const [cargando, setCargando] = useState(true);
   const { applyLayout } = editor;
 
   useEffect(() => {
@@ -38,7 +42,14 @@ export function useLeadershipLayoutStorage({
     const cargar = async () => {
       const diseno = await obtenerDisenoDirectiva({ nivel, idEntidad }).catch(() => null);
 
-      if (cancelled || !diseno) return;
+      if (cancelled) return;
+
+      // Sin diseno guardado se pinta con lo de partida, que ya es lo definitivo.
+      if (!diseno) {
+        setCargando(false);
+
+        return;
+      }
 
       // Los valores por defecto siguen siendo el punto de partida: el diseno
       // guardado solo sustituye los nodos que alguien movio de verdad.
@@ -52,10 +63,16 @@ export function useLeadershipLayoutStorage({
         hiddenConnections: diseno.hiddenConnections,
         extraConnections: diseno.extraConnections,
       });
+
+      setCargando(false);
     };
+
+    setCargando(true);
 
     if (nivel) {
       cargar();
+    } else {
+      setCargando(false);
     }
 
     return () => {
@@ -111,5 +128,5 @@ export function useLeadershipLayoutStorage({
     editor.extraConnections,
   ]);
 
-  return { guardar, guardando };
+  return { guardar, guardando, cargando };
 }
