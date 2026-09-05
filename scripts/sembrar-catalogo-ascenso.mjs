@@ -24,13 +24,39 @@
  *   node scripts/sembrar-catalogo-ascenso.mjs             # simulacro, no escribe
  *   node scripts/sembrar-catalogo-ascenso.mjs --apply     # escribe de verdad
  *
- * Necesita FIREBASE_SERVICE_ACCOUNT en el entorno (el mismo JSON que usa el
- * servidor). Sin esa variable no hace nada.
+ * Necesita FIREBASE_SERVICE_ACCOUNT: la misma credencial que usa el servidor, que
+ * ya vive en `.env.local`. Ese archivo lo carga Next por su cuenta, pero `node` a
+ * secas no, asi que el script lo lee el mismo (ver mas abajo).
  */
 
+import fs from 'node:fs';
 import { register } from 'node:module';
 
 register(new URL('../tests/soporte/resolver-alias-src.mjs', import.meta.url));
+
+// La credencial esta donde ya estaba: no se pide copiarla a mano al entorno solo
+// para pasar un script. Se respeta lo que ya venga puesto en el entorno, que es
+// como se pasaria otra credencial sin tocar los archivos.
+const cargarEntornoLocal = () => {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) return;
+
+  for (const nombre of ['.env.local', '.env']) {
+    const ruta = new URL(`../${nombre}`, import.meta.url);
+
+    if (!fs.existsSync(ruta)) continue;
+
+    try {
+      process.loadEnvFile(ruta);
+    } catch {
+      // Un .env con una linea rara no puede tumbar el script: si de ahi no sale
+      // la credencial, mas abajo se avisa igual.
+    }
+
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) return;
+  }
+};
+
+cargarEntornoLocal();
 
 const aplicar = process.argv.slice(2).includes('--apply');
 
@@ -158,7 +184,8 @@ if (!aplicar) {
 
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
   console.error('');
-  console.error('Falta FIREBASE_SERVICE_ACCOUNT en el entorno. No se escribio nada.');
+  console.error('Falta FIREBASE_SERVICE_ACCOUNT: no esta en el entorno ni en .env.local.');
+  console.error('No se escribio nada.');
   process.exit(1);
 }
 
