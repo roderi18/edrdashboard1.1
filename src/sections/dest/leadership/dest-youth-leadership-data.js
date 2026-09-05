@@ -40,10 +40,20 @@ const nodo = ({ id, role, cargo, division, orden = 1, children }) => ({
   asignacionOrganigrama: { cargo, division, orden },
 });
 
-// El equipo que cuelga del Guia Mayor, sin contar las patrullas: van todos en la
-// misma columna, colgando de la misma linea.
-const EQUIPO_DEL_GUIA_MAYOR = [
-  { sufijo: 'guia-mayor-auxiliar', role: 'Guía Mayor Auxiliar', cargo: 'guia_mayor_auxiliar' },
+// EL ORDEN IMPORTA: el cuadro dibuja a los hijos en fila, de izquierda a
+// derecha, en el orden en que se declaran. En el documento oficial la fila de
+// arriba es "Guia Mayor Auxiliar" y las tres patrullas, y el resto del equipo
+// baja por una columna a la izquierda. Por eso el Auxiliar va primero, las
+// patrullas justo detras y la columna al final: asi la fila de arriba sale ya
+// en su sitio y lo unico que queda por colocar es esa columna.
+const GUIA_MAYOR_AUXILIAR = {
+  sufijo: 'guia-mayor-auxiliar',
+  role: 'Guía Mayor Auxiliar',
+  cargo: 'guia_mayor_auxiliar',
+};
+
+// Los que en el documento cuelgan de la barra vertical de la izquierda.
+const COLUMNA_DEL_GUIA_MAYOR = [
   {
     sufijo: 'especialista-comunicaciones',
     role: 'Especialista de Comunicaciones',
@@ -53,6 +63,8 @@ const EQUIPO_DEL_GUIA_MAYOR = [
   { sufijo: 'historiador', role: 'Historiador', cargo: 'historiador' },
   { sufijo: 'capellan-auxiliar', role: 'Capellán Auxiliar', cargo: 'capellan_auxiliar' },
 ];
+
+const EQUIPO_DEL_GUIA_MAYOR = [GUIA_MAYOR_AUXILIAR, ...COLUMNA_DEL_GUIA_MAYOR];
 
 // Los ids del Guia Mayor y de su equipo. Se marcan aparte porque la pantalla
 // dibuja el recuadro "Equipo de Liderazgo de Grupo" alrededor de ellos.
@@ -96,9 +108,13 @@ export const construirArbolJuvenil = (division) =>
         cargo: 'guia_mayor',
         division,
         children: [
-          ...EQUIPO_DEL_GUIA_MAYOR.map(({ sufijo, role, cargo }) =>
-            nodo({ id: `${sufijo}-${division}`, role, cargo, division })
-          ),
+          // Fila de arriba: el Auxiliar y, detras, las tres patrullas.
+          nodo({
+            id: `${GUIA_MAYOR_AUXILIAR.sufijo}-${division}`,
+            role: GUIA_MAYOR_AUXILIAR.role,
+            cargo: GUIA_MAYOR_AUXILIAR.cargo,
+            division,
+          }),
           // Cada patrulla lleva su auxiliar debajo.
           ...Array.from({ length: PATRULLAS }, (_, indice) =>
             nodo({
@@ -117,6 +133,10 @@ export const construirArbolJuvenil = (division) =>
                 }),
               ],
             })
+          ),
+          // Y despues la columna, que es lo que el diseno baja a la izquierda.
+          ...COLUMNA_DEL_GUIA_MAYOR.map(({ sufijo, role, cargo }) =>
+            nodo({ id: `${sufijo}-${division}`, role, cargo, division })
           ),
         ],
       }),
