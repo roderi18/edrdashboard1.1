@@ -66,6 +66,37 @@ import { can, puedeModificar } from 'src/auth/permissions/can';
 import { AttendanceAdvancedReportDialog } from '../attendance-advanced-report-dialog';
 
 // ----------------------------------------------------------------------
+// ¿HAY RED?
+//
+// El pase de lista se hace donde no siempre la hay, y lo que se marca se guarda
+// igual: Firestore lo deja en el propio telefono y lo envia al recuperar la
+// conexion. Pero eso hay que DECIRLO, o quien pasa lista no sabe si su trabajo
+// esta a salvo.
+//
+// Se arranca en linea a proposito: en el servidor no existe `navigator`, y
+// suponer lo contrario pintaria el aviso un instante en cada carga.
+// ----------------------------------------------------------------------
+function useHayConexion() {
+  const [hayConexion, setHayConexion] = useState(true);
+
+  useEffect(() => {
+    const actualizar = () => setHayConexion(navigator.onLine);
+
+    actualizar();
+
+    window.addEventListener('online', actualizar);
+    window.addEventListener('offline', actualizar);
+
+    return () => {
+      window.removeEventListener('online', actualizar);
+      window.removeEventListener('offline', actualizar);
+    };
+  }, []);
+
+  return hayConexion;
+}
+
+// ----------------------------------------------------------------------
 
 const AUTO_ABSENT_STATUS = 'absent-unmarked';
 
@@ -488,6 +519,7 @@ export function AttendanceQuickView() {
   const [lastPresentByMemberId, setLastPresentByMemberId] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
+  const hayConexion = useHayConexion();
   const [estructura, setEstructura] = useState({ churches: [], sectionals: [] });
   // La asistencia se pasa SOBRE SU GENTE. Sin la estructura, `getMemberAllowedDestIds`
   // no puede acotar y devuelve "sin restriccion": el desplegable ofrecia los
@@ -1303,6 +1335,17 @@ export function AttendanceQuickView() {
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
           sx={{ mb: 3 }}
         />
+
+        {/* Sin red se sigue pasando lista: lo marcado se queda en el telefono y
+            sube solo al volver la conexion. Se avisa para que nadie crea que ha
+            perdido el trabajo, ni cierre la aplicacion antes de que suba. */}
+        {!hayConexion && (
+          <Alert severity="info" icon={<Iconify icon="solar:wi-fi-router-minimalistic-bold" />} sx={{ mb: 3 }}>
+            <AlertTitle>Sin conexión</AlertTitle>
+            Puedes seguir pasando lista: lo que marques se guarda en este dispositivo y se envía
+            solo en cuanto vuelva la señal. No cierres la aplicación hasta entonces.
+          </Alert>
+        )}
 
         <Alert severity="info" sx={{ alignItems: 'center' }}>
           <AlertTitle>La asistencia no te toca</AlertTitle>

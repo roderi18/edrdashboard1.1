@@ -1,5 +1,6 @@
-const VERSION = 'edr-pwa-v2';
+const VERSION = 'edr-pwa-v3';
 const STATIC_CACHE = `${VERSION}-static`;
+const DATOS_CACHE = `${VERSION}-datos`;
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
@@ -18,6 +19,25 @@ const STATIC_PATHS = [
   '/icon-',
   '/maskable-icon-',
 ];
+
+// ----------------------------------------------------------------------
+// LO QUE HACE FALTA PARA PASAR LISTA SIN SEÑAL.
+//
+// La asistencia se GUARDA en Firestore, que ya sabe funcionar sin conexion. Lo
+// que no sabe es de donde salen los miembros y los destacamentos: eso viene de
+// la API externa por estas rutas, que corren en el servidor. Sin red no hay
+// servidor, asi que la pantalla se quedaba sin gente a la que marcar.
+//
+// Se guarda la ultima respuesta buena de cada una y se sirve cuando la red
+// falla. Solo estas cuatro: son las que carga la pantalla de asistencia.
+//
+// NO se cachea nada de la dispensa medica ni de las fichas completas: en un
+// telefono compartido o perdido, lo cacheado se queda en el disco.
+// ----------------------------------------------------------------------
+const RUTAS_CON_MEMORIA = ['/api/members/', '/api/dest/', '/api/churches/', '/api/sectional/'];
+
+const tieneMemoria = (pathname) =>
+  RUTAS_CON_MEMORIA.some((ruta) => pathname === ruta || pathname === ruta.slice(0, -1));
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -48,7 +68,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    // Solo las de la pantalla de asistencia; el resto de la API sigue sin tocar.
+    if (tieneMemoria(url.pathname)) {
+      event.respondWith(redPrimeroConMemoria(request));
+    }
+
     return;
   }
 
@@ -99,6 +128,34 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// LA RED MANDA, Y LA MEMORIA SALVA.
+//
+// Se pide siempre a la red: estando conectado, los datos son los de ahora. Solo
+// si falla se responde con lo ultimo que se guardo. Al reves —memoria primero—
+// se pasaria lista contra un padron viejo sin saberlo.
+//
+// Las respuestas de error no se guardan: un 401 cacheado dejaria la pantalla
+// vacia hasta que alguien limpiara el navegador.
+async function redPrimeroConMemoria(request) {
+  const cache = await caches.open(DATOS_CACHE);
+
+  try {
+    const response = await fetch(request);
+
+    if (response && response.ok) {
+      cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch (error) {
+    const guardada = await cache.match(request);
+
+    if (guardada) return guardada;
+
+    throw error;
+  }
+}
 
 async function cacheFirst(request) {
   const cachedResponse = await caches.match(request);
