@@ -20,7 +20,9 @@ import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { getOwnDestIdsForUser, canManageDestLeadership } from 'src/utils/member-access';
 
 import { getDestsApi } from 'src/services/dest-service';
+import { guardarDisenoDirectiva } from 'src/services/directivas-organizacionales-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
@@ -148,6 +150,37 @@ const DESPLAZAMIENTOS_DE_LA_ESPINA = DIVISIONES_JUVENILES.reduce((acc, { id }) =
 
 // El tronco baja dos escalones, asi que el cuadro necesita ese alto de mas.
 const DESPLAZAMIENTO_ALTO_CONTENEDOR = ESCALON * 2;
+
+// COPIAR EL DISENO DE UNA DIVISION A OTRA.
+//
+// Los cuatro cuadros son iguales en forma, asi que colocar uno y repetirlo tres
+// veces a mano es trabajo tirado. Lo unico que hay que traducir son los ids: cada
+// casilla lleva su division dentro (`guia-mayor-exploradores`), y las lineas se
+// identifican por los ids de sus dos extremos, asi que basta con cambiar ese
+// tramo por el de la division de destino.
+const traducirIdDeDivision = (id, desde, hasta) =>
+  String(id || '').split(`-${desde}`).join(`-${hasta}`);
+
+const traducirDisenoDeDivision = (diseno, desde, hasta) => ({
+  nodeOffsets: Object.entries(diseno.nodeOffsets || {}).reduce(
+    (acc, [id, offset]) => ({ ...acc, [traducirIdDeDivision(id, desde, hasta)]: offset }),
+    {}
+  ),
+  connectionGroups: (diseno.connectionGroups || []).map((grupo) => ({
+    ...grupo,
+    ids: grupo.ids.map((id) => traducirIdDeDivision(id, desde, hasta)),
+  })),
+  hiddenConnections: (diseno.hiddenConnections || []).map((id) =>
+    traducirIdDeDivision(id, desde, hasta)
+  ),
+  extraConnections: (diseno.extraConnections || []).map((vinculo) => ({
+    ...vinculo,
+    from: traducirIdDeDivision(vinculo.from, desde, hasta),
+    to: traducirIdDeDivision(vinculo.to, desde, hasta),
+  })),
+  containerHeightOffset: diseno.containerHeightOffset,
+  containerWidthOffset: diseno.containerWidthOffset,
+});
 
 // ----------------------------------------------------------------------
 
@@ -374,6 +407,43 @@ export function DestYouthLeadershipView() {
     setPan(DEFAULT_PAN);
   }, [divisionId]);
 
+  const [copiando, setCopiando] = useState(false);
+
+  const copiarDisenoALasDemas = async () => {
+    const otras = DIVISIONES_JUVENILES.filter(({ id }) => id !== divisionId);
+
+    setCopiando(true);
+
+    try {
+      const actual = {
+        nodeOffsets: layoutEditor.nodeOffsets,
+        connectionGroups: layoutEditor.connectionGroups,
+        hiddenConnections: layoutEditor.hiddenConnections,
+        extraConnections: layoutEditor.extraConnections,
+        containerHeightOffset: layoutEditor.containerHeightOffset,
+        containerWidthOffset: layoutEditor.containerWidthOffset,
+      };
+
+      await Promise.all(
+        otras.map((otra) =>
+          guardarDisenoDirectiva({
+            nivel: NIVEL_DISENO,
+            idEntidad: `${destId}-${otra.id}`,
+            nombreEntidad: `${destNombreCompleto} · ${otra.nombre}`,
+            ...traducirDisenoDeDivision(actual, divisionId, otra.id),
+          })
+        )
+      );
+
+      toast.success(`Diseño copiado a ${otras.map(({ nombre }) => nombre).join(', ')}.`);
+    } catch (error) {
+      console.error('[directiva juvenil] no se pudo copiar el diseño', error);
+      toast.error(error?.message || 'No se pudo copiar el diseño.');
+    } finally {
+      setCopiando(false);
+    }
+  };
+
   const handlePointerDown = (event) => {
     const interactivo = event.target.closest?.(
       '.MuiCard-root, .MuiDialog-root, .MuiAutocomplete-popper, [role="option"], button, a, input, textarea, select, [role="button"]'
@@ -459,10 +529,26 @@ export function DestYouthLeadershipView() {
           ))}
         </TextField>
 
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', flexGrow: 1 }}>
           El Guía Mayor y su equipo forman el <strong>Equipo de Liderazgo de Grupo</strong>.
           {esDeOtroDestacamento ? ' Este destacamento no es el tuyo: solo se consulta.' : ''}
         </Typography>
+
+        {/* Los cuatro cuadros son iguales en forma: se coloca uno y se reparte.
+            Solo lo ve quien puede guardar disenos. */}
+        {canManageLayout && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            disabled={copiando}
+            startIcon={<Iconify icon="solar:copy-bold" />}
+            onClick={copiarDisenoALasDemas}
+            sx={{ flexShrink: 0 }}
+          >
+            {copiando ? 'Copiando…' : 'Copiar diseño a las demás'}
+          </Button>
+        )}
       </Stack>
 
       <Box
