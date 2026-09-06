@@ -1658,7 +1658,10 @@ export const esMiembroDeSuAlcance = (user = {}, member = null) => {
 
 /** Miembros del destacamento (o destacamentos) de quien consulta. */
 export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
-  const propios = getOwnDestIdsForUser(user);
+  // Los suyos son los de TODOS sus destacamentos, no solo el del cargo local:
+  // ver se suma entre cargos, aunque editar siga mandandose por el cargo del
+  // nivel del modulo.
+  const propios = getVisibleDestIdsForUser(user);
   const idPropio = String(user?.idMiembros ?? user?.memberId ?? '');
 
   // A LOS SUYOS LOS VE, aunque su cargo sea de otro nivel.
@@ -1693,6 +1696,22 @@ export const filtrarMiembrosDeSuDestacamento = (miembros = [], user = {}) => {
 
     return Boolean(suDestacamento) && propios.has(suDestacamento);
   });
+};
+
+export const getVisibleDestIdsForUser = (user = {}) => {
+  const scope = getMemberScope(user);
+  const ids = new Set([...getOwnDestIdsForUser(user), ...getScopeDestIds(scope)]);
+  const ownDestId = normalizeScopeId(
+    user?.idDestacamento ??
+      user?.destId ??
+      user?.destamentoId ??
+      scope?.destacamentoId ??
+      scope?.idDestacamento
+  );
+
+  if (ownDestId) ids.add(ownDestId);
+
+  return new Set([...ids].filter(Boolean));
 };
 
 export const getOwnDestIdsForUser = (user = {}) => {
