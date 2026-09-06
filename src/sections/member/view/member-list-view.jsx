@@ -22,13 +22,16 @@ import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
-import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
   isAdminGlobal,
   isFullOrgManager,
   ejerceCargoSobreDestacamento,
 } from 'src/utils/org-level-access';
+import {
+  obtenerFotosPrincipalesEnCache,
+  obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
   isMemberSessionUser,
   canMemberManageMembers,
@@ -192,10 +195,21 @@ const mapMemberToTableRow = (member) => ({
   nationalLeadershipPosition: member.nationalLeadershipPosition || '',
 });
 
+const mapMemberPhotoUrls = (memberPhotos) =>
+  Object.fromEntries(
+    Object.entries(memberPhotos || obtenerFotosPrincipalesEnCache({ tipoEntidad: 'miembro' }) || {})
+      .filter(([, photo]) => photo?.urlFoto)
+      .map(([memberId, photo]) => [String(memberId), photo.urlFoto])
+  );
+
 // ----------------------------------------------------------------------
 
 export function MemberListView() {
-  const table = useTable();
+  const searchParams = useSearchParams();
+  // Abrir un miembro y volver atras remonta esta vista, asi que la pagina se
+  // guarda en la URL (?p=2). Sin eso el usuario aterrizaba siempre en la #1.
+  const pageFromUrl = Math.max(0, (Number(searchParams.get('p')) || 1) - 1);
+  const table = useTable({ defaultCurrentPage: pageFromUrl });
   const { user, loading } = useAuthContext();
   const [dests, setDests] = useState([]);
   const theme = useTheme();
@@ -217,7 +231,10 @@ export function MemberListView() {
   const confirmDialog = useBoolean();
 
   const [tableData, setTableData] = useState([]);
-  const [memberPhotoUrls, setMemberPhotoUrls] = useState({});
+  // Se arranca con las fotos que ya se trajeron antes: al volver atras desde la
+  // ficha de un miembro la lista se remonta, y partir de {} dejaba las caras en
+  // blanco hasta que Firestore respondia otra vez.
+  const [memberPhotoUrls, setMemberPhotoUrls] = useState(mapMemberPhotoUrls);
   const [membersLoading, setMembersLoading] = useState(true);
 
   // FIRESTORE ES LA UNICA FUENTE, igual que en la ficha del miembro. Antes esta
@@ -412,8 +429,6 @@ export function MemberListView() {
     let cancelled = false;
 
     async function loadMembers() {
-      setMemberPhotoUrls({});
-
       const cachedMembers = getCachedMembers();
 
       if (cachedMembers.length) {
@@ -464,13 +479,7 @@ export function MemberListView() {
           .then((memberPhotos) => {
             if (cancelled) return;
 
-            setMemberPhotoUrls(
-              Object.fromEntries(
-                Object.entries(memberPhotos)
-                  .filter(([, photo]) => photo?.urlFoto)
-                  .map(([memberId, photo]) => [String(memberId), photo.urlFoto])
-              )
-            );
+            setMemberPhotoUrls(mapMemberPhotoUrls(memberPhotos));
           })
           .catch((error) => {
             console.error('Error loading member photos:', error);
@@ -648,7 +657,6 @@ export function MemberListView() {
       return found?.regionalName || found?.name || id;
     },
   });
-  const searchParams = useSearchParams();
   const memberIdFromUrl = searchParams.get('member');
   const destFromUrl = searchParams.get('dest');
   const sectionFromUrl = searchParams.get('sectional');
@@ -659,17 +667,55 @@ export function MemberListView() {
 
     if (destFromUrl) {
       updateFilters({ destName: [destFromUrl] });
-      table.onResetPage();
+      if (!pageFromUrl) table.onResetPage();
       appliedFromUrl.current = true;
       return;
     }
 
     if (sectionFromUrl) {
       updateFilters({ sectionalId: [sectionFromUrl] });
-      table.onResetPage();
+      if (!pageFromUrl) table.onResetPage();
       appliedFromUrl.current = true;
     }
-  }, [destFromUrl, sectionFromUrl, updateFilters, table]);
+  }, [destFromUrl, sectionFromUrl, pageFromUrl, updateFilters, table]);
+
+  const syncPageInUrl = useCallback((zeroBasedPage) => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (zeroBasedPage > 0) {
+      params.set('p', String(zeroBasedPage + 1));
+    } else {
+      params.delete('p');
+    }
+
+    const queryString = params.toString();
+
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${queryString ? `?${queryString}` : ''}`
+    );
+  }, []);
+
+  const handleChangePage = useCallback(
+    (event, newPage) => {
+      table.onChangePage(event, newPage);
+      syncPageInUrl(newPage);
+    },
+    [table, syncPageInUrl]
+  );
+
+  const handleChangeCardPage = useCallback(
+    (event, newPage) => handleChangePage(event, newPage - 1),
+    [handleChangePage]
+  );
+
+  const handleResetPage = useCallback(() => {
+    table.onResetPage();
+    syncPageInUrl(0);
+  }, [table, syncPageInUrl]);
 
   const memberFromUrl = memberIdFromUrl
     ? visibleMembers.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
@@ -731,12 +777,12 @@ export function MemberListView() {
 
   const handleFilterMemberDivisionTab = useCallback(
     (event, newValue) => {
-      table.onResetPage();
+      handleResetPage();
       updateFilters({
         memberDivision: newValue === 'all' ? [] : [newValue],
       });
     },
-    [updateFilters, table]
+    [updateFilters, handleResetPage]
   );
 
   if (loading || !hydrated) return null;
@@ -819,7 +865,7 @@ export function MemberListView() {
 
           <MemberTableToolbar
             filters={filters}
-            onResetPage={table.onResetPage}
+            onResetPage={handleResetPage}
             displayMode={displayMode}
             setDisplayMode={setDisplayMode}
             sectionals={sectionals}
@@ -845,7 +891,7 @@ export function MemberListView() {
                 sectionalId: distinctSectionals,
               }}
               totalResults={dataFiltered.length}
-              onResetPage={table.onResetPage}
+              onResetPage={handleResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
           )}
@@ -932,7 +978,7 @@ export function MemberListView() {
               dense={table.dense}
               count={dataFiltered.length}
               rowsPerPage={table.rowsPerPage}
-              onPageChange={table.onChangePage}
+              onPageChange={handleChangePage}
               onChangeDense={table.onChangeDense}
               onRowsPerPageChange={table.onChangeRowsPerPage}
             />
@@ -945,6 +991,8 @@ export function MemberListView() {
             dests={dests}
             loading={membersLoading}
             memberPhotoUrls={memberPhotoUrls}
+            page={table.page + 1}
+            onPageChange={handleChangeCardPage}
           />
         )}
       </DashboardContent>

@@ -267,6 +267,19 @@ export async function obtenerFotoPrincipal({ tipoEntidad, idEntidad, tipoFoto = 
   };
 }
 
+// Ultimo resultado de cada consulta de fotos. Volver a una lista la remontaba
+// con las fotos en blanco hasta que Firestore respondia otra vez, y las caras
+// "pestaneaban"; con esto la vista puede pintar ya lo ultimo que vio.
+const fotosPrincipalesCache = new Map();
+
+const getFotosCacheKey = ({ tipoEntidad, tipoFoto }) => `${tipoEntidad}|${tipoFoto}`;
+
+export function obtenerFotosPrincipalesEnCache({ tipoEntidad, tipoFoto = 'perfil' }) {
+  if (!tipoEntidad) return null;
+
+  return fotosPrincipalesCache.get(getFotosCacheKey({ tipoEntidad, tipoFoto })) || null;
+}
+
 export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto = 'perfil' }) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return {};
@@ -278,7 +291,7 @@ export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto 
     query(collection(FIRESTORE, COLLECTION_NAME), where('tipoEntidad', '==', tipoEntidad))
   );
 
-  return Object.fromEntries(
+  const fotos = Object.fromEntries(
     snapshot.docs
       .map((photoDoc) => ({
         id: photoDoc.id,
@@ -287,4 +300,8 @@ export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto 
       .filter((photo) => photo.tipoFoto === tipoFoto && photo.estado === 'activo')
       .map((photo) => [String(photo.idEntidad), photo])
   );
+
+  fotosPrincipalesCache.set(getFotosCacheKey({ tipoEntidad, tipoFoto }), fotos);
+
+  return fotos;
 }

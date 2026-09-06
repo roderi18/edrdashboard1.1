@@ -14,20 +14,38 @@ export function CompactEntityCardList({
   rowsPerPage,
   renderCard,
   skeletonCount,
+  page: pageProp,
+  onPageChange,
 }) {
   const theme = useTheme();
   const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'));
-  const [page, setPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
+  // Cuando la vista dueña de la lista guarda la pagina (p. ej. en la URL, para
+  // que volver atras no devuelva al usuario a la #1) manda ella; si no, la
+  // paginacion se sigue llevando aqui dentro como siempre.
+  const isControlled = pageProp !== undefined && pageProp !== null;
   const effectiveRowsPerPage = rowsPerPage || (isLargeScreen ? 18 : 12);
   const effectiveSkeletonCount = skeletonCount || effectiveRowsPerPage;
+  const pageCount = Math.max(1, Math.ceil(items.length / effectiveRowsPerPage));
+  const page = Math.min(isControlled ? pageProp : internalPage, pageCount);
 
   useEffect(() => {
-    setPage(1);
-  }, [effectiveRowsPerPage, items.length, loading]);
+    if (isControlled) return;
 
-  const handleChangePage = useCallback((event, newPage) => {
-    setPage(newPage);
-  }, []);
+    setInternalPage(1);
+  }, [isControlled, effectiveRowsPerPage, items.length, loading]);
+
+  const handleChangePage = useCallback(
+    (event, newPage) => {
+      if (isControlled) {
+        onPageChange?.(event, newPage);
+        return;
+      }
+
+      setInternalPage(newPage);
+    },
+    [isControlled, onPageChange]
+  );
 
   const pageItems = items.slice(
     (page - 1) * effectiveRowsPerPage,
@@ -62,7 +80,7 @@ export function CompactEntityCardList({
           <Pagination
             page={page}
             shape="circular"
-            count={Math.ceil(items.length / effectiveRowsPerPage)}
+            count={pageCount}
             onChange={handleChangePage}
           />
         </Box>

@@ -9,11 +9,15 @@ export function MemberCardList({
   dests = [],
   loading = false,
   memberPhotoUrls = {},
+  page,
+  onPageChange,
 }) {
   return (
     <CompactEntityCardList
       items={members}
       loading={loading}
+      page={page}
+      onPageChange={onPageChange}
       renderCard={(member) => (
         <MemberCard
           key={member.id}
