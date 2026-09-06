@@ -27,11 +27,11 @@ import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-di
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
-  LeadershipNodeName,
   LeadershipNodeAvatar,
   getMemberDisplayName,
   LEADERSHIP_NODE_SIZE_SX,
   LeadershipStructureNode,
+  LeadershipMemberNameLink,
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
@@ -205,7 +205,7 @@ function NationalLeadershipNode({
           <LeadershipNodeAvatar identity={identity} />
         </Box>
 
-        <LeadershipNodeName identity={identity} />
+        <LeadershipMemberNameLink identity={identity} miembroAsignado={miembroAsignado} />
 
         <Typography
           variant="caption"

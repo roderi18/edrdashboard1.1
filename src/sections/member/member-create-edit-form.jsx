@@ -770,9 +770,9 @@ export function MemberCreateEditForm({
   const destacamentosPropios = [...getOwnDestIdsForUser(user)];
   const destacamentoPropioFijo =
     isCreateView &&
-    isDestacamentoCargo &&
-    !isGlobalOrgManager(user) &&
-    destacamentosPropios.length === 1
+      isDestacamentoCargo &&
+      !isGlobalOrgManager(user) &&
+      destacamentosPropios.length === 1
       ? String(destacamentosPropios[0])
       : '';
   const canUploadMemberPhoto =
@@ -3088,7 +3088,7 @@ export function MemberCreateEditForm({
               {!isCreateView && isMobile && (
                 <Box sx={{ mt: 2 }}>
                   <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
-                    {showMore ? 'Ocultar informaci?n' : 'Ver m?s informaci?n'}
+                    {showMore ? 'Ocultar información' : 'Ver más información'}
                   </Button>
                 </Box>
               )}

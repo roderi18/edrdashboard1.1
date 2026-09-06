@@ -1,8 +1,11 @@
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+
+import { RouterLink } from 'src/routes/components';
 
 import { getLeadershipShortName } from 'src/utils/leadership-assignments';
 import { getAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
@@ -157,6 +160,47 @@ export function LeadershipNodeName({ identity, children, mostrarAvisoDatos = fal
   }
 
   return renderNombre({ identity, children, aviso, other });
+}
+
+// Enlace uniforme desde las directivas de los cuatro niveles a la ficha del
+// ocupante. Las asignaciones antiguas y nuevas no nombran igual el id, por eso
+// se contemplan las tres variantes. Una vacante o una identidad restringida no
+// produce un enlace.
+export function LeadershipMemberNameLink({
+  identity,
+  miembroAsignado,
+  mostrarAvisoDatos = false,
+  ...other
+}) {
+  const memberId =
+    miembroAsignado?.idMiembros ?? miembroAsignado?.idMiembro ?? miembroAsignado?.id ?? '';
+  const memberProfileHref =
+    memberId && !identity.vacante && !identity.restringido
+      ? `/dashboard/level/member/${memberId}/edit`
+      : '';
+
+  return (
+    <LeadershipNodeName
+      identity={identity}
+      mostrarAvisoDatos={mostrarAvisoDatos}
+      {...other}
+    >
+      {memberProfileHref ? (
+        <Link
+          component={RouterLink}
+          href={memberProfileHref}
+          underline="hover"
+          color="inherit"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {identity.displayName}
+        </Link>
+      ) : (
+        identity.displayName
+      )}
+    </LeadershipNodeName>
+  );
 }
 
 function renderNombre({ identity, children, aviso, other }) {
