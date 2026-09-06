@@ -173,13 +173,34 @@ export async function getDestsApi({ includePhotos = true } = {}) {
             parsed = JSON.parse(text);
         } catch {
             console.error('❌ DEST NO JSON:', text);
-            return [];
+            throw new Error('La lista de destacamentos no vino en el formato esperado');
+        }
+
+        // UN ERROR DEL SERVIDOR NO ES UNA LISTA VACIA.
+        //
+        // Sin esto, un 500 o el corte de los 9 segundos devolvia el cuerpo del
+        // error —un objeto, no un arreglo—, se mapeaba a cero destacamentos y
+        // ESO se guardaba encima del espejo local. El desplegable de Asistencia
+        // quedaba en blanco ("Selecciona un destacamento") y el cargo del
+        // usuario se quedaba sin numero, aunque la lista completa siguiera
+        // guardada en el telefono un instante antes.
+        if (!res.ok) {
+            const detalle = parsed?.message || parsed?.error || '';
+
+            throw new Error(
+                detalle
+                    ? `Error al obtener destacamentos: ${detalle}`
+                    : `Error al obtener destacamentos (${res.status})`
+            );
         }
 
         const data = parsed?.data || parsed?.Data || parsed;
-        const mappedDests = Array.isArray(data)
-            ? data.map(mapApiDestToUI)
-            : [];
+
+        if (!Array.isArray(data)) {
+            throw new Error('La lista de destacamentos no vino en el formato esperado');
+        }
+
+        const mappedDests = data.map(mapApiDestToUI);
         const photosByDestId = includePhotos
             ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' })
             : {};
@@ -209,7 +230,11 @@ export async function getDestsApi({ includePhotos = true } = {}) {
         return resolvedDests;
     } catch (error) {
         console.error('❌ ERROR DEST API:', error);
-        return [];
+
+        // Lo ultimo que se descargo, como hacen miembros y seccionales. En el
+        // movil la red se cae a mitad de camino a menudo, y quedarse sin la
+        // lista deja la pantalla inservible aunque este entera en el telefono.
+        return getDests();
     }
 }
 

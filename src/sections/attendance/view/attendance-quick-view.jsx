@@ -498,9 +498,13 @@ export function AttendanceQuickView() {
 
   const [date, setDate] = useState(TODAY);
   const [search, setSearch] = useState('');
-  const [dests, setDests] = useState([]);
+  // Los destacamentos que se ofrecen: los de la estructura, acotados al alcance.
+  // Derivado y no estado: la carga no puede depender de lo que ella misma
+  // produce, o se relanza en bucle.
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  // El padron va por su cuenta: la pantalla ya esta en pie mientras baja.
+  const [cargandoMiembros, setCargandoMiembros] = useState(false);
   const [selectedDestId, setSelectedDestId] = useState('');
   const [selectedDivision, setSelectedDivision] = useState('all');
   // Contador pulsado arriba: '' es "todos". Se pulsa de nuevo y se suelta.
@@ -520,18 +524,36 @@ export function AttendanceQuickView() {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const hayConexion = useHayConexion();
-  const [estructura, setEstructura] = useState({ churches: [], sectionals: [] });
-  // La asistencia se pasa SOBRE SU GENTE. Sin la estructura, `getMemberAllowedDestIds`
-  // no puede acotar y devuelve "sin restriccion": el desplegable ofrecia los
-  // destacamentos del pais entero.
+  // LA ESTRUCTURA CON LA QUE SE ACOTA, entera y sin filtrar.
+  //
+  // `dests` va aparte de la lista que se pinta: aquella ya viene acotada por el
+  // alcance, y darsela de vuelta a quien calcula el alcance seria pedirle que se
+  // muerda la cola.
+  const [estructura, setEstructura] = useState({ dests: [], churches: [], sectionals: [] });
+  // La asistencia se pasa SOBRE SU GENTE.
+  //
+  // `dests` es OBLIGATORIO: sin el, las dos ramas que acotan por region salen por
+  // su puerta de "no puedo acotar" —`if (!dests.length) return null`— y devuelven
+  // "sin restriccion". Como no se le pasaba, el desplegable ofrecia los
+  // destacamentos del pais entero a cualquier cargo regional o seccional, y no
+  // solo cuando fallaba la red: SIEMPRE.
   const allowedDestIds = useMemo(
     () =>
       getMemberAllowedDestIds(user, {
+        dests: estructura.dests,
         churches: estructura.churches,
         sectionals: estructura.sectionals,
       }),
     [user, estructura]
   );
+  const dests = useMemo(() => {
+    const todos = estructura.dests;
+
+    if (!(allowedDestIds instanceof Set)) return todos;
+
+    return todos.filter((dest) => allowedDestIds.has(getDestId(dest)));
+  }, [estructura.dests, allowedDestIds]);
+
   const scopedToDest = allowedDestIds instanceof Set;
   // Quien no lleva `asistencia.ver` no entra, aunque escriba la URL: el menu no
   // le ofrecia la pantalla, pero la pantalla no comprobaba nada.
@@ -542,62 +564,95 @@ export function AttendanceQuickView() {
     puedeModificar(user, PERMISOS.ASISTENCIA_CREAR) ||
     puedeModificar(user, PERMISOS.ASISTENCIA_EDITAR);
 
+  // PRIMERO LO LIGERO: destacamentos, iglesias y secciones.
+  //
+  // Es lo unico que hace falta para que el desplegable funcione, y son tres
+  // listas cortas. El padron —todos los miembros del pais— se descarga despues,
+  // cuando ya hay un destacamento elegido: bajarlo por delante retrasaba la
+  // pantalla entera, y en el movil, donde la red se corta, se llevaba por
+  // delante tambien a los destacamentos.
+  //
+  // `allSettled` y no `all`: si una de las tres falla, las otras dos siguen
+  // sirviendo. Con `all` una sola caida dejaba la pantalla sin nada.
   useEffect(() => {
     let active = true;
 
-    async function loadData() {
+    async function cargarEstructura() {
       setLoading(true);
 
-      try {
-        const [memberItems, destItems, churches, sectionals] = await Promise.all([
-          getMembers(),
-          getDestsApi(),
-          getChurches().catch(() => []),
-          getSectionals({ includePhotos: false }).catch(() => []),
-        ]);
+      const [destItems, churches, sectionals] = await Promise.allSettled([
+        getDestsApi(),
+        getChurches(),
+        getSectionals({ includePhotos: false }),
+      ]).then((resultados) =>
+        resultados.map((resultado) =>
+          resultado.status === 'fulfilled' && Array.isArray(resultado.value) ? resultado.value : []
+        )
+      );
 
-        if (!active) return;
+      if (!active) return;
 
-        setEstructura({ churches, sectionals });
-
-        const nextDests = Array.isArray(destItems)
-          ? destItems.filter((dest) => {
-              if (!(allowedDestIds instanceof Set)) {
-                return true;
-              }
-
-              return allowedDestIds.has(getDestId(dest));
-            })
-          : [];
-        const nextMembers = Array.isArray(memberItems) ? memberItems : [];
-
-        setDests(nextDests);
-        setMembers(nextMembers);
-
-        if (nextDests.length) {
-          setSelectedDestId((current) =>
-            nextDests.some((dest) => getDestId(dest) === String(current))
-              ? current
-              : getDestId(nextDests[0])
-          );
-        } else {
-          setSelectedDestId('');
-        }
-      } catch {
-        toast.error('No se pudo cargar la lista de asistencia.');
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+      if (!destItems.length) {
+        toast.error('No se pudo cargar la lista de destacamentos.');
       }
+
+      setEstructura({ dests: destItems, churches, sectionals });
+      setLoading(false);
     }
 
-    loadData();
+    cargarEstructura();
 
     return () => {
       active = false;
     };
-  }, [allowedDestIds]);
+    // Una sola vez: el alcance se aplica despues, sobre lo cargado.
+  }, []);
+
+  // Y DESPUES EL PADRON, solo cuando ya hay a quien pasarle lista.
+  //
+  // `getMembers` guarda lo suyo en memoria durante medio minuto y cae al espejo
+  // local si la red falla, asi que volver a entrar no vuelve a descargarlo.
+  //
+  // Depende de que HAYA destacamento, no de cual: el padron es el mismo para
+  // todos y cambiar de destacamento en el desplegable no debe volver a bajarlo
+  // ni dejar la lista en esqueletos otra vez.
+  const hayDestacamentoElegido = Boolean(selectedDestId);
+
+  useEffect(() => {
+    if (!hayDestacamentoElegido) return undefined;
+
+    let active = true;
+
+    setCargandoMiembros(true);
+
+    getMembers()
+      .then((memberItems) => {
+        if (!active) return;
+
+        setMembers(Array.isArray(memberItems) ? memberItems : []);
+      })
+      .catch(() => {
+        if (active) toast.error('No se pudo cargar la lista de asistencia.');
+      })
+      .finally(() => {
+        if (active) setCargandoMiembros(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hayDestacamentoElegido]);
+
+  // El destacamento elegido tiene que seguir estando en la lista. Antes vivia
+  // dentro de la carga; ahora la lista se recalcula sola y esto la acompaña.
+  useEffect(() => {
+    setSelectedDestId((current) => {
+      if (!dests.length) return '';
+      if (dests.some((dest) => getDestId(dest) === String(current))) return current;
+
+      return getDestId(dests[0]);
+    });
+  }, [dests]);
 
   // LA CARA DE CADA UNO. Pasar lista es reconocer a la persona, y aqui salian
   // todos con la inicial en un circulo de color: el mismo grupo que en la lista
@@ -607,6 +662,10 @@ export function AttendanceQuickView() {
   // sin bloquear la lista: aparecen cuando llegan, y si no llegan queda la
   // inicial de siempre.
   useEffect(() => {
+    // Sin miembros en pantalla no hay nada que ilustrar, y son las fotos de
+    // TODO el padron: bajarlas al entrar competia con lo que si hacia falta.
+    if (!members.length) return undefined;
+
     let active = true;
 
     obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
@@ -628,7 +687,7 @@ export function AttendanceQuickView() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [members.length]);
 
   const selectedDest = useMemo(
     () =>
@@ -1588,7 +1647,7 @@ export function AttendanceQuickView() {
 
             Se mantiene mientras carga: es la cabecera de lo que va a venir, y
             hacerla aparecer despues empujaba la lista hacia abajo. */}
-        {(loading || loadingAttendance || !!visibleMembers.length) && (
+        {(loading || cargandoMiembros || loadingAttendance || !!visibleMembers.length) && (
           <Box
             sx={{
               ...FILA_ASISTENCIA_SX,
@@ -1615,7 +1674,7 @@ export function AttendanceQuickView() {
         )}
 
         <Stack spacing={1.5}>
-          {loading ? (
+          {loading || cargandoMiembros ? (
             Array.from({ length: 6 }).map((_, index) => <AttendanceMemberSkeleton key={index} />)
           ) : loadingAttendance ? (
             Array.from({ length: Math.max(visibleMembers.length, 3) }).map((_, index) => (
@@ -1826,7 +1885,7 @@ export function AttendanceQuickView() {
               caja— que tapa lo que pasa por detras y se queda con los clics. El
               velo de encima desvanece las filas al llegar, en vez de cortarlas a
               media altura. */}
-          {!loading && !!visibleMembers.length && (
+          {!loading && !cargandoMiembros && !!visibleMembers.length && (
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={1.5}
