@@ -64,16 +64,6 @@ const COLUMNA_DEL_GUIA_MAYOR = [
   { sufijo: 'capellan-auxiliar', role: 'Capellán Auxiliar', cargo: 'capellan_auxiliar' },
 ];
 
-const EQUIPO_DEL_GUIA_MAYOR = [GUIA_MAYOR_AUXILIAR, ...COLUMNA_DEL_GUIA_MAYOR];
-
-// Los ids del Guia Mayor y de su equipo. Se marcan aparte porque la pantalla
-// dibuja el recuadro "Equipo de Liderazgo de Grupo" alrededor de ellos.
-export const idsDelEquipoDeLiderazgo = (division) => [
-  `guia-mayor-${division}`,
-  ...EQUIPO_DEL_GUIA_MAYOR.map(({ sufijo }) => `${sufijo}-${division}`),
-  ...Array.from({ length: PATRULLAS }, (_, i) => `guia-patrulla-${i + 1}-${division}`),
-];
-
 export const construirArbolJuvenil = (division) =>
   nodo({
     id: `lider-grupo-${division}`,
@@ -142,9 +132,3 @@ export const construirArbolJuvenil = (division) =>
       }),
     ],
   });
-
-// El cuadro de cada division, listo para pintar.
-export const ARBOLES_JUVENILES_POR_DIVISION = DIVISIONES_JUVENILES.reduce(
-  (acc, division) => ({ ...acc, [division.id]: construirArbolJuvenil(division.id) }),
-  {}
-);

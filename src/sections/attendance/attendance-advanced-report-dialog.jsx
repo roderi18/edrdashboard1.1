@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -230,9 +231,14 @@ export function AttendanceAdvancedReportDialog({ open, onClose, dest, destId }) 
               barras a ojo para saber como va el conjunto. */}
           <Stack sx={{ minWidth: 132, flexShrink: 0 }}>
             <Typography variant="h4">{porcentaje}%</Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {totalAsistencias} de {totalEsperados}
-            </Typography>
+            {/* MARCAS, no personas. Cada miembro deja una marca por reunion, asi
+                que en varias semanas una misma persona cuenta varias veces. Se
+                dice para que "35 de 270" no se lea como 270 miembros. */}
+            <Tooltip title="Cada miembro deja una marca por reunión: en varias semanas, una misma persona cuenta varias veces.">
+              <Typography variant="caption" sx={{ color: 'text.secondary', cursor: 'help' }}>
+                {totalAsistencias} de {totalEsperados} marcas
+              </Typography>
+            </Tooltip>
           </Stack>
         </Stack>
 

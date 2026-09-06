@@ -18,7 +18,11 @@ import Typography from '@mui/material/Typography';
 import { useParams } from 'src/routes/hooks';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
-import { getOwnDestIdsForUser, canManageDestLeadership } from 'src/utils/member-access';
+import {
+  getOwnDestIdsForUser,
+  canManageDestLeadership,
+  puedeVerMiembrosDeTodaLaOrganizacion,
+} from 'src/utils/member-access';
 
 import { getDestsApi } from 'src/services/dest-service';
 
@@ -245,9 +249,13 @@ function YouthLeadershipNode({
   miembroAsignado = null,
   onAsignarMiembro,
   onRemoverMiembro,
+  // Quien mira desde otro destacamento ve que la casilla esta cubierta, pero no
+  // por quien. Es lo mismo que hace la Directiva Local; sin esto, la misma
+  // persona salia tapada en un cuadro y con nombre y apellidos en el otro.
+  restringido = false,
 }) {
   const menuActions = usePopover();
-  const identity = getLeadershipNodeIdentity(miembroAsignado);
+  const identity = getLeadershipNodeIdentity(miembroAsignado, { restringido });
   const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
   const isRootNode = depth === undefined;
 
@@ -362,6 +370,12 @@ export function DestYouthLeadershipView() {
   // se rechazaba: se ensenaba el lapiz y al guardar saltaba "Missing or
   // insufficient permissions".
   const canManageLayout = canManageDirectiva(user);
+
+  // La misma regla que la Directiva Local: quien no ve a toda la organizacion y
+  // mira un destacamento que no es el suyo, lo consulta sin nombres.
+  const esDeOtroDestacamento =
+    !puedeVerMiembrosDeTodaLaOrganizacion(user) &&
+    !getOwnDestIdsForUser(user).has(String(destId ?? '').trim());
 
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -542,9 +556,6 @@ export function DestYouthLeadershipView() {
     '&:hover': { bgcolor: 'background.paper' },
   };
 
-  const puedeVerDeOtro = getOwnDestIdsForUser(user);
-  const esDeOtroDestacamento =
-    puedeVerDeOtro.size > 0 && !puedeVerDeOtro.has(String(destId ?? '').trim());
 
   return (
     <>
@@ -714,6 +725,7 @@ export function DestYouthLeadershipView() {
                 {...props}
                 layoutEditor={layoutEditor}
                 canManage={canManageLeadership}
+                restringido={esDeOtroDestacamento}
                 miembroAsignado={leadership.getAssignedMember(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
