@@ -1552,16 +1552,35 @@ export function AttendanceQuickView() {
               </TextField>
             </Box>
 
+            {/* CONTADORES Y ACCIONES.
+
+                En pantalla ancha van uno al lado del otro, cada cual a su
+                extremo. En el movil no caben: los contadores se derramaban en
+                una tira de cuatro filas y los dos botones quedaban apretados a
+                su derecha, medio salidos. Ahi se apila: los cuatro contadores en
+                un bloque de dos por dos, y los botones debajo, en su propia
+                fila. */}
             <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', md: 'center' }}
               justifyContent="space-between"
               sx={{ width: 1 }}
             >
               {/* Cada contador es tambien un filtro: se pulsa y la lista se
                   queda con esa marca. Vuelto a pulsar, se suelta. */}
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Box
+                sx={{
+                  gap: 1,
+                  alignItems: 'center',
+                  // Dos columnas en el movil; en fila, como siempre, a partir de
+                  // que hay sitio. `gridTemplateColumns` no estorba cuando manda
+                  // el `flex`.
+                  display: { xs: 'grid', md: 'flex' },
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  flexWrap: 'wrap',
+                }}
+              >
                 {STATUS_FILTERS.map((filter) => {
                   const activo = statusFilter === filter.value;
 
@@ -1571,6 +1590,9 @@ export function AttendanceQuickView() {
                       clickable
                       color={filter.color}
                       variant={activo ? 'filled' : 'soft'}
+                      // Llena su columna: cuatro pastillas de anchos distintos
+                      // dejaban el bloque desigual.
+                      sx={{ width: { xs: 1, md: 'auto' } }}
                       onClick={() =>
                         setStatusFilter((current) => (current === filter.value ? '' : filter.value))
                       }
@@ -1598,9 +1620,14 @@ export function AttendanceQuickView() {
                     />
                   );
                 })}
-              </Stack>
+              </Box>
 
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ flexShrink: 0, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}
+              >
                 {/* La pantalla responde por UN dia; el informe, por la racha:
                     como va la asistencia semana a semana, mes a mes, hasta el
                     historico completo. */}
@@ -1611,6 +1638,8 @@ export function AttendanceQuickView() {
                   disabled={!selectedDestId}
                   onClick={informeAvanzado.onTrue}
                   startIcon={<Iconify icon="solar:chart-square-outline" />}
+                  // A medias con Descargar mientras no haya sitio de sobra.
+                  sx={{ flex: { xs: 1, md: '0 0 auto' }, minWidth: 0 }}
                 >
                   Informe avanzado
                 </Button>
@@ -1625,7 +1654,11 @@ export function AttendanceQuickView() {
                     selectedDestId
                   )}
                   buttonLabel="Descargar"
-                  buttonProps={{ size: 'small', endIcon: null }}
+                  buttonProps={{
+                    size: 'small',
+                    endIcon: null,
+                    sx: { flex: { xs: 1, md: '0 0 auto' }, minWidth: 0 },
+                  }}
                 />
 
                 <IconButton
