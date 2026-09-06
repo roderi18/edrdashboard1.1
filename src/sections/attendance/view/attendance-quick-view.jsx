@@ -643,18 +643,37 @@ export function AttendanceQuickView() {
   // no lo dice.
   const diaDeReunion = getDestMeetingDay(selectedDest);
 
-  // LA FECHA CAE SOLA EN SU DIA. Al entrar, la pantalla se pone en hoy; si el
-  // destacamento se reune los domingos y hoy es jueves, esa fecha ni siquiera se
-  // puede elegir en el calendario. Se retrocede al ultimo dia de reunion, que es
-  // el que se viene a pasar.
+  // LA FECHA CAE SOLA EN UN DIA QUE SE PUEDE ELEGIR.
+  //
+  // Dos reglas acotan el calendario: solo el dia en que el destacamento se
+  // reune, y ningun dia futuro —una reunion que no ha ocurrido no tiene
+  // asistencia que registrar—. Si la fecha no cumple las dos, el campo se
+  // pintaba en rojo como si el usuario hubiera hecho algo mal, cuando lo unico
+  // que pasa es que ese dia no toca.
+  //
+  // Se corrige sola, y siempre HACIA ATRAS: al ultimo dia de reunion ya
+  // celebrado, que es el que se viene a pasar.
   useEffect(() => {
-    if (diaDeReunion === null || !date) return;
+    if (!date) return;
 
-    const fecha = dayjs(date);
-    const diasDeMas = (fecha.day() - diaDeReunion + 7) % 7;
+    const hoy = dayjs();
+    let fecha = dayjs(date);
 
-    if (diasDeMas) {
-      setDate(fecha.subtract(diasDeMas, 'day').format('YYYY-MM-DD'));
+    if (!fecha.isValid()) return;
+
+    // Primero se trae del futuro; despues se retrocede a su dia de la semana.
+    if (fecha.isAfter(hoy, 'day')) {
+      fecha = hoy;
+    }
+
+    if (diaDeReunion !== null) {
+      fecha = fecha.subtract((fecha.day() - diaDeReunion + 7) % 7, 'day');
+    }
+
+    const corregida = fecha.format('YYYY-MM-DD');
+
+    if (corregida !== date) {
+      setDate(corregida);
     }
   }, [date, diaDeReunion]);
 
