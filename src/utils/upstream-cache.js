@@ -16,7 +16,12 @@ const DEFAULT_TTL_MS = 60_000;
 // 9 segundos y no mas: las funciones de Netlify se cortan a los 10, asi que
 // pasado ese punto la respuesta ya no llega igual. Mejor fallar nosotros, con un
 // error que quien llama sabe manejar, que morir cortados por la plataforma.
-const DEFAULT_TIMEOUT_MS = 9_000;
+//
+// EN LOCAL NO HAY TAL CORTE. Ese limite es de la plataforma, no del upstream, y
+// aqui solo servia para tirar destacamentos y secciones cada vez que somee se
+// ponia en sus 17s: la pantalla de Asistencia se quedaba sin estructura. El
+// padron de miembros ya hacia esta misma excepcion en su ruta.
+const DEFAULT_TIMEOUT_MS = process.env.NODE_ENV === 'development' ? 25_000 : 9_000;
 
 // Cuanto se puede seguir sirviendo una respuesta ya vencida mientras se trae la
 // nueva. Diez minutos: lo que se cachea aqui son listados de la organizacion
