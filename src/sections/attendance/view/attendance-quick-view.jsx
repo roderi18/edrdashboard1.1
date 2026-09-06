@@ -8,6 +8,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
@@ -29,6 +30,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
@@ -255,6 +257,37 @@ const getDestTitle = (dest, fallbackId = '') => {
 };
 
 const getMemberId = (member) => String(member?.idMiembros ?? member?.id ?? member?.memberId ?? '');
+
+// Pasar asistencia es mirar caras y nombres: desde la foto y desde el nombre se
+// llega a la ficha. Sin subrayado, para que la fila se siga leyendo como una
+// lista y no como un parrafo de enlaces.
+function AttendanceMemberProfileLink({ memberId, children, sx }) {
+  if (!memberId) {
+    return children;
+  }
+
+  return (
+    <Link
+      component={RouterLink}
+      href={paths.dashboard.level.member.edit(memberId)}
+      color="inherit"
+      underline="none"
+      sx={sx}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function AttendanceMemberNameLink({ memberId, name, sx }) {
+  return (
+    <AttendanceMemberProfileLink memberId={memberId} sx={{ display: 'block', minWidth: 0 }}>
+      <Typography variant="subtitle2" noWrap sx={sx}>
+        {name}
+      </Typography>
+    </AttendanceMemberProfileLink>
+  );
+}
 
 const getFirstWord = (value) =>
   String(value ?? '')
@@ -1335,18 +1368,21 @@ export function AttendanceQuickView() {
               sx={{ px: { xs: 2, md: 3 }, py: 1.25 }}
             >
               <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0 }}>
-                <Avatar
-                  src={miembro.avatarUrl}
-                  alt={miembro.nombre}
-                  sx={{ width: 40, height: 40, flexShrink: 0 }}
+                <AttendanceMemberProfileLink
+                  memberId={miembro.id}
+                  sx={{ display: 'flex', flexShrink: 0 }}
                 >
-                  {miembro.nombre.charAt(0)}
-                </Avatar>
+                  <Avatar
+                    src={miembro.avatarUrl}
+                    alt={miembro.nombre}
+                    sx={{ width: 40, height: 40 }}
+                  >
+                    {miembro.nombre.charAt(0)}
+                  </Avatar>
+                </AttendanceMemberProfileLink>
 
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    {miembro.nombre}
-                  </Typography>
+                  <AttendanceMemberNameLink memberId={miembro.id} name={miembro.nombre} />
                   <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
                     {[miembro.codigo, miembro.division].filter(Boolean).join(' • ')}
                   </Typography>
@@ -1436,7 +1472,7 @@ export function AttendanceQuickView() {
 
   return (
     <>
-      <DashboardContent sx={{ pb: 'calc(var(--layout-dashboard-content-pb) + 72px)' }}>
+      <DashboardContent>
         <CustomBreadcrumbs
           heading={attendanceTitle}
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Asistencia' }]}
@@ -1641,7 +1677,12 @@ export function AttendanceQuickView() {
                   // A medias con Descargar mientras no haya sitio de sobra.
                   sx={{ flex: { xs: 1, md: '0 0 auto' }, minWidth: 0 }}
                 >
-                  Informe avanzado
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                    Informe avanzado
+                  </Box>
+                  <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                    Avanzado
+                  </Box>
                 </Button>
 
                 <ExportTableButton
@@ -1740,22 +1781,24 @@ export function AttendanceQuickView() {
                         alignItems="center"
                         sx={{ minWidth: 0, gridArea: 'miembro' }}
                       >
-                        <Avatar
-                          src={avatarUrl}
-                          alt={memberName}
-                          sx={{
-                            width: { xs: 42, sm: 48 },
-                            height: { xs: 42, sm: 48 },
-                            flexShrink: 0,
-                          }}
+                        <AttendanceMemberProfileLink
+                          memberId={memberId}
+                          sx={{ display: 'flex', flexShrink: 0 }}
                         >
-                          {memberName.charAt(0)}
-                        </Avatar>
+                          <Avatar
+                            src={avatarUrl}
+                            alt={memberName}
+                            sx={{
+                              width: { xs: 42, sm: 48 },
+                              height: { xs: 42, sm: 48 },
+                            }}
+                          >
+                            {memberName.charAt(0)}
+                          </Avatar>
+                        </AttendanceMemberProfileLink>
 
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="subtitle2" noWrap>
-                            {memberName}
-                          </Typography>
+                          <AttendanceMemberNameLink memberId={memberId} name={memberName} />
                           <Typography variant="caption" color="text.secondary" noWrap>
                             {[getMemberCode(member), resolveMemberDivision(member)]
                               .filter(Boolean)
@@ -1906,96 +1949,118 @@ export function AttendanceQuickView() {
               )}
             </>
           )}
-          {/* LA BARRA SE QUEDA ABAJO, PEGADA. Pasar lista es ir bajando por la
-              lista, y el boton de guardar no puede estar al final del todo:
-              quien marca a treinta personas tendria que recorrerlas otra vez
-              para guardar.
-              
-              Y DEBAJO DE ELLA NO SE VE NADA. Los botones flotaban sueltos sobre
-              la lista: por los huecos asomaban medias filas, y lo que quedaba
-              tapado seguia respondiendo al raton. La barra lleva ahora su propio
-              fondo —opaco, del color de la pagina, asi que no se lee como una
-              caja— que tapa lo que pasa por detras y se queda con los clics. El
-              velo de encima desvanece las filas al llegar, en vez de cortarlas a
-              media altura. */}
-          {!loading && !cargandoMiembros && !!visibleMembers.length && (
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1.5}
-              sx={(theme) => ({
-                py: 2,
-                bottom: 0,
-                position: 'sticky',
-                bgcolor: 'background.default',
-                zIndex: theme.zIndex.appBar - 1,
-                '&::before': {
-                  left: 0,
-                  right: 0,
-                  height: 32,
-                  content: '""',
-                  bottom: '100%',
-                  position: 'absolute',
-                  pointerEvents: 'none',
-                  background: `linear-gradient(to top, ${theme.vars.palette.background.default}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0)})`,
-                },
-              })}
-            >
-              <Button
-                size="large"
-                color="inherit"
-                variant="outlined"
-                onClick={resumenDelDia.onTrue}
-                // Hasta que no se guarda no hay resumen: contar marcas que
-                // todavia no existen en ninguna parte seria ensenar un dia que
-                // se pierde al recargar.
-                disabled={!selectedDestId || !hayResumenGuardado}
-                startIcon={<Iconify icon="solar:chart-2-bold" width={24} />}
-                sx={{
-                  py: 1.25,
-                  flex: 1,
-                  bgcolor: 'background.paper',
-                  justifyContent: 'flex-start',
-                  '&:hover': { bgcolor: 'background.paper' },
-                }}
-              >
-                <Box sx={{ textAlign: 'left', minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    Resumen del día
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    noWrap
-                    sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}
-                  >
-                    Ver estadísticas completas de asistencia
-                  </Typography>
-                </Box>
-              </Button>
-
-              <Button
-                size="large"
-                variant="contained"
-                onClick={handleSave}
-                disabled={!selectedDestId || savingAttendance}
-                startIcon={<Iconify icon="solar:diskette-bold" width={24} />}
-                sx={{ py: 1.25, flex: 1, justifyContent: 'flex-start' }}
-              >
-                <Box sx={{ textAlign: 'left', minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    {savingAttendance ? 'Guardando asistencia...' : 'Guardar asistencia'}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    noWrap
-                    sx={{ display: 'block', opacity: 0.72, fontWeight: 400 }}
-                  >
-                    Se guardarán los cambios realizados
-                  </Typography>
-                </Box>
-              </Button>
-            </Stack>
-          )}
         </Stack>
+
+        {/* LA BARRA SE QUEDA ABAJO, PEGADA. Pasar lista es ir bajando por la
+            lista, y el boton de guardar no puede estar al final del todo:
+            quien marca a treinta personas tendria que recorrerlas otra vez
+            para guardar.
+
+            CON POCOS MIEMBROS TAMBIEN. Pegarse solo funciona mientras el
+            contenedor siga pasando por debajo del borde de la pantalla; con
+            cuatro fichas la lista terminaba a media altura y los botones se
+            quedaban ahi, en el medio, encima de las tarjetas. Por eso la barra
+            cuelga ahora del contenido —no de la lista— y se empuja al fondo con
+            un margen automatico: sin scroll cae al pie de la pantalla, y con
+            scroll vuelve a pegarse.
+
+            Y DEBAJO DE ELLA NO SE VE NADA. Los botones flotaban sueltos sobre
+            la lista: por los huecos asomaban medias filas, y lo que quedaba
+            tapado seguia respondiendo al raton. La barra lleva ahora su propio
+            fondo —opaco, del color de la pagina, asi que no se lee como una
+            caja— que tapa lo que pasa por detras y se queda con los clics. El
+            velo de encima desvanece las filas al llegar, en vez de cortarlas a
+            media altura. */}
+        {!loading && !cargandoMiembros && !!visibleMembers.length && (
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={(theme) => ({
+              py: 2,
+              bottom: 0,
+              mt: 'auto',
+              position: 'sticky',
+              bgcolor: 'background.default',
+              zIndex: theme.zIndex.appBar - 1,
+              '&::before': {
+                left: 0,
+                right: 0,
+                height: 32,
+                content: '""',
+                bottom: '100%',
+                position: 'absolute',
+                pointerEvents: 'none',
+                background: `linear-gradient(to top, ${theme.vars.palette.background.default}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0)})`,
+              },
+            })}
+          >
+            <Button
+              size="large"
+              color="inherit"
+              variant="outlined"
+              onClick={resumenDelDia.onTrue}
+              // Hasta que no se guarda no hay resumen: contar marcas que
+              // todavia no existen en ninguna parte seria ensenar un dia que
+              // se pierde al recargar.
+              disabled={!selectedDestId || !hayResumenGuardado}
+              startIcon={<Iconify icon="solar:chart-2-bold" width={24} />}
+              sx={{
+                py: 1.25,
+                flex: 1,
+                minWidth: 0,
+                bgcolor: 'background.paper',
+                justifyContent: { xs: 'center', sm: 'flex-start' },
+                '&:hover': { bgcolor: 'background.paper' },
+              }}
+            >
+              <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, minWidth: 0 }}>
+                <Typography variant="subtitle2" noWrap>
+                  Resumen del día
+                </Typography>
+                {/* Los dos botones caben en una sola linea del movil sin este
+                    renglon, que ademas partia el titulo en dos. */}
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    color: 'text.secondary',
+                    fontWeight: 400,
+                    display: { xs: 'none', sm: 'block' },
+                  }}
+                >
+                  Ver estadísticas completas de asistencia
+                </Typography>
+              </Box>
+            </Button>
+
+            <Button
+              size="large"
+              variant="contained"
+              onClick={handleSave}
+              disabled={!selectedDestId || savingAttendance}
+              startIcon={<Iconify icon="solar:diskette-bold" width={24} />}
+              sx={{
+                py: 1.25,
+                flex: 1,
+                minWidth: 0,
+                justifyContent: { xs: 'center', sm: 'flex-start' },
+              }}
+            >
+              <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, minWidth: 0 }}>
+                <Typography variant="subtitle2" noWrap>
+                  {savingAttendance ? 'Guardando asistencia...' : 'Guardar asistencia'}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{ opacity: 0.72, fontWeight: 400, display: { xs: 'none', sm: 'block' } }}
+                >
+                  Se guardarán los cambios realizados
+                </Typography>
+              </Box>
+            </Button>
+          </Stack>
+        )}
       </DashboardContent>
 
       {renderMenuActions()}
