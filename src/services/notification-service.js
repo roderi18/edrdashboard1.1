@@ -81,21 +81,43 @@ const obtenerCategoriaNotificacion = (modulo) => MODULOS_CATEGORIAS[modulo] || '
 const obtenerTipoVisualNotificacion = (tipoNotificacion) =>
   TIPOS_VISUALES[tipoNotificacion] || 'mail';
 
-const construirTituloHtml = (notificacion) => {
+// El titulo pone SIEMPRE en negrita a quien actua, y algunas plantillas ya
+// empiezan por su nombre ("{{actorNombre}} registró a ..."). Sin esto salia
+// "Rodery Peña Rodery Peña registró a ...": el nombre dos veces seguidas.
+const componerTituloHtml = (actorNombre, mensaje) => {
+  const nombre = String(actorNombre || 'Sistema').trim();
+  const texto = String(mensaje || '').trim();
+
+  if (nombre && texto.toLowerCase().startsWith(nombre.toLowerCase())) {
+    return `<p><strong>${escapeHtml(nombre)}</strong>${escapeHtml(texto.slice(nombre.length))}</p>`;
+  }
+
+  return `<p><strong>${escapeHtml(nombre)}</strong> ${escapeHtml(texto)}</p>`;
+};
+
+// Quien hizo la accion no necesita que se la cuenten en tercera persona: "Se
+// registró a Fulano exitosamente" en vez de "Fulano Mengano registró a Fulano".
+// El aviso es UN documento para varios destinatarios, asi que la version propia
+// viaja dentro y se elige al pintarla.
+const construirTituloHtml = (notificacion, idUsuario = '') => {
+  const usuarioId = String(idUsuario || '').trim();
+  const esElActor = Boolean(usuarioId) && String(notificacion.actorId || '') === usuarioId;
+
+  if (esElActor && notificacion.tituloHtmlPropio) {
+    return notificacion.tituloHtmlPropio;
+  }
+
   if (notificacion.tituloHtml) {
     return notificacion.tituloHtml;
   }
 
-  const actorNombre = escapeHtml(notificacion.actorNombre || 'Sistema');
   const mensaje =
-    escapeHtml(
-      notificacion.mensajeVisual ||
-        notificacion.mensaje ||
-        notificacion.titulo ||
-        'Tienes una nueva notificación.'
-    ) || 'Tienes una nueva notificación.';
+    notificacion.mensajeVisual ||
+    notificacion.mensaje ||
+    notificacion.titulo ||
+    'Tienes una nueva notificación.';
 
-  return `<p><strong>${actorNombre}</strong> ${mensaje}</p>`;
+  return componerTituloHtml(notificacion.actorNombre, mensaje);
 };
 
 const renderTemplate = (template = '', values = {}) =>
@@ -200,7 +222,7 @@ export const resolverNotificacionConConfiguracion = async (notificacion = {}) =>
     idsDestinatarios,
     titulo: plantillaConfig?.tituloPlantilla || tipoConfig?.titulo || notificacion.titulo,
     tituloHtml: plantillaConfig?.mensajePlantilla
-      ? `<p><strong>${escapeHtml(actorNombre)}</strong> ${escapeHtml(mensaje)}</p>`
+      ? componerTituloHtml(actorNombre, mensaje)
       : notificacion.tituloHtml,
     mensaje,
     mensajeVisual: notificacion.mensajeVisual === notificacion.mensaje ? mensaje : notificacion.mensajeVisual,
@@ -729,9 +751,12 @@ export async function crearNotificacionMiembroCreado({ miembro = {}, usuario = {
     tipoNotificacion: 'miembro_creado',
     modulo: 'miembros',
     titulo: 'Nuevo miembro creado',
-    tituloHtml: `<p><strong>${escapeHtml(nombreMiembro)}</strong> fue registrado como nuevo miembro</p>`,
-    mensaje: 'fue registrado como nuevo miembro.',
-    mensajeVisual: 'fue registrado como nuevo miembro.',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> registró a ${escapeHtml(nombreMiembro)}.</p>`,
+    // La lee quien hizo el registro; el resto de coordinadores y administradores
+    // ven arriba quien fue.
+    tituloHtmlPropio: `<p>Se registró a <strong>${escapeHtml(nombreMiembro)}</strong> exitosamente.</p>`,
+    mensaje: `registró a ${nombreMiembro}.`,
+    mensajeVisual: `registró a ${nombreMiembro}.`,
     rolDestinatario: 'admin',
     idsDestinatarios,
     prioridad: 'informativa',
@@ -813,31 +838,11 @@ export async function crearNotificacionCuentaCreada({ cuenta = {}, usuario = {} 
     cuenta?.correo ||
     `Cuenta ${idCuenta}`;
 
-  const adminNotification = await crearNotificacionAdmin({
-    tipoNotificacion: 'cuenta_creada',
-    modulo: 'cuentas',
-    titulo: 'Cuenta creada',
-    tituloHtml: `<p><strong>${escapeHtml(nombreCuenta)}</strong> ya tiene cuenta de acceso</p>`,
-    mensaje: `creo la cuenta de acceso de ${nombreCuenta}.`,
-    prioridad: 'informativa',
-    entidadTipo: 'cuenta',
-    entidadId: String(idCuenta),
-    ruta: cuenta?.idMiembros
-      ? `/dashboard/level/member/${cuenta.idMiembros}/edit`
-      : '/dashboard/user/account',
-    imagenTipo: 'persona',
-    imagenURL: cuenta?.photoURL || cuenta?.avatarUrl || null,
-    miniaturaURL: cuenta?.photoURL || cuenta?.avatarUrl || null,
-    etiquetaAccion: 'Ver cuenta',
-    metadatos: {
-      uid: cuenta?.uid || null,
-      email: cuenta?.email || cuenta?.correo || null,
-      codigoMiembro: cuenta?.codigoMiembro || cuenta?.memberId || null,
-      idMiembros: cuenta?.idMiembros || cuenta?.id || null,
-    },
-    usuario,
-    notificationId: `cuenta_creada_${sanitizeNotificationIdPart(idCuenta)}`,
-  });
+  // A LOS ADMINISTRADORES NO SE LES AVISA DOS VECES.
+  //
+  // La cuenta de acceso se crea junto con el miembro, asi que este aviso salia
+  // pegado al de "registró a Fulano" y contaba lo mismo. Queda solo el del alta
+  // del miembro; el de la cuenta se lo queda su dueño.
   const userNotification = await crearNotificacionUsuario({
     tipoNotificacion: 'cuenta_creada',
     modulo: 'cuentas',
@@ -866,7 +871,7 @@ export async function crearNotificacionCuentaCreada({ cuenta = {}, usuario = {} 
     notificationId: `cuenta_creada_usuario_${sanitizeNotificationIdPart(idCuenta)}`,
   });
 
-  return [adminNotification, userNotification].filter(Boolean);
+  return [userNotification].filter(Boolean);
 }
 
 export async function crearNotificacionPerfilActualizado({ perfil = {}, usuario = {} }) {
@@ -2280,7 +2285,7 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
     tipoAccionSecundaria: notificacion.tipoAccionSecundaria || null,
     etiquetaAccionSecundaria: notificacion.etiquetaAccionSecundaria || null,
     metadatos: notificacion.metadatos || {},
-    title: construirTituloHtml(notificacion),
+    title: construirTituloHtml(notificacion, usuarioId),
   };
 };
 
