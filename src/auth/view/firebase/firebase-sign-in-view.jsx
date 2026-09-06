@@ -13,7 +13,6 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -409,30 +408,19 @@ export function FirebaseSignInView({ mode = 'member' }) {
             type="submit"
             variant="contained"
             disabled={isSigningIn}
-            loading={isSubmitting}
-            loadingIndicator="Iniciando sesión..."
+            loading={isSigningIn}
+            loadingIndicator={
+              <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={20} color="inherit" />
+                {isRedirecting ? 'Abriendo tu panel...' : 'Iniciando sesión...'}
+              </Box>
+            }
             sx={{ minHeight: 54, borderRadius: 1.8 }}
           >
             {isAdminMode ? 'Entrar como administrador' : 'Iniciar sesión'}
           </Button>
 
-          {isSigningIn ? (
-            <Box
-              aria-live="polite"
-              sx={{
-                gap: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'text.secondary',
-              }}
-            >
-              <CircularProgress size={20} color="inherit" />
-              <Typography variant="body2">
-                {isRedirecting ? 'Abriendo tu panel...' : 'Iniciando sesión...'}
-              </Typography>
-            </Box>
-          ) : (
+          {!isSigningIn && (
             <>
               <Divider sx={{ color: 'text.disabled', typography: 'caption' }}>
                 o continúa con
