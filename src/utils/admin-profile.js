@@ -194,17 +194,27 @@ export const resolveAdminSignInEmail = async (loginValue) => {
   return String(payload?.correo ?? '').trim().toLowerCase();
 };
 
+// EL NOMBRE ES EL DE SU FICHA, NO UNA COPIA VIEJA.
+//
+// `displayName` es una foto del nombre tomada el dia que se creo la cuenta y
+// guardada aparte. Mandaba sobre todo lo demas, asi que una errata de aquel dia
+// —o el nombre de antes de casarse, o un apellido que faltaba— se quedaba para
+// siempre: corregir la ficha del miembro no cambiaba nada, y ese nombre es el
+// que firma sus notificaciones y sus registros.
+//
+// Ahora manda la ficha. `displayName` sigue detras, para las cuentas de
+// administracion que no cuelgan de ningun miembro y solo tienen ese nombre.
 export const buildAdminDisplayName = (profile = {}, authUser = {}) => {
-  const explicitDisplayName = profile.displayName?.trim();
-
-  if (explicitDisplayName) {
-    return explicitDisplayName;
-  }
-
   const fullName = [profile.nombres, profile.apellidos].filter(Boolean).join(' ').trim();
 
   if (fullName) {
     return fullName;
+  }
+
+  const explicitDisplayName = profile.displayName?.trim();
+
+  if (explicitDisplayName) {
+    return explicitDisplayName;
   }
 
   if (authUser.displayName?.trim()) {

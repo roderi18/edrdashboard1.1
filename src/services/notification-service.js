@@ -11,10 +11,14 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+
+import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
+import { ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
 
 // ----------------------------------------------------------------------
 
@@ -23,6 +27,7 @@ const MODULOS_CATEGORIAS = {
   archivos: 'Archivos',
   cuentas: 'Cuentas',
   cumpleanos: 'Cumpleaños',
+  destacamentos: 'Destacamentos',
   eventos: 'Eventos',
   facturas: 'Facturas',
   miembros: 'Miembros',
@@ -38,6 +43,7 @@ const TIPOS_VISUALES = {
   chat_reportado: 'chat',
   cuenta_creada: 'mail',
   cumpleanos_miembro_7_dias: 'mail',
+  destacamento_numero_asignado: 'mail',
   cumpleanos_miembro_hoy: 'mail',
   error_subida_archivo_imagen: 'file',
   evento_reprogramado: 'tags',
@@ -95,16 +101,38 @@ const componerTituloHtml = (actorNombre, mensaje) => {
   return `<p><strong>${escapeHtml(nombre)}</strong> ${escapeHtml(texto)}</p>`;
 };
 
-// Quien hizo la accion no necesita que se la cuenten en tercera persona: "Se
-// registró a Fulano exitosamente" en vez de "Fulano Mengano registró a Fulano".
-// El aviso es UN documento para varios destinatarios, asi que la version propia
-// viaja dentro y se elige al pintarla.
+// LO QUE LEE QUIEN LO HIZO.
+//
+// A nadie hay que contarle en tercera persona lo que acaba de hacer:
+// "Registraste a Fulano exitosamente" en vez de "Mengano registró a Fulano",
+// con su propio nombre repetido delante. El aviso es UN documento para varios
+// destinatarios, asi que la frase se arma AL PINTARLA, con los datos que el
+// documento ya guarda —el nombre del miembro vive en sus metadatos—. Armarla
+// aqui y no al escribirla es lo que hace que los avisos que ya estaban
+// guardados, sin la version propia dentro, tambien se lean bien.
+const construirTituloPropioDelActor = (notificacion = {}) => {
+  if (notificacion.tipoNotificacion === 'miembro_creado') {
+    const nombreMiembro = [notificacion.metadatos?.nombres, notificacion.metadatos?.apellidos]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (nombreMiembro) {
+      return `<p>Registraste a <strong>${escapeHtml(nombreMiembro)}</strong> exitosamente.</p>`;
+    }
+  }
+
+  return notificacion.tituloHtmlPropio || '';
+};
+
 const construirTituloHtml = (notificacion, idUsuario = '') => {
   const usuarioId = String(idUsuario || '').trim();
   const esElActor = Boolean(usuarioId) && String(notificacion.actorId || '') === usuarioId;
 
-  if (esElActor && notificacion.tituloHtmlPropio) {
-    return notificacion.tituloHtmlPropio;
+  if (esElActor) {
+    const tituloPropio = construirTituloPropioDelActor(notificacion);
+
+    if (tituloPropio) return tituloPropio;
   }
 
   if (notificacion.tituloHtml) {
@@ -727,6 +755,217 @@ export async function crearNotificacionAdmin({
   return notificacionConfigurada;
 }
 
+// ----------------------------------------------------------------------
+// A QUIEN LE IMPORTA EL NUMERO DE UN DESTACAMENTO.
+//
+// Al pais entero —Consejo Ejecutivo, Oficina Nacional y Administrador Global,
+// que llevan el registro— y a quien tiene ese destacamento debajo: TODOS los
+// cargos de su seccion y de su region. Ni los de otra seccion ni los de otra
+// region, que no lo administran.
+//
+// Se pregunta por TODOS los cargos de cada cuenta, no por el principal: quien
+// coordina su destacamento y ademas ocupa una casilla en su seccion entra por la
+// segunda.
+// ----------------------------------------------------------------------
+
+const rolesConAlcance = (alcance) =>
+  Object.entries(ALCANCE_PREDETERMINADO_ROL)
+    .filter(([, valor]) => valor === alcance)
+    .map(([codigo]) => String(codigo).toLowerCase());
+
+const ROLES_DEL_REGISTRO_NACIONAL = [
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.OFICINA_NACIONAL,
+  ...ROLES_CONSEJO_EJECUTIVO,
+].map((codigo) => String(codigo).toLowerCase());
+
+const normalizarCodigo = (valor) => String(valor ?? '').trim().toLowerCase();
+
+const normalizarId = (valor) => String(valor ?? '').trim();
+
+// Los cargos de una cuenta: el principal y los de la lista, con el nivel y la
+// entidad de cada uno.
+const cargosDelPerfil = (data = {}) => {
+  const lista = Array.isArray(data.cargos) ? data.cargos : [];
+
+  return [
+    {
+      rol: normalizarCodigo(data.rolId ?? data.roleId ?? data.rol ?? data.role),
+      nivel: normalizarCodigo(data.alcance?.tipo ?? data.alcance?.modo),
+      idEntidad: '',
+    },
+    ...lista.map((cargo) => ({
+      rol: normalizarCodigo(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo),
+      nivel: normalizarCodigo(cargo?.nivel),
+      idEntidad: normalizarId(cargo?.idEntidad ?? cargo?.idDestacamento ?? cargo?.destacamentoId),
+    })),
+  ].filter((cargo) => cargo.rol);
+};
+
+const idsDeAlcance = (data = {}, claves = []) =>
+  claves
+    .flatMap((clave) => {
+      const valor = data?.alcance?.[clave] ?? data?.[clave];
+
+      return Array.isArray(valor) ? valor : [valor];
+    })
+    .map(normalizarId)
+    .filter(Boolean);
+
+const obtenerIdsAvisoNumeroDestacamento = async ({ seccionId = '', regionId = '' } = {}) => {
+  const rolesDeSeccion = new Set(rolesConAlcance(ALCANCES.SECCION));
+  const rolesDeRegion = new Set(rolesConAlcance(ALCANCES.REGION));
+  const nacionales = new Set(ROLES_DEL_REGISTRO_NACIONAL);
+  const seccion = normalizarId(seccionId);
+  const region = normalizarId(regionId);
+  const ids = new Set();
+
+  const leerColeccion = async (nombreColeccion) => {
+    const snapshot = await getDocs(collection(FIRESTORE, nombreColeccion)).catch(() => null);
+
+    snapshot?.docs?.forEach((item) => {
+      const data = item.data() ?? {};
+      const idUsuario = normalizarId(data.uid ?? data.idUsuario ?? item.id);
+
+      if (!idUsuario) return;
+
+      // La coleccion `admins` es el Administrador Global: entra sin mas.
+      if (nombreColeccion === 'admins') {
+        ids.add(idUsuario);
+        return;
+      }
+
+      const cargos = cargosDelPerfil(data);
+      const seccionesDelPerfil = new Set(idsDeAlcance(data, ['secciones', 'idSeccion', 'seccionId']));
+      const regionesDelPerfil = new Set(idsDeAlcance(data, ['regiones', 'idRegion', 'regionId']));
+
+      const leInteresa = cargos.some((cargo) => {
+        if (nacionales.has(cargo.rol)) return true;
+
+        if (rolesDeSeccion.has(cargo.rol)) {
+          if (!seccion) return false;
+
+          return cargo.idEntidad ? cargo.idEntidad === seccion : seccionesDelPerfil.has(seccion);
+        }
+
+        if (rolesDeRegion.has(cargo.rol)) {
+          if (!region) return false;
+
+          return cargo.idEntidad ? cargo.idEntidad === region : regionesDelPerfil.has(region);
+        }
+
+        return false;
+      });
+
+      if (leInteresa) ids.add(idUsuario);
+    });
+  };
+
+  await Promise.all(['admins', 'users', 'usuarios_roles'].map(leerColeccion));
+
+  return Array.from(ids);
+};
+
+/**
+ * El numero de un destacamento cambio (o se puso por primera vez).
+ *
+ * Lo asigna la Oficina Nacional —ver `puedeAsignarNumeroDeDestacamento`— y se
+ * avisa a quien lo administra por encima.
+ */
+export async function crearNotificacionNumeroDestacamento({
+  dest = {},
+  numeroAnterior = '',
+  numeroNuevo = '',
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const numero = String(numeroNuevo ?? '').trim();
+  const anterior = String(numeroAnterior ?? '').trim();
+
+  // Sin numero nuevo no hay nada que contar, y si no cambio, tampoco.
+  if (!numero || numero === anterior) return null;
+
+  const idDestacamento = normalizarId(dest?.id ?? dest?.idDestacamento);
+  const seccionId = normalizarId(dest?.sectionId ?? dest?.idSeccion ?? dest?.seccionId);
+  const regionId = normalizarId(dest?.regionId ?? dest?.idRegion ?? dest?.regionalId);
+  const nombreDestacamento = String(dest?.name ?? dest?.nombre ?? '').trim() || `Destacamento ${idDestacamento}`;
+
+  const idsDestinatarios = await obtenerIdsAvisoNumeroDestacamento({ seccionId, regionId });
+
+  if (!idsDestinatarios.length) return null;
+
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Sistema';
+  const fechaActual = new Date().toISOString();
+  // El numero anterior forma parte de la noticia: no es lo mismo estrenar
+  // numero que cambiar el que ya tenia.
+  const mensaje = anterior
+    ? `cambió el número del destacamento ${nombreDestacamento}: ${anterior} → ${numero}.`
+    : `asignó el número ${numero} al destacamento ${nombreDestacamento}.`;
+  const notificationId = `destacamento_numero_${sanitizeNotificationIdPart(idDestacamento || nombreDestacamento)}_${Date.now()}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'destacamento_numero_asignado',
+    modulo: 'destacamentos',
+    titulo: 'Número de destacamento',
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> ${escapeHtml(mensaje)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'todos',
+    idsDestinatarios,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || 'sistema'),
+    actorTipo: 'admin',
+    actorNombre,
+    actorFotoURL: usuario?.photoURL || null,
+    entidadTipo: 'destacamento',
+    entidadId: idDestacamento,
+    ruta: idDestacamento ? `/dashboard/level/dest/${idDestacamento}/edit` : '/dashboard/level/dest',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver destacamento',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      idDestacamento,
+      nombreDestacamento,
+      numero,
+      numeroAnterior: anterior,
+      idSeccion: seccionId,
+      idRegion: regionId,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  const notificacionConfigurada = await resolverNotificacionConConfiguracion(notificacion);
+
+  if (!notificacionConfigurada) return null;
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacionConfigurada,
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacionConfigurada;
+}
+
 export async function crearNotificacionMiembroCreado({ miembro = {}, usuario = {} }) {
   asegurarFirebaseNotificaciones();
 
@@ -754,7 +993,7 @@ export async function crearNotificacionMiembroCreado({ miembro = {}, usuario = {
     tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> registró a ${escapeHtml(nombreMiembro)}.</p>`,
     // La lee quien hizo el registro; el resto de coordinadores y administradores
     // ven arriba quien fue.
-    tituloHtmlPropio: `<p>Se registró a <strong>${escapeHtml(nombreMiembro)}</strong> exitosamente.</p>`,
+    tituloHtmlPropio: `<p>Registraste a <strong>${escapeHtml(nombreMiembro)}</strong> exitosamente.</p>`,
     mensaje: `registró a ${nombreMiembro}.`,
     mensajeVisual: `registró a ${nombreMiembro}.`,
     rolDestinatario: 'admin',
@@ -2481,6 +2720,18 @@ export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
 
   return notificaciones.filter((notificacion) => {
     const rolDestinatario = String(notificacion.rolDestinatario ?? '').toLowerCase();
+
+    // LOS "CUENTA CREADA" VIEJOS DE LOS ADMINISTRADORES NO SE ENSEÑAN.
+    //
+    // Ya no se crean —la cuenta de acceso nace con el miembro y su alta ya se
+    // avisa—, pero los que se escribieron antes siguen en Firestore, y encima
+    // salen mancos: aquel aviso no guardaba el nombre en sus metadatos, asi que
+    // la plantilla los pinta como "La cuenta de  fue creada correctamente". No
+    // se borra nada; simplemente dejan de aparecer. El del propio dueño de la
+    // cuenta —rolDestinatario 'usuario'— se queda como esta.
+    if (notificacion.tipoNotificacion === 'cuenta_creada' && rolDestinatario === 'admin') {
+      return false;
+    }
 
     // LO PERSONAL LLEGA SIEMPRE, SE MANDE O NO EN LA ORGANIZACION.
     //

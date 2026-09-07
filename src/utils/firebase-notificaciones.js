@@ -13,6 +13,7 @@ export const COLECCIONES_NOTIFICACIONES = {
 };
 
 export const TIPOS_NOTIFICACIONES_ADMIN = [
+  'destacamento_numero_asignado',
   'miembro_creado',
   'miembro_actualizado',
   'pedido_recibido',
@@ -39,6 +40,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
 ];
 
 export const TIPOS_NOTIFICACIONES_USUARIO = [
+  'destacamento_numero_asignado',
   'cuenta_creada',
   'perfil_actualizado',
   'pedido_creado',
@@ -285,6 +287,21 @@ const DEFINICIONES_NOTIFICACIONES = {
     etiquetaAccion: 'Ver perfil',
     tipoAccion: 'ver',
     requiereFotoPersona: true,
+  },
+  destacamento_numero_asignado: {
+    modulo: 'destacamentos',
+    titulo: 'Número de destacamento',
+    mensajePlantilla:
+      'asignó el número {{numero}} al destacamento {{nombreDestacamento}}.',
+    // 'todos': el aviso es UNO para el registro nacional y para los cargos de
+    // la seccion y la region del destacamento, que no son ni solo administradores
+    // ni solo usuarios.
+    rolesDisponibles: ['admin', 'usuario', 'todos'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'destacamento',
+    etiquetaAccion: 'Ver destacamento',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
   },
   cuenta_creada: {
     modulo: 'cuentas',
