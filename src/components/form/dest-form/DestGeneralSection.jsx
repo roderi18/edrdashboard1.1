@@ -23,6 +23,8 @@ export default function DestGeneralSection({
     // Administrador Global. Por eso van con su propio candado.
     scheduleDisabled = disabled,
     coordinatorDisabled = disabled,
+    // El numero es de la Oficina Nacional, hasta al crear el destacamento.
+    numberDisabled = disabled,
 }) {
     const params = useParams();
     const destId = params?.id;
@@ -83,7 +85,10 @@ export default function DestGeneralSection({
                 name="destNumber"
                 label="Número de Destacamento"
                 maxLength={3}
-                disabled={disabled}
+                disabled={numberDisabled}
+                helperText={
+                    numberDisabled ? 'Lo asigna la Oficina Nacional.' : ''
+                }
             />
 
             <Field.Autocomplete

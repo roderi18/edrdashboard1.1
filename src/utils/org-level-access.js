@@ -848,6 +848,16 @@ export const isOficinaNacional = (user = {}) => getOrgRoleId(user) === ROLES.OFI
 export const puedeAprobarCambiosDeOrganizacion = (user = {}) =>
   isOficinaNacional(user) || isAdminGlobal(user);
 
+// EL NUMERO DEL DESTACAMENTO LO LLEVA EL REGISTRO NACIONAL.
+//
+// Es el identificador con el que se nombra al destacamento en todo el pais, y lo
+// asigna la Oficina Nacional. Ningun cargo local, seccional ni regional lo pone
+// ni lo cambia; tampoco AL CREARLO, que es por donde se colaba —crear un
+// destacamento si es de la seccion—. La seccion da de alta el suyo y el numero
+// llega despues.
+export const puedeAsignarNumeroDeDestacamento = (user = {}) =>
+  isOficinaNacional(user) || isAdminGlobal(user);
+
 // Separacion de funciones para las dos combinaciones que pueden reunir en una
 // misma cuenta el poder LOCAL de proponer sobre un destacamento y el poder de
 // APROBAR de la Oficina Nacional. En esos casos la Oficina no se firma a si

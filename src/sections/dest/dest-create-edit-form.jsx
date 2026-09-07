@@ -41,6 +41,7 @@ import {
   canCreateDestInSection,
   isSectionScopedManager,
   soloSugiereAltasDeDestacamento,
+  puedeAsignarNumeroDeDestacamento,
   canEditDest as canGestionarDestPorAlcance,
 } from 'src/utils/org-level-access';
 
@@ -106,6 +107,8 @@ const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
     String(payload.idSeccion) !== String(iglesiaActual.idSeccion ?? '')
   );
 };
+
+import { crearNotificacionNumeroDestacamento } from 'src/services/notification-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -382,6 +385,9 @@ export function DestCreateEditForm({ currentDest }) {
   // reescribir el nombre, el numero o la iglesia de cualquier destacamento de su
   // seccion. CREARLO sigue como estaba: es la via por la que la seccion da de
   // alta los suyos.
+  // El numero es del registro nacional: no lo pone ni quien crea el
+  // destacamento. Ver `puedeAsignarNumeroDeDestacamento`.
+  const canAssignDestNumber = puedeAsignarNumeroDeDestacamento(user);
   const canEditDest = isCreateView
     ? !isDestacamentoAdmin &&
       (isLegacyAdmin || canCreateDestInSection(user) || canCreateDestByRole)
@@ -666,7 +672,12 @@ export function DestCreateEditForm({ currentDest }) {
         telefono: data.telefono ?? '',
         destMeetingDays: data.destMeetingDays ?? '',
         destMeetingTimes: data.destMeetingTimes ?? '',
-        destNumber: data.destNumber ?? '',
+        // NI POR DEBAJO. Deshabilitar el campo evita el error de quien no
+        // queria tocarlo, no el intento de quien si: lo que se manda es el
+        // numero que ya tenia, salvo que quien guarda pueda asignarlo.
+        destNumber: canAssignDestNumber
+          ? (data.destNumber ?? '')
+          : (currentDest?.destNumber ?? ''),
         direccion: data.direccion ?? data.address ?? '',
         concilio: data.concilio ?? '',
         fechaInicio: data.fechaInicio || new Date().toISOString(),
@@ -766,6 +777,27 @@ export function DestCreateEditForm({ currentDest }) {
       }
 
       const resolvedDestId = await resolveDestId(data.name, data.destNumber, data.churchId);
+
+      // EL NUMERO ES NOTICIA PARA TODA LA CADENA. Lo pone la Oficina Nacional y
+      // se avisa al registro nacional —Consejo Ejecutivo, Oficina Nacional y
+      // Administrador Global— y a los cargos de la seccion y la region a las que
+      // pertenece el destacamento. Va por detras: el destacamento ya quedo
+      // guardado y un fallo del aviso no puede tumbarlo.
+      if (canAssignDestNumber) {
+        crearNotificacionNumeroDestacamento({
+          dest: {
+            id: resolvedDestId || currentDest?.id,
+            name: data.name,
+            sectionId: data.sectionId || currentDest?.sectionId || currentDest?.idSeccion,
+            regionId: regional?.id || currentDest?.regionId || currentDest?.idRegion,
+          },
+          numeroAnterior: currentDest?.destNumber ?? '',
+          numeroNuevo: data.destNumber ?? '',
+          usuario: user,
+        }).catch((notificationError) => {
+          console.warn('[dest form] no se pudo avisar del numero', notificationError);
+        });
+      }
 
       // Persistir el coordinador de destacamento en la base de datos (Firestore),
       // en la coleccion de directiva del destacamento. El form guarda el codigo
@@ -1219,6 +1251,7 @@ export function DestCreateEditForm({ currentDest }) {
                       disabled={!canEditDest}
                       scheduleDisabled={!canSaveDest}
                       coordinatorDisabled={!canSaveDest}
+                      numberDisabled={!canAssignDestNumber}
                     />
                   )}
                 </>
@@ -1232,6 +1265,7 @@ export function DestCreateEditForm({ currentDest }) {
                     disabled={!canEditDest}
                     scheduleDisabled={!canSaveDest}
                     coordinatorDisabled={!canSaveDest}
+                    numberDisabled={!canAssignDestNumber}
                   />
 
                   <Box sx={{ gridColumn: '1 / -1' }}>

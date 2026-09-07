@@ -7,6 +7,7 @@ export default function NumberInput({
     label = 'Número',
     maxLength = 3,
     disabled = false,
+    helperText = '',
 }) {
     const { setValue, watch } = useFormContext();
 
@@ -18,6 +19,7 @@ export default function NumberInput({
             label={label}
             value={value}
             disabled={disabled}
+            helperText={helperText}
             inputProps={{
                 inputMode: 'numeric',
                 pattern: '[0-9]*',

@@ -40,6 +40,11 @@ export function DestTableToolbar({
   setDisplayMode,
   rows = [],
   showSectionFilter = true,
+  // La hoja de importacion trae una columna "numero", y la subida es otra puerta
+  // por la que un cargo seccional podia ponerlo. Si no puede asignarlo, la
+  // columna se ignora y el destacamento entra sin numero, como al crearlo a
+  // mano.
+  canAssignDestNumber = false,
 }) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
@@ -146,7 +151,9 @@ export function DestTableToolbar({
           body: JSON.stringify({
             nombre,
             idIglesia,
-            numero: getCell(row, ['numero', 'Número', 'destNumber']),
+            numero: canAssignDestNumber
+              ? getCell(row, ['numero', 'Número', 'destNumber'])
+              : '',
             correo: getCell(row, ['correo', 'Correo']),
             telefono: getCell(row, ['telefono', 'Teléfono', 'Telefono']),
             direccion: getCell(row, ['direccion', 'Dirección', 'Direccion']),

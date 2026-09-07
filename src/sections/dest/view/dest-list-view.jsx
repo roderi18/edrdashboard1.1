@@ -36,6 +36,7 @@ import {
   canCreateDestInSection,
   isForeignDestForMembers,
   ejerceCargoSobreDestacamento,
+  puedeAsignarNumeroDeDestacamento,
 } from 'src/utils/org-level-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
@@ -649,6 +650,7 @@ export function DestListView() {
             rows={tableData}
             options={{ sectionalName: distinctSectionalFullName }}
             showSectionFilter={!isDestacamentoAdminRole(user)}
+            canAssignDestNumber={puedeAsignarNumeroDeDestacamento(user)}
           />
 
           {canReset && (
