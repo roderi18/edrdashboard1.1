@@ -55,6 +55,16 @@ const hasRealValue = (value, placeholder = '') => {
   return !normalizedPlaceholder || normalizedValue !== normalizedPlaceholder;
 };
 
+// UNA COMPRA, UN NUMERO.
+//
+// El pedido y su recibo son dos documentos —`ordenes` y `recibos`, atados por
+// `ordenId`— pero para quien compra son la MISMA compra: el numero que ve al
+// pagar tiene que ser el que luego encuentra en su lista de pedidos. Con dos
+// numeros distintos, y los dos empezando por "REC-", no habia forma de saber
+// cual pedir por telefono.
+//
+// El de abajo se queda de reserva: recibos viejos que se vuelven a guardar y no
+// traen numero de pedido.
 const buildReceiptNumber = ({ createdAt }) => {
   const date = createdAt?.toDate?.() ?? new Date(createdAt ?? Date.now());
   const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
@@ -110,10 +120,16 @@ const resolveBillingPhone = (billing = {}) => {
   return hasRealValue(phone, TEXTO_SIN_TELEFONO) ? normalizeText(phone) : '';
 };
 
+// UN NUMERO YA ESCRITO NO SE VUELVE A INVENTAR.
+//
+// Esto solo aceptaba los que empezaban por "REC-", asi que en cuanto el recibo
+// paso a llevar el numero de su orden —"ORD-26-0001"— lo tiraba y pintaba uno
+// nuevo por fecha: el documento decia una cosa y la pantalla otra. Lo que se
+// genera aqui es el ULTIMO recurso, para recibos que nunca tuvieron numero.
 const normalizeReceiptNumber = ({ numeroRecibo, fechaCreacion }) => {
   const currentNumber = normalizeText(numeroRecibo);
 
-  if (currentNumber && currentNumber.startsWith('REC-')) {
+  if (currentNumber) {
     return currentNumber;
   }
 
@@ -140,9 +156,17 @@ export const crearDocumentoRecibo = ({
   user,
   receiptId,
   orderId,
+  // El numero de SU pedido: una compra, un numero.
+  numeroOrden,
+  // La del recibo que ya existia, cuando se vuelve a guardar.
+  fechaCreacion = null,
   checkoutState = {},
 } = {}) => {
-  const createdAt = ahoraTimestamp();
+  // UN RECIBO SE EMITE UNA VEZ. Quien lo guarda otra vez —al cambiarle el
+  // estado, por ejemplo— no lo esta emitiendo de nuevo: `guardarReciboFirestore`
+  // ya leia la fecha anterior y la pasaba, pero aqui no se recogia y cada
+  // guardado la movia a hoy.
+  const createdAt = fechaCreacion ?? ahoraTimestamp();
   const subtotal = Number(checkoutState?.subtotal ?? 0);
   const descuento = Number(checkoutState?.discount ?? 0);
   const envio = Number(checkoutState?.shipping ?? 0);
@@ -173,7 +197,7 @@ export const crearDocumentoRecibo = ({
   return sanitizarFirestoreData({
     ...RECIBO_DEFAULT,
     reciboId: receiptId,
-    numeroRecibo: buildReceiptNumber({ createdAt }),
+    numeroRecibo: normalizeText(numeroOrden) || buildReceiptNumber({ createdAt }),
     ordenId: orderId,
     usuarioId: obtenerIdUsuarioComercio(user) || '',
     miembroId: obtenerIdMiembroComercio(user),

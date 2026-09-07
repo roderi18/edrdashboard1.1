@@ -92,6 +92,9 @@ export const crearDocumentoOrden = ({
   user,
   orderId,
   receiptId,
+  // Lo reserva `siguienteNumeroDeRecibo` antes de llamar aqui: es un correlativo
+  // del año y no se puede inventar en dos sitios distintos.
+  numeroOrden,
   checkoutState = {},
   paymentData = {},
 } = {}) => {
@@ -108,7 +111,7 @@ export const crearDocumentoOrden = ({
   return sanitizarFirestoreData({
     ...ORDEN_DEFAULT,
     ordenId: orderId,
-    numeroOrden: `ORD-${Date.now()}`,
+    numeroOrden,
     usuarioId,
     miembroId,
     cliente: {

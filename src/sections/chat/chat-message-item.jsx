@@ -23,8 +23,17 @@ import { buildReactionGroups } from './utils/reaction-groups.mjs';
 
 // ----------------------------------------------------------------------
 
-const ORDER_NUMBER_REGEX = /(ORD-\d+)/g;
-const ORDER_NUMBER_EXACT_REGEX = /^ORD-\d+$/;
+// LAS TRES FORMAS QUE CONVIVEN. Los pedidos nuevos son "ORD-26-0148"
+// —correlativo del año—, unos pocos salieron como "REC-26-0001" y los antiguos
+// se quedan con su "ORD-1777776824429": renumerarlos romperia los enlaces que ya
+// se enviaron por aqui.
+//
+// La forma larga va PRIMERO en la alternativa: con "ORD-\d+" delante, de
+// "ORD-26-0148" solo se llevaria el "ORD-26" y el enlace apuntaria a un pedido
+// que no existe.
+const NUMERO_DE_ORDEN = String.raw`ORD-\d{2}-\d+|REC-\d{2}-\d+|ORD-\d+`;
+const ORDER_NUMBER_REGEX = new RegExp(`(${NUMERO_DE_ORDEN})`, 'g');
+const ORDER_NUMBER_EXACT_REGEX = new RegExp(`^(?:${NUMERO_DE_ORDEN})$`);
 const MISSING_FILE_INSTRUCTION = 'Presiona este número de orden para cargar el archivo faltante.';
 const MESSAGE_DELETE_WINDOW_MS = 60 * 60 * 1000;
 const EMOJI_OPTIONS = [

@@ -71,12 +71,18 @@ export function OrderTableRow({
           <Avatar alt={row.customer.name} src={row.customer.avatarUrl} />
           <ListItemText
             primary={row.customer.name}
+            // EL CODIGO DEL USUARIO, Y NADA MAS.
+            //
+            // La lista caia a `customer.id` cuando el pedido no guardo el
+            // codigo, y ese id es el uid de Firebase: bajo el nombre aparecia
+            // "HqIkwPq14JYkfr74HYLc1lgqxT92", que no identifica a nadie para
+            // quien lee la lista y ademas es un identificador interno. Sin
+            // codigo se dice que no lo hay.
             secondary={
               row.customer.codigoMiembro ||
               row.customer.memberId ||
               row.customer.idMiembros ||
-              row.customer.id ||
-              'Sin codigo'
+              'Sin código'
             }
             slotProps={{
               primary: {

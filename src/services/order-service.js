@@ -17,6 +17,7 @@ import {
 } from 'src/utils/firestore-commerce';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { siguienteNumeroDeOrden } from 'src/services/order-number-service';
 import {
   crearDocumentoOrden,
   mapearOrdenFirestoreAUi,
@@ -236,6 +237,10 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   const orderId = `orden-${baseTimestamp}`;
   const receiptId = `recibo-${baseTimestamp}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
+  // PRIMERO EL NUMERO. Si el contador no responde, el pedido no llega a
+  // escribirse: mejor no guardarlo que guardarlo con un numero repetido o sin
+  // numero, que es el que lo identifica en la tienda, en el chat y en el recibo.
+  const numeroOrden = await siguienteNumeroDeOrden();
   const requiereEvaluacion = checkoutRequiereEvaluacion(checkoutState);
   const { comprobanteTransferencia, ...paymentDataSinArchivo } = paymentData || {};
   const comprobantePago = await subirComprobantePagoOrden({
@@ -248,6 +253,7 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
     user,
     receiptId,
     orderId,
+    numeroOrden,
     checkoutState,
   });
 
@@ -270,6 +276,7 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
     user,
     orderId,
     receiptId,
+    numeroOrden,
     checkoutState,
     paymentData: {
       ...paymentDataSinArchivo,

@@ -17,7 +17,13 @@ import {
 
 const receiptsCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.recibos);
 
-export const guardarReciboFirestore = async ({ user, receiptId, orderId, checkoutState }) => {
+export const guardarReciboFirestore = async ({
+  user,
+  receiptId,
+  orderId,
+  numeroOrden,
+  checkoutState,
+}) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const currentReceiptId = receiptId || `recibo-${Date.now()}`;
@@ -27,6 +33,7 @@ export const guardarReciboFirestore = async ({ user, receiptId, orderId, checkou
     user,
     receiptId: currentReceiptId,
     orderId,
+    numeroOrden,
     checkoutState,
     fechaCreacion: previous.exists() ? previous.data()?.fechaCreacion : null,
   });

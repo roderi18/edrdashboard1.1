@@ -2,6 +2,9 @@ import { Timestamp } from 'firebase/firestore';
 
 export const COLECCIONES_COMERCIO = {
   carritos: 'carritos',
+  // Un documento por año con el ultimo numero de recibo entregado. Ver
+  // `order-number-service`.
+  contadores: 'contadores_comercio',
   ordenes: 'ordenes',
   recibos: 'recibos',
   direcciones: 'direcciones',
