@@ -426,9 +426,6 @@ export function ProductListView() {
                     }}
                     isMemberUser={isMemberUser}
                     canManageStore={canManageStore}
-                    /********/
-                    settings={toolbarOptions.settings}
-                    onChangeSettings={toolbarOptions.onChangeSettings}
                   />
                 ),
               }}

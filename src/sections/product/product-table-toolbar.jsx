@@ -20,8 +20,6 @@ import {
   ToolbarRightPanel,
   CustomToolbarQuickFilter,
   CustomToolbarFilterButton,
-  CustomToolbarColumnsButton,
-  CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
 import { ProductPriceListPdfDocument } from './product-price-list-pdf';
@@ -67,9 +65,6 @@ export function ProductTableToolbar({
   onOpenConfirmDeleteRows,
   isMemberUser = false,
   canManageStore = false,
-  /********/
-  settings,
-  onChangeSettings,
 }) {
   const { state: currentFilters, setState: updateFilters } = filters;
   const theme = useTheme();
@@ -203,7 +198,10 @@ export function ProductTableToolbar({
         </Button>
       )}
 
-      <CustomToolbarColumnsButton />
+      {/* NI "COLUMNAS" NI "CONFIGURACION". Son ajustes de la tabla —que
+          columna se ve, como de apretadas van las filas— y no de la tienda:
+          ocupaban sitio en la barra al lado de lo que si se usa a diario, que es
+          buscar, filtrar y descargar. */}
       <CustomToolbarFilterButton />
       {/* DESCARGAR, no "Exportar": es la palabra que usa el resto de la
           aplicacion para lo mismo.
@@ -232,11 +230,6 @@ export function ProductTableToolbar({
           })
         }
         buttonProps={{ size: 'small', color: 'inherit', variant: 'text', endIcon: null }}
-      />
-      <CustomToolbarSettingsButton
-        label="Configuracion"
-        settings={settings}
-        onChangeSettings={onChangeSettings}
       />
     </>
   );

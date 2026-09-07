@@ -91,7 +91,7 @@ export function RenderCellProduct({ params, href }) {
             {params.row.name}
           </Link>
         }
-        secondary={translateProductCategory(params.row.category)}
+        secondary={etiquetaDeCategoria(params.row.category)}
         slotProps={{
           primary: { noWrap: true },
           secondary: { sx: { color: 'text.disabled' } },
