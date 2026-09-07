@@ -3,7 +3,7 @@
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { memo, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -182,17 +182,50 @@ const STATUS_FILTERS = [
 
 // Lo que se lee en la columna ESTADO. Sin marcar no es lo mismo que ausente:
 // nadie ha dicho todavia nada de esta persona.
-const SIN_REGISTRO = { label: 'Sin registro', color: 'default' };
+const SIN_REGISTRO = { label: 'Sin registro', color: 'default', icon: 'solar:question-circle-bold' };
 
 const getStatusLabel = (status) => {
   if (status === AUTO_ABSENT_STATUS) {
-    return { label: 'Ausente', color: 'warning' };
+    return {
+      label: 'Ausente',
+      color: 'warning',
+      icon: STATUS_OPTION_BY_VALUE.absent?.icon,
+    };
   }
 
   const option = STATUS_OPTION_BY_VALUE[status];
 
-  return option ? { label: option.label, color: option.color } : SIN_REGISTRO;
+  return option
+    ? { label: option.label, color: option.color, icon: option.icon }
+    : SIN_REGISTRO;
 };
+
+// LA MARCA DEL DIA, EN EL MOVIL, ES SU ICONO. La etiqueta con la palabra se
+// lleva un tercio del ancho de la fila y deja el nombre en dos lineas; el icono
+// es el MISMO de los cinco botones con los que se marca, asi que se reconoce sin
+// tener que leerlo. La etiqueta sigue midiendo lo mismo para todos los estados,
+// que es lo que mantiene la columna derecha alineada.
+function AttendanceStatusLabel({ estado, sx }) {
+  return (
+    <Label
+      variant="soft"
+      color={estado.color === 'inherit' ? 'default' : estado.color}
+      aria-label={estado.label}
+      sx={[{ height: 28, width: { xs: 40, sm: 104 } }, ...(Array.isArray(sx) ? sx : [sx])]}
+    >
+      {estado.icon ? (
+        <Iconify
+          icon={estado.icon}
+          width={18}
+          sx={{ display: { xs: 'block', sm: 'none' } }}
+        />
+      ) : null}
+      <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+        {estado.label}
+      </Box>
+    </Label>
+  );
+}
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -452,6 +485,189 @@ const formatAttendanceDate = (value) => {
 // se estiraba de golpe y movia todo hacia abajo. Usa la MISMA rejilla que la
 // fila y las mismas medidas, de modo que lo que aparece ocupa lo que ya estaba
 // ocupado.
+// UNA FILA QUE SE REPINTA SOLA, Y NADIE MAS.
+//
+// Marcar a alguien solo cambia SU marca, pero la fila vivia dentro de la vista y
+// cada pulsacion repintaba las treinta: treinta avatares, treinta enlaces y
+// ciento cincuenta botones con su icono. En el movil eso se notaba como un
+// retraso entre el dedo y el boton, y daba la sensacion de estar esperando a que
+// algo se guardara —no se guarda nada aqui: lo escrito va a Firebase cuando se
+// pulsa "Guardar asistencia"—.
+//
+// Con la fila aparte y memorizada, la pulsacion repinta una sola.
+const AttendanceMemberRow = memo(function AttendanceMemberRow({
+  member,
+  memberId,
+  memberName,
+  avatarUrl,
+  status,
+  lastPresentAt,
+  onStatusChange,
+}) {
+  const estado = getStatusLabel(status);
+  // La reunion del dia cuenta como UNA actividad, y la persona la tiene puesta
+  // si asistio. No hay asistencia por actividad en ningun sitio todavia: cuando
+  // la haya, este es el punto que cambia, y el resto de la fila se queda igual.
+  const actividadesDelDia = 1;
+  const asistidas = status === 'present' ? 1 : 0;
+  const porcentaje = Math.round((asistidas / actividadesDelDia) * 100);
+
+  return (
+    <Card sx={{ p: { xs: 2, md: 2.5 } }}>
+      <Box sx={FILA_ASISTENCIA_SX}>
+        {/* MIEMBRO */}
+        <Stack
+          direction="row"
+          spacing={{ xs: 1, sm: 2 }}
+          alignItems="center"
+          sx={{ minWidth: 0, gridArea: 'miembro' }}
+        >
+          <AttendanceMemberProfileLink
+            memberId={memberId}
+            sx={{ display: 'flex', flexShrink: 0 }}
+          >
+            <Avatar
+              src={avatarUrl}
+              alt={memberName}
+              sx={{
+                width: { xs: 42, sm: 48 },
+                height: { xs: 42, sm: 48 },
+              }}
+            >
+              {memberName.charAt(0)}
+            </Avatar>
+          </AttendanceMemberProfileLink>
+
+          <Box sx={{ minWidth: 0 }}>
+            <AttendanceMemberNameLink memberId={memberId} name={memberName} />
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {[getMemberCode(member), resolveMemberDivision(member)]
+                .filter(Boolean)
+                .join(' • ')}
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* ESTADO. Todas las etiquetas miden lo mismo y van centradas
+            en su columna: con el ancho pegado al texto, "Excusa" y
+            "Sin registro" empezaban en sitios distintos y la
+            columna se leia torcida. */}
+        <Box
+          sx={{
+            display: 'flex',
+            gridArea: 'estado',
+            justifyContent: { xs: 'flex-end', md: 'center' },
+          }}
+        >
+          <AttendanceStatusLabel estado={estado} />
+        </Box>
+
+        {/* ASISTENCIA DEL DÍA */}
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="center"
+          sx={{
+            gridArea: 'asistencia',
+            display: { xs: 'none', md: 'flex' },
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              flexShrink: 0,
+              display: 'inline-flex',
+              position: 'relative',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CircularProgress
+              variant="determinate"
+              value={100}
+              size={42}
+              thickness={4}
+              sx={{ color: 'divider', position: 'absolute' }}
+            />
+            <CircularProgress
+              variant="determinate"
+              value={porcentaje}
+              size={42}
+              thickness={4}
+              color="success"
+              sx={{ position: 'absolute' }}
+            />
+            <Typography variant="caption" sx={{ fontWeight: 'fontWeightBold' }}>
+              {porcentaje}%
+            </Typography>
+          </Box>
+
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {asistidas} de {actividadesDelDia}{' '}
+              {actividadesDelDia === 1 ? 'actividad' : 'actividades'}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              noWrap
+              sx={{ display: 'block' }}
+            >
+              Última: {formatAttendanceDate(lastPresentAt)}
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* ACCIONES */}
+        <Stack
+          useFlexGap
+          direction="row"
+          flexWrap="wrap"
+          spacing={{ xs: 0.5, sm: 1 }}
+          sx={{
+            rowGap: 1,
+            flexShrink: 0,
+            gridArea: 'acciones',
+            // Los botones ya se reparten el ancho con `flex: 1`;
+            // aqui solo importa como se centran de `md` en adelante.
+            justifyContent: { xs: 'flex-start', md: 'center' },
+          }}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              aria-label={option.label}
+              title={option.label}
+              size="small"
+              color={option.color}
+              variant={status === option.value ? 'contained' : 'outlined'}
+              onClick={() => onStatusChange(memberId, option.value)}
+              sx={{
+                px: 0,
+                gap: 0.25,
+                height: 56,
+                // En el movil los cinco se reparten el ancho de la
+                // tarjeta —con 58px fijos se salian de 375px—; de
+                // `sm` en adelante vuelven a su tamaño de columna.
+                flex: { xs: 1, sm: '0 0 auto' },
+                width: { sm: 64 },
+                minWidth: { xs: 0, sm: 64 },
+                flexDirection: 'column',
+                typography: 'caption',
+              }}
+            >
+              <Iconify icon={option.icon} width={20} />
+              {option.label}
+            </Button>
+          ))}
+        </Stack>
+      </Box>
+    </Card>
+  );
+});
+
 function AttendanceMemberSkeleton() {
   return (
     <Card sx={{ p: { xs: 2, md: 2.5 } }}>
@@ -1482,13 +1698,7 @@ export function AttendanceQuickView() {
                 </Box>
               </Stack>
 
-              <Label
-                variant="soft"
-                color={miembro.estado.color === 'inherit' ? 'default' : miembro.estado.color}
-                sx={{ width: 104, height: 28, flexShrink: 0 }}
-              >
-                {miembro.estado.label}
-              </Label>
+              <AttendanceStatusLabel estado={miembro.estado} sx={{ flexShrink: 0 }} />
             </Stack>
           ))}
 
@@ -1874,178 +2084,18 @@ export function AttendanceQuickView() {
             <>
               {visibleMembers.map((member) => {
                 const memberId = getMemberId(member);
-                const memberName = getMemberName(member);
-                const status = statusByMemberId[memberId] || '';
-                const avatarUrl = memberPhotoUrls[memberId] || getMemberAvatar(member);
-
-                const estado = getStatusLabel(status);
-                // La reunion del dia cuenta como UNA actividad, y la persona la
-                // tiene puesta si asistio. No hay asistencia por actividad en
-                // ningun sitio todavia: cuando la haya, este es el punto que
-                // cambia, y el resto de la fila se queda igual.
-                const actividadesDelDia = 1;
-                const asistidas = status === 'present' ? 1 : 0;
-                const porcentaje = Math.round((asistidas / actividadesDelDia) * 100);
 
                 return (
-                  <Card key={memberId} sx={{ p: { xs: 2, md: 2.5 } }}>
-                    <Box sx={FILA_ASISTENCIA_SX}>
-                      {/* MIEMBRO */}
-                      <Stack
-                        direction="row"
-                        spacing={{ xs: 1, sm: 2 }}
-                        alignItems="center"
-                        sx={{ minWidth: 0, gridArea: 'miembro' }}
-                      >
-                        <AttendanceMemberProfileLink
-                          memberId={memberId}
-                          sx={{ display: 'flex', flexShrink: 0 }}
-                        >
-                          <Avatar
-                            src={avatarUrl}
-                            alt={memberName}
-                            sx={{
-                              width: { xs: 42, sm: 48 },
-                              height: { xs: 42, sm: 48 },
-                            }}
-                          >
-                            {memberName.charAt(0)}
-                          </Avatar>
-                        </AttendanceMemberProfileLink>
-
-                        <Box sx={{ minWidth: 0 }}>
-                          <AttendanceMemberNameLink memberId={memberId} name={memberName} />
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {[getMemberCode(member), resolveMemberDivision(member)]
-                              .filter(Boolean)
-                              .join(' • ')}
-                          </Typography>
-                        </Box>
-                      </Stack>
-
-                      {/* ESTADO. Todas las etiquetas miden lo mismo y van centradas
-                          en su columna: con el ancho pegado al texto, "Excusa" y
-                          "Sin registro" empezaban en sitios distintos y la
-                          columna se leia torcida. */}
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          gridArea: 'estado',
-                          justifyContent: { xs: 'flex-end', md: 'center' },
-                        }}
-                      >
-                        <Label
-                          variant="soft"
-                          color={estado.color === 'inherit' ? 'default' : estado.color}
-                          sx={{ width: 104, height: 28 }}
-                        >
-                          {estado.label}
-                        </Label>
-                      </Box>
-
-                      {/* ASISTENCIA DEL DÍA */}
-                      <Stack
-                        direction="row"
-                        spacing={1.5}
-                        alignItems="center"
-                        sx={{
-                          gridArea: 'asistencia',
-                          display: { xs: 'none', md: 'flex' },
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 42,
-                            height: 42,
-                            flexShrink: 0,
-                            display: 'inline-flex',
-                            position: 'relative',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <CircularProgress
-                            variant="determinate"
-                            value={100}
-                            size={42}
-                            thickness={4}
-                            sx={{ color: 'divider', position: 'absolute' }}
-                          />
-                          <CircularProgress
-                            variant="determinate"
-                            value={porcentaje}
-                            size={42}
-                            thickness={4}
-                            color="success"
-                            sx={{ position: 'absolute' }}
-                          />
-                          <Typography variant="caption" sx={{ fontWeight: 'fontWeightBold' }}>
-                            {porcentaje}%
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {asistidas} de {actividadesDelDia}{' '}
-                            {actividadesDelDia === 1 ? 'actividad' : 'actividades'}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.disabled"
-                            noWrap
-                            sx={{ display: 'block' }}
-                          >
-                            Última: {formatAttendanceDate(lastPresentByMemberId[memberId])}
-                          </Typography>
-                        </Box>
-                      </Stack>
-
-                      {/* ACCIONES */}
-                      <Stack
-                        useFlexGap
-                        direction="row"
-                        flexWrap="wrap"
-                        spacing={{ xs: 0.5, sm: 1 }}
-                        sx={{
-                          rowGap: 1,
-                          flexShrink: 0,
-                          gridArea: 'acciones',
-                          // Los botones ya se reparten el ancho con `flex: 1`;
-                          // aqui solo importa como se centran de `md` en adelante.
-                          justifyContent: { xs: 'flex-start', md: 'center' },
-                        }}
-                      >
-                        {STATUS_OPTIONS.map((option) => (
-                          <Button
-                            key={option.value}
-                            aria-label={option.label}
-                            title={option.label}
-                            size="small"
-                            color={option.color}
-                            variant={status === option.value ? 'contained' : 'outlined'}
-                            onClick={() => handleStatusChange(memberId, option.value)}
-                            sx={{
-                              px: 0,
-                              gap: 0.25,
-                              height: 56,
-                              // En el movil los cinco se reparten el ancho de la
-                              // tarjeta —con 58px fijos se salian de 375px—; de
-                              // `sm` en adelante vuelven a su tamaño de columna.
-                              flex: { xs: 1, sm: '0 0 auto' },
-                              width: { sm: 64 },
-                              minWidth: { xs: 0, sm: 64 },
-                              flexDirection: 'column',
-                              typography: 'caption',
-                            }}
-                          >
-                            <Iconify icon={option.icon} width={20} />
-                            {option.label}
-                          </Button>
-                        ))}
-                      </Stack>
-                    </Box>
-                  </Card>
+                  <AttendanceMemberRow
+                    key={memberId}
+                    member={member}
+                    memberId={memberId}
+                    memberName={getMemberName(member)}
+                    avatarUrl={memberPhotoUrls[memberId] || getMemberAvatar(member)}
+                    status={statusByMemberId[memberId] || ''}
+                    lastPresentAt={lastPresentByMemberId[memberId]}
+                    onStatusChange={handleStatusChange}
+                  />
                 );
               })}
 
