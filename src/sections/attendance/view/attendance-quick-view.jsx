@@ -15,6 +15,7 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
@@ -1097,15 +1098,15 @@ export function AttendanceQuickView() {
     () =>
       user
         ? {
-            uid: user.uid || user.id || '',
-            nombre:
-              user.displayName ||
-              user.name ||
-              [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
-              user.email ||
-              '',
-            correo: user.email || '',
-          }
+          uid: user.uid || user.id || '',
+          nombre:
+            user.displayName ||
+            user.name ||
+            [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
+            user.email ||
+            '',
+          correo: user.email || '',
+        }
         : null,
     [user]
   );
@@ -1247,6 +1248,21 @@ export function AttendanceQuickView() {
     </CustomPopover>
   );
 
+  // El destacamento y la fecha: arriba en pantalla ancha, al pie en el movil.
+  const subtituloResumen = `${getDestTitle(selectedDest, selectedDestId)} · ${formatAttendanceDate(date)}`;
+
+  const textoComparacion =
+    resumen.diferenciaSemanal === null
+      ? 'Sin asistencia la semana anterior'
+      : 'Presentes a la semana anterior';
+
+  const propsDescargaResumen = {
+    rows: resumenExportRows,
+    columns: resumenExportColumns,
+    title: `Resumen del día · ${subtituloResumen}`,
+    fileNamePrefix: construirPrefijoDescarga('resumen-del-dia', selectedDest, selectedDestId),
+  };
+
   // Ventana flotante con el cuadro del dia: cuantos hay de cada marca y, debajo,
   // uno por uno todos los miembros del destacamento con la suya.
   const renderResumenDialog = () => (
@@ -1257,12 +1273,18 @@ export function AttendanceQuickView() {
       onClose={resumenDelDia.onFalse}
       slotProps={{ paper: { sx: { maxHeight: '90vh' } } }}
     >
-      <DialogTitle sx={{ pb: 2 }}>
+      <DialogTitle sx={{ pb: 2, display: { xs: 'none', sm: 'block' } }}>
         <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
           <Box sx={{ minWidth: 0 }}>
             Resumen del día
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {getDestTitle(selectedDest, selectedDestId)} · {formatAttendanceDate(date)}
+            {/* En el movil baja al pie: dos lineas de cabecera empujaban el
+                cuadro del dia hacia abajo y la lista arrancaba fuera de la
+                pantalla. */}
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}
+            >
+              {subtituloResumen}
             </Typography>
           </Box>
 
@@ -1270,21 +1292,18 @@ export function AttendanceQuickView() {
               enviarlo no tiene que cerrarlo y buscar el "Exportar" de la
               pantalla, que ademas se lleva otra cosa: aquel exporta la lista que
               se este viendo y este, el destacamento entero. */}
+          {/* EL MISMO BOTON QUE EL DE LA BARRA: mismo tamaño y misma forma. Lo
+              que cambia es lo que se lleva cada uno —el de la barra, la lista
+              que se este viendo; este, el destacamento entero, como los numeros
+              de encima—. */}
           <ExportTableButton
-            rows={resumenExportRows}
-            columns={resumenExportColumns}
-            title={`Resumen del día · ${getDestTitle(selectedDest, selectedDestId)} · ${formatAttendanceDate(date)}`}
-            fileNamePrefix={construirPrefijoDescarga(
-              'resumen-del-dia',
-              selectedDest,
-              selectedDestId
-            )}
+            {...propsDescargaResumen}
             buttonLabel="Descargar"
-            // EL MISMO BOTON QUE EL DE LA BARRA: mismo tamaño y misma forma. Lo
-            // que cambia es lo que se lleva cada uno —el de la barra, la lista
-            // que se este viendo; este, el destacamento entero, como los numeros
-            // de encima—.
-            buttonProps={{ size: 'small', endIcon: null }}
+            buttonProps={{
+              size: 'small',
+              endIcon: null,
+              sx: { px: 1.5, flexShrink: 0, whiteSpace: 'nowrap' },
+            }}
           />
         </Stack>
       </DialogTitle>
@@ -1294,16 +1313,62 @@ export function AttendanceQuickView() {
           miembros debajo desaparecia en cuanto se bajaba a buscar a alguien. Va
           fuera del `DialogContent`, que es la parte que se desplaza; asi lo unico
           que corre es la lista. */}
-      <Box sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 }, flexShrink: 0 }}>
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
+      <Box
+        sx={{
+          flexShrink: 0,
+          px: { xs: 2, md: 3 },
+          pb: { xs: 2, md: 3 },
+          // Sin cabecera que lo separe del borde, en el movil se pone el hueco
+          // aqui.
+          pt: { xs: 2, sm: 0 },
+        }}
+      >
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="h3">{resumen.porcentajePresentes}%</Typography>
-          <Box>
-            <Typography variant="subtitle2">Asistencia del destacamento</Typography>
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="subtitle2" noWrap>
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                Asistencia del destacamento
+              </Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                Asistencia
+              </Box>
+            </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {resumen.conteo.present} de {resumen.total}{' '}
               {resumen.total === 1 ? 'miembro' : 'miembros'}
             </Typography>
           </Box>
+
+          {/* Descargar y cerrar, en la misma linea que el porcentaje: en una
+              ventana de movil cada franja propia cuesta dos filas de la lista.
+              La X sustituye al "Cerrar" del pie. */}
+          <Stack
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            sx={{ flexShrink: 0, display: { xs: 'flex', sm: 'none' } }}
+          >
+            <ExportTableButton
+              {...propsDescargaResumen}
+              buttonLabel=""
+              buttonProps={{
+                size: 'small',
+                endIcon: null,
+                'aria-label': 'Descargar',
+                sx: {
+                  px: 1,
+                  minWidth: 0,
+                  flexShrink: 0,
+                  '& .MuiButton-startIcon': { mx: 0 },
+                },
+              }}
+            />
+
+            <IconButton aria-label="Cerrar" onClick={resumenDelDia.onFalse}>
+              <Iconify icon="mingcute:close-line" width={20} />
+            </IconButton>
+          </Stack>
         </Stack>
 
         <Box
@@ -1316,11 +1381,17 @@ export function AttendanceQuickView() {
           {STATUS_OPTIONS.map((option) => (
             <Stack
               key={option.value}
-              spacing={0.25}
-              sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}
+              direction={{ xs: 'row', sm: 'column' }}
+              spacing={{ xs: 1, sm: 0.25 }}
+              alignItems={{ xs: 'center', sm: 'flex-start' }}
+              sx={{
+                p: { xs: 1.25, sm: 1.5 },
+                borderRadius: 1.5,
+                bgcolor: 'background.neutral',
+              }}
             >
               <Typography variant="h6">{resumen.conteo[option.value] ?? 0}</Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              <Typography variant="caption" noWrap sx={{ color: 'text.secondary' }}>
                 {option.label}
               </Typography>
             </Stack>
@@ -1331,7 +1402,16 @@ export function AttendanceQuickView() {
               recuadro salia siempre en cero. Lo que si dice algo es la
               comparacion con la semana pasada: dos presentes menos es una
               noticia; que nadie quedara sin marcar, no. */}
-          <Stack spacing={0.25} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.neutral' }}>
+          <Stack
+            direction={{ xs: 'row', sm: 'column' }}
+            spacing={{ xs: 1, sm: 0.25 }}
+            alignItems={{ xs: 'center', sm: 'flex-start' }}
+            sx={{
+              p: { xs: 1.25, sm: 1.5 },
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+            }}
+          >
             <Typography
               variant="h6"
               sx={{
@@ -1347,11 +1427,24 @@ export function AttendanceQuickView() {
                 ? '—'
                 : `${resumen.diferenciaSemanal > 0 ? '+' : ''}${resumen.diferenciaSemanal}`}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {resumen.diferenciaSemanal === null
-                ? 'Sin asistencia la semana anterior'
-                : 'Presentes a la semana anterior'}
-            </Typography>
+            {/* "Sin asistencia la semana anterior" no cabe al lado del numero
+                sin partirse en tres lineas y devolverle al recuadro el alto que
+                se le acaba de quitar. Se queda en "Comparación", y el texto
+                entero sale al señalarlo o pulsarlo. */}
+            <Tooltip title={textoComparacion} enterTouchDelay={0} placement="top">
+              <Typography
+                variant="caption"
+                noWrap
+                sx={{ minWidth: 0, cursor: 'help', color: 'text.secondary' }}
+              >
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                  {textoComparacion}
+                </Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                  Comparación
+                </Box>
+              </Typography>
+            </Tooltip>
           </Stack>
         </Box>
       </Box>
@@ -1407,8 +1500,31 @@ export function AttendanceQuickView() {
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button color="inherit" onClick={resumenDelDia.onFalse}>
+      <DialogActions
+        sx={{
+          gap: 1,
+          justifyContent: 'space-between',
+          px: { xs: 2, sm: 3 },
+          py: { xs: 0.7, sm: 1 },
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            minWidth: 0,
+            lineHeight: 1.35,
+            color: 'text.secondary',
+            display: { xs: 'block', sm: 'none' },
+          }}
+        >
+          {subtituloResumen}
+        </Typography>
+
+        <Button
+          color="inherit"
+          onClick={resumenDelDia.onFalse}
+          sx={{ ml: 'auto', display: { xs: 'none', sm: 'inline-flex' } }}
+        >
           Cerrar
         </Button>
       </DialogActions>

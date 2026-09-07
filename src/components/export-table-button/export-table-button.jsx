@@ -183,9 +183,17 @@ export function ExportTableButton({
         // Sin suelo de `minWidth`: los 120px que habia aqui eran mas de lo que
         // mide el boton pequeño, asi que la lista sobresalia por la izquierda —el
         // borde derecho si coincidia, porque es por donde se ancla—.
+        //
+        // Los 96 de ahora son otra cosa: el minimo en el que "PDF" y "Excel"
+        // siguen siendo legibles. No lo alcanza ningun boton con palabra —el
+        // pequeño mide ~115— y solo entra cuando el boton es un icono a secas,
+        // donde copiar su ancho dejaba una lista de 40px.
         slotProps={{
           paper: {
-            sx: { width: anchorEl?.offsetWidth, minWidth: anchorEl?.offsetWidth },
+            sx: {
+              width: Math.max(anchorEl?.offsetWidth ?? 0, 96),
+              minWidth: Math.max(anchorEl?.offsetWidth ?? 0, 96),
+            },
           },
         }}
       >

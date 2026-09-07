@@ -20,6 +20,15 @@ test('sin id no se envuelve en un enlace', () => {
   assert.match(asistencia, /if \(!memberId\) \{\s*\n\s*return children;/);
 });
 
+test('en el movil los recuadros del resumen ponen la palabra al lado del numero', () => {
+  assert.match(asistencia, /direction=\{\{ xs: 'row', sm: 'column' \}\}/);
+  // El texto largo no cabe al lado del numero: se queda en "Comparación" y sale
+  // entero al señalarlo o pulsarlo.
+  assert.match(asistencia, /const textoComparacion =/);
+  assert.match(asistencia, /<Tooltip title=\{textoComparacion\} enterTouchDelay=\{0\}/);
+  assert.match(asistencia, /Comparación/);
+});
+
 test('la foto y el nombre enlazan, en la lista y en el resumen del dia', () => {
   const enlacesAlPerfil = asistencia.match(/<AttendanceMemberProfileLink/g) || [];
   const enlacesDeNombre = asistencia.match(/<AttendanceMemberNameLink/g) || [];
