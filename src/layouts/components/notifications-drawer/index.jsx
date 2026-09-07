@@ -121,7 +121,7 @@ export function NotificationsDrawer({
       }}
     >
       <Typography variant="h6" sx={{ flexGrow: 1 }}>
-        Notifications
+        Notificaciones
       </Typography>
 
       {!!totalUnRead && (
@@ -153,32 +153,32 @@ export function NotificationsDrawer({
           0;
 
         return (
-        <Tab
-          key={tab.value}
-          iconPosition="end"
-          value={tab.value}
-          label={tab.label}
-          icon={
-            <Label
-              variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
-              color={
-                (tab.value === 'Unread' && 'info') ||
-                (tab.value === 'archived' && 'success') ||
-                (tab.value === 'attended' && 'success') ||
-                'default'
-              }
-            >
-              {count}
-            </Label>
-          }
-        />
+          <Tab
+            key={tab.value}
+            iconPosition="end"
+            value={tab.value}
+            label={tab.label}
+            icon={
+              <Label
+                variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
+                color={
+                  (tab.value === 'Unread' && 'info') ||
+                  (tab.value === 'archived' && 'success') ||
+                  (tab.value === 'attended' && 'success') ||
+                  'default'
+                }
+              >
+                {count}
+              </Label>
+            }
+          />
         );
       })}
     </Tabs>
   );
 
   const renderList = () => (
-      <Scrollbar>
+    <Scrollbar>
       <Box component="ul">
         {notificationsFiltradas?.map((notification) => (
           <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
