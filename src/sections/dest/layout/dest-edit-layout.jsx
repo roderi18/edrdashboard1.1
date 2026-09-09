@@ -19,7 +19,14 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 
-export function DestEditLayout({ children, ...other }) {
+// CADA PESTAÑA DICE LO QUE ES.
+//
+// "Editar destacamento" servia mientras la ficha era una sola pantalla. Con
+// pestañas, el titulo tiene que decir en cual estas y de QUE destacamento:
+// "Miembros del Destacamento Tribu de Judá 18". El prefijo lo pone cada pagina
+// —una cadena, que la pagina es un componente de servidor y no puede pasar
+// funciones— y el nombre y el numero los pone este layout, que ya los tiene.
+export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
 
     const pathname = usePathname();
     const params = useParams();
@@ -40,6 +47,13 @@ export function DestEditLayout({ children, ...other }) {
     }, [destId]);
 
     const destName = dest ? dest.nombre : 'Destacamento';
+    // El numero solo si lo tiene: un "Destacamento Tribu de Judá" a secas se lee
+    // mejor que uno con un hueco al final.
+    const destNumber = String(dest?.numero ?? dest?.destNumber ?? '').trim();
+    const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
+    const titulo = tituloPrefijo
+      ? [tituloPrefijo, destNombreCompleto].filter(Boolean).join(' ')
+      : 'Editar destacamento';
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -49,6 +63,14 @@ export function DestEditLayout({ children, ...other }) {
             label: 'General',
             icon: <Iconify width={24} icon="solar:buildings-bold" />,
             href: paths.dashboard.level.dest.edit(destId),
+        },
+        {
+            // LOS MIEMBROS, EN SU DESTACAMENTO. La lista general enseña los de
+            // uno; a los de otro destacamento se llega por aqui, que es donde
+            // esta dicho de quien son.
+            label: 'Miembros',
+            icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
+            href: `/dashboard/level/dest/${destId}/edit/members`,
         },
         {
             // "Local" la distingue de las otras tres: Nacion, Region y Seccion
@@ -84,11 +106,11 @@ export function DestEditLayout({ children, ...other }) {
         <DashboardContent {...other}>
 
             <CustomBreadcrumbs
-                heading={isMobile ? null : 'Editar destacamento'}
+                heading={isMobile ? null : titulo}
                 links={[
                     { name: 'Panel', href: paths.dashboard.root },
                     { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
-                    { name: destName },
+                    { name: destNombreCompleto },
                 ]}
                 sx={{ mb: 3 }}
             />

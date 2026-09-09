@@ -26,7 +26,7 @@ import {
   canUploadHealthDocuments,
   isDestacamentoApprovalRole,
   canViewMemberSensitiveData,
-  filterMembersByMemberScope,
+  filtrarMiembrosDentroDelAlcance,
   canViewMemberContactDataByAge,
   canViewMemberBirthdateWhenMasked,
 } from 'src/utils/member-access';
@@ -333,12 +333,14 @@ export const CAPACIDADES = [
   {
     id: 'miembros.ver.ajeno',
     area: 'Miembros de otro destacamento',
-    etiqueta: 'Verlos en la lista',
-    // Se le hace la MISMA pregunta que hace la lista: la ficha de alguien de otro
-    // destacamento de su seccion, y si el filtro la deja pasar. Un cargo de
+    etiqueta: 'Verlos desde su destacamento',
+    // La lista general (/member) es ya la del destacamento propio: a los de otro
+    // se llega por la pestaña "Miembros" de SU destacamento. Aqui se hace la
+    // misma pregunta que se hace ahi dentro: la ficha de alguien de otro
+    // destacamento de su seccion, y si el alcance la deja pasar. Un cargo de
     // seccion, region o nacional la ve; un cargo de destacamento no.
     evaluar: (user) =>
-      filterMembersByMemberScope([FICHAS.ajenoAdulto], user, ESTRUCTURA).length
+      filtrarMiembrosDentroDelAlcance([FICHAS.ajenoAdulto], user, ESTRUCTURA).length
         ? RESULTADO.si
         : RESULTADO.oculto,
   },

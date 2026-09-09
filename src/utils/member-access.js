@@ -904,18 +904,23 @@ const esSuPropiaFicha = (miembro = {}, user = {}) => {
 };
 
 /**
- * A quien ve cada quien en la lista de miembros.
+ * A QUIEN ALCANZA este usuario, en toda la organizacion.
  *
  * Manda el nivel de su cargo, y cada nivel abarca lo suyo entero: sin cargo por
- * encima del destacamento se ve a los del PROPIO destacamento; un cargo de
- * SECCION ve a los de todos los destacamentos de su seccion; uno de REGION, los
- * de toda su region; y el Consejo Nacional o Ejecutivo, los del pais.
+ * encima del destacamento, los del PROPIO destacamento; un cargo de SECCION, los
+ * de todos los destacamentos de su seccion; uno de REGION, los de toda su
+ * region; y el Consejo Nacional o Ejecutivo, los del pais.
+ *
+ * OJO: esto ya NO es lo que se pinta en /member. La lista general se quedo con
+ * los del destacamento propio —ver `filterMembersByMemberScope`— y a los demas
+ * se llega por su destacamento, en la pestaña "Miembros" de su ficha. Esta
+ * funcion es la que decide, ahi dentro, a quien puede ver.
  *
  * Ver no es tocar: sobre un miembro de otro destacamento los datos sensibles
  * siguen enmascarados y la ficha sigue en solo lectura, que es lo que decide
  * `esMiembroDeSuAlcance`.
  */
-export const filterMembersByMemberScope = (members = [], user, context = {}) => {
+export const filtrarMiembrosDentroDelAlcance = (members = [], user, context = {}) => {
   const nivel = nivelDeSusCargosSobreElDestacamento(user);
 
   // Toda la organizacion: Administrador Global y Oficina Nacional, y los cargos
@@ -1000,6 +1005,44 @@ export const filterMembersByMemberScope = (members = [], user, context = {}) => 
   // Cada quien con los suyos: sin cargo por encima del destacamento, los de su
   // propio destacamento.
   return filtrarMiembrosDeSuDestacamento(members, user);
+};
+
+/**
+ * LA LISTA GENERAL ES LA DE TU DESTACAMENTO.
+ *
+ * Antes /member juntaba en una sola lista a los de todos los destacamentos que
+ * el cargo alcanzaba —un Coordinador Seccional veia ahi revueltos a los de sus
+ * ocho destacamentos, sin que la lista dijera de donde era cada quien—. Ahora
+ * cada destacamento enseña los suyos en su propia ficha, en la pestaña
+ * "Miembros", y aqui quedan los de uno.
+ *
+ * El Administrador Global es la excepcion: no tiene destacamento propio y su
+ * trabajo es el padron entero.
+ */
+export const filterMembersByMemberScope = (members = [], user, context = {}) => {
+  if (isAdminGlobal(user)) {
+    return members;
+  }
+
+  return filtrarMiembrosDeSuDestacamento(members, user);
+};
+
+/**
+ * ¿Puede ver a los miembros de ESTE destacamento?
+ *
+ * Se pregunta con una ficha de sonda de ese destacamento: es la MISMA regla que
+ * decide a quien alcanza, aplicada a uno solo. Preguntarlo asi —y no repitiendo
+ * la logica de secciones y regiones aqui— es lo que impide que las dos
+ * respuestas se separen con el tiempo.
+ */
+export const puedeVerMiembrosDelDestacamento = (user, destId, context = {}) => {
+  const idDest = normalizeScopeId(destId);
+
+  if (!idDest) return false;
+
+  const sonda = [{ id: '__sonda_de_alcance__', idDestacamento: idDest, destId: idDest }];
+
+  return filtrarMiembrosDentroDelAlcance(sonda, user, context).length > 0;
 };
 
 export const getMemberAllowedDestIds = (user, context = {}) => {

@@ -37,6 +37,7 @@ import {
   canMemberManageMembers,
   esFichaDelPropioMiembro,
   filterMembersByMemberScope,
+  filtrarMiembrosDentroDelAlcance,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
 
@@ -204,7 +205,19 @@ const mapMemberPhotoUrls = (memberPhotos) =>
 
 // ----------------------------------------------------------------------
 
-export function MemberListView() {
+/**
+ * LA LISTA DE MIEMBROS, EN SUS DOS SITIOS.
+ *
+ * Sin `destId` es /member: los miembros del destacamento propio (y el padron
+ * entero para el Administrador Global).
+ *
+ * Con `destId` es la pestaña "Miembros" de la ficha de un destacamento: los de
+ * ESE destacamento, y solo si el alcance de quien mira le deja verlos. Ahi
+ * ademas se quita la cabecera —la pone el layout del destacamento— y el filtro
+ * de destacamento, que ya no tiene nada que elegir.
+ */
+export function MemberListView({ destId = null }) {
+  const esPestanaDeDestacamento = Boolean(destId);
   const searchParams = useSearchParams();
   // Abrir un miembro y volver atras remonta esta vista, asi que la pagina se
   // guarda en la URL (?p=2). Sin eso el usuario aterrizaba siempre en la #1.
@@ -346,10 +359,22 @@ export function MemberListView() {
     };
   }, []);
 
-  const visibleMembers = useMemo(
-    () => filterMembersByMemberScope(tableData, user, { dests, churches, sectionals }),
-    [churches, dests, sectionals, tableData, user]
-  );
+  const visibleMembers = useMemo(() => {
+    const estructura = { dests, churches, sectionals };
+
+    if (!esPestanaDeDestacamento) {
+      return filterMembersByMemberScope(tableData, user, estructura);
+    }
+
+    // Los de ESE destacamento, pasados antes por el alcance de quien mira: la
+    // pestaña no es una puerta trasera, enseña lo mismo que ese cargo alcanza.
+    const alcanzables = filtrarMiembrosDentroDelAlcance(tableData, user, estructura);
+
+    return alcanzables.filter(
+      (member) =>
+        String(member?.destId ?? member?.idDestacamento ?? '') === String(destId)
+    );
+  }, [churches, dests, sectionals, tableData, user, destId, esPestanaDeDestacamento]);
   // Se lee UNA vez para toda la tabla y se pasa a cada fila. Antes cada fila
   // leia la coleccion completa en cada render (N copias por render).
   const leadershipAssignments = useMemo(() => getLeadershipAssignments(), []);
@@ -787,37 +812,9 @@ export function MemberListView() {
 
   if (loading || !hydrated) return null;
 
-  return (
+  const renderLista = () => (
     <>
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading={
-            memberDestLabel ? `Lista de miembros de ${memberDestLabel}` : 'Lista de miembros'
-          }
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Miembros', href: paths.dashboard.level.member.root },
-
-            ...(memberFromUrl
-              ? [{ name: `${memberFromUrl.firstName} ${memberFromUrl.lastName}` }]
-              : [{ name: 'Lista' }]),
-          ]}
-          action={
-            memberCanManage ? (
-              <Button
-                component={RouterLink}
-                href={paths.dashboard.level.member.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Crear nuevo
-              </Button>
-            ) : null
-          }
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
-        <Card>
+      <Card>
           <Tabs
             value={currentFilters.memberDivision[0] || 'all'}
             onChange={handleFilterMemberDivisionTab}
@@ -872,7 +869,7 @@ export function MemberListView() {
             members={visibleMembers}
             canManageMembers={memberCanManage}
             onMembersUploaded={refreshMembersView}
-            showScopeFilters={!isDestacamentoAdminRole(user)}
+            showScopeFilters={!esPestanaDeDestacamento && !isDestacamentoAdminRole(user)}
             options={{
               destName: distinctdestName,
               memberPosition: distinctPositions,
@@ -985,25 +982,74 @@ export function MemberListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && (
-          <MemberCardList
-            members={dataFiltered}
-            dests={dests}
-            loading={membersLoading}
-            memberPhotoUrls={memberPhotoUrls}
-            page={table.page + 1}
-            onPageChange={handleChangeCardPage}
-          />
-        )}
+      {displayMode !== 'panel' && (
+        <MemberCardList
+          members={dataFiltered}
+          dests={dests}
+          loading={membersLoading}
+          memberPhotoUrls={memberPhotoUrls}
+          page={table.page + 1}
+          onPageChange={handleChangeCardPage}
+        />
+      )}
+    </>
+  );
+
+  const renderDialogoDeBorrado = () => (
+    <CompactEntityDeleteDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      onConfirm={handleDeleteRows}
+      selectedCount={table.selected.length}
+      entityLabel="miembros"
+    />
+  );
+
+  // La ficha del destacamento ya pone su propio contenedor, sus migas y su
+  // titulo: repetirlos aqui dentro seria una pantalla dentro de otra.
+  if (esPestanaDeDestacamento) {
+    return (
+      <>
+        {renderLista()}
+        {renderDialogoDeBorrado()}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading={
+            memberDestLabel ? `Lista de miembros de ${memberDestLabel}` : 'Lista de miembros'
+          }
+          links={[
+            { name: 'Panel', href: paths.dashboard.root },
+            { name: 'Miembros', href: paths.dashboard.level.member.root },
+
+            ...(memberFromUrl
+              ? [{ name: `${memberFromUrl.firstName} ${memberFromUrl.lastName}` }]
+              : [{ name: 'Lista' }]),
+          ]}
+          action={
+            memberCanManage ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.member.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
+          }
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+
+        {renderLista()}
       </DashboardContent>
 
-      <CompactEntityDeleteDialog
-        open={confirmDialog.value}
-        onClose={confirmDialog.onFalse}
-        onConfirm={handleDeleteRows}
-        selectedCount={table.selected.length}
-        entityLabel="miembros"
-      />
+      {renderDialogoDeBorrado()}
     </>
   );
 }
