@@ -1,0 +1,78 @@
+# Memoria del proyecto — Exploradores del Rey (ERD Dashboard)
+
+**Lee [`PROJECT_GUIDELINES.md`](./PROJECT_GUIDELINES.md) antes de tocar código.**
+Este archivo es solo el resumen que no se puede olvidar nunca.
+
+---
+
+## Qué es esto
+
+Dashboard de una organización juvenil (Nación → Región → Sección → Destacamento →
+Miembro). Next.js 16 (App Router) + React 19 + MUI 7. **Regla transversal: cada
+persona ve y toca solo lo que su cargo alcanza.**
+
+## Dos fuentes de datos — compruébalo antes de escribir
+
+| Dónde | Qué |
+|---|---|
+| **API .NET** `systexploradores.somee.com` | Padrón heredado: Miembros, Destacamentos, Secciones, Regiones, Iglesias, Divisiones, Países, Cargos, Tutores |
+| **Firestore** | Todo lo demás: notificaciones, chat, muro, salud, ascenso, asistencia, tienda, directivas, roles, auditoría |
+
+Un miembro existe en los dos, enlazado por `idMiembros`. La API .NET **solo** se
+llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
+(`src/utils/upstream-cache.js`): va de 0,3 s a 17 s y por eso hay caché y timeouts.
+
+## Reglas de alcance — no las cambies sin leer su test
+
+1. Los guardas preguntan por **todos los cargos** (`rolesQueEjerce`), no por `rolId`.
+2. **Dominancia por módulo**: con dos cargos manda el del nivel del módulo, no el de mayor rango.
+3. **Ver se suma entre cargos; editar sigue la dominancia.**
+4. **Tres listas, tres alcances**: secciones, destacamentos y miembros se acotan por separado.
+5. **Oficina Nacional es un rol a mano**: no ocupa casilla de directiva.
+6. `/member` es la lista del destacamento propio (salvo Administrador Global); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha.
+
+Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
+Suite que lo cubre: `npm run test:acceso`.
+
+## Convenciones
+
+- **Comentarios en español, explicando el PORQUÉ** (qué se rompía antes). Es la
+  convención más visible del repositorio. Mantenla.
+- Nombres de dominio en español; los de la plantilla siguen en inglés.
+- Prettier: 100 columnas, comillas simples, 2 espacios, LF.
+- **El repositorio no está limpio de formato**: formatea solo lo que tocas, o el
+  diff se llena de reformateo ajeno.
+- Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
+- Tests en español, nombrados por el comportamiento, con encabezado que explica
+  qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.
+
+## Antes de dar algo por terminado
+
+```bash
+npm run lint
+npm run build
+node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
+```
+
+Regla nueva de negocio → test nuevo. Cambio que contradiga
+`PROJECT_GUIDELINES.md` → actualiza el documento en el mismo commit.
+
+## Lo que no se hace
+
+- No derivar contraseñas de datos predecibles (los códigos de miembro son correlativos).
+- No renumerar identificadores ya emitidos: rompe enlaces ya enviados.
+- No borrar datos sin que alguien lo pida explícitamente.
+- No construir sobre los ~20 módulos de plantilla sin conectar (`/dashboard/{app,
+  ecommerce, analytics, banking, booking, file, course, job, tour, user, post,
+  mail, kanban}`, `src/_mock/`, `src/sections/_examples/`, `src/sections/prinicipal/`).
+- No quitar `serverExternalPackages: ['firebase-admin']` ni bajar
+  `AWS_LAMBDA_JS_RUNTIME` de `nodejs22.x`: revienta `/api/auth/*` en Netlify.
+- Colección nueva en Firestore → **añádela explícitamente a `firestore.rules`**.
+  El comodín del final la haría escribible por cualquier sesión válida.
+
+## Riesgos abiertos
+
+1. El alcance de **escritura** de destacamentos/secciones/regiones se decide en el
+   navegador; las rutas `/api` solo exigen sesión.
+2. La API .NET devuelve el padrón entero (ver `docs/backend-dotnet-checklist.md`).
+3. `firestore.rules` termina en un comodín permisivo.
