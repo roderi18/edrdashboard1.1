@@ -678,18 +678,12 @@ export function UserAccountGeneral() {
         idDivision: canEditAll
           ? Number(data.idDivision ?? member.idDivision ?? 0) || null
           : (member.idDivision ?? null),
-        instructorCertificadoCi: canEditAll
-          ? data.instructorCertificadoCi === 'Sí' || data.instructorCertificadoCi === '1'
-          : (member.instructorCertificadoCi ?? false),
-        estatusVigenciaCi: canEditAll
-          ? (data.estatusVigenciaCi ?? member.estatusVigenciaCi ?? null)
-          : (member.estatusVigenciaCi ?? null),
-        fechaInicioCertificado: canEditAll
-          ? parseDate(data.fechaInicioCertificado ?? member.fechaInicioCertificado)
-          : (member.fechaInicioCertificado ?? null),
-        fechaFinCertificado: canEditAll
-          ? parseDate(data.fechaFinCertificado ?? member.fechaFinCertificado)
-          : (member.fechaFinCertificado ?? null),
+        // La certificacion CI ya no se edita en esta pantalla: se reenvia tal
+        // como esta en la ficha, para no pisarla con nada del formulario.
+        instructorCertificadoCi: member.instructorCertificadoCi ?? false,
+        estatusVigenciaCi: member.estatusVigenciaCi ?? null,
+        fechaInicioCertificado: member.fechaInicioCertificado ?? null,
+        fechaFinCertificado: member.fechaFinCertificado ?? null,
         estatusMiembro: canEditAll
           ? (data.status ?? member.estatusMiembro ?? 'active')
           : (member.estatusMiembro ?? 'active'),
@@ -820,6 +814,17 @@ export function UserAccountGeneral() {
               {formatStatus(member.estatusMiembro)}
             </Typography>
 
+            {/* El hueco reservado para lo que la persona ha ganado. Va dicho a
+                proposito hasta que exista: la tarjeta se queda con mucho aire
+                bajo el estatus y quien la mira no sabe si falta algo o si es
+                que ahi no va nada. */}
+            <Typography
+              variant="caption"
+              sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}
+            >
+              Nota: aquí irán cintas, medallas
+            </Typography>
+
             <SignOutButton sx={{ mt: 3 }} />
           </Card>
         </Grid>
@@ -897,30 +902,11 @@ export function UserAccountGeneral() {
                   escribiendo un numero a mano aqui. */}
               <ReadOnlyTextField name="cargoLocalDisplay" label="Cargo local" />
               <ReadOnlyTextField name="cargoInstitucionalDisplay" label="Cargo institucional" />
-              <Field.Text
-                name="instructorCertificadoCi"
-                label="Instructor certificado CI"
-                slotProps={{ htmlInput: { readOnly: !canEditAll } }}
-              />
-              <Field.Text
-                name="estatusVigenciaCi"
-                label="Estatus vigencia CI"
-                slotProps={{ htmlInput: { readOnly: !canEditAll } }}
-              />
-              <Field.DatePicker
-                name="fechaInicioCertificado"
-                label="Fecha inicio certificado"
-                format="DD/MM/YYYY"
-                views={['year', 'month', 'day']}
-                disabled={!canEditAll}
-              />
-              <Field.DatePicker
-                name="fechaFinCertificado"
-                label="Fecha fin certificado"
-                format="DD/MM/YYYY"
-                views={['year', 'month', 'day']}
-                disabled={!canEditAll}
-              />
+              {/* LA CERTIFICACION CI NO SE LLEVA DESDE AQUI. Los cuatro campos
+                  —si es instructor certificado, la vigencia y las dos fechas—
+                  son de la ficha del miembro: esta pantalla es la cuenta propia
+                  y ahi solo estorbaban, medio en gris y sin poder tocarse. Se
+                  siguen guardando tal como estan; ver el payload. */}
 
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <DashedAccordion title="Dirección" defaultExpanded>
