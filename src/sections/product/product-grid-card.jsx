@@ -1,14 +1,11 @@
-import { usePopover } from 'minimal-shared/hooks';
+import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Rating from '@mui/material/Rating';
-import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
@@ -18,7 +15,6 @@ import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 import { Label } from 'src/components/label';
 import { Image } from 'src/components/image';
 import { Iconify } from 'src/components/iconify';
-import { CustomPopover } from 'src/components/custom-popover';
 
 import { etiquetaDeCategoria } from './product-table-row';
 
@@ -33,6 +29,11 @@ import { etiquetaDeCategoria } from './product-table-row';
 // —o sea, nada— y le robaba la linea a lo que si se mira antes de comprar. Que
 // no queden existencias se sigue sabiendo: el carrito se apaga.
 //
+// SIN MENU DE TRES PUNTOS. Tapaba la esquina de la foto en todas las tarjetas
+// para ofrecer lo que ya estaba a mano —ver la ficha es pulsar la tarjeta, y
+// comprar es el boton del carrito—. Editar, publicar y eliminar siguen en la
+// vista de panel, que es donde se administra la tienda.
+//
 // LAS ESTRELLAS SALEN DE LAS RESENAS REALES (`totalCalificaciones` y
 // `totalResenas`, que escribe `product-review-service`). Sin resenas no se
 // pinta media estrella: se dice que aun no hay valoraciones.
@@ -43,13 +44,8 @@ export function ProductGridCard({
   detailsHref,
   isMemberUser = false,
   canManageStore = false,
-  onEdit,
-  onPublish,
-  onDelete,
   onAddToCart,
 }) {
-  const menu = usePopover();
-
   const available = Number(product.available ?? 0);
   const isPublished = product.publish === 'published';
   const esRestringido = product.renglon === 'restringido';
@@ -57,11 +53,6 @@ export function ProductGridCard({
   const totalRatings = Number(product.totalRatings ?? 0);
   const totalReviews = Number(product.totalReviews ?? 0);
   const categoria = etiquetaDeCategoria(product.category);
-
-  const handleAction = (action) => () => {
-    menu.onClose();
-    action?.();
-  };
 
   const renderEstadosSobreLaFoto = () => (
     <Stack
@@ -86,193 +77,177 @@ export function ProductGridCard({
     </Stack>
   );
 
-  const renderValoracion = () =>
-    totalReviews > 0 ? (
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <Rating size="small" value={totalRatings} precision={0.1} readOnly />
+  // LAS ESTRELLAS SIEMPRE ESTAN, aunque nadie haya calificado: asi todas las
+  // tarjetas miden lo mismo y la rejilla no baila. Sin resenas van apagadas
+  // —cinco estrellas grises y un (0)—, que se distingue de un vistazo de un
+  // producto bien valorado sin fingir una nota que nadie ha dado.
+  const renderValoracion = () => {
+    const sinResenas = totalReviews <= 0;
 
-        <Box component="span" sx={{ typography: 'caption', color: 'text.secondary' }}>
-          ({fShortenNumber(totalReviews)})
+    return (
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <Rating
+          size="small"
+          value={sinResenas ? 0 : totalRatings}
+          precision={0.1}
+          readOnly
+          sx={{
+            ...(sinResenas && {
+              color: 'text.disabled',
+              '& .MuiRating-iconEmpty': { color: 'text.disabled' },
+            }),
+          }}
+        />
+
+        <Box
+          component="span"
+          sx={{ typography: 'caption', color: sinResenas ? 'text.disabled' : 'text.secondary' }}
+        >
+          ({sinResenas ? 0 : fShortenNumber(totalReviews)})
         </Box>
       </Stack>
-    ) : (
-      <Box component="span" sx={{ typography: 'caption', color: 'text.disabled' }}>
-        Sin valoraciones
-      </Box>
     );
+  };
 
+  // LOS DOS PRECIOS, UNO AL LADO DEL OTRO Y CON EL MISMO CUERPO DE LETRA. El de
+  // no registrados va tachado, que es como se lee "este no es el tuyo" sin
+  // gastar una linea en explicarlo. Ojo con el parecido: NO es una rebaja, son
+  // dos publicos distintos —destacamentos registrados y los que no lo estan—,
+  // y por eso el tachado es del mismo tamano que el precio y no mas pequeno.
   const renderPrecios = () =>
     isMemberUser ? (
       <Box component="span" sx={{ typography: 'h6' }}>
         {fDopCurrency(product.price)}
       </Box>
     ) : (
-      <Stack spacing={0.25}>
+      <Stack direction="row" spacing={1} alignItems="baseline" sx={{ flexWrap: 'wrap' }}>
         <Box component="span" sx={{ typography: 'h6' }}>
           {fDopCurrency(product.precioRegistrado ?? product.price)}
         </Box>
 
-        {/* Los dos precios son datos distintos, no un descuento: uno es para
-            destacamentos registrados y otro para los que no lo estan. */}
-        <Box component="span" sx={{ typography: 'caption', color: 'text.secondary' }}>
-          No registrado: {noRegistrado > 0 ? fDopCurrency(noRegistrado) : 'N/A'}
-        </Box>
+        {noRegistrado > 0 && (
+          <Tooltip title="Precio para destacamentos no registrados">
+            <Box
+              component="span"
+              sx={{ typography: 'h6', color: 'text.disabled', textDecoration: 'line-through' }}
+            >
+              {fDopCurrency(noRegistrado)}
+            </Box>
+          </Tooltip>
+        )}
       </Stack>
     );
 
   return (
-    <>
-      <Card
-        sx={{
-          height: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          transition: (theme) => theme.transitions.create(['box-shadow']),
-          '&:hover': { boxShadow: (theme) => theme.shadows[8] },
-        }}
-      >
-        <Box sx={{ position: 'relative' }}>
-          <Link component={RouterLink} href={detailsHref} sx={{ display: 'block' }}>
-            {/* Sin foto no se pinta <Image>: pasarle src="" hacia que el navegador
+    <Card
+      sx={{
+        height: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: (theme) => theme.transitions.create(['box-shadow']),
+        '&:hover': { boxShadow: (theme) => theme.shadows[8] },
+      }}
+    >
+      <Box sx={{ position: 'relative' }}>
+        <Link component={RouterLink} href={detailsHref} sx={{ display: 'block' }}>
+          {/* Sin foto no se pinta <Image>: pasarle src="" hacia que el navegador
                 volviese a pedir la pagina entera y llenaba la consola de avisos.
                 En su lugar va un marcador del mismo cuadrado, para que la rejilla
                 no se descuadre cuando a un producto le falta la imagen. */}
-            {product.coverUrl ? (
-              <Image
-                alt={product.name}
-                src={product.coverUrl}
-                ratio="1/1"
-                sx={{ borderRadius: 0 }}
-              />
-            ) : (
-              <Box
-                sx={{
-                  aspectRatio: '1 / 1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: 'background.neutral',
-                  color: 'text.disabled',
-                }}
-              >
-                <Iconify icon="solar:gallery-bold" width={40} />
-              </Box>
-            )}
-          </Link>
-
-          {renderEstadosSobreLaFoto()}
-
-          <IconButton
-            size="small"
-            aria-label="Acciones del producto"
-            onClick={menu.onOpen}
-            sx={{
-              top: 8,
-              right: 8,
-              position: 'absolute',
-              bgcolor: 'background.paper',
-              '&:hover': { bgcolor: 'background.paper' },
-            }}
-          >
-            <Iconify icon="eva:more-vertical-fill" width={18} />
-          </IconButton>
-        </Box>
-
-        <Stack spacing={0.5} sx={{ p: 2, flexGrow: 1 }}>
-          <Link
-            component={RouterLink}
-            href={detailsHref}
-            color="inherit"
-            variant="subtitle2"
-            sx={{
-              display: '-webkit-box',
-              overflow: 'hidden',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-            }}
-          >
-            {product.name}
-          </Link>
-
-          {categoria && (
-            <Box component="span" sx={{ typography: 'caption', color: 'text.disabled' }}>
-              {categoria}
+          {product.coverUrl ? (
+            <Image alt={product.name} src={product.coverUrl} ratio="1/1" sx={{ borderRadius: 0 }} />
+          ) : (
+            <Box
+              sx={{
+                aspectRatio: '1 / 1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'background.neutral',
+                color: 'text.disabled',
+              }}
+            >
+              <Iconify icon="solar:gallery-bold" width={40} />
             </Box>
           )}
+        </Link>
 
-          {renderValoracion()}
+        {renderEstadosSobreLaFoto()}
 
-          <Box sx={{ flexGrow: 1 }} />
+        {/* LA CATEGORIA, AL PIE DE LA FOTO Y A LA DERECHA. Debajo del nombre
+              competia con el; aqui va pegada a lo que describe y le deja el
+              cuerpo de la tarjeta al precio. Sin puntero: es una etiqueta, no
+              un enlace, y detras esta el enlace a la ficha. */}
+        {categoria && (
+          <Box
+            sx={{
+              right: 8,
+              bottom: 8,
+              px: 0.75,
+              py: 0.25,
+              borderRadius: 0.75,
+              position: 'absolute',
+              pointerEvents: 'none',
+              typography: 'caption',
+              color: 'common.white',
+              bgcolor: (theme) => varAlpha(theme.vars.palette.common.blackChannel, 0.64),
+            }}
+          >
+            {categoria}
+          </Box>
+        )}
+      </Box>
 
-          {/* EL PRECIO Y EL CARRITO, EN LA MISMA LINEA. Es la fila que cierra la
-              tarjeta: lo que cuesta y como se compra. El boton lo ve cualquiera
-              que pueda comprar; sin existencias se apaga en vez de desaparecer,
-              para que la tarjeta no cambie de forma. */}
-          <Stack direction="row" spacing={1} alignItems="flex-end">
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>{renderPrecios()}</Box>
+      <Stack spacing={0.5} sx={{ p: 2, flexGrow: 1 }}>
+        <Link
+          component={RouterLink}
+          href={detailsHref}
+          color="inherit"
+          variant="subtitle2"
+          sx={{
+            display: '-webkit-box',
+            overflow: 'hidden',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
+          {product.name}
+        </Link>
 
-            {!!onAddToCart && (
-              <Tooltip title={available > 0 ? 'Agregar al carrito' : 'No disponible'}>
-                <Box component="span" sx={{ flexShrink: 0 }}>
-                  <IconButton
-                    color="primary"
-                    aria-label="Agregar al carrito"
-                    disabled={available <= 0}
-                    onClick={() => onAddToCart?.(product)}
-                  >
-                    <Iconify icon="solar:cart-plus-bold" />
-                  </IconButton>
-                </Box>
-              </Tooltip>
-            )}
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* LO QUE CIERRA LA TARJETA: cuanto cuesta, como esta valorado y como
+              se compra. Las estrellas van DEBAJO del precio —primero el numero
+              que decide, despues la opinion ajena— y el carrito a la derecha,
+              de pie sobre las dos lineas. Sin existencias se apaga en vez de
+              desaparecer, para que la tarjeta no cambie de forma. */}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Stack spacing={0.25} sx={{ minWidth: 0, flexGrow: 1 }}>
+            {renderPrecios()}
+
+            {renderValoracion()}
           </Stack>
-        </Stack>
-      </Card>
-
-      <CustomPopover open={menu.open} anchorEl={menu.anchorEl} onClose={menu.onClose}>
-        <MenuList>
-          <MenuItem component={RouterLink} href={detailsHref} onClick={menu.onClose}>
-            <Iconify icon="solar:eye-bold" />
-            Ver
-          </MenuItem>
 
           {!!onAddToCart && (
-            <MenuItem
-              disabled={available <= 0}
-              onClick={handleAction(() => onAddToCart?.(product))}
-            >
-              <Iconify icon="solar:cart-3-bold" />
-              Agregar al carrito
-            </MenuItem>
+            <Tooltip title={available > 0 ? 'Agregar al carrito' : 'No disponible'}>
+              <Box component="span" sx={{ flexShrink: 0 }}>
+                <IconButton
+                  color="primary"
+                  aria-label="Agregar al carrito"
+                  disabled={available <= 0}
+                  onClick={() => onAddToCart?.(product)}
+                  // MAS ANCHO QUE ALTO: un cuadrado del tamano de un icono se
+                  // fallaba con el pulgar. Se ensancha sin crecer de alto para
+                  // no empujar la fila del precio.
+                  sx={{ px: 2, borderRadius: 1.25 }}
+                >
+                  <Iconify icon="solar:cart-plus-bold" />
+                </IconButton>
+              </Box>
+            </Tooltip>
           )}
-
-          {canManageStore && !isPublished && (
-            <MenuItem onClick={handleAction(() => onPublish?.(product.id))}>
-              <Iconify icon="solar:check-circle-bold" />
-              Publicar
-            </MenuItem>
-          )}
-
-          {canManageStore && (
-            <MenuItem component={RouterLink} href={onEdit?.(product.id)} onClick={menu.onClose}>
-              <Iconify icon="solar:pen-bold" />
-              Editar
-            </MenuItem>
-          )}
-
-          {canManageStore && [
-            <Divider key="divider" sx={{ borderStyle: 'dashed' }} />,
-            <MenuItem
-              key="delete"
-              onClick={handleAction(() => onDelete?.(product.id))}
-              sx={{ color: 'error.main' }}
-            >
-              <Iconify icon="solar:trash-bin-trash-bold" />
-              Eliminar
-            </MenuItem>,
-          ]}
-        </MenuList>
-      </CustomPopover>
-    </>
+        </Stack>
+      </Stack>
+    </Card>
   );
 }

@@ -219,6 +219,16 @@ export default [
       // Solo contiene la funcion que `proponerCambio` ejecuta DESPUES de haber
       // registrado el cambio: es el brazo que aplica, no una puerta paralela.
       'src/services/primer-acceso-service.js',
+      // Mismo caso: solo contiene la escritura que la puerta de cambios ejecuta
+      // DESPUES de registrar el cambio del encabezado de la tienda en Historial.
+      'src/services/store-settings-apply.js',
+      // Contadores de vistas y clics de la portada de la tienda. No es un
+      // cambio del que haya que responder —nadie decide nada, se suma uno— y
+      // ademas lo escribe el navegador de cualquier visitante: hacerlo pasar por
+      // la puerta llenaria Historial de ruido y la bandeja de aprobaciones de
+      // pulsaciones anonimas. Las reglas acotan que solo puede tocar esos dos
+      // numeros.
+      'src/services/store-header-analytics-service.js',
       // Las rutas de `src/app/api/**` son el proxy hacia el backend .NET: la
       // puerta esta del lado de quien decide el cambio, no del transporte.
       'src/app/api/**',

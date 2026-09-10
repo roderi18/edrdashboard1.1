@@ -778,6 +778,14 @@ service cloud.firestore {
     // que escribe la asignacion cuando aprueba una propuesta: sin esto, una
     // directiva propuesta se podia aprobar en pantalla y la escritura moria
     // aqui, porque solo pasaba el Administrador Global.
+    // Quien administra la tienda. Es un rol propio, no un permiso suelto: el
+    // padron y el dinero de la tienda son cosas distintas y por eso ni el
+    // Administrador Global gestiona productos.
+    function esAdministradorDeTienda() {
+      return rolDelToken() == 'administrador_tienda'
+        || rolDelDocumento() == 'administrador_tienda';
+    }
+
     function esOficinaNacional() {
       return rolDelToken() == 'oficina_nacional'
         || rolDelDocumento() == 'oficina_nacional';
@@ -996,7 +1004,28 @@ service cloud.firestore {
     // y lo cambia solo quien manda sobre todo.
     match /configuracion_tienda/{documento} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      // Y el ADMINISTRADOR DE TIENDA, que es quien la lleva: pone las ofertas y
+      // cambia el rotulo. Pedirlo por arriba cada vez convertia una promocion
+      // de un dia en un tramite. Sigue siendo una coleccion de dos, no de todos.
+      allow write: if esAdministradorGlobal() || esAdministradorDeTienda();
+    }
+
+    // CUANTA GENTE VIO CADA CARTEL DE LA PORTADA.
+    //
+    // Escribe cualquiera que entre a la tienda —la impresion la cuenta el
+    // navegador de quien mira—, pero SOLO estos dos contadores y nada mas: sin
+    // `hasOnly`, un documento de la coleccion seria un sitio libre donde
+    // cualquier sesion podria escribir lo que quisiera.
+    //
+    // LEER es otra cosa. Son datos de negocio de la tienda, no del visitante:
+    // los consulta quien la administra.
+    match /analiticas_encabezado_tienda/{idElemento} {
+      allow read: if esAdministradorGlobal() || esAdministradorDeTienda();
+      allow create, update: if esUsuarioDelSistema()
+        && request.resource.data.keys().hasOnly(['impresiones', 'clics', 'actualizadoEn']);
+      // No se corrige a la baja ni se borra: un contador que se puede bajar no
+      // sirve para decidir nada.
+      allow delete: if false;
     }
 
     match /auditoria_sistema/{idEvento} {
@@ -1192,6 +1221,9 @@ service cloud.firestore {
         // El encabezado de la tienda tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.
         && coleccion != 'configuracion_tienda'
+        // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
+        // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
+        && coleccion != 'analiticas_encabezado_tienda'
         && coleccion != 'combinaciones_roles'
         // El catalogo de premios tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.

@@ -588,9 +588,6 @@ export function ProductListView() {
                           isMemberUser={isMemberUser}
                           canManageStore={canManageStore}
                           detailsHref={paths.dashboard.product.details(product.id)}
-                          onEdit={(id) => paths.dashboard.product.edit(id)}
-                          onPublish={handlePublishRow}
-                          onDelete={handleDeleteRow}
                           onAddToCart={handleAddProductToCart}
                         />
                       ))}

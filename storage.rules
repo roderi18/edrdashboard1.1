@@ -108,6 +108,23 @@ service firebase.storage {
         );
     }
 
+    // Quien administra la tienda. Cambia el rotulo de la portada y sube sus
+    // imagenes; fuera de `tienda/` este rol no abre ninguna otra puerta.
+    function esAdministradorDeTienda() {
+      return estaAutenticado()
+        && (
+          (
+            'rol' in request.auth.token
+            && request.auth.token.rol == 'administrador_tienda'
+          )
+          || (
+            tieneDocumento('usuarios_roles')
+            && 'rolId' in documentoUsuario('usuarios_roles').data
+            && documentoUsuario('usuarios_roles').data.rolId == 'administrador_tienda'
+          )
+        );
+    }
+
     function tienePermisoDirecto(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
         && 'permisos' in documentoUsuario('usuarios_roles').data
@@ -463,6 +480,17 @@ service firebase.storage {
         && esArchivoPerfil(archivo)
         && esImagenPermitida();
       allow delete: if puedeResolverPropuestaDeFoto();
+    }
+
+    // La FOTOGRAFIA DE LA PORTADA DE LA TIENDA. La ve cualquiera que entre a la
+    // tienda; la cambia solo el Administrador Global, igual que sus textos. Cada
+    // foto va con marca de tiempo en el nombre, asi que subir otra no pisa la
+    // anterior y no hace falta borrado en esta ruta.
+    match /tienda/{archivo} {
+      allow read: if estaAutenticado();
+      allow create, update: if (esAdministradorGlobal() || esAdministradorDeTienda())
+        && esImagenPermitida();
+      allow delete: if false;
     }
 
     // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
