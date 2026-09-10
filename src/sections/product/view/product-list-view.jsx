@@ -11,7 +11,6 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { esES } from '@mui/x-data-grid/locales';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -80,8 +79,6 @@ const renderTwoLineHeader = (firstLine, secondLine) => (
 // ----------------------------------------------------------------------
 
 export function ProductListView() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
   const { products, productsLoading } = useGetProducts();
@@ -89,8 +86,13 @@ export function ProductListView() {
   const { state: checkoutState, onAddToCart } = useCheckoutContext();
   const [mobileSearch, setMobileSearch] = useState('');
 
+  // LA TIENDA ABRE EN REJILLA, EN CUALQUIER PANTALLA. Es un escaparate: sin las
+  // fotos delante no se distingue una insignia de otra. Antes solo el movil
+  // entraba en rejilla y en el escritorio se abria la tabla, que es la vista de
+  // trabajo del gestor, no la de quien viene a comprar. Sigue estando a un
+  // clic, y si alguien la elige se le recuerda.
   const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
-  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
+  const displayMode = selectedDisplayMode || 'grid';
   const setDisplayMode = useCallback((nextMode) => {
     setSelectedDisplayMode(nextMode);
   }, []);
@@ -547,7 +549,7 @@ export function ProductListView() {
                       <ViewModeToggle
                         value={displayMode}
                         onChange={setDisplayMode}
-                        storageKey="global-display-mode"
+                        storageKey="store-display-mode"
                       />
                     </Box>
                   </Stack>

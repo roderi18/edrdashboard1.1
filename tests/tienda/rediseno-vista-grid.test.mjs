@@ -25,6 +25,19 @@ test('la vista de panel sigue siendo la misma tabla', () => {
   assert.match(vista, /pageSizeOptions=\{\[5, 10, 20, \{ value: -1, label: 'Todos' \}\]\}/);
 });
 
+test('la tienda abre en rejilla en cualquier pantalla', () => {
+  // Es un escaparate: sin las fotos delante no se distingue una insignia de
+  // otra. Antes solo el movil entraba en rejilla y el escritorio abria la
+  // tabla, que es la vista de trabajo del gestor.
+  assert.match(vista, /const displayMode = selectedDisplayMode \|\| 'grid';/);
+  assert.doesNotMatch(vista, /isMobile \? 'grid' : 'panel'/);
+  // Y con llave propia: lo que se eligio en otra lista no decide como abre la
+  // tienda.
+  assert.doesNotMatch(vista, /global-display-mode/);
+  assert.match(vista, /storageKey="store-display-mode"/);
+  assert.match(leer('src/sections/product/product-table-toolbar.jsx'), /store-display-mode/);
+});
+
 test('la rejilla ocupa todo el ancho y el panel no', () => {
   assert.match(vista, /maxWidth=\{displayMode === 'grid' \? false : 'lg'\}/);
 });

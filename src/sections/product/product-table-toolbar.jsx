@@ -242,7 +242,7 @@ export function ProductTableToolbar({
         <ViewModeToggle
           value={displayMode}
           onChange={onChangeDisplayMode}
-          storageKey="global-display-mode"
+          storageKey="store-display-mode"
         />
       )}
     </>
