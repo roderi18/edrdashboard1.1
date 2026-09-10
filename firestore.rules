@@ -989,6 +989,16 @@ service cloud.firestore {
         || request.resource.data.realizadoPor.idUsuario == request.auth.uid;
     }
 
+    // EL ENCABEZADO DE LA TIENDA LO ESCRIBE EL ADMINISTRADOR GLOBAL.
+    //
+    // Un solo documento con el titulo y el subtitulo que se leen en la tienda.
+    // Lo ve cualquier sesion del sistema —es lo primero que sale en la pantalla—
+    // y lo cambia solo quien manda sobre todo.
+    match /configuracion_tienda/{documento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
     match /auditoria_sistema/{idEvento} {
       allow read: if esUsuarioDelSistema();
       allow create: if esUsuarioDelSistema() && laAuditoriaVaASuNombre();
@@ -1179,6 +1189,9 @@ service cloud.firestore {
         && coleccion != 'secretos_acceso'
         && coleccion != 'metadatos_privados_publicaciones'
         && coleccion != 'auditoria_sistema'
+        // El encabezado de la tienda tiene su bloque arriba: sin excluirlo aqui, el
+        // comodin devolveria la escritura a cualquiera con cuenta.
+        && coleccion != 'configuracion_tienda'
         && coleccion != 'combinaciones_roles'
         // El catalogo de premios tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.

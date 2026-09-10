@@ -5,7 +5,9 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { esES } from '@mui/x-data-grid/locales';
@@ -30,25 +32,27 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { TablePaginationCustom } from 'src/components/table';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { ProductMobileCard } from '../product-mobile-card';
+import { StoreHeader } from '../store-header';
+import { ProductGridCard } from '../product-grid-card';
 import { useCheckoutContext } from '../../checkout/context';
 import { ProductTableToolbar } from '../product-table-toolbar';
+import { StoreCategorySidebar } from '../store-category-sidebar';
 import { ProductTableFiltersResult } from '../product-table-filters-result';
-import { RenderCellStock ,
+import {
+  RenderCellStock,
   RenderCellPrice,
   RenderCellRenglon,
   RenderCellProduct,
   RenderCellCategory,
   etiquetaDeCategoria,
 } from '../product-table-row';
-
 
 // ----------------------------------------------------------------------
 
@@ -135,7 +139,15 @@ export function ProductListView() {
 
       if (!valor || vistas.has(valor)) return;
 
-      vistas.set(valor, { value: valor, label: etiquetaDeCategoria(valor) });
+      vistas.set(valor, { value: valor, label: etiquetaDeCategoria(valor), count: 0 });
+    });
+
+    // Cuantos hay en cada una. La columna sin numeros obliga a entrar en cada
+    // categoria para saber si tiene algo.
+    tableData.forEach((product) => {
+      const entrada = vistas.get(String(product?.category || '').trim());
+
+      if (entrada) entrada.count += 1;
     });
 
     return [...vistas.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'));
@@ -148,31 +160,51 @@ export function ProductListView() {
 
   const mobileData = mobileSearch.trim()
     ? dataFiltered.filter((product) =>
-      String(product.name || '')
-        .toLowerCase()
-        .includes(mobileSearch.trim().toLowerCase())
-    )
+        String(product.name || '')
+          .toLowerCase()
+          .includes(mobileSearch.trim().toLowerCase())
+      )
     : dataFiltered;
 
-  const handleDeleteRow = useCallback(async (id) => {
-    await eliminarProductoFirestore(id, user);
-    setTableData((prev) => prev.filter((row) => row.id !== id));
-    toast.success('Producto eliminado!');
-  }, [user]);
+  const [gridPage, setGridPage] = useState(0);
+  const [gridRowsPerPage, setGridRowsPerPage] = useState(12);
 
-  const handlePublishRow = useCallback(async (id) => {
-    const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published', user);
+  // Al buscar o filtrar se vuelve a la primera pagina: quedarse en la cuarta de
+  // un resultado que ahora tiene una sola deja la rejilla vacia sin explicacion.
+  useEffect(() => {
+    setGridPage(0);
+  }, [mobileSearch, filters.state]);
 
-    if (!updatedProduct) {
-      toast.error('No se pudo publicar el producto');
-      return;
-    }
+  const gridData = mobileData.slice(
+    gridPage * gridRowsPerPage,
+    gridPage * gridRowsPerPage + gridRowsPerPage
+  );
 
-    setTableData((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, ...updatedProduct } : row))
-    );
-    toast.success('Producto publicado!');
-  }, [user]);
+  const handleDeleteRow = useCallback(
+    async (id) => {
+      await eliminarProductoFirestore(id, user);
+      setTableData((prev) => prev.filter((row) => row.id !== id));
+      toast.success('Producto eliminado!');
+    },
+    [user]
+  );
+
+  const handlePublishRow = useCallback(
+    async (id) => {
+      const updatedProduct = await actualizarPublicacionProductoFirestore(id, 'published', user);
+
+      if (!updatedProduct) {
+        toast.error('No se pudo publicar el producto');
+        return;
+      }
+
+      setTableData((prev) =>
+        prev.map((row) => (row.id === id ? { ...row, ...updatedProduct } : row))
+      );
+      toast.success('Producto publicado!');
+    },
+    [user]
+  );
 
   const handleAddProductToCart = useCallback(
     (product) => {
@@ -204,7 +236,9 @@ export function ProductListView() {
   );
 
   const handleDeleteRows = useCallback(async () => {
-    await Promise.all(Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id, user)));
+    await Promise.all(
+      Array.from(selectedRows.ids).map((id) => eliminarProductoFirestore(id, user))
+    );
     setTableData((prev) => prev.filter((row) => !selectedRows.ids.has(row.id)));
     toast.success('Productos eliminados!');
   }, [selectedRows.ids, user]);
@@ -244,136 +278,338 @@ export function ProductListView() {
 
   return (
     <>
-      <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <CustomBreadcrumbs
-          heading="Lista de productos"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Producto', href: paths.dashboard.product.root },
-            { name: 'Lista' },
-          ]}
-          action={
-            <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center' }}>
-              <ViewModeToggle
-                value={displayMode}
-                onChange={setDisplayMode}
-                storageKey="global-display-mode"
-              />
-
-              {canManageStore && (
-                <Button
-                  component={RouterLink}
-                  href={paths.dashboard.product.new}
-                  variant="contained"
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                >
-                  Agregar producto
-                </Button>
-              )}
-            </Box>
-          }
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
+      {/* LA TIENDA OCUPA TODO EL ANCHO. Con las fotos mandando, el contenedor
+          estrecho dejaba cuatro columnas de tarjetas diminutas y dos franjas
+          vacias a los lados. La vista de panel se queda como estaba. */}
+      <DashboardContent
+        maxWidth={displayMode === 'grid' ? false : 'lg'}
+        sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+      >
+        {/* SIN TITULO NI MIGAS. La tienda entra por su propia portada
+            (`StoreHeader`) y el menu lateral ya dice donde se esta: el
+            encabezado solo repetia lo mismo y empujaba las fotos fuera de
+            pantalla. El selector de vista se fue con los filtros, que es donde
+            se busca. */}
+        {canManageStore && (
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              component={RouterLink}
+              href={paths.dashboard.product.new}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Agregar producto
+            </Button>
+          </Box>
+        )}
 
         {displayMode === 'grid' ? (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                value={mobileSearch}
-                onChange={(event) => setMobileSearch(event.target.value)}
-                placeholder="Buscar producto..."
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
+            <StoreHeader sx={{ mb: 3 }} />
 
-              <TableToolbarMobileFilter
-                hasActiveFilters={canReset}
-                filtersConfig={[
-                  {
-                    key: 'stock',
-                    label: 'Existencias',
-                    value: filters.state.stock,
-                    onChange: (event) => filters.setState({ stock: event.target.value }),
-                    options: PRODUCT_STOCK_OPTIONS,
-                  },
-                  {
-                    key: 'categoria',
-                    label: 'Categoría',
-                    value: filters.state.categoria,
-                    onChange: (event) => filters.setState({ categoria: event.target.value }),
-                    options: categoriaOptions,
-                  },
-                  ...(!isMemberUser
-                    ? [
-                      {
-                        key: 'renglon',
-                        label: 'Renglón',
-                        value: filters.state.renglon,
-                        onChange: (event) => filters.setState({ renglon: event.target.value }),
-                        options: PRODUCT_RENGLON_OPTIONS,
-                      },
-                      {
-                        key: 'publish',
-                        label: 'Publicación',
-                        value: filters.state.publish,
-                        onChange: (event) => filters.setState({ publish: event.target.value }),
-                        options: PUBLISH_OPTIONS,
-                      },
-                    ]
-                    : []),
-                ]}
-              />
-            </Box>
-
-            {canReset && (
-              <ProductTableFiltersResult
-                filters={filters}
-                totalResults={dataFiltered.length}
-                sx={{ mb: 2 }}
-              />
-            )}
-
-            {productsLoading ? (
-              <EmptyContent title="Cargando productos..." />
-            ) : !mobileData.length ? (
-              <EmptyContent title="No se encontraron resultados" />
-            ) : (
-              <Box
+            {/* LA COLUMNA Y LA REJILLA, LADO A LADO. En tableta y movil la
+                columna estorba mas de lo que ayuda —se come el ancho que
+                necesitan las fotos—, asi que ahi desaparece y las categorias se
+                eligen en el mismo desplegable de filtros de siempre. */}
+            <Box
+              sx={{
+                gap: 3,
+                display: 'flex',
+                alignItems: 'flex-start',
+              }}
+            >
+              <StoreCategorySidebar
+                options={categoriaOptions}
+                value={filters.state.categoria}
+                onChange={(categoria) => filters.setState({ categoria })}
+                total={tableData.length}
                 sx={{
-                  gap: 1.5,
-                  display: 'grid',
-                  gridTemplateColumns: {
-                    xs: '1fr',
-                    sm: 'repeat(2, 1fr)',
-                    md: 'repeat(3, 1fr)',
-                    lg: 'repeat(4, 1fr)',
-                  },
+                  top: 88,
+                  width: 260,
+                  flexShrink: 0,
+                  position: 'sticky',
+                  display: { xs: 'none', lg: 'block' },
                 }}
-              >
-                {mobileData.map((product) => (
-                  <ProductMobileCard
-                    key={product.id}
-                    product={product}
-                    isMemberUser={isMemberUser}
-                    canManageStore={canManageStore}
-                    detailsHref={paths.dashboard.product.details(product.id)}
-                    onEdit={(id) => paths.dashboard.product.edit(id)}
-                    onPublish={handlePublishRow}
-                    onDelete={handleDeleteRow}
-                    onAddToCart={handleAddProductToCart}
-                  />
-                ))}
+              />
+
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Card sx={{ p: { xs: 1.5, md: 2 }, mb: 2.5 }}>
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    spacing={1.5}
+                    alignItems={{ md: 'center' }}
+                  >
+                    {/* EN PANTALLA PEQUEÑA, BUSCADOR Y FILTRO EN LA MISMA
+                        LINEA. El boton de filtros colgaba debajo del buscador y
+                        se comia una fila entera de alto en el movil, que es
+                        justo donde menos sobra. */}
+                    <Box
+                      sx={{
+                        gap: 1.5,
+                        display: 'flex',
+                        flexShrink: 0,
+                        alignItems: 'center',
+                        width: { xs: 1, md: 320 },
+                      }}
+                    >
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={mobileSearch}
+                        onChange={(event) => setMobileSearch(event.target.value)}
+                        placeholder="Buscar productos..."
+                        slotProps={{
+                          input: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                              </InputAdornment>
+                            ),
+                          },
+                        }}
+                      />
+
+                      <Box sx={{ flexShrink: 0, display: { xs: 'block', md: 'none' } }}>
+                        <TableToolbarMobileFilter
+                          hasActiveFilters={canReset}
+                          filtersConfig={[
+                            {
+                              key: 'stock',
+                              label: 'Existencias',
+                              value: filters.state.stock,
+                              onChange: (event) => filters.setState({ stock: event.target.value }),
+                              options: PRODUCT_STOCK_OPTIONS,
+                            },
+                            {
+                              key: 'categoria',
+                              label: 'Categoría',
+                              value: filters.state.categoria,
+                              onChange: (event) =>
+                                filters.setState({ categoria: event.target.value }),
+                              options: categoriaOptions,
+                            },
+                            ...(!isMemberUser
+                              ? [
+                                  {
+                                    key: 'renglon',
+                                    label: 'Renglón',
+                                    value: filters.state.renglon,
+                                    onChange: (event) =>
+                                      filters.setState({ renglon: event.target.value }),
+                                    options: PRODUCT_RENGLON_OPTIONS,
+                                  },
+                                  {
+                                    key: 'publish',
+                                    label: 'Publicación',
+                                    value: filters.state.publish,
+                                    onChange: (event) =>
+                                      filters.setState({ publish: event.target.value }),
+                                    options: PUBLISH_OPTIONS,
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* De `md` en adelante los filtros van a la vista; por debajo,
+                        en el mismo cajon que ya usaba la rejilla. */}
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1 }}
+                    >
+                      <TextField
+                        select
+                        size="small"
+                        label="Categoría"
+                        value={filters.state.categoria}
+                        onChange={(event) => filters.setState({ categoria: event.target.value })}
+                        sx={{ minWidth: 180 }}
+                        slotProps={{
+                          select: {
+                            multiple: true,
+                            renderValue: (seleccion) =>
+                              seleccion.map((valor) => etiquetaDeCategoria(valor)).join(', '),
+                          },
+                        }}
+                      >
+                        {categoriaOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+
+                      <TextField
+                        select
+                        size="small"
+                        label="Disponibilidad"
+                        value={filters.state.stock}
+                        onChange={(event) => filters.setState({ stock: event.target.value })}
+                        sx={{ minWidth: 170 }}
+                        slotProps={{
+                          select: {
+                            multiple: true,
+                            renderValue: (seleccion) =>
+                              seleccion
+                                .map(
+                                  (valor) =>
+                                    PRODUCT_STOCK_OPTIONS.find((option) => option.value === valor)
+                                      ?.label ?? valor
+                                )
+                                .join(', '),
+                          },
+                        }}
+                      >
+                        {PRODUCT_STOCK_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+
+                      {!isMemberUser && (
+                        <TextField
+                          select
+                          size="small"
+                          label="Renglón"
+                          value={filters.state.renglon}
+                          onChange={(event) => filters.setState({ renglon: event.target.value })}
+                          sx={{ minWidth: 150 }}
+                          slotProps={{
+                            select: {
+                              multiple: true,
+                              renderValue: (seleccion) =>
+                                seleccion
+                                  .map(
+                                    (valor) =>
+                                      PRODUCT_RENGLON_OPTIONS.find(
+                                        (option) => option.value === valor
+                                      )?.label ?? valor
+                                  )
+                                  .join(', '),
+                            },
+                          }}
+                        >
+                          {PRODUCT_RENGLON_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+
+                      {!isMemberUser && (
+                        <TextField
+                          select
+                          size="small"
+                          label="Publicación"
+                          value={filters.state.publish}
+                          onChange={(event) => filters.setState({ publish: event.target.value })}
+                          sx={{ minWidth: 160 }}
+                          slotProps={{
+                            select: {
+                              multiple: true,
+                              renderValue: (seleccion) =>
+                                seleccion
+                                  .map(
+                                    (valor) =>
+                                      PUBLISH_OPTIONS.find((option) => option.value === valor)
+                                        ?.label ?? valor
+                                  )
+                                  .join(', '),
+                            },
+                          }}
+                        >
+                          {PUBLISH_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                    </Stack>
+
+                    {/* EL SELECTOR DE VISTA CIERRA LA FILA, detras de
+                        "Publicacion": pasar de rejilla a panel es una decision
+                        del mismo tipo que filtrar, no del encabezado. */}
+                    <Box
+                      sx={{
+                        ml: 'auto',
+                        justifyContent: 'flex-end',
+                        // En movil no hay eleccion que hacer: el propio selector
+                        // fuerza la rejilla, asi que solo estorbaria.
+                        display: { xs: 'none', md: 'flex' },
+                      }}
+                    >
+                      <ViewModeToggle
+                        value={displayMode}
+                        onChange={setDisplayMode}
+                        storageKey="global-display-mode"
+                      />
+                    </Box>
+                  </Stack>
+
+                  {canReset && (
+                    <ProductTableFiltersResult
+                      filters={filters}
+                      totalResults={mobileData.length}
+                      sx={{ pt: 2 }}
+                    />
+                  )}
+                </Card>
+
+                {productsLoading ? (
+                  <EmptyContent title="Cargando productos..." />
+                ) : !mobileData.length ? (
+                  <EmptyContent title="No se encontraron resultados" />
+                ) : (
+                  <>
+                    <Box
+                      sx={{
+                        gap: 2.5,
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: 'repeat(2, 1fr)',
+                          sm: 'repeat(3, 1fr)',
+                          md: 'repeat(3, 1fr)',
+                          lg: 'repeat(4, 1fr)',
+                        },
+                      }}
+                    >
+                      {gridData.map((product) => (
+                        <ProductGridCard
+                          key={product.id}
+                          product={product}
+                          isMemberUser={isMemberUser}
+                          canManageStore={canManageStore}
+                          detailsHref={paths.dashboard.product.details(product.id)}
+                          onEdit={(id) => paths.dashboard.product.edit(id)}
+                          onPublish={handlePublishRow}
+                          onDelete={handleDeleteRow}
+                          onAddToCart={handleAddProductToCart}
+                        />
+                      ))}
+                    </Box>
+
+                    <TablePaginationCustom
+                      page={gridPage}
+                      count={mobileData.length}
+                      rowsPerPage={gridRowsPerPage}
+                      rowsPerPageOptions={[12, 24, 48]}
+                      onPageChange={(event, nuevaPagina) => setGridPage(nuevaPagina)}
+                      onRowsPerPageChange={(event) => {
+                        setGridRowsPerPage(parseInt(event.target.value, 10));
+                        setGridPage(0);
+                      }}
+                      sx={{ mt: 1 }}
+                    />
+                  </>
+                )}
               </Box>
-            )}
+            </Box>
           </>
         ) : (
           <Card
@@ -426,6 +662,8 @@ export function ProductListView() {
                     }}
                     isMemberUser={isMemberUser}
                     canManageStore={canManageStore}
+                    displayMode={displayMode}
+                    onChangeDisplayMode={setDisplayMode}
                   />
                 ),
               }}
@@ -506,29 +744,30 @@ const useGetColumns = ({
       },
       ...(isMemberUser
         ? [
-          {
-            field: 'category',
-            headerName: 'Categoria',
-            width: 140,
-            filterable: false,
-            renderCell: (params) => <RenderCellCategory params={params} />,
-          },
-        ]
+            {
+              field: 'category',
+              headerName: 'Categoria',
+              width: 140,
+              filterable: false,
+              renderCell: (params) => <RenderCellCategory params={params} />,
+            },
+          ]
         : []),
       ...(!isMemberUser
-        ? [{
-          field: 'renglon',
-          headerName: 'Renglón',
-          width: 120,
-          type: 'singleSelect',
-          filterable: false,
-          valueOptions: [
-            { value: 'general', label: 'General' },
-            { value: 'restringido', label: 'Restringido' },
-          ],
-          renderCell: (params) => <RenderCellRenglon params={params} />,
-        }]
-
+        ? [
+            {
+              field: 'renglon',
+              headerName: 'Renglón',
+              width: 120,
+              type: 'singleSelect',
+              filterable: false,
+              valueOptions: [
+                { value: 'general', label: 'General' },
+                { value: 'restringido', label: 'Restringido' },
+              ],
+              renderCell: (params) => <RenderCellRenglon params={params} />,
+            },
+          ]
         : []),
       {
         type: 'actions',
@@ -544,13 +783,13 @@ const useGetColumns = ({
           const actions = [
             ...(isMemberUser
               ? [
-                <CustomGridActionsCellItem
-                  label="Agregar al carrito"
-                  icon={<Iconify icon="solar:cart-3-bold" />}
-                  disabled={Number(params.row.available || 0) <= 0}
-                  onClick={() => onAddProductToCart(params.row)}
-                />,
-              ]
+                  <CustomGridActionsCellItem
+                    label="Agregar al carrito"
+                    icon={<Iconify icon="solar:cart-3-bold" />}
+                    disabled={Number(params.row.available || 0) <= 0}
+                    onClick={() => onAddProductToCart(params.row)}
+                  />,
+                ]
               : []),
             <CustomGridActionsCellItem
               showInMenu

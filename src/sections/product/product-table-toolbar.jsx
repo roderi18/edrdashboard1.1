@@ -13,6 +13,7 @@ import { useTheme, useMediaQuery } from '@mui/material';
 
 import { Iconify } from 'src/components/iconify';
 import { ExportTableButton } from 'src/components/export-table-button';
+import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 import {
   ToolbarContainer,
@@ -65,6 +66,8 @@ export function ProductTableToolbar({
   onOpenConfirmDeleteRows,
   isMemberUser = false,
   canManageStore = false,
+  displayMode,
+  onChangeDisplayMode,
 }) {
   const { state: currentFilters, setState: updateFilters } = filters;
   const theme = useTheme();
@@ -231,6 +234,17 @@ export function ProductTableToolbar({
         }
         buttonProps={{ size: 'small', color: 'inherit', variant: 'text', endIcon: null }}
       />
+
+      {/* EL SELECTOR DE VISTA, AQUI Y NO EN EL ENCABEZADO. Se quito el titulo de
+          la pagina y con el se iba la unica forma de volver del panel a la
+          rejilla; ahora cierra la barra, igual que en la vista de rejilla. */}
+      {!!onChangeDisplayMode && (
+        <ViewModeToggle
+          value={displayMode}
+          onChange={onChangeDisplayMode}
+          storageKey="global-display-mode"
+        />
+      )}
     </>
   );
 
