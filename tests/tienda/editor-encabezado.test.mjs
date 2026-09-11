@@ -32,6 +32,8 @@ const {
   FORMATOS_DE_CUENTA,
 } = await import('src/utils/store-header-design.mjs');
 
+const modelo = await import('src/utils/store-header-design.mjs');
+
 // EL EDITOR VISUAL DEL ENCABEZADO DE LA TIENDA.
 //
 // Lo que estos casos vigilan no es como se ve, sino QUE SE PUEDE GUARDAR. El
@@ -120,13 +122,40 @@ test('el fondo se pinta como imagen en sus tres formas', () => {
   assert.match(fondoACss({ tipo: 'plano', color: '#000000', opacidad: 0.5 }), /#00000080/);
 });
 
-test('el tamaño de letra se reescala al ancho de la pantalla', () => {
-  // Un titular pensado para un monitor ocupaba tres lineas en un telefono.
-  const estilos = elementoACss({ tamano: 48 });
+test('todo se mide en el lienzo de diseño, y el lienzo entero se encoge', () => {
+  // Antes cada cosa tenia su regla: el texto encogia con `vw`, las imagenes iban
+  // en porcentaje y el alto estaba fijo en pixeles. Tres reglas para tres cosas
+  // que tienen que moverse juntas, y al estrechar la ventana el diseño se
+  // descuadraba en vez de hacerse pequeño.
+  assert.equal(elementoACss({ tamano: 48 }).fontSize, '48px');
+  // Se mira el CODIGO, no los comentarios: uno de ellos cuenta justamente por
+  // que se quito el `clamp`.
+  const modeloSinComentarios = leer('src/utils/store-header-design.mjs')
+    .split('\n')
+    .filter((linea) => !/^\s*(\/\/|\*|\/\*)/.test(linea))
+    .join('\n');
 
-  assert.match(estilos.fontSize, /^clamp\(24px, [\d.]+vw, 48px\)$/);
-  assert.equal(estilos.left, '8%');
-  assert.equal(estilos.width, '40%');
+  assert.doesNotMatch(modeloSinComentarios, /clamp\(/);
+
+  const lienzo = leer('src/components/header-visual-editor/header-visual-canvas.jsx');
+
+  assert.match(
+    lienzo,
+    /const escala = anchoDisponible > 0 \? anchoDisponible \/ ANCHO_DE_REFERENCIA : 1;/
+  );
+  assert.match(lienzo, /transform: `scale\(\$\{escala\}\)`/);
+  // El alto sale de la escala: se estrecha y se acorta a la vez.
+  assert.match(lienzo, /height: seguro\.altura \* escala/);
+  assert.match(lienzo, /width: ANCHO_DE_REFERENCIA/);
+});
+
+test('ajustar al texto mide en el lienzo, no en la pantalla', () => {
+  // `getComputedStyle` devuelve el tamaño ANTES de encoger el lienzo: con el
+  // ancho de pantalla, el recuadro salia mas estrecho cuanto mas pequeña fuera
+  // la ventana.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+
+  assert.match(editor, /const ancho = \(\(natural \+ 4\) \/ ANCHO_DE_REFERENCIA\) \* 100;/);
 });
 
 test('las posiciones van en porcentaje, nunca en pixeles', () => {
@@ -467,7 +496,10 @@ test('se pueden poner lineas y formas, no solo textos', () => {
 
   const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
   // Las tres salen del mismo flotante de "Formas".
-  assert.match(editor, /agregarFigura\(opcion\.forma === 'linea' \? 'linea' : 'forma', opcion\.forma\)/);
+  assert.match(
+    editor,
+    /agregarFigura\(opcion\.forma === 'linea' \? 'linea' : 'forma', opcion\.forma\)/
+  );
 });
 
 test('el control de tamaño esta en la barra, junto al ojo', () => {
@@ -594,6 +626,8 @@ test('un elemento bloqueado se selecciona pero no se mueve', () => {
   assert.match(editor, /if \(item\.bloqueado\) return;/);
   // Y sin asa de ancho, que seria otra forma de moverlo sin querer.
   assert.match(editor, /\{activo && !item\.bloqueado && \(/);
+  // Y el candado se pulsa desde la barra de arriba, no bajando a la columna.
+  assert.match(editor, /const renderFilaDePieza = \(\) => \(/);
 });
 
 test('el enlace pasa el mismo filtro que las imagenes', () => {
@@ -771,10 +805,12 @@ test('soltar un elemento en la franja de arriba lo elimina', () => {
     editor,
     /setSobrePapelera\(event\.clientY < activo\.marco\.top \+ ALTO_DE_PAPELERA\)/
   );
-  assert.match(editor, /if \(arrastre\.current && sobrePapelera\)/);
-  // La papelera solo esta mientras se arrastra: el resto del tiempo taparia lo
-  // que se esta colocando.
-  assert.match(editor, /\{!!arrastre\.current && \(/);
+  assert.match(editor, /if \(arrastre\.current && arrastrando && sobrePapelera\)/);
+  // Y solo cuando se arrastra DE VERDAD: con el simple clic de seleccionar,
+  // la papelera daba un parpadeo rojo cada vez que se tocaba algo.
+  assert.match(editor, /const UMBRAL_DE_ARRASTRE = 4;/);
+  assert.match(editor, /if \(recorrido > UMBRAL_DE_ARRASTRE\) setArrastrando\(true\);/);
+  assert.match(editor, /\{arrastrando && \(/);
   // Y borrar asi es deshacible como todo lo demas, por eso no pregunta.
   assert.match(editor, /elementos: actual\.elementos\.filter\(\(item\) => item\.id !== id\)/);
 });
@@ -810,7 +846,8 @@ test('los botones que despliegan lo dicen con una flecha', () => {
 
   // Sin la flecha, un boton llamado "Formas" parece que agrega una forma al
   // pulsarlo, y lo que hace es abrir tres opciones.
-  assert.equal(editor.match(/eva:arrow-ios-downward-fill/g).length, 2);
+  // "Texto parpadeante", "Formas" y "Programación": los tres que abren algo.
+  assert.equal(editor.match(/eva:arrow-ios-downward-fill/g).length, 3);
   assert.match(portada, /eva:arrow-ios-downward-fill/);
 });
 
@@ -828,19 +865,300 @@ test('las formas se eligen en un flotante, con el componente que ya existia', ()
   );
 });
 
-test('la columna se queda con lo del elemento y lo largo baja a lo ancho', () => {
-  // En 300 pixeles, el efecto, la capa, el enlace y las fechas se apretaban
-  // unos contra otros; abajo cada cosa tiene sitio y se ve el encabezado entero.
+test('todo lo del elemento vive en la columna, en dos pestanas', () => {
+  // Repartirlo entre la columna y una tarjeta debajo obligaba a mirar a dos
+  // sitios para tocar la misma pieza.
   const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
-  const columna = editor.slice(
-    editor.indexOf('const renderPanelDeTexto'),
-    editor.indexOf('const renderPanelDeFigura')
+
+  assert.match(editor, /<Tab value="formato" label="Formato" \/>/);
+
+  // "Formato" es lo que se ajusta a ojo; "Ajustes", lo que se decide.
+  // Y las dos comparten celda: el panel mide siempre lo que la mas larga y no
+  // cambia de alto al cambiar de pestaña, que hacia saltar el encabezado.
+  assert.match(editor, /gridArea: '1 \/ 1'/);
+  assert.match(editor, /visibility: 'hidden'/);
+  assert.doesNotMatch(editor, /pestanaActiva === panel\.clave && \(/);
+  assert.match(
+    editor,
+    /\{renderEfecto\(elemento, \{ conColores: elemento\.tipo !== 'imagen' \}\)\}/
+  );
+  assert.match(editor, /\{renderComunes\(elemento\)\}/);
+  // Las dos estan SIEMPRE: apareciendo y desapareciendo, el panel daba un salto
+  // cada vez que se pulsaba o se soltaba una pieza.
+  assert.match(editor, /<Tab value="ajustes" label="Ajustes" disabled=\{!elemento\} \/>/);
+  assert.match(editor, /const pestanaActiva = elemento \? pestana : 'formato';/);
+});
+
+test('las figuras y el escudo se ven tambien mientras se edita', () => {
+  // Sus medidas son porcentajes del LIENZO; dentro de la envoltura del editor
+  // se resolvian contra una caja de altura cero y desaparecian, asi que solo
+  // asomaban al previsualizar.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+
+  assert.match(editor, /const esFigura = item\.tipo === 'linea' \|\| item\.tipo === 'forma';/);
+  assert.match(
+    editor,
+    /height: item\.tipo === 'linea' \? `\$\{item\.grosor\}px` : `\$\{item\.alto\}%`/
+  );
+  assert.match(editor, /width: '100% !important'/);
+});
+
+test('el ojo dice para que sirve', () => {
+  // Al lado de tres pantallas, un ojo suelto parece otro tamaño mas.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+
+  assert.match(editor, /Vista previa: así lo verá el cliente/);
+  assert.match(editor, /aria-label="Vista previa"/);
+});
+
+test('la capa, el candado y el enlace se manejan desde la barra', () => {
+  // No son formato —no se ajustan mirando como queda—: son decisiones de un
+  // vistazo, y en la columna obligaban a bajar a buscarlas cada vez.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+  const fila = editor.slice(
+    editor.indexOf('const renderFilaDePieza'),
+    editor.indexOf('const renderPaleta')
   );
 
-  assert.doesNotMatch(columna, /renderEfecto\(elemento\)/);
-  assert.doesNotMatch(columna, /renderComunes\(elemento\)/);
-  // Y lo ultimo que queda en la columna sigue siendo el color.
-  assert.match(columna, /Color del texto/);
-  assert.match(editor, /\{!!elemento && !previsualizando && \(/);
-  assert.match(editor, /lg: 'repeat\(3, 1fr\)'/);
+  assert.match(fila, /title="Traer al frente"/);
+  assert.match(fila, /title="Enviar atrás"/);
+  assert.match(fila, /label="Enlace"/);
+  assert.match(fila, /title="Mostrar como botón"/);
+
+  // La fila esta siempre y se apaga sin seleccion: apareciendo y
+  // desapareciendo, empujaba el encabezado hacia abajo en cada clic.
+  assert.match(fila, /disabled=\{!elemento\}/);
+  assert.match(fila, /Sin selección/);
+  assert.match(editor, /\{!previsualizando && renderFilaDePieza\(\)\}/);
+
+  // Y ya no estan duplicados en la columna.
+  const comunes = editor.slice(
+    editor.indexOf('const renderComunes'),
+    editor.indexOf('const renderFilaDePieza')
+  );
+  assert.doesNotMatch(comunes, /Al frente|Bloquear|label="Enlace"|label="Desde"/);
+});
+
+test('la programacion se abre desde la barra, en un flotante', () => {
+  // Dos campos de fecha y hora en linea se comen la barra entera, y ademas no
+  // se tocan en cada cambio: solo al montar la promocion.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+  const fila = editor.slice(
+    editor.indexOf('const renderFilaDePieza'),
+    editor.indexOf('const renderPaleta')
+  );
+
+  assert.match(fila, />\s*Programación\s*</);
+  assert.match(fila, /onClick=\{menuDeProgramacion\.onOpen\}/);
+  // El boton se enciende cuando hay fechas, para que no se olvide que las tiene.
+  assert.match(fila, /elemento\?\.desde \|\| elemento\?\.hasta \? 'primary' : 'inherit'/);
+  // Y despliega, asi que lo dice con la flecha.
+  assert.match(fila, /eva:arrow-ios-downward-fill/);
+
+  assert.match(editor, /open=\{menuDeProgramacion\.open\}/);
+  // Y con el calendario del proyecto, el mismo de la fecha de nacimiento: el
+  // nativo cambia de aspecto y de orden de campos en cada sistema.
+  assert.match(editor, /<DateTimePicker/);
+  assert.match(editor, /format="DD\/MM\/YYYY hh:mm A"/);
+  assert.doesNotMatch(editor, /type="datetime-local"/);
+  assert.match(editor, /label="Desde"/);
+  assert.match(editor, /Quitar las fechas/);
+});
+
+test('la foto se encuadra con la forma MEDIDA del encabezado', () => {
+  // Una franja fija primero, y despues el ancho de referencia con el alto
+  // guardado: las dos se equivocaban por lo mismo. La portada ocupa el ancho de
+  // VERDAD del navegador —1450 px en un monitor, 380 en un telefono— y su alto
+  // depende de lo que lleve dentro, asi que el recorte salia mas alto o mas bajo
+  // de lo que se veia.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.match(foto, /const proporcionDe = \(altura, medida\) =>/);
+  assert.match(foto, /medida > 0 \? medida : ANCHO_DE_REFERENCIA/);
+  assert.match(foto, /medidaPortada\.ancho \/ medidaPortada\.alto/);
+  assert.match(foto, /aspect=\{proporcion\}/);
+  assert.doesNotMatch(foto, /16 \/ 5/);
+
+  // La mide el propio encabezado, en las dos formas que puede tener.
+  assert.match(portada, /new ResizeObserver/);
+  assert.match(portada, /setMedidaPortada\(\{ ancho: width, alto: height \}\)/);
+  assert.equal(portada.match(/ref=\{portadaRef\}/g).length, 2);
+  assert.match(portada, /medidaPortada=\{medidaPortada\}/);
+});
+
+test('una foto nueva no se queda debajo del fondo del diseño', () => {
+  // Con el diseño libre encendido, su fondo se pinta ENCIMA de la foto: si
+  // quedo opaco, la foto se subia, se guardaba y no se veia por ninguna parte.
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.match(
+    portada,
+    /const tapaLaFoto = !!url && diseno\?\.activo && \(diseno\?\.fondo\?\.opacidad \?\? 1\) >= 1;/
+  );
+  assert.match(portada, /fondo: \{ \.\.\.diseno\.fondo, opacidad: 0\.62 \}/);
+  // Quien quiera taparla del todo tiene el control de opacidad en el editor.
+  assert.match(
+    leer('src/components/header-visual-editor/header-visual-editor.jsx'),
+    /deja ver la fotografía/
+  );
+});
+
+test('se puede cambiar la foto tantas veces como haga falta', () => {
+  // Vaciar la entrada AL RECIBIR el archivo dependia de que ese `onChange`
+  // llegara a ejecutarse; si el segundo intento se quedaba con el nombre del
+  // primero dentro, el navegador decidia que "no habia cambiado nada" y no
+  // avisaba: el boton parecia muerto.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+
+  // El boton ES la etiqueta del campo: pedirle al navegador que pulse un
+  // `input` escondido funciona a veces y a veces no.
+  assert.match(foto, /component="label"/);
+  assert.doesNotMatch(foto, /entradaRef\.current\?\.click\(\)/);
+  // Y la `key` cambia con la foto que ya hay, asi que volver a elegir el MISMO
+  // archivo tambien cuenta como cambio.
+  assert.match(foto, /key=\{vistaPrevia \|\| 'sin-foto'\}/);
+
+  // Lo mismo en el editor, que tenia el mismo clic programatico.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+  assert.doesNotMatch(editor, /entradaImagenRef/);
+  assert.match(editor, /key=\{elemento\.url \|\| 'sin-imagen'\}/);
+  // Y un recortador nuevo por foto: reutilizarlo dejaba el encuadre anterior.
+  assert.match(foto, /key=\{origen\}/);
+});
+
+test('guardar el encuadre nunca es un callejon sin salida', () => {
+  // Un boton que no responde y no explica por que es peor que un encuadre por
+  // defecto: sin area elegida se usa la foto entera.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+
+  assert.match(foto, /const zona = area \?\? \(await areaCompleta\(origen, alto\)\)/);
+  assert.doesNotMatch(foto, /onClick=\{handleGuardarEncuadre\} disabled=\{!area\}/);
+  // Y lo que no es una imagen se dice, en vez de no pasar nada.
+  assert.match(foto, /Ese archivo no es una imagen\./);
+});
+
+test('la paleta: los de la casa, la rueda completa y la X, en ese orden', () => {
+  // Lo frecuente primero y lo excepcional despues: con la rueda delante, cada
+  // cambio de color pedia abrir un flotante para elegir a mano un tono que ya
+  // estaba a un clic en la fila.
+  const paleta = leer('src/components/header-visual-editor/paleta-de-colores.jsx');
+
+  const orden = ['PALETA.map', 'Elegir otro color', 'Sin color'].map((marca) =>
+    paleta.indexOf(marca)
+  );
+
+  assert.ok(
+    orden.every((posicion) => posicion > 0),
+    'las tres opciones existen'
+  );
+  assert.deepEqual(
+    [...orden].sort((uno, otro) => uno - otro),
+    orden,
+    'y en ese orden'
+  );
+});
+
+test('se puede poner cualquier color, con la rueda o escribiendo el codigo', () => {
+  const paleta = leer('src/components/header-visual-editor/paleta-de-colores.jsx');
+
+  assert.match(paleta, /type="color"/);
+  assert.match(paleta, /label="Código"/);
+  // El codigo se aplica solo cuando es un color de verdad: si no, el texto
+  // parpadeaba de color mientras se escribia "#1A2B3C" letra a letra.
+  assert.match(paleta, /test\(limpio\)\) propagar\(limpio\)/);
+});
+
+test('sin color se queda sin color, tambien bajo el velo del fondo', () => {
+  // La opacidad de la capa lo convertia en un negro a medias: bajar el velo
+  // hacia aparecer un gris donde se habia pedido que no hubiera nada.
+  const { SIN_COLOR, esSinColor, fondoACss } = modelo;
+
+  assert.equal(esSinColor(SIN_COLOR), true);
+  assert.equal(sanearColor(SIN_COLOR), SIN_COLOR);
+  assert.match(
+    fondoACss({ tipo: 'degradado', colorSecundario: SIN_COLOR, opacidad: 0.5 }),
+    /#00000000 100%/
+  );
+});
+
+test('la rueda de color no arrastra al encabezado en cada pixel', () => {
+  // Llevar cada micro-cambio hasta el diseño repintaba el encabezado entero y
+  // apilaba una entrada de historial por pixel: la bolita iba a tirones y
+  // despues hacian falta cien "deshacer" para volver atras.
+  const paleta = leer('src/components/header-visual-editor/paleta-de-colores.jsx');
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+
+  // Lo que se ve va al instante; lo que se guarda, una vez por fotograma.
+  assert.match(paleta, /requestAnimationFrame\(\(\) => \{/);
+  assert.match(paleta, /onElegir\(pendiente\.current, 'color-continuo'\)/);
+  assert.match(paleta, /cancelAnimationFrame/);
+
+  // Y con etiqueta, para que el historial funda todo el gesto en una entrada.
+  assert.match(editor, /if \(!etiqueta\) cerrarGesto\(\);/);
+  assert.match(editor, /cambiarElemento\(elemento\.id, \{ color \}, etiqueta\)/);
+  assert.match(editor, /cambiarFondo\(\{ color \}, etiqueta\)/);
+});
+
+test('el recuadro de la foto enseña la portada entera, no la foto sola', () => {
+  // Lo que hay que decidir al encuadrar es si el titulo se va a leer sobre la
+  // foto y si la cara importante queda tapada.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.match(foto, /\{!enEncuadre && !!superposicion && escala > 0 && \(/);
+  assert.match(portada, /superposicion=\{renderPortadaEnMiniatura\(\)\}/);
+  // Con las MISMAS piezas que la portada: el lienzo con diseño libre, y el
+  // escudo con sus textos cuando no lo hay.
+  assert.match(portada, /const renderPortadaEnMiniatura = \(\) => \{/);
+  assert.match(portada, /<HeaderVisualCanvas\s*\n\s*diseno=\{borrador\.disenoAvanzado\}/);
+  assert.match(portada, /<Logo disabled sx=\{\{ width: 28, height: 28 \}\} \/>/);
+});
+
+test('nada se lee antes de declararse: la portada se pinta', () => {
+  // Un efecto colocado POR ENCIMA de la variable que lee en su lista de
+  // dependencias no es un aviso en consola: revienta el componente al pintarlo
+  // y la pantalla se queda sin portada, sin explicar por que. Paso con
+  // `disenoActivo` y el medidor de la proporcion.
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  const declaraciones = [...portada.matchAll(/^ {2}const (\w+) = /gm)].reduce(
+    (mapa, coincidencia) => ({ ...mapa, [coincidencia[1]]: coincidencia.index }),
+    {}
+  );
+
+  [...portada.matchAll(/\}, \[([^\]]*)\]\);/g)].forEach((uso) => {
+    uso[1]
+      .split(',')
+      .map((nombre) => nombre.trim().split('.')[0])
+      .filter((nombre) => nombre in declaraciones)
+      .forEach((nombre) => {
+        assert.ok(
+          declaraciones[nombre] < uso.index,
+          `"${nombre}" se usa en una lista de dependencias antes de declararse`
+        );
+      });
+  });
+});
+
+test('la disposicion avisa cuando el diseño avanzado la deja sin efecto', () => {
+  // Elegir "Franja" y que la portada no cambie parece un fallo del guardado; lo
+  // que pasa es que el diseño libre se pinta en su lugar.
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.match(portada, /Con el diseño avanzado encendido manda el diseño/);
+});
+
+test('la miniatura es la portada encogida, no un dibujo a tamaño fijo', () => {
+  // Pintar el texto a tamaño fijo dentro de un recuadro cuya altura depende del
+  // ancho del navegador daba resultados distintos en cada pantalla: el titulo y
+  // el lema encima uno de otro en una, holgados en otra.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+
+  assert.match(foto, /const escala =/);
+  assert.match(foto, /transform: `scale\(\$\{escala\}\)`/);
+  assert.match(foto, /transformOrigin: 'top left'/);
+  // Se pinta al tamaño REAL del encabezado y se encoge entera.
+  assert.match(foto, /width: medidaPortada\.ancho/);
+  assert.match(foto, /height: medidaPortada\.alto/);
 });

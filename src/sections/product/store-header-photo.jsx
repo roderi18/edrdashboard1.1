@@ -1,13 +1,15 @@
 'use client';
 
 import Cropper from 'react-easy-crop';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useImperativeHandle } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Slider from '@mui/material/Slider';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+
+import { ANCHO_DE_REFERENCIA } from 'src/utils/store-header-design.mjs';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -19,19 +21,32 @@ import { Iconify } from 'src/components/iconify';
 // parte queda dentro: con un dialogo aparte se elegia sobre un cuadrado y
 // despues la portada la recortaba a lo ancho por su cuenta.
 //
-// Cancelar y Guardar aparecen SOLO mientras hay una foto por encuadrar, debajo
-// del recuadro y a la derecha. En cuanto se resuelve —de una forma o de otra—
-// desaparecen: si no hay nada que decidir, no hay nada que pulsar.
+// UN SOLO GUARDAR, el del dialogo. El recuadro tenia los suyos propios y
+// quedaban dos botones con el mismo nombre en la misma pantalla: nadie sabia
+// cual guardaba que, y encuadrar sin pulsar el de arriba perdia el recorte sin
+// avisar. Ahora el encuadre se confirma solo cuando se guarda el encabezado
+// —`confirmarEncuadre`, que el dialogo llama antes de subir— y cancelar el
+// dialogo lo descarta, como descarta todo lo demas.
 // ----------------------------------------------------------------------
 
-// La portada es una franja, no un cuadrado. Se encuadra con la misma proporcion
-// con la que se va a pintar.
-const PROPORCION = 16 / 5;
+// EL RECUADRO MIDE LO QUE MIDE EL ENCABEZADO, MEDIDO EN PANTALLA.
+//
+// Primero se encuadraba sobre una franja 16:5 fija; despues, sobre el ancho con
+// el que se diseña (1200) y el alto guardado. Las dos se equivocaban por lo
+// mismo: la portada ocupa el ancho de VERDAD del navegador —1450 px en un
+// monitor, 380 en un telefono— y su alto depende de lo que lleve dentro. Con una
+// proporcion supuesta, el recorte salia mas alto o mas bajo de lo que se veia.
+//
+// Asi que el dialogo pregunta al encabezado cuanto mide (`proporcionMedida`) y
+// encuadra sobre eso. Si aun no se ha medido —el primer pintado—, se cae al
+// lienzo de referencia, que es mejor que no pintar nada.
 const ANCHO = 1600;
-const ALTO = Math.round(ANCHO / PROPORCION);
+
+const proporcionDe = (altura, medida) =>
+  medida > 0 ? medida : ANCHO_DE_REFERENCIA / Math.max(1, Number(altura) || 1);
 
 /** La porcion elegida, dibujada a tamaño util y en WebP. */
-const recortar = async (origen, area) => {
+const recortar = async (origen, area, alto) => {
   const imagen = await new Promise((resolve, reject) => {
     const elemento = new Image();
     elemento.addEventListener('load', () => resolve(elemento));
@@ -41,14 +56,14 @@ const recortar = async (origen, area) => {
 
   const lienzo = document.createElement('canvas');
   lienzo.width = ANCHO;
-  lienzo.height = ALTO;
+  lienzo.height = alto;
 
   const contexto = lienzo.getContext('2d');
   if (!contexto) throw new Error('No se pudo preparar el recorte.');
 
   contexto.imageSmoothingEnabled = true;
   contexto.imageSmoothingQuality = 'high';
-  contexto.drawImage(imagen, area.x, area.y, area.width, area.height, 0, 0, ANCHO, ALTO);
+  contexto.drawImage(imagen, area.x, area.y, area.width, area.height, 0, 0, ANCHO, alto);
 
   const blob = await new Promise((resolve) => lienzo.toBlob(resolve, 'image/webp', 0.9));
   if (!blob) throw new Error('No se pudo preparar el recorte.');
@@ -56,8 +71,70 @@ const recortar = async (origen, area) => {
   return blob;
 };
 
-export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false }) {
-  const entradaRef = useRef(null);
+/** La foto entera, encajada en la proporcion del encabezado. */
+const areaCompleta = async (origen, alto) => {
+  const imagen = await new Promise((resolve, reject) => {
+    const elemento = new Image();
+    elemento.addEventListener('load', () => resolve(elemento));
+    elemento.addEventListener('error', reject);
+    elemento.src = origen;
+  });
+
+  const proporcion = ANCHO / alto;
+  const anchoUtil = Math.min(imagen.width, imagen.height * proporcion);
+  const altoUtil = anchoUtil / proporcion;
+
+  return {
+    x: (imagen.width - anchoUtil) / 2,
+    y: (imagen.height - altoUtil) / 2,
+    width: anchoUtil,
+    height: altoUtil,
+  };
+};
+
+export function StoreHeaderPhoto({
+  ref,
+  vistaPrevia,
+  onCambiar,
+  superposicion,
+  altura = 200,
+  medidaPortada = null,
+  deshabilitado = false,
+}) {
+  const marcoRef = useRef(null);
+  const [anchoDelMarco, setAnchoDelMarco] = useState(0);
+
+  const proporcionMedida =
+    medidaPortada?.ancho > 0 && medidaPortada?.alto > 0
+      ? medidaPortada.ancho / medidaPortada.alto
+      : 0;
+
+  const proporcion = proporcionDe(altura, proporcionMedida);
+
+  // CUANTO HAY QUE ENCOGER LA PORTADA PARA QUE QUEPA AQUI.
+  //
+  // La superposicion no se "dibuja pequeña": se pinta al tamaño REAL del
+  // encabezado y se encoge entera. Pintarla a tamaño fijo dentro de un recuadro
+  // cuya altura depende del ancho del navegador daba resultados distintos en
+  // cada pantalla —el titulo y el lema encima uno de otro en una, holgados en
+  // otra—, porque el texto no encogia con la caja.
+  const escala =
+    medidaPortada?.ancho > 0 && anchoDelMarco > 0 ? anchoDelMarco / medidaPortada.ancho : 0;
+
+  useEffect(() => {
+    const nodo = marcoRef.current;
+
+    if (!nodo || typeof ResizeObserver === 'undefined') return undefined;
+
+    const vigilante = new ResizeObserver(([entrada]) =>
+      setAnchoDelMarco(entrada.contentRect.width)
+    );
+
+    vigilante.observe(nodo);
+
+    return () => vigilante.disconnect();
+  }, []);
+  const alto = Math.round(ANCHO / proporcion);
 
   const [porEncuadrar, setPorEncuadrar] = useState(null);
   const [origen, setOrigen] = useState(null);
@@ -89,21 +166,35 @@ export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false
   const handleElegirArchivo = useCallback((evento) => {
     const archivo = evento.target.files?.[0];
 
-    // Se vacia la entrada para que elegir DOS VECES la misma foto vuelva a
-    // avisar: si no, el navegador considera que no ha cambiado nada.
-    evento.target.value = '';
+    if (!archivo) return;
 
-    if (archivo) {
-      setError(null);
-      setPorEncuadrar(archivo);
+    if (!archivo.type?.startsWith('image/')) {
+      setError('Ese archivo no es una imagen.');
+
+      return;
     }
+
+    setError(null);
+    setPorEncuadrar(archivo);
   }, []);
 
-  const handleGuardarEncuadre = useCallback(async () => {
-    if (!origen || !area) return;
+  /**
+   * Cierra el encuadre en curso y devuelve la foto recortada.
+   *
+   * Lo llama el dialogo justo antes de subir: si hay algo a medio encuadrar, se
+   * queda con lo que se ve; si no hay nada, devuelve `null` y el dialogo sigue
+   * su camino con la foto que ya hubiera.
+   */
+  const confirmarEncuadre = useCallback(async () => {
+    if (!origen) return null;
 
     try {
-      const blob = await recortar(origen, area);
+      // Si el recortador aun no ha dicho que area hay elegida —pasa cuando se
+      // guarda sin haber tocado nada—, se usa la foto entera en vez de no hacer
+      // nada. Un boton que no responde y no explica por que es peor que un
+      // encuadre por defecto.
+      const zona = area ?? (await areaCompleta(origen, alto));
+      const blob = await recortar(origen, zona, alto);
       const nombre = String(porEncuadrar?.name || 'portada').replace(/\.[^.]+$/, '');
       const recortada = new File([blob], `${nombre}.webp`, {
         type: 'image/webp',
@@ -112,10 +203,16 @@ export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false
 
       onCambiar?.(recortada, URL.createObjectURL(recortada));
       limpiarEncuadre();
+
+      return recortada;
     } catch (fallo) {
       setError(fallo?.message || 'No se pudo preparar el recorte.');
+
+      return null;
     }
-  }, [origen, area, porEncuadrar, onCambiar, limpiarEncuadre]);
+  }, [origen, area, alto, porEncuadrar, onCambiar, limpiarEncuadre]);
+
+  useImperativeHandle(ref, () => ({ confirmarEncuadre }), [confirmarEncuadre]);
 
   const enEncuadre = !!origen;
 
@@ -124,22 +221,26 @@ export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false
       <Typography variant="subtitle2">Fotografía de la portada</Typography>
 
       <Box
+        ref={marcoRef}
         sx={{
           width: 1,
           borderRadius: 1.5,
           overflow: 'hidden',
           position: 'relative',
-          aspectRatio: `${ANCHO} / ${ALTO}`,
+          aspectRatio: `${ANCHO} / ${alto}`,
           bgcolor: 'common.black',
           border: (theme) => `dashed 1px ${theme.vars.palette.divider}`,
         }}
       >
         {enEncuadre && (
           <Cropper
+            // Con cada foto, un recortador nuevo: reutilizando el mismo se
+            // quedaba el encuadre de la anterior sobre una imagen distinta.
+            key={origen}
             image={origen}
             crop={posicion}
             zoom={acercamiento}
-            aspect={PROPORCION}
+            aspect={proporcion}
             showGrid={false}
             // QUE LLENE EL RECUADRO DE ENTRADA. Por defecto la foto se mete
             // entera dentro y deja franjas negras a los lados: parecia que el
@@ -158,6 +259,28 @@ export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false
             src={vistaPrevia}
             sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
           />
+        )}
+
+        {/* EL ESCUDO Y LOS TEXTOS, ENCIMA. Una foto sola no dice nada: lo que
+            hay que decidir al encuadrarla es si el titulo se va a leer sobre
+            ella y si la cara importante queda tapada. Mientras se encuadra no
+            se pintan —estorbarian al arrastrar—, pero en cuanto se suelta se ve
+            la portada entera. */}
+        {!enEncuadre && !!superposicion && escala > 0 && (
+          <Box
+            sx={{
+              top: 0,
+              left: 0,
+              position: 'absolute',
+              pointerEvents: 'none',
+              width: medidaPortada.ancho,
+              height: medidaPortada.alto,
+              transform: `scale(${escala})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            {superposicion}
+          </Box>
         )}
 
         {!enEncuadre && !vistaPrevia && (
@@ -197,58 +320,51 @@ export function StoreHeaderPhoto({ vistaPrevia, onCambiar, deshabilitado = false
         </Typography>
       )}
 
-      <Box
-        component="input"
-        type="file"
-        accept="image/*"
-        ref={entradaRef}
-        onChange={handleElegirArchivo}
-        sx={{ display: 'none' }}
-      />
+      {/* SIEMPRE LA MISMA FILA, se este encuadrando o no: los botones ya no
+          aparecen y desaparecen debajo del recuadro. */}
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+        <Typography variant="caption" sx={{ mr: 'auto', color: 'text.disabled' }}>
+          {enEncuadre
+            ? 'Arrastra la foto para moverla y acércala con el control. Se guarda con el encabezado.'
+            : ''}
+        </Typography>
 
-      {/* DEBAJO DEL RECUADRO Y A LA DERECHA. Mientras se encuadra solo caben dos
-          respuestas —esta o no esta—, asi que el resto de botones se aparta. */}
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
-        {enEncuadre ? (
-          <>
-            <Typography
-              variant="caption"
-              sx={{ mr: 'auto', alignSelf: 'center', color: 'text.disabled' }}
-            >
-              Arrastra la foto para moverla y acércala con el control.
-            </Typography>
-
-            <Button color="inherit" onClick={limpiarEncuadre}>
-              Cancelar
-            </Button>
-
-            <Button variant="contained" onClick={handleGuardarEncuadre} disabled={!area}>
-              Guardar
-            </Button>
-          </>
-        ) : (
-          <>
-            {!!vistaPrevia && (
-              <Button
-                color="error"
-                disabled={deshabilitado}
-                onClick={() => onCambiar?.(null, '')}
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-              >
-                Quitar
-              </Button>
-            )}
-
-            <Button
-              color="inherit"
-              disabled={deshabilitado}
-              onClick={() => entradaRef.current?.click()}
-              startIcon={<Iconify icon="solar:gallery-add-bold" />}
-            >
-              {vistaPrevia ? 'Cambiar foto' : 'Agregar foto'}
-            </Button>
-          </>
+        {!!vistaPrevia && (
+          <Button
+            color="error"
+            disabled={deshabilitado}
+            onClick={() => onCambiar?.(null, '')}
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+          >
+            Quitar
+          </Button>
         )}
+
+        {/* EL BOTON *ES* LA ETIQUETA DEL CAMPO, no algo que le da un clic por
+                dentro. Pedirle al navegador que pulse un `input` escondido
+                funciona a veces y a veces no —depende del navegador y de como
+                este oculto—, y por eso cambiar la foto una segunda vez no abria
+                nada. Con `label` lo abre el propio navegador, siempre.
+
+                La `key` cambia con la foto que ya hay: asi el campo nace vacio
+                en cada ronda y volver a elegir el MISMO archivo tambien cuenta
+                como cambio. */}
+        <Button
+          component="label"
+          color="inherit"
+          disabled={deshabilitado}
+          startIcon={<Iconify icon="solar:gallery-add-bold" />}
+        >
+          {vistaPrevia ? 'Cambiar foto' : 'Agregar foto'}
+
+          <input
+            hidden
+            type="file"
+            accept="image/*"
+            key={vistaPrevia || 'sin-foto'}
+            onChange={handleElegirArchivo}
+          />
+        </Button>
       </Stack>
     </Stack>
   );

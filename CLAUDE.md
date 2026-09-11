@@ -42,6 +42,13 @@ Suite que lo cubre: `npm run test:acceso`.
 - Prettier: 100 columnas, comillas simples, 2 espacios, LF.
 - **El repositorio no está limpio de formato**: formatea solo lo que tocas, o el
   diff se llena de reformateo ajeno.
+- **Fechas: siempre el calendario del proyecto**, nunca `<input type="date">` ni
+  `datetime-local`. Con formulario, `Field.DatePicker` / `Field.DateTimePicker`
+  (`src/components/hook-form`); sin él, `DatePicker` / `DateTimePicker` de
+  `@mui/x-date-pickers` con `format="DD/MM/YYYY"` (y `ampm` + `hh:mm A` si lleva
+  hora). El nativo cambia de aspecto y de orden de campos en cada sistema, y
+  dejaba dos formas distintas de escribir una fecha en la misma pantalla. El
+  `LocalizationProvider` ya está puesto en `src/app/layout.jsx`.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.

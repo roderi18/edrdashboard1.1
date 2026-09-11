@@ -1,8 +1,8 @@
 'use client';
 
 import { varAlpha } from 'minimal-shared/utils';
-import { useState, useEffect, useCallback } from 'react';
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -84,6 +84,17 @@ export function StoreHeader({ sx }) {
   // huerfanas ocupando sitio.
   const [fotoNueva, setFotoNueva] = useState(null);
 
+  // Para cerrar el encuadre a medias al guardar: el recuadro ya no tiene boton
+  // propio, asi que el unico "Guardar" de la pantalla tiene que ocuparse tambien
+  // de la foto que se estaba encuadrando.
+  const fotoRef = useRef(null);
+
+  // CUANTO MIDE LA PORTADA DE VERDAD, para que el recuadro del dialogo encuadre
+  // sobre la misma forma. No se puede suponer: el ancho es el del navegador de
+  // quien mira y el alto depende de lo que lleve dentro.
+  const portadaRef = useRef(null);
+  const [medidaPortada, setMedidaPortada] = useState(null);
+
   useEffect(() => {
     let cancelado = false;
 
@@ -98,6 +109,26 @@ export function StoreHeader({ sx }) {
 
   const esFranja = encabezado.disposicion === DISPOSICION_FRANJA;
   const disenoActivo = !!encabezado.disenoAvanzado?.activo;
+
+  // La portada cambia de forma al encender el diseño libre, asi que se vuelve a
+  // medir. OJO CON EL ORDEN: este efecto lee `disenoActivo`, y colocado por
+  // encima de su declaracion reventaba el encabezado entero al pintarlo —no un
+  // aviso en consola: la pantalla se quedaba sin portada y sin saber por que—.
+  useEffect(() => {
+    const nodo = portadaRef.current;
+
+    if (!nodo || typeof ResizeObserver === 'undefined') return undefined;
+
+    const vigilante = new ResizeObserver(([entrada]) => {
+      const { width, height } = entrada.contentRect;
+
+      if (width > 0 && height > 0) setMedidaPortada({ ancho: width, alto: height });
+    });
+
+    vigilante.observe(nodo);
+
+    return () => vigilante.disconnect();
+  }, [disenoActivo]);
 
   // El editor avanzado se abre SOBRE el encabezado, no dentro del dialogo: se
   // coloca mirando el resultado real, con el ancho real.
@@ -126,7 +157,25 @@ export function StoreHeader({ sx }) {
 
   const handleCambiarFoto = useCallback((archivo, url) => {
     setFotoNueva(archivo);
-    setBorrador((actual) => ({ ...actual, fotoUrl: url }));
+
+    setBorrador((actual) => {
+      const diseno = actual.disenoAvanzado;
+
+      // UNA FOTO QUE NO SE VE ES UN FALLO, no una decision. Con el diseño libre
+      // encendido, su fondo se pinta ENCIMA de la foto; si quedo opaco —el
+      // degradado verde de siempre— la foto se sube, se guarda y no se ve por
+      // ninguna parte. Al poner una, el fondo se aparta lo justo para dejarla
+      // asomar; quien quiera taparla del todo tiene el control de opacidad.
+      const tapaLaFoto = !!url && diseno?.activo && (diseno?.fondo?.opacidad ?? 1) >= 1;
+
+      return {
+        ...actual,
+        fotoUrl: url,
+        ...(tapaLaFoto && {
+          disenoAvanzado: { ...diseno, fondo: { ...diseno.fondo, opacidad: 0.62 } },
+        }),
+      };
+    });
   }, []);
 
   // AL ENTRAR EN AVANZADOS NO SE EMPIEZA EN BLANCO. Se colocan el escudo y los
@@ -206,16 +255,89 @@ export function StoreHeader({ sx }) {
     }
   }, [porRevertir, user]);
 
+  // LO QUE VA ENCIMA DE LA FOTO EN EL RECUADRO DEL DIALOGO.
+  //
+  // Se pinta con las MISMAS piezas que la portada —el lienzo cuando hay diseño
+  // libre, y el escudo con sus textos cuando no—, no con una imitacion: si
+  // fueran dos dibujos distintos, encuadrar mirando este seria encuadrar a
+  // ciegas. Va a escala: el recuadro mide un tercio de lo que mide la portada.
+  const renderPortadaEnMiniatura = () => {
+    if (borrador.disenoAvanzado?.activo) {
+      return (
+        <HeaderVisualCanvas
+          diseno={borrador.disenoAvanzado}
+          animaciones={false}
+          sx={{ height: 1, minHeight: 0 }}
+        />
+      );
+    }
+
+    const franjaEnBorrador = borrador.disposicion === DISPOSICION_FRANJA;
+
+    return (
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        sx={{
+          px: 2,
+          height: 1,
+          color: 'common.white',
+          // El mismo velo que lleva la portada: sin el, el titulo blanco sobre
+          // una foto clara no se lee, y eso es justo lo que hay que comprobar.
+          backgroundImage: (theme) =>
+            `linear-gradient(135deg, ${varAlpha(theme.vars.palette.common.blackChannel, 0.72)} 0%, ${varAlpha(theme.vars.palette.common.blackChannel, 0.48)} 100%)`,
+        }}
+      >
+        <Box sx={{ p: 0.5, flexShrink: 0, borderRadius: 1, bgcolor: 'common.white' }}>
+          <Logo disabled sx={{ width: 28, height: 28 }} />
+        </Box>
+
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" sx={{ display: 'block', opacity: 0.72, fontSize: 9 }}>
+            TIENDA OFICIAL
+          </Typography>
+
+          <Typography variant="subtitle2" noWrap>
+            {borrador.titulo}
+          </Typography>
+
+          {franjaEnBorrador && (
+            <Typography variant="caption" sx={{ display: 'block', opacity: 0.72, fontSize: 9 }}>
+              {borrador.pieTitulo}
+            </Typography>
+          )}
+        </Box>
+
+        {franjaEnBorrador && (
+          <Divider
+            flexItem
+            orientation="vertical"
+            sx={{ borderColor: 'currentColor', opacity: 0.32, my: 2 }}
+          />
+        )}
+
+        <Typography variant="caption" sx={{ minWidth: 0, opacity: 0.8, fontStyle: 'italic' }}>
+          {borrador.subtitulo}
+        </Typography>
+      </Stack>
+    );
+  };
+
   const handleGuardar = useCallback(async () => {
     setGuardando(true);
 
     try {
+      // Si habia un encuadre a medias, se cierra ahora y vale lo que se ve.
+      const recienEncuadrada = await fotoRef.current?.confirmarEncuadre?.();
+      const archivo = recienEncuadrada ?? fotoNueva;
+
       // La foto sube AQUI, no al encuadrarla: si el dialogo se cierra sin
       // guardar, no queda nada en Storage que nadie vaya a mirar.
-      const fotoUrl = fotoNueva
+      const fotoUrl = archivo
         ? (
             await uploadOptimizedImage({
-              file: fotoNueva,
+              file: archivo,
               preset: 'general',
               storagePath: `tienda/encabezado-${Date.now()}.webp`,
               metadata: { modulo: 'tienda', tipo: 'encabezado' },
@@ -265,6 +387,7 @@ export function StoreHeader({ sx }) {
   const renderPortadaConDiseno = () => (
     <Box sx={[{ position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}>
       <HeaderVisualCanvas
+        ref={portadaRef}
         diseno={encabezado.disenoAvanzado}
         fotoUrl={encabezado.fotoUrl}
         onImpresion={registrarImpresionesEncabezado}
@@ -286,6 +409,7 @@ export function StoreHeader({ sx }) {
 
   const renderPortadaSimple = () => (
     <Card
+      ref={portadaRef}
       sx={[
         (theme) => ({
           p: { xs: 2.5, md: 4 },
@@ -404,8 +528,12 @@ export function StoreHeader({ sx }) {
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
             <StoreHeaderPhoto
+              ref={fotoRef}
               vistaPrevia={borrador.fotoUrl}
+              superposicion={renderPortadaEnMiniatura()}
+              medidaPortada={medidaPortada}
               onCambiar={handleCambiarFoto}
+              altura={borrador.disenoAvanzado?.altura}
               deshabilitado={guardando}
             />
 
@@ -427,7 +555,11 @@ export function StoreHeader({ sx }) {
               onChange={(event) =>
                 setBorrador((actual) => ({ ...actual, disposicion: event.target.value }))
               }
-              helperText="Cómo se colocan los textos sobre la portada."
+              helperText={
+                borrador.disenoAvanzado?.activo
+                  ? 'Con el diseño avanzado encendido manda el diseño: esto vuelve a usarse al apagarlo.'
+                  : 'Cómo se colocan los textos sobre la portada.'
+              }
             >
               <MenuItem value={DISPOSICION_CLASICA}>Clásica: el lema debajo del título</MenuItem>
               <MenuItem value={DISPOSICION_FRANJA}>

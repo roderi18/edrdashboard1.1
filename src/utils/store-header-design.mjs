@@ -117,6 +117,14 @@ export const PALETA = [
   '#B71D18',
 ];
 
+// SIN COLOR es un color transparente, no la ausencia de dato. Guardar `''` o
+// `null` obligaria a preguntar "¿hay color?" en cada sitio que lo pinta; un
+// negro con alfa cero se dibuja igual que nada y pasa por el mismo filtro que
+// los demas.
+export const SIN_COLOR = '#00000000';
+
+export const esSinColor = (valor) => String(valor ?? '').toUpperCase() === SIN_COLOR;
+
 const COLOR_VALIDO = /^#(?:[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 // Una direccion de imagen solo puede ser del propio sitio (`/logo/...`) o de
@@ -340,7 +348,14 @@ export const disenoDesdeEncabezado = (encabezado = {}, { logoUrl = LOGO_POR_DEFE
     // El escudo, en su esquina de siempre.
     crearElemento({ tipo: 'imagen', url: logoUrl, x: 2, y: 22, ancho: 6 }),
     crearElemento({ texto: 'TIENDA OFICIAL', x: 10, y: 18, ancho: 30, tamano: 12 }),
-    crearElemento({ texto: encabezado?.titulo || '', x: 10, y: 32, ancho: 45, tamano: 34, negrita: true }),
+    crearElemento({
+      texto: encabezado?.titulo || '',
+      x: 10,
+      y: 32,
+      ancho: 45,
+      tamano: 34,
+      negrita: true,
+    }),
   ];
 
   if (franja) {
@@ -374,7 +389,13 @@ export const disenoDesdeEncabezado = (encabezado = {}, { logoUrl = LOGO_POR_DEFE
     // Con foto, un velo que la deje ver; sin foto, el mismo degradado verde de
     // la portada de siempre, para que encender el editor no cambie el aspecto.
     fondo: conFoto
-      ? { tipo: 'degradado', color: '#000000', colorSecundario: '#212B36', angulo: 135, opacidad: 0.62 }
+      ? {
+          tipo: 'degradado',
+          color: '#000000',
+          colorSecundario: '#212B36',
+          angulo: 135,
+          opacidad: 0.62,
+        }
       : FONDO_POR_DEFECTO,
     // Los textos vacios no se colocan: dejarian un recuadro invisible que
     // estorba al arrastrar.
@@ -393,6 +414,11 @@ export const crearElemento = (parcial = {}) =>
 // ----------------------------------------------------------------------
 
 const conOpacidad = (color, opacidad) => {
+  // "Sin color" se queda sin color. La opacidad de la capa lo convertia en un
+  // negro a medias: bajar el velo del fondo hacia aparecer un gris donde se
+  // habia pedido que no hubiera nada.
+  if (esSinColor(color)) return color;
+
   if (opacidad >= 1) return color;
 
   const canal = Math.round(Math.min(1, Math.max(0, opacidad)) * 255)
@@ -429,18 +455,22 @@ export const fondoACss = (fondo) => {
 };
 
 /**
- * El tamaño de letra, reescalado al ancho real.
+ * El tamaño de letra, en pixeles del LIENZO DE DISEnO.
  *
- * Se guarda pensando en un lienzo de 1200px y se pinta con `clamp`: nunca baja
- * de la mitad —por debajo no se lee— ni sube del tamaño elegido. Sin esto un
- * titular de 48px pensado para un monitor ocupaba tres lineas en un telefono.
+ * Antes se pintaba con `clamp(... vw ...)` para que el texto encogiera con la
+ * ventana. Encogia el texto, si, pero solo el texto: las imagenes iban en
+ * porcentaje del ancho y las posiciones tambien, mientras el alto del
+ * encabezado estaba fijo en pixeles. Tres reglas distintas para tres cosas que
+ * tienen que moverse juntas, y por eso al estrechar la ventana el diseño se
+ * descuadraba en vez de hacerse pequeño.
+ *
+ * Ahora manda una sola: TODO se mide sobre un lienzo de 1200 x altura, y el
+ * lienzo entero se encoge para caber en el ancho que haya (ver
+ * `HeaderVisualCanvas`). Lo que se ve en un monitor y lo que se ve en un
+ * telefono son la misma imagen a dos tamaños.
  */
-export const tamanoACss = (tamano) => {
-  const px = acotar(tamano, LIMITES.tamano, ELEMENTO_POR_DEFECTO.tamano);
-  const vw = ((px / ANCHO_DE_REFERENCIA) * 100).toFixed(3);
-
-  return `clamp(${Math.round(px * 0.5)}px, ${vw}vw, ${px}px)`;
-};
+export const tamanoACss = (tamano) =>
+  `${acotar(tamano, LIMITES.tamano, ELEMENTO_POR_DEFECTO.tamano)}px`;
 
 /** Los estilos de un texto del diseño, ya acotados. */
 export const elementoACss = (elemento) => {

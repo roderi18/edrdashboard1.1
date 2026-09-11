@@ -11,6 +11,7 @@ import {
   elementoACss,
   sanearDiseno,
   elementosVisibles,
+  ANCHO_DE_REFERENCIA,
 } from 'src/utils/store-header-design.mjs';
 
 import { CuentaRegresiva } from './cuenta-regresiva';
@@ -48,6 +49,34 @@ export function HeaderVisualCanvas({
 }) {
   const seguro = sanearDiseno(diseno);
   const anotados = useRef('');
+
+  // EL LIENZO ENTERO SE ENCOGE PARA CABER. Se diseña sobre 1200 x altura y aqui
+  // se reduce a lo que haya de ancho: el texto, el escudo, las formas y las
+  // distancias entre ellos bajan de tamaño a la vez, que es lo que se espera al
+  // estrechar la ventana. Antes cada cosa tenia su propia regla y el diseño se
+  // descuadraba en lugar de hacerse pequeño.
+  const marcoRef = useRef(null);
+  const [anchoDisponible, setAnchoDisponible] = useState(0);
+
+  useEffect(() => {
+    const nodo = marcoRef.current;
+
+    if (!nodo || typeof ResizeObserver === 'undefined') return undefined;
+
+    setAnchoDisponible(nodo.getBoundingClientRect().width);
+
+    const vigilante = new ResizeObserver(([entrada]) => {
+      setAnchoDisponible(entrada.contentRect.width);
+    });
+
+    vigilante.observe(nodo);
+
+    return () => vigilante.disconnect();
+  }, []);
+
+  // Hasta que se mide, se dibuja a tamaño natural: un encabezado a escala rara
+  // durante un fotograma se nota menos que uno que aparece de golpe.
+  const escala = anchoDisponible > 0 ? anchoDisponible / ANCHO_DE_REFERENCIA : 1;
 
   // EL RELOJ, EN ESTADO Y NO LEIDO AL PINTAR. Dos motivos: pintar tiene que dar
   // siempre el mismo resultado con las mismas entradas —si no, el servidor y el
@@ -163,13 +192,16 @@ export function HeaderVisualCanvas({
 
   return (
     <Box
+      ref={marcoRef}
       sx={[
         {
           width: 1,
           minWidth: 0,
           overflow: 'hidden',
           position: 'relative',
-          minHeight: seguro.altura,
+          // El alto sale de la escala: el encabezado se estrecha y se acorta a
+          // la vez, conservando su forma.
+          height: seguro.altura * escala,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           // La foto va DEBAJO de la capa de fondo, en la misma propiedad: asi un
@@ -182,39 +214,51 @@ export function HeaderVisualCanvas({
       ]}
       {...other}
     >
-      {elementos.map((elemento) => {
-        // Una imagen sin direccion valida no se pinta: dejaria un <img> roto en
-        // la portada de todos.
-        if (elemento.tipo === 'imagen' && !elemento.url) return null;
+      <Box
+        sx={{
+          top: 0,
+          left: 0,
+          position: 'absolute',
+          width: ANCHO_DE_REFERENCIA,
+          height: seguro.altura,
+          transform: `scale(${escala})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {elementos.map((elemento) => {
+          // Una imagen sin direccion valida no se pinta: dejaria un <img> roto en
+          // la portada de todos.
+          if (elemento.tipo === 'imagen' && !elemento.url) return null;
 
-        const contenido = renderContenido(elemento);
+          const contenido = renderContenido(elemento);
 
-        if (slotElemento) return slotElemento(elemento, contenido);
+          if (slotElemento) return slotElemento(elemento, contenido);
 
-        // CON ENLACE, ES UN ENLACE DE VERDAD. Un `div` con `onClick` no se abre
-        // en otra pestaña, no se puede copiar y el teclado no llega a el.
-        return elemento.enlace ? (
-          <Box
-            key={elemento.id}
-            component="a"
-            href={elemento.enlace}
-            onClick={() => onClicElemento?.(elemento.id)}
-            // Solo lo externo se abre fuera; dentro del panel, la navegacion
-            // propia es mas rapida y no pierde la sesion.
-            {...(elemento.enlace.startsWith('http') && {
-              target: '_blank',
-              rel: 'noopener noreferrer',
-            })}
-            sx={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}
-          >
-            {contenido}
-          </Box>
-        ) : (
-          <Box key={elemento.id} sx={{ display: 'contents' }}>
-            {contenido}
-          </Box>
-        );
-      })}
+          // CON ENLACE, ES UN ENLACE DE VERDAD. Un `div` con `onClick` no se abre
+          // en otra pestaña, no se puede copiar y el teclado no llega a el.
+          return elemento.enlace ? (
+            <Box
+              key={elemento.id}
+              component="a"
+              href={elemento.enlace}
+              onClick={() => onClicElemento?.(elemento.id)}
+              // Solo lo externo se abre fuera; dentro del panel, la navegacion
+              // propia es mas rapida y no pierde la sesion.
+              {...(elemento.enlace.startsWith('http') && {
+                target: '_blank',
+                rel: 'noopener noreferrer',
+              })}
+              sx={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}
+            >
+              {contenido}
+            </Box>
+          ) : (
+            <Box key={elemento.id} sx={{ display: 'contents' }}>
+              {contenido}
+            </Box>
+          );
+        })}
+      </Box>
 
       {children}
     </Box>

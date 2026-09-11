@@ -76,19 +76,25 @@ test('la foto de la portada se encuadra en su propio recuadro', () => {
   // Mover y acercar donde luego se va a ver, no en un dialogo aparte que elegia
   // sobre un cuadrado para despues recortar a lo ancho.
   assert.match(fotoPortada, /<Cropper/);
-  assert.match(fotoPortada, /aspect=\{PROPORCION\}/);
+  // Con la proporcion del encabezado de verdad, no una franja fija.
+  assert.match(fotoPortada, /aspect=\{proporcion\}/);
   assert.match(fotoPortada, /onZoomChange=\{setAcercamiento\}/);
   assert.doesNotMatch(fotoPortada, /<Dialog/);
 });
 
-test('cancelar y guardar el encuadre solo estan mientras hay foto que decidir', () => {
-  // Resuelto el encuadre —de una forma o de otra— los dos botones se van, y no
-  // vuelven hasta que se elige otra foto.
-  assert.match(fotoPortada, /const enEncuadre = !!origen;/);
-  assert.match(fotoPortada, /\{enEncuadre \? \(/);
-  assert.match(fotoPortada, /onClick=\{limpiarEncuadre\}/);
-  assert.match(fotoPortada, /onClick=\{handleGuardarEncuadre\}/);
-  assert.match(fotoPortada, /setOrigen\(null\);/);
+test('un solo Guardar en la pantalla, y guarda tambien la foto', () => {
+  // El recuadro tenia sus propios Cancelar y Guardar: dos botones con el mismo
+  // nombre en la misma pantalla, y encuadrar sin pulsar el de arriba perdia el
+  // recorte sin avisar. Ahora lo cierra el unico Guardar que hay, el de abajo.
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.doesNotMatch(fotoPortada, /onClick=\{limpiarEncuadre\}/);
+  assert.doesNotMatch(fotoPortada, /onClick=\{handleGuardarEncuadre\}/);
+  assert.match(fotoPortada, /useImperativeHandle\(ref, \(\) => \(\{ confirmarEncuadre \}\)/);
+  assert.match(
+    portada,
+    /const recienEncuadrada = await fotoRef\.current\?\.confirmarEncuadre\?\.\(\);/
+  );
 });
 
 test('la foto sube al guardar el encabezado, no al encuadrarla', () => {
@@ -214,4 +220,16 @@ test('el carrito es el que ya existia, no uno nuevo', () => {
   assert.match(tarjeta, /\{!!onAddToCart && \(/);
   // Y sigue respetando las existencias.
   assert.match(tarjeta, /disabled=\{available <= 0\}/);
+});
+
+test('TEMPORAL: los productos sin foto piden prestada una de muestra', () => {
+  // Es SOLO para ver la rejilla con fotos mientras el catalogo no tenga las
+  // suyas. Cuando las tenga, se borra el bloque `FOTOS_DE_MUESTRA` de la tarjeta
+  // y la linea que lo usa, y vuelve el marcador gris —que sigue ahi debajo—.
+  assert.match(tarjeta, /TEMPORAL — FOTOS DE MUESTRA/);
+  assert.match(tarjeta, /const foto = product\.coverUrl \|\| fotoDeMuestra\(product\.id\);/);
+  // Se reparte por el identificador, no al azar: la misma insignia enseña
+  // siempre la misma foto y la pantalla no cambia sola al repintarse.
+  assert.match(tarjeta, /suma % FOTOS_DE_MUESTRA\.length/);
+  assert.doesNotMatch(tarjeta, /Math\.random/);
 });

@@ -1,11 +1,14 @@
 'use client';
 
+import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
 import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
 import Slider from '@mui/material/Slider';
@@ -19,10 +22,10 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
 import {
   CAPAS,
-  PALETA,
   EFECTOS,
   LIMITES,
   efectoACss,
@@ -31,11 +34,13 @@ import {
   sanearElemento,
   LOGO_POR_DEFECTO,
   FORMATOS_DE_CUENTA,
+  ANCHO_DE_REFERENCIA,
 } from 'src/utils/store-header-design.mjs';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { PaletaDeColores } from './paleta-de-colores';
 import { HeaderVisualCanvas } from './header-visual-canvas';
 import { useDisenoHistorial } from './use-diseno-historial';
 import { TextoParpadeanteDialogo } from './texto-parpadeante-dialogo';
@@ -71,6 +76,10 @@ const alPaso = (valor) => Math.round(valor / PASO) * PASO;
 // algo del encabezado es el gesto que ya se hacia por instinto —empujarlo fuera
 // por arriba— y antes solo se conseguia soltarlo pegado al borde.
 const ALTO_DE_PAPELERA = 64;
+
+// Lo que hay que moverse para que un clic cuente como arrastre. Un dedo nunca
+// pulsa completamente quieto, y un raton tampoco cuando se hace clic con prisa.
+const UMBRAL_DE_ARRASTRE = 4;
 
 // Los emojis que se usan en una tienda. No es un teclado completo a proposito:
 // el campo acepta CUALQUIER emoji del sistema —se pega o se escribe con el
@@ -123,22 +132,29 @@ const anchoNaturalDelTexto = (nodo) => {
   return ancho;
 };
 
-// De ISO a lo que entiende el campo de fecha y hora, y de vuelta.
+// De ISO al calendario y de vuelta.
 //
-// El campo trabaja en HORA LOCAL y sin zona; lo guardado es un instante en UTC.
-// Traducir en los dos sentidos es lo que hace que quien programa la promocion
-// escriba "viernes a las 8" en SU reloj y la promocion empiece a la vez para
-// todo el mundo.
-const aCampoLocal = (iso) => {
-  if (!iso) return '';
+// EL MISMO CALENDARIO QUE EL RESTO DE LA APLICACION —el de la fecha de
+// nacimiento de un miembro o el de una actividad—, no el que trae el navegador:
+// el nativo cambia de aspecto y de orden de campos en cada sistema, y en la
+// misma pantalla convivian dos formas distintas de escribir una fecha.
+//
+// El calendario habla `dayjs` y lo guardado es un instante en UTC. Quien
+// programa la promocion escribe "viernes a las 8" en SU reloj y la promocion
+// empieza a la vez para todo el mundo.
+const aCalendario = (iso) => {
+  if (!iso) return null;
 
-  const fecha = new Date(iso);
-  const desfase = fecha.getTimezoneOffset() * 60000;
+  const fecha = dayjs(iso);
 
-  return new Date(fecha.getTime() - desfase).toISOString().slice(0, 16);
+  return fecha.isValid() ? fecha : null;
 };
 
-const deCampoLocal = (valor) => (valor ? new Date(valor).toISOString() : '');
+const deCalendario = (valor) => {
+  const fecha = valor ? dayjs(valor) : null;
+
+  return fecha?.isValid() ? fecha.toDate().toISOString() : '';
+};
 
 export function HeaderVisualEditor({
   diseno: disenoInicial,
@@ -152,7 +168,6 @@ export function HeaderVisualEditor({
   const lienzoRef = useRef(null);
   const arrastre = useRef(null);
   const redimension = useRef(null);
-  const entradaImagenRef = useRef(null);
 
   const {
     diseno,
@@ -171,12 +186,22 @@ export function HeaderVisualEditor({
   const [eligiendoEfecto, setEligiendoEfecto] = useState(false);
   const [dispositivo, setDispositivo] = useState('escritorio');
   const [sobrePapelera, setSobrePapelera] = useState(false);
+  // ARRASTRAR NO ES PULSAR. La papelera aparecia con el simple clic de
+  // seleccionar —un parpadeo rojo cada vez que se tocaba algo—; ahora espera a
+  // que el puntero se haya movido de verdad.
+  const [arrastrando, setArrastrando] = useState(false);
+  const [pestana, setPestana] = useState('formato');
   const menuDeFormas = usePopover();
+  const menuDeProgramacion = usePopover();
   const [cuadricula, setCuadricula] = useState(true);
   const [previsualizando, setPrevisualizando] = useState(false);
 
   const elemento = diseno.elementos.find((item) => item.id === seleccionado) || null;
   const anchoDelDispositivo = DISPOSITIVOS.find((item) => item.id === dispositivo)?.ancho || 0;
+
+  // Sin elemento no hay ajustes que tocar: se vuelve a "Formato" —que entonces
+  // es el fondo— sin perder la pestaña elegida para la proxima seleccion.
+  const pestanaActiva = elemento ? pestana : 'formato';
 
   // ------------------------------------------------------------------
   // Cambios sobre el modelo
@@ -245,7 +270,6 @@ export function HeaderVisualEditor({
   const handleElegirImagen = useCallback(
     async (evento) => {
       const archivo = evento.target.files?.[0];
-      evento.target.value = '';
 
       if (!archivo || !elemento || !onSubirImagen) return;
 
@@ -346,6 +370,8 @@ export function HeaderVisualEditor({
       arrastre.current = {
         id: item.id,
         marco,
+        origenX: event.clientX,
+        origenY: event.clientY,
         desfaseX: ((event.clientX - marco.left) / marco.width) * 100 - item.x,
         desfaseY: ((event.clientY - marco.top) / marco.height) * 100 - item.y,
       };
@@ -396,6 +422,11 @@ export function HeaderVisualEditor({
       const activo = arrastre.current;
       if (!activo) return;
 
+      const recorrido =
+        Math.abs(event.clientX - activo.origenX) + Math.abs(event.clientY - activo.origenY);
+
+      if (recorrido > UMBRAL_DE_ARRASTRE) setArrastrando(true);
+
       // Contra el marco del lienzo, no contra la ventana: el lienzo cambia de
       // ancho con la vista previa de movil o tableta.
       setSobrePapelera(event.clientY < activo.marco.top + ALTO_DE_PAPELERA);
@@ -416,7 +447,7 @@ export function HeaderVisualEditor({
 
     // Soltar sobre la papelera borra. Es deshacible como todo lo demas, asi que
     // no hace falta preguntar: preguntar en mitad de un arrastre es peor.
-    if (arrastre.current && sobrePapelera) {
+    if (arrastre.current && arrastrando && sobrePapelera) {
       const id = arrastre.current.id;
 
       aplicar((actual) => ({
@@ -429,23 +460,27 @@ export function HeaderVisualEditor({
     arrastre.current = null;
     redimension.current = null;
     setSobrePapelera(false);
+    setArrastrando(false);
     cerrarGesto();
-  }, [cerrarGesto, sobrePapelera, aplicar]);
+  }, [cerrarGesto, sobrePapelera, arrastrando, aplicar]);
 
   // AL TEXTO QUE TIENE, de una vez. Es lo que se quiere el 90% de las veces
   // —que el recuadro no sobre ni parta la palabra— y a mano se tarda un rato.
   const ajustarAlContenido = useCallback(
     (item) => {
-      const marco = lienzoRef.current?.getBoundingClientRect();
       const nodo = lienzoRef.current?.querySelector(`[data-elemento="${item.id}"]`);
 
-      if (!marco || !nodo) return;
+      if (!nodo) return;
 
       const natural = anchoNaturalDelTexto(nodo);
       if (!natural) return;
 
-      // Un pelo de aire para que la ultima letra no roce el borde.
-      const ancho = ((natural + 4) / marco.width) * 100;
+      // OJO: la medida sale en pixeles del LIENZO DE DISEnO, no de la pantalla
+      // —`getComputedStyle` devuelve el tamaño antes de encoger el lienzo—, asi
+      // que el porcentaje se calcula contra el ancho de diseño y no contra lo
+      // que ocupa en pantalla. Con el ancho de pantalla, el recuadro salia mas
+      // estrecho cuanto mas pequeña fuera la ventana.
+      const ancho = ((natural + 4) / ANCHO_DE_REFERENCIA) * 100;
 
       cambiarElemento(item.id, {
         ancho: Math.min(LIMITES.ancho.max, Math.max(LIMITES.ancho.min, ancho)),
@@ -513,6 +548,7 @@ export function HeaderVisualEditor({
     if (previsualizando) return contenido;
 
     const activo = item.id === seleccionado;
+    const esFigura = item.tipo === 'linea' || item.tipo === 'forma';
 
     return (
       <Box
@@ -538,6 +574,12 @@ export function HeaderVisualEditor({
           left: `${item.x}%`,
           top: `${item.y}%`,
           width: `${item.ancho}%`,
+          // LA ENVOLTURA TIENE QUE MEDIR LO QUE MIDE LA PIEZA. Un texto crece
+          // con su contenido, pero una forma mide un porcentaje del ALTO del
+          // encabezado y una linea, unos pixeles: sin darselo aqui, el hijo
+          // resolvia su altura contra una caja de altura cero y desaparecia.
+          // Por eso las figuras y el escudo solo se veian al previsualizar.
+          ...(esFigura && { height: item.tipo === 'linea' ? `${item.grosor}px` : `${item.alto}%` }),
           position: 'absolute',
           cursor: item.bloqueado ? 'default' : 'move',
           touchAction: 'none',
@@ -593,9 +635,24 @@ export function HeaderVisualEditor({
           />
         )}
 
-        {/* El contenido se pinta con el MISMO componente que ve el cliente;
-            aqui solo se le quita la posicion, que ya la pone la envoltura. */}
-        <Box sx={{ position: 'relative', '& > *': { position: 'static !important' } }}>
+        {/* El contenido se pinta con el MISMO componente que ve el cliente; aqui
+            solo se le quita la posicion —que ya la pone la envoltura— y se le
+            dice que ocupe la caja entera, porque sus medidas eran porcentajes
+            del lienzo y ahora su referencia es esta envoltura. */}
+        <Box
+          sx={{
+            width: 1,
+            height: esFigura ? 1 : 'auto',
+            position: 'relative',
+            '& > *': {
+              position: 'static !important',
+              left: 'auto !important',
+              top: 'auto !important',
+              width: '100% !important',
+              ...(esFigura && { height: '100% !important' }),
+            },
+          }}
+        >
           {contenido}
         </Box>
       </Box>
@@ -713,6 +770,11 @@ export function HeaderVisualEditor({
       <ToggleButton
         size="small"
         value="previsualizar"
+        // Sin el rotulo, un ojo al lado de tres pantallas parece otro tamaño mas.
+        title={
+          previsualizando ? 'Salir de la vista previa' : 'Vista previa: así lo verá el cliente'
+        }
+        aria-label="Vista previa"
         selected={previsualizando}
         onChange={() => {
           setPrevisualizando((valor) => !valor);
@@ -769,30 +831,116 @@ export function HeaderVisualEditor({
     </Paper>
   );
 
+  // LA PIEZA SELECCIONADA SE MANEJA DESDE ARRIBA. La capa, el candado y el
+  // enlace no son formato —no se ajustan mirando como queda—, son decisiones de
+  // un vistazo, y en la columna obligaban a bajar a buscarlas cada vez.
+  //
+  // La fila esta SIEMPRE, con los controles apagados cuando no hay nada
+  // seleccionado: apareciendo y desapareciendo, la barra empujaba el encabezado
+  // hacia abajo en cada clic.
+  const renderFilaDePieza = () => (
+    <Paper
+      variant="outlined"
+      sx={{ p: 1, mb: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}
+    >
+      <Typography variant="caption" sx={{ color: 'text.disabled', pl: 0.5 }}>
+        {elemento ? ROTULOS_DE_PANEL[elemento.tipo] : 'Sin selección'}
+      </Typography>
+
+      <Divider orientation="vertical" flexItem />
+
+      <Tooltip title="Traer al frente">
+        <Box component="span">
+          <IconButton size="small" disabled={!elemento} onClick={() => cambiarCapa(elemento, 1)}>
+            <Iconify icon="solar:square-arrow-up-bold" />
+          </IconButton>
+        </Box>
+      </Tooltip>
+
+      <Tooltip title="Enviar atrás">
+        <Box component="span">
+          <IconButton size="small" disabled={!elemento} onClick={() => cambiarCapa(elemento, -1)}>
+            <Iconify icon="solar:square-arrow-down-bold" />
+          </IconButton>
+        </Box>
+      </Tooltip>
+
+      <Tooltip title={elemento?.bloqueado ? 'Desbloquear' : 'Bloquear: deja de moverse'}>
+        <Box component="span">
+          <ToggleButton
+            size="small"
+            value="bloqueado"
+            disabled={!elemento}
+            selected={!!elemento?.bloqueado}
+            onChange={() => cambiarElemento(elemento.id, { bloqueado: !elemento.bloqueado })}
+            sx={{ border: 'none' }}
+          >
+            <Iconify icon={elemento?.bloqueado ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'} />
+          </ToggleButton>
+        </Box>
+      </Tooltip>
+
+      <Divider orientation="vertical" flexItem />
+
+      <TextField
+        size="small"
+        label="Enlace"
+        disabled={!elemento}
+        value={elemento?.enlace ?? ''}
+        placeholder="/dashboard/product o https://…"
+        onChange={(event) => cambiarElemento(elemento.id, { enlace: event.target.value }, 'enlace')}
+        onBlur={cerrarGesto}
+        sx={{ flexGrow: 1, minWidth: 220 }}
+      />
+
+      <Divider orientation="vertical" flexItem />
+
+      {/* LA PROGRAMACION, EN UN FLOTANTE Y NO EN LA FILA. Son dos campos de
+          fecha y hora: puestos en linea se comen la barra entera, y ademas no
+          se tocan en cada cambio, solo cuando se monta la promocion. El boton
+          se enciende cuando hay fechas, para que no se olvide que las tiene. */}
+      <Button
+        size="small"
+        disabled={!elemento}
+        onClick={menuDeProgramacion.onOpen}
+        color={elemento?.desde || elemento?.hasta ? 'primary' : 'inherit'}
+        startIcon={<Iconify icon="solar:calendar-date-bold" />}
+        endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
+      >
+        Programación
+      </Button>
+
+      <Tooltip title="Mostrar como botón">
+        <Box component="span">
+          <ToggleButton
+            size="small"
+            value="comoBoton"
+            disabled={!elemento?.enlace}
+            selected={!!elemento?.comoBoton}
+            onChange={() => cambiarElemento(elemento.id, { comoBoton: !elemento.comoBoton })}
+            sx={{ border: 'none' }}
+          >
+            <Iconify icon="solar:cursor-square-bold" />
+          </ToggleButton>
+        </Box>
+      </Tooltip>
+    </Paper>
+  );
+
+  // La paleta se pinta en su propio componente: lleva un flotante dentro —la
+  // rueda de color— y ese flotante tiene que vivir donde se usa, o el del
+  // dialogo del texto parpadeante quedaria detras de su propia ventana.
   const renderPaleta = (valor, alElegir) => (
-    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-      {PALETA.map((color) => (
-        <Box
-          key={color}
-          component="button"
-          type="button"
-          aria-label={`Color ${color}`}
-          onClick={() => alElegir(color)}
-          sx={{
-            p: 0,
-            width: 22,
-            height: 22,
-            cursor: 'pointer',
-            borderRadius: '50%',
-            bgcolor: color,
-            border: (theme) =>
-              valor === color
-                ? `2px solid ${theme.vars.palette.primary.main}`
-                : `1px solid ${theme.vars.palette.divider}`,
-          }}
-        />
-      ))}
-    </Stack>
+    <PaletaDeColores
+      valor={valor}
+      onElegir={(color, etiqueta) => {
+        alElegir(color, etiqueta);
+
+        // Sin etiqueta el gesto termino: lo siguiente que se toque abre su
+        // propia entrada de historial.
+        if (!etiqueta) cerrarGesto();
+      }}
+    />
   );
 
   // EL EFECTO SE ELIGE VIENDOLO, tambien desde el panel. Una lista de nombres
@@ -860,8 +1008,8 @@ export function HeaderVisualEditor({
             Segundo color
           </Typography>
 
-          {renderPaleta(item.colorSecundario, (colorSecundario) =>
-            cambiarElemento(item.id, { colorSecundario })
+          {renderPaleta(item.colorSecundario, (colorSecundario, etiqueta) =>
+            cambiarElemento(item.id, { colorSecundario }, etiqueta)
           )}
         </Box>
       )}
@@ -899,111 +1047,7 @@ export function HeaderVisualEditor({
     const cuenta = analiticas?.[item.id];
 
     return (
-      <Stack
-        spacing={2}
-        sx={{ mt: 2, pt: 2, borderTop: (theme) => `dashed 1px ${theme.vars.palette.divider}` }}
-      >
-        <Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-            Capa
-          </Typography>
-
-          <Stack direction="row" spacing={1}>
-            <Button
-              fullWidth
-              size="small"
-              color="inherit"
-              startIcon={<Iconify icon="solar:square-arrow-up-bold" />}
-              onClick={() => cambiarCapa(item, 1)}
-            >
-              Al frente
-            </Button>
-
-            <Button
-              fullWidth
-              size="small"
-              color="inherit"
-              startIcon={<Iconify icon="solar:square-arrow-down-bold" />}
-              onClick={() => cambiarCapa(item, -1)}
-            >
-              Atrás
-            </Button>
-          </Stack>
-        </Box>
-
-        <ToggleButton
-          size="small"
-          value="bloqueado"
-          selected={item.bloqueado}
-          onChange={() => cambiarElemento(item.id, { bloqueado: !item.bloqueado })}
-        >
-          <Iconify
-            icon={item.bloqueado ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'}
-            sx={{ mr: 0.5 }}
-          />
-          {item.bloqueado ? 'Bloqueado' : 'Bloquear'}
-        </ToggleButton>
-
-        <TextField
-          fullWidth
-          size="small"
-          label="Enlace"
-          value={item.enlace}
-          placeholder="/dashboard/product o https://…"
-          onChange={(event) => cambiarElemento(item.id, { enlace: event.target.value }, 'enlace')}
-          onBlur={cerrarGesto}
-          helperText="Del propio panel o https. Se abre al pulsar la pieza."
-        />
-
-        {!!item.enlace && (
-          <ToggleButton
-            size="small"
-            value="comoBoton"
-            selected={item.comoBoton}
-            onChange={() => cambiarElemento(item.id, { comoBoton: !item.comoBoton })}
-          >
-            <Iconify icon="solar:cursor-square-bold" sx={{ mr: 0.5 }} />
-            Mostrar como botón
-          </ToggleButton>
-        )}
-
-        <Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-            Programación
-          </Typography>
-
-          <Stack spacing={1}>
-            <TextField
-              fullWidth
-              size="small"
-              type="datetime-local"
-              label="Desde"
-              value={aCampoLocal(item.desde)}
-              onChange={(event) =>
-                cambiarElemento(item.id, { desde: deCampoLocal(event.target.value) })
-              }
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-
-            <TextField
-              fullWidth
-              size="small"
-              type="datetime-local"
-              label={item.tipo === 'cuenta' ? 'Termina (y hasta cuándo se ve)' : 'Hasta'}
-              value={aCampoLocal(item.hasta)}
-              onChange={(event) =>
-                cambiarElemento(item.id, { hasta: deCampoLocal(event.target.value) })
-              }
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          </Stack>
-
-          <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.disabled' }}>
-            En blanco, siempre visible. Fuera de esas fechas deja de verse, pero no se borra: sirve
-            para el año que viene.
-          </Typography>
-        </Box>
-
+      <Stack spacing={2}>
         {!!cuenta && (
           <Box>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
@@ -1015,6 +1059,28 @@ export function HeaderVisualEditor({
             </Typography>
           </Box>
         )}
+
+        <Stack direction="row" spacing={1}>
+          <Button
+            fullWidth
+            size="small"
+            color="inherit"
+            startIcon={<Iconify icon="solar:copy-bold" />}
+            onClick={duplicarTexto}
+          >
+            Duplicar
+          </Button>
+
+          <Button
+            fullWidth
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={eliminarTexto}
+          >
+            Eliminar
+          </Button>
+        </Stack>
       </Stack>
     );
   };
@@ -1034,24 +1100,26 @@ export function HeaderVisualEditor({
         }}
       />
 
-      <Box
-        component="input"
-        type="file"
-        accept="image/*"
-        ref={entradaImagenRef}
-        onChange={handleElegirImagen}
-        sx={{ display: 'none' }}
-      />
-
+      {/* EL BOTON *ES* LA ETIQUETA DEL CAMPO. Pedirle al navegador que pulse un
+          `input` escondido funciona a veces y a veces no; con `label` lo abre el
+          propio navegador, siempre. La `key` cambia con la imagen que ya hay,
+          asi que volver a elegir el MISMO archivo tambien cuenta como cambio. */}
       <Button
+        component="label"
         size="small"
         color="inherit"
         loading={subiendoImagen}
         disabled={!onSubirImagen}
-        onClick={() => entradaImagenRef.current?.click()}
         startIcon={<Iconify icon="solar:gallery-add-bold" />}
       >
         Cambiar imagen
+        <input
+          hidden
+          type="file"
+          accept="image/*"
+          key={elemento.url || 'sin-imagen'}
+          onChange={handleElegirImagen}
+        />
       </Button>
 
       <Box>
@@ -1069,28 +1137,6 @@ export function HeaderVisualEditor({
           onChangeCommitted={cerrarGesto}
         />
       </Box>
-
-      <Stack direction="row" spacing={1}>
-        <Button
-          fullWidth
-          size="small"
-          color="inherit"
-          startIcon={<Iconify icon="solar:copy-bold" />}
-          onClick={duplicarTexto}
-        >
-          Duplicar
-        </Button>
-
-        <Button
-          fullWidth
-          size="small"
-          color="error"
-          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-          onClick={eliminarTexto}
-        >
-          Eliminar
-        </Button>
-      </Stack>
     </Stack>
   );
 
@@ -1259,30 +1305,10 @@ export function HeaderVisualEditor({
           Color del texto
         </Typography>
 
-        {renderPaleta(elemento.color, (color) => cambiarElemento(elemento.id, { color }))}
+        {renderPaleta(elemento.color, (color, etiqueta) =>
+          cambiarElemento(elemento.id, { color }, etiqueta)
+        )}
       </Box>
-
-      <Stack direction="row" spacing={1}>
-        <Button
-          fullWidth
-          size="small"
-          color="inherit"
-          startIcon={<Iconify icon="solar:copy-bold" />}
-          onClick={duplicarTexto}
-        >
-          Duplicar
-        </Button>
-
-        <Button
-          fullWidth
-          size="small"
-          color="error"
-          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-          onClick={eliminarTexto}
-        >
-          Eliminar
-        </Button>
-      </Stack>
     </Stack>
   );
 
@@ -1386,30 +1412,10 @@ export function HeaderVisualEditor({
           Color
         </Typography>
 
-        {renderPaleta(elemento.color, (color) => cambiarElemento(elemento.id, { color }))}
+        {renderPaleta(elemento.color, (color, etiqueta) =>
+          cambiarElemento(elemento.id, { color }, etiqueta)
+        )}
       </Box>
-
-      <Stack direction="row" spacing={1}>
-        <Button
-          fullWidth
-          size="small"
-          color="inherit"
-          startIcon={<Iconify icon="solar:copy-bold" />}
-          onClick={duplicarTexto}
-        >
-          Duplicar
-        </Button>
-
-        <Button
-          fullWidth
-          size="small"
-          color="error"
-          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-          onClick={eliminarTexto}
-        >
-          Eliminar
-        </Button>
-      </Stack>
     </Stack>
   );
 
@@ -1433,7 +1439,7 @@ export function HeaderVisualEditor({
           {diseno.fondo.tipo === 'plano' ? 'Color' : 'Color inicial'}
         </Typography>
 
-        {renderPaleta(diseno.fondo.color, (color) => cambiarFondo({ color }))}
+        {renderPaleta(diseno.fondo.color, (color, etiqueta) => cambiarFondo({ color }, etiqueta))}
       </Box>
 
       {diseno.fondo.tipo !== 'plano' && (
@@ -1442,8 +1448,8 @@ export function HeaderVisualEditor({
             Color final
           </Typography>
 
-          {renderPaleta(diseno.fondo.colorSecundario, (colorSecundario) =>
-            cambiarFondo({ colorSecundario })
+          {renderPaleta(diseno.fondo.colorSecundario, (colorSecundario, etiqueta) =>
+            cambiarFondo({ colorSecundario }, etiqueta)
           )}
         </Box>
       )}
@@ -1505,6 +1511,8 @@ export function HeaderVisualEditor({
     <Box>
       {renderBarra()}
 
+      {!previsualizando && renderFilaDePieza()}
+
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
         <Box
           sx={{
@@ -1564,7 +1572,7 @@ export function HeaderVisualEditor({
           >
             {/* Solo mientras se arrastra: el resto del tiempo es una franja que
               tapa lo que se esta colocando. */}
-            {!!arrastre.current && (
+            {arrastrando && (
               <Box
                 sx={{
                   top: 0,
@@ -1594,50 +1602,137 @@ export function HeaderVisualEditor({
           </HeaderVisualCanvas>
         </Box>
 
-        <Card sx={{ p: 2, width: { xs: 1, md: 300 }, flexShrink: 0 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>
+        {/* TODO LO DEL ELEMENTO, EN LA MISMA COLUMNA Y EN DOS PESTAnAS. Repartirlo
+            entre la columna y una tarjeta debajo obligaba a mirar a dos sitios
+            para tocar la misma pieza. "Formato" es como se ve —lo que se ajusta
+            a ojo, mirando el encabezado— y "Ajustes" lo que se decide: efecto,
+            capa, enlace y fechas. */}
+        <Card sx={{ width: { xs: 1, md: 320 }, flexShrink: 0, alignSelf: 'flex-start' }}>
+          <Typography variant="subtitle2" sx={{ p: 2, pb: 1 }}>
             {ROTULOS_DE_PANEL[elemento?.tipo] ?? 'Fondo del encabezado'}
           </Typography>
 
-          {elemento?.tipo === 'imagen' && renderPanelDeImagen()}
-          {(elemento?.tipo === 'texto' || elemento?.tipo === 'cuenta') && renderPanelDeTexto()}
-          {(elemento?.tipo === 'linea' || elemento?.tipo === 'forma') && renderPanelDeFigura()}
-          {!elemento && renderPanelDeFondo()}
+          {/* LAS DOS PESTAnAS ESTAN SIEMPRE, y "Ajustes" se apaga cuando no hay
+              nada seleccionado. Apareciendo y desapareciendo, el panel entero
+              daba un salto cada vez que se pulsaba o se soltaba una pieza. */}
+          <Tabs
+            value={pestanaActiva}
+            onChange={(_, valor) => setPestana(valor)}
+            sx={{ px: 2, borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}` }}
+          >
+            <Tab value="formato" label="Formato" />
+            <Tab value="ajustes" label="Ajustes" disabled={!elemento} />
+          </Tabs>
 
-          {!elemento && (
-            <Typography variant="caption" sx={{ mt: 2, display: 'block', color: 'text.disabled' }}>
-              Pulsa un texto o el escudo para darle formato. Arrástralo para moverlo, o muévelo con
-              las flechas del teclado.
-            </Typography>
-          )}
+          {/* LAS DOS PESTAnAS OCUPAN LA MISMA CELDA, y la que no toca se queda
+              invisible en vez de irse. Asi el panel mide siempre lo que mide la
+              mas larga y no cambia de alto al cambiar de pestaña: antes el
+              encabezado de al lado daba un salto en cada cambio.
+
+              Se usa `visibility` y no `display: none` a proposito: `none` la
+              sacaria del flujo y volveria a encogerse el panel. Invisible sigue
+              contando para el tamaño, pero no recibe el foco ni la lee un lector
+              de pantalla. */}
+          <Box sx={{ p: 2, display: 'grid' }}>
+            {[
+              {
+                clave: 'formato',
+                contenido: (
+                  <>
+                    {elemento?.tipo === 'imagen' && renderPanelDeImagen()}
+                    {(elemento?.tipo === 'texto' || elemento?.tipo === 'cuenta') &&
+                      renderPanelDeTexto()}
+                    {(elemento?.tipo === 'linea' || elemento?.tipo === 'forma') &&
+                      renderPanelDeFigura()}
+                    {!elemento && renderPanelDeFondo()}
+
+                    {!elemento && (
+                      <Typography
+                        variant="caption"
+                        sx={{ mt: 2, display: 'block', color: 'text.disabled' }}
+                      >
+                        Pulsa un texto o el escudo para darle formato. Arrástralo para moverlo, o
+                        muévelo con las flechas del teclado.
+                      </Typography>
+                    )}
+                  </>
+                ),
+              },
+              {
+                clave: 'ajustes',
+                contenido: !!elemento && (
+                  <Stack spacing={3}>
+                    {renderEfecto(elemento, { conColores: elemento.tipo !== 'imagen' })}
+
+                    {elemento.tipo === 'cuenta' && renderFormatoDeCuenta()}
+
+                    {renderComunes(elemento)}
+                  </Stack>
+                ),
+              },
+            ].map((panel) => (
+              <Box
+                key={panel.clave}
+                sx={{
+                  gridArea: '1 / 1',
+                  minWidth: 0,
+                  ...(pestanaActiva !== panel.clave && {
+                    visibility: 'hidden',
+                    pointerEvents: 'none',
+                  }),
+                }}
+              >
+                {panel.contenido}
+              </Box>
+            ))}
+          </Box>
         </Card>
       </Stack>
 
-      {/* LA COLUMNA SE QUEDA CON LO QUE ES DEL ELEMENTO: que dice, como se lee y
-          de que color. Lo demas —el efecto, la capa, el enlace, las fechas— es
-          largo y no cabe en 300 pixeles sin apretarse; aqui abajo, a lo ancho,
-          cada cosa tiene sitio y se ve el encabezado entero mientras se toca. */}
-      {!!elemento && !previsualizando && (
-        <Card sx={{ p: 2, mt: 2 }}>
-          <Box
-            sx={{
-              gap: 3,
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                lg: 'repeat(3, 1fr)',
-              },
-            }}
-          >
-            <Box>{renderEfecto(elemento, { conColores: elemento.tipo !== 'imagen' })}</Box>
+      <CustomPopover
+        open={menuDeProgramacion.open}
+        anchorEl={menuDeProgramacion.anchorEl}
+        onClose={menuDeProgramacion.onClose}
+        slotProps={{ arrow: { placement: 'top-center' } }}
+      >
+        {!!elemento && (
+          <Stack spacing={2} sx={{ p: 2, width: 300 }}>
+            <DateTimePicker
+              ampm
+              label="Desde"
+              format="DD/MM/YYYY hh:mm A"
+              value={aCalendario(elemento.desde)}
+              onChange={(valor) => cambiarElemento(elemento.id, { desde: deCalendario(valor) })}
+              slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+            />
 
-            {elemento.tipo === 'cuenta' && <Box>{renderFormatoDeCuenta()}</Box>}
+            <DateTimePicker
+              ampm
+              label={elemento.tipo === 'cuenta' ? 'Termina (y hasta cuándo se ve)' : 'Hasta'}
+              format="DD/MM/YYYY hh:mm A"
+              value={aCalendario(elemento.hasta)}
+              onChange={(valor) => cambiarElemento(elemento.id, { hasta: deCalendario(valor) })}
+              slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+            />
 
-            <Box>{renderComunes(elemento)}</Box>
-          </Box>
-        </Card>
-      )}
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              En blanco, siempre visible. Fuera de esas fechas deja de verse, pero no se borra:
+              sirve para el año que viene.
+            </Typography>
+
+            {(!!elemento.desde || !!elemento.hasta) && (
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<Iconify icon="solar:eraser-bold" />}
+                onClick={() => cambiarElemento(elemento.id, { desde: '', hasta: '' })}
+              >
+                Quitar las fechas
+              </Button>
+            )}
+          </Stack>
+        )}
+      </CustomPopover>
 
       <CustomPopover
         open={menuDeFormas.open}

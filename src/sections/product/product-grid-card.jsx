@@ -12,6 +12,8 @@ import { RouterLink } from 'src/routes/components';
 
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 
+import { CONFIG } from 'src/global-config';
+
 import { Label } from 'src/components/label';
 import { Image } from 'src/components/image';
 import { Iconify } from 'src/components/iconify';
@@ -39,6 +41,30 @@ import { etiquetaDeCategoria } from './product-table-row';
 // pinta media estrella: se dice que aun no hay valoraciones.
 // ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+// TEMPORAL — FOTOS DE MUESTRA
+//
+// Mientras el catalogo real no tenga fotos, los productos sin imagen piden
+// prestada una de las tres de demostracion. Es SOLO para ver la rejilla con
+// fotos: en cuanto la tienda tenga las suyas, se borra este bloque y la linea
+// que lo usa mas abajo, y vuelve el marcador gris.
+//
+// Se reparte por el identificador del producto y no al azar: asi la misma
+// insignia enseña siempre la misma foto y la pantalla no cambia sola al
+// repintarse.
+const FOTOS_DE_MUESTRA = [
+  `${CONFIG.assetsDir}/assets/images/mock/m-product/product-1.webp`,
+  `${CONFIG.assetsDir}/assets/images/mock/m-product/product-2.webp`,
+  `${CONFIG.assetsDir}/assets/images/mock/m-product/product-3.webp`,
+];
+
+const fotoDeMuestra = (id) => {
+  const texto = String(id ?? '');
+  const suma = [...texto].reduce((total, letra) => total + letra.charCodeAt(0), 0);
+
+  return FOTOS_DE_MUESTRA[suma % FOTOS_DE_MUESTRA.length];
+};
+
 export function ProductGridCard({
   product,
   detailsHref,
@@ -53,6 +79,8 @@ export function ProductGridCard({
   const totalRatings = Number(product.totalRatings ?? 0);
   const totalReviews = Number(product.totalReviews ?? 0);
   const categoria = etiquetaDeCategoria(product.category);
+  // TEMPORAL: sin foto propia se enseña una de muestra (ver arriba).
+  const foto = product.coverUrl || fotoDeMuestra(product.id);
 
   const renderEstadosSobreLaFoto = () => (
     <Stack
@@ -154,8 +182,8 @@ export function ProductGridCard({
                 volviese a pedir la pagina entera y llenaba la consola de avisos.
                 En su lugar va un marcador del mismo cuadrado, para que la rejilla
                 no se descuadre cuando a un producto le falta la imagen. */}
-          {product.coverUrl ? (
-            <Image alt={product.name} src={product.coverUrl} ratio="1/1" sx={{ borderRadius: 0 }} />
+          {foto ? (
+            <Image alt={product.name} src={foto} ratio="1/1" sx={{ borderRadius: 0 }} />
           ) : (
             <Box
               sx={{

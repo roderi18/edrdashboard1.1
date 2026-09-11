@@ -510,6 +510,20 @@ SDK usa `require` dinámicos que no sobreviven al empaquetado. No lo quites.
 vistas tienen tratamiento explícito de móvil (tarjetas en vez de tabla, barras
 fijadas al pie, etiquetas acortadas).
 
+**Fechas** ✅: se escriben SIEMPRE con el calendario del proyecto, nunca con el
+`<input type="date">` ni `datetime-local` del navegador.
+
+- Dentro de un formulario: `Field.DatePicker` / `Field.DateTimePicker`
+  (`src/components/hook-form/rhf-date-picker.jsx`), que ya resuelven el valor
+  vacío de solo lectura y el mensaje de error.
+- Fuera de un formulario: `DatePicker` / `DateTimePicker` de `@mui/x-date-pickers`
+  directamente, con `format="DD/MM/YYYY"` —y `ampm` con `hh:mm A` si lleva hora—.
+  El `LocalizationProvider` está puesto una sola vez en `src/app/layout.jsx`.
+
+El nativo cambia de aspecto y de orden de campos según el sistema operativo del
+que mira, así que en la misma pantalla convivían dos formas distintas de escribir
+una fecha: la del calendario del proyecto y la que le tocara al navegador.
+
 **Accesibilidad** 🟡: hay `aria-label` en botones de icono y `aria-live` en zonas
 que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 
