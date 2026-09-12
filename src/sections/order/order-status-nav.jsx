@@ -18,6 +18,11 @@ import { Iconify } from 'src/components/iconify';
 //
 // El color y el icono van con el estado, no con el sitio donde se pinta: un
 // pedido cancelado es rojo en la fila, en la columna y en la tabla.
+//
+// Los dibujos son DE LINEA. En relleno, cinco colores macizos repetidos cuarenta
+// veces convierten la tabla en un semaforo y el ojo deja de leer los datos: el
+// color sigue diciendo lo que decia, lo que baja de peso es el dibujo. Estan en
+// el paquete del proyecto, no cargados por internet.
 // ----------------------------------------------------------------------
 
 // "Todos" va en el VERDE DE LA CASA, no en el cian de `info`. El cian no es un
@@ -25,11 +30,21 @@ import { Iconify } from 'src/components/iconify';
 // competia con los estados, que si usan el color para decir algo: amarillo lo
 // que espera, verde lo hecho, rojo lo que se cayo.
 export const ESTADOS_DE_ORDEN = [
-  { value: 'all', label: 'Todos', color: 'primary', icono: 'solar:documents-bold' },
-  { value: 'pending', label: 'Pendiente', color: 'warning', icono: 'solar:clock-circle-bold' },
-  { value: 'completed', label: 'Completado', color: 'success', icono: 'solar:check-circle-bold' },
-  { value: 'cancelled', label: 'Cancelado', color: 'error', icono: 'solar:close-circle-bold' },
-  { value: 'refunded', label: 'Reembolsado', color: 'default', icono: 'solar:restart-bold' },
+  { value: 'all', label: 'Todos', color: 'primary', icono: 'custom:estado-todos' },
+  { value: 'pending', label: 'Pendiente', color: 'warning', icono: 'custom:estado-pendiente' },
+  {
+    value: 'completed',
+    label: 'Completado',
+    color: 'success',
+    icono: 'custom:estado-completado',
+  },
+  { value: 'cancelled', label: 'Cancelado', color: 'error', icono: 'custom:estado-cancelado' },
+  {
+    value: 'refunded',
+    label: 'Reembolsado',
+    color: 'default',
+    icono: 'custom:estado-reembolsado',
+  },
 ];
 
 /** Cuantos pedidos hay en cada estado. "Todos" es el total, no un estado mas. */
@@ -65,7 +80,7 @@ export function OrderStatusNav({ valor, cuentas, onCambiar, onContactar, sx }) {
               bgcolor: 'primary.lighter',
             }}
           >
-            <Iconify icon="solar:box-bold" width={22} />
+            <Iconify icon="custom:estado-todos" width={22} />
           </Box>
 
           <Box>

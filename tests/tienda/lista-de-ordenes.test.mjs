@@ -111,7 +111,9 @@ test('la lista tiene tope de ancho, para que el zoom aleje y no ensanche', () =>
   // filas cada vez mas vacias. Con tope, el bloque conserva su tamaño.
   // El tope va en `sx` y no en `maxWidth`: esa prop solo se aplica con el
   // "diseño compacto" encendido en Ajustes, que cada quien tiene como quiere.
-  assert.match(vista, /sx=\{\{ maxWidth: 1600, mx: 'auto' \}\}/);
+  // Y sale de una sola fuente, para que las cuatro pantallas midan igual.
+  assert.match(vista, /maxWidth: ANCHO_DEL_MARCO, mx: 'auto'/);
+  assert.match(vista, /from 'src\/components\/commerce\/commerce-layout'/);
 });
 
 test('los filtros estan siempre, sin boton que los esconda', () => {
@@ -200,9 +202,11 @@ test('los colores son los del proyecto, no los de la plantilla', () => {
   assert.doesNotMatch(navegacion, /color: 'info'/);
   // Y el resto son los del tema: amarillo lo que espera, verde lo hecho, rojo
   // lo que se cayo.
-  assert.match(navegacion, /value: 'pending'.*color: 'warning'/);
-  assert.match(navegacion, /value: 'completed'.*color: 'success'/);
-  assert.match(navegacion, /value: 'cancelled'.*color: 'error'/);
+  // Con `s` para que el punto cruce los saltos: la lista se formatea en varias
+  // lineas cuando una entrada se hace larga.
+  assert.match(navegacion, /value: 'pending'.*color: 'warning'/s);
+  assert.match(navegacion, /value: 'completed'.*?color: 'success'/s);
+  assert.match(navegacion, /value: 'cancelled'.*color: 'error'/s);
 });
 
 test('la columna de estados respira entre sus dos tarjetas', () => {
@@ -220,4 +224,171 @@ test('todas las etiquetas de estado miden lo mismo', () => {
   // en zigzag.
   assert.match(fila, /const ANCHO_DE_ETIQUETA = \d+;/);
   assert.match(fila, /sx=\{\{ width: ANCHO_DE_ETIQUETA, justifyContent: 'flex-start' \}\}/);
+});
+
+test('recibos y pedidos comparten la forma de su barra de filtros', () => {
+  // Son listas hermanas: con el buscador al final en una y al principio en la
+  // otra hay que aprenderse las dos. Y es lo que se usa nada mas entrar, asi
+  // que va primero en las dos.
+  const barraRecibos = leer('src/sections/invoice/invoice-table-toolbar.jsx');
+
+  const buscador = barraRecibos.indexOf('Buscar miembro o número de recibo');
+  const servicio = barraRecibos.indexOf('htmlFor="filter-service-select"');
+
+  assert.ok(buscador > 0 && servicio > 0, 'la barra lleva buscador y servicio');
+  assert.ok(buscador < servicio, 'el buscador va a la izquierda de Servicio');
+
+  // Misma rejilla que la de pedidos, y el calendario del proyecto con el
+  // formato de la casa.
+  assert.match(barraRecibos, /display: 'grid'/);
+  assert.match(barraRecibos, /format="DD\/MM\/YYYY"/);
+  assert.match(filtros, /display: 'grid'/);
+});
+
+test('las tres listas entran por la misma portada', () => {
+  // El menu lateral ya dice donde se esta: el titulo con sus migas repetia lo
+  // mismo y empujaba el resumen y la tabla fuera de pantalla.
+  const recibos = leer('src/sections/invoice/view/invoice-list-view.jsx');
+
+  assert.match(recibos, /<StoreHeader sx=\{\{ mb: 3 \}\} \/>/);
+  assert.doesNotMatch(recibos, /<CustomBreadcrumbs/);
+  assert.match(vista, /<StoreHeader sx=\{\{ mb: 3 \}\} \/>/);
+
+  // Y "Agregar recibo" se queda: es lo unico del encabezado viejo que hacia
+  // algo.
+  assert.match(recibos, /Agregar recibo/);
+});
+
+test('en recibos el contenido es mas estrecho que la portada', () => {
+  // La portada es un rotulo y se lee mejor ancha; el resumen y la tabla, no:
+  // cinco tarjetas repartidas en 1600 pixeles quedan separadas por franjas de
+  // nada, y una fila estirada obliga al ojo a cruzar media pantalla vacia de la
+  // fecha al importe.
+  const recibos = leer('src/sections/invoice/view/invoice-list-view.jsx');
+
+  assert.match(recibos, /maxWidth: ANCHO_DEL_CONTENIDO/);
+  // El tope del contenedor sigue siendo el de siempre, para que la portada
+  // conserve su ancho.
+  assert.match(recibos, /maxWidth: ANCHO_DEL_MARCO, mx: 'auto'/);
+  // Las dos medidas salen de una sola fuente, no copiadas en cada vista.
+  const medidas = leer('src/components/commerce/commerce-layout.js');
+  assert.match(medidas, /export const ANCHO_DEL_MARCO = 1600;/);
+  assert.match(medidas, /export const ANCHO_DEL_CONTENIDO = 1200;/);
+
+  // Y el `Box` del contenido empieza DESPUES de la portada.
+  assert.ok(
+    recibos.indexOf('<StoreHeader') < recibos.indexOf('maxWidth: ANCHO_DEL_CONTENIDO'),
+    'la portada queda fuera del bloque estrecho'
+  );
+});
+
+test('el checkout entra por la portada de la tienda', () => {
+  // Finalizar la compra es el ultimo paso de la tienda, no otro sitio: una
+  // pantalla sin su rotulo, con los datos de pago por delante, es donde entra
+  // la duda de si sigues donde estabas.
+  const checkout = leer('src/sections/checkout/view/checkout-view.jsx');
+
+  assert.match(checkout, /<StoreHeader sx=\{\{ mt: 3 \}\} \/>/);
+});
+
+test('las garantias van debajo del boton, y no prometen lo que no es', () => {
+  // Ahi es el momento de la duda —"¿le doy?"— y es lo que la responde. Y
+  // "Envio gratis" solo se dice cuando el resumen NO esta cobrando envio:
+  // prometerlo con un cargo a la vista dos lineas mas arriba es perder la
+  // confianza que el cuadro venia a dar.
+  const carrito = leer('src/sections/checkout/checkout-cart.jsx');
+  const cuadros = leer('src/sections/checkout/checkout-trust-badges.jsx');
+
+  assert.ok(
+    carrito.indexOf('Continuar\n        </Button>') < carrito.indexOf('<CheckoutTrustBadges'),
+    'los cuadros van despues del boton'
+  );
+  assert.match(carrito, /checkoutState\.shipping\s*\n?\s*\? \[\]/);
+  assert.match(carrito, /Compra segura/);
+  assert.match(carrito, /Garantía ER/);
+
+  // Las afirmaciones llegan por `items`: la pantalla que las pone es la
+  // responsable de que sean verdad, no el cuadro.
+  assert.match(cuadros, /export function CheckoutTrustBadges\(\{ items = \[\], sx \}\)/);
+  assert.match(cuadros, /if \(!items\.length\) return null;/);
+
+  // Y todos los iconos estan en el paquete del proyecto.
+  const paquete = leer('src/components/iconify/icon-sets.js');
+  [...new Set([...carrito.matchAll(/icono: '([a-z0-9-]+:[a-z0-9-]+)'/g)].map((u) => u[1]))].forEach(
+    (icono) => assert.ok(paquete.includes(`'${icono}'`), `falta el icono ${icono}`)
+  );
+});
+
+test('la portada mide lo mismo en las cuatro pantallas', () => {
+  // Su alto se calcula a partir del ancho —el lienzo se escala entero—, asi que
+  // igualar el ancho iguala las dos medidas. El checkout iba con el tope de la
+  // plantilla ('lg', 1200) y salia unos 370 pixeles mas estrecha, y mas baja.
+  const marcos = [
+    'src/sections/product/view/product-list-view.jsx',
+    'src/sections/order/view/order-list-view.jsx',
+    'src/sections/invoice/view/invoice-list-view.jsx',
+    'src/sections/checkout/view/checkout-view.jsx',
+  ].map((ruta) => leer(ruta));
+
+  marcos.forEach((marco, indice) => {
+    assert.match(marco, /ANCHO_DEL_MARCO/, `el marco ${indice} no usa el tope comun`);
+    assert.match(marco, /<StoreHeader/, `el marco ${indice} no lleva la portada`);
+  });
+
+  // Y el mismo relleno lateral, o el ancho util no coincidiria: 40 en el panel,
+  // 40 en el checkout.
+  assert.match(marcos[3], /px: RELLENO_DEL_MARCO/);
+  // El checkout tambien estrecha su contenido, como recibos.
+  assert.match(marcos[3], /maxWidth: ANCHO_DEL_CONTENIDO/);
+});
+
+test('los cuadros de garantia usan el color de la casa, y uno solo', () => {
+  // Un dorado, un cian y un verde —los de la maqueta— eran tres colores de tres
+  // sitios, y el cian ni es del proyecto. Aqui el color no distingue una cosa de
+  // otra: los tres prometen lo mismo.
+  const cuadros = leer('src/sections/checkout/checkout-trust-badges.jsx');
+  const carrito = leer('src/sections/checkout/checkout-cart.jsx');
+
+  assert.match(cuadros, /color: 'primary\.main'/);
+  assert.doesNotMatch(carrito, /color: 'info\.main'/);
+  assert.doesNotMatch(carrito, /color: 'warning\.main'/);
+});
+
+test('la regla de las maquetas queda escrita', () => {
+  // Para que la proxima captura de referencia se construya con lo que ya hay y
+  // no con hex sacados del pixel.
+  const memoria = leer('CLAUDE.md');
+  const guia = leer('PROJECT_GUIDELINES.md');
+
+  assert.match(memoria, /Una imagen de referencia es el QUÉ, no el CON QUÉ/);
+  assert.match(guia, /Maquetas y capturas de referencia/);
+  assert.match(guia, /commerce-layout\.js/);
+});
+
+test('los iconos de estado y de garantia son de linea', () => {
+  // Los estados se pintan dos veces en la misma pantalla —columna y etiqueta de
+  // cada fila—: en relleno, cinco colores macizos repetidos cuarenta veces
+  // convierten la tabla en un semaforo y el ojo deja de leer los datos. El
+  // color sigue diciendo lo que decia; lo que baja de peso es el dibujo.
+  const paquete = leer('src/components/iconify/icon-sets.js');
+  const carrito = leer('src/sections/checkout/checkout-cart.jsx');
+
+  const deLinea = (icono) => {
+    assert.ok(paquete.includes(`'${icono}'`), `falta el icono ${icono}`);
+
+    const desde = paquete.slice(paquete.indexOf(`'${icono}'`));
+    const dibujo = desde.slice(0, desde.indexOf('},'));
+
+    assert.match(dibujo, /stroke="currentColor"/, `${icono} deberia ser de linea`);
+    assert.doesNotMatch(dibujo, /fill="currentColor"/, `${icono} esta relleno`);
+  };
+
+  [...new Set([...navegacion.matchAll(/icono: '([a-z0-9-]+:[a-z0-9-]+)'/g)].map((u) => u[1]))]
+    .concat([
+      ...new Set([...carrito.matchAll(/icono: '([a-z0-9-]+:[a-z0-9-]+)'/g)].map((u) => u[1])),
+    ])
+    .forEach(deLinea);
+
+  // Y son cinco estados y tres garantias, no menos.
+  assert.equal(navegacion.match(/icono: 'custom:estado-/g).length, 5);
 });

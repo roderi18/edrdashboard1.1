@@ -510,6 +510,26 @@ SDK usa `require` dinámicos que no sobreviven al empaquetado. No lo quites.
 vistas tienen tratamiento explícito de móvil (tarjetas en vez de tabla, barras
 fijadas al pie, etiquetas acortadas).
 
+**Maquetas y capturas de referencia** ✅: se copia la **disposición**, no los
+píxeles. Lo que se pide en una imagen se construye con lo que ya hay:
+
+- `Label`, `Chip`, `Card`, `Iconify` y el resto de `src/components/`.
+- Iconos **del paquete** (`src/components/iconify/icon-sets.js`). Uno que no
+  esté registrado se descarga por internet, parpadea y deja el hueco mientras
+  tanto; el propio componente avisa por consola. Si hace falta uno que no está
+  —y no hay variante de línea para lo que se pide—, se dibuja y se añade al
+  paquete, en la misma rejilla de 24 y con el mismo grosor de trazo.
+- **Colores del tema**, nunca hex sacados de la imagen. El verde `primary`
+  (`#00A76F`) es la identidad; el cian `info` (`#00B8D9`) es de la plantilla y
+  se ha colado ya dos veces donde tocaba el verde. Y el color solo se usa para
+  **distinguir**: cinco estados de un pedido, sí; tres garantías que prometen
+  lo mismo, no —esas van todas iguales—.
+- Las pantallas de la tienda (`/product`, `/order`, `/invoice`, `/checkout`)
+  comparten marco: `ANCHO_DEL_MARCO`, `ANCHO_DEL_CONTENIDO` y
+  `RELLENO_DEL_MARCO` de `src/components/commerce/commerce-layout.js`. La
+  portada (`StoreHeader`) es la misma en las cuatro y su alto sale de su ancho,
+  así que un tope distinto la deja más estrecha **y** más baja en esa pantalla.
+
 **Fechas** ✅: se escriben SIEMPRE con el calendario del proyecto, nunca con el
 `<input type="date">` ni `datetime-local` del navegador.
 

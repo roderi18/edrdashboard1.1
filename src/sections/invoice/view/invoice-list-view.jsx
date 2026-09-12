@@ -33,8 +33,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { CommerceListSkeleton } from 'src/components/commerce/commerce-list-skeleton';
+import { ANCHO_DEL_MARCO, ANCHO_DEL_CONTENIDO } from 'src/components/commerce/commerce-layout';
 import {
   useTable,
   rowInPage,
@@ -49,6 +49,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { InvoiceAnalytic } from '../invoice-analytic';
 import { InvoiceTableRow } from '../invoice-table-row';
+import { StoreHeader } from '../../product/store-header';
 import { InvoiceTableToolbar } from '../invoice-table-toolbar';
 import { InvoiceTableFiltersResult } from '../invoice-table-filters-result';
 
@@ -309,233 +310,256 @@ export function InvoiceListView() {
           
           1600 es el ancho que tenia esta lista en una pantalla normal: se
           conserva tal cual, y ahora el zoom hace lo suyo. */}
-      <DashboardContent maxWidth={false} sx={{ maxWidth: 1600, mx: 'auto' }}>
-        <CustomBreadcrumbs
-          heading="Lista de recibos"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Recibos', href: paths.dashboard.invoice.root },
-            { name: 'Lista' },
-          ]}
-          action={
-            !isMemberSessionUser(user) ? (
-              <Button
-                component={RouterLink}
-                href={paths.dashboard.invoice.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Agregar recibo
-              </Button>
-            ) : null
-          }
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
+      <DashboardContent maxWidth={false} sx={{ maxWidth: ANCHO_DEL_MARCO, mx: 'auto' }}>
+        {/* EL MISMO ENCABEZADO QUE LA TIENDA Y LOS PEDIDOS. Esta lista entra
+            por la portada de la tienda, no por un titulo y unas migas: el menu
+            lateral ya dice donde se esta, y el titulo repetia lo mismo mientras
+            empujaba el resumen y la tabla fuera de pantalla. */}
+        <StoreHeader sx={{ mb: 3 }} />
 
-        {loadingInvoices ? (
-          <CommerceListSkeleton showAnalytics rowCount={6} cellCount={8} />
-        ) : (
-          <>
-            <Card sx={{ mb: { xs: 3, md: 5 } }}>
-              <Scrollbar sx={{ minHeight: 108 }}>
-                <Stack
-                  divider={
-                    <Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />
-                  }
-                  sx={{ py: 2, flexDirection: 'row' }}
-                >
-                  <InvoiceAnalytic
-                    title="Total"
-                    total={visibleTableData.length}
-                    percent={100}
-                    price={sumBy(visibleTableData, (invoice) => invoice.totalAmount)}
-                    icon="solar:bill-list-bold-duotone"
-                    color={theme.vars.palette.info.main}
-                  />
-
-                  <InvoiceAnalytic
-                    title="Pagados"
-                    total={getInvoiceLength('paid')}
-                    percent={getPercentByStatus('paid')}
-                    price={getTotalAmount('paid')}
-                    icon="solar:file-check-bold-duotone"
-                    color={theme.vars.palette.success.main}
-                  />
-
-                  <InvoiceAnalytic
-                    title="Pendientes"
-                    total={getInvoiceLength('pending')}
-                    percent={getPercentByStatus('pending')}
-                    price={getTotalAmount('pending')}
-                    icon="solar:sort-by-time-bold-duotone"
-                    color={theme.vars.palette.warning.main}
-                  />
-
-                  <InvoiceAnalytic
-                    title="Vencidos"
-                    total={getInvoiceLength('overdue')}
-                    percent={getPercentByStatus('overdue')}
-                    price={getTotalAmount('overdue')}
-                    icon="solar:bell-bing-bold-duotone"
-                    color={theme.vars.palette.error.main}
-                  />
-
-                  <InvoiceAnalytic
-                    title="Borradores"
-                    total={getInvoiceLength('draft')}
-                    percent={getPercentByStatus('draft')}
-                    price={getTotalAmount('draft')}
-                    icon="solar:file-corrupted-bold-duotone"
-                    color={theme.vars.palette.text.secondary}
-                  />
-                </Stack>
-              </Scrollbar>
-            </Card>
-
-            <Card>
-              <Tabs
-                value={currentFilters.status}
-                onChange={handleFilterStatus}
-                sx={{
-                  px: { md: 2.5 },
-                  boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-                }}
-              >
-                {TABS.map((tab) => (
-                  <Tab
-                    key={tab.value}
-                    value={tab.value}
-                    label={tab.label}
-                    iconPosition="end"
-                    icon={
-                      <Label
-                        variant={
-                          ((tab.value === 'all' || tab.value === currentFilters.status) &&
-                            'filled') ||
-                          'soft'
-                        }
-                        color={tab.color}
-                      >
-                        {tab.count}
-                      </Label>
+        {/* EL CONTENIDO, MAS ESTRECHO QUE LA PORTADA. La portada es un rotulo y
+            se lee mejor ancha; el resumen y la tabla, no: cinco tarjetas
+            repartidas en 1600 pixeles quedan separadas por franjas de nada, y
+            una fila de recibo estirada obliga al ojo a saltar de la fecha al
+            importe cruzando media pantalla vacia.
+            
+            El tope va aqui y no en el contenedor para que la portada conserve
+            su ancho. */}
+        <Box sx={{ width: 1, mx: 'auto', maxWidth: ANCHO_DEL_CONTENIDO }}>
+          {loadingInvoices ? (
+            <CommerceListSkeleton showAnalytics rowCount={6} cellCount={8} />
+          ) : (
+            <>
+              <Card sx={{ mb: { xs: 3, md: 5 } }}>
+                <Scrollbar sx={{ minHeight: 108 }}>
+                  <Stack
+                    divider={
+                      <Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />
                     }
-                  />
-                ))}
-              </Tabs>
-
-              <InvoiceTableToolbar
-                filters={filters}
-                dateError={dateError}
-                onResetPage={table.onResetPage}
-                options={{ services: INVOICE_SERVICE_OPTIONS.map((option) => option.name) }}
-                rows={dataFiltered}
-              />
-
-              {canReset && (
-                <InvoiceTableFiltersResult
-                  filters={filters}
-                  onResetPage={table.onResetPage}
-                  totalResults={dataFiltered.length}
-                  sx={{ p: 2.5, pt: 0 }}
-                />
-              )}
-
-              <Box sx={{ position: 'relative' }}>
-                <TableSelectedAction
-                  dense={table.dense}
-                  numSelected={table.selected.length}
-                  rowCount={dataFiltered.length}
-                  onSelectAllRows={(checked) => {
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    );
-                  }}
-                  action={
-                    <Box sx={{ display: 'flex' }}>
-                      <Tooltip title="Enviar">
-                        <IconButton color="primary">
-                          <Iconify icon="custom:send-fill" />
-                        </IconButton>
-                      </Tooltip>
-
-                      <Tooltip title="Descargar">
-                        <IconButton color="primary">
-                          <Iconify icon="solar:download-bold" />
-                        </IconButton>
-                      </Tooltip>
-
-                      <Tooltip title="Imprimir">
-                        <IconButton color="primary">
-                          <Iconify icon="solar:printer-minimalistic-bold" />
-                        </IconButton>
-                      </Tooltip>
-
-                      {canDelete && (
-                        <Tooltip title="Eliminar">
-                          <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                            <Iconify icon="solar:trash-bin-trash-bold" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  }
-                />
-
-                <Scrollbar>
-                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-                    <TableHeadCustom
-                      order={table.order}
-                      orderBy={table.orderBy}
-                      headCells={TABLE_HEAD}
-                      rowCount={dataFiltered.length}
-                      numSelected={table.selected.length}
-                      onSort={table.onSort}
-                      onSelectAllRows={(checked) =>
-                        table.onSelectAllRows(
-                          checked,
-                          dataFiltered.map((row) => row.id)
-                        )
-                      }
+                    sx={{ py: 2, flexDirection: 'row' }}
+                  >
+                    <InvoiceAnalytic
+                      title="Total"
+                      total={visibleTableData.length}
+                      percent={100}
+                      price={sumBy(visibleTableData, (invoice) => invoice.totalAmount)}
+                      icon="solar:bill-list-bold-duotone"
+                      color={theme.vars.palette.info.main}
                     />
 
-                    <TableBody>
-                      {dataFiltered
-                        .slice(
-                          table.page * table.rowsPerPage,
-                          table.page * table.rowsPerPage + table.rowsPerPage
-                        )
-                        .map((row) => (
-                          <InvoiceTableRow
-                            key={row.id}
-                            row={row}
-                            selected={table.selected.includes(row.id)}
-                            onSelectRow={() => table.onSelectRow(row.id)}
-                            onDeleteRow={() => handleDeleteRow(row.id)}
-                            canDelete={canDelete}
-                            editHref={paths.dashboard.invoice.edit(row.id)}
-                            detailsHref={paths.dashboard.invoice.details(row.id)}
-                          />
-                        ))}
+                    <InvoiceAnalytic
+                      title="Pagados"
+                      total={getInvoiceLength('paid')}
+                      percent={getPercentByStatus('paid')}
+                      price={getTotalAmount('paid')}
+                      icon="solar:file-check-bold-duotone"
+                      color={theme.vars.palette.success.main}
+                    />
 
-                      <TableNoData notFound={notFound} />
-                    </TableBody>
-                  </Table>
+                    <InvoiceAnalytic
+                      title="Pendientes"
+                      total={getInvoiceLength('pending')}
+                      percent={getPercentByStatus('pending')}
+                      price={getTotalAmount('pending')}
+                      icon="solar:sort-by-time-bold-duotone"
+                      color={theme.vars.palette.warning.main}
+                    />
+
+                    <InvoiceAnalytic
+                      title="Vencidos"
+                      total={getInvoiceLength('overdue')}
+                      percent={getPercentByStatus('overdue')}
+                      price={getTotalAmount('overdue')}
+                      icon="solar:bell-bing-bold-duotone"
+                      color={theme.vars.palette.error.main}
+                    />
+
+                    <InvoiceAnalytic
+                      title="Borradores"
+                      total={getInvoiceLength('draft')}
+                      percent={getPercentByStatus('draft')}
+                      price={getTotalAmount('draft')}
+                      icon="solar:file-corrupted-bold-duotone"
+                      color={theme.vars.palette.text.secondary}
+                    />
+                  </Stack>
                 </Scrollbar>
-              </Box>
+              </Card>
 
-              <TablePaginationCustom
-                page={table.page}
-                dense={table.dense}
-                count={dataFiltered.length}
-                rowsPerPage={table.rowsPerPage}
-                onPageChange={table.onChangePage}
-                onChangeDense={table.onChangeDense}
-                onRowsPerPageChange={table.onChangeRowsPerPage}
-              />
-            </Card>
-          </>
-        )}
+              <Card>
+                {/* "AGREGAR RECIBO" AL FINAL DE LA FILA DE LOS ESTADOS.
+
+                  Suelto encima de la tarjeta se llevaba una linea entera para un
+                  solo boton. Aqui aprovecha el hueco que dejan las pestañas —que
+                  nunca llegan al borde derecho— y queda a la altura de la vista
+                  cuando se termina de elegir el estado.
+
+                  La sombra que subrayaba las pestañas pasa a esta fila: si se
+                  queda en las pestañas, la raya se corta donde acaba la ultima y
+                  el boton flota sin suelo. */}
+                <Box
+                  sx={{
+                    gap: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    pr: { xs: 2, md: 2.5 },
+                    boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                  }}
+                >
+                  <Tabs
+                    value={currentFilters.status}
+                    onChange={handleFilterStatus}
+                    sx={{ px: { md: 2.5 }, flexGrow: 1 }}
+                  >
+                    {TABS.map((tab) => (
+                      <Tab
+                        key={tab.value}
+                        value={tab.value}
+                        label={tab.label}
+                        iconPosition="end"
+                        icon={
+                          <Label
+                            variant={
+                              ((tab.value === 'all' || tab.value === currentFilters.status) &&
+                                'filled') ||
+                              'soft'
+                            }
+                            color={tab.color}
+                          >
+                            {tab.count}
+                          </Label>
+                        }
+                      />
+                    ))}
+                  </Tabs>
+
+                  {!isMemberSessionUser(user) && (
+                    <Button
+                      component={RouterLink}
+                      href={paths.dashboard.invoice.new}
+                      variant="contained"
+                      startIcon={<Iconify icon="mingcute:add-line" />}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      Agregar recibo
+                    </Button>
+                  )}
+                </Box>
+
+                <InvoiceTableToolbar
+                  filters={filters}
+                  dateError={dateError}
+                  onResetPage={table.onResetPage}
+                  options={{ services: INVOICE_SERVICE_OPTIONS.map((option) => option.name) }}
+                  rows={dataFiltered}
+                />
+
+                {canReset && (
+                  <InvoiceTableFiltersResult
+                    filters={filters}
+                    onResetPage={table.onResetPage}
+                    totalResults={dataFiltered.length}
+                    sx={{ p: 2.5, pt: 0 }}
+                  />
+                )}
+
+                <Box sx={{ position: 'relative' }}>
+                  <TableSelectedAction
+                    dense={table.dense}
+                    numSelected={table.selected.length}
+                    rowCount={dataFiltered.length}
+                    onSelectAllRows={(checked) => {
+                      table.onSelectAllRows(
+                        checked,
+                        dataFiltered.map((row) => row.id)
+                      );
+                    }}
+                    action={
+                      <Box sx={{ display: 'flex' }}>
+                        <Tooltip title="Enviar">
+                          <IconButton color="primary">
+                            <Iconify icon="custom:send-fill" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Descargar">
+                          <IconButton color="primary">
+                            <Iconify icon="solar:download-bold" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Imprimir">
+                          <IconButton color="primary">
+                            <Iconify icon="solar:printer-minimalistic-bold" />
+                          </IconButton>
+                        </Tooltip>
+
+                        {canDelete && (
+                          <Tooltip title="Eliminar">
+                            <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                              <Iconify icon="solar:trash-bin-trash-bold" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    }
+                  />
+
+                  <Scrollbar>
+                    <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+                      <TableHeadCustom
+                        order={table.order}
+                        orderBy={table.orderBy}
+                        headCells={TABLE_HEAD}
+                        rowCount={dataFiltered.length}
+                        numSelected={table.selected.length}
+                        onSort={table.onSort}
+                        onSelectAllRows={(checked) =>
+                          table.onSelectAllRows(
+                            checked,
+                            dataFiltered.map((row) => row.id)
+                          )
+                        }
+                      />
+
+                      <TableBody>
+                        {dataFiltered
+                          .slice(
+                            table.page * table.rowsPerPage,
+                            table.page * table.rowsPerPage + table.rowsPerPage
+                          )
+                          .map((row) => (
+                            <InvoiceTableRow
+                              key={row.id}
+                              row={row}
+                              selected={table.selected.includes(row.id)}
+                              onSelectRow={() => table.onSelectRow(row.id)}
+                              onDeleteRow={() => handleDeleteRow(row.id)}
+                              canDelete={canDelete}
+                              editHref={paths.dashboard.invoice.edit(row.id)}
+                              detailsHref={paths.dashboard.invoice.details(row.id)}
+                            />
+                          ))}
+
+                        <TableNoData notFound={notFound} />
+                      </TableBody>
+                    </Table>
+                  </Scrollbar>
+                </Box>
+
+                <TablePaginationCustom
+                  page={table.page}
+                  dense={table.dense}
+                  count={dataFiltered.length}
+                  rowsPerPage={table.rowsPerPage}
+                  onPageChange={table.onChangePage}
+                  onChangeDense={table.onChangeDense}
+                  onRowsPerPageChange={table.onChangeRowsPerPage}
+                />
+              </Card>
+            </>
+          )}
+        </Box>
       </DashboardContent>
 
       {canDelete && renderConfirmDialog()}

@@ -732,6 +732,46 @@ export default {
   'custom:categoria-uniformes': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 19.5a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6"/><path d="M17.5 14.2a6.5 6.5 0 0 1 4 5.3"/></g>',
   },
+  /**
+   * @set Garantias del checkout — de LINEA, dibujados aqui.
+   *
+   * Mismo caso que las categorias: el paquete trae estos tres en relleno y los
+   * cuadros de confianza pedian trazo. Tres iconos macizos en fila pesan mas
+   * que el texto que hay debajo, y lo que tiene que leerse es el texto.
+   */
+  'custom:garantia-escudo': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.5 7.5 9 4.3-1.5 7.5-4.5 7.5-9V6z"/><path d="m9 12 2.2 2.2L15 10.5"/></g>',
+  },
+  'custom:garantia-envio': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2.5 6.5h10v9h-10z"/><path d="M12.5 9.5h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/><path d="M8.8 17.5h5.9"/></g>',
+  },
+  'custom:garantia-medalla': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 1.4 2.9 3.1.45-2.25 2.2.53 3.1L12 14.6l-2.78 1.55.53-3.1-2.25-2.2 3.1-.45z"/></g>',
+  },
+  /**
+   * @set Estados de un pedido — de LINEA, dibujados aqui.
+   *
+   * Se pintan dos veces en la misma pantalla: en la columna de la izquierda y
+   * en la etiqueta de cada fila. En relleno, cinco colores macizos repetidos
+   * cuarenta veces convierten la tabla en un semaforo y el ojo deja de leer los
+   * datos. El color sigue diciendo lo que decia; lo que baja de peso es el
+   * dibujo.
+   */
+  'custom:estado-todos': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M7.5 3.5h6.6L18 7.4v9.1a2 2 0 0 1-2 2H7.5a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2"/><path d="M13.8 3.7v3.6h3.9"/><path d="M8.8 18.5v1a2 2 0 0 0 2 2h6.7a2 2 0 0 0 2-2v-8.6"/></g>',
+  },
+  'custom:estado-pendiente': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4.3l3 1.8"/></g>',
+  },
+  'custom:estado-completado': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.4 2.4 5-5"/></g>',
+  },
+  'custom:estado-cancelado': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="m9.2 9.2 5.6 5.6"/><path d="m14.8 9.2-5.6 5.6"/></g>',
+  },
+  'custom:estado-reembolsado': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 12a7.8 7.8 0 1 0 2.6-5.8"/><path d="M4 4v3.2h3.2"/></g>',
+  },
   'custom:menu-duotone': {
     body: '<path fill="currentColor" opacity="0.4" d="M15.7798 4.5H5.2202C4.27169 4.5 3.5 5.06057 3.5 5.75042C3.5 6.43943 4.27169 7 5.2202 7H15.7798C16.7283 7 17.5 6.43943 17.5 5.75042C17.5 5.06054 16.7283 4.5 15.7798 4.5Z" ></path> <path fill="currentColor" d="M18.7798 10.75H8.2202C7.27169 10.75 6.5 11.3106 6.5 12.0004C6.5 12.6894 7.27169 13.25 8.2202 13.25H18.7798C19.7283 13.25 20.5 12.6894 20.5 12.0004C20.5 11.3105 19.7283 10.75 18.7798 10.75Z" ></path> <path fill="currentColor" d="M15.7798 17H5.2202C4.27169 17 3.5 17.5606 3.5 18.2504C3.5 18.9394 4.27169 19.5 5.2202 19.5H15.7798C16.7283 19.5 17.5 18.9394 17.5 18.2504C17.5 17.5606 16.7283 17 15.7798 17Z" ></path>',
   },

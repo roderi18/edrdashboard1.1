@@ -43,7 +43,7 @@ test('las tres listas tienen el mismo tope de ancho, fijo', () => {
   // Ni estrechas ni fluidas: fijas. Con tope de plantilla ('lg') la tienda
   // desperdiciaba media pantalla; sin tope, alejar el zoom no alejaba la pagina
   // sino que la ensanchaba, metiendo mas columnas y filas cada vez mas vacias.
-  assert.match(vista, /maxWidth: 1600,/);
+  assert.match(vista, /maxWidth: ANCHO_DEL_MARCO,/);
   assert.doesNotMatch(vista, /maxWidth=\{displayMode === 'grid' \? false : 'lg'\}/);
 
   // Los pedidos y los recibos, con tope FIJO: sin el, alejar el zoom no alejaba
@@ -52,11 +52,11 @@ test('las tres listas tienen el mismo tope de ancho, fijo', () => {
   // compacto" encendido en Ajustes.
   assert.match(
     leer('src/sections/invoice/view/invoice-list-view.jsx'),
-    /sx=\{\{ maxWidth: 1600, mx: 'auto' \}\}/
+    /maxWidth: ANCHO_DEL_MARCO, mx: 'auto'/
   );
   assert.match(
     leer('src/sections/order/view/order-list-view.jsx'),
-    /sx=\{\{ maxWidth: 1600, mx: 'auto' \}\}/
+    /maxWidth: ANCHO_DEL_MARCO, mx: 'auto'/
   );
 });
 

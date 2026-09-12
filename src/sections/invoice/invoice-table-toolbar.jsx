@@ -12,7 +12,6 @@ import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { fDateTime } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
@@ -33,7 +32,10 @@ const INVOICE_EXPORT_COLUMNS = [
   { label: 'Monto', value: (row) => fDopCurrency(row.totalAmount) },
   { label: 'Enviado', value: (row) => row.sent },
   { label: 'Estado', value: (row) => row.status },
-  { label: 'Items', value: (row) => (row.items || []).map((item) => item.title || item.name).join(', ') },
+  {
+    label: 'Items',
+    value: (row) => (row.items || []).map((item) => item.title || item.name).join(', '),
+  },
 ];
 
 export function InvoiceTableToolbar({ filters, options, dateError, onResetPage, rows = [] }) {
@@ -112,17 +114,47 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage, 
 
   return (
     <>
+      {/* LA MISMA BARRA QUE LA LISTA DE PEDIDOS.
+
+          Una rejilla que se parte sola, y el BUSCADOR PRIMERO. Estaba al final,
+          detras de los tres desplegables: es lo que se usa nada mas entrar
+          —"el recibo de tal"— y habia que cruzar la fila entera para llegar,
+          ademas de aprenderse un orden distinto en cada una de las dos listas,
+          que son hermanas.
+
+          Las fechas van con el calendario del proyecto y en el formato de la
+          casa, como en pedidos. */}
       <Box
         sx={{
           p: 2.5,
           gap: 2,
-          display: 'flex',
-          pr: { xs: 2.5, md: 1 },
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'flex-end', md: 'center' },
+          display: 'grid',
+          alignItems: 'center',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: '1.6fr repeat(3, 1fr) auto',
+          },
         }}
       >
-        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 180 } }}>
+        <TextField
+          fullWidth
+          size="small"
+          value={currentFilters.name}
+          onChange={handleFilterName}
+          placeholder="Buscar miembro o número de recibo…"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+
+        <FormControl fullWidth size="small">
           <InputLabel htmlFor="filter-service-select">Servicio</InputLabel>
           <Select
             multiple
@@ -151,59 +183,32 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage, 
 
         <DatePicker
           label="Fecha inicial"
+          format="DD/MM/YYYY"
           value={currentFilters.startDate}
           onChange={handleFilterStartDate}
-          sx={{ maxWidth: { md: 180 } }}
+          slotProps={{ textField: { fullWidth: true, size: 'small' } }}
         />
 
         <DatePicker
           label="Fecha final"
+          format="DD/MM/YYYY"
           value={currentFilters.endDate}
           onChange={handleFilterEndDate}
           slotProps={{
             textField: {
+              fullWidth: true,
+              size: 'small',
               error: dateError,
-              helperText: dateError ? 'La fecha final debe ser posterior a la fecha inicial' : null,
-            },
-          }}
-          sx={{
-            maxWidth: { md: 180 },
-            [`& .${formHelperTextClasses.root}`]: {
-              bottom: { md: -40 },
-              position: { md: 'absolute' },
+              // El aviso va en el campo que esta mal: "revisa las fechas"
+              // obliga a adivinar cual de las dos.
+              helperText: dateError ? 'Es anterior a la inicial' : null,
             },
           }}
         />
 
-        <Box
-          sx={{
-            gap: 2,
-            width: 1,
-            flexGrow: 1,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <TextField
-            fullWidth
-            value={currentFilters.name}
-            onChange={handleFilterName}
-            placeholder="Buscar miembro o numero de recibo..."
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-
-          <IconButton onClick={menuActions.onOpen}>
-            <Iconify icon="eva:more-vertical-fill" />
-          </IconButton>
-        </Box>
+        <IconButton onClick={menuActions.onOpen} sx={{ justifySelf: 'end' }}>
+          <Iconify icon="eva:more-vertical-fill" />
+        </IconButton>
       </Box>
 
       {renderMenuActions()}

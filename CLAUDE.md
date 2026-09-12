@@ -42,6 +42,16 @@ Suite que lo cubre: `npm run test:acceso`.
 - Prettier: 100 columnas, comillas simples, 2 espacios, LF.
 - **El repositorio no está limpio de formato**: formatea solo lo que tocas, o el
   diff se llena de reformateo ajeno.
+- **Una imagen de referencia es el QUÉ, no el CON QUÉ.** Cuando llegue una
+  captura o una maqueta para copiar, se reproduce la *disposición* con los
+  **componentes y los colores del proyecto**: `Label`, `Iconify` (iconos del
+  paquete de `src/components/iconify/icon-sets.js`, nunca uno sin registrar
+  —se carga por internet y parpadea—), la paleta del tema, y el
+  `DashboardContent` con las medidas de `src/components/commerce/commerce-layout.js`
+  en las pantallas de la tienda. Nada de hex sueltos copiados del pixel: el
+  cian `#00B8D9` de la plantilla ya se colaba dos veces donde tocaba el verde
+  de la casa (`primary`). Si el color no distingue una cosa de otra —tres
+  garantías, no tres estados—, va uno solo.
 - **Fechas: siempre el calendario del proyecto**, nunca `<input type="date">` ni
   `datetime-local`. Con formulario, `Field.DatePicker` / `Field.DateTimePicker`
   (`src/components/hook-form`); sin él, `DatePicker` / `DateTimePicker` de

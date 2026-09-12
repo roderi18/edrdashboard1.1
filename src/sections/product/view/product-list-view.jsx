@@ -32,6 +32,7 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { TablePaginationCustom } from 'src/components/table';
+import { ANCHO_DEL_MARCO } from 'src/components/commerce/commerce-layout';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
@@ -303,7 +304,7 @@ export function ProductListView() {
           // El tope va aqui y no en `maxWidth` porque esa prop solo se aplica
           // con el "diseño compacto" encendido en Ajustes, que cada quien tiene
           // como quiere.
-          maxWidth: 1600,
+          maxWidth: ANCHO_DEL_MARCO,
         }}
       >
         {/* SIN TITULO NI MIGAS. La tienda entra por su propia portada

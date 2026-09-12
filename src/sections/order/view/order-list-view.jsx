@@ -29,6 +29,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { ExportTableButton } from 'src/components/export-table-button';
+import { ANCHO_DEL_MARCO } from 'src/components/commerce/commerce-layout';
 import { CommerceListSkeleton } from 'src/components/commerce/commerce-list-skeleton';
 import {
   useTable,
@@ -221,7 +222,7 @@ export function OrderListView() {
           
           1600 es el ancho que tenia esta lista en una pantalla normal: se
           conserva tal cual, y ahora el zoom hace lo suyo. */}
-      <DashboardContent maxWidth={false} sx={{ maxWidth: 1600, mx: 'auto' }}>
+      <DashboardContent maxWidth={false} sx={{ maxWidth: ANCHO_DEL_MARCO, mx: 'auto' }}>
         <StoreHeader sx={{ mb: 3 }} />
 
         {/* SIN BOTON DE "FILTROS". Escondia detras de un clic lo que se usa

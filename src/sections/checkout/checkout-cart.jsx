@@ -17,6 +17,7 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { useCheckoutContext } from './context';
 import { CheckoutSummary } from './checkout-summary';
+import { CheckoutTrustBadges } from './checkout-trust-badges';
 import { CheckoutCartProductList } from './checkout-cart-product-list';
 
 // ----------------------------------------------------------------------
@@ -116,6 +117,22 @@ export function CheckoutCart() {
         >
           Continuar
         </Button>
+
+        {/* LAS GARANTIAS, DESPUES DEL BOTON. Es el momento de la duda, y es lo
+            que la responde.
+
+            "Envio gratis" solo se promete cuando el resumen NO esta cobrando
+            envio: prometerlo con un cargo a la vista, dos lineas mas arriba, es
+            perder la confianza que este cuadro venia a dar. */}
+        <CheckoutTrustBadges
+          items={[
+            { label: 'Compra segura', icono: 'custom:garantia-escudo' },
+            ...(checkoutState.shipping
+              ? []
+              : [{ label: 'Envío gratis', icono: 'custom:garantia-envio' }]),
+            { label: 'Garantía ER', icono: 'custom:garantia-medalla' },
+          ]}
+        />
       </Grid>
     </Grid>
   );
