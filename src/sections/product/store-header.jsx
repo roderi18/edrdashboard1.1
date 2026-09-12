@@ -12,7 +12,6 @@ import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -32,7 +31,6 @@ import {
 import {
   DISPOSICION_FRANJA,
   DESTINOS_REVERSION,
-  DISPOSICION_CLASICA,
   obtenerEncabezadoTienda,
   guardarEncabezadoTienda,
   revertirEncabezadoTienda,
@@ -144,11 +142,19 @@ export function StoreHeader({ sx }) {
   // le sirve de nada y las reglas no se lo dejarian leer de todos modos.
   const [analiticas, setAnaliticas] = useState({});
 
+  // EL LAPIZ ABRE EL EDITOR, SIN ESCALA INTERMEDIA. Antes pasaba por un
+  // formulario flotante con los textos y de ahi habia que pulsar "Avanzados":
+  // dos pasos para lo mismo, y el formulario tapaba justo la portada que se iba
+  // a tocar. Los textos no se pierden —siguen editandose, pero como piezas del
+  // lienzo, que es donde se ven mientras se escriben—.
   const handleAbrir = useCallback(() => {
     setBorrador(encabezado);
     setFotoNueva(null);
-    dialogo.onTrue();
-  }, [encabezado, dialogo]);
+    setEditandoDiseno(true);
+    obtenerAnaliticasEncabezado()
+      .then(setAnaliticas)
+      .catch(() => setAnaliticas({}));
+  }, [encabezado]);
 
   const handleCerrar = useCallback(() => {
     setFotoNueva(null);
@@ -186,13 +192,13 @@ export function StoreHeader({ sx }) {
     ? encabezado.disenoAvanzado
     : disenoDesdeEncabezado(encabezado);
 
-  const handleAbrirAvanzados = useCallback(() => {
-    dialogo.onFalse();
-    setEditandoDiseno(true);
-    obtenerAnaliticasEncabezado()
-      .then(setAnaliticas)
-      .catch(() => setAnaliticas({}));
-  }, [dialogo]);
+  // La foto se cambia desde el editor, en su propio flotante: es lo unico del
+  // formulario viejo que no se puede colocar en el lienzo.
+  const handleAbrirFoto = useCallback(() => {
+    setBorrador(encabezado);
+    setFotoNueva(null);
+    dialogo.onTrue();
+  }, [encabezado, dialogo]);
 
   // El editor coloca; donde se guardan los archivos lo sabe la tienda.
   const handleSubirImagenDelDiseno = useCallback(async (archivo) => {
@@ -277,10 +283,10 @@ export function StoreHeader({ sx }) {
     return (
       <Stack
         direction="row"
-        spacing={1.5}
+        spacing={{ xs: 2, md: 3 }}
         alignItems="center"
         sx={{
-          px: 2,
+          px: { xs: 2.5, md: 4 },
           height: 1,
           color: 'common.white',
           // El mismo velo que lleva la portada: sin el, el titulo blanco sobre
@@ -289,37 +295,52 @@ export function StoreHeader({ sx }) {
             `linear-gradient(135deg, ${varAlpha(theme.vars.palette.common.blackChannel, 0.72)} 0%, ${varAlpha(theme.vars.palette.common.blackChannel, 0.48)} 100%)`,
         }}
       >
-        <Box sx={{ p: 0.5, flexShrink: 0, borderRadius: 1, bgcolor: 'common.white' }}>
-          <Logo disabled sx={{ width: 28, height: 28 }} />
+        <Box sx={{ p: 1, flexShrink: 0, borderRadius: 2, bgcolor: 'common.white' }}>
+          <Logo disabled sx={{ width: 48, height: 48 }} />
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" sx={{ display: 'block', opacity: 0.72, fontSize: 9 }}>
-            TIENDA OFICIAL
+          <Typography
+            variant="overline"
+            sx={{ display: 'block', opacity: 0.72, letterSpacing: 1.2 }}
+          >
+            Tienda oficial
           </Typography>
 
-          <Typography variant="subtitle2" noWrap>
+          <Typography variant="h4" sx={{ mt: 0.25 }}>
             {borrador.titulo}
           </Typography>
 
-          {franjaEnBorrador && (
-            <Typography variant="caption" sx={{ display: 'block', opacity: 0.72, fontSize: 9 }}>
+          {franjaEnBorrador ? (
+            <Typography
+              variant="overline"
+              sx={{ display: 'block', mt: 0.25, opacity: 0.72, letterSpacing: 1.2 }}
+            >
               {borrador.pieTitulo}
+            </Typography>
+          ) : (
+            /* EN LA CLASICA EL LEMA VA DEBAJO DEL TITULO, como en la portada.
+               Puesto a la derecha —que es donde va en la franja— quedaba fuera
+               del borde y en el dialogo no se veia el lema por ninguna parte. */
+            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.8, fontStyle: 'italic' }}>
+              {borrador.subtitulo}
             </Typography>
           )}
         </Box>
 
         {franjaEnBorrador && (
-          <Divider
-            flexItem
-            orientation="vertical"
-            sx={{ borderColor: 'currentColor', opacity: 0.32, my: 2 }}
-          />
-        )}
+          <>
+            <Divider
+              flexItem
+              orientation="vertical"
+              sx={{ borderColor: 'currentColor', opacity: 0.32 }}
+            />
 
-        <Typography variant="caption" sx={{ minWidth: 0, opacity: 0.8, fontStyle: 'italic' }}>
-          {borrador.subtitulo}
-        </Typography>
+            <Typography variant="body1" sx={{ minWidth: 0, opacity: 0.8, fontStyle: 'italic' }}>
+              {borrador.subtitulo}
+            </Typography>
+          </>
+        )}
       </Stack>
     );
   };
@@ -372,6 +393,8 @@ export function StoreHeader({ sx }) {
           onCancelar={() => setEditandoDiseno(false)}
           onSubirImagen={handleSubirImagenDelDiseno}
           analiticas={analiticas}
+          onAbrirFoto={handleAbrirFoto}
+          onReversar={menuDeReversion.onOpen}
         />
       </Box>
     );
@@ -384,6 +407,18 @@ export function StoreHeader({ sx }) {
   // el se iba el dialogo del lapiz: al guardar un diseño, el lapiz alternaba un
   // estado que ya no pintaba nadie y parecia que no abria. Ahora es solo el
   // cuerpo, y el dialogo vive fuera de las tres formas del encabezado.
+  // EL LAPIZ, LEGIBLE SOBRE CUALQUIER FOTO. Un icono blanco a secas desaparece
+  // en cuanto la portada lleva cielo, nieve o una pared clara detras. Se le pone
+  // un disco oscuro translucido —que funciona igual sobre claro y sobre oscuro—
+  // y una sombra, en vez de elegir un color que solo sirva para algunas fotos.
+  const estiloDelLapiz = (theme) => ({
+    color: 'common.white',
+    bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.48),
+    backdropFilter: 'blur(6px)',
+    boxShadow: `0 2px 8px ${varAlpha(theme.vars.palette.common.blackChannel, 0.48)}`,
+    '&:hover': { bgcolor: varAlpha(theme.vars.palette.common.blackChannel, 0.72) },
+  });
+
   const renderPortadaConDiseno = () => (
     <Box sx={[{ position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}>
       <HeaderVisualCanvas
@@ -399,7 +434,7 @@ export function StoreHeader({ sx }) {
         <IconButton
           aria-label="Editar encabezado de la tienda"
           onClick={handleAbrir}
-          sx={{ top: 8, right: 8, position: 'absolute', color: 'common.white' }}
+          sx={[{ top: 8, right: 8, position: 'absolute' }, estiloDelLapiz]}
         >
           <Iconify icon="solar:pen-bold" />
         </IconButton>
@@ -506,7 +541,7 @@ export function StoreHeader({ sx }) {
           <IconButton
             aria-label="Editar encabezado de la tienda"
             onClick={handleAbrir}
-            sx={{ color: 'common.white', flexShrink: 0, alignSelf: 'flex-start' }}
+            sx={[{ flexShrink: 0, alignSelf: 'flex-start' }, estiloDelLapiz]}
           >
             <Iconify icon="solar:pen-bold" />
           </IconButton>
@@ -519,11 +554,12 @@ export function StoreHeader({ sx }) {
     <>
       {disenoActivo ? renderPortadaConDiseno() : renderPortadaSimple()}
 
-      {/* MAS ANCHO QUE ALTO, COMO LO QUE SE EDITA. La portada es una franja
-          apaisada: en el dialogo estrecho el recuadro de la foto salia del
-          tamano de un sello y no se veia lo que se estaba encuadrando. */}
+      {/* SOLO LA FOTO. El formulario de textos se fue: el titulo, el lema y el
+          pie se escriben ahora sobre el propio encabezado, donde se ven mientras
+          se escriben. Aqui queda lo unico que no se puede colocar en el lienzo
+          —elegir el archivo y encuadrarlo—, y se abre desde el editor. */}
       <Dialog fullWidth maxWidth="md" open={dialogo.value} onClose={handleCerrar}>
-        <DialogTitle>Encabezado de la tienda</DialogTitle>
+        <DialogTitle>Fotografía de la portada</DialogTitle>
 
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
@@ -536,106 +572,10 @@ export function StoreHeader({ sx }) {
               altura={borrador.disenoAvanzado?.altura}
               deshabilitado={guardando}
             />
-
-            <TextField
-              fullWidth
-              label="Título"
-              value={borrador.titulo}
-              onChange={(event) =>
-                setBorrador((actual) => ({ ...actual, titulo: event.target.value }))
-              }
-              helperText={`En blanco vuelve a "${ENCABEZADO_TIENDA_POR_DEFECTO.titulo}".`}
-            />
-
-            <TextField
-              select
-              fullWidth
-              label="Disposición"
-              value={borrador.disposicion}
-              onChange={(event) =>
-                setBorrador((actual) => ({ ...actual, disposicion: event.target.value }))
-              }
-              helperText={
-                borrador.disenoAvanzado?.activo
-                  ? 'Con el diseño avanzado encendido manda el diseño: esto vuelve a usarse al apagarlo.'
-                  : 'Cómo se colocan los textos sobre la portada.'
-              }
-            >
-              <MenuItem value={DISPOSICION_CLASICA}>Clásica: el lema debajo del título</MenuItem>
-              <MenuItem value={DISPOSICION_FRANJA}>
-                Franja: título y lema separados por una raya
-              </MenuItem>
-            </TextField>
-
-            {/* Solo se lee en la franja: en la clasica no hay donde ponerlo, y
-                un campo que no se ve en ningun sitio confunde mas que ayuda. */}
-            {borrador.disposicion === DISPOSICION_FRANJA && (
-              <TextField
-                fullWidth
-                label="Texto bajo el título"
-                value={borrador.pieTitulo}
-                onChange={(event) =>
-                  setBorrador((actual) => ({ ...actual, pieTitulo: event.target.value }))
-                }
-                helperText={`En blanco vuelve a "${ENCABEZADO_TIENDA_POR_DEFECTO.pieTitulo}".`}
-              />
-            )}
-
-            <TextField
-              fullWidth
-              label="Subtítulo"
-              value={borrador.subtitulo}
-              onChange={(event) =>
-                setBorrador((actual) => ({ ...actual, subtitulo: event.target.value }))
-              }
-              helperText={`En blanco vuelve a "${ENCABEZADO_TIENDA_POR_DEFECTO.subtitulo}".`}
-            />
           </Stack>
         </DialogContent>
 
         <DialogActions>
-          {/* AVANZADOS NO ES OTRO FORMULARIO: cierra este dialogo y deja el
-              encabezado editable en su propio sitio. */}
-          <Button
-            variant="contained"
-            onClick={handleAbrirAvanzados}
-            startIcon={<Iconify icon="solar:pallete-2-bold" />}
-            sx={{
-              mr: 'auto',
-              color: 'common.white',
-              // MULTICOLOR, Y A PROPOSITO. Es el unico boton del dialogo que no
-              // guarda ni cancela: abre otra cosa. Con el mismo aspecto que los
-              // de al lado se pulsaba por error creyendo que era "Guardar".
-              //
-              // El degradado se queda quieto —nada de colores girando— porque
-              // esto vive junto a un editor que ya ofrece parpadeo, y dos cosas
-              // moviendose a la vez en la misma pantalla cansan.
-              backgroundImage: (theme) =>
-                `linear-gradient(135deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.info.main} 30%, ${theme.vars.palette.secondary.main} 55%, ${theme.vars.palette.warning.main} 78%, ${theme.vars.palette.error.main} 100%)`,
-              backgroundSize: '200% 100%',
-              transition: (theme) => theme.transitions.create(['background-position']),
-              '&:hover': { backgroundPosition: '100% 0' },
-            }}
-          >
-            Avanzados
-          </Button>
-
-          {/* UN ICONO Y DOS SALIDAS. Escrito con todas sus letras, "volver" ocupaba
-              media fila de botones y aun asi solo ofrecia una de las dos formas
-              de deshacer. */}
-          <Button
-            color="inherit"
-            onClick={menuDeReversion.onOpen}
-            disabled={guardando}
-            startIcon={<Iconify icon="solar:history-bold" />}
-            // LA FLECHITA DICE QUE HAY MAS DEBAJO. Sin ella, un boton llamado
-            // "Reversar" parece que reversa al pulsarlo, y esto abre dos
-            // opciones antes de tocar nada.
-            endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
-          >
-            Reversar
-          </Button>
-
           <Button color="inherit" onClick={handleCerrar}>
             Cancelar
           </Button>

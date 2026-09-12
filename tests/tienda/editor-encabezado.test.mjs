@@ -551,7 +551,7 @@ test('el lapiz abre tambien con un diseño guardado', () => {
   assert.match(portada, /const renderPortadaConDiseno = \(\) => \(/);
   assert.match(portada, /\{disenoActivo \? renderPortadaConDiseno\(\) : renderPortadaSimple\(\)\}/);
   // Un solo sitio donde vive el dialogo, fuera de las formas del encabezado.
-  assert.equal(portada.match(/<Dialog /g).length, 1);
+  assert.equal(portada.match(/<Dialog[\s>]/g).length, 1);
 });
 
 test('revertir se pregunta antes de hacerlo, y ofrece dos destinos', () => {
@@ -560,9 +560,11 @@ test('revertir se pregunta antes de hacerlo, y ofrece dos destinos', () => {
   assert.match(portada, /<ConfirmDialog/);
   assert.match(portada, /Volver al diseño anterior/);
   assert.match(portada, /Diseño de fábrica/);
-  // Y la flechita avisa de que despliega, en vez de reversar al pulsarlo.
-  assert.match(portada, /Reversar/);
-  assert.match(portada, /icon="eva:arrow-ios-downward-fill"/);
+  // El boton vive en la barra del editor desde que el lapiz abre el editor
+  // directamente; el menu y la confirmacion siguen aqui.
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
+  assert.match(editor, />\s*Reversar\s*</);
+  assert.match(editor, /onClick=\{onReversar\}/);
   assert.doesNotMatch(portada, /Volver al encabezado simple/);
   // Sin un cambio anterior, esa salida no se ofrece.
   assert.match(portada, /disabled=\{!encabezado\.anterior\}/);
@@ -846,9 +848,10 @@ test('los botones que despliegan lo dicen con una flecha', () => {
 
   // Sin la flecha, un boton llamado "Formas" parece que agrega una forma al
   // pulsarlo, y lo que hace es abrir tres opciones.
-  // "Texto parpadeante", "Formas" y "Programación": los tres que abren algo.
-  assert.equal(editor.match(/eva:arrow-ios-downward-fill/g).length, 3);
-  assert.match(portada, /eva:arrow-ios-downward-fill/);
+  // "Texto parpadeante", "Formas", "Programación" y "Reversar": los cuatro que
+  // abren algo, todos en la barra del editor.
+  assert.equal(editor.match(/eva:arrow-ios-downward-fill/g).length, 4);
+  assert.doesNotMatch(portada, /eva:arrow-ios-downward-fill/);
 });
 
 test('las formas se eligen en un flotante, con el componente que ya existia', () => {
@@ -1112,7 +1115,7 @@ test('el recuadro de la foto enseña la portada entera, no la foto sola', () => 
   // escudo con sus textos cuando no lo hay.
   assert.match(portada, /const renderPortadaEnMiniatura = \(\) => \{/);
   assert.match(portada, /<HeaderVisualCanvas\s*\n\s*diseno=\{borrador\.disenoAvanzado\}/);
-  assert.match(portada, /<Logo disabled sx=\{\{ width: 28, height: 28 \}\} \/>/);
+  assert.match(portada, /<Logo disabled sx=\{\{ width: 48, height: 48 \}\} \/>/);
 });
 
 test('nada se lee antes de declararse: la portada se pinta', () => {
@@ -1141,24 +1144,78 @@ test('nada se lee antes de declararse: la portada se pinta', () => {
   });
 });
 
-test('la disposicion avisa cuando el diseño avanzado la deja sin efecto', () => {
-  // Elegir "Franja" y que la portada no cambie parece un fallo del guardado; lo
-  // que pasa es que el diseño libre se pinta en su lugar.
+test('el lapiz abre el editor, y el flotante se queda solo con la foto', () => {
+  // Antes el lapiz abria un formulario de textos y de ahi habia que pulsar
+  // "Avanzados": dos pasos para lo mismo, y el formulario tapaba justo la
+  // portada que se iba a tocar. Los textos no se pierden: se escriben sobre el
+  // encabezado, que es donde se ven mientras se escriben.
   const portada = leer('src/sections/product/store-header.jsx');
+  const editor = leer('src/components/header-visual-editor/header-visual-editor.jsx');
 
-  assert.match(portada, /Con el diseño avanzado encendido manda el diseño/);
+  assert.match(portada, /setEditandoDiseno\(true\);/);
+  assert.doesNotMatch(portada, /label="Título"/);
+  assert.doesNotMatch(portada, /label="Disposición"/);
+  assert.doesNotMatch(portada, /label="Subtítulo"/);
+  assert.match(portada, /<DialogTitle>Fotografía de la portada<\/DialogTitle>/);
+
+  // Y la foto se abre desde la barra del editor.
+  assert.match(editor, />\s*Fotografía\s*</);
+  assert.match(portada, /onAbrirFoto=\{handleAbrirFoto\}/);
 });
 
-test('la miniatura es la portada encogida, no un dibujo a tamaño fijo', () => {
-  // Pintar el texto a tamaño fijo dentro de un recuadro cuya altura depende del
-  // ancho del navegador daba resultados distintos en cada pantalla: el titulo y
-  // el lema encima uno de otro en una, holgados en otra.
-  const foto = leer('src/sections/product/store-header-photo.jsx');
+test('el lapiz se ve sobre cualquier foto', () => {
+  // Un icono blanco a secas desaparece en cuanto la portada lleva cielo, nieve
+  // o una pared clara detras.
+  const portada = leer('src/sections/product/store-header.jsx');
 
-  assert.match(foto, /const escala =/);
+  assert.match(portada, /const estiloDelLapiz = \(theme\) => \(\{/);
+  assert.match(portada, /backdropFilter: 'blur\(6px\)'/);
+  assert.match(portada, /boxShadow: `0 2px 8px/);
+  // En las dos formas del encabezado, no solo en una.
+  assert.equal(portada.match(/estiloDelLapiz\]/g).length, 2);
+});
+
+test('en el flotante se ve el MISMO encuadre que en la portada', () => {
+  // Los mismos angulos: el encabezado entero, a menor escala. Medir igual de
+  // ancho es imposible sin ensanchar el dialogo; con el alto en pixeles y el
+  // ancho recortado se veia un pedazo ampliado, y ahi no se juzga el encuadre.
+  const foto = leer('src/sections/product/store-header-photo.jsx');
+  const portada = leer('src/sections/product/store-header.jsx');
+
+  assert.match(portada, /<Dialog fullWidth maxWidth="md"/);
+  // La FORMA de la portada, medida.
+  // El recuadro se estira hacia abajo un poco —para colocar con holgura— pero
+  // el ancho no se toca, que es lo que fija los angulos.
+  // El numero es de ajuste fino —se sube o se baja a ojo—; lo que no puede
+  // faltar es la constante y que solo toque el alto.
+  assert.match(foto, /const ESTIRADO_VERTICAL = [\d.]+;/);
+  assert.match(
+    foto,
+    /aspectRatio: `\$\{ANCHO\} \/ \$\{Math\.round\(alto \* ESTIRADO_VERTICAL\)\}`/
+  );
+  assert.match(foto, /medidaPortada\.ancho \/ medidaPortada\.alto/);
+  assert.match(foto, /aspect=\{proporcion\}/);
+  // Y la maqueta se encoge entera, no se redibuja pequeña.
+  assert.match(foto, /anchoDelMarco \/ medidaPortada\.ancho/);
   assert.match(foto, /transform: `scale\(\$\{escala\}\)`/);
   assert.match(foto, /transformOrigin: 'top left'/);
-  // Se pinta al tamaño REAL del encabezado y se encoge entera.
-  assert.match(foto, /width: medidaPortada\.ancho/);
-  assert.match(foto, /height: medidaPortada\.alto/);
+});
+
+test('en la miniatura el lema va donde lo pone la disposicion', () => {
+  // En la clasica va DEBAJO del titulo. Puesto a la derecha —que es donde va en
+  // la franja— quedaba fuera del borde y en el dialogo no se veia por ninguna
+  // parte.
+  const portada = leer('src/sections/product/store-header.jsx');
+  const miniatura = portada.slice(
+    portada.indexOf('const renderPortadaEnMiniatura'),
+    portada.indexOf('const handleGuardar = useCallback')
+  );
+
+  // Dos sitios para el lema, uno por disposicion.
+  assert.equal(miniatura.match(/\{borrador\.subtitulo\}/g).length, 2);
+  assert.match(miniatura, /\{franjaEnBorrador \? \(/);
+  // Y la maqueta usa los mismos tamaños que la portada, porque se pinta a
+  // tamaño real y se encoge entera.
+  assert.match(miniatura, /variant="h4"/);
+  assert.match(miniatura, /px: \{ xs: 2\.5, md: 4 \}/);
 });

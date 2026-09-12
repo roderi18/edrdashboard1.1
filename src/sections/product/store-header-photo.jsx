@@ -42,6 +42,17 @@ import { Iconify } from 'src/components/iconify';
 // lienzo de referencia, que es mejor que no pintar nada.
 const ANCHO = 1600;
 
+// CUANTO SE ESTIRA HACIA ABAJO EL RECUADRO DEL DIALOGO.
+//
+// 1 es la forma exacta de la portada. Por encima, el recuadro se hace mas alto
+// SIN tocar el ancho: se ve un poco mas de foto por arriba y por abajo de lo que
+// entrara en el encabezado, que es comodo para colocar, y el ancho —los angulos
+// que tanto costo cuadrar— se queda igual.
+//
+// Solo afecta a lo que se VE en el dialogo: el recorte que se guarda lo sigue
+// decidiendo `aspect`, que lleva la proporcion del encabezado de verdad.
+const ESTIRADO_VERTICAL = 1.3;
+
 const proporcionDe = (altura, medida) =>
   medida > 0 ? medida : ANCHO_DE_REFERENCIA / Math.max(1, Number(altura) || 1);
 
@@ -111,13 +122,9 @@ export function StoreHeaderPhoto({
 
   const proporcion = proporcionDe(altura, proporcionMedida);
 
-  // CUANTO HAY QUE ENCOGER LA PORTADA PARA QUE QUEPA AQUI.
-  //
-  // La superposicion no se "dibuja pequeña": se pinta al tamaño REAL del
-  // encabezado y se encoge entera. Pintarla a tamaño fijo dentro de un recuadro
-  // cuya altura depende del ancho del navegador daba resultados distintos en
-  // cada pantalla —el titulo y el lema encima uno de otro en una, holgados en
-  // otra—, porque el texto no encogia con la caja.
+  // CUANTO SE ENCOGE LA PORTADA PARA CABER EN EL RECUADRO. El recuadro tiene su
+  // forma pero no su tamaño, asi que la maqueta se reduce en esa misma medida:
+  // todo —el escudo, el titulo, el lema y las distancias— baja a la vez.
   const escala =
     medidaPortada?.ancho > 0 && anchoDelMarco > 0 ? anchoDelMarco / medidaPortada.ancho : 0;
 
@@ -125,6 +132,8 @@ export function StoreHeaderPhoto({
     const nodo = marcoRef.current;
 
     if (!nodo || typeof ResizeObserver === 'undefined') return undefined;
+
+    setAnchoDelMarco(nodo.getBoundingClientRect().width);
 
     const vigilante = new ResizeObserver(([entrada]) =>
       setAnchoDelMarco(entrada.contentRect.width)
@@ -134,6 +143,7 @@ export function StoreHeaderPhoto({
 
     return () => vigilante.disconnect();
   }, []);
+
   const alto = Math.round(ANCHO / proporcion);
 
   const [porEncuadrar, setPorEncuadrar] = useState(null);
@@ -227,7 +237,13 @@ export function StoreHeaderPhoto({
           borderRadius: 1.5,
           overflow: 'hidden',
           position: 'relative',
-          aspectRatio: `${ANCHO} / ${alto}`,
+          // LA MISMA FORMA QUE LA PORTADA. No el mismo tamaño: el dialogo es
+          // mas estrecho que la pagina, asi que medir igual de ancho es
+          // imposible sin ensancharlo. Lo que si se puede —y es lo que hace
+          // falta para encuadrar— es ver EL MISMO TROZO de foto: el encabezado
+          // entero, a menor escala. Con el alto en pixeles y el ancho recortado
+          // se veia un pedazo ampliado, y ahi no se juzga el encuadre.
+          aspectRatio: `${ANCHO} / ${Math.round(alto * ESTIRADO_VERTICAL)}`,
           bgcolor: 'common.black',
           border: (theme) => `dashed 1px ${theme.vars.palette.divider}`,
         }}
@@ -273,6 +289,11 @@ export function StoreHeaderPhoto({
               left: 0,
               position: 'absolute',
               pointerEvents: 'none',
+              // Se pinta al tamaño REAL del encabezado y se encoge entera,
+              // como una maqueta. Dibujarla con tamaños de letra fijos dentro de
+              // un recuadro mas pequeño la descuadraba —el titulo encima del
+              // lema en una pantalla y holgado en otra—, porque el texto no
+              // encogia con la caja.
               width: medidaPortada.ancho,
               height: medidaPortada.alto,
               transform: `scale(${escala})`,

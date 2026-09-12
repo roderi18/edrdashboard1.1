@@ -163,6 +163,8 @@ export function HeaderVisualEditor({
   onGuardar,
   onCancelar,
   onSubirImagen,
+  onAbrirFoto,
+  onReversar,
   analiticas = {},
 }) {
   const lienzoRef = useRef(null);
@@ -812,6 +814,33 @@ export function HeaderVisualEditor({
             onChangeCommitted={cerrarGesto}
           />
         </Stack>
+      )}
+
+      {/* LO QUE VIVIA EN EL PIE DEL FORMULARIO. El lapiz ya no abre un flotante
+          con textos, asi que la foto de la portada y el deshacer de verdad
+          —volver al diseño anterior o al de fabrica— tienen que estar aqui, que
+          es donde se edita. */}
+      {!!onAbrirFoto && (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={onAbrirFoto}
+          startIcon={<Iconify icon="solar:gallery-bold" />}
+        >
+          Fotografía
+        </Button>
+      )}
+
+      {!!onReversar && (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={onReversar}
+          startIcon={<Iconify icon="solar:history-bold" />}
+          endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
+        >
+          Reversar
+        </Button>
       )}
 
       <Box sx={{ flexGrow: 1 }} />

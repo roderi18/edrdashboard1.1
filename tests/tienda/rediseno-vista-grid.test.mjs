@@ -66,10 +66,6 @@ test('la portada tiene dos disposiciones y la clasica sigue siendo la de siempre
   assert.match(portada, /\{esFranja \? \(/);
   assert.match(portada, /orientation="vertical"/);
   assert.match(portada, /\{encabezado\.pieTitulo\}/);
-  // Y se elige en el mismo lapiz, con el resto del encabezado.
-  assert.match(portada, /label="Disposición"/);
-  // El texto bajo el titulo solo se pide donde se lee.
-  assert.match(portada, /borrador\.disposicion === DISPOSICION_FRANJA && \(/);
 });
 
 test('la foto de la portada se encuadra en su propio recuadro', () => {
