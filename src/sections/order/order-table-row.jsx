@@ -5,6 +5,7 @@ import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
@@ -24,13 +25,42 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { metodoDePago } from './order-list-filters';
+import { ESTADOS_DE_ORDEN } from './order-status-nav';
+
 // ----------------------------------------------------------------------
 
-const STATUS_LABELS = {
-  pending: 'Pendiente',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
-  refunded: 'Reembolsado',
+// EL ESTADO SALE DE LA MISMA LISTA que las pastillas de arriba y la columna de
+// la izquierda. Tenerlo escrito aqui otra vez era pedir que un pedido cancelado
+// acabara siendo rojo en un sitio y gris en otro.
+const estadoDeOrden = (valor) =>
+  ESTADOS_DE_ORDEN.find((estado) => estado.value === valor) || {
+    label: valor,
+    color: 'default',
+    icono: '',
+  };
+
+/**
+ * Los cuatro ultimos digitos, y nada mas.
+ *
+ * El numero llegaba entero —"**** **** **** 5678"— y ocupaba media columna para
+ * decir lo mismo que dicen los cuatro ultimos, que es lo unico que sirve para
+ * reconocer la tarjeta. Un numero de tarjeta completo, ademas, no tiene por que
+ * estar en una lista que se mira en pantalla compartida.
+ */
+// El ancho de la etiqueta de estado: el que necesita la palabra mas larga
+// —"Reembolsado"— con su icono delante. Las demas se quedan del mismo tamaño.
+const ANCHO_DE_ETIQUETA = 132;
+
+// Cuantas fotos caben sin empujar el resto de la fila fuera de la pantalla.
+// Tres: a partir de la cuarta ya no se distingue una insignia de otra al tamaño
+// que quedan, y lo que dice algo es CUANTAS mas hay.
+const FOTOS_VISIBLES = 3;
+
+const ultimosCuatro = (numero) => {
+  const digitos = String(numero || '').replace(/\D/g, '');
+
+  return digitos.length >= 4 ? `•••• ${digitos.slice(-4)}` : '';
 };
 
 export function OrderTableRow({
@@ -44,6 +74,10 @@ export function OrderTableRow({
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
+
+  const estado = estadoDeOrden(row.status);
+  const pago = metodoDePago(row.payment);
+  const productos = row.items || [];
 
   const renderPrimaryRow = () => (
     <TableRow hover selected={selected}>
@@ -61,76 +95,142 @@ export function OrderTableRow({
       </TableCell>
 
       <TableCell>
-        <Link component={RouterLink} href={detailsHref} color="inherit" underline="always">
-          {row.orderNumber}
-        </Link>
-      </TableCell>
-
-      <TableCell>
-        <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-          <Avatar alt={row.customer.name} src={row.customer.avatarUrl} />
-          <ListItemText
-            primary={row.customer.name}
-            // EL CODIGO DEL USUARIO, Y NADA MAS.
-            //
-            // La lista caia a `customer.id` cuando el pedido no guardo el
-            // codigo, y ese id es el uid de Firebase: bajo el nombre aparecia
-            // "HqIkwPq14JYkfr74HYLc1lgqxT92", que no identifica a nadie para
-            // quien lee la lista y ademas es un identificador interno. Sin
-            // codigo se dice que no lo hay.
-            secondary={
-              row.customer.codigoMiembro ||
-              row.customer.memberId ||
-              row.customer.idMiembros ||
-              'Sin código'
-            }
-            slotProps={{
-              primary: {
-                sx: { typography: 'body2' },
-              },
-              secondary: {
-                sx: { color: 'text.disabled' },
-              },
-            }}
-          />
-        </Box>
-      </TableCell>
-
-      <TableCell>
         <ListItemText
-          primary={fDate(row.createdAt)}
-          secondary={fTime(row.createdAt)}
+          primary={
+            <Link component={RouterLink} href={detailsHref} color="inherit" underline="hover">
+              {row.orderNumber}
+            </Link>
+          }
+          // CUANTOS ARTICULOS LLEVA, debajo del numero. Era una columna entera
+          // para un numero de una cifra, y donde de verdad se busca es pegado al
+          // pedido: "el 6010, el de cinco cosas".
+          secondary={`${productos.length} ${productos.length === 1 ? 'producto' : 'productos'}`}
           slotProps={{
-            primary: {
-              noWrap: true,
-              sx: { typography: 'body2' },
-            },
-            secondary: {
-              sx: { mt: 0.5, typography: 'caption' },
-            },
+            primary: { sx: { typography: 'subtitle2' } },
+            secondary: { sx: { mt: 0.25, typography: 'caption', color: 'text.disabled' } },
           }}
         />
       </TableCell>
 
-      <TableCell align="center"> {row.totalQuantity} </TableCell>
+      <TableCell>
+        {/* LAS FOTOS DE LO COMPRADO. Un pedido se reconoce por lo que lleva
+            mucho antes que por su numero; el "+N" evita que una compra grande
+            empuje el resto de la fila fuera de la pantalla. */}
+        {productos.length ? (
+          /* DE IZQUIERDA A DERECHA, Y EL "+N" AL FINAL. `AvatarGroup` apila al
+             reves y pone el sobrante DELANTE: la primera foto quedaba a la
+             derecha y el "+3" abria la fila, que es justo el orden contrario al
+             que se lee. */
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {productos.slice(0, FOTOS_VISIBLES).map((item, indice) => (
+              <Tooltip key={item.id} title={`${item.name} × ${item.quantity}`}>
+                <Avatar
+                  variant="rounded"
+                  alt={item.name}
+                  src={item.coverUrl}
+                  sx={{
+                    // MAS GRANDES: a 40 px una insignia bordada es una mancha de
+                    // color. El pedido se reconoce por lo que lleva, asi que la
+                    // foto tiene que poder mirarse sin abrir la ficha.
+                    width: 56,
+                    height: 56,
+                    ...(indice > 0 && { ml: -1.5 }),
+                    border: (theme) => `solid 2px ${theme.vars.palette.background.paper}`,
+                  }}
+                />
+              </Tooltip>
+            ))}
 
-      <TableCell> {fDopCurrency(row.subtotal)} </TableCell>
+            {productos.length > FOTOS_VISIBLES && (
+              <Box
+                sx={{
+                  ml: -1.5,
+                  px: 1.25,
+                  height: 56,
+                  display: 'flex',
+                  borderRadius: 1,
+                  alignItems: 'center',
+                  typography: 'caption',
+                  color: 'text.secondary',
+                  bgcolor: 'background.neutral',
+                  border: (theme) => `solid 2px ${theme.vars.palette.background.paper}`,
+                }}
+              >
+                {/* "2+" y no "+2": se lee de corrido con las fotos que tiene
+                    al lado —tres fotos y dos mas—, en el mismo orden en que se
+                    mira la fila. */}
+                {productos.length - FOTOS_VISIBLES}+
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Box sx={{ typography: 'caption', color: 'text.disabled' }}>Sin artículos</Box>
+        )}
+      </TableCell>
 
       <TableCell>
-          <Label
-            variant="soft"
-            color={
-              (row.status === 'completed' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'cancelled' && 'error') ||
-              'default'
-            }
-          >
-          {STATUS_LABELS[row.status] || row.status}
-          </Label>
+        {/* Sin icono de calendario: en una columna que se llama "Fecha" y que
+            lleva una fecha debajo de otra, solo repite lo que ya dice el dato y
+            se come el ancho. */}
+        <ListItemText
+          primary={fDate(row.createdAt)}
+          secondary={fTime(row.createdAt)}
+          slotProps={{
+            primary: { noWrap: true, sx: { typography: 'body2' } },
+            secondary: { sx: { mt: 0.25, typography: 'caption' } },
+          }}
+        />
+      </TableCell>
+
+      <TableCell>
+        <ListItemText
+          primary={fDopCurrency(row.totalAmount ?? row.subtotal)}
+          secondary={
+            <Box component="span" sx={{ gap: 0.5, display: 'inline-flex', alignItems: 'center' }}>
+              <Iconify icon={pago.icono} width={16} />
+              {pago.label}
+              {!!ultimosCuatro(row.payment?.cardNumber) &&
+                ` · ${ultimosCuatro(row.payment.cardNumber)}`}
+            </Box>
+          }
+          slotProps={{
+            primary: { sx: { typography: 'subtitle2' } },
+            secondary: { sx: { mt: 0.25, typography: 'caption', color: 'text.disabled' } },
+          }}
+        />
+      </TableCell>
+
+      <TableCell>
+        {/* TODAS LAS ETIQUETAS, DEL MISMO ANCHO. Ajustadas al texto, "Pendiente"
+            y "Reembolsado" empezaban en el mismo sitio pero terminaban en dos
+            distintos, y la columna quedaba con el borde derecho en zigzag. Con
+            un ancho comun, el icono y la palabra caen siempre en la misma
+            vertical y la columna se lee de arriba abajo. */}
+        <Label
+          variant="soft"
+          color={estado.color}
+          startIcon={estado.icono ? <Iconify icon={estado.icono} /> : null}
+          sx={{ width: ANCHO_DE_ETIQUETA, justifyContent: 'flex-start' }}
+        >
+          {estado.label}
+        </Label>
       </TableCell>
 
       <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
+        {/* "VER DETALLES" CON TODAS SUS LETRAS. Estaba escondido detras de los
+            tres puntos, que es donde vive lo que casi nunca se usa, y resulta
+            que es lo que mas se pulsa de la fila. */}
+        <Button
+          size="small"
+          color="inherit"
+          variant="outlined"
+          component={RouterLink}
+          href={detailsHref}
+          sx={{ mr: 0.5 }}
+        >
+          Ver detalles
+        </Button>
+
         <IconButton
           color={collapseRow.value ? 'inherit' : 'default'}
           onClick={collapseRow.onToggle}

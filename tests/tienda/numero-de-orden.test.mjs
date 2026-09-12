@@ -67,11 +67,16 @@ test('el chat enlaza las tres formas que conviven', () => {
 });
 
 test('bajo el nombre va el codigo del usuario, nunca el uid de Firebase', () => {
+  // La lista de pedidos ya no lleva columna de miembro —cada quien ve los
+  // suyos y el nombre repetido en cuarenta filas no distinguia una de otra—,
+  // asi que la regla vive donde el miembro si se nombra: en la ficha del
+  // pedido. Lo que no puede pasar sigue siendo lo mismo: que asome el uid.
+  const ficha = leer('src/sections/order/order-details-customer.jsx');
   const fila = leer('src/sections/order/order-table-row.jsx');
 
-  assert.match(fila, /row\.customer\.codigoMiembro \|\|/);
-  assert.doesNotMatch(fila, /row\.customer\.id \|\|/);
-  assert.match(fila, /'Sin código'/);
+  assert.match(ficha, /customer\?\.codigoMiembro/);
+  assert.doesNotMatch(ficha, /customer\?\.id/);
+  assert.doesNotMatch(fila, /customer\.id/);
 });
 
 test('el recibo lleva el numero de su pedido: una compra, un numero', () => {
@@ -79,9 +84,15 @@ test('el recibo lleva el numero de su pedido: una compra, un numero', () => {
   const servicioRecibos = leer('src/services/receipt-service.js');
   const servicioOrdenes = leer('src/services/order-service.js');
 
-  assert.match(modelo, /numeroRecibo: normalizeText\(numeroOrden\) \|\| buildReceiptNumber\(\{ createdAt \}\)/);
+  assert.match(
+    modelo,
+    /numeroRecibo: normalizeText\(numeroOrden\) \|\| buildReceiptNumber\(\{ createdAt \}\)/
+  );
   assert.match(servicioRecibos, /numeroOrden,/);
-  assert.match(servicioOrdenes, /guardarReciboFirestore\(\{\s*\n\s*user,\s*\n\s*receiptId,\s*\n\s*orderId,\s*\n\s*numeroOrden,/);
+  assert.match(
+    servicioOrdenes,
+    /guardarReciboFirestore\(\{\s*\n\s*user,\s*\n\s*receiptId,\s*\n\s*orderId,\s*\n\s*numeroOrden,/
+  );
 });
 
 test('un numero ya escrito no se vuelve a inventar al pintarlo', () => {
@@ -98,7 +109,10 @@ test('volver a guardar un recibo no le mueve la fecha de emision', () => {
   const servicio = leer('src/services/receipt-service.js');
 
   // El servicio ya leia la fecha anterior; el modelo no la recogia.
-  assert.match(servicio, /fechaCreacion: previous\.exists\(\) \? previous\.data\(\)\?\.fechaCreacion : null/);
+  assert.match(
+    servicio,
+    /fechaCreacion: previous\.exists\(\) \? previous\.data\(\)\?\.fechaCreacion : null/
+  );
   assert.match(modelo, /fechaCreacion = null,/);
   assert.match(modelo, /const createdAt = fechaCreacion \?\? ahoraTimestamp\(\);/);
 });

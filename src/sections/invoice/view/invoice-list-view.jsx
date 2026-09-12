@@ -295,7 +295,21 @@ export function InvoiceListView() {
 
   return (
     <>
-      <DashboardContent>
+      {/* ANCHO FIJO, NO FLUIDO. Asi es como el zoom aleja de verdad.
+          
+          Sin tope, alejar el zoom no alejaba la pagina: la ensanchaba. El
+          contenedor crecia hasta el nuevo ancho de la ventana y la tabla se
+          estiraba —columnas separandose, filas cada vez mas vacias—, asi que se
+          veia MAS ancho, no mas pequeño.
+          
+          OJO: `maxWidth` de `DashboardContent` SOLO se aplica con el "diseño
+          compacto" encendido en Ajustes; con el apagado pasa `false` y el
+          contenedor va a todo el ancho. Por eso el tope se pone aqui, en `sx`,
+          donde no depende de un ajuste que cada quien tiene como quiere.
+          
+          1600 es el ancho que tenia esta lista en una pantalla normal: se
+          conserva tal cual, y ahora el zoom hace lo suyo. */}
+      <DashboardContent maxWidth={false} sx={{ maxWidth: 1600, mx: 'auto' }}>
         <CustomBreadcrumbs
           heading="Lista de recibos"
           links={[
@@ -321,203 +335,206 @@ export function InvoiceListView() {
         {loadingInvoices ? (
           <CommerceListSkeleton showAnalytics rowCount={6} cellCount={8} />
         ) : (
-        <>
-        <Card sx={{ mb: { xs: 3, md: 5 } }}>
-          <Scrollbar sx={{ minHeight: 108 }}>
-            <Stack
-              divider={<Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />}
-              sx={{ py: 2, flexDirection: 'row' }}
-            >
-              <InvoiceAnalytic
-                title="Total"
-                total={visibleTableData.length}
-                percent={100}
-                price={sumBy(visibleTableData, (invoice) => invoice.totalAmount)}
-                icon="solar:bill-list-bold-duotone"
-                color={theme.vars.palette.info.main}
-              />
+          <>
+            <Card sx={{ mb: { xs: 3, md: 5 } }}>
+              <Scrollbar sx={{ minHeight: 108 }}>
+                <Stack
+                  divider={
+                    <Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />
+                  }
+                  sx={{ py: 2, flexDirection: 'row' }}
+                >
+                  <InvoiceAnalytic
+                    title="Total"
+                    total={visibleTableData.length}
+                    percent={100}
+                    price={sumBy(visibleTableData, (invoice) => invoice.totalAmount)}
+                    icon="solar:bill-list-bold-duotone"
+                    color={theme.vars.palette.info.main}
+                  />
 
-              <InvoiceAnalytic
-                title="Pagados"
-                total={getInvoiceLength('paid')}
-                percent={getPercentByStatus('paid')}
-                price={getTotalAmount('paid')}
-                icon="solar:file-check-bold-duotone"
-                color={theme.vars.palette.success.main}
-              />
+                  <InvoiceAnalytic
+                    title="Pagados"
+                    total={getInvoiceLength('paid')}
+                    percent={getPercentByStatus('paid')}
+                    price={getTotalAmount('paid')}
+                    icon="solar:file-check-bold-duotone"
+                    color={theme.vars.palette.success.main}
+                  />
 
-              <InvoiceAnalytic
-                title="Pendientes"
-                total={getInvoiceLength('pending')}
-                percent={getPercentByStatus('pending')}
-                price={getTotalAmount('pending')}
-                icon="solar:sort-by-time-bold-duotone"
-                color={theme.vars.palette.warning.main}
-              />
+                  <InvoiceAnalytic
+                    title="Pendientes"
+                    total={getInvoiceLength('pending')}
+                    percent={getPercentByStatus('pending')}
+                    price={getTotalAmount('pending')}
+                    icon="solar:sort-by-time-bold-duotone"
+                    color={theme.vars.palette.warning.main}
+                  />
 
-              <InvoiceAnalytic
-                title="Vencidos"
-                total={getInvoiceLength('overdue')}
-                percent={getPercentByStatus('overdue')}
-                price={getTotalAmount('overdue')}
-                icon="solar:bell-bing-bold-duotone"
-                color={theme.vars.palette.error.main}
-              />
+                  <InvoiceAnalytic
+                    title="Vencidos"
+                    total={getInvoiceLength('overdue')}
+                    percent={getPercentByStatus('overdue')}
+                    price={getTotalAmount('overdue')}
+                    icon="solar:bell-bing-bold-duotone"
+                    color={theme.vars.palette.error.main}
+                  />
 
-              <InvoiceAnalytic
-                title="Borradores"
-                total={getInvoiceLength('draft')}
-                percent={getPercentByStatus('draft')}
-                price={getTotalAmount('draft')}
-                icon="solar:file-corrupted-bold-duotone"
-                color={theme.vars.palette.text.secondary}
-              />
-            </Stack>
-          </Scrollbar>
-        </Card>
+                  <InvoiceAnalytic
+                    title="Borradores"
+                    total={getInvoiceLength('draft')}
+                    percent={getPercentByStatus('draft')}
+                    price={getTotalAmount('draft')}
+                    icon="solar:file-corrupted-bold-duotone"
+                    color={theme.vars.palette.text.secondary}
+                  />
+                </Stack>
+              </Scrollbar>
+            </Card>
 
-        <Card>
-          <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
-            sx={{
-              px: { md: 2.5 },
-              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-            }}
-          >
-            {TABS.map((tab) => (
-              <Tab
-                key={tab.value}
-                value={tab.value}
-                label={tab.label}
-                iconPosition="end"
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
+            <Card>
+              <Tabs
+                value={currentFilters.status}
+                onChange={handleFilterStatus}
+                sx={{
+                  px: { md: 2.5 },
+                  boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+                }}
+              >
+                {TABS.map((tab) => (
+                  <Tab
+                    key={tab.value}
+                    value={tab.value}
+                    label={tab.label}
+                    iconPosition="end"
+                    icon={
+                      <Label
+                        variant={
+                          ((tab.value === 'all' || tab.value === currentFilters.status) &&
+                            'filled') ||
+                          'soft'
+                        }
+                        color={tab.color}
+                      >
+                        {tab.count}
+                      </Label>
                     }
-                    color={tab.color}
-                  >
-                    {tab.count}
-                  </Label>
-                }
+                  />
+                ))}
+              </Tabs>
+
+              <InvoiceTableToolbar
+                filters={filters}
+                dateError={dateError}
+                onResetPage={table.onResetPage}
+                options={{ services: INVOICE_SERVICE_OPTIONS.map((option) => option.name) }}
+                rows={dataFiltered}
               />
-            ))}
-          </Tabs>
 
-          <InvoiceTableToolbar
-            filters={filters}
-            dateError={dateError}
-            onResetPage={table.onResetPage}
-            options={{ services: INVOICE_SERVICE_OPTIONS.map((option) => option.name) }}
-            rows={dataFiltered}
-          />
+              {canReset && (
+                <InvoiceTableFiltersResult
+                  filters={filters}
+                  onResetPage={table.onResetPage}
+                  totalResults={dataFiltered.length}
+                  sx={{ p: 2.5, pt: 0 }}
+                />
+              )}
 
-          {canReset && (
-            <InvoiceTableFiltersResult
-              filters={filters}
-              onResetPage={table.onResetPage}
-              totalResults={dataFiltered.length}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
-
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) => {
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                );
-              }}
-              action={
-                <Box sx={{ display: 'flex' }}>
-                  <Tooltip title="Enviar">
-                    <IconButton color="primary">
-                      <Iconify icon="custom:send-fill" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Descargar">
-                    <IconButton color="primary">
-                      <Iconify icon="solar:download-bold" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Imprimir">
-                    <IconButton color="primary">
-                      <Iconify icon="solar:printer-minimalistic-bold" />
-                    </IconButton>
-                  </Tooltip>
-
-                  {canDelete && (
-                    <Tooltip title="Eliminar">
-                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                        <Iconify icon="solar:trash-bin-trash-bold" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              }
-            />
-
-            <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-                <TableHeadCustom
-                  order={table.order}
-                  orderBy={table.orderBy}
-                  headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.length}
+              <Box sx={{ position: 'relative' }}>
+                <TableSelectedAction
+                  dense={table.dense}
                   numSelected={table.selected.length}
-                  onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
+                  rowCount={dataFiltered.length}
+                  onSelectAllRows={(checked) => {
                     table.onSelectAllRows(
                       checked,
                       dataFiltered.map((row) => row.id)
-                    )
+                    );
+                  }}
+                  action={
+                    <Box sx={{ display: 'flex' }}>
+                      <Tooltip title="Enviar">
+                        <IconButton color="primary">
+                          <Iconify icon="custom:send-fill" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Descargar">
+                        <IconButton color="primary">
+                          <Iconify icon="solar:download-bold" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Imprimir">
+                        <IconButton color="primary">
+                          <Iconify icon="solar:printer-minimalistic-bold" />
+                        </IconButton>
+                      </Tooltip>
+
+                      {canDelete && (
+                        <Tooltip title="Eliminar">
+                          <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                            <Iconify icon="solar:trash-bin-trash-bold" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   }
                 />
 
-                <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
-                      <InvoiceTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        canDelete={canDelete}
-                        editHref={paths.dashboard.invoice.edit(row.id)}
-                        detailsHref={paths.dashboard.invoice.details(row.id)}
-                      />
-                    ))}
+                <Scrollbar>
+                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+                    <TableHeadCustom
+                      order={table.order}
+                      orderBy={table.orderBy}
+                      headCells={TABLE_HEAD}
+                      rowCount={dataFiltered.length}
+                      numSelected={table.selected.length}
+                      onSort={table.onSort}
+                      onSelectAllRows={(checked) =>
+                        table.onSelectAllRows(
+                          checked,
+                          dataFiltered.map((row) => row.id)
+                        )
+                      }
+                    />
 
-                  <TableNoData notFound={notFound} />
-                </TableBody>
-              </Table>
-            </Scrollbar>
-          </Box>
+                    <TableBody>
+                      {dataFiltered
+                        .slice(
+                          table.page * table.rowsPerPage,
+                          table.page * table.rowsPerPage + table.rowsPerPage
+                        )
+                        .map((row) => (
+                          <InvoiceTableRow
+                            key={row.id}
+                            row={row}
+                            selected={table.selected.includes(row.id)}
+                            onSelectRow={() => table.onSelectRow(row.id)}
+                            onDeleteRow={() => handleDeleteRow(row.id)}
+                            canDelete={canDelete}
+                            editHref={paths.dashboard.invoice.edit(row.id)}
+                            detailsHref={paths.dashboard.invoice.details(row.id)}
+                          />
+                        ))}
 
-          <TablePaginationCustom
-            page={table.page}
-            dense={table.dense}
-            count={dataFiltered.length}
-            rowsPerPage={table.rowsPerPage}
-            onPageChange={table.onChangePage}
-            onChangeDense={table.onChangeDense}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
-          />
-        </Card>
-        </>
+                      <TableNoData notFound={notFound} />
+                    </TableBody>
+                  </Table>
+                </Scrollbar>
+              </Box>
+
+              <TablePaginationCustom
+                page={table.page}
+                dense={table.dense}
+                count={dataFiltered.length}
+                rowsPerPage={table.rowsPerPage}
+                onPageChange={table.onChangePage}
+                onChangeDense={table.onChangeDense}
+                onRowsPerPageChange={table.onChangeRowsPerPage}
+              />
+            </Card>
+          </>
         )}
       </DashboardContent>
 
@@ -573,4 +590,3 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
 
   return inputData;
 }
-

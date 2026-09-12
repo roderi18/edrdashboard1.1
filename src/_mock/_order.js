@@ -9,7 +9,12 @@ export const ORDER_STATUS_OPTIONS = [
   { value: 'refunded', label: 'Reembolsado' },
 ];
 
-const ITEMS = Array.from({ length: 3 }, (_, index) => ({
+// CINCO ARTICULOS DE MUESTRA, no tres.
+//
+// TEMPORAL, para ver la lista con pedidos de verdad: con tres, ninguna fila
+// llegaba a enseñar el "2+" de la columna de productos y no se podia comprobar
+// que se pinta bien. El pedido #6010 —el primero— se los lleva todos.
+const ITEMS = Array.from({ length: 5 }, (_, index) => ({
   id: _mock.id(index),
   sku: `16H9UR${index}`,
   quantity: index + 1,
@@ -25,7 +30,8 @@ export const _orders = Array.from({ length: 20 }, (_, index) => {
 
   const taxes = 10;
 
-  const items = (index % 2 && ITEMS.slice(0, 1)) || (index % 3 && ITEMS.slice(1, 3)) || ITEMS;
+  const items =
+    (index % 2 && ITEMS.slice(0, 1)) || (index % 3 && ITEMS.slice(1, 3)) || ITEMS.slice(0, 5);
 
   const totalQuantity = items.reduce((accumulator, item) => accumulator + item.quantity, 0);
 

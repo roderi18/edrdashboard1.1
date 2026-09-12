@@ -693,6 +693,45 @@ export default {
   /**
    * Custom icons
    */
+  /**
+   * @set Categorias de la tienda — de LINEA, dibujados aqui.
+   *
+   * El paquete del proyecto trae casi todo en relleno, y la columna de
+   * categorias pedia trazo: diez iconos rellenos en fila pesan tanto como el
+   * texto y la lista se vuelve una pared de manchas. No se cargan por internet
+   * —el proyecto registra sus iconos para que no parpadeen— asi que se dibujan
+   * aqui, todos en la misma rejilla de 24 y con el mismo grosor de trazo.
+   */
+  'custom:categoria-todas': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></g>',
+  },
+  'custom:categoria-accesorios': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="3"/><path d="M8.5 7V5.5A2 2 0 0 1 10.5 3.5h3A2 2 0 0 1 15.5 5.5V7"/><path d="M2.5 12.5h19"/></g>',
+  },
+  'custom:categoria-barras': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h16"/><path d="M4 12h11"/><path d="M4 17h7"/></g>',
+  },
+  'custom:categoria-campamentos': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 4 3 19h18z"/><path d="M12 4v15"/><path d="m8.5 19 3.5-6 3.5 6"/></g>',
+  },
+  'custom:categoria-cintas': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="8.5" r="5"/><path d="m8.5 12.5-2 8 5.5-3 5.5 3-2-8"/></g>',
+  },
+  'custom:categoria-insignias': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 1.4 2.9 3.1.45-2.25 2.2.53 3.1L12 14.6l-2.78 1.55.53-3.1-2.25-2.2 3.1-.45z"/></g>',
+  },
+  'custom:categoria-materiales': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2z"/><path d="M12 6.5v13"/></g>',
+  },
+  'custom:categoria-parches': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.5 7.5 9 4.3-1.5 7.5-4.5 7.5-9V6z"/></g>',
+  },
+  'custom:categoria-camisetas': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M9 3.5 4 6l1.8 4L8 9.2V20h8V9.2l2.2.8L20 6l-5-2.5a3 3 0 0 1-6 0z"/></g>',
+  },
+  'custom:categoria-uniformes': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 19.5a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6"/><path d="M17.5 14.2a6.5 6.5 0 0 1 4 5.3"/></g>',
+  },
   'custom:menu-duotone': {
     body: '<path fill="currentColor" opacity="0.4" d="M15.7798 4.5H5.2202C4.27169 4.5 3.5 5.06057 3.5 5.75042C3.5 6.43943 4.27169 7 5.2202 7H15.7798C16.7283 7 17.5 6.43943 17.5 5.75042C17.5 5.06054 16.7283 4.5 15.7798 4.5Z" ></path> <path fill="currentColor" d="M18.7798 10.75H8.2202C7.27169 10.75 6.5 11.3106 6.5 12.0004C6.5 12.6894 7.27169 13.25 8.2202 13.25H18.7798C19.7283 13.25 20.5 12.6894 20.5 12.0004C20.5 11.3105 19.7283 10.75 18.7798 10.75Z" ></path> <path fill="currentColor" d="M15.7798 17H5.2202C4.27169 17 3.5 17.5606 3.5 18.2504C3.5 18.9394 4.27169 19.5 5.2202 19.5H15.7798C16.7283 19.5 17.5 18.9394 17.5 18.2504C17.5 17.5606 16.7283 17 15.7798 17Z" ></path>',
   },

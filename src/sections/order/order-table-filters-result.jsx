@@ -6,6 +6,9 @@ import { fDateRangeShortLabel } from 'src/utils/format-time';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
 
+import { ESTADOS_DE_ORDEN } from './order-status-nav';
+import { METODOS_DE_PAGO_FILTRO } from './order-list-filters';
+
 // ----------------------------------------------------------------------
 
 export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx }) {
@@ -21,6 +24,11 @@ export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx
     updateFilters({ status: 'all' });
   }, [onResetPage, updateFilters]);
 
+  const handleRemovePayment = useCallback(() => {
+    onResetPage();
+    updateFilters({ payment: 'all' });
+  }, [onResetPage, updateFilters]);
+
   const handleRemoveDate = useCallback(() => {
     onResetPage();
     updateFilters({ startDate: null, endDate: null });
@@ -32,13 +40,29 @@ export function OrderTableFiltersResult({ filters, totalResults, onResetPage, sx
   }, [onResetPage, resetFilters]);
 
   return (
-    <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
+    <FiltersResult totalResults={totalResults} onReset={handleReset} resetLabel="Limpiar" sx={sx}>
+      {/* EL ESTADO, CON EL NOMBRE QUE SE LEE EN LA COLUMNA. Se pintaba el valor
+          tal cual y salia "Pending" en una pantalla en español, al lado de una
+          lista que dice "Pendiente". */}
       <FiltersBlock label="Estado:" isShow={currentFilters.status !== 'all'}>
         <Chip
           {...chipProps}
-          label={currentFilters.status}
+          label={
+            ESTADOS_DE_ORDEN.find((estado) => estado.value === currentFilters.status)?.label ||
+            currentFilters.status
+          }
           onDelete={handleRemoveStatus}
-          sx={{ textTransform: 'capitalize' }}
+        />
+      </FiltersBlock>
+
+      <FiltersBlock label="Método de pago:" isShow={currentFilters.payment !== 'all'}>
+        <Chip
+          {...chipProps}
+          label={
+            METODOS_DE_PAGO_FILTRO.find((metodo) => metodo.value === currentFilters.payment)
+              ?.label || currentFilters.payment
+          }
+          onDelete={handleRemovePayment}
         />
       </FiltersBlock>
 

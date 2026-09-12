@@ -280,12 +280,31 @@ export function ProductListView() {
 
   return (
     <>
-      {/* LA TIENDA OCUPA TODO EL ANCHO. Con las fotos mandando, el contenedor
-          estrecho dejaba cuatro columnas de tarjetas diminutas y dos franjas
-          vacias a los lados. La vista de panel se queda como estaba. */}
+      {/* LA TIENDA OCUPA TODO EL ANCHO, EN LAS DOS VISTAS. Con las fotos
+          mandando, el contenedor estrecho dejaba cuatro columnas de tarjetas
+          diminutas y dos franjas vacias a los lados.
+          
+          Y el panel igual: con un tope en pixeles, alejar el zoom encogia la
+          letra pero dejaba la tabla del mismo ancho, con mas hueco vacio a los
+          lados en vez de mas filas a la vista. Quien aleja el zoom quiere ver
+          MAS, no lo mismo mas pequeño. */}
       <DashboardContent
-        maxWidth={displayMode === 'grid' ? false : 'lg'}
-        sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+        maxWidth={false}
+        sx={{
+          mx: 'auto',
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          // ANCHO FIJO, NO FLUIDO, como en pedidos y recibos. Sin tope, alejar
+          // el zoom no alejaba la pagina: la ensanchaba —la rejilla metia mas
+          // columnas y las tarjetas se hacian cada vez mas pequeñas—, asi que se
+          // veia MAS, no lo mismo mas lejos.
+          //
+          // El tope va aqui y no en `maxWidth` porque esa prop solo se aplica
+          // con el "diseño compacto" encendido en Ajustes, que cada quien tiene
+          // como quiere.
+          maxWidth: 1600,
+        }}
       >
         {/* SIN TITULO NI MIGAS. La tienda entra por su propia portada
             (`StoreHeader`) y el menu lateral ya dice donde se esta: el

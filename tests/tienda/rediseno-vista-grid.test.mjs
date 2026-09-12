@@ -39,8 +39,25 @@ test('la tienda abre en rejilla en cualquier pantalla', () => {
   assert.match(leer('src/sections/product/product-table-toolbar.jsx'), /store-display-mode/);
 });
 
-test('la rejilla ocupa todo el ancho y el panel no', () => {
-  assert.match(vista, /maxWidth=\{displayMode === 'grid' \? false : 'lg'\}/);
+test('las tres listas tienen el mismo tope de ancho, fijo', () => {
+  // Ni estrechas ni fluidas: fijas. Con tope de plantilla ('lg') la tienda
+  // desperdiciaba media pantalla; sin tope, alejar el zoom no alejaba la pagina
+  // sino que la ensanchaba, metiendo mas columnas y filas cada vez mas vacias.
+  assert.match(vista, /maxWidth: 1600,/);
+  assert.doesNotMatch(vista, /maxWidth=\{displayMode === 'grid' \? false : 'lg'\}/);
+
+  // Los pedidos y los recibos, con tope FIJO: sin el, alejar el zoom no alejaba
+  // la pagina, la ensanchaba —la tabla se estiraba y las filas quedaban cada vez
+  // mas vacias—. Va en `sx` porque `maxWidth` solo se aplica con el "diseño
+  // compacto" encendido en Ajustes.
+  assert.match(
+    leer('src/sections/invoice/view/invoice-list-view.jsx'),
+    /sx=\{\{ maxWidth: 1600, mx: 'auto' \}\}/
+  );
+  assert.match(
+    leer('src/sections/order/view/order-list-view.jsx'),
+    /sx=\{\{ maxWidth: 1600, mx: 'auto' \}\}/
+  );
 });
 
 test('la portada sin foto sigue siendo el degradado del tema', () => {
@@ -228,4 +245,40 @@ test('TEMPORAL: los productos sin foto piden prestada una de muestra', () => {
   // siempre la misma foto y la pantalla no cambia sola al repintarse.
   assert.match(tarjeta, /suma % FOTOS_DE_MUESTRA\.length/);
   assert.doesNotMatch(tarjeta, /Math\.random/);
+});
+
+test('cada categoria lleva su icono, y las nuevas uno generico', () => {
+  // La columna es una lista de nombres parecidos —"Insignias-Emblemas",
+  // "Materiales-Manuales", "Campamentos-Especiales"—: el ojo tenia que leer
+  // palabra por palabra para encontrar la suya.
+  assert.match(columna, /const ICONOS_DE_CATEGORIA = \{/);
+  assert.match(columna, /const ICONO_GENERICO = /);
+  assert.match(columna, /ICONOS_DE_CATEGORIA\[clave\] \|\| ICONO_GENERICO/);
+  // La clave se busca sin acentos y en minusculas, que es como llega el nombre
+  // desde la tienda.
+  assert.match(columna, /\.normalize\('NFD'\)/);
+  assert.match(columna, /icon=\{iconoDeCategoria\(option\.value\)\}/);
+
+  const paquete = leer('src/components/iconify/icon-sets.js');
+
+  // Todos los iconos existen EN EL PAQUETE: uno que no este no avisa en
+  // pantalla —se carga por internet, parpadea y deja el hueco mientras tanto—.
+  const usados = [
+    ...new Set([...columna.matchAll(/'((?:solar|custom):[a-z0-9-]+)'/g)].map((uso) => uso[1])),
+  ];
+
+  assert.ok(usados.length >= 10, 'la columna usa un icono por categoria');
+  usados.forEach((icono) => {
+    assert.ok(paquete.includes(`'${icono}'`), `falta el icono ${icono}`);
+  });
+
+  // Y son DE LINEA: diez iconos macizos en fila pesan tanto como el texto y la
+  // columna se vuelve una pared de manchas.
+  usados.forEach((icono) => {
+    const cuerpo = paquete.slice(paquete.indexOf(`'${icono}'`));
+    const dibujo = cuerpo.slice(0, cuerpo.indexOf('},'));
+
+    assert.match(dibujo, /stroke="currentColor"/, `${icono} deberia ser de linea`);
+    assert.doesNotMatch(dibujo, /fill="currentColor"/, `${icono} esta relleno`);
+  });
 });
