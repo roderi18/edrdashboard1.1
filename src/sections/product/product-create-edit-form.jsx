@@ -217,7 +217,12 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openPricing = useBoolean(true);
 
   const [includeTaxes, setIncludeTaxes] = useState(false);
-  const [publish, setPublish] = useState(true);
+  // El interruptor arranca como esta el producto. Antes arrancaba siempre en
+  // "Publicar": abrir un borrador para corregirle el precio y guardar lo
+  // publicaba sin que nadie lo pidiera.
+  const [publish, setPublish] = useState(
+    currentProduct ? currentProduct.publish === 'published' : true
+  );
   const [submissionMessage, setSubmissionMessage] = useState('');
 
   const defaultValues = {
@@ -322,7 +327,11 @@ export function ProductCreateEditForm({ currentProduct }) {
               ? 'Actualizacion exitosa!'
               : 'Producto creado!'
         );
-        router.push(paths.dashboard.product.root);
+        router.push(
+          currentProduct?.id
+            ? paths.dashboard.product.details(currentProduct.id)
+            : paths.dashboard.product.root
+        );
         console.info('DATA', updatedData);
       } catch (error) {
         console.error(error);

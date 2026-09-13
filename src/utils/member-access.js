@@ -2203,6 +2203,14 @@ export const hasStoreAdminAccess = (user = {}) => STORE_ADMIN_ROLE_IDS.has(getUs
 
 export const canManageStoreProducts = (user = {}) => hasStoreAdminAccess(user);
 
+// EDITAR UN PRODUCTO QUE YA EXISTE, entrando desde su ficha. El Administrador
+// Global manda sobre todo y abria el detalle de un producto sin lapiz: para
+// corregir un precio o una descripcion tenia que pedirselo al de la tienda. Es la
+// misma excepcion que ya tiene la portada. Crear, publicar y borrar desde la
+// lista siguen siendo solo del Administrador de Tienda.
+export const canEditStoreProduct = (user = {}) =>
+  isAdminGlobal(user) || canManageStoreProducts(user);
+
 const hasExplicitAdminPermissions = (permissions = {}) =>
   hasExplicitPermissions(permissions) &&
   Object.keys(permissions).some((permissionKey) => ADMIN_PERMISSION_MODULE_KEYS.has(permissionKey));

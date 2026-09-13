@@ -23,6 +23,9 @@ export function ProductDetailsToolbar({
   publishOptions,
   onChangePublish,
   canManageStore = false,
+  // El lapiz va aparte de la publicacion: el Administrador Global edita el
+  // producto, pero publicar sigue siendo cosa del Administrador de Tienda.
+  canEdit = canManageStore,
   ...other
 }) {
   const menuActions = usePopover();
@@ -84,26 +87,26 @@ export function ProductDetailsToolbar({
           </Tooltip>
         )}
 
-        {canManageStore && (
-          <>
-            <Tooltip title="Editar">
-              <IconButton component={RouterLink} href={editHref}>
-                <Iconify icon="solar:pen-bold" />
-              </IconButton>
-            </Tooltip>
+        {canEdit && (
+          <Tooltip title="Editar producto">
+            <IconButton component={RouterLink} href={editHref} aria-label="Editar producto">
+              <Iconify icon="solar:pen-bold" />
+            </IconButton>
+          </Tooltip>
+        )}
 
-            <Button
-              color="inherit"
-              variant="contained"
-              loading={!publish}
-              loadingIndicator="Cargando…"
-              endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
-              onClick={menuActions.onOpen}
-              sx={{ textTransform: 'capitalize' }}
-            >
-              {publish === 'published' ? 'Publicado' : publish === 'draft' ? 'Borrador' : publish}
-            </Button>
-          </>
+        {canManageStore && (
+          <Button
+            color="inherit"
+            variant="contained"
+            loading={!publish}
+            loadingIndicator="Cargando…"
+            endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+            onClick={menuActions.onOpen}
+            sx={{ textTransform: 'capitalize' }}
+          >
+            {publish === 'published' ? 'Publicado' : publish === 'draft' ? 'Borrador' : publish}
+          </Button>
         )}
       </Box>
 

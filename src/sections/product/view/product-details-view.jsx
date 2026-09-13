@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { useSearchParams } from 'src/routes/hooks';
 
-import { canManageStoreProducts } from 'src/utils/member-access';
+import { canEditStoreProduct, canManageStoreProducts } from 'src/utils/member-access';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -72,6 +72,7 @@ export function ProductDetailsView({ product, productId }) {
   const [resolvedProduct, setResolvedProduct] = useState(product ?? null);
   const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
   const canManageStore = canManageStoreProducts(user);
+  const canEdit = canEditStoreProduct(user);
 
   useEffect(() => {
     setTabValue(selectedTab);
@@ -144,6 +145,7 @@ export function ProductDetailsView({ product, productId }) {
             onChangePublish={handleChangePublish}
             publishOptions={PRODUCT_PUBLISH_OPTIONS}
             canManageStore={canManageStore}
+            canEdit={canEdit}
           />
 
           <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
