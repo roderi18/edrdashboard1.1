@@ -270,6 +270,11 @@ export default [
       'src/services/solicitudes-cambio-miembro-service.js',
       'src/utils/firebase-admins.js',
       'src/utils/firebase-calendar.js',
+      // Un AVISO no es un cambio: no modifica ninguna entidad de la organizacion,
+      // asi que no tiene nada que proponerle a la Oficina Nacional ni que
+      // registrar en Historial —el cambio de cargo que lo origina ya esta
+      // registrado por su propia ruta—. Mismo caso que `notification-service.js`.
+      'src/utils/notificar-cargo-administracion.js',
       'src/utils/firebase-notificaciones.js',
       'src/utils/firebase-photos.js',
       'src/utils/member-access.js',

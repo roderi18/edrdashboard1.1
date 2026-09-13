@@ -769,9 +769,31 @@ service cloud.firestore {
         : '';
     }
 
+    // El campo HEREDADO del mismo documento. Antes de que existiera el catalogo
+    // de cargos, a un administrador se le marcaba `rol: 'administrador'` y nada
+    // mas: esas cuentas no tienen `rolId`, asi que `rolDelDocumento()` devolvia
+    // vacio y las reglas no las reconocian como administradoras. La cuenta seguia
+    // entrando —`esUsuarioDelSistema()` la deja pasar— pero cualquier regla que
+    // pidiera mas que eso le respondia "permisos insuficientes".
+    //
+    // Fiarse de este campo es seguro por la misma razon que del otro: el
+    // documento vive en `usuarios_roles`, que es `allow write: if false` para el
+    // cliente. Solo el Admin SDK lo escribe. (En `users/{uid}` hay un campo `rol`
+    // parecido y ese NO se mira: ese documento se lo escribe el propio navegador
+    // y cualquiera se pondria 'administrador'.)
+    function rolHeredadoDelDocumento() {
+      return request.auth != null
+        && exists(rutaAsignacion())
+        && 'rol' in get(rutaAsignacion()).data
+        ? get(rutaAsignacion()).data.rol
+        : '';
+    }
+
     function esAdministradorGlobal() {
       return rolDelToken() == 'administrador_global'
-        || rolDelDocumento() == 'administrador_global';
+        || rolDelDocumento() == 'administrador_global'
+        || rolHeredadoDelDocumento() == 'administrador_global'
+        || rolHeredadoDelDocumento() == 'administrador';
     }
 
     // Quien APRUEBA las directivas de seccion, region y Consejo Nacional. Es la
@@ -1180,6 +1202,35 @@ service cloud.firestore {
         || (resource != null && resource.data.solicitadoPorUid == request.auth.uid);
       // Una propuesta resuelta es historial: no se borra.
       allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // EL ADMINISTRADOR GLOBAL NO CHOCA CON NINGUNA REGLA.
+    //
+    // Manda sobre todo y aun asi se topaba con "permisos insuficientes" en
+    // pantallas suyas: cada bloque de arriba nombra a quien puede entrar, y basta
+    // que uno se olvide de el para cerrarle la puerta. Ir bloque por bloque
+    // añadiendolo deja el mismo agujero abierto para el siguiente que se escriba.
+    //
+    // Las reglas de Firestore se SUMAN: si algun bloque concede, se concede. Esto
+    // no debilita nada de lo de arriba —nadie mas gana acceso—, solo garantiza que
+    // a el ninguna regla le diga que no.
+    //
+    // Van dos bloques porque `{coleccion}/{documento}` no alcanza a las
+    // subcolecciones y hace falta el segundo para llegar a ellas.
+    //
+    // LA UNICA EXCEPCION es `secretos_acceso`: ahi viven las huellas de las
+    // contraseñas y la del codigo de un solo uso. No se le niegan por
+    // desconfianza, sino porque leerlas no le sirve de nada —no devuelven ninguna
+    // clave— y en cambio se pueden atacar SIN CONEXION si alguna vez se filtran.
+    // Esa coleccion no la abre nadie; solo el Admin SDK, que no pasa por aqui.
+    // ------------------------------------------------------------------
+    match /{coleccion}/{documento} {
+      allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
+    }
+
+    match /{coleccion}/{documento}/{resto=**} {
+      allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
     }
 
     // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar

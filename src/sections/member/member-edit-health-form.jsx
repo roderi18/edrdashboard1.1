@@ -30,6 +30,7 @@ import {
   canUploadHealthDocuments,
   isSupervisoryMemberViewer,
   isDestacamentoApprovalRole,
+  veElExpedienteMedicoCompleto,
   isCoordinadorDestacamentoRole,
   canAuthorizeMinorHealthAccess,
 } from 'src/utils/member-access';
@@ -138,7 +139,11 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // Los cargos del Consejo Nacional ven las secciones médicas normalmente,
     // pero los datos del seguro de un menor permanecen enmascarados hasta
     // obtener autorización.
-    const requiresMaskedInsuranceAccess = isMinor && isSupervisoryViewerRole;
+    // El Consejo Ejecutivo ve el expediente entero, el seguro de un menor incluido:
+    // no tiene a quien pedirle autorizacion por encima.
+    const veElExpedienteEntero = veElExpedienteMedicoCompleto(user);
+    const requiresMaskedInsuranceAccess =
+        isMinor && isSupervisoryViewerRole && !veElExpedienteEntero;
     // Los cargos del destacamento que no son coordinadores —Pastor, Consejo,
     // Capellan y los dos Lideres de Grupo— ven y EDITAN la Dispensa Medica de sus
     // miembros, menores incluidos, sin pedir autorizacion previa: el control es
@@ -159,7 +164,8 @@ export function MemberEditHealthForm({ currentMember, readOnly = false }) {
     // sistema y la tienda, no acompañan a nadie, y el expediente medico de una
     // persona no es parte de ese trabajo. Si un caso lo pide, se solicita por el
     // mismo aviso.
-    const supervisoryNeedsHealthAccess = isSupervisoryViewerRole || esAdministradorDeSistema(user);
+    const supervisoryNeedsHealthAccess =
+        (isSupervisoryViewerRole || esAdministradorDeSistema(user)) && !veElExpedienteEntero;
     const shouldCheckAccess =
         requiresTemporaryAccess || requiresMaskedInsuranceAccess || supervisoryNeedsHealthAccess;
     const mustRequestApproval = isApprovalUser || requiresTemporaryAccess;

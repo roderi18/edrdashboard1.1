@@ -23,7 +23,6 @@ import {
 
 import { getMembers } from 'src/services/member-service';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { getDests, getDestsApi } from 'src/services/dest-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -45,17 +44,13 @@ import { useAuthContext } from 'src/auth/hooks';
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
 import { AdminTableToolbar } from '../admin-table-toolbar';
+import { AdminAsignarCargoDialog } from '../admin-asignar-cargo-dialog';
+import {
+  useDatosDeAdministradores,
+  COLUMNAS_DE_ADMINISTRADORES,
+} from '../use-datos-de-administradores';
 
 // ----------------------------------------------------------------------
-
-const TABLE_HEAD = [
-  { id: 'name', label: 'Nombre' },
-  { id: 'codigoMiembro', label: 'Codigo' },
-  { id: 'idMiembros', label: 'ID miembro' },
-  { id: 'estatus', label: 'Estado' },
-  { id: 'rol', label: 'Rol' },
-  { id: '', width: 88 },
-];
 
 const mapMemberRow = ({ member, photo }) => ({
   ...member,
@@ -74,25 +69,10 @@ export function AdminCreateView() {
   const table = useTable();
   const [members, setMembers] = useState([]);
   const [displayMode, setDisplayMode] = useState('panel');
-  // Destacamentos, para mostrar el NÚMERO del destacamento (no su id interno) en
-  // la etiqueta del rol. Se lee una vez aquí y se pasa a filas/tarjetas.
-  const [dests, setDests] = useState(() => getDests());
-
-  useEffect(() => {
-    if (dests.length) return undefined;
-
-    let cancelled = false;
-
-    getDestsApi({ includePhotos: false })
-      .then((data) => {
-        if (!cancelled) setDests(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dests.length]);
+  // Los MISMOS datos que la lista de administradores, por el mismo gancho: es lo
+  // que hace que las dos tablas enseñen lo mismo sin tener que acordarse de
+  // cambiar las dos.
+  const { dests, catalogos, conCargos } = useDatosDeAdministradores();
 
   const [assignRows, setAssignRows] = useState([]);
   const [removeAdminRow, setRemoveAdminRow] = useState(null);
@@ -132,8 +112,8 @@ export function AdminCreateView() {
     }
   }, [isAssigning]);
 
-  const handleConfirmAssignAdmins = useCallback(async () => {
-    if (!assignRows.length) {
+  const handleConfirmAssignAdmins = useCallback(async (rolElegido) => {
+    if (!assignRows.length || !rolElegido) {
       return;
     }
 
@@ -141,7 +121,9 @@ export function AdminCreateView() {
 
     try {
       const assignedAdmins = await Promise.all(
-        assignRows.map((row) => asignarAdministradorDesdeMiembro(row, { usuario: user }))
+        assignRows.map((row) =>
+          asignarAdministradorDesdeMiembro(row, { usuario: user, rolDeAdministracion: rolElegido })
+        )
       );
       const assignedIds = new Set(assignRows.map((row) => String(row.id)));
 
@@ -252,7 +234,7 @@ export function AdminCreateView() {
     );
   }, []);
 
-  const dataFiltered = applyFilter({ inputData: members, filters: currentFilters });
+  const dataFiltered = conCargos(applyFilter({ inputData: members, filters: currentFilters }));
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
   const notFound = !dataFiltered.length;
 
@@ -303,7 +285,7 @@ export function AdminCreateView() {
                   <TableHeadCustom
                     order={table.order}
                     orderBy={table.orderBy}
-                    headCells={TABLE_HEAD}
+                    headCells={COLUMNAS_DE_ADMINISTRADORES}
                     rowCount={dataFiltered.length}
                     numSelected={table.selected.length}
                     onSort={table.onSort}
@@ -321,6 +303,7 @@ export function AdminCreateView() {
                         key={row.id}
                         row={row}
                         dests={dests}
+                        catalogos={catalogos}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onAssignAdmin={handleOpenAssignDialog}
@@ -356,25 +339,15 @@ export function AdminCreateView() {
         )}
       </Card>
 
-      <ConfirmDialog
+      {/* SE ELIGE EL CARGO. Antes era un "¿seguro?" que nombraba Administrador
+          Global sin preguntar: el cargo con mas poder de la plataforma se daba
+          con un si. */}
+      <AdminAsignarCargoDialog
         open={Boolean(assignRows.length)}
+        personas={assignRows}
+        guardando={isAssigning}
         onClose={handleCloseAssignDialog}
-        title="Confirmar asignación"
-        content={
-          assignRows.length === 1
-            ? `¿Realmente quieres asignar a ${assignRows[0]?.name || 'esta persona'} como administrador?`
-            : `¿Realmente quieres asignar a ${assignRows.length} personas como administradores?`
-        }
-        action={
-          <Button
-            variant="contained"
-            color="primary"
-            loading={isAssigning}
-            onClick={handleConfirmAssignAdmins}
-          >
-            Asignar
-          </Button>
-        }
+        onConfirm={handleConfirmAssignAdmins}
       />
 
       <ConfirmDialog

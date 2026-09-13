@@ -13,6 +13,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
+
 import { getDestsApi } from 'src/services/dest-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
@@ -140,16 +142,40 @@ export function AdminRoleAssignmentDialog({ open, admin, onClose, onSaved }) {
     [roles, rolId]
   );
   const allowedScopeType = selectedRole?.alcancePredeterminado || ALCANCES.DESTACAMENTO;
+  // La Oficina Nacional entra aqui con los otros tres: su alcance es el pais
+  // entero, asi que no hay region ni seccion que elegirle. Sin esto le salia el
+  // selector de alcance con una sola opcion y nada que escoger dentro.
   const shouldShowScope =
     allowedScopeType !== ALCANCES.GLOBAL &&
-    !['administrador_funcional', 'administrador_tienda'].includes(selectedRole?.codigo);
+    !['administrador_funcional', 'administrador_tienda', 'oficina_nacional'].includes(
+      selectedRole?.codigo
+    );
   const scopeOptionsForRole = useMemo(
     () => ALCANCE_OPTIONS.filter((option) => option.value === allowedScopeType),
     [allowedScopeType]
   );
 
+  // DESDE AQUI SOLO SE REPARTEN LOS CUATRO CARGOS DE ADMINISTRACION.
+  //
+  // El desplegable ofrecia el catalogo entero —unos cuarenta cargos—, asi que
+  // esta pantalla, que es la de administradores de la plataforma, servia tambien
+  // para nombrar Coordinador de Destacamento o Capellan Seccional. Eso se hace en
+  // la ficha del miembro y en las directivas, donde se ve a quien se le pone y
+  // sobre que entidad.
+  //
+  // Se conserva el orden de ROLES_DE_ADMINISTRACION y no el del catalogo, para que
+  // el desplegable se lea de mas poder a menos.
   const assignableRoles = useMemo(
-    () => roles.filter((role) => role.codigo !== 'administrador_global'),
+    () =>
+      ROLES_DE_ADMINISTRACION.map(
+        (codigo) =>
+          // Del catalogo de Firestore si esta, y si no del catalogo del codigo. Los
+          // cuatro tienen que salir siempre: si a la coleccion de autorizacion le
+          // falta uno —`oficina_nacional` es el que llego mas tarde—, el
+          // desplegable se quedaba sin esa opcion y no habia manera de nombrarlo.
+          roles.find((role) => role.codigo === codigo) ||
+          LOCAL_ROLES.find((role) => role.codigo === codigo)
+      ).filter(Boolean),
     [roles]
   );
 

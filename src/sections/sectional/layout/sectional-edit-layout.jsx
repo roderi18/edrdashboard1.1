@@ -21,7 +21,11 @@ import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 
 // ----------------------------------------------------------------------
 
-export function SectionalEditLayout({ children, ...other }) {
+// CADA PESTAÑA DICE LO QUE ES. Con pestañas, "Editar sección" ya no basta: el
+// titulo tiene que decir en cual estas y de que seccion. El prefijo lo pone cada
+// pagina —una cadena, que la pagina es un componente de servidor y no puede pasar
+// funciones— y el nombre lo pone este layout, que ya lo tiene.
+export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const pathname = usePathname();
   const params = useParams();
   const sectionalId = params?.id;
@@ -40,15 +44,27 @@ export function SectionalEditLayout({ children, ...other }) {
     }
   }, [sectionalId]);
 
+  const titulo = tituloPrefijo
+    ? [tituloPrefijo, sectionalName].filter(Boolean).join(' ')
+    : 'Editar sección';
+
   const currentPath = pathname.replace(/\/$/, '');
   const editHref = paths.dashboard.level.sectional.edit(sectionalId);
   const leadershipHref = `/dashboard/level/sectional/${sectionalId}/edit/leadership`;
+  const destsHref = `/dashboard/level/sectional/${sectionalId}/edit/dests`;
 
   const navItems = [
     {
       label: 'General',
       icon: <Iconify width={24} icon="solar:buildings-bold" />,
       href: editHref,
+    },
+    {
+      // LOS DESTACAMENTOS, EN SU SECCION. Es donde esta dicho de quien son, igual
+      // que los miembros lo estan en su destacamento.
+      label: 'Destacamentos',
+      icon: <Iconify width={24} icon="solar:buildings-3-bold" />,
+      href: destsHref,
     },
     {
       label: 'Directiva',
@@ -74,7 +90,7 @@ export function SectionalEditLayout({ children, ...other }) {
     >
     <DashboardContent {...other}>
       <CustomBreadcrumbs
-        heading={isMobile ? null : 'Editar sección'}
+        heading={isMobile ? null : titulo}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
           { name: 'Secciones', href: paths.dashboard.level.sectional.root },

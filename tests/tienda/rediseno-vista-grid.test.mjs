@@ -235,16 +235,14 @@ test('el carrito es el que ya existia, no uno nuevo', () => {
   assert.match(tarjeta, /disabled=\{available <= 0\}/);
 });
 
-test('TEMPORAL: los productos sin foto piden prestada una de muestra', () => {
-  // Es SOLO para ver la rejilla con fotos mientras el catalogo no tenga las
-  // suyas. Cuando las tenga, se borra el bloque `FOTOS_DE_MUESTRA` de la tarjeta
-  // y la linea que lo usa, y vuelve el marcador gris —que sigue ahi debajo—.
-  assert.match(tarjeta, /TEMPORAL — FOTOS DE MUESTRA/);
-  assert.match(tarjeta, /const foto = product\.coverUrl \|\| fotoDeMuestra\(product\.id\);/);
-  // Se reparte por el identificador, no al azar: la misma insignia enseña
-  // siempre la misma foto y la pantalla no cambia sola al repintarse.
-  assert.match(tarjeta, /suma % FOTOS_DE_MUESTRA\.length/);
-  assert.doesNotMatch(tarjeta, /Math\.random/);
+test('un producto sin foto no pide prestada ninguna de muestra', () => {
+  // Durante un tiempo las tarjetas sin imagen tomaban una de las tres fotos de
+  // demostracion de la plantilla para ver la rejilla poblada. Era mentira: tres
+  // productos distintos salian con la misma imagen y la tienda parecia surtida.
+  // Sin foto va el marcador gris, que dice la verdad.
+  assert.match(tarjeta, /const foto = product\.coverUrl \|\| '';/);
+  assert.doesNotMatch(tarjeta, /FOTOS_DE_MUESTRA|fotoDeMuestra/);
+  assert.doesNotMatch(tarjeta, /assets\/images\/mock/);
 });
 
 test('cada categoria lleva su icono, y las nuevas uno generico', () => {

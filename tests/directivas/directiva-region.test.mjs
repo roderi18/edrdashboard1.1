@@ -132,7 +132,10 @@ test('las pantallas separan propuesta y edicion visual', () => {
   const seccion = leer('src/sections/sectional/leadership/sectional-leadership-view.jsx');
   const region = leer('src/sections/regional/leadership/regional-leadership-view.jsx');
 
-  assert.match(seccion, /canManageSectionLeadership\(user, sectionalId\)/);
+  // Con la region de la SECCION: el Coordinador Regional y su Sub-Director
+  // proponen en las secciones de su region y su alcance no trae ids de seccion
+  // (ver `tests/acceso/region-propone-en-sus-secciones.test.mjs`).
+  assert.match(seccion, /canManageSectionLeadership\(user, sectionalId, \{/);
   assert.match(region, /canManageRegionLeadership\(user, params\?\.id\)/);
   assert.match(seccion, /canManage: canManageLayout/);
   assert.match(region, /canManage: canManageLayout/);

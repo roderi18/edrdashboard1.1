@@ -157,6 +157,61 @@ leer el test que las cubre.**
    de directiva se lo borraba y con él la bandeja de aprobaciones.
 6. **Los roles de solo lectura** (p. ej. Pastor) usan el estado vacío "Sin
    información registrada"; no se les ofrece editar.
+7. **El nivel región propone sobre sus secciones, pero solo dos de sus cargos.**
+   El **Coordinador Regional** (`usuario_region`) y el **Sub-Director Regional**
+   (`usuario_region_asistente`) proponen sobre las secciones de su región: la
+   ficha (`canEditSectional`) y su directiva (`canManageSectionLeadership`). El
+   titular **propone**; el asistente **sugiere** — la misma distinción que hay
+   entre el Coordinador Seccional y su Sub-Coordinador. Los otros seis cargos
+   regionales (los cuatro coordinadores, Capellán y Secretario Regional) siguen
+   siendo de **consulta**, y los **destacamentos siguen cerrados** para los ocho:
+   `REGION_SCOPED_ROLES` sigue vacía a propósito y la puerta nueva vive en
+   `REGION_SECTION_PROPOSER_ROLES`, porque esa lista también gobierna
+   `canEditDest`. Nada se aplica solo: `seccion` y `directiva_seccion` los aprueba
+   la Oficina Nacional. Su alcance es **regional y no trae ids de sección**, así
+   que estos dos guardas se comprueban por la **región de la sección** —el
+   servicio la resuelve él mismo, no la acepta de la pantalla—.
+   Test: `tests/acceso/region-propone-en-sus-secciones.test.mjs`.
+
+### Cargos que ocupan el mismo sitio pueden lo mismo ✅
+
+Comparando cargo por cargo dentro de cada nivel (`ALCANCE_PREDETERMINADO_ROL`)
+aparecieron tres grupos que se suponían iguales y no lo eran, siempre por una
+lista a la que le faltaba un nombre. Quedaron igualados, y
+`tests/acceso/permisos-iguales-en-su-nivel.test.mjs` compara los guardas reales
+en lote para que no se vuelvan a separar:
+
+| Grupo | Qué los separaba |
+|---|---|
+| **Pastor** = Consejo Destacamento = Capellán | El Pastor no estaba en `REGION_WIDE_SECTION_VIEWER_ROLE_IDS`: veía menos estructura que sus dos compañeros de desplegable. Ese listado decide qué se **ve**, no con qué se interactúa — las secciones ajenas salen deshabilitadas para todos. |
+| **Capellán Seccional** = **Zonas** = **Grupos Locales** = los 4 coordinadores de área | Arrastraban `soloLectura: true`, que no añadía nada (su catálogo no concede ninguna edición) pero les pintaba etiqueta aparte y mandaba el claim al .NET; les faltaba la Academia Ministerial; y sus menores no salían marcados en la lista por no estar en `MINOR_RESTRICTED_ROLE_IDS`. |
+
+**Regla que queda**: si dos cargos comparten nivel y perfil, no se los separa con
+una lista suelta. O se documenta por qué difieren, o se igualan.
+
+### El Consejo Ejecutivo ve el expediente médico entero ✅
+
+Los once cargos del Consejo Ejecutivo —los diez del organigrama nacional
+(`ROLES_CONSEJO_EJECUTIVO`) y el rol `consejo_ejecutivo`— llevaban `salud.ver`,
+pero la Dispensa les llegaba **bloqueada**, igual que a un cargo de sección o
+región: secciones sin desplegar y campos deshabilitados hasta que un Coordinador
+de Destacamento les concediera acceso temporal. Tener el permiso no les enseñaba
+nada.
+
+Ahora ven el expediente **completo** —seguro, medicación, alergias, condiciones y
+documentos, **menores incluidos**— en todo el alcance donde ya ven miembros, que
+para estos cargos es el país. Es una decisión de gobierno tomada a propósito:
+🟡 **son los datos médicos de cualquier miembro de la organización, sin
+autorización previa de nadie**. El guarda es
+`veElExpedienteMedicoCompleto` (`member-access.js`).
+
+**Leer, no tocar**: no se les dio ninguna escritura. `canEditHealth`,
+`canUploadHealthDocuments` y `canDeleteHealthDocuments` los siguen dejando fuera
+por `isSupervisoryMemberViewer`; editar sale del cargo de destacamento
+(Coordinador o Coordinador Asistente), no del nacional. Al rol `consejo_ejecutivo`
+se le añadieron además `salud.ver` y `ascenso.ver`, que eran las dos pestañas que
+le faltaban para ver la ficha entera de su gente **sin importar qué cargo de
+destacamento ocupe** (la visibilidad se suma entre cargos, regla 3).
 
 ### Dónde se aplican los permisos ✅ — tres capas
 

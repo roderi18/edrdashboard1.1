@@ -86,8 +86,42 @@ export async function POST(req) {
   // La cuenta global autorizada elige aquí un rol manual para probar la
   // aplicación. No debe recalcularse desde sus posibles casillas de directiva,
   // porque eso desharía la selección justo después de recargar la página.
+  //
+  // Pero salir sin escribir NADA la dejaba sin documento en `usuarios_roles/<uid>`
+  // cuando el suyo estaba guardado por número de miembro, que es como están la
+  // mayoría de las fichas antiguas. Y ese documento es justo el que miran las
+  // reglas de Firestore para saber qué cargo tiene: sin él, la cuenta entraba
+  // —`esUsuarioDelSistema()` la deja pasar— pero cualquier regla que preguntara
+  // por el cargo le respondía "permisos insuficientes" en sus propias pantallas.
+  //
+  // Se crea el documento SOLO si no existe, y con el cargo que le corresponde por
+  // ser esta cuenta. Si ya existe no se toca ni un campo: ahí está su selección
+  // manual, que es lo que este atajo protege.
   if (puedeUsarSelectorDeRol(caller.email)) {
-    return Response.json({ ok: true, omitido: 'rol manual del Administrador Global' });
+    const suyo = db.collection(COLECCION_USUARIOS_ROLES).doc(caller.uid);
+    const existente = await suyo.get();
+
+    if (existente.exists) {
+      return Response.json({ ok: true, omitido: 'rol manual del Administrador Global' });
+    }
+
+    const ahora = new Date().toISOString();
+
+    await suyo.set(
+      {
+        uidUsuario: caller.uid,
+        uid: caller.uid,
+        correo: caller.email || '',
+        rolId: 'administrador_global',
+        rol: 'administrador',
+        activo: true,
+        creadoEn: ahora,
+        actualizadoEn: ahora,
+      },
+      { merge: true }
+    );
+
+    return Response.json({ ok: true, rolId: 'administrador_global', creado: true });
   }
 
   // Solo se sincroniza a si misma: no hay parametro para apuntar a otra persona.

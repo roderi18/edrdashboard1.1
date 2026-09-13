@@ -14,9 +14,12 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
-import { ADMIN_ROLE_IDS, getAdminRoleLabel } from 'src/utils/admin-role-label';
+import { getAdminRoleLabel, ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
+import {
+  describirRolesOrganizacionales,
+  describirUbicacionOrganizacional,
+} from 'src/utils/ubicacion-organizacional';
 
-import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
@@ -30,6 +33,9 @@ export function AdminTableRow({
   // Destacamentos, para mostrar el NÚMERO del destacamento en la etiqueta del
   // rol en vez de su id interno. La vista los lee una vez y los pasa por props.
   dests = [],
+  // Iglesias, secciones y regiones, leidas una vez por la vista: con ellas se
+  // traduce el destacamento de la persona a su seccion y su region.
+  catalogos = {},
   selected,
   onSelectRow,
   onAssignAdmin,
@@ -46,8 +52,11 @@ export function AdminTableRow({
   const isAdminActive =
     Boolean(row.adminId || row.esAdministrador) ||
     ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase()) ||
-    ADMIN_ROLE_IDS.includes(row.rolId || row.roleId || row.role);
+    ROLES_DE_ADMINISTRACION.includes(row.rolId || row.roleId || row.role);
   const roleLabel = getAdminRoleLabel(row, { dests });
+  const ubicacion = describirUbicacionOrganizacional(row, { dests, ...catalogos });
+  const rolesOrganizacionales = describirRolesOrganizacionales(row);
+  const codigoDeUsuario = row.memberCode || row.codigoMiembro || row.codigoUsuario || '';
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -145,23 +154,63 @@ export function AdminTableRow({
               >
                 {row.name}
               </Link>
+              {/* EL CODIGO DE USUARIO, no el correo. Es el identificador con el
+                  que se nombra a una persona en toda la organizacion y el que se
+                  busca; el correo ocupaba la linea y casi nunca se usaba para
+                  reconocer a nadie. */}
               <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email || row.correo || '-'}
+                {codigoDeUsuario || '-'}
               </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell>{row.memberCode || row.codigoMiembro || '-'}</TableCell>
+        <TableCell>
+          {ubicacion.region || ubicacion.seccion || ubicacion.destacamento ? (
+            <Stack sx={{ typography: 'body2', gap: 0.25 }}>
+              {ubicacion.region ? (
+                <Box component="span">{ubicacion.region}</Box>
+              ) : null}
 
-        <TableCell>{row.idMiembros || row.memberId || '-'}</TableCell>
+              {/* La seccion y el destacamento van por debajo y mas apagados: la
+                  region encabeza porque es el nivel con el que se ordena la
+                  organizacion. */}
+              {ubicacion.seccion ? (
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {ubicacion.seccion}
+                </Box>
+              ) : null}
+
+              {ubicacion.destacamento ? (
+                <Box component="span" sx={{ color: 'text.disabled' }}>
+                  {ubicacion.destacamento}
+                </Box>
+              ) : null}
+            </Stack>
+          ) : (
+            '-'
+          )}
+        </TableCell>
 
         <TableCell>
-          <Label
-            color={row.estatus === 'activo' || row.status === 'active' ? 'success' : 'default'}
-          >
-            {row.estatus || row.status || 'activo'}
-          </Label>
+          {/* TEXTO LLANO, NO ETIQUETAS. En chips, dos o tres cargos con nombres
+              largos —"Coordinador Asistente de Destacamento"— se convertian en
+              bloques macizos que pesaban mas que el nombre de la persona, y el
+              recuadro no distinguia una cosa de otra: todos los cargos son lo
+              mismo. La etiqueta se reserva para lo que si marca una diferencia. */}
+          {rolesOrganizacionales.length ? (
+            <Stack sx={{ typography: 'body2', gap: 0.25 }}>
+              {rolesOrganizacionales.map((cargo) => (
+                <Box component="span" key={cargo.codigo} title={cargo.nivel}>
+                  {cargo.nombre}
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            // Un administrador de plataforma no tiene por que ocupar una casilla
+            // en la organizacion: sin cargo no hay nada que ensenar.
+            '-'
+          )}
         </TableCell>
 
         <TableCell>{roleLabel}</TableCell>

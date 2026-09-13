@@ -30,6 +30,7 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 4. **Tres listas, tres alcances**: secciones, destacamentos y miembros se acotan por separado.
 5. **Oficina Nacional es un rol a mano**: no ocupa casilla de directiva.
 6. `/member` es la lista del destacamento propio (salvo Administrador Global); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha.
+7. **Coordinador Regional y Sub-Director Regional proponen en las secciones de su región** (ficha y directiva): el titular propone, el asistente sugiere, y lo aprueba la Oficina Nacional. Los otros seis cargos regionales siguen siendo de consulta, y los destacamentos siguen cerrados para los ocho.
 
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.

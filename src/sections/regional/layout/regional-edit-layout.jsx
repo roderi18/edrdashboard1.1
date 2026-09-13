@@ -29,7 +29,11 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-export function RegionalEditLayout({ children, ...other }) {
+// CADA PESTAÑA DICE LO QUE ES. Con pestañas, "Editar región" ya no basta: el
+// titulo tiene que decir en cual estas y de que region. El prefijo lo pone cada
+// pagina —una cadena, que la pagina es un componente de servidor y no puede pasar
+// funciones— y el nombre lo pone este layout, que ya lo tiene.
+export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const pathname = usePathname();
   const params = useParams();
   const { user } = useAuthContext();
@@ -95,12 +99,24 @@ export function RegionalEditLayout({ children, ...other }) {
   const currentPath = pathname.replace(/\/$/, '');
   const editHref = paths.dashboard.level.regional.edit(regionalId);
   const leadershipHref = `/dashboard/level/regional/${regionalId}/edit/leadership`;
+  const sectionsHref = `/dashboard/level/regional/${regionalId}/edit/sections`;
+
+  const titulo = tituloPrefijo
+    ? [tituloPrefijo, regionalName].filter(Boolean).join(' ')
+    : 'Editar región';
 
   const navItems = [
     {
       label: 'General',
       icon: <Iconify width={24} icon="solar:buildings-bold" />,
       href: editHref,
+    },
+    {
+      // LAS SECCIONES, EN SU REGION. Es donde esta dicho de quien son, igual que
+      // los destacamentos lo estan en su seccion.
+      label: 'Secciones',
+      icon: <Iconify width={24} icon="solar:map-point-bold" />,
+      href: sectionsHref,
     },
     {
       label: 'Directiva',
@@ -139,7 +155,7 @@ export function RegionalEditLayout({ children, ...other }) {
   return (
     <DashboardContent {...other}>
       <CustomBreadcrumbs
-        heading={isMobile ? null : 'Editar región'}
+        heading={isMobile ? null : titulo}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
           { name: 'Regiones', href: paths.dashboard.level.regional.root },

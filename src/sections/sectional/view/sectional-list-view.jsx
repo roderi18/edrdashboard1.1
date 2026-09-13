@@ -195,7 +195,19 @@ const buildSectionalList = ({
     };
   });
 
-export function SectionalListView() {
+/**
+ * LA LISTA DE SECCIONES, EN SUS DOS SITIOS.
+ *
+ * Sin `regionalId` es /level/sectional: la lista general, con el alcance de
+ * siempre.
+ *
+ * Con `regionalId` es la pestaña "Secciones" de la ficha de una region: las de
+ * ESA region. La visibilidad no cambia —manda el mismo alcance que en la lista
+ * general—; lo unico que se añade es el acotado a la region que se mira. Ahi
+ * sobra ademas la cabecera, que la pone el layout de la region.
+ */
+export function SectionalListView({ regionalId = null }) {
+  const esPestanaDeRegion = Boolean(regionalId);
   const { user } = useAuthContext();
   // Crear secciones: administradores de region (en su region) y global/funcional.
   // Se muestra el boton si el alcance ya lo permite O si el rol tiene el permiso
@@ -251,8 +263,13 @@ export function SectionalListView() {
   // sección y, para los cargos regionales, las de su región). Si el usuario
   // ordena por una columna, manda su criterio (ver `sortOwnFirst`).
   const dataFiltered = useMemo(() => {
+    // La region acota, no abre: `tableData` ya viene con el alcance aplicado.
+    const inputData = esPestanaDeRegion
+      ? tableData.filter((row) => String(row?.regionalId ?? '') === String(regionalId))
+      : tableData;
+
     const filtered = applyFilter({
-      inputData: tableData,
+      inputData,
       comparator: getComparator(table.order, table.orderBy),
       filters: currentFilters,
     });
@@ -267,7 +284,16 @@ export function SectionalListView() {
         ownScope.sectionIds.has(normalizeId(row.id)) ||
         ownScope.regionIds.has(normalizeId(row.regionalId))
     );
-  }, [tableData, table.order, table.orderBy, table.hasUserSorted, currentFilters, ownScope]);
+  }, [
+    tableData,
+    table.order,
+    table.orderBy,
+    table.hasUserSorted,
+    currentFilters,
+    ownScope,
+    regionalId,
+    esPestanaDeRegion,
+  ]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
@@ -438,31 +464,8 @@ export function SectionalListView() {
     [destCountLimitedToOwnRegion, user, ownScope.regionIds]
   );
 
-  return (
+  const renderLista = () => (
     <>
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Lista de Seccionales"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Sección', href: paths.dashboard.level.sectional.root },
-            { name: 'Lista' },
-          ]}
-          action={
-            canCreate ? (
-              <Button
-                component={RouterLink}
-                href={paths.dashboard.level.sectional.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Crear nuevo
-              </Button>
-            ) : null
-          }
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
         <Card>
           <Tabs
             value={currentFilters.regionalName || 'all'}
@@ -623,26 +626,70 @@ export function SectionalListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && (
-          <SectionalCardList
-            sectionals={dataFiltered.map((row) => ({
-              ...row,
-              disabled: isRowDisabled(row),
-              canViewRegionalDests:
-                !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId)),
-              disabledDestCount: isDestCountBlocked(row),
-            }))}
-          />
-        )}
+      {displayMode !== 'panel' && (
+        <SectionalCardList
+          sectionals={dataFiltered.map((row) => ({
+            ...row,
+            disabled: isRowDisabled(row),
+            canViewRegionalDests:
+              !isRowDisabled(row) || ownScope.regionIds.has(normalizeId(row.regionalId)),
+            disabledDestCount: isDestCountBlocked(row),
+          }))}
+        />
+      )}
+    </>
+  );
+
+  const renderDialogoDeBorrado = () => (
+    <CompactEntityDeleteDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      onConfirm={handleDeleteRows}
+      selectedCount={table.selected.length}
+      entityLabel="secciones"
+    />
+  );
+
+  // Dentro de la ficha de una region, el contenedor y las migas los pone el
+  // layout de la region.
+  if (esPestanaDeRegion) {
+    return (
+      <>
+        {renderLista()}
+        {renderDialogoDeBorrado()}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Lista de Seccionales"
+          links={[
+            { name: 'Panel', href: paths.dashboard.root },
+            { name: 'Sección', href: paths.dashboard.level.sectional.root },
+            { name: 'Lista' },
+          ]}
+          action={
+            canCreate ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.sectional.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
+          }
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+
+        {renderLista()}
       </DashboardContent>
 
-      <CompactEntityDeleteDialog
-        open={confirmDialog.value}
-        onClose={confirmDialog.onFalse}
-        onConfirm={handleDeleteRows}
-        selectedCount={table.selected.length}
-        entityLabel="secciones"
-      />
+      {renderDialogoDeBorrado()}
     </>
   );
 }

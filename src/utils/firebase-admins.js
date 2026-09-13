@@ -7,15 +7,15 @@ import {
   setDoc,
   getDocs,
   deleteDoc,
-  updateDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
+import { notificarCargoDeAdministracion } from 'src/utils/notificar-cargo-administracion';
+import { ROLES_DE_ADMINISTRACION, esPerfilDeAdministracion } from 'src/utils/admin-role-label';
 
-import { FIRESTORE } from 'src/lib/firebase';
+import { AUTH, FIRESTORE } from 'src/lib/firebase';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
@@ -33,9 +33,9 @@ const chunkArray = (array = [], size = 30) => {
   return chunks;
 };
 
-// Firestore limita el operador `in` a 30 valores. ADMIN_ROLE_IDS incluye todos
-// los roles/cargos organizacionales y puede superar ese limite, por lo que la
-// consulta se divide en lotes y se combinan los documentos resultantes.
+// Firestore limita el operador `in` a 30 valores. Hoy la lista son cuatro cargos
+// y entra de sobra, pero el troceado se conserva: es la misma funcion que se usaba
+// con el catalogo entero y no cuesta nada dejarla a prueba de que crezca.
 const getDocsByFieldIn = async (collectionName, field, values = []) => {
   const batches = chunkArray(values, 30);
 
@@ -108,8 +108,8 @@ export const obtenerAdministradores = async () => {
       getDocs(
         query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ADMIN_ROLE_VALUES))
       ).catch(() => ({ docs: [] })),
-      getDocsByFieldIn('usuarios_roles', 'rolId', ADMIN_ROLE_IDS),
-      getDocsByFieldIn('usuarios_roles', 'roleId', ADMIN_ROLE_IDS),
+      getDocsByFieldIn('usuarios_roles', 'rolId', ROLES_DE_ADMINISTRACION),
+      getDocsByFieldIn('usuarios_roles', 'roleId', ROLES_DE_ADMINISTRACION),
     ]);
   const profilesByKey = new Map();
 
@@ -133,7 +133,14 @@ export const obtenerAdministradores = async () => {
     mergeAdminProfile(profilesByKey, adminDoc.data(), adminDoc.id, 'admins');
   });
 
-  return Array.from(new Set(profilesByKey.values()));
+  // EL FILTRO VA AQUI Y NO SOLO EN LA CONSULTA.
+  //
+  // De las cinco fuentes, dos preguntan por el cargo; las otras tres —la
+  // coleccion `admins`, `users` y `usuarios_roles` por el campo heredado `rol`—
+  // traen a cualquiera que alguna vez pasara por ahi. Sin este colador, un
+  // documento viejo de un Coordinador Seccional seguia apareciendo en la lista de
+  // administradores aunque su cargo ya no fuera de administracion.
+  return Array.from(new Set(profilesByKey.values())).filter(esPerfilDeAdministracion);
 };
 
 const getMemberRoleProfile = async (member) => {
@@ -322,7 +329,13 @@ const createAdminRoleNotification = async ({ member = {}, action = 'assigned', a
   return notificationId;
 };
 
-export const asignarAdministradorDesdeMiembro = async (member, { usuario = {} } = {}) => {
+export const asignarAdministradorDesdeMiembro = async (
+  member,
+  // `rolDeAdministracion` lo elige quien nombra, en el dialogo. Por defecto sigue
+  // siendo Administrador Global para no cambiarle el significado a los llamadores
+  // que no lo pasan.
+  { usuario = {}, rolDeAdministracion = 'administrador_global' } = {}
+) => {
   const memberId = member?.idMiembros || member?.memberId || member?.id;
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.memberId || '';
   const nombres = member?.firstName || member?.nombres || '';
@@ -355,38 +368,29 @@ export const asignarAdministradorDesdeMiembro = async (member, { usuario = {} } 
     actualizadoEn: now,
   };
 
+  // La coleccion `admins` es el ESPEJO HEREDADO: la lista ya no depende de ella
+  // —se consulta `usuarios_roles` por el cargo— y las reglas la tienen cerrada al
+  // cliente. Se intenta por compatibilidad con lo que aun la lea y no se toma como
+  // un fallo si no entra.
   await setDoc(
     doc(FIRESTORE, 'admins', adminDocId),
-    {
-      ...adminPayload,
-      creadoEn: now,
-    },
+    { ...adminPayload, creadoEn: now },
     { merge: true }
-  );
+  ).catch(() => null);
 
-  if (roleProfile?.ref) {
-    await updateDoc(roleProfile.ref, {
-      rol: 'administrador',
-      estado: 'activo',
-      actualizadoEn: now,
-    });
-  } else {
-    await setDoc(
-      doc(FIRESTORE, 'usuarios_roles', String(memberId || codigoMiembro)),
-      {
-        idMiembros: Number(memberId) || null,
-        codigoMiembro,
-        uid,
-        correo,
-        nombre: displayName,
-        rol: 'administrador',
-        estado: 'activo',
-        creadoEn: now,
-        actualizadoEn: now,
-      },
-      { merge: true }
-    );
-  }
+  // EL CARGO, POR EL SERVIDOR. Igual que al quitarlo: `usuarios_roles` es de solo
+  // lectura para el cliente, asi que el `updateDoc` que habia aqui no escribia
+  // nada y el recien nombrado no era administrador en ningun sitio.
+  await asignarCargoDeAdministracion({
+    uidUsuario: String(roleProfile?.ref?.id || uid || memberId || codigoMiembro || ''),
+    correo,
+    nombre: displayName,
+    // EL CARGO LO ELIGE QUIEN NOMBRA. Antes siempre era Administrador Global: el
+    // cargo con mas poder de la plataforma se daba con un "si" en un dialogo de
+    // confirmacion. El valor por defecto se mantiene por los llamadores antiguos.
+    rolId: rolDeAdministracion,
+    usuario,
+  });
 
   if (uid) {
     await setDoc(
@@ -441,6 +445,59 @@ export const asignarAdministradorDesdeMiembro = async (member, { usuario = {} } 
   };
 };
 
+/**
+ * Cambia el cargo de administracion por la PUERTA DEL SERVIDOR.
+ *
+ * Una sola funcion para las dos direcciones —nombrar y quitar, que es nombrar
+ * `usuario_comun`—, porque las tres reglas viven en la ruta y no se pueden
+ * comprobar aqui: que quien reparte es el Administrador Global, que el cargo es uno
+ * de los cuatro, y que no se queda ninguno. Dos caminos serian dos sitios por los
+ * que escaparse.
+ *
+ * Si falla, se propaga: cambiar un cargo y que no cambie es peor que el error.
+ */
+const asignarCargoDeAdministracion = async ({
+  uidUsuario,
+  correo = '',
+  nombre = '',
+  rolId,
+  usuario = {},
+} = {}) => {
+  if (!uidUsuario) {
+    throw new Error('No se pudo identificar al usuario para cambiarle el cargo.');
+  }
+
+  const token = await AUTH?.currentUser?.getIdToken();
+
+  if (!token) {
+    throw new Error('Tu sesión expiró: vuelve a entrar para cambiar el cargo.');
+  }
+
+  const res = await fetch('/api/admin/asignar-rol-administracion/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ uidUsuario, correo, nombre, rolId, alcance: {} }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.error || 'No se pudo cambiar el cargo de administración.');
+  }
+
+  // Al interesado. Va DESPUES de que el servidor confirme —nunca se avisa de un
+  // cargo que no se guardo— y no bloquea: el cambio ya es real.
+  await notificarCargoDeAdministracion({
+    uidUsuario,
+    nombre,
+    rolId,
+    rolNombre: data?.asignacion?.rolNombre || '',
+    actor: usuario,
+  });
+
+  return data;
+};
+
 export const quitarAdministradorAMiembro = async (member, { usuario = {} } = {}) => {
   const memberId = member?.idMiembros || member?.memberId || member?.id;
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
@@ -466,37 +523,28 @@ export const quitarAdministradorAMiembro = async (member, { usuario = {} } = {})
     ...adminDocs.map((snapshot) => deleteDoc(snapshot.ref).catch(() => null)),
   ]);
 
-  if (roleProfile?.ref) {
-    await updateDoc(roleProfile.ref, {
-      rol: 'usuario',
-      role: 'usuario',
-      estado: 'activo',
-      actualizadoEn: now,
+  // EL CARGO SE QUITA POR EL SERVIDOR.
+  //
+  // `usuarios_roles` es de solo lectura para el cliente, asi que este `updateDoc`
+  // no escribia nada: la fila desaparecia de la pantalla y la persona seguia siendo
+  // administradora al recargar. La ruta ademas impide dejar la organizacion sin
+  // NINGUN Administrador Global, que es lo que pasaba al quitarle el cargo al
+  // ultimo: no quedaba nadie que pudiera volver a repartirlos.
+  const docRol = String(roleProfile?.ref?.id || uid || memberId || codigoMiembro || '');
+
+  if (docRol) {
+    await asignarCargoDeAdministracion({
+      uidUsuario: docRol,
+      correo: member?.email || member?.correo || '',
+      nombre: member?.name || member?.displayName || codigoMiembro,
+      rolId: 'usuario_comun',
+      usuario,
     });
-  } else if (memberId || codigoMiembro) {
-    await setDoc(
-      doc(FIRESTORE, 'usuarios_roles', String(memberId || codigoMiembro)),
-      {
-        idMiembros: Number(memberId) || null,
-        codigoMiembro,
-        uid,
-        correo: member?.email || member?.correo || '',
-        nombre: member?.name || member?.displayName || codigoMiembro,
-        rol: 'usuario',
-        role: 'usuario',
-        estado: 'activo',
-        actualizadoEn: now,
-      },
-      { merge: true }
-    );
   }
 
-  const roleDocs = await getMatchingProfileDocs('usuarios_roles', {
-    ...member,
-    uid,
-    codigoMiembro,
-    idMiembros: memberId,
-  });
+  // Ya no se buscan los documentos de `usuarios_roles`: no se pueden escribir
+  // desde aqui y el cargo lo puso el servidor. Buscarlos era una consulta de mas
+  // para un espejo que no llegaba a escribirse.
   const userDocs = await getMatchingProfileDocs('users', {
     ...member,
     uid,
@@ -504,45 +552,36 @@ export const quitarAdministradorAMiembro = async (member, { usuario = {} } = {})
     idMiembros: memberId,
   });
 
+  // AQUI HABIA UN ESPEJO A MANO SOBRE `usuarios_roles`, Y ERA EL QUE REVENTABA.
+  //
+  // Recorria los documentos de rol de la persona y les escribia `rol: 'usuario'`.
+  // Esa coleccion es `allow write: if false` para el cliente —a proposito: antes
+  // cualquiera reescribia el suyo y se concedia el rol—, asi que la escritura
+  // moria en las reglas y, al no estar recogida, salia a la pantalla como
+  // "Missing or insufficient permissions" DESPUES de que el cambio ya se hubiera
+  // hecho bien. El administrador global veia un error por un cambio que si habia
+  // ocurrido.
+  //
+  // Ya no hace falta: el cargo lo escribe el servidor unas lineas mas arriba, por
+  // `asignarCargoDeAdministracion`, que es la unica via que las reglas aceptan.
+  //
+  // El espejo de `users` si se conserva —esa coleccion si es escribible— pero
+  // best-effort: es una copia de cortesia para pantallas que aun la leen, y que
+  // falle no puede tumbar un cambio que ya esta hecho.
   await Promise.all(
-    roleDocs.map((snapshot) =>
-      setDoc(
-        snapshot.ref,
-        {
-          rol: 'usuario',
-          role: 'usuario',
-          estado: 'activo',
-          actualizadoEn: now,
-        },
-        { merge: true }
+    [
+      uid ? doc(FIRESTORE, 'users', uid) : null,
+      ...userDocs.map((snapshot) => snapshot.ref),
+    ]
+      .filter(Boolean)
+      .map((referencia) =>
+        setDoc(
+          referencia,
+          { rol: 'usuario', role: 'usuario', updatedAt: now },
+          { merge: true }
+        ).catch(() => null)
       )
-    )
   );
-
-  await Promise.all([
-    uid
-      ? setDoc(
-        doc(FIRESTORE, 'users', uid),
-        {
-          rol: 'usuario',
-          role: 'usuario',
-          updatedAt: now,
-        },
-        { merge: true }
-      )
-      : null,
-    ...userDocs.map((snapshot) =>
-      setDoc(
-        snapshot.ref,
-        {
-          rol: 'usuario',
-          role: 'usuario',
-          updatedAt: now,
-        },
-        { merge: true }
-      )
-    ),
-  ]);
 
   await createAdminRoleNotification({
     member,

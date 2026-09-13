@@ -194,10 +194,21 @@ export function SectionalLeadershipView() {
   const params = useParams();
   const { user } = useAuthContext();
   const sectionalId = params?.id;
+  // LA REGION DE LA SECCION, no la del usuario. El Coordinador Regional y su
+  // Sub-Director proponen sobre las secciones de su region, y su alcance no trae
+  // ids de seccion: sin esto el guarda no tiene con que compararlo y el
+  // organigrama les sale de solo lectura en su propia region.
+  //
+  // Llega vacia en el primer pintado -se resuelve con la seccion, mas abajo-, asi
+  // que el boton aparece cuando llega, no antes: de las dos maneras de
+  // equivocarse, esta es la segura.
+  const [sectionalRegionId, setSectionalRegionId] = useState('');
   // Todos los cargos seccionales pueden proponer en SU seccion. El Consejo
   // Ejecutivo puede hacerlo en cualquiera. Solo el Administrador Global aplica
   // directamente y conserva la edicion visual del diagrama.
-  const canManageLeadership = canManageSectionLeadership(user, sectionalId);
+  const canManageLeadership = canManageSectionLeadership(user, sectionalId, {
+    regionId: sectionalRegionId,
+  });
   const canManageLayout = canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -251,6 +262,7 @@ export function SectionalLeadershipView() {
 
       if (isMounted) {
         setSectionalName(sectional?.sectionalName || sectional?.name || '');
+        setSectionalRegionId(sectional?.regionalId || sectional?.idRegion || '');
       }
     };
 

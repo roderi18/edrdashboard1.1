@@ -14,7 +14,6 @@ import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { obtenerAdministradores, quitarAdministradorAMiembro } from 'src/utils/firebase-admins';
 
 import { getMembers } from 'src/services/member-service';
-import { getDests, getDestsApi } from 'src/services/dest-service';
 
 import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -26,17 +25,14 @@ import { useAuthContext } from 'src/auth/hooks';
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
 import { AdminTableToolbar } from '../admin-table-toolbar';
+import {
+  useDatosDeAdministradores,
+  COLUMNAS_DE_ADMINISTRADORES,
+} from '../use-datos-de-administradores';
 
 // ----------------------------------------------------------------------
 
-const TABLE_HEAD = [
-  { id: 'name', label: 'Nombre' },
-  { id: 'codigoMiembro', label: 'Codigo' },
-  { id: 'idMiembros', label: 'ID miembro' },
-  { id: 'estatus', label: 'Estado' },
-  { id: 'rol', label: 'Rol' },
-  { id: '', width: 88 },
-];
+
 
 const resolveAdminMember = (admin, members) => {
   const idMiembros = admin.idMiembros || admin.memberId;
@@ -100,25 +96,9 @@ export function AdminListView() {
   const [removeAdminRow, setRemoveAdminRow] = useState(null);
   const [isRemovingAdmin, setIsRemovingAdmin] = useState(false);
   const [displayMode, setDisplayMode] = useState('panel');
-  // Destacamentos, para mostrar el NÚMERO del destacamento (no su id interno) en
-  // la etiqueta del rol. Se lee una vez aquí y se pasa a filas/tarjetas.
-  const [dests, setDests] = useState(() => getDests());
-
-  useEffect(() => {
-    if (dests.length) return undefined;
-
-    let cancelled = false;
-
-    getDestsApi({ includePhotos: false })
-      .then((data) => {
-        if (!cancelled) setDests(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dests.length]);
+  // Destacamentos, iglesias, secciones, regiones y los cargos de cada persona:
+  // lo mismo que necesita la pantalla de crear administrador, leido una sola vez.
+  const { dests, catalogos, conCargos } = useDatosDeAdministradores();
 
   const filters = useSetState({ name: '' });
   const { state: currentFilters } = filters;
@@ -202,7 +182,7 @@ export function AdminListView() {
     );
   }, []);
 
-  const dataFiltered = applyFilter({ inputData: admins, filters: currentFilters });
+  const dataFiltered = conCargos(applyFilter({ inputData: admins, filters: currentFilters }));
   const notFound = !dataFiltered.length;
 
   return (
@@ -220,7 +200,7 @@ export function AdminListView() {
             <TableHeadCustom
               order={table.order}
               orderBy={table.orderBy}
-              headCells={TABLE_HEAD}
+              headCells={COLUMNAS_DE_ADMINISTRADORES}
               rowCount={dataFiltered.length}
               numSelected={table.selected.length}
               onSort={table.onSort}
@@ -238,6 +218,7 @@ export function AdminListView() {
                   key={row.adminId || row.id}
                   row={row}
                   dests={dests}
+                  catalogos={catalogos}
                   selected={table.selected.includes(row.id)}
                   onSelectRow={() => table.onSelectRow(row.id)}
                   onRemoveAdmin={setRemoveAdminRow}

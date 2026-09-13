@@ -42,6 +42,54 @@ export const ADMIN_ROLE_IDS = [
   ROLES.ADMINISTRADOR_TIENDA,
 ];
 
+// LOS CUATRO CARGOS QUE GOBIERNAN LA PLATAFORMA.
+//
+// Es una lista DISTINTA de ADMIN_ROLE_IDS, y la diferencia importa:
+//
+//   - ADMIN_ROLE_IDS dice que cargos construyen una SESION de administrador
+//     —un Coordinador Seccional entra al panel con su alcance—, y por eso incluye
+//     a casi todo el catalogo. No se toca.
+//   - Esto dice quien ADMINISTRA LA PLATAFORMA. Es lo que `/dashboard/admin`
+//     lista y lo unico que se puede repartir desde ahi.
+//
+// Antes esa pantalla usaba ADMIN_ROLE_IDS, asi que en la lista de
+// "Administradores" salia cualquiera con un cargo de destacamento, de seccion o
+// de region: decenas de personas que no administran nada. Y la Oficina Nacional,
+// que si gobierna, no salia porque no estaba en aquella lista.
+//
+// Los cargos organizacionales se reparten donde les toca —la ficha del miembro y
+// las directivas—, no aqui.
+export const ROLES_DE_ADMINISTRACION = [
+  ROLES.ADMINISTRADOR_GLOBAL,
+  ROLES.ADMINISTRADOR_FUNCIONAL,
+  ROLES.ADMINISTRADOR_TIENDA,
+  ROLES.OFICINA_NACIONAL,
+];
+
+// El valor heredado de `rol` con el que se marcaba a un administrador global
+// antes de que existiera el catalogo de cargos. Sigue vivo en documentos
+// antiguos, asi que quien lo lleve se cuenta como administracion: si no, una
+// cuenta de administrador anterior a la migracion desaparecia de la pantalla.
+const VALORES_LEGADOS_DE_ADMINISTRADOR = ['admin', 'administrador'];
+
+/** ¿Este perfil administra la plataforma? Es lo que decide si sale en la lista. */
+export const esPerfilDeAdministracion = (perfil = {}) => {
+  const codigo = String(
+    perfil?.rolId || perfil?.roleId || perfil?.rolCodigo || perfil?.roleCodigo || ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if (codigo) return ROLES_DE_ADMINISTRACION.includes(codigo);
+
+  // Sin codigo de cargo: solo queda el campo heredado.
+  const heredado = String(perfil?.rol || perfil?.role || '')
+    .trim()
+    .toLowerCase();
+
+  return VALORES_LEGADOS_DE_ADMINISTRADOR.includes(heredado);
+};
+
 const getRoleId = (user = {}) => {
   const rawRole = String(user?.rol || user?.role || '').trim();
 

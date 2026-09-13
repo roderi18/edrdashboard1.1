@@ -282,13 +282,19 @@ export const RESTRICCIONES_ROL = {
     ...RESTRICCIONES_BASE,
     requierePermisoParaMenores: true,
   },
-  ...fromCodes(COORDINADORES_AREA_SECCION, RESTRICCIONES_COORDINADOR_AREA),
-  // Cargos seccionales de consulta: como el de área pero explícitamente solo
-  // lectura (el .NET rechaza sus escrituras vía el claim soloLectura).
-  ...fromCodes(CARGOS_SECCIONALES_CONSULTA, {
-    ...RESTRICCIONES_COORDINADOR_AREA,
-    soloLectura: true,
-  }),
+  // Capellán Seccional, Zonas y Grupos Locales comparten EXACTAMENTE el perfil de
+  // los coordinadores de área: los mismos permisos (ya los tenían, ver
+  // PERMISOS_POR_ROL) y ahora también las mismas restricciones.
+  //
+  // Llevaban además `soloLectura: true`, que era la única diferencia y no añadía
+  // nada: `PERMISOS_COORDINADOR_AREA_SECCION` no concede ninguna edición, así que
+  // el freno sobraba. Lo que sí hacía era pintarles la etiqueta "Solo lectura" y
+  // mandar el claim al .NET, dejando tres cargos de sección con un perfil aparte
+  // que en la aplicación no se distinguía en nada.
+  ...fromCodes(
+    [...COORDINADORES_AREA_SECCION, ...CARGOS_SECCIONALES_CONSULTA],
+    RESTRICCIONES_COORDINADOR_AREA
+  ),
   // Cargos regionales: perfil de consulta de solo lectura del Consejo Nacional.
   ...fromCodes(CARGOS_REGIONALES_PERFIL_DIRECTOR, RESTRICCIONES_DIRECTOR_NACIONAL),
   [ROLES.CONSEJO_NACIONAL]: {
@@ -490,6 +496,19 @@ export const PERMISOS_POR_ROL = {
     // SIN `miembros.subir_foto`: es un cargo de consulta. Ver la ficha de
     // alguien no es motivo para cambiarle la cara.
     PERMISOS.DOCUMENTOS_VER,
+    // VE TODO DE SU GENTE, SIN IMPORTAR EL CARGO DE DESTACAMENTO QUE OCUPE.
+    //
+    // Le faltaban estos dos y eran justo los que dejaban su ficha a medias: veia
+    // los datos personales, los documentos y la pestaña de Padres, pero no Salud
+    // ni Ascenso. Quien es del Consejo Ejecutivo y en su destacamento es Lider de
+    // Grupo entraba a esas dos pestañas por el cargo local y no por el nacional,
+    // asi que lo que veia dependia de la casilla que ocupara en casa.
+    //
+    // VER, no editar: no llevan `salud.editar` ni `ascenso.editar`. Editar sigue
+    // viniendo del cargo de destacamento —Coordinador o Coordinador Asistente—,
+    // no de este.
+    PERMISOS.SALUD_VER,
+    PERMISOS.ASCENSO_VER,
     // Como el Consejo Nacional: entra a la tienda de cliente, no la gestiona.
     PERMISOS.TIENDA_VER,
     PERMISOS.REPORTES_VER_LOCALES,

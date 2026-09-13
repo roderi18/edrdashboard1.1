@@ -192,6 +192,32 @@ const REGION_CREATOR_ROLES = Object.entries(ALCANCE_PREDETERMINADO_ROL)
   .filter(([, alcance]) => alcance === ALCANCES.REGION)
   .map(([codigo]) => codigo);
 
+// EL COORDINADOR REGIONAL Y SU SUB-DIRECTOR, SOBRE LAS SECCIONES DE SU REGION.
+//
+// Son los dos unicos cargos regionales que pueden PROPONER sobre una seccion de
+// su region: la ficha y su directiva. Los demas cargos del nivel region -los
+// cuatro coordinadores, el Capellan y el Secretario- siguen siendo de consulta:
+// miran la seccion, no la mueven.
+//
+// Va en una lista escrita A MANO y no derivada del catalogo, al contrario que
+// REGION_CREATOR_ROLES: derivarla del alcance meteria dentro a los seis que
+// quedan fuera, y a cualquier cargo regional que se cree manana.
+//
+// Y va en una lista PROPIA en vez de rellenar REGION_SCOPED_ROLES, que sigue
+// vacia: esa lista tambien gobierna `canEditDest` y `canAssignSectionalToRegion`,
+// asi que llenarla les reabriria la edicion de destacamentos, que es justo lo que
+// no se pidio.
+//
+// Proponer no es aplicar: lo que envien queda pendiente de la Oficina Nacional
+// -`seccion` y `directiva_seccion` estan en AMBITOS_QUE_APRUEBA_OFICINA_NACIONAL-.
+const REGION_SECTION_PROPOSER_ROLES = [ROLES.USUARIO_REGION, ROLES.USUARIO_REGION_ASISTENTE];
+
+// Por TODOS sus cargos, como el resto de los guardas: quien coordina su
+// destacamento y ademas es Sub-Director de su region entraba con el cargo de
+// destacamento y perdia lo que hace en la region.
+export const esProponenteRegionalDeSecciones = (user = {}) =>
+  rolesQueEjerce(user).some((codigo) => REGION_SECTION_PROPOSER_ROLES.includes(codigo));
+
 // Cargos que pueden COMPONER una directiva mediante propuesta. El alcance de
 // seccion y region se comprueba contra la entidad concreta; los cargos del
 // Consejo Ejecutivo puede proponer en cualquier entidad del pais.
@@ -314,16 +340,45 @@ export const canManageDestLeadershipDirectly = (user = {}, destId = null) => {
   );
 };
 
-export const canManageSectionLeadership = (user = {}, sectionId = null) => {
+/**
+ * ¿Puede componer la directiva de ESA seccion?
+ *
+ * Por dos caminos distintos, y por eso hace falta la region:
+ *
+ *   - Los cargos SECCIONALES, por el id de la seccion: la suya esta en su alcance.
+ *   - El Coordinador Regional y su Sub-Director, por la REGION de la seccion. Su
+ *     alcance no trae ids de seccion -es regional-, asi que comprobarlos contra
+ *     `getSectionScopeIds` los dejaba fuera de todas las secciones, incluidas las
+ *     de su propia region.
+ *
+ * `regionId` es la region a la que pertenece LA SECCION, no la del usuario: quien
+ * llama la resuelve de la seccion y este guarda comprueba que caiga en el alcance
+ * de quien actua. Sin ella el segundo camino no se abre -se deniega, que es lo
+ * seguro-, por lo que un llamador que solo conozca el id de la seccion sigue
+ * comportandose igual que antes.
+ */
+export const canManageSectionLeadership = (
+  user = {},
+  sectionId = null,
+  { regionId = null } = {}
+) => {
   if (isAdminGlobal(user) || esProponenteNacionalDeDirectivas(user)) return true;
 
   const id = normalizeId(sectionId);
 
-  return (
+  if (
     Boolean(id) &&
     getSectionScopeIds(user).has(id) &&
     rolesQueEjerce(user).some((codigo) => SECTION_LEADERSHIP_PROPOSER_ROLES.includes(codigo))
-  );
+  ) {
+    return true;
+  }
+
+  if (!esProponenteRegionalDeSecciones(user)) return false;
+
+  const idRegion = normalizeId(regionId);
+
+  return Boolean(idRegion) && getRegionScopeIds(user).has(idRegion);
 };
 
 export const canManageNationalLeadership = (user = {}) =>
@@ -470,6 +525,19 @@ export const canEditSectional = (user = {}, sectional = {}) => {
     return Boolean(regionId) && getRegionScopeIds(user).has(regionId);
   }
 
+  // El Coordinador Regional y su Sub-Director PROPONEN sobre las secciones de su
+  // region. No las editan: lo que envian queda pendiente de la Oficina Nacional,
+  // igual que lo de un cargo seccional. Se comprueba por la region de la seccion
+  // porque su alcance es regional y no trae ids de seccion.
+  //
+  // Los otros seis cargos del nivel region no entran aqui: siguen siendo de
+  // consulta (ver REGION_SECTION_PROPOSER_ROLES).
+  if (esProponenteRegionalDeSecciones(user)) {
+    const regionId = getSectionalRegionId(sectional);
+
+    if (Boolean(regionId) && getRegionScopeIds(user).has(regionId)) return true;
+  }
+
   // El Coordinador Seccional y su Sub-Coordinador editan SU seccion. El
   // Sub-Coordinador llega hasta los mismos campos que el titular: la diferencia
   // no esta en lo que puede tocar, sino en que lo suyo entra como SUGERENCIA
@@ -490,18 +558,50 @@ export const canEditSectional = (user = {}, sectional = {}) => {
 /**
  * ¿Lo suyo es una SUGERENCIA y no una propuesta?
  *
- * El Sub-Coordinador Seccional maneja los mismos campos que su Coordinador, pero
- * no habla por la seccion: lo que envia queda registrado como sugerido, y no se
- * aplica solo ni aunque quien lo mande pudiera aprobar.
+ * Los asistentes manejan los mismos campos que su titular, pero no hablan por la
+ * entidad: lo que envian queda registrado como sugerido, y no se aplica solo ni
+ * aunque quien lo mande pudiera aprobar.
+ *
+ * Son dos parejas con la misma forma: el Sub-Coordinador Seccional sobre su
+ * seccion, y el Sub-Director Regional sobre las secciones de su region. En las
+ * dos, el titular -Coordinador Seccional, Coordinador Regional- PROPONE.
+ *
+ * El titular se comprueba ANTES que el asistente a proposito: quien ejerce los
+ * dos cargos habla por la entidad, asi que lo suyo es una propuesta.
  */
 export const soloSugiereCambiosDeSeccion = (user = {}) => {
   if (puedeAprobarCambiosDeOrganizacion(user)) return false;
 
   const suyos = rolesQueEjerce(user);
 
-  if (suyos.includes(ROLES.USUARIO_SECCION)) return false;
+  if (suyos.includes(ROLES.USUARIO_SECCION) || suyos.includes(ROLES.USUARIO_REGION)) return false;
 
-  return suyos.includes(ROLES.USUARIO_SECCION_ASISTENTE);
+  return (
+    suyos.includes(ROLES.USUARIO_SECCION_ASISTENTE) ||
+    suyos.includes(ROLES.USUARIO_REGION_ASISTENTE)
+  );
+};
+
+/**
+ * ¿Su cambio en la DIRECTIVA de una seccion entra como sugerencia?
+ *
+ * Solo el Sub-Director Regional. Es deliberadamente mas estrecho que
+ * `soloSugiereCambiosDeSeccion`: el Sub-Coordinador Seccional compone la directiva
+ * de SU seccion como propuesta desde que existe el organigrama, y convertirla en
+ * sugerencia de paso seria cambiarle una regla que nadie pidio tocar.
+ *
+ * Lo que entra aqui es la pareja nueva: el Sub-Director no habla por la region,
+ * asi que su nombre en una casilla de la directiva de una seccion se registra
+ * como sugerido y no como la decision de la region.
+ */
+export const soloSugiereLaDirectivaDeUnaSeccion = (user = {}) => {
+  if (puedeAprobarCambiosDeOrganizacion(user)) return false;
+
+  const suyos = rolesQueEjerce(user);
+
+  if (suyos.includes(ROLES.USUARIO_REGION)) return false;
+
+  return suyos.includes(ROLES.USUARIO_REGION_ASISTENTE);
 };
 
 export const canEditDest = (user = {}, dest = {}) => {

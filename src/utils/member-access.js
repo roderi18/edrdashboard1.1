@@ -7,6 +7,7 @@ import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissi
 import {
   isAdminGlobal,
   isOficinaNacional,
+  ROLES_CONSEJO_EJECUTIVO,
   puedeEntrarAAdministracion,
   canManageDestLeadershipDirectly,
   esProponenteNacionalDeDirectivas,
@@ -1160,10 +1161,17 @@ export const filterDestsByMemberScope = (dests = [], user, context = {}) => {
 
 // Cargos que ven todas las secciones de SU region (no del pais), pero solo
 // pueden interactuar con su propia seccion; el resto se muestra deshabilitado.
-// El Pastor NO va aqui: es de solo lectura y no interactua con nada.
+//
+// EL PASTOR TAMBIEN. Antes se quedaba fuera "porque es de solo lectura y no
+// interactua con nada", pero eso confundia dos cosas: lo que se decide aqui es
+// que se VE, y esta lista no concede interaccion a nadie —los demas tampoco
+// tocan las secciones ajenas, les salen deshabilitadas—. El resultado era un
+// cargo de destacamento que veia menos estructura que el Consejo y el Capellan,
+// que ocupan su mismo sitio en el desplegable del Coordinador.
 const REGION_WIDE_SECTION_VIEWER_ROLE_IDS = [
   ROLES.LIDER_GRUPO,
   ROLES.LIDER_ASISTENTE_GRUPO,
+  ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
   ROLES.CAPELLAN_DESTACAMENTO,
 ];
@@ -1305,6 +1313,29 @@ export const isSupervisoryMemberViewer = (user = {}) =>
       .toLowerCase()
   );
 
+// EL CONSEJO EJECUTIVO VE EL EXPEDIENTE MEDICO ENTERO, SIN PEDIRLE ACCESO A NADIE.
+//
+// Los once cargos del Consejo Ejecutivo —los diez del organigrama nacional y el
+// rol Consejo Ejecutivo— llevaban `salud.ver`, pero la Dispensa les llegaba igual
+// que a un cargo de seccion o de region: bloqueada, con las secciones sin
+// desplegar y los campos deshabilitados, hasta que un Coordinador de Destacamento
+// les concediera acceso temporal (`supervisoryNeedsHealthAccess`). Tener el
+// permiso no les ensenaba nada, y el seguro de un menor seguia enmascarado ademas.
+//
+// Se les abre el expediente COMPLETO —seguro, medicacion, alergias, condiciones y
+// documentos, menores incluidos— en todo el alcance donde ya ven miembros. Es una
+// decision de gobierno, no un descuido: son los cargos que responden por la
+// organizacion entera.
+//
+// LEER, NO TOCAR. Esto no les da ninguna escritura: `canEditHealth`,
+// `canUploadHealthDocuments` y `canDeleteHealthDocuments` los siguen dejando fuera
+// por `isSupervisoryMemberViewer`, y editar sigue saliendo del cargo de
+// destacamento —Coordinador o Coordinador Asistente—.
+const CONSEJO_EJECUTIVO_CON_EXPEDIENTE = [...ROLES_CONSEJO_EJECUTIVO, ROLES.CONSEJO_EJECUTIVO];
+
+export const veElExpedienteMedicoCompleto = (user = {}) =>
+  rolesQueEjerce(user).some((codigo) => CONSEJO_EJECUTIVO_CON_EXPEDIENTE.includes(codigo));
+
 // Los cargos de supervision consultan Salud, pero nunca modifican el expediente
 // ni gestionan sus documentos.
 export const canEditHealth = (user = {}) =>
@@ -1388,6 +1419,12 @@ const ACADEMIA_MINISTERIAL_EDITOR_ROLE_IDS = new Set([
   ROLES.COORDINADOR_PRODUCCION_SECCION,
   ROLES.COORDINADOR_PROGRAMA_SECCION,
   ROLES.CAPELLAN_SECCIONAL,
+  // Zonas y Grupos Locales: son cargos de seccion con el mismo perfil que los
+  // coordinadores de area, y registrar adiestramientos es justo lo suyo. Se
+  // quedaban fuera sin motivo: eran los dos unicos cargos de su nivel sin
+  // Academia Ministerial.
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
   // Nivel region: todos.
   ROLES.SECRETARIO_REGIONAL,
   ROLES.USUARIO_REGION,
@@ -1525,10 +1562,16 @@ export const canViewMemberSensitiveData = (user = {}) => {
 // ENMASCARADA pero conservan visible la FECHA DE NACIMIENTO de los miembros de su
 // destacamento. Es la unica excepcion al enmascarado: la necesitan para conocer la
 // edad y la division del miembro (sobre todo en menores). El resto de los datos
-// personales —direccion, telefono y correo— siguen ocultos. (El Coordinador,
-// Coordinador Asistente y Pastor no aparecen aqui porque ya ven la ficha completa
-// sin enmascarar.)
+// personales —direccion, telefono y correo— siguen ocultos. (El Coordinador y su
+// Asistente no aparecen aqui porque ya ven la ficha completa sin enmascarar.)
+//
+// El PASTOR si esta, junto al Consejo y al Capellan: hoy los tres ven la ficha
+// completa, asi que para ellos esta lista no cambia nada. Estan los tres escritos
+// igual a proposito —ocupan el mismo sitio en el desplegable del Coordinador y
+// tienen los mismos permisos—, para que el dia que a uno se le enmascare la ficha
+// no se quede sin la fecha de nacimiento por un descuido de lista.
 const BIRTHDATE_VISIBLE_WHEN_MASKED_ROLE_IDS = new Set([
+  ROLES.PASTOR_DESTACAMENTO,
   ROLES.CONSEJO_DESTACAMENTO,
   ROLES.CAPELLAN_DESTACAMENTO,
   ROLES.LIDER_GRUPO,
@@ -2075,6 +2118,12 @@ export const isUsuarioComunRole = (user = {}) => {
 // los menores: estos aparecen en la lista pero DESHABILITADOS. Aplica a los
 // cargos de Sección (Coordinador Seccional y afines) y, a nivel nacional, al
 // Director Nacional (consulta global sin acceso a menores).
+//
+// TODOS los cargos de seccion, no solo seis. El Capellan Seccional, Zonas y
+// Grupos Locales tampoco abren la ficha de un menor —ninguno tiene
+// `miembros.ver_menores`—, pero al faltar de esta lista sus menores no salian
+// marcados: la fila se veia como cualquier otra y solo al intentar abrirla se
+// descubria que no. El aviso tiene que estar donde se mira, no donde se tropieza.
 const MINOR_RESTRICTED_ROLE_IDS = [
   ROLES.USUARIO_SECCION,
   ROLES.USUARIO_SECCION_ASISTENTE,
@@ -2082,6 +2131,9 @@ const MINOR_RESTRICTED_ROLE_IDS = [
   ROLES.COORDINADOR_PROMOCION_SECCION,
   ROLES.COORDINADOR_PRODUCCION_SECCION,
   ROLES.COORDINADOR_PROGRAMA_SECCION,
+  ROLES.CAPELLAN_SECCIONAL,
+  ROLES.ZONAS,
+  ROLES.GRUPOS_LOCALES,
   ROLES.DIRECTOR_NACIONAL,
 ];
 

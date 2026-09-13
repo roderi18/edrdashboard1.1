@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
@@ -29,8 +28,8 @@ export function AdminTableToolbar({ filters, onResetPage, displayMode, setDispla
         display: 'grid',
         alignItems: 'center',
         gridTemplateColumns: {
-          xs: 'minmax(0, 1fr) auto auto',
-          md: 'minmax(240px, 360px) 1fr auto auto',
+          xs: 'minmax(0, 1fr) auto',
+          md: 'minmax(240px, 360px) 1fr auto',
         },
       }}
     >
@@ -58,10 +57,6 @@ export function AdminTableToolbar({ filters, onResetPage, displayMode, setDispla
         onChange={setDisplayMode}
         storageKey="admin-display-mode"
       />
-
-      <IconButton>
-        <Iconify icon="eva:more-vertical-fill" />
-      </IconButton>
     </Box>
   );
 }

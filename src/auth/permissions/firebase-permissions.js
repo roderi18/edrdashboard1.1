@@ -10,6 +10,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { notificarCargoDeAdministracion } from 'src/utils/notificar-cargo-administracion';
+
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES_CATALOGO } from './roles';
@@ -173,11 +175,43 @@ export async function guardarAsignacionRolUsuario({
     asignadoEn: new Date().toISOString(),
   });
 
-  await setDoc(doc(FIRESTORE, COLECCIONES_AUTORIZACION.usuariosRoles, String(uidUsuario)), payload, {
-    merge: true,
+  // POR EL SERVIDOR, NO POR AQUI.
+  //
+  // `usuarios_roles` es `allow write: if false` en firestore.rules —a proposito,
+  // porque antes cualquiera reescribia el suyo y se concedia el rol—, asi que el
+  // `setDoc` que habia aqui no escribia nada: la pantalla decia "guardado" y el
+  // documento seguia igual. La ruta ademas comprueba lo que no se puede comprobar
+  // en el navegador: que quien reparte es el Administrador Global, que el cargo es
+  // uno de los cuatro de administracion, y que no se queda ninguno.
+  const token = await AUTH?.currentUser?.getIdToken();
+
+  if (!token) {
+    throw new Error('Tu sesión expiró: vuelve a entrar para guardar el cargo.');
+  }
+
+  const res = await fetch('/api/admin/asignar-rol-administracion/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
   });
 
-  return payload;
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.error || 'No se pudo guardar el cargo.');
+  }
+
+  // Al interesado: es a quien le cambia lo que puede hacer, y hasta ahora era el
+  // unico que no se enteraba.
+  await notificarCargoDeAdministracion({
+    uidUsuario,
+    nombre,
+    rolId,
+    rolNombre,
+    actor: usuario,
+  });
+
+  return data?.asignacion || payload;
 }
 
 /**

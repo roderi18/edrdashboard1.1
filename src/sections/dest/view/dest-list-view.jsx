@@ -138,7 +138,19 @@ const canModifyDest = (user, permissionCode, actionKey) => {
 };
 
 // ----------------------------------------------------------------------
-export function DestListView() {
+/**
+ * LA LISTA DE DESTACAMENTOS, EN SUS DOS SITIOS.
+ *
+ * Sin `sectionalId` es /level/dest: la lista general, con el alcance de siempre.
+ *
+ * Con `sectionalId` es la pestaña "Destacamentos" de la ficha de una seccion:
+ * los de ESA seccion. La visibilidad no cambia —sigue mandando
+ * `filterDestsByMemberScope`, igual que en la lista general—; lo unico que se
+ * añade es el acotado a la seccion que se esta mirando. Ahi ademas sobran la
+ * cabecera, que la pone el layout de la seccion, y las pestañas de region.
+ */
+export function DestListView({ sectionalId = null }) {
+  const esPestanaDeSeccion = Boolean(sectionalId);
   const table = useTable();
   const confirmDialog = useBoolean();
   const { user } = useAuthContext();
@@ -499,8 +511,14 @@ export function DestListView() {
   // y, para los cargos seccionales/regionales, los de su sección o región). Si el
   // usuario ordena por una columna, manda su criterio (ver `sortOwnFirst`).
   const dataFiltered = useMemo(() => {
+    // La seccion acota, no abre: lo que llega en `tableData` ya paso por
+    // `filterDestsByMemberScope`.
+    const inputData = esPestanaDeSeccion
+      ? tableData.filter((row) => String(row?.sectionalId ?? '') === String(sectionalId))
+      : tableData;
+
     const filtered = applyFilter({
-      inputData: tableData,
+      inputData,
       comparator: getComparator(table.order, table.orderBy),
       filters: currentFilters,
       members,
@@ -535,6 +553,8 @@ export function DestListView() {
     currentFilters,
     members,
     ownScope,
+    sectionalId,
+    esPestanaDeSeccion,
   ]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
@@ -571,39 +591,8 @@ export function DestListView() {
     [updateFilters, table]
   );
 
-  return (
+  const renderLista = () => (
     <>
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Lista Destacamentos"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
-            { name: 'Lista' },
-          ]}
-          action={
-            canCreateDest ? (
-              <Button
-                component={RouterLink}
-                href={paths.dashboard.level.dest.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                sx={{
-                  position: { xs: 'absolute', md: 'static' },
-                  right: { xs: 0, md: 'auto' },
-                  top: { xs: 0, md: 'auto' },
-                }}
-              >
-                Crear nuevo
-              </Button>
-            ) : null
-          }
-          sx={{
-            mb: { xs: 3, md: 5 },
-            position: 'relative',
-          }}
-        />
-
         <Card>
           <Tabs
             value={currentFilters.regionalName}
@@ -764,16 +753,68 @@ export function DestListView() {
           )}
         </Card>
 
-        {displayMode !== 'panel' && <DestCardList dests={dataFiltered} />}
+      {displayMode !== 'panel' && <DestCardList dests={dataFiltered} />}
+    </>
+  );
+
+  const renderDialogoDeBorrado = () => (
+    <CompactEntityDeleteDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      onConfirm={handleDeleteRows}
+      selectedCount={table.selected.length}
+      entityLabel="destacamentos"
+    />
+  );
+
+  // Dentro de la ficha de una seccion, el contenedor, las migas y el titulo los
+  // pone el layout de la seccion: repetirlos seria una pantalla dentro de otra.
+  if (esPestanaDeSeccion) {
+    return (
+      <>
+        {renderLista()}
+        {renderDialogoDeBorrado()}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Lista Destacamentos"
+          links={[
+            { name: 'Panel', href: paths.dashboard.root },
+            { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
+            { name: 'Lista' },
+          ]}
+          action={
+            canCreateDest ? (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.level.dest.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                sx={{
+                  position: { xs: 'absolute', md: 'static' },
+                  right: { xs: 0, md: 'auto' },
+                  top: { xs: 0, md: 'auto' },
+                }}
+              >
+                Crear nuevo
+              </Button>
+            ) : null
+          }
+          sx={{
+            mb: { xs: 3, md: 5 },
+            position: 'relative',
+          }}
+        />
+
+        {renderLista()}
       </DashboardContent>
 
-      <CompactEntityDeleteDialog
-        open={confirmDialog.value}
-        onClose={confirmDialog.onFalse}
-        onConfirm={handleDeleteRows}
-        selectedCount={table.selected.length}
-        entityLabel="destacamentos"
-      />
+      {renderDialogoDeBorrado()}
     </>
   );
 }

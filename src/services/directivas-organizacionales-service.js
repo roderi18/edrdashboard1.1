@@ -15,8 +15,10 @@ import {
   canManageNationalLeadership,
   canManageDestLeadershipDirectly,
   destLeadershipChangeNeedsNotice,
+  esProponenteRegionalDeSecciones,
   esProponenteNacionalDeDirectivas,
   puedeAprobarCambiosDeOrganizacion,
+  soloSugiereLaDirectivaDeUnaSeccion,
 } from 'src/utils/org-level-access';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -37,6 +39,37 @@ import {
 } from 'src/catalogs/directiva-positions';
 
 // ----------------------------------------------------------------------
+
+/**
+ * La REGION a la que pertenece una seccion.
+ *
+ * Hace falta para el Coordinador Regional y su Sub-Director, que proponen sobre
+ * las secciones de su region: su alcance no trae ids de seccion, asi que el guarda
+ * compara por region.
+ *
+ * Se resuelve AQUI y no se acepta de quien llama: el argumento lo pone la pantalla
+ * y con el bastaria para colarse en la directiva de una seccion de otra region.
+ * Se pide solo cuando el camino seccional ya fallo, y la lista de secciones va por
+ * la cache de upstream, asi que a un cargo seccional no le cuesta nada.
+ *
+ * No poder comprobarlo NO autoriza: se devuelve vacio y el guarda deniega.
+ */
+const regionDeLaSeccion = async (idSeccion) => {
+  const id = String(idSeccion ?? '').trim();
+
+  if (!id) return '';
+
+  try {
+    const { getSectionalById } = await import('src/services/sectional-service');
+    const seccion = await getSectionalById(id);
+
+    return String(seccion?.regionalId ?? seccion?.idRegion ?? '');
+  } catch (error) {
+    console.warn('[directivas] no se pudo resolver la region de la seccion', error);
+
+    return '';
+  }
+};
 
 // Para poner el NOMBRE del cargo en el registro de auditoria, no su id.
 const POSICION_POR_ID_CARGO = new Map(
@@ -612,7 +645,7 @@ export async function guardarAsignacionDirectiva({
   asegurarFirebaseDirectivas();
 
   const esAprobador = puedeAprobarCambiosDeOrganizacion(usuario);
-  const puedeComponer =
+  let puedeComponer =
     esAprobador ||
     (nivel === DIRECTIVA_LEVELS.destacamento &&
       (canManageDestLeadershipDirectly(usuario, idEntidad) ||
@@ -620,6 +653,22 @@ export async function guardarAsignacionDirectiva({
     (nivel === DIRECTIVA_LEVELS.seccional && canManageSectionLeadership(usuario, idEntidad)) ||
     (nivel === DIRECTIVA_LEVELS.regional && canManageRegionLeadership(usuario, idEntidad)) ||
     (nivel === DIRECTIVA_LEVELS.nacional && canManageNationalLeadership(usuario));
+
+  // EL SEGUNDO CAMINO DE UNA DIRECTIVA SECCIONAL: por la region de la seccion.
+  //
+  // Va aparte y despues porque cuesta una consulta: solo se paga cuando el camino
+  // de siempre ya dijo no y quien actua es el Coordinador Regional o su
+  // Sub-Director. Para el resto -un cargo seccional, un usuario comun- esto no se
+  // ejecuta.
+  if (
+    !puedeComponer &&
+    nivel === DIRECTIVA_LEVELS.seccional &&
+    esProponenteRegionalDeSecciones(usuario)
+  ) {
+    puedeComponer = canManageSectionLeadership(usuario, idEntidad, {
+      regionId: await regionDeLaSeccion(idEntidad),
+    });
+  }
 
   if (!puedeComponer) {
     throw new Error('No tienes permiso para proponer cambios en esta directiva.');
@@ -793,6 +842,12 @@ export async function guardarAsignacionDirectiva({
     esProponenteNacionalDeDirectivas(usuario) &&
     !canManageDestLeadershipDirectly(usuario, idEntidad);
 
+  // EL SUB-DIRECTOR REGIONAL SUGIERE. Compone la directiva de las secciones de su
+  // region igual que su Coordinador, pero no habla por la region: lo suyo queda
+  // registrado como sugerido. Su Coordinador Regional propone.
+  const sugerenciaDelSubDirectorRegional =
+    nivel === DIRECTIVA_LEVELS.seccional && soloSugiereLaDirectivaDeUnaSeccion(usuario);
+
   // Las directivas de seccion, region y consejo nacional las aprueba la Oficina
   // Nacional o el Administrador Global: hasta entonces la asignacion NO se
   // escribe. La de destacamento sigue directa para sus cargos locales; si la
@@ -816,7 +871,7 @@ export async function guardarAsignacionDirectiva({
     usuario,
     descripcion: descripcionCambio,
     aplicarDirecto: esAprobador,
-    esSugerencia: propuestaNacionalSobreDestacamento,
+    esSugerencia: propuestaNacionalSobreDestacamento || sugerenciaDelSubDirectorRegional,
     // El lote de escritura no se puede guardar; los argumentos si. Al aprobar se
     // vuelve a llamar a esta misma funcion con ellos, ya como Oficina Nacional.
     payload: {
