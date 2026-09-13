@@ -2211,6 +2211,12 @@ export const canManageStoreProducts = (user = {}) => hasStoreAdminAccess(user);
 export const canEditStoreProduct = (user = {}) =>
   isAdminGlobal(user) || canManageStoreProducts(user);
 
+// ELIMINAR UN PRODUCTO DESDE SU FICHA, junto al lapiz. Es del Administrador
+// Global: limpiando la tienda de productos de prueba tenia que pedirle cada
+// borrado al de Tienda, que es el unico con el boton en la lista. Borrar es
+// definitivo; por eso pasa por una confirmacion y queda en la auditoria.
+export const canDeleteProductFromDetails = (user = {}) => isAdminGlobal(user);
+
 const hasExplicitAdminPermissions = (permissions = {}) =>
   hasExplicitPermissions(permissions) &&
   Object.keys(permissions).some((permissionKey) => ADMIN_PERMISSION_MODULE_KEYS.has(permissionKey));

@@ -15,7 +15,8 @@ register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 // llegaba a un formulario que arrancaba con "Publicar" encendido aunque el
 // producto fuera un borrador, asi que guardar un precio lo publicaba.
 
-const { canEditStoreProduct, canManageStoreProducts } = await import('src/utils/member-access.js');
+const { canEditStoreProduct, canManageStoreProducts, canDeleteProductFromDetails } =
+  await import('src/utils/member-access.js');
 
 const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), 'utf8');
 
@@ -68,4 +69,38 @@ test('el editor arranca con el estado de publicacion del producto, no con "Publi
     /useState\(\s*currentProduct \? currentProduct\.publish === 'published' : true\s*\)/
   );
   assert.doesNotMatch(formulario, /const \[publish, setPublish\] = useState\(true\);/);
+});
+
+// ELIMINAR DESDE LA FICHA. El Administrador Global limpiaba la tienda de
+// productos de prueba y cada borrado se lo tenia que pedir al de Tienda. El boton
+// va a la izquierda del lapiz, y como no se puede deshacer pasa por confirmacion.
+
+test('elimina desde la ficha solo el Administrador Global', () => {
+  assert.equal(canDeleteProductFromDetails(global), true);
+  assert.equal(canDeleteProductFromDetails(tienda), false);
+  assert.equal(canDeleteProductFromDetails(funcional), false);
+  assert.equal(canDeleteProductFromDetails(coordinador), false);
+  assert.equal(canDeleteProductFromDetails({}), false);
+});
+
+test('la papelera va a la izquierda del lapiz', () => {
+  const barra = leer('src/sections/product/product-details-toolbar.jsx');
+
+  const papelera = barra.indexOf('<Tooltip title="Eliminar producto">');
+  const lapiz = barra.indexOf('<Tooltip title="Editar producto">');
+
+  assert.ok(papelera > 0, 'falta el boton de eliminar');
+  assert.ok(papelera < lapiz, 'la papelera tiene que ir antes que el lapiz');
+  assert.match(barra, /\{canDelete && \(/);
+});
+
+test('eliminar pide confirmacion antes de borrar y despues vuelve a la lista', () => {
+  const ficha = leer('src/sections/product/view/product-details-view.jsx');
+
+  assert.match(ficha, /const canDelete = canDeleteProductFromDetails\(user\);/);
+  // El boton solo abre el dialogo; borra el "Eliminar" del dialogo.
+  assert.match(ficha, /onDelete=\{confirmDelete\.onTrue\}/);
+  assert.match(ficha, /<ConfirmDialog[\s\S]*onClick=\{handleDelete\}/);
+  assert.match(ficha, /await eliminarProductoFirestore\(id, user\);/);
+  assert.match(ficha, /router\.replace\(paths\.dashboard\.product\.root\);/);
 });

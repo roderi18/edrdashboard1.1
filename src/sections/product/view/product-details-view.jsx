@@ -1,30 +1,40 @@
 'use client';
 
-import { useTabs } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { useState, useEffect, useCallback } from 'react';
+import { useTabs, useBoolean } from 'minimal-shared/hooks';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
-import { useSearchParams } from 'src/routes/hooks';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { canEditStoreProduct, canManageStoreProducts } from 'src/utils/member-access';
+import {
+  canEditStoreProduct,
+  canManageStoreProducts,
+  canDeleteProductFromDetails,
+} from 'src/utils/member-access';
 
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { resolverProductoCombinadoPorId } from 'src/services/product-service';
+import {
+  eliminarProductoFirestore,
+  resolverProductoCombinadoPorId,
+} from 'src/services/product-service';
 import {
   buildProductReviewStats,
   listarResenasProductoFirestore,
 } from 'src/services/product-review-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { ProductDetailsSkeleton } from 'src/sections/product/product-skeleton';
 
@@ -60,6 +70,7 @@ const SUMMARY = [
 // ----------------------------------------------------------------------
 
 export function ProductDetailsView({ product, productId }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get('tab') === 'reviews' ? 'reviews' : 'description';
   const selectedReviewId = searchParams.get('reviewId') || '';
@@ -73,6 +84,8 @@ export function ProductDetailsView({ product, productId }) {
   const [isLoading, setIsLoading] = useState(Boolean(productId) && !product);
   const canManageStore = canManageStoreProducts(user);
   const canEdit = canEditStoreProduct(user);
+  const canDelete = canDeleteProductFromDetails(user);
+  const confirmDelete = useBoolean();
 
   useEffect(() => {
     setTabValue(selectedTab);
@@ -115,6 +128,22 @@ export function ProductDetailsView({ product, productId }) {
     setPublish(newValue);
   }, []);
 
+  // Se borra y se sale a la lista: quedarse en la ficha de un producto que ya no
+  // existe dejaba la pantalla con datos que al recargar daban "no encontrado".
+  const handleDelete = useCallback(async () => {
+    const id = resolvedProduct?.id || productId;
+
+    try {
+      await eliminarProductoFirestore(id, user);
+      confirmDelete.onFalse();
+      toast.success('Producto eliminado');
+      router.replace(paths.dashboard.product.root);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.message || 'No se pudo eliminar el producto');
+    }
+  }, [confirmDelete, productId, resolvedProduct?.id, router, user]);
+
   const handleReviewsChange = useCallback((nextReviews) => {
     const stats = buildProductReviewStats(nextReviews);
 
@@ -146,6 +175,8 @@ export function ProductDetailsView({ product, productId }) {
             publishOptions={PRODUCT_PUBLISH_OPTIONS}
             canManageStore={canManageStore}
             canEdit={canEdit}
+            canDelete={canDelete}
+            onDelete={confirmDelete.onTrue}
           />
 
           <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
@@ -225,6 +256,25 @@ export function ProductDetailsView({ product, productId }) {
             )}
           </Card>
         </>
+      )}
+
+      {canDelete && (
+        <ConfirmDialog
+          open={confirmDelete.value}
+          onClose={confirmDelete.onFalse}
+          title="Eliminar producto"
+          content={
+            <>
+              Se eliminara <strong>{resolvedProduct?.name || 'este producto'}</strong> de forma
+              definitiva. Esta accion no se puede deshacer.
+            </>
+          }
+          action={
+            <Button variant="contained" color="error" onClick={handleDelete}>
+              Eliminar
+            </Button>
+          }
+        />
       )}
     </DashboardContent>
   );

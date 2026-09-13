@@ -26,6 +26,8 @@ export function ProductDetailsToolbar({
   // El lapiz va aparte de la publicacion: el Administrador Global edita el
   // producto, pero publicar sigue siendo cosa del Administrador de Tienda.
   canEdit = canManageStore,
+  canDelete = false,
+  onDelete,
   ...other
 }) {
   const menuActions = usePopover();
@@ -83,6 +85,14 @@ export function ProductDetailsToolbar({
           <Tooltip title="Ir en vivo">
             <IconButton component={RouterLink} href={liveHref}>
               <Iconify icon="eva:external-link-fill" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {canDelete && (
+          <Tooltip title="Eliminar producto">
+            <IconButton color="error" onClick={onDelete} aria-label="Eliminar producto">
+              <Iconify icon="solar:trash-bin-trash-bold" />
             </IconButton>
           </Tooltip>
         )}
