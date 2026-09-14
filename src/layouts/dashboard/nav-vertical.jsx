@@ -97,6 +97,22 @@ export function NavVertical({
 }
 
 // ----------------------------------------------------------------------
+// LA CORDILLERA DEL PIE DE LA BARRA.
+//
+// Dos crestas: la de atras mas alta y mas tenue, la de delante mas baja y algo
+// mas marcada. Con una sola quedaba un triangulo pegado abajo; con dos hay
+// profundidad y se lee como un paisaje aunque apenas se vea.
+//
+// Va en `currentColor` blanco y la opacidad se pone desde el CSS: asi el mismo
+// dibujo sirve si manana el pie cambia de fondo.
+//
+// Dibujada a mano y no traida de un archivo para que viaje con el componente: es
+// decoracion de una barra concreta, no un recurso del proyecto, y un `.svg` en
+// `public/` habria que acordarse de borrarlo el dia que esto se quite.
+const CORDILLERA = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 160' preserveAspectRatio='none'>
+  <path fill='%23ffffff' fill-opacity='.45' d='M0 160V88l38-32 32 26 38-44 38 46 38-26 38 38 36-30 42 32v62z'/>
+  <path fill='%23ffffff' fill-opacity='.85' d='M0 160v-38l44-28 38 24 42-32 40 38 38-22 44 32 54-26v52z'/>
+</svg>`;
 
 const NavRoot = styled('div', {
   shouldForwardProp: (prop) => !['isNavMini', 'layoutQuery', 'sx'].includes(prop),
@@ -116,4 +132,36 @@ const NavRoot = styled('div', {
     duration: 'var(--layout-transition-duration)',
   }),
   [theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+
+  // EL DIBUJO POR DETRAS, SIN TOCAR A LOS HIJOS.
+  //
+  // Aqui habia un `& > *` que les ponia `position: relative` para levantarlos por
+  // encima del pseudo-elemento. Se llevo por delante el boton de plegar la barra,
+  // que es hijo directo y va `absolute`: al pisarle la posicion salia del flujo
+  // normal y se estiraba a lo ancho de la barra.
+  //
+  // Con `isolate` la barra crea su propio contexto de apilado, y dentro de el un
+  // `z-index: -1` deja el dibujo por encima del fondo y por debajo de todo lo
+  // demas, sin que ningun hijo tenga que enterarse.
+  isolation: 'isolate',
+
+  // EN LA BARRA ANCHA Y SOLO AHI. En la version mini son 88 pixeles: un paisaje
+  // recortado a esa anchura no se lee como un paisaje, se lee como un borron.
+  ...(!isNavMini && {
+    '&::after': {
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: -1,
+      height: 168,
+      content: '""',
+      opacity: 0.06,
+      position: 'absolute',
+      pointerEvents: 'none',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'bottom center',
+      backgroundSize: '100% 168px',
+      backgroundImage: `url("data:image/svg+xml;charset=utf-8,${CORDILLERA.replace(/\n\s*/g, '')}")`,
+    },
+  }),
 }));

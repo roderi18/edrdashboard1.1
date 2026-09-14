@@ -49,11 +49,11 @@ import { SettingsButton } from '../components/settings-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
 import { WorkspacesPopover } from '../components/workspaces-popover';
-import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
 import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { navDataDesarrollo, navData as dashboardNavData } from '../nav-config-dashboard';
 
 // ----------------------------------------------------------------------
 
@@ -258,14 +258,29 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   }, [user]);
 
   const navData = useMemo(() => {
+    // EL ADMINISTRADOR GLOBAL SIGUE VIENDO TODO.
+    //
+    // El menu se reorganizo en seis grupos por area de trabajo y los modulos de la
+    // plantilla y las pantallas "- DEV" se quedaron fuera: para el resto de la
+    // organizacion eran entradas que llevaban a datos de mentira.
+    //
+    // Para quien desarrolla si sirven, asi que se le devuelven al final, en dos
+    // grupos propios y marcados como "Desarrollo". Van al final a proposito: lo de
+    // trabajar primero, lo de probar despues.
+    //
+    // No se usa `allowedRoles` porque esa comprobacion es una lista de EXCLUSION
+    // —oculta a quien aparezca en ella— y aqui hace falta lo contrario.
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
-    const navDataConIndicadores = agregarIndicadoresMensajes(baseNavData, {
+    const conDesarrollo = esAdministradorGlobal
+      ? [...baseNavData, ...navDataDesarrollo]
+      : baseNavData;
+    const navDataConIndicadores = agregarIndicadoresMensajes(conDesarrollo, {
       chatUnreadCount: chatsSinLeer,
       mailUnreadCount: mailsSinLeer,
     });
 
     return filterDashboardNavDataByUser(navDataConIndicadores, user);
-  }, [chatsSinLeer, mailsSinLeer, slotProps?.nav?.data, user]);
+  }, [chatsSinLeer, esAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
@@ -332,6 +347,20 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
             <VerticalDivider sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }} />
           )}
 
+          {/** @slot Searchbar
+           *
+           * A LA IZQUIERDA Y ABIERTO. Estaba a la derecha, apretado entre los seis
+           * iconos de la cabecera y reducido a una lupa: para buscar habia que
+           * saber que esa lupa buscaba y abrir un dialogo encima de todo.
+           *
+           * Va ANTES que los selectores de rol a proposito. Detras de ellos el
+           * campo empezaba a mitad de la cabecera —esos dos selectores son anchos
+           * y solo los ve el Administrador Global—, asi que la busqueda quedaba
+           * descolocada para quien mas la usa y centrada para nadie. Buscar se
+           * hace mas veces que cambiarse de rol.
+           */}
+          <Searchbar abierto data={navData} sx={{ ml: { sm: 1.5, md: 2 } }} />
+
           {/** @slot Workspace popover */}
           {/* Solo el Administrador Global: es el unico que cambia de rol. Para el
               resto era un adorno que ademas decia un solo cargo, y hay quien
@@ -362,9 +391,6 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ),
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
-          {/** @slot Searchbar */}
-          <Searchbar data={navData} />
-
           {/** @slot Language popover */}
           <LanguagePopover data={allLangs} disabled />
 
@@ -388,6 +414,33 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ),
     };
 
+    // LA CABECERA ES NAVY, COMO LA BARRA LATERAL Y LA PORTADA.
+    //
+    // No basta con pintarle el fondo: dentro hay botones de icono que traen su
+    // propio color del tema (`action.active`, un gris pensado para fondos claros)
+    // y sobre navy se volvian ilegibles. Por eso se recolorean los hijos aqui, en
+    // un solo sitio, en vez de tocar cada componente de la cabecera.
+    //
+    // El velo del scroll se apaga: existia para dar fondo a una cabecera
+    // transparente cuando el contenido pasaba por debajo. Con la cabecera ya
+    // opaca lo unico que hacia era aclararla al bajar.
+    const cabeceraDeMarca = {
+      backgroundColor: 'var(--layout-header-bg)',
+      color: 'var(--layout-header-text)',
+      '&::before': { display: 'none' },
+      // Los iconos y su texto. `color: inherit` no basta: los `IconButton` del
+      // tema declaran el suyo.
+      '& .MuiIconButton-root': { color: 'var(--layout-header-text-secondary)' },
+      '& .MuiIconButton-root:hover': {
+        color: 'var(--layout-header-text)',
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      },
+      '& .MuiTypography-root': { color: 'inherit' },
+      // La lupa y su campo de busqueda, que en claro iban sobre blanco.
+      '& .MuiInputBase-root': { color: 'var(--layout-header-text)' },
+      '& .MuiDivider-root': { borderColor: 'rgba(255, 255, 255, 0.16)' },
+    };
+
     return (
       <HeaderSection
         layoutQuery={layoutQuery}
@@ -395,7 +448,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         {...slotProps?.header}
         slots={{ ...headerSlots, ...slotProps?.header?.slots }}
         slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
-        sx={slotProps?.header?.sx}
+        sx={[
+          cabeceraDeMarca,
+          ...(Array.isArray(slotProps?.header?.sx) ? slotProps.header.sx : [slotProps?.header?.sx]),
+        ]}
       />
     );
   };

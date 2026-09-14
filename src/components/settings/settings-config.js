@@ -11,7 +11,9 @@ export const defaultSettings = {
   contrast: 'default',
   navLayout: 'vertical',
   primaryColor: 'default',
-  navColor: 'integrate',
+  // 'apparent' es la barra oscura. En pruebas se deja por defecto para ver el
+  // navy; 'integrate' la devuelve al color del fondo.
+  navColor: 'apparent',
   compactLayout: true,
   fontSize: 16,
   fontFamily: themeConfig.fontFamily.primary,

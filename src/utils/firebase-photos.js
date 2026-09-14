@@ -23,6 +23,12 @@ const PHOTO_FOLDERS = {
   destacamento: 'destacamentos',
   seccion: 'secciones',
   region: 'regiones',
+  // Las imagenes de las tarjetas de la pantalla Principal, que pone el
+  // Administrador Global. Carpeta propia y no `principal/`, que es la de las
+  // fotos de las publicaciones del muro: aquella tiene `allow update: if false`
+  // —una publicacion no se reedita— y aqui la imagen se reemplaza cada vez que
+  // se cambia.
+  principalTarjeta: 'principal-tarjetas',
 };
 
 const getPhotoDocumentId = ({ tipoEntidad, idEntidad, tipoFoto = 'perfil' }) =>

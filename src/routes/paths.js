@@ -227,6 +227,7 @@ export const paths = {
       notifications: `${ROOTS.DASHBOARD}/admin/notifications`,
       maintenance: `${ROOTS.DASHBOARD}/admin/maintenance`,
       health: `${ROOTS.DASHBOARD}/admin/health`,
+      paleta: `${ROOTS.DASHBOARD}/admin/paleta`,
     },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,

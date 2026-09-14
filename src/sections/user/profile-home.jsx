@@ -77,7 +77,25 @@ const BIRTHDAY_PRESET_MESSAGES = [
 const getBirthdayDefaultMessage = (friend) =>
   `¡Feliz cumpleaños, ${friend.nombre}! Dios te bendiga en este nuevo año de vida. 🎉`;
 
-export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ...other }) {
+export function ProfileHome({
+  info,
+  posts,
+  user,
+  perfilIdMiembros = null,
+  // SOLO EL MURO, SIN LA COLUMNA DE LA DERECHA.
+  //
+  // La pantalla Principal rediseñada trae su propia columna lateral —eventos,
+  // comunicados— y monta este componente dentro. Sin esto salian DOS columnas
+  // laterales, una al lado de la otra, y el muro se quedaba en un tercio de
+  // pantalla.
+  //
+  // Es una bandera y no un componente aparte a proposito: el muro son 2.000
+  // lineas de estado compartido —publicar, comentar, reaccionar, paginar— y
+  // partirlo en dos para esto habria sido rehacerlo.
+  soloMuro = false,
+  sx,
+  ...other
+}) {
   const router = useRouter();
   const fileRef = useRef(null);
   const postImagesRef = useRef([]);
@@ -1096,7 +1114,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
       </Box>
 
       <Grid
-        size={{ xs: 12, md: 8 }}
+        size={{ xs: 12, md: soloMuro ? 12 : 8 }}
         sx={{
           gap: 3,
           minWidth: 0,
@@ -1193,6 +1211,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
         )}
       </Grid>
 
+      {!soloMuro && (
       <Grid size={{ xs: 12, md: 4 }}>
         <Stack
           spacing={3}
@@ -1207,6 +1226,7 @@ export function ProfileHome({ info, posts, user, perfilIdMiembros = null, sx, ..
           {renderAdsSlider()}
         </Stack>
       </Grid>
+      )}
       {renderBirthdayPopover()}
     </Grid>
   );

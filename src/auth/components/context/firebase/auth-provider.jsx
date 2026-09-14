@@ -449,9 +449,38 @@ export function AuthProvider({ children }) {
               memberAccess?.profile ??
               null;
 
+            // SU IDENTIDAD DE MIEMBRO VIAJA CON LA SESION, TAMBIEN AQUI.
+            //
+            // Esta rama se armaba solo con el documento de administrador, y ese
+            // documento no siempre lleva `idMiembros` —los antiguos no lo tienen—.
+            // La rama de miembro si lo resuelve, cayendo a `member.id`, asi que el
+            // mismo usuario tenia identidad al entrar como miembro y la perdia al
+            // entrar como administrador.
+            //
+            // Se notaba en el muro: dar un me gusta o comentar exige saber QUIEN
+            // lo hace (`assertPrincipalIdentity`), y a un administrador le
+            // respondia "tu sesion no tiene una identidad de miembro valida".
+            //
+            // El documento de administrador sigue mandando; esto solo rellena lo
+            // que le falte, con lo que ya se leyo del padron.
+            const identidadDeMiembro = {
+              idMiembros:
+                adminProfileData.idMiembros ??
+                memberAccess?.profile?.idMiembros ??
+                memberAccess?.member?.id ??
+                memberAccess?.member?.idMiembros,
+              codigoMiembro:
+                adminProfileData.codigoMiembro ??
+                memberAccess?.profile?.codigoMiembro ??
+                memberAccess?.member?.memberId,
+            };
+
             sessionUser = await buildAdminSessionWithMemberPhoto(authUser, {
               ...adminProfileData,
               ...pickAuthorizationProfile(authorizationAccess, memberAccess),
+              ...Object.fromEntries(
+                Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
+              ),
             });
           } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
             // PINTAR YA, REFINAR DESPUES.

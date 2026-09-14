@@ -18,6 +18,10 @@ export const warning = createPaletteChannel(themeConfig.palette.warning);
 export const error = createPaletteChannel(themeConfig.palette.error);
 export const common = createPaletteChannel(themeConfig.palette.common);
 export const grey = createPaletteChannel(themeConfig.palette.grey);
+// EL ESCUDO: navy y oro. Pasa por `createPaletteChannel` como las demas para que
+// tenga sus `*Channel`, que es lo que `varAlpha` necesita para hacer un
+// translucido —la barra lateral usa `brand.navyChannel`—.
+export const brand = createPaletteChannel(themeConfig.palette.brand);
 
 /**
  * ➤
@@ -41,9 +45,18 @@ export const text = {
   }),
 };
 
+// EL OSCURO ES NAVY, NO GRIS.
+//
+// Eran grises neutros (`#1C252E` y `#141A21`). Junto al navy de la barra lateral
+// —que es mobiliario de marca y no sigue al tema— se veian apagados y sucios,
+// como dos oscuros distintos peleando en la misma pantalla. Ahora llevan el mismo
+// sesgo azul que la barra y el panel deja de parecer dos aplicaciones pegadas.
+//
+// Salen de la escala de grises, que ya esta girada hacia el azul: asi un ajuste
+// de la escala mueve los fondos con ella y no se quedan a medio camino.
 export const background = {
   light: createPaletteChannel({ paper: '#FFFFFF', default: '#FFFFFF', neutral: grey[200] }),
-  dark: createPaletteChannel({ paper: grey[800], default: grey[900], neutral: '#28323D' }),
+  dark: createPaletteChannel({ paper: grey[800], default: grey[900], neutral: '#243350' }),
 };
 
 export const action = (mode) => ({
@@ -88,6 +101,8 @@ const basePalette = {
   error,
   common,
   grey,
+  // Va en la base y no en `light`/`dark`: el escudo es el mismo en los dos modos.
+  brand,
   divider: varAlpha(grey['500Channel'], 0.2),
   TableCell: { border: varAlpha(grey['500Channel'], 0.2) },
   ...extendPalette,

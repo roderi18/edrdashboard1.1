@@ -59,6 +59,11 @@ const NAV_ITEMS = [
     icon: <Iconify width={24} icon="solar:pulse-2-bold" />,
     href: paths.dashboard.admin.health,
   },
+  {
+    label: 'Paleta',
+    icon: <Iconify width={24} icon="solar:palette-bold" />,
+    href: paths.dashboard.admin.paleta,
+  },
 ];
 
 const resolveTabValue = (pathname) => {

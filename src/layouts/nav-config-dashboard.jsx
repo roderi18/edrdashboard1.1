@@ -60,47 +60,25 @@ const ICONS = {
  */
 export const navData = [
   /**
-   * Principal
+   * EL MENU, POR LO QUE HACE LA GENTE.
+   *
+   * Antes eran dos bloques —"Principal" y "Management"— con veintitantas entradas
+   * mezcladas: los modulos de la plantilla sin conectar (Ecommerce, Analytics,
+   * Banking, Blog, Job, Tour) al lado de los reales, y las pantallas de demo
+   * marcadas "- DEV" dentro de los desplegables de Tienda, Ordenes y Recibos.
+   * Para llegar a la tienda habia que abrir "Tienda Virtual" y elegir "Lista".
+   *
+   * Ahora son seis grupos por AREA DE TRABAJO, y cada entrada lleva a la pantalla
+   * de verdad en un solo clic. Lo de la plantilla se queda fuera: sigue en el
+   * codigo y se llega por url, pero no ocupa sitio en el menu de nadie.
    */
   {
     subheader: 'Principal',
-    items: [
-      { title: 'Principal', path: paths.dashboard.principal, icon: ICONS.dashboard },
-      // { title: 'Principal 2', path: paths.dashboard.principal2, icon: ICONS.dashboard },
-      { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
-      { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
-      { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
-      { title: 'Banking', path: paths.dashboard.general.banking, icon: ICONS.banking },
-      {
-        title: 'Booking',
-        path: paths.dashboard.general.booking,
-        icon: ICONS.booking,
-        disabled: true,
-      },
-      { title: 'File', path: paths.dashboard.general.file, icon: ICONS.file },
-      { title: 'Course', path: paths.dashboard.general.course, icon: ICONS.course },
-    ],
+    items: [{ title: 'Inicio', path: paths.dashboard.principal, icon: ICONS.dashboard }],
   },
-  /**
-   * Management
-   */
   {
-    subheader: 'Management',
+    subheader: 'Organización',
     items: [
-      {
-        title: 'Usuario - desarrollo',
-        path: paths.dashboard.user.root,
-        icon: ICONS.user,
-        children: [
-          { title: 'Perfil', path: paths.dashboard.user.root },
-          { title: 'Cartas', path: paths.dashboard.user.cards },
-          { title: 'Lista', path: paths.dashboard.user.list },
-          { title: 'Crear', path: paths.dashboard.user.new },
-          { title: 'Editar', path: paths.dashboard.user.demo.edit },
-          { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
-        ],
-      },
-      /* rp */
       {
         title: 'Niveles Organizacionales',
         path: paths.dashboard.level.root,
@@ -113,32 +91,11 @@ export const navData = [
           paths.dashboard.level.member.list,
         ],
         children: [
-          // { title: 'Profile', path: paths.dashboard.level.profile },
-          {
-            title: 'Consejo Nacional',
-            path: paths.dashboard.level.national.root,
-            deepMatch: true,
-          },
-          {
-            title: 'Regiones',
-            path: paths.dashboard.level.regional.root,
-            deepMatch: true,
-          },
-          {
-            title: 'Secciones',
-            path: paths.dashboard.level.sectional.root,
-            deepMatch: true,
-          },
-          {
-            title: 'Destacamentos',
-            path: paths.dashboard.level.dest.root,
-            deepMatch: true,
-          },
-          {
-            title: 'Miembros',
-            path: paths.dashboard.level.member.root,
-            deepMatch: true,
-          },
+          { title: 'Consejo Nacional', path: paths.dashboard.level.national.root, deepMatch: true },
+          { title: 'Regiones', path: paths.dashboard.level.regional.root, deepMatch: true },
+          { title: 'Secciones', path: paths.dashboard.level.sectional.root, deepMatch: true },
+          { title: 'Destacamentos', path: paths.dashboard.level.dest.root, deepMatch: true },
+          { title: 'Miembros', path: paths.dashboard.level.member.root, deepMatch: true },
         ],
       },
       {
@@ -147,36 +104,18 @@ export const navData = [
         icon: ICONS.calendar,
         deepMatch: true,
       },
+    ],
+  },
+  {
+    subheader: 'Tienda',
+    items: [
+      // Directo a la lista. El desplegable que habia encima solo servia para
+      // ofrecer las pantallas de demo de la plantilla.
       {
         title: 'Tienda Virtual',
         path: paths.dashboard.product.root,
         icon: ICONS.product,
-        children: [
-          { title: 'Lista', path: paths.dashboard.product.root },
-          { title: 'Detalles', path: paths.dashboard.product.demo.details },
-          { title: 'Crear', path: paths.dashboard.product.new },
-          { title: 'Editar', path: paths.dashboard.product.demo.edit },
-        ],
-      },
-      {
-        title: 'Ordenes - DEV',
-        path: paths.dashboard.order.root,
-        icon: ICONS.ecommerce,
-        children: [
-          { title: 'Lista', path: paths.dashboard.order.root },
-          { title: 'Detalles', path: paths.dashboard.order.demo.details },
-        ],
-      },
-      {
-        title: 'Recibos - DEV',
-        path: paths.dashboard.invoice.root,
-        icon: ICONS.invoice,
-        children: [
-          { title: 'Lista', path: paths.dashboard.invoice.root },
-          { title: 'Detalles', path: paths.dashboard.invoice.demo.details },
-          { title: 'Crear', path: paths.dashboard.invoice.new },
-          { title: 'Editar', path: paths.dashboard.invoice.demo.edit },
-        ],
+        deepMatch: true,
       },
       {
         title: 'Mi carrito',
@@ -184,22 +123,87 @@ export const navData = [
         icon: ICONS.order,
         info: <CheckoutCartNavInfo />,
       },
+    ],
+  },
+  {
+    subheader: 'Formación',
+    items: [
       { title: 'Certificados', path: paths.dashboard.certificates, icon: ICONS.certificate },
+      { title: 'Documentos Ministeriales', path: paths.dashboard.fileManager, icon: ICONS.folder },
+      // SIN DESTINO TODAVIA. Se deja a la vista porque el area existe y esta
+      // decidida, pero deshabilitada: lo unico que hay hoy es el modulo `course`
+      // de la plantilla, y mandar a la gente ahi seria ensenarle datos de mentira.
+      {
+        title: 'Capacitación',
+        path: paths.dashboard.general.course,
+        icon: ICONS.course,
+        disabled: true,
+        caption: 'Pendiente de pantalla propia',
+      },
+    ],
+  },
+  {
+    subheader: 'Comunicación',
+    items: [
+      { title: 'Mail', path: paths.dashboard.mail, icon: ICONS.mail },
+      { title: 'Chats', path: paths.dashboard.chat, icon: ICONS.chat },
+    ],
+  },
+  {
+    subheader: 'Planificación',
+    items: [
+      { title: 'Calendario actividades', path: paths.dashboard.calendar, icon: ICONS.calendar },
+      { title: 'Flujo de trabajo', path: paths.dashboard.kanban, icon: ICONS.kanban },
+    ],
+  },
+  {
+    // NO ESTA EN LA MAQUETA, y se queda a proposito: es la unica via de menu a
+    // /dashboard/admin. El propio layout de esa zona ya la cierra a la Oficina
+    // Nacional y a los administradores global y funcional, asi que a quien no le
+    // toca no le sirve de nada verla.
+    subheader: 'Administración',
+    items: [
       {
         title: 'Administradores',
         path: paths.dashboard.admin.root,
         icon: ICONS.lock,
         deepMatch: true,
-        searchChildren: [
-          { title: 'Administradores', path: paths.dashboard.admin.root },
-          { title: 'Historial - Logs', path: paths.dashboard.admin.logs },
-          { title: 'Aprobaciones', path: paths.dashboard.admin.aprobaciones },
-          { title: 'Permisos a usuarios', path: paths.dashboard.admin.userPermissions },
-          { title: 'Notificaciones', path: paths.dashboard.admin.notifications },
-          { title: 'Mantenimiento', path: paths.dashboard.admin.maintenance },
-          { title: 'Salud del sistema', path: paths.dashboard.admin.health },
-        ],
       },
+    ],
+  },
+];
+
+// ----------------------------------------------------------------------
+// LO QUE SOLO VE EL ADMINISTRADOR GLOBAL.
+//
+// Al reorganizar el menu en seis grupos por area de trabajo, estas entradas se
+// quedaron fuera: son los modulos de la plantilla sin conectar y las pantallas de
+// demostracion marcadas "- DEV". Ocupaban sitio en el menu de todo el mundo para
+// llevar a datos de mentira.
+//
+// Pero siguen siendo utiles para quien desarrolla y prueba, asi que vuelven aqui,
+// en dos grupos aparte que `layout.jsx` añade SOLO cuando quien entra es el
+// Administrador Global. Para el resto, el menu queda como esta arriba.
+//
+// Van al final del menu a proposito: lo de trabajar primero, lo de probar despues.
+// ----------------------------------------------------------------------
+
+export const navDataDesarrollo = [
+  {
+    subheader: 'Desarrollo · plantilla',
+    items: [
+      { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
+      { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
+      { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
+      { title: 'Banking', path: paths.dashboard.general.banking, icon: ICONS.banking },
+      {
+        title: 'Booking',
+        path: paths.dashboard.general.booking,
+        icon: ICONS.booking,
+        disabled: true,
+      },
+      { title: 'File', path: paths.dashboard.general.file, icon: ICONS.file },
+      { title: 'Course', path: paths.dashboard.general.course, icon: ICONS.course },
       {
         title: 'Blog',
         path: paths.dashboard.post.root,
@@ -235,17 +239,62 @@ export const navData = [
           { title: 'Editar', path: paths.dashboard.tour.demo.edit },
         ],
       },
-      { title: 'Documentos Ministeriales', path: paths.dashboard.fileManager, icon: ICONS.folder },
-      {
-        title: 'Mail',
-        path: paths.dashboard.mail,
-        icon: ICONS.mail,
-      },
-      { title: 'Chats', path: paths.dashboard.chat, icon: ICONS.chat },
-      { title: 'Calendario actividades', path: paths.dashboard.calendar, icon: ICONS.calendar },
-      { title: 'Flujo de trabajo', path: paths.dashboard.kanban, icon: ICONS.kanban },
     ],
   },
+  {
+    subheader: 'Desarrollo · pantallas de demo',
+    items: [
+      {
+        title: 'Usuario - desarrollo',
+        path: paths.dashboard.user.root,
+        icon: ICONS.user,
+        children: [
+          { title: 'Perfil', path: paths.dashboard.user.root },
+          { title: 'Cartas', path: paths.dashboard.user.cards },
+          { title: 'Lista', path: paths.dashboard.user.list },
+          { title: 'Crear', path: paths.dashboard.user.new },
+          { title: 'Editar', path: paths.dashboard.user.demo.edit },
+          { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
+        ],
+      },
+      {
+        title: 'Tienda - DEV',
+        path: paths.dashboard.product.root,
+        icon: ICONS.product,
+        children: [
+          { title: 'Detalles', path: paths.dashboard.product.demo.details },
+          { title: 'Crear', path: paths.dashboard.product.new },
+          { title: 'Editar', path: paths.dashboard.product.demo.edit },
+        ],
+      },
+      {
+        title: 'Ordenes - DEV',
+        path: paths.dashboard.order.root,
+        icon: ICONS.ecommerce,
+        children: [
+          { title: 'Lista', path: paths.dashboard.order.root },
+          { title: 'Detalles', path: paths.dashboard.order.demo.details },
+        ],
+      },
+      {
+        title: 'Recibos - DEV',
+        path: paths.dashboard.invoice.root,
+        icon: ICONS.invoice,
+        children: [
+          { title: 'Lista', path: paths.dashboard.invoice.root },
+          { title: 'Detalles', path: paths.dashboard.invoice.demo.details },
+          { title: 'Crear', path: paths.dashboard.invoice.new },
+          { title: 'Editar', path: paths.dashboard.invoice.demo.edit },
+        ],
+      },
+    ],
+  },
+];
+
+// Ejemplos de la plantilla, comentados desde siempre. Se conservan como
+// referencia de la forma que admite `navData` (permisos, hijos anidados,
+// deshabilitados); no los lee nadie.
+const EJEMPLOS_DE_LA_PLANTILLA = [
   /**
    * Item state
    */

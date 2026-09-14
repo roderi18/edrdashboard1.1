@@ -1,7 +1,7 @@
 import { setFont, hexToRgbChannel, createPaletteChannel } from 'minimal-shared/utils';
 
-import { primaryColorPresets } from './color-presets';
 import { createShadowColor } from '../core/custom-shadows';
+import { primaryColorPresets, secondaryColorPresets } from './color-presets';
 
 // ----------------------------------------------------------------------
 
@@ -26,7 +26,11 @@ export function applySettingsToTheme(theme, settingsState) {
   const lightPalette = theme.colorSchemes?.light?.palette;
 
   const primaryColorPalette = createPaletteChannel(primaryColorPresets[primaryColor]);
-  // const secondaryColorPalette = createPaletteChannel(secondaryColorPresets[primaryColor]);
+  // EL SECUNDARIO TAMBIEN. Estaba comentado, asi que el preset solo movia el
+  // primario: se elegia otro acento y los botones secundarios seguian con el
+  // color anterior, que ya no acompañaba a nada. Cada pareja esta elegida junta
+  // en `color-presets.js`.
+  const secondaryColorPalette = createPaletteChannel(secondaryColorPresets[primaryColor]);
 
   const updateColorScheme = (schemeName) => {
     const currentScheme = theme.colorSchemes?.[schemeName];
@@ -35,7 +39,7 @@ export function applySettingsToTheme(theme, settingsState) {
       ...currentScheme?.palette,
       ...(!isDefaultPrimaryColor && {
         primary: primaryColorPalette,
-        // secondary: secondaryColorPalette,
+        secondary: secondaryColorPalette,
       }),
       ...(schemeName === 'light' && {
         background: {
@@ -52,7 +56,7 @@ export function applySettingsToTheme(theme, settingsState) {
       ...currentScheme?.customShadows,
       ...(!isDefaultPrimaryColor && {
         primary: createShadowColor(primaryColorPalette.mainChannel),
-        // secondary: createShadowColor(secondaryColorPalette.mainChannel),
+        secondary: createShadowColor(secondaryColorPalette.mainChannel),
       }),
     };
 
