@@ -259,6 +259,10 @@ export function ChatMessageItem({
       {!me && `${firstName}, `}
 
       {formatChatTime(createdAt)}
+
+      {/* Quien contesto como la Tienda. El servidor solo lo manda al propio
+          buzon, asi que al miembro nunca le llega este dato. */}
+      {message.respondidoPor && ` · respondió ${message.respondidoPor}`}
     </Typography>
   );
 

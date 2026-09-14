@@ -13,6 +13,7 @@ import Link, { linkClasses } from '@mui/material/Link';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
@@ -231,6 +232,14 @@ export function ProductDetailsSummary({
         },
       }}
     >
+      {/* PREGUNTAR ANTES DE COMPRAR. Abre el chat con la Tienda Virtual, que
+          atiende quien administra la tienda: la duda sobre una talla o un
+          articulo restringido se resolvia fuera de la aplicacion. */}
+      <Link component={RouterLink} href={`${paths.dashboard.chat}?con=tienda`}>
+        <Iconify icon="solar:chat-round-dots-bold" width={16} />
+        Escribir a la Tienda
+      </Link>
+
       <Link>
         <Iconify icon="mingcute:add-line" width={16} />
         Comparar

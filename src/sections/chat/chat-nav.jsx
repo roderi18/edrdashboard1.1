@@ -2,16 +2,17 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
@@ -23,6 +24,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { ToggleButton } from './styles';
 import { ChatNavItem } from './chat-nav-item';
 import { ChatNavAccount } from './chat-nav-account';
+import { rutaDelChat } from './utils/ruta-del-chat';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatNavSearchResults } from './chat-nav-search-results';
 import { usePresenceStatuses } from './hooks/use-presence-status';
@@ -48,12 +50,16 @@ export function ChatNav({
   loadingMore = false,
   onLoadMore,
   onStartChat,
+  currentContact,
+  enBuzon = false,
 }) {
   const router = useRouter();
   const conversationsInFlightRef = useRef(new Set());
   const searchInputRef = useRef(null);
 
-  const myContact = useChatCurrentContact(contacts);
+  const contactoPropio = useChatCurrentContact(contacts);
+  // Quien soy lo decide la vista: en el buzon de la Tienda, la Tienda.
+  const myContact = currentContact ?? contactoPropio;
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
@@ -100,8 +106,8 @@ export function ChatNav({
     if (!mdUp) {
       onCloseMobile();
     }
-    router.push(paths.dashboard.chat);
-  }, [mdUp, onCloseMobile, router]);
+    router.push(rutaDelChat({ enBuzon }));
+  }, [enBuzon, mdUp, onCloseMobile, router]);
 
   const handleSearchContacts = useCallback(
     (inputValue) => {
@@ -131,8 +137,8 @@ export function ChatNav({
       currentId: selectedConversationId,
     });
 
-    if (conversationId) router.push(`${paths.dashboard.chat}?id=${conversationId}`);
-  }, [conversations, router, selectedConversationId]);
+    if (conversationId) router.push(rutaDelChat({ id: conversationId, enBuzon }));
+  }, [conversations, enBuzon, router, selectedConversationId]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -156,7 +162,7 @@ export function ChatNav({
     async (result) => {
       handleClickAwaySearch();
 
-      const linkTo = (id) => router.push(`${paths.dashboard.chat}?id=${id}`);
+      const linkTo = (id) => router.push(rutaDelChat({ id, enBuzon }));
       const resultId = String(result.id);
 
       if (conversationsInFlightRef.current.has(resultId)) return;
@@ -204,7 +210,7 @@ export function ChatNav({
         toast.error(getChatErrorMessage(error, 'No se pudo abrir la conversación.'));
       }
     },
-    [contacts, conversations.byId, handleClickAwaySearch, onStartChat, router]
+    [contacts, conversations.byId, enBuzon, handleClickAwaySearch, onStartChat, router]
   );
 
   const renderLoading = () => <ChatNavItemSkeleton />;
@@ -217,6 +223,7 @@ export function ChatNav({
             key={conversationId}
             collapse={collapseDesktop}
             currentContact={myContact}
+            enBuzon={enBuzon}
             conversation={conversations.byId[conversationId]}
             presenceStatuses={presenceStatuses}
             selected={conversationId === selectedConversationId}
@@ -248,7 +255,7 @@ export function ChatNav({
       onClickResult={handleClickResult}
       onClickConversationResult={(conversation) => {
         handleClickAwaySearch();
-        router.push(`${paths.dashboard.chat}?id=${conversation.id}`);
+        router.push(rutaDelChat({ id: conversation.id, enBuzon }));
       }}
     />
   );
@@ -287,12 +294,25 @@ export function ChatNav({
           justifyContent: 'center',
         }}
       >
-        {!collapseDesktop && (
-          <>
-            <ChatNavAccount currentContact={myContact} />
-            <Box sx={{ flexGrow: 1 }} />
-          </>
-        )}
+        {/* EN EL BUZON NO HAY "MI CUENTA". El bloque de la cuenta publica la
+            presencia de quien lo mira y deja cambiarla; la Tienda no esta
+            "conectada" ni "ausente", y su presencia la escribiria alguien que no
+            es ella. Se enseña quien responde y nada mas. */}
+        {!collapseDesktop &&
+          (enBuzon ? (
+            <>
+              <Avatar alt={myContact.name} src={myContact.avatarUrl} sx={{ width: 48, height: 48 }} />
+              <Typography variant="subtitle2" noWrap sx={{ ml: 1.5, minWidth: 0 }}>
+                {myContact.name}
+              </Typography>
+              <Box sx={{ flexGrow: 1 }} />
+            </>
+          ) : (
+            <>
+              <ChatNavAccount currentContact={myContact} />
+              <Box sx={{ flexGrow: 1 }} />
+            </>
+          ))}
 
         <IconButton onClick={handleToggleNav}>
           <Iconify

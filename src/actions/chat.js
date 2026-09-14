@@ -42,8 +42,13 @@ export const isConversationsKey = (key) => isChatKey(key, 'conversations');
 
 export const isChatUnreadSummaryKey = (key) => isChatKey(key, 'unread-summary');
 
-export function useGetContacts(enabled = true) {
-  const url = enabled ? [CHAT_ENDPOINT, { params: { endpoint: 'contacts' } }] : '';
+// `idMiembros` solo hace falta en el buzon de la Tienda: sin el, la lista se pedia
+// como la persona, y quien atiende el buzon sin ficha de miembro se quedaba sin
+// contactos.
+export function useGetContacts(enabled = true, idMiembros = null) {
+  const url = enabled
+    ? [CHAT_ENDPOINT, { params: { endpoint: 'contacts', ...(idMiembros ? { idMiembros } : {}) } }]
+    : '';
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
@@ -373,7 +378,9 @@ export async function removeLocalMessage(conversationId, messageId) {
 // ----------------------------------------------------------------------
 
 export async function createConversation(conversationData, idMiembros) {
-  const data = { conversationData };
+  // `idMiembros` viaja para que el servidor sepa si se escribe desde el buzon de
+  // la Tienda. No dice quien eres: eso sale del token.
+  const data = { conversationData, idMiembros };
   const res = await axios.post(CHAT_ENDPOINT, data);
   const conversation = res.data?.conversation;
 
@@ -880,13 +887,14 @@ export async function leaveGroup(conversationId, idMiembros) {
   });
 }
 
-export async function markConversationDelivered(conversationId) {
+export async function markConversationDelivered(conversationId, idMiembros) {
   if (!conversationId) return null;
 
   try {
     const response = await axios.patch(CHAT_ENDPOINT, {
       action: 'mark-delivered',
       conversationId,
+      idMiembros,
     });
 
     return response.data?.conversation ?? null;

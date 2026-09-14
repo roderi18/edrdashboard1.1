@@ -1,3 +1,5 @@
+import { idDeParticipanteChat } from '../utils/chat-tienda-virtual.mjs';
+
 export const CHAT_PERMISSIONS = Object.freeze({
   VIEW: 'chats.ver',
   START: 'chats.iniciar',
@@ -28,11 +30,9 @@ export class ChatAuthorizationError extends Error {
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
-const normalizeMemberId = (value) => {
-  const parsed = Number(value);
-
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-};
+// Un participante es un miembro o la Tienda Virtual (`ID_TIENDA_VIRTUAL`), y los
+// dos son enteros positivos: la definicion vive en un solo sitio para todo el chat.
+const normalizeMemberId = idDeParticipanteChat;
 
 const getPermissionLists = (actor = {}) => {
   const profile = actor.profile ?? {};

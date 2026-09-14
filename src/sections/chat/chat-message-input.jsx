@@ -10,7 +10,6 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
@@ -33,7 +32,9 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { SelectorDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
+import { rutaDelChat } from './utils/ruta-del-chat';
 import { buildChatDraftKey } from './utils/productivity.mjs';
+import { useBuzonDeTienda } from './hooks/use-buzon-de-tienda';
 import { initialConversation } from './utils/initial-conversation';
 
 // ----------------------------------------------------------------------
@@ -88,8 +89,10 @@ export function ChatMessageInput({
   selectedConversationId,
   sharedMessage,
   onConsumeSharedMessage,
+  respondiendoComo = '',
 }) {
   const router = useRouter();
+  const { enBuzon } = useBuzonDeTienda();
 
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -337,7 +340,7 @@ export function ChatMessageInput({
           );
 
           activeConversationId = res.conversation.id;
-          router.push(`${paths.dashboard.chat}?id=${activeConversationId}`);
+          router.push(rutaDelChat({ id: activeConversationId, enBuzon }));
           onAddRecipients([]);
         }
 
@@ -474,7 +477,7 @@ export function ChatMessageInput({
           },
           currentContact.idMiembros
         );
-        router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
+        router.push(rutaDelChat({ id: res.conversation.id, enBuzon }));
 
         onAddRecipients([]);
       }
@@ -513,6 +516,7 @@ export function ChatMessageInput({
     messageData,
     onAddRecipients,
     onClearEditing,
+    enBuzon,
     onClearReply,
     pendingAttachments,
     router,
@@ -648,6 +652,25 @@ export function ChatMessageInput({
 
   return (
     <>
+      {/* A NOMBRE DE QUIEN SALE. Quien atiende el buzon de la Tienda escribe unas
+          veces como el y otras como la Tienda, con la misma caja de texto: sin
+          esta linea no habia forma de saberlo antes de enviar. */}
+      {respondiendoComo && (
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2,
+            pt: 1,
+            display: 'block',
+            fontStyle: 'italic',
+            color: enBuzon ? 'primary.main' : 'text.secondary',
+            borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+          }}
+        >
+          Respondiendo como {respondiendoComo}
+        </Typography>
+      )}
+
       {replyMessage && (
         <Box
           sx={{

@@ -172,6 +172,17 @@ leer el test que las cubre.**
    que estos dos guardas se comprueban por la **región de la sección** —el
    servicio la resuelve él mismo, no la acepta de la pantalla—.
    Test: `tests/acceso/region-propone-en-sus-secciones.test.mjs`.
+8. **La Tienda Virtual es un poder, no una cuenta.** En el chat participa con
+   `idMiembros` **20001** (código `EDR-20001`, ver
+   `src/utils/chat-tienda-virtual.mjs`). Cualquier miembro le escribe; atienden su
+   buzón quienes ejercen **Administrador de Gestión de Tienda** o **Administrador
+   Global**, entre **todos** sus cargos. El navegador pide el buzón mandando ese
+   `idMiembros`, pero **no se concede por pedirlo**: el servidor comprueba el cargo
+   (`src/server/chat-tienda-core.mjs`) y solo entonces escribe con un token a
+   nombre de `tienda-virtual` que únicamente él puede emitir. **Una persona nunca
+   es la Tienda**: el 20001 se rechaza al iniciar sesión y en las reglas. Quien
+   contestó se guarda aparte, en `respuestas_tienda`, y el miembro no lo ve.
+   Test: `tests/chat/chat-tienda-virtual.test.mjs`.
 
 ### Cargos que ocupan el mismo sitio pueden lo mismo ✅
 
@@ -252,7 +263,7 @@ combinar dos cargos.
 | **Sistema de ascenso** | `.../edit/awards` | Catálogo de 490 premios transcrito del inventario oficial. |
 | **Padres / tutores** | `.../edit/parents` | Con notas y autoguardado. |
 | **Historial del miembro** | `.../edit/history` | |
-| **Chat** | `/dashboard/chat` | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. 28 ficheros de test. |
+| **Chat** | `/dashboard/chat` | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. Buzón compartido **Tienda Virtual** (`?bandeja=tienda`) para quien administra la tienda. 27 ficheros de test. |
 | **Notificaciones** | Campana + `/dashboard/admin/notifications` | Tipos, plantillas, preferencias y tareas en Firestore. |
 | **Tienda** | `/dashboard/product`, `/checkout`, `/order`, `/invoice` | Productos, inventario, reseñas, carrito, órdenes, recibos. |
 | **Certificados** | `/dashboard/certificates` | Plantillas y generación. |
@@ -354,7 +365,8 @@ personas podían compartir número.
 `compartidos_publicaciones`, `metadatos_privados_publicaciones`, `seguidores`,
 `amistades`, `solicitudes_amistad`, `galeria_usuarios`, `anuncios_principal`
 
-**Chat** — `conversaciones_chat` (+ subcolección `mensajes`), `presencia_chat`,
+**Chat** — `conversaciones_chat` (+ subcolecciones `mensajes`, `recibos`,
+`auditoria` y `respuestas_tienda`, esta última solo del servidor), `presencia_chat`,
 `fotos`
 
 **Notificaciones** — `notificaciones`, `tipos_notificaciones`,

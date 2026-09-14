@@ -1,3 +1,5 @@
+import { idDeParticipanteChat, esIdReservadoDeTienda } from '../utils/chat-tienda-virtual.mjs';
+
 export const CHAT_AUTH_CODES = Object.freeze({
   SERVER_NOT_CONFIGURED: 'CHAT_AUTH_SERVER_NOT_CONFIGURED',
   MISSING_TOKEN: 'CHAT_AUTH_MISSING_TOKEN',
@@ -23,6 +25,11 @@ const normalizeMemberId = (value) => {
 
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 };
+
+// Para PARTICIPANTES (quien firma un mensaje, quien esta en una conversacion):
+// un miembro o la Tienda Virtual. Quien INICIA SESION pasa ademas por
+// `resolveAuthenticatedMember`, que rechaza el numero de la Tienda.
+const normalizeParticipantId = idDeParticipanteChat;
 
 const normalizeText = (value) =>
   String(value ?? '')
@@ -82,6 +89,16 @@ export const resolveAuthenticatedMember = ({ decodedToken = {}, profiles = [] } 
   const tokenMemberId = normalizeMemberId(decodedToken.idMiembros);
   const profileMemberIds = linkedProfiles.map(getProfileMemberId).filter(Boolean);
   const memberIds = [...new Set([tokenMemberId, ...profileMemberIds].filter(Boolean))];
+
+  // UNA PERSONA NUNCA ES LA TIENDA. Su numero es un entero positivo como el de
+  // cualquier miembro; si el padron llegara a darselo a alguien, esa sesion
+  // entraria en el buzon de toda la tienda. Se corta aqui, antes de nada.
+  if (memberIds.some(esIdReservadoDeTienda)) {
+    throw new ChatAuthenticationError(
+      'La cuenta autenticada usa un número reservado para la Tienda Virtual.',
+      { status: 403, code: CHAT_AUTH_CODES.MEMBER_ID_CONFLICT }
+    );
+  }
 
   if (memberIds.length > 1) {
     throw new ChatAuthenticationError(
@@ -256,7 +273,7 @@ export const createCachedChatAuthenticator = ({
 };
 
 const assertAuthenticatedActor = (actor = {}) => {
-  const idMiembros = normalizeMemberId(actor.idMiembros);
+  const idMiembros = normalizeParticipantId(actor.idMiembros);
 
   if (!idMiembros) {
     throw new ChatAuthenticationError('No se pudo identificar al miembro autenticado.', {
@@ -297,7 +314,7 @@ export const bindAuthenticatedConversation = (conversation = {}, actor = {}) => 
 export const assertAuthenticatedConversationParticipant = (participantIds = [], actor = {}) => {
   const idMiembros = assertAuthenticatedActor(actor);
   const isParticipant = participantIds.some(
-    (participantId) => normalizeMemberId(participantId) === idMiembros
+    (participantId) => normalizeParticipantId(participantId) === idMiembros
   );
 
   if (!isParticipant) {

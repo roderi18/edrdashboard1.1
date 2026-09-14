@@ -1,4 +1,5 @@
 import { toPublicChatContact } from './chat-contact-core.mjs';
+import { idDeParticipanteChat } from '../utils/chat-tienda-virtual.mjs';
 import { normalizeEmojiReaction } from '../utils/chat-reaction-core.mjs';
 
 export const CHAT_MESSAGE_MODEL_VERSION = 2;
@@ -32,11 +33,9 @@ const cleanText = (value) =>
   String(value ?? '')
     .replace(/\0/g, '')
     .trim();
-const positiveMemberId = (value) => {
-  const parsed = Number(value);
-
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-};
+// Un participante es un miembro o la Tienda Virtual (`ID_TIENDA_VIRTUAL`), y los
+// dos son enteros positivos: la definicion vive en un solo sitio para todo el chat.
+const positiveMemberId = idDeParticipanteChat;
 
 const normalizeIso = (value, fallback) => {
   const parsed = value instanceof Date ? value : new Date(value ?? '');

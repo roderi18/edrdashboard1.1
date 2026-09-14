@@ -1,8 +1,8 @@
-const toMemberId = (value) => {
-  const parsed = Number(value);
+import { idDeParticipanteChat } from '../utils/chat-tienda-virtual.mjs';
 
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-};
+// Un participante es un miembro o la Tienda Virtual (`ID_TIENDA_VIRTUAL`), y los
+// dos son enteros positivos: la definicion vive en un solo sitio para todo el chat.
+const toMemberId = idDeParticipanteChat;
 
 const cleanText = (value) => String(value ?? '').trim();
 

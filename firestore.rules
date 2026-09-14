@@ -85,8 +85,35 @@ service cloud.firestore {
       return estaAutenticado()
         && 'idMiembros' in request.auth.token
         && idMiembro() is int
+        && idMiembroNoUsurpaLaTienda()
         && !permisoChatExcluido()
         && !moduloChatDeshabilitado();
+    }
+
+    // ------------------------------------------------------------------
+    // TIENDA VIRTUAL: EL BUZON COMPARTIDO DE LA TIENDA.
+    //
+    // La Tienda participa en el chat con `idMiembros` 20001 (ver
+    // `src/utils/chat-tienda-virtual.mjs`). Ese numero solo lo puede llevar el
+    // token que emite el SERVIDOR, a nombre de `tienda-virtual`: si el padron
+    // llegara a darselo a una persona, su sesion no podria usarlo, o entraria en
+    // las conversaciones de toda la tienda.
+    // ------------------------------------------------------------------
+    function idMiembroNoUsurpaLaTienda() {
+      return request.auth.token.idMiembros != 20001
+        || request.auth.uid == 'tienda-virtual';
+    }
+
+    // Quien ejerce uno de los cargos del buzon puede LEER las conversaciones de la
+    // Tienda: sin esto, "Chats de la Tienda" no se actualizaba al llegar un
+    // mensaje, porque la escucha en tiempo real va directa a Firestore. ESCRIBIR
+    // no: eso lo hace el servidor con el token de la Tienda, despues de comprobar
+    // el cargo.
+    function atiendeBuzonDeTienda(datosConversacion) {
+      return estaAutenticado()
+        && (esAdministradorGlobal() || esAdministradorDeTienda())
+        && datosConversacion.participantesIds is list
+        && 20001 in datosConversacion.participantesIds;
     }
 
     function esParticipante(datosConversacion) {
@@ -496,17 +523,23 @@ service cloud.firestore {
       // Que no exista se responde con que no existe. Quien puede usar el chat
       // puede preguntar; lo que hay dentro sigue siendo solo de sus participantes.
       allow get: if (resource == null && puedeUsarChat())
-        || (resource != null && esParticipante(resource.data));
-      allow list: if estaAutenticado()
-        && 'idMiembros' in request.auth.token
-        && request.auth.token.idMiembros is int
-        && request.auth.token.idMiembros in resource.data.participantesIds;
+        || (resource != null && esParticipante(resource.data))
+        || (resource != null && atiendeBuzonDeTienda(resource.data));
+      allow list: if (
+          estaAutenticado()
+          && 'idMiembros' in request.auth.token
+          && request.auth.token.idMiembros is int
+          && idMiembroNoUsurpaLaTienda()
+          && request.auth.token.idMiembros in resource.data.participantesIds
+        )
+        || atiendeBuzonDeTienda(resource.data);
       allow create: if creacionConversacionValida(idConversacion);
       allow update: if actualizacionConversacionValida();
       allow delete: if esCreador(resource.data);
 
       match /mensajes/{idMensaje} {
-        allow get, list: if puedeLeerConversacion(idConversacion);
+        allow get, list: if puedeLeerConversacion(idConversacion)
+          || atiendeBuzonDeTienda(conversacion(idConversacion));
         allow create: if puedeLeerConversacion(idConversacion) && mensajeNuevoValido(idMensaje);
         allow update: if puedeLeerConversacion(idConversacion)
           && (actualizacionMensajePropioValida() || actualizacionReaccionValida());
@@ -536,8 +569,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // QUIEN CONTESTO COMO LA TIENDA. Lo escribe y lo lee solo el servidor, con el
+      // Admin SDK: el miembro es participante y leeria sus mensajes enteros, asi
+      // que el nombre de quien le atendio no puede ir dentro del mensaje.
+      match /respuestas_tienda/{idMensaje} {
+        allow read, write: if false;
+      }
+
       match /recibos/{idRecibo} {
-        allow get, list: if puedeLeerConversacion(idConversacion);
+        allow get, list: if puedeLeerConversacion(idConversacion)
+          || atiendeBuzonDeTienda(conversacion(idConversacion));
         allow create: if puedeLeerConversacion(idConversacion)
           && idRecibo == request.auth.uid
           && request.resource.data.keys().hasOnly([

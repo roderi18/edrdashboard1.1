@@ -1,11 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, startTransition } from 'react';
+import { useMemo, useState, useEffect, useCallback, startTransition } from 'react';
 
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
+
+import {
+  esTiendaVirtual,
+  ID_TIENDA_VIRTUAL,
+  contactoTiendaVirtual,
+  NOMBRE_TIENDA_VIRTUAL,
+  idConversacionConTienda,
+} from 'src/utils/chat-tienda-virtual.mjs';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -27,9 +37,12 @@ import {
   setGroupAdministrator,
   toggleMuteConversation,
   transferGroupOwnership,
+  useGetChatUnreadSummary,
   clearConversationGlobally,
 } from 'src/actions/chat';
 
+import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -37,6 +50,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
 import { ChatRoom } from '../chat-room';
+import { rutaDelChat } from '../utils/ruta-del-chat';
 import { ChatMessageList } from '../chat-message-list';
 import { ChatMessageInput } from '../chat-message-input';
 import { ChatHeaderDetails } from '../chat-header-details';
@@ -44,6 +58,7 @@ import { ChatHeaderCompose } from '../chat-header-compose';
 import { useCollapseNav } from '../hooks/use-collapse-nav';
 import { useChatRealtimeSync } from '../hooks/use-chat-realtime-sync';
 import { useChatCurrentContact } from '../hooks/use-chat-current-contact';
+import { useBuzonDeTienda, identidadEnElChat } from '../hooks/use-buzon-de-tienda';
 
 // ----------------------------------------------------------------------
 
@@ -56,13 +71,38 @@ export function ChatView() {
   const router = useRouter();
 
   const { user } = useAuthContext();
+  const { puedeAtender, enBuzon } = useBuzonDeTienda();
 
-  const { contacts, contactsError, contactsLoading } = useGetContacts(Boolean(user?.accessToken));
-  const currentContact = useChatCurrentContact(contacts);
+  const { contacts, contactsError, contactsLoading } = useGetContacts(
+    Boolean(user?.accessToken),
+    enBuzon ? ID_TIENDA_VIRTUAL : null
+  );
+  const contactoPropio = useChatCurrentContact(contacts);
+  // Quien soy AHORA: en el buzon, la Tienda. Todo lo de abajo lo usa sin saber de
+  // bandejas: con que id pide, que mensajes son suyos y a nombre de quien escribe.
+  const currentContact = useMemo(
+    () => identidadEnElChat(contactoPropio, enBuzon),
+    [contactoPropio, enBuzon]
+  );
+  // En el buzon la Tienda no se busca a si misma.
+  const visibleContacts = useMemo(
+    () =>
+      enBuzon
+        ? contacts.filter((contact) => !esTiendaVirtual(contact.idMiembros ?? contact.id))
+        : contacts,
+    [contacts, enBuzon]
+  );
+  // Lo pendiente del buzon se ve desde "Mis chats": sin esto habia que entrar a
+  // mirar si alguien habia escrito a la Tienda.
+  const { unreadConversationCount: pendientesDeLaTienda } = useGetChatUnreadSummary(
+    ID_TIENDA_VIRTUAL,
+    puedeAtender
+  );
 
   const searchParams = useSearchParams();
   const selectedConversationId = searchParams.get('id') || '';
   const sharedMessageParam = searchParams.get('share') || '';
+  const abrirConLaTienda = searchParams.get('con') === 'tienda';
 
   const {
     conversations,
@@ -102,9 +142,19 @@ export function ChatView() {
       // quitarlo —si no, seguiria viendose la conversacion anterior—, pero si no
       // lo hay, navegar a la misma direccion volvia a montar la pantalla entera
       // y las caras de la lista parpadeaban por nada.
-      if (selectedConversationId) router.replace(paths.dashboard.chat);
+      if (selectedConversationId) router.replace(rutaDelChat({ enBuzon }));
     },
-    [router, selectedConversationId]
+    [enBuzon, router, selectedConversationId]
+  );
+
+  const handleCambiarBandeja = useCallback(
+    (event, bandeja) => {
+      setRecipients([]);
+      startTransition(() => {
+        router.push(rutaDelChat({ enBuzon: bandeja === 'tienda' }));
+      });
+    },
+    [router]
   );
   const [groupName, setGroupName] = useState('');
   const [replyMessage, setReplyMessage] = useState(null);
@@ -130,12 +180,45 @@ export function ChatView() {
   }, [selectedConversationId]);
 
   useEffect(() => {
-    if (!selectedConversationId && !sharedMessageParam) {
+    if (!selectedConversationId && !sharedMessageParam && !abrirConLaTienda) {
       startTransition(() => {
-        router.push(paths.dashboard.chat);
+        router.push(rutaDelChat({ enBuzon }));
       });
     }
-  }, [conversationError, router, selectedConversationId, sharedMessageParam]);
+  }, [
+    abrirConLaTienda,
+    conversationError,
+    enBuzon,
+    router,
+    selectedConversationId,
+    sharedMessageParam,
+  ]);
+
+  // "ESCRIBIR A LA TIENDA" DESDE LA TIENDA. Llega con `?con=tienda`. Si ya hay
+  // conversacion con ella se abre, con su historia; si no, se entra al chat nuevo
+  // con la Tienda puesta y la conversacion se crea con el primer mensaje.
+  useEffect(() => {
+    if (!abrirConLaTienda || enBuzon || conversationsLoading) return;
+
+    const idExistente = currentContact.idMiembros
+      ? idConversacionConTienda(currentContact.idMiembros)
+      : '';
+
+    if (idExistente && conversations.byId[idExistente]) {
+      router.replace(rutaDelChat({ id: idExistente }));
+      return;
+    }
+
+    setRecipients([contactoTiendaVirtual()]);
+    router.replace(rutaDelChat());
+  }, [
+    abrirConLaTienda,
+    conversations.byId,
+    conversationsLoading,
+    currentContact.idMiembros,
+    enBuzon,
+    router,
+  ]);
 
   useEffect(() => {
     if (sharedMessageParam) {
@@ -206,8 +289,8 @@ export function ChatView() {
     if (!selectedConversationId) return;
 
     await leaveGroup(selectedConversationId, currentContact.idMiembros);
-    startTransition(() => router.push(paths.dashboard.chat));
-  }, [currentContact.idMiembros, router, selectedConversationId]);
+    startTransition(() => router.push(rutaDelChat({ enBuzon })));
+  }, [currentContact.idMiembros, enBuzon, router, selectedConversationId]);
 
   const handleSetGroupAdministrator = useCallback(
     async (administratorIdMiembros, makeAdmin) => {
@@ -370,9 +453,44 @@ export function ChatView() {
       maxWidth={false}
       sx={{ display: 'flex', flex: '1 1 auto', flexDirection: 'column' }}
     >
-      <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-        Mensajes
-      </Typography>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: { xs: 3, md: 5 } }}
+      >
+        <Typography variant="h4">Mensajes</Typography>
+
+        {/* LAS DOS BANDEJAS. Solo para quien atiende el buzon de la Tienda; el
+            resto no tiene nada que elegir. */}
+        {puedeAtender && (
+          <Tabs value={enBuzon ? 'tienda' : 'mios'} onChange={handleCambiarBandeja}>
+            <Tab
+              value="mios"
+              label="Mis chats"
+              iconPosition="start"
+              icon={<Iconify width={20} icon="solar:chat-round-dots-bold" />}
+            />
+            <Tab
+              value="tienda"
+              label="Chats de la Tienda"
+              iconPosition="start"
+              icon={<Iconify width={20} icon="solar:cart-3-bold" />}
+              {...(pendientesDeLaTienda > 0 && {
+                label: (
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <span>Chats de la Tienda</span>
+                    <Label variant="filled" color="error">
+                      {pendientesDeLaTienda}
+                    </Label>
+                  </Stack>
+                ),
+              })}
+            />
+          </Tabs>
+        )}
+      </Stack>
 
       <ChatLayout
         slots={{
@@ -400,7 +518,7 @@ export function ChatView() {
             />
           ) : (
             <ChatHeaderCompose
-              contacts={contacts}
+              contacts={visibleContacts}
               recipients={recipients}
               onAddRecipients={handleAddRecipients}
               groupName={groupName}
@@ -410,7 +528,9 @@ export function ChatView() {
           nav: (
             <ChatNav
               onStartChat={abrirChatCon}
-              contacts={contacts}
+              contacts={visibleContacts}
+              currentContact={currentContact}
+              enBuzon={enBuzon}
               conversations={conversations}
               selectedConversationId={selectedConversationId}
               collapseNav={conversationsNav}
@@ -483,6 +603,11 @@ export function ChatView() {
                 onClearReply={handleClearReply}
                 onClearEditing={handleClearEditing}
                 selectedConversationId={selectedConversationId}
+                // A nombre de quien sale lo que se escribe. Solo se dice a quien
+                // tiene dos bandejas: para el resto no hay duda posible.
+                respondiendoComo={
+                  puedeAtender ? (enBuzon ? NOMBRE_TIENDA_VIRTUAL : contactoPropio.name) : ''
+                }
                 sharedMessage={sharedMessage}
                 onConsumeSharedMessage={handleConsumeSharedMessage}
                 disabled={!user?.accessToken || (!recipients.length && !selectedConversationId)}
@@ -495,7 +620,7 @@ export function ChatView() {
               participants={conversation?.participants ?? []}
               loading={conversationLoading}
               messages={conversation?.messages ?? []}
-              contacts={contacts}
+              contacts={visibleContacts}
               currentContact={currentContact}
               creatorIdMiembros={conversation?.creatorIdMiembros}
               administratorIds={conversation?.administratorIds ?? []}

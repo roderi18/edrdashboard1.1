@@ -11,6 +11,12 @@ import {
 
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
+import {
+  esTiendaVirtual,
+  ID_TIENDA_VIRTUAL,
+  AVATAR_TIENDA_VIRTUAL,
+  contactoTiendaVirtual,
+} from 'src/utils/chat-tienda-virtual.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
@@ -33,6 +39,12 @@ import {
   normalizeChatPageSize,
   decodeConversationCursor,
 } from 'src/server/chat-pagination.mjs';
+import {
+  leerRespuestasDeTienda,
+  autenticarBuzonDeTienda,
+  perfilesDelBuzonDeTienda,
+  registrarRespuestaDeTienda,
+} from 'src/server/chat-tienda';
 import {
   chatMessageToUi,
   normalizeChatReaction,
@@ -202,6 +214,66 @@ const createChatStore = (chatActor = {}) =>
     token: chatActor.token,
   });
 
+// ¿QUIEN PIDE: UNA PERSONA O EL BUZON DE LA TIENDA?
+//
+// Todas las llamadas del chat ya mandan el `idMiembros` de quien esta mirando,
+// aunque el servidor no se fiaba de el —la identidad sale del token—. Ahora ese
+// dato decide una sola cosa: si viene el de la Tienda Virtual, la peticion quiere
+// actuar como la Tienda. Y eso NO se concede por pedirlo: `autenticarBuzonDeTienda`
+// comprueba el cargo de la persona antes de darle la identidad de la Tienda.
+const autenticarActorDelChat = (req, idMiembrosPedido) =>
+  esTiendaVirtual(idMiembrosPedido) ? autenticarBuzonDeTienda(req) : authenticateChatRequest(req);
+
+// La Tienda Virtual es un contacto mas para todo el mundo: asi se la encuentra en
+// el buscador y se le puede escribir. Si el padron trajera a alguien con su mismo
+// numero, se queda la Tienda: una persona nunca ocupa su lugar.
+const conLaTienda = (contactos = []) => [
+  ...contactos.filter((contacto) => !esTiendaVirtual(contacto?.idMiembros ?? contacto?.id)),
+  contactoTiendaVirtual(),
+];
+
+// Quien contesto cada mensaje de la Tienda. Solo se añade cuando mira el propio
+// buzon; al miembro nunca le llega.
+const conQuienContesto = async (conversationUi, chatActor) => {
+  // Sin lista de mensajes no hay nada que anotar: algunas acciones (entregado,
+  // escribiendo) devuelven un acuse y no la conversacion.
+  if (
+    !chatActor?.esTiendaVirtual ||
+    !conversationUi?.id ||
+    !Array.isArray(conversationUi.messages)
+  ) {
+    return conversationUi;
+  }
+
+  const respuestas = await leerRespuestasDeTienda(conversationUi.id).catch(() => new Map());
+
+  if (!respuestas.size) return conversationUi;
+
+  return {
+    ...conversationUi,
+    messages: asArray(conversationUi.messages).map((message) =>
+      respuestas.has(String(message.id))
+        ? { ...message, respondidoPor: respuestas.get(String(message.id)) }
+        : message
+    ),
+  };
+};
+
+const anotarRespuestaDeTienda = (chatActor, idConversacion, idMensaje) => {
+  if (!chatActor?.esTiendaVirtual) return Promise.resolve();
+
+  // Dejar constancia es un extra: el mensaje ya esta enviado.
+  return registrarRespuestaDeTienda({
+    idConversacion,
+    idMensaje,
+    responsable: chatActor.responsable,
+  }).catch((error) => {
+    console.warn(
+      JSON.stringify({ event: 'chat_tienda_responsable_error', ...toSafeChatErrorMetric(error) })
+    );
+  });
+};
+
 const nowIso = () => new Date().toISOString();
 
 const toNumberOrNull = (value) => {
@@ -335,7 +407,7 @@ async function resolveConversationParticipants(conversationData = {}) {
     getMembersFromApi().catch(() => []),
     getMembersFromFirestoreProfiles().catch(() => []),
   ]);
-  const contacts = getAllContacts([...members, ...firestoreProfiles]);
+  const contacts = conLaTienda(getAllContacts([...members, ...firestoreProfiles]));
 
   return rawParticipants
     .map((participant) => resolveParticipantFromContacts(participant, contacts))
@@ -381,6 +453,10 @@ const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
 const messageToUi = (message = {}) => chatMessageToUi(message);
 
 const contactWithCurrentPhoto = async (member = {}) => {
+  if (esTiendaVirtual(member.idMiembros ?? member.id)) {
+    return { ...memberToContact(member), ...contactoTiendaVirtual() };
+  }
+
   const contact = memberToContact(member);
   const avatarUrl = await getMemberPhotoUrl(contact.idMiembros, contact.avatarUrl);
 
@@ -546,6 +622,10 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
     return fallbackUrl;
   }
 
+  if (esTiendaVirtual(idMiembros)) {
+    return AVATAR_TIENDA_VIRTUAL;
+  }
+
   const memberId = toNumberOrNull(idMiembros);
 
   if (!memberId) {
@@ -656,20 +736,38 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
     ) ?? message.remitente;
   const senderName = buildNombreCompleto(sender);
   const senderPhotoUrl = await getMemberPhotoUrl(senderId, sender?.avatarUrl);
-  const recipientProfiles = await getNotificationProfilesByMemberIds(recipientsIds);
+  // ESCRIBIRLE A LA TIENDA AVISA A QUIEN LA ATIENDE. La Tienda no tiene cuenta
+  // que reciba avisos: sin esto, el mensaje llegaba al buzon y nadie se enteraba
+  // hasta abrir el chat. Avisa a quien ejerce uno de los cargos del buzon, y el
+  // enlace abre la conversacion ya dentro de "Chats de la Tienda".
+  const escribenALaTienda = recipientsIds.some(esTiendaVirtual);
+  const recipientProfiles = [
+    ...(await getNotificationProfilesByMemberIds(
+      recipientsIds.filter((idMiembros) => !esTiendaVirtual(idMiembros))
+    )),
+    ...(escribenALaTienda
+      ? (await perfilesDelBuzonDeTienda().catch(() => [])).map((profile) => ({
+          ...profile,
+          idMiembros: ID_TIENDA_VIRTUAL,
+          paraLaTienda: true,
+        }))
+      : []),
+  ];
+  const idConversacion = conversation.idConversacion || conversation.id;
 
   await Promise.all(
     recipientProfiles.map((profile) => {
-      const notificationId = `mensaje_recibido_${conversation.idConversacion || conversation.id}_${message.idMensaje}_${profile.uid}`;
+      const notificationId = `mensaje_recibido_${idConversacion}_${message.idMensaje}_${profile.uid}`;
+      const frase = profile.paraLaTienda ? 'escribió a la Tienda Virtual' : 'te envió un mensaje';
 
       return guardarNotificacionConfigurada({
         id: notificationId,
         tipoNotificacion: 'mensaje_recibido',
         modulo: 'mensajes',
-        titulo: 'Mensaje recibido',
-        tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> te envió un mensaje</p>`,
-        mensaje: 'te envió un mensaje.',
-        mensajeVisual: 'te envió un mensaje.',
+        titulo: profile.paraLaTienda ? 'Mensaje para la Tienda' : 'Mensaje recibido',
+        tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> ${frase}</p>`,
+        mensaje: `${frase}.`,
+        mensajeVisual: `${frase}.`,
         rolDestinatario: profile.rolDestinatario,
         idsDestinatarios: [profile.uid],
         prioridad: 'informativa',
@@ -682,7 +780,9 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
         actorFotoURL: senderPhotoUrl || null,
         entidadTipo: 'mensaje',
         entidadId: message.idMensaje,
-        ruta: `/dashboard/chat?id=${conversation.idConversacion || conversation.id}`,
+        ruta: profile.paraLaTienda
+          ? `/dashboard/chat?id=${idConversacion}&bandeja=tienda`
+          : `/dashboard/chat?id=${idConversacion}`,
         imagenTipo: 'persona',
         imagenURL: senderPhotoUrl || null,
         miniaturaURL: senderPhotoUrl || null,
@@ -1027,6 +1127,7 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
       `${conversationPath}/${SUBCOLECCION_MENSAJES}/${primerMensaje.idMensaje}`,
       primerMensaje
     );
+    await anotarRespuestaDeTienda(chatActor, idConversacion, primerMensaje.idMensaje);
 
     // El aviso es un extra. El mensaje ya esta guardado: si el aviso falla, se
     // anota y se sigue. Tumbar un mensaje entregado por su notificacion es
@@ -1096,6 +1197,7 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
     `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`,
     messageDoc
   );
+  await anotarRespuestaDeTienda(chatActor, conversationId, messageDoc.idMensaje);
   await chatStore.setDocument(
     conversationPath,
     {
@@ -1878,11 +1980,14 @@ export async function GET(req) {
   let operationError = null;
 
   try {
-    const chatActor = await authenticateChatRequest(req);
+    const { searchParams } = new URL(req.url);
+    const chatActor = await autenticarActorDelChat(
+      req,
+      searchParams.get('idMiembros') ?? searchParams.get('sessionMemberId')
+    );
     assertChatPermission(chatActor, CHAT_PERMISSIONS.VIEW);
     ensureFirestore();
 
-    const { searchParams } = new URL(req.url);
     const endpoint = searchParams.get('endpoint');
     const conversationId = searchParams.get('conversationId');
     const viewerIdMiembros = chatActor.idMiembros;
@@ -1897,7 +2002,11 @@ export async function GET(req) {
       // Las fotos NO vienen en el padron: viven en Firestore. Sin esto, el
       // buscador del chat enseñaba a todo el mundo con el monigote gris.
       return Response.json(
-        { contacts: await conSusFotos(getAllContacts([...members, ...firestoreProfiles])) },
+        {
+          contacts: await conSusFotos(
+            conLaTienda(getAllContacts([...members, ...firestoreProfiles]))
+          ),
+        },
         { headers: { 'Cache-Control': 'private, no-store' } }
       );
     }
@@ -1931,7 +2040,10 @@ export async function GET(req) {
       });
 
       return Response.json({
-        conversation: await conversationToUi(conversation, null, viewerIdMiembros, chatStore),
+        conversation: await conQuienContesto(
+          await conversationToUi(conversation, null, viewerIdMiembros, chatStore),
+          chatActor
+        ),
       });
     }
 
@@ -1956,7 +2068,12 @@ export async function GET(req) {
         chatStore
       );
 
-      return Response.json({ messages: olderMessages.map(messageToUi) });
+      const conResponsables = await conQuienContesto(
+        { id: conversationId, messages: olderMessages.map(messageToUi) },
+        chatActor
+      );
+
+      return Response.json({ messages: conResponsables.messages });
     }
 
     if (endpoint === 'mark-as-seen') {
@@ -1979,12 +2096,15 @@ export async function POST(req) {
   let operationError = null;
 
   try {
-    const chatActor = await authenticateChatRequest(req);
+    const body = await req.json();
+    const chatActor = await autenticarActorDelChat(req, body?.idMiembros);
     ensureFirestore();
     const chatStore = createChatStore(chatActor);
 
-    const body = await req.json();
-    const conversation = await createConversation(body.conversationData, chatActor, chatStore);
+    const conversation = await conQuienContesto(
+      await createConversation(body.conversationData, chatActor, chatStore),
+      chatActor
+    );
 
     return Response.json({ conversation });
   } catch (error) {
@@ -2000,16 +2120,14 @@ export async function PUT(req) {
   let operationError = null;
 
   try {
-    const chatActor = await authenticateChatRequest(req);
+    const body = await req.json();
+    const chatActor = await autenticarActorDelChat(req, body?.idMiembros);
     ensureFirestore();
     const chatStore = createChatStore(chatActor);
 
-    const body = await req.json();
-    const conversation = await addMessage(
-      body.conversationId,
-      body.messageData,
-      chatActor,
-      chatStore
+    const conversation = await conQuienContesto(
+      await addMessage(body.conversationId, body.messageData, chatActor, chatStore),
+      chatActor
     );
 
     return Response.json({ conversation });
@@ -2026,11 +2144,11 @@ export async function PATCH(req) {
   let operationError = null;
 
   try {
-    const chatActor = await authenticateChatRequest(req);
+    const body = await req.json();
+    const chatActor = await autenticarActorDelChat(req, body?.idMiembros);
     ensureFirestore();
     const chatStore = createChatStore(chatActor);
 
-    const body = await req.json();
     const conversationActions = [
       'toggle-mute',
       'mark-delivered',
@@ -2071,7 +2189,7 @@ export async function PATCH(req) {
           chatStore,
         });
 
-    return Response.json({ conversation });
+    return Response.json({ conversation: await conQuienContesto(conversation, chatActor) });
   } catch (error) {
     operationError = error;
     return buildChatErrorResponse(error, operation.requestId, 'No se pudo actualizar el chat.');

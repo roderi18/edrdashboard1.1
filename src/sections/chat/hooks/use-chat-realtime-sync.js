@@ -128,7 +128,9 @@ export function useChatRealtimeSync({
         if (deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) return;
         deliveredMarkersRef.current.set(change.doc.id, deliveryMarker);
 
-        void markConversationDelivered(change.doc.id);
+        // Con el id de quien mira: en el buzon de la Tienda, la entrega la confirma
+        // la Tienda y no la persona que atiende.
+        void markConversationDelivered(change.doc.id, idMiembros);
       });
 
       if (shouldRevalidate) revalidateConversations();

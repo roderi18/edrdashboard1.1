@@ -1,11 +1,11 @@
+import { idDeParticipanteChat } from '../utils/chat-tienda-virtual.mjs';
+
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const asObject = (value) =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-const memberId = (value) => {
-  const parsed = Number(value);
-
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-};
+// Un participante es un miembro o la Tienda Virtual (`ID_TIENDA_VIRTUAL`), y los
+// dos son enteros positivos: la definicion vive en un solo sitio para todo el chat.
+const memberId = idDeParticipanteChat;
 const validIso = (value) => {
   const timestamp = new Date(value ?? '').getTime();
 

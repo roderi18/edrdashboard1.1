@@ -6,16 +6,17 @@ import {
   setDoc,
   getDocs,
   collection,
-  serverTimestamp,
 } from 'firebase/firestore';
 
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
+import { ID_TIENDA_VIRTUAL, idConversacionConTienda } from 'src/utils/chat-tienda-virtual.mjs';
 import {
   ahoraTimestamp,
   COLECCIONES_COMERCIO,
   obtenerIdUsuarioComercio,
 } from 'src/utils/firestore-commerce';
 
+import { createConversation } from 'src/actions/chat';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { siguienteNumeroDeOrden } from 'src/services/order-number-service';
 import {
@@ -37,9 +38,6 @@ import {
 } from './notification-service';
 
 const ordersCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes);
-const COLECCION_CONVERSACIONES_CHAT = 'conversaciones_chat';
-const SUBCOLECCION_MENSAJES_CHAT = 'mensajes';
-const REMITENTE_TIENDA_ID_MIEMBROS = -900001;
 
 const nowIso = () => new Date().toISOString();
 
@@ -87,121 +85,59 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(number) && number !== 0 ? number : null;
 };
 
-const splitCustomerName = (name = '') => {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-
-  return {
-    nombres: parts.slice(0, Math.max(1, parts.length - 1)).join(' ') || name || 'Miembro',
-    apellidos: parts.length > 1 ? parts.slice(-1).join(' ') : '',
-  };
-};
-
-const construirParticipanteCliente = (orden = {}) => {
-  const idMiembros = toNumberOrNull(orden?.miembroId);
-
-  if (!idMiembros) {
-    return null;
-  }
-
-  return {
-    idMiembros,
-    codigoMiembro: orden?.cliente?.codigoMiembro || '',
-    ...splitCustomerName(orden?.cliente?.nombre || ''),
-    correo: orden?.cliente?.correo || '',
-    telefono: orden?.cliente?.telefono || '',
-    estatusMiembro: orden?.cliente?.rolMiembro || 'usuario',
-    avatarUrl: '',
-  };
-};
-
-const construirParticipanteTienda = () => ({
-  idMiembros: REMITENTE_TIENDA_ID_MIEMBROS,
-  codigoMiembro: 'TIENDA',
-  nombres: 'Tienda',
-  apellidos: 'Virtual',
-  correo: '',
-  telefono: '',
-  estatusMiembro: 'sistema',
-  avatarUrl: '',
-});
-
+// EL AVISO DEL PEDIDO LLEGA POR EL CHAT, COMO LA TIENDA VIRTUAL.
+//
+// Se escribia desde el navegador de quien evaluaba, directo en Firestore, a
+// nombre de la Tienda. Las reglas solo dejan escribir en una conversacion a sus
+// participantes, y quien evalua no lo es: el aviso fallaba y, como iba dentro de
+// la evaluacion, se llevaba por delante lo que venia detras.
+//
+// Ahora pasa por el servidor, como cualquier respuesta del buzon de la Tienda:
+// comprueba el cargo, escribe con la identidad de la Tienda y deja constancia de
+// quien evaluo. La conversacion es la de siempre con ese miembro, asi que el
+// aviso cae en el mismo hilo donde puede contestar.
 const crearMensajeChatEvaluacionPedido = async ({ orden = {}, texto = '' }) => {
-  const cliente = construirParticipanteCliente(orden);
+  const idCliente = toNumberOrNull(orden?.miembroId);
 
-  if (!cliente || !texto) {
+  if (!idCliente || !texto) {
     return null;
   }
 
-  const tienda = construirParticipanteTienda();
-  const participantes = [tienda, cliente];
-  const participantesIds = participantes.map((participant) => participant.idMiembros);
-  const idConversacion = `individual_${[...participantesIds].sort((a, b) => a - b).join('_')}`;
-  const enviadoEn = nowIso();
-  const idMensaje = `pedido_${orden?.ordenId || Date.now()}_${Date.now()}`;
-  const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES_CHAT, idConversacion);
-  const conversationSnapshot = await getDoc(conversationRef);
-  const conversationData = conversationSnapshot.exists() ? conversationSnapshot.data() : {};
-  const noLeidosPorIdMiembros = {
-    [String(REMITENTE_TIENDA_ID_MIEMBROS)]: 0,
-    [String(cliente.idMiembros)]:
-      Number(conversationData?.noLeidosPorIdMiembros?.[String(cliente.idMiembros)] || 0) + 1,
-  };
-  const messageDoc = {
-    idMensaje,
-    texto,
-    tipoContenido: 'text',
-    remitenteIdMiembros: REMITENTE_TIENDA_ID_MIEMBROS,
-    remitente: tienda,
-    adjuntos: [],
-    metadatos: {
-      ordenId: orden?.ordenId || orden?.id || null,
-      numeroOrden: orden?.numeroOrden || orden?.orderNumber || null,
-    },
-    enviadoEn,
-    actualizadoEn: enviadoEn,
-    editado: false,
-    eliminado: false,
-    eliminadoEn: null,
-    vistoPorIdMiembros: {},
-  };
+  const referencia = String(orden?.ordenId || orden?.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const idMensaje = `pedido_${referencia || 'orden'}_${Date.now()}`;
 
-  await setDoc(
-    conversationRef,
-    {
-      idConversacion,
-      tipoConversacion: 'INDIVIDUAL',
-      participantesIds,
-      participantes,
-      creadoPorIdMiembros:
-        conversationData?.creadoPorIdMiembros || REMITENTE_TIENDA_ID_MIEMBROS,
-      creadoEn: conversationData?.creadoEn || enviadoEn,
-      actualizadoEn: enviadoEn,
-      ultimoMensaje: {
-        idMensaje,
-        texto,
-        tipoContenido: 'text',
-        remitenteIdMiembros: REMITENTE_TIENDA_ID_MIEMBROS,
-        enviadoEn,
+  try {
+    const respuesta = await createConversation(
+      {
+        messages: [
+          {
+            id: idMensaje,
+            body: texto,
+            contentType: 'text',
+            createdAt: nowIso(),
+            senderId: ID_TIENDA_VIRTUAL,
+            mentionIds: [],
+            replyTo: null,
+          },
+        ],
+        participants: [{ idMiembros: ID_TIENDA_VIRTUAL }, { idMiembros: idCliente }],
+        type: 'ONE_TO_ONE',
+        groupName: null,
+        unreadCount: 0,
       },
-      noLeidosPorIdMiembros,
-      activa: true,
-      eliminada: false,
-      actualizadoEnServidor: serverTimestamp(),
-    },
-    { merge: true }
-  );
+      ID_TIENDA_VIRTUAL
+    );
 
-  await setDoc(
-    doc(conversationRef, SUBCOLECCION_MENSAJES_CHAT, idMensaje),
-    {
-      ...messageDoc,
-      creadoEnServidor: serverTimestamp(),
-      actualizadoEnServidor: serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  return { idConversacion, idMensaje };
+    return {
+      idConversacion: respuesta?.conversation?.id || idConversacionConTienda(idCliente),
+      idMensaje,
+    };
+  } catch (error) {
+    // La evaluacion ya esta guardada: el aviso por chat no la deshace. Queda el
+    // aviso de la campana, que se envia igual.
+    console.warn('[pedidos] no se pudo avisar por chat', error?.message ?? error);
+    return null;
+  }
 };
 
 const actualizarItemsEvaluacion = ({ items = [], estado, razon = '', user = {} }) =>

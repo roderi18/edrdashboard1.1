@@ -314,10 +314,25 @@ service firebase.storage {
       return request.auth.token.idMiembros;
     }
 
+    // El 20001 es la Tienda Virtual: solo lo lleva el token que emite el servidor
+    // a nombre de `tienda-virtual`. Ver `firestore.rules` y
+    // `src/utils/chat-tienda-virtual.mjs`.
     function puedeUsarChat() {
       return estaAutenticado()
         && 'idMiembros' in request.auth.token
-        && idMiembroChat() is int;
+        && idMiembroChat() is int
+        && (idMiembroChat() != 20001 || request.auth.uid == 'tienda-virtual');
+    }
+
+    // Quien atiende el buzon de la Tienda sube las fotos y archivos que la Tienda
+    // envia: el mensaje lo firma el servidor como la Tienda, pero el archivo sale
+    // del navegador de la persona, que no es participante. Sin esto, contestar
+    // con una foto fallaba con "permisos insuficientes".
+    function atiendeBuzonDeTiendaChat(idConversacion) {
+      return estaAutenticado()
+        && (esAdministradorGlobal() || esAdministradorDeTienda())
+        && firestore.exists(rutaConversacionChat(idConversacion))
+        && 20001 in firestore.get(rutaConversacionChat(idConversacion)).data.participantesIds;
     }
 
     function rutaConversacionChat(idConversacion) {
@@ -391,25 +406,33 @@ service firebase.storage {
     }
 
     match /chat/{idConversacion}/imagenes/{archivo} {
-      allow read: if esParticipanteChat(idConversacion);
-      allow create: if esParticipanteChat(idConversacion)
+      allow read: if esParticipanteChat(idConversacion)
+        || atiendeBuzonDeTiendaChat(idConversacion);
+      allow create: if (esParticipanteChat(idConversacion)
+          || atiendeBuzonDeTiendaChat(idConversacion))
         && resource == null
         && imagenChatValida(idConversacion, archivo);
       allow update: if false;
-      allow delete: if esParticipanteChat(idConversacion)
-        && (resource.metadata.uploaderUid == request.auth.uid
-          || esCreadorChat(idConversacion));
+      allow delete: if (esParticipanteChat(idConversacion)
+          && (resource.metadata.uploaderUid == request.auth.uid
+            || esCreadorChat(idConversacion)))
+        || (atiendeBuzonDeTiendaChat(idConversacion)
+          && resource.metadata.uploaderUid == request.auth.uid);
     }
 
     match /chat/{idConversacion}/archivos/{archivo} {
-      allow read: if esParticipanteChat(idConversacion);
-      allow create: if esParticipanteChat(idConversacion)
+      allow read: if esParticipanteChat(idConversacion)
+        || atiendeBuzonDeTiendaChat(idConversacion);
+      allow create: if (esParticipanteChat(idConversacion)
+          || atiendeBuzonDeTiendaChat(idConversacion))
         && resource == null
         && documentoChatValido(idConversacion, archivo);
       allow update: if false;
-      allow delete: if esParticipanteChat(idConversacion)
-        && (resource.metadata.uploaderUid == request.auth.uid
-          || esCreadorChat(idConversacion));
+      allow delete: if (esParticipanteChat(idConversacion)
+          && (resource.metadata.uploaderUid == request.auth.uid
+            || esCreadorChat(idConversacion)))
+        || (atiendeBuzonDeTiendaChat(idConversacion)
+          && resource.metadata.uploaderUid == request.auth.uid);
     }
 
     // El fondo de las tarjetas de la pantalla Principal: imagen o, en la de la

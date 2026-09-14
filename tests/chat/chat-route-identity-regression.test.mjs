@@ -26,18 +26,44 @@ test('un token sin el numero de miembro se renueva antes de salir', () => {
   assert.match(axiosSource, /getIdToken\(true\)/);
 });
 
+// LOS CUATRO METODOS AUTENTICAN, AHORA A TRAVES DE `autenticarActorDelChat`.
+//
+// Con el buzon de la Tienda Virtual hay dos formas de autenticar: la de siempre
+// (una persona, su token) y la del buzon (una persona CON CARGO que actua como
+// la Tienda). Las dos verifican el token. Lo que no puede volver es un metodo
+// que se salte ambas.
 test('los cuatro métodos autentican la solicitud', () => {
-  const calls = routeSource.match(/authenticateChatRequest\(req\)/g) ?? [];
+  const calls = routeSource.match(/autenticarActorDelChat\(\s*req\b/g) ?? [];
 
   assert.equal(calls.length, 4);
+  // Y el selector solo reparte entre las dos autenticaciones verificadas.
+  assert.match(
+    routeSource,
+    /esTiendaVirtual\(idMiembrosPedido\) \? autenticarBuzonDeTienda\(req\) : authenticateChatRequest\(req\)/
+  );
 });
 
+// El `idMiembros` que manda el navegador NO dice quien eres: eso sale del token.
+// Solo sirve para pedir el buzon de la Tienda, y aun asi el servidor comprueba el
+// cargo. Por eso aparece unicamente como argumento del selector.
 test('la ruta no deriva la identidad desde query idMiembros', () => {
-  assert.doesNotMatch(routeSource, /searchParams\.get\(['"]idMiembros['"]\)/);
+  const lecturas = routeSource.match(/searchParams\.get\(['"]idMiembros['"]\)/g) ?? [];
+  const comoSelector =
+    routeSource.match(
+      /autenticarActorDelChat\(\s*req,\s*searchParams\.get\(['"]idMiembros['"]\)/g
+    ) ?? [];
+
+  assert.equal(lecturas.length, comoSelector.length);
+  assert.ok(lecturas.length <= 1);
 });
 
 test('la ruta no deriva la identidad desde body.idMiembros', () => {
   assert.doesNotMatch(routeSource, /body\.idMiembros/);
+
+  const lecturas = routeSource.match(/body\?\.idMiembros/g) ?? [];
+  const comoSelector = routeSource.match(/autenticarActorDelChat\(req, body\?\.idMiembros\)/g) ?? [];
+
+  assert.equal(lecturas.length, comoSelector.length);
 });
 
 test('envío, creación y mutaciones usan la identidad autenticada', () => {
@@ -77,7 +103,12 @@ test('la vista espera el token y el sidebar usa el resumen global de no leidos',
     'utf8'
   );
 
-  assert.match(chatViewSource, /useGetContacts\(Boolean\(user\?\.accessToken\)\)/);
+  // Los contactos esperan al token. El segundo argumento solo pide la lista a
+  // nombre del buzon de la Tienda cuando se esta en el.
+  assert.match(
+    chatViewSource,
+    /useGetContacts\(\s*Boolean\(user\?\.accessToken\),\s*enBuzon \? ID_TIENDA_VIRTUAL : null\s*\)/
+  );
   assert.match(
     dashboardLayoutSource,
     /useGetChatUnreadSummary\(chatMemberId, chatSummaryEnabled\)/
@@ -106,5 +137,6 @@ test('la entrega se confirma cuando el listener recibe una conversación', async
 
   assert.match(routeSource, /['"]mark-delivered['"]:\s*CHAT_PERMISSIONS\.VIEW/);
   assert.match(realtimeSource, /snapshot\.docChanges\(\)/);
-  assert.match(realtimeSource, /markConversationDelivered\(change\.doc\.id\)/);
+  // Con el id de quien mira: en el buzon, la entrega la confirma la Tienda.
+  assert.match(realtimeSource, /markConversationDelivered\(change\.doc\.id, idMiembros\)/);
 });

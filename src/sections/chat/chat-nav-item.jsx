@@ -9,7 +9,6 @@ import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import ListItemButton from '@mui/material/ListItemButton';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
@@ -19,6 +18,7 @@ import { clickConversation } from 'src/actions/chat';
 import { Iconify } from 'src/components/iconify';
 
 import { getNavItem } from './utils/get-nav-item';
+import { rutaDelChat } from './utils/ruta-del-chat';
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +27,7 @@ export function ChatNavItem({
   collapse,
   conversation,
   currentContact,
+  enBuzon = false,
   onCloseMobile,
   presenceStatuses = {},
 }) {
@@ -53,7 +54,7 @@ export function ChatNavItem({
       onCloseMobile();
     }
 
-    const redirectPath = `${paths.dashboard.chat}?id=${conversation.id}`;
+    const redirectPath = rutaDelChat({ id: conversation.id, enBuzon });
 
     startTransition(() => {
       router.push(redirectPath);
@@ -62,7 +63,7 @@ export function ChatNavItem({
     clickConversation(conversation.id, currentContact.idMiembros).catch((error) => {
       console.error(error);
     });
-  }, [conversation.id, currentContact.idMiembros, mdUp, onCloseMobile, router]);
+  }, [conversation.id, currentContact.idMiembros, enBuzon, mdUp, onCloseMobile, router]);
 
   const renderGroup = () => (
     <Badge variant={hasOnlineInGroup ? 'online' : 'invisible'} badgeContent=" ">
