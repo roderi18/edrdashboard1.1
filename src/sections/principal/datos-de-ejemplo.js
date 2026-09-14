@@ -20,8 +20,16 @@ import { paths } from 'src/routes/paths';
 // Al conectar cada panel se borra su bloque de aqui y se quita su marca.
 // ----------------------------------------------------------------------
 
-/** Bandera unica: apagarla deja la pantalla solo con lo real. */
-export const HAY_DATOS_DE_EJEMPLO = true;
+/**
+ * Bandera unica de la marca "Ejemplo".
+ *
+ * APAGADA a peticion expresa: la pantalla se esta enseñando y los sellos
+ * distraian. Ojo con lo que implica —los datos de debajo SIGUEN siendo
+ * inventados, solo que ahora no lo avisan—: mientras este en `false`, lo que se
+ * ve se lee como el estado real de la organizacion. Volver a ponerla en `true`
+ * devuelve todos los sellos de golpe.
+ */
+export const HAY_DATOS_DE_EJEMPLO = false;
 
 export const RESUMEN_DE_EJEMPLO = {
   lema: 'Preparado para servir, aprender y liderar.',

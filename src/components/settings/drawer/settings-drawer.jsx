@@ -58,6 +58,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     fontFamily: hasKeys(defaultSettings, ['fontFamily']),
     primaryColor: hasKeys(defaultSettings, ['primaryColor']),
     compactLayout: hasKeys(defaultSettings, ['compactLayout']),
+    navBlanco: hasKeys(defaultSettings, ['navBlanco']),
   };
 
   useEffect(() => {
@@ -189,6 +190,32 @@ export function SettingsDrawer({ sx, defaultSettings }) {
         value={settings.state.primaryColor}
         onChangeOption={(newOption) => {
           settings.setState({ primaryColor: newOption });
+        }}
+      />
+    </LargeBlock>
+  );
+
+  // LA BARRA Y LA CABECERA EN BLANCO.
+  //
+  // Debajo de los presets porque es lo mismo que ellos: una decision de color, no
+  // de disposicion. Los presets mueven el acento; este mueve las DOS piezas de
+  // marca —barra lateral y cabecera— entre el navy de la casa y el blanco de la
+  // plantilla, sin tocar nada mas de la pantalla.
+  const renderNavBlanco = () => (
+    <LargeBlock
+      title="Barra y cabecera"
+      canReset={Boolean(settings.state.navBlanco) !== Boolean(defaultSettings.navBlanco)}
+      onReset={() => {
+        settings.setState({ navBlanco: defaultSettings.navBlanco });
+      }}
+    >
+      <BaseOption
+        label="En blanco"
+        tooltip="Deja la barra lateral y la cabecera del color del contenido, sin el navy de la casa."
+        selected={Boolean(settings.state.navBlanco)}
+        icon={<SvgIcon>{settingIcons.siderbarDuotone}</SvgIcon>}
+        onChangeOption={() => {
+          settings.setState({ navBlanco: !settings.state.navBlanco });
         }}
       />
     </LargeBlock>
@@ -348,6 +375,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
           {(visibility.navColor || visibility.navLayout) && renderNav()}
           {visibility.primaryColor && renderPresets()}
+          {visibility.navBlanco && renderNavBlanco()}
           {(visibility.fontFamily || visibility.fontSize) && renderFont()}
         </Box>
       </Scrollbar>

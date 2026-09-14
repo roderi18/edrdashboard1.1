@@ -22,6 +22,7 @@ import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { useSettingsContext } from 'src/components/settings';
 import { SearchNotFound } from 'src/components/search-not-found';
 
 import { ResultItem } from './result-item';
@@ -48,7 +49,17 @@ export function Searchbar({
   ...other
 }) {
   const theme = useTheme();
+  const settings = useSettingsContext();
+  // El canal —"255 255 255"— del color con el que se pintan las superficies del
+  // campo. Depende de la cabecera: blanco sobre navy, gris sobre blanco.
+  const canalDeSuperficie = settings.state?.navBlanco
+    ? theme.vars.palette.grey['500Channel']
+    : theme.vars.palette.common.whiteChannel;
   const [anclaje, setAnclaje] = useState(null);
+  // SI EL CAMPO TIENE EL CURSOR. Es lo que abre el desplegable, no lo que se haya
+  // escrito: al enfocar se enseña la lista entera de pantallas —nombre y ruta—,
+  // igual que el dialogo de la lupa. Escribir la filtra.
+  const [enfocado, setEnfocado] = useState(false);
   const smUp = useMediaQuery(theme.breakpoints.up(breakpoint));
 
   const { value: open, onFalse: onClose, onTrue: onOpen, onToggle } = useBoolean();
@@ -198,7 +209,10 @@ export function Searchbar({
     </MenuList>
   );
 
-  const cerrarDesplegable = useCallback(() => setSearchQuery(''), []);
+  const cerrarDesplegable = useCallback(() => {
+    setEnfocado(false);
+    setSearchQuery('');
+  }, []);
 
   /** El campo a la vista, con los resultados colgando debajo. */
   const renderCampoAbierto = () => (
@@ -230,6 +244,7 @@ export function Searchbar({
           disabled={disabled}
           value={searchQuery}
           onChange={handleSearch}
+          onFocus={() => setEnfocado(true)}
           onKeyDown={(event) => {
             if (event.key === 'Escape') cerrarDesplegable();
           }}
@@ -245,15 +260,19 @@ export function Searchbar({
             height: 40,
             borderRadius: 1.25,
             color: 'inherit',
-            // Superficies en blanco translucido y no en gris: este campo vive en
-            // la cabecera de marca, que es navy. Un gris del tema ahi se ve sucio.
-            bgcolor: varAlpha(theme.vars.palette.common.whiteChannel, 0.1),
-            border: `solid 1px ${varAlpha(theme.vars.palette.common.whiteChannel, 0.14)}`,
+            // EL CAMPO SIGUE A LA CABECERA.
+            //
+            // Sobre la cabecera navy las superficies van en blanco translucido:
+            // un gris del tema ahi se ve sucio. Sobre la cabecera en blanco ese
+            // mismo blanco al 10% no es nada —desaparecia el campo entero—, asi
+            // que entonces se usa el gris.
+            bgcolor: varAlpha(canalDeSuperficie, 0.1),
+            border: `solid 1px ${varAlpha(canalDeSuperficie, 0.14)}`,
             transition: theme.transitions.create(['background-color', 'border-color']),
-            '&:hover': { bgcolor: varAlpha(theme.vars.palette.common.whiteChannel, 0.16) },
+            '&:hover': { bgcolor: varAlpha(canalDeSuperficie, 0.16) },
             [`&.${inputBaseClasses.focused}`]: {
-              bgcolor: varAlpha(theme.vars.palette.common.whiteChannel, 0.18),
-              borderColor: varAlpha(theme.vars.palette.common.whiteChannel, 0.32),
+              bgcolor: varAlpha(canalDeSuperficie, 0.18),
+              borderColor: varAlpha(canalDeSuperficie, 0.32),
             },
             [`& .${inputBaseClasses.input}`]: {
               typography: 'body2',
@@ -262,10 +281,13 @@ export function Searchbar({
           }}
         />
 
-        {/* SOLO CUANDO HAY ALGO ESCRITO. Un desplegable que se abre vacio al
-            enfocar tapa la pantalla sin dar nada a cambio. */}
+        {/* AL ENFOCAR, NO AL ESCRIBIR.
+            Se abria solo con algo escrito, y entonces habia que saberse el nombre
+            de la pantalla antes de buscarla. Enfocado enseña TODAS —nombre, ruta
+            y el grupo del menu al que pertenecen—, que es lo que hace el dialogo
+            de la lupa, y escribir va recortando la lista. */}
         <Popper
-          open={Boolean(searchQuery)}
+          open={enfocado || Boolean(searchQuery)}
           anchorEl={anclaje}
           placement="bottom-start"
           sx={{ zIndex: (t) => t.zIndex.modal, width: anclaje?.clientWidth }}

@@ -4,24 +4,50 @@ import { bulletColor } from 'src/components/nav-section';
 
 // ----------------------------------------------------------------------
 
-export function dashboardLayoutVars(theme) {
+/**
+ * Las variables de la cabecera.
+ *
+ * `enBlanco` la devuelve al aspecto de la plantilla —fondo del color del
+ * contenido y textos de la escala normal—, que es lo que enciende el interruptor
+ * "Barra en blanco" del panel de ajustes. Por defecto va en navy.
+ */
+export function dashboardLayoutVars(theme, enBlanco = false) {
   const {
     vars: { palette },
   } = theme;
 
+  // LA BARRA DE ARRIBA, NAVY.
+  //
+  // Era transparente y solo se teñia al bajar, con un velo del color del fondo.
+  // Con la barra lateral y la portada en navy, esa franja clara entre las dos
+  // partia la pantalla por la mitad justo donde la cabecera tiene que continuar
+  // el escudo.
+  //
+  // El fade va de izquierda a derecha: navy donde arranca —pegada a la barra
+  // lateral, que empieza en ese mismo tono, asi la esquina de arriba no tiene
+  // juntura— y `navyLight` al llegar a la derecha, donde estan la cuenta y los
+  // avisos.
+  //
+  // En blanco no hay degradado: un fade sobre el color del contenido se lee como
+  // una mancha, no como una cabecera.
+  const cabecera = enBlanco
+    ? {
+        '--layout-header-bg': palette.background.default,
+        '--layout-header-bg-image': 'none',
+        '--layout-header-text': palette.text.primary,
+        '--layout-header-text-secondary': palette.text.secondary,
+      }
+    : {
+        '--layout-header-bg': palette.brand.navy,
+        '--layout-header-bg-image': `linear-gradient(90deg, ${palette.brand.navy} 0%, ${palette.brand.navyLight} 100%)`,
+        '--layout-header-text': palette.common.white,
+        // Lo de menos peso —iconos en reposo, textos de apoyo— en el mismo
+        // azulado que usa la barra lateral, para que las dos hablen igual.
+        '--layout-header-text-secondary': palette.grey[400],
+      };
+
   return {
-    // LA BARRA DE ARRIBA, TAMBIEN NAVY.
-    //
-    // Era transparente y solo se teñia al bajar, con un velo del color del fondo.
-    // Con la barra lateral y la portada en navy, esa franja clara entre las dos
-    // partia la pantalla por la mitad justo donde la cabecera tiene que
-    // continuar el escudo. Ahora es navy fija, en los dos modos, y forma una
-    // sola pieza con la barra lateral.
-    '--layout-header-bg': palette.brand.navy,
-    '--layout-header-text': palette.common.white,
-    // Lo de menos peso —iconos en reposo, textos de apoyo— en el mismo azulado
-    // que usa la barra lateral, para que las dos hablen igual.
-    '--layout-header-text-secondary': palette.grey[400],
+    ...cabecera,
     '--layout-transition-easing': 'linear',
     '--layout-transition-duration': '120ms',
     '--layout-nav-mini-width': '88px',
@@ -35,7 +61,19 @@ export function dashboardLayoutVars(theme) {
 
 // ----------------------------------------------------------------------
 
-export function dashboardNavColorVars(theme, navColor = 'integrate', navLayout = 'vertical') {
+/**
+ * Las variables de la barra lateral.
+ *
+ * `enBlanco` la devuelve al aspecto de la plantilla: fondo del color del
+ * contenido, textos de la escala normal y el item activo coloreado en vez de
+ * relleno. Es lo que enciende "Barra en blanco" en el panel de ajustes.
+ */
+export function dashboardNavColorVars(
+  theme,
+  navColor = 'integrate',
+  navLayout = 'vertical',
+  enBlanco = false
+) {
   const {
     vars: { palette },
   } = theme;
@@ -57,6 +95,52 @@ export function dashboardNavColorVars(theme, navColor = 'integrate', navLayout =
   // no compita con el relleno del activo.
   const velo = varAlpha(palette.common.whiteChannel, 0.08);
 
+  // LA BARRA EN BLANCO, COMO LA PLANTILLA.
+  //
+  // Sale antes del `switch` porque no depende del ajuste de color de la barra:
+  // es un si o un no, y cuando es que si manda sobre los dos.
+  //
+  // El item activo va COLOREADO y no relleno: sobre un fondo claro el relleno del
+  // primario es un bloque de color macizo en medio de la lista, y con seis grupos
+  // de botones eso pesa demasiado. El velo del primario basta para señalar donde
+  // estas.
+  if (enBlanco) {
+    const veloDelPrimario = varAlpha(palette.primary.mainChannel, 0.08);
+
+    return {
+      layout: {
+        '--layout-nav-bg': palette.background.default,
+        '--layout-nav-bg-image': 'none',
+        '--layout-nav-horizontal-bg': varAlpha(palette.background.defaultChannel, 0.96),
+        '--layout-nav-border-color': varAlpha(palette.grey['500Channel'], 0.12),
+        '--layout-nav-text-primary-color': palette.text.primary,
+        '--layout-nav-text-secondary-color': palette.text.secondary,
+        '--layout-nav-text-disabled-color': palette.text.disabled,
+      },
+      section: {
+        '--nav-item-caption-color': palette.text.disabled,
+        '--nav-subheader-color': palette.text.disabled,
+        '--nav-subheader-hover-color': palette.text.primary,
+        '--nav-item-color': palette.text.secondary,
+        '--nav-item-root-active-color': palette.primary.main,
+        // En oscuro el item activo lee ESTA y no la de arriba; sin ponerla sale
+        // con el primario de modo claro sobre un fondo oscuro.
+        '--nav-item-root-active-color-on-dark': palette.primary.light,
+        '--nav-item-root-active-bg': veloDelPrimario,
+        '--nav-item-root-active-hover-bg': varAlpha(palette.primary.mainChannel, 0.16),
+        '--nav-item-root-open-color': palette.text.primary,
+        '--nav-item-root-open-bg': varAlpha(palette.grey['500Channel'], 0.08),
+        '--nav-item-hover-bg': varAlpha(palette.grey['500Channel'], 0.08),
+        '--nav-bullet-light-color': bulletColor.light,
+        ...(navLayout === 'vertical' && {
+          '--nav-item-sub-active-color': palette.text.primary,
+          '--nav-item-sub-active-bg': varAlpha(palette.grey['500Channel'], 0.08),
+          '--nav-item-sub-open-color': palette.text.primary,
+        }),
+      },
+    };
+  }
+
   switch (navColor) {
     // LOS DOS AJUSTES DAN LA MISMA BARRA.
     //
@@ -69,6 +153,19 @@ export function dashboardNavColorVars(theme, navColor = 'integrate', navLayout =
       return {
         layout: {
           '--layout-nav-bg': navy,
+          // EL FADE VERTICAL DE LA BARRA: navy arriba, azul abierto abajo. Va en
+          // variable y no en el componente para que la barra en blanco pueda
+          // apagarlo con un `none`, sin que el componente sepa de ajustes.
+          //
+          // Mas cerrado de lo que fue: terminaba en `navyLighter` y el pie de la
+          // barra se leia gris-azulado, casi lavado. Ahora el navy aguanta hasta
+          // el 60% —los grupos de botones quedan todos sobre el tono de la casa—
+          // y solo aclara hasta `navyLight` al final.
+          //
+          // Arriba sigue en `navy`, NO en `navyDark`: la cabecera arranca en ese
+          // mismo tono y se tocan en la esquina; oscurecer el arranque abria ahi
+          // una juntura.
+          '--layout-nav-bg-image': `linear-gradient(180deg, ${navy} 0%, ${navy} 60%, ${palette.brand.navyLight} 100%)`,
           '--layout-nav-horizontal-bg': varAlpha(palette.brand.navyChannel, 0.96),
           '--layout-nav-border-color': 'transparent',
           '--layout-nav-text-primary-color': palette.common.white,

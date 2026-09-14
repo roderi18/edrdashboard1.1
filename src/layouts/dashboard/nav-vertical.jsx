@@ -125,6 +125,11 @@ const NavRoot = styled('div', {
   flexDirection: 'column',
   zIndex: 'var(--layout-nav-zIndex)',
   backgroundColor: 'var(--layout-nav-bg)',
+  // El degradado —navy arriba, azul abierto abajo— se declara en `css-vars.js`
+  // junto al resto de los colores de la barra: asi el ajuste "Barra en blanco"
+  // puede apagarlo poniendo la variable en `none`, y aqui no hay que saber nada
+  // de ajustes. El color de debajo se queda de respaldo.
+  backgroundImage: 'var(--layout-nav-bg-image, none)',
   width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
   borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
   transition: theme.transitions.create(['width'], {

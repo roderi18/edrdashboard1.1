@@ -55,6 +55,7 @@ import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 import {
   navDataDesarrollo,
+  conUsuarioDeDesarrollo,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
 } from '../nav-config-dashboard';
@@ -152,7 +153,13 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const settings = useSettingsContext();
 
-  const navVars = dashboardNavColorVars(theme, settings.state.navColor, settings.state.navLayout);
+  const navEnBlanco = Boolean(settings.state.navBlanco);
+  const navVars = dashboardNavColorVars(
+    theme,
+    settings.state.navColor,
+    settings.state.navLayout,
+    navEnBlanco
+  );
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -275,8 +282,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // No se usa `allowedRoles` porque esa comprobacion es una lista de EXCLUSION
     // —oculta a quien aparezca en ella— y aqui hace falta lo contrario.
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
+    // La pantalla de usuario de la plantilla no va en ese bloque del final: es una
+    // entrada sola y un grupo propio para ella pesaba mas que la entrada. Se
+    // cuela dentro de "Organizacion", encima de Niveles Organizacionales.
     const conDesarrollo = esAdministradorGlobal
-      ? [...baseNavData, ...navDataDesarrollo]
+      ? [...conUsuarioDeDesarrollo(baseNavData), ...navDataDesarrollo]
       : baseNavData;
     const navDataConIndicadores = agregarIndicadoresMensajes(conDesarrollo, {
       chatUnreadCount: chatsSinLeer,
@@ -439,6 +449,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // opaca lo unico que hacia era aclararla al bajar.
     const cabeceraDeMarca = {
       backgroundColor: 'var(--layout-header-bg)',
+      // El degradado encima del color: si un dia se quita, la cabecera se queda
+      // en navy plano y no en blanco.
+      backgroundImage: 'var(--layout-header-bg-image)',
       color: 'var(--layout-header-text)',
       '&::before': { display: 'none' },
       // Los iconos y su texto. `color: inherit` no basta: los `IconButton` del
@@ -506,7 +519,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       /** **************************************
        * @Styles
        *************************************** */
-      cssVars={{ ...dashboardLayoutVars(theme), ...navVars.layout, ...cssVars }}
+      cssVars={{ ...dashboardLayoutVars(theme, navEnBlanco), ...navVars.layout, ...cssVars }}
       sx={[
         {
           [`& .${layoutClasses.sidebarContainer}`]: {

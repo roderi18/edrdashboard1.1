@@ -48,44 +48,48 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
         display: 'flex',
         position: 'relative',
         flexDirection: 'column',
+        // EL AIRE SE REPARTE, NO SE ESCRIBE. Con un margen fijo debajo de cada
+        // cosa la tarjeta se desbordaba: a 392px de ancho el 16:9 deja 220px de
+        // alto y el contenido ya los ocupaba enteros, asi que los margenes nuevos
+        // se comian el relleno de abajo y el pie tocaba el borde.
+        //
+        // `space-between` reparte lo que sobre —en una tarjeta ancha sobra
+        // bastante— y `rowGap` es el minimo que se respeta cuando no sobra nada.
+        // El contenedor no cambia: misma proporcion y mismo relleno.
+        rowGap: 0.5,
+        justifyContent: 'space-between',
         ...fondoDeTarjeta({ foto, navy: NAVY, varAlpha }),
       }}
     >
-      {/* EL ESTADO, ARRIBA A LA DERECHA. Estaba abajo del todo, debajo de la
-          ubicacion y de la cuenta atras: para saber si estabas inscrito habia que
-          leerse la tarjeta entera. Arriba se ve con el titulo, de un golpe. */}
-      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
+      {/* AIRE ENTRE LAS CUATRO COSAS QUE HAY QUE LEER. Iban pegadas —medio paso
+          entre una y otra— y la tarjeta se leia como un bloque de texto. Los
+          margenes crecen aqui dentro y el contenedor no se mueve: la proporcion
+          16:9 y el relleno son los mismos; el reparto lo hace el `space-between`
+          del contenedor. */}
+      <Stack direction="row" alignItems="center" spacing={0.75}>
         <Iconify icon="custom:calendar-agenda-outline" width={17} sx={{ color: ORO.claro }} />
         <Typography variant="overline" sx={{ color: NAVY.texto }}>
           Próxima actividad
         </Typography>
 
-        <Stack direction="row" alignItems="center" spacing={0.75} sx={{ ml: 'auto' }}>
-          {puedeEditar && (
+        {puedeEditar && (
+          <Box sx={{ ml: 'auto', display: 'flex' }}>
             <LapizDeImagen tieneFoto={Boolean(foto)} subiendo={subiendo} onElegir={elegirFoto} />
-          )}
-
-          <Label
-            variant="soft"
-            color="success"
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-          >
-            {actividad.estado}
-          </Label>
-        </Stack>
+          </Box>
+        )}
       </Stack>
 
       {/* En `h6` y no en `h5`: a 392 pixeles de ancho el titulo se parte en dos
           lineas, y con el cuerpo mas grande esas dos lineas no cabian en la
           proporcion 16:9. */}
-      <Typography variant="h6" sx={{ color: '#FFFFFF', mb: 0.5, lineHeight: 1.25 }}>
+      <Typography variant="h6" sx={{ color: '#FFFFFF', lineHeight: 1.25 }}>
         {actividad.titulo}
       </Typography>
 
-      <Stack spacing={0} sx={{ mb: 0.75 }}>
+      <Stack spacing={0.25}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Iconify icon="solar:flag-bold" width={16} sx={{ color: NAVY.texto, flex: 'none' }} />
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.88)' }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.88)', lineHeight: 1.35 }}>
             {actividad.lugar}
           </Typography>
         </Stack>
@@ -96,23 +100,20 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
             width={16}
             sx={{ color: NAVY.texto, flex: 'none' }}
           />
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.88)' }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.88)', lineHeight: 1.35 }}>
             {actividad.fechas}
           </Typography>
         </Stack>
       </Stack>
 
-      {/* LA CUENTA ATRAS, GRANDE. Es el unico dato de la tarjeta que cambia solo
-          y el que decide si hay que hacer algo hoy. */}
-      {/* LA CUENTA ATRAS, EL "FALTAN" ENCIMA Y EL NUMERO DEBAJO. Es el dato que
-          decide si hay que hacer algo hoy, y apilado se lee como una cifra y no
-          como una frase. Apretado de relleno para que las dos alturas quepan en
-          la proporcion 16:9. */}
+      {/* LA CUENTA ATRAS, EL "FALTAN" ENCIMA Y EL NUMERO DEBAJO. Es el unico dato
+          de la tarjeta que cambia solo y el que decide si hay que hacer algo hoy;
+          apilado se lee como una cifra y no como una frase. Apretado de relleno
+          para que las dos alturas quepan en la proporcion 16:9. */}
       <Box
         sx={{
           px: 1.25,
-          py: 0.5,
-          mb: 0.25,
+          py: 0.25,
           borderRadius: 1.25,
           alignSelf: 'flex-start',
           bgcolor: NAVY.abierto,
@@ -127,7 +128,25 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
         </Typography>
       </Box>
 
-      <Stack direction="row" alignItems="center" sx={{ mt: 'auto' }}>
+      {/* EL ESTADO, ABAJO A LA IZQUIERDA, EN LA MISMA VERTICAL QUE TODO LO DEMAS.
+          Estaba arriba a la derecha, en la unica esquina que no comparte linea
+          con nada: el ojo tenia que salirse de la columna de la izquierda —donde
+          estan el titulo, el lugar, la fecha y la cuenta atras— para leerlo y
+          volver. Abajo cierra esa misma columna, y de paso empareja con el boton
+          en la fila del pie, que antes iba solo. */}
+      <Stack direction="row" alignItems="center" spacing={1}>
+        {/* RELLENO, NO TRANSLUCIDO. En `soft` el verde va con transparencia y
+            debajo hay una fotografia: el color se mezclaba con lo que cayera
+            detras y el sello salia apagado, y distinto en cada imagen. Relleno es
+            el mismo verde siempre, se ponga la foto que se ponga. */}
+        <Label
+          variant="filled"
+          color="success"
+          startIcon={<Iconify icon="solar:check-circle-bold" />}
+        >
+          {actividad.estado}
+        </Label>
+
         <Button
           component={RouterLink}
           href={paths.dashboard.calendar}

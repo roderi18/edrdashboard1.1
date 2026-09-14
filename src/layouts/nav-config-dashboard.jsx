@@ -250,6 +250,34 @@ export const conTiendaDeAdministracion = (secciones = []) =>
 // Van al final del menu a proposito: lo de trabajar primero, lo de probar despues.
 // ----------------------------------------------------------------------
 
+// LA PANTALLA DE USUARIO DE LA PLANTILLA, SUELTA.
+//
+// Tenia un grupo para ella sola —"Desarrollo · pantallas de demo"— con un rotulo
+// mas largo que su unica entrada. Ahora va dentro de "Organizacion", encima de
+// Niveles Organizacionales, que es donde encaja por lo que enseña; la coloca
+// `conUsuarioDeDesarrollo` y solo la ve el Administrador Global.
+export const ITEM_USUARIO_DESARROLLO = {
+  title: 'Usuario - desarrollo',
+  path: paths.dashboard.user.root,
+  icon: ICONS.user,
+  children: [
+    { title: 'Perfil', path: paths.dashboard.user.root },
+    { title: 'Cartas', path: paths.dashboard.user.cards },
+    { title: 'Lista', path: paths.dashboard.user.list },
+    { title: 'Crear', path: paths.dashboard.user.new },
+    { title: 'Editar', path: paths.dashboard.user.demo.edit },
+    { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
+  ],
+};
+
+/** Mete esa entrada la primera del grupo "Organizacion". Sin ese grupo, no toca nada. */
+export const conUsuarioDeDesarrollo = (secciones = []) =>
+  secciones.map((seccion) =>
+    seccion.subheader === 'Organización'
+      ? { ...seccion, items: [ITEM_USUARIO_DESARROLLO, ...(seccion.items || [])] }
+      : seccion
+  );
+
 export const navDataDesarrollo = [
   {
     subheader: 'Desarrollo · plantilla',
@@ -301,27 +329,6 @@ export const navDataDesarrollo = [
           { title: 'Editar', path: paths.dashboard.tour.demo.edit },
         ],
       },
-    ],
-  },
-  {
-    subheader: 'Desarrollo · pantallas de demo',
-    items: [
-      {
-        title: 'Usuario - desarrollo',
-        path: paths.dashboard.user.root,
-        icon: ICONS.user,
-        children: [
-          { title: 'Perfil', path: paths.dashboard.user.root },
-          { title: 'Cartas', path: paths.dashboard.user.cards },
-          { title: 'Lista', path: paths.dashboard.user.list },
-          { title: 'Crear', path: paths.dashboard.user.new },
-          { title: 'Editar', path: paths.dashboard.user.demo.edit },
-          { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
-        ],
-      },
-      // Tienda, Ordenes y Recibos ya no van aqui: el Administrador Global los
-      // tiene debajo de "Tienda" (`tiendaDeAdministracion`). Repetirlos aqui eran
-      // dos entradas iguales en el mismo menu.
     ],
   },
 ];
