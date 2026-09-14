@@ -155,7 +155,12 @@ test('las categorias de la columna son las reales y escriben el mismo filtro', (
 
 test('la rejilla pagina y la busqueda la devuelve a la primera pagina', () => {
   assert.match(vista, /<TablePaginationCustom/);
-  assert.match(vista, /const gridData = mobileData\.slice\(/);
+  assert.match(vista, /: mobileData\.slice\(/);
+  // "Todos" es el -1 de MUI, y hay que tratarlo antes de cortar: `slice(0, -1)`
+  // devolvia todos los productos MENOS el ultimo.
+  assert.match(vista, /const TODOS_LOS_PRODUCTOS = -1;/);
+  assert.match(vista, /gridRowsPerPage === TODOS_LOS_PRODUCTOS\s*\?\s*mobileData/);
+  assert.match(vista, /\{ label: 'Todos', value: TODOS_LOS_PRODUCTOS \}/);
   assert.match(vista, /setGridPage\(0\);\s*\n\s*\}, \[mobileSearch, filters\.state\]\);/);
 });
 

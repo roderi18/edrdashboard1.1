@@ -25,6 +25,7 @@ import { FileThumbnail } from 'src/components/file-thumbnail';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { notificationIcons } from './icons';
+import { useFotosDeAviso } from './use-fotos-de-aviso';
 
 // ----------------------------------------------------------------------
 
@@ -45,6 +46,9 @@ const renderIcon = (type) =>
     chat: notificationIcons.chat,
     mail: notificationIcons.mail,
     delivery: notificationIcons.delivery,
+    // Sin foto de quien actua, el aviso de producto cae en el icono de pedido:
+    // sin esto el circulo quedaba vacio, que era lo que se veia.
+    producto: notificationIcons.order,
   })[type];
 
 const getNotificationRoute = (notification = {}) => {
@@ -102,6 +106,11 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const router = useRouter();
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
+  const esDeProducto = notification.type === 'producto';
+  // En los avisos de producto hay DOS caras: la persona, en el circulo, y el
+  // producto, en el bloque de debajo. Ver `use-fotos-de-aviso`.
+  const { fotoProducto, fotoPersona } = useFotosDeAviso(notification, { activo: esDeProducto });
+  const fotoDelCirculo = esDeProducto ? fotoPersona : notification.avatarUrl;
 
   // La solicitud llega a los dos coordinadores: si uno ya la resolvio, el otro
   // tiene que verlo o acaba generando un segundo codigo y tumbando el primero.
@@ -186,9 +195,9 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
 
   const renderAvatar = () => (
     <ListItemAvatar>
-      {notification.avatarUrl ? (
+      {fotoDelCirculo ? (
         <Avatar
-          src={notification.avatarUrl}
+          src={fotoDelCirculo}
           slotProps={{
             img: {
               loading: 'eager',
@@ -353,6 +362,48 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     </Box>
   );
 
+  // EL PRODUCTO DEL QUE HABLA EL AVISO: su foto y su nombre. Sustituye al bloque
+  // de demostracion de la plantilla —un adjunto .mp3 o tres etiquetas "Design"—
+  // que salia aqui porque estos avisos iban con tipos visuales prestados.
+  const renderProductoAction = () => {
+    const nombre =
+      notification.metadatos?.nombreProducto || notification.metadatos?.productName || '';
+
+    if (!nombre && !fotoProducto) return null;
+
+    return (
+      <Box
+        sx={{
+          p: 1,
+          gap: 1.5,
+          mt: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          borderRadius: 1.5,
+          bgcolor: 'background.neutral',
+        }}
+      >
+        <Avatar
+          variant="rounded"
+          src={fotoProducto || undefined}
+          alt={nombre}
+          sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: 'background.paper' }}
+        >
+          <Iconify icon="solar:gallery-bold" width={22} sx={{ color: 'text.disabled' }} />
+        </Avatar>
+
+        <ListItemText
+          primary={nombre || 'Producto'}
+          secondary={notification.metadatos?.sku || null}
+          slotProps={{
+            primary: { noWrap: true, sx: { typography: 'subtitle2' } },
+            secondary: { sx: { mt: 0.25, typography: 'caption', color: 'text.disabled' } },
+          }}
+        />
+      </Box>
+    );
+  };
+
   const renderTagsAction = () => (
     <Box
       sx={{
@@ -448,6 +499,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
         {notification.type === 'file' && renderFileAction()}
         {notification.type === 'tags' && renderTagsAction()}
         {notification.type === 'payment' && renderPaymentAction()}
+        {esDeProducto && renderProductoAction()}
         {renderNotificationActions()}
       </Box>
     </ListItemButton>

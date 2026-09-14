@@ -38,6 +38,13 @@ const MODULOS_CATEGORIAS = {
   publicaciones: 'Publicaciones',
 };
 
+// LOS AVISOS DE PRODUCTO TIENEN SU PROPIO TIPO VISUAL.
+//
+// Iban con 'file', 'order' y 'tags', tipos de la plantilla que la campana dibuja
+// con su bloque de DEMOSTRACION: un adjunto "design-suriname-2015.mp3" con boton
+// Download, o tres etiquetas "Design / Dashboard / Design system". Ninguno tenia
+// que ver con el producto. Con 'producto' la campana pinta la foto y el nombre
+// del producto del que habla el aviso.
 const TIPOS_VISUALES = {
   administrador_creado: 'mail',
   chat_reportado: 'chat',
@@ -59,13 +66,13 @@ const TIPOS_VISUALES = {
   permisos_cambiados: 'project',
   perfil_actualizado: 'project',
   producto_disponible_nuevamente: 'delivery',
-  producto_publicado: 'tags',
+  producto_publicado: 'producto',
   publicacion_comentada: 'chat',
   publicacion_reportada: 'mail',
   recordatorio_publicacion: 'mail',
   producto_resena_baja: 'chat',
-  producto_sin_stock: 'order',
-  producto_stock_bajo: 'file',
+  producto_sin_stock: 'producto',
+  producto_stock_bajo: 'producto',
 };
 
 const escapeHtml = (value) =>
@@ -125,6 +132,38 @@ const construirTituloPropioDelActor = (notificacion = {}) => {
   return notificacion.tituloHtmlPropio || '';
 };
 
+// LA FRASE DE LOS AVISOS DE PRODUCTO SE ARMA AL PINTARLA.
+//
+// La guardada estaba rota en los avisos que ya existen: la plantilla pedia
+// `{{nombreProducto}}` y `{{stock}}` y el documento solo traia `productName` y
+// `disponibles`, asi que se escribio "El producto tiene stock bajo: .". Esos
+// avisos no se reescriben, pero SI tienen el nombre y la cantidad en sus
+// metadatos: rehaciendo la frase aqui se leen bien los viejos y los nuevos.
+const FRASES_DE_PRODUCTO = {
+  producto_stock_bajo: (nombre, cantidad) =>
+    `El producto <strong>${escapeHtml(nombre)}</strong> tiene stock bajo` +
+    (cantidad !== null ? `: <strong>${escapeHtml(cantidad)}</strong>.` : '.'),
+  producto_sin_stock: (nombre) =>
+    `El producto <strong>${escapeHtml(nombre)}</strong> se quedó sin stock.`,
+  producto_publicado: (nombre) =>
+    `El producto <strong>${escapeHtml(nombre)}</strong> fue publicado.`,
+};
+
+const construirTituloDeProducto = (notificacion = {}) => {
+  const frase = FRASES_DE_PRODUCTO[notificacion.tipoNotificacion];
+  const metadatos = notificacion.metadatos || {};
+  const nombre = String(metadatos.nombreProducto || metadatos.productName || '').trim();
+
+  if (!frase || !nombre) return '';
+
+  const bruto = metadatos.stock ?? metadatos.disponibles;
+  const numero = bruto === null || bruto === undefined || bruto === '' ? NaN : Number(bruto);
+  const cantidad = Number.isFinite(numero) ? numero : null;
+  const actor = String(notificacion.actorNombre || 'Sistema').trim();
+
+  return `<p><strong>${escapeHtml(actor)}</strong> ${frase(nombre, cantidad)}</p>`;
+};
+
 const construirTituloHtml = (notificacion, idUsuario = '') => {
   const usuarioId = String(idUsuario || '').trim();
   const esElActor = Boolean(usuarioId) && String(notificacion.actorId || '') === usuarioId;
@@ -134,6 +173,10 @@ const construirTituloHtml = (notificacion, idUsuario = '') => {
 
     if (tituloPropio) return tituloPropio;
   }
+
+  const tituloDeProducto = construirTituloDeProducto(notificacion);
+
+  if (tituloDeProducto) return tituloDeProducto;
 
   if (notificacion.tituloHtml) {
     return notificacion.tituloHtml;
@@ -1612,6 +1655,39 @@ const obtenerNombreProducto = (producto = {}) =>
 
 const obtenerIdProducto = (producto = {}) => producto?.id || producto?.productoId || producto?.sku || '';
 
+const obtenerFotoProducto = (producto = {}) =>
+  producto?.coverUrl ||
+  producto?.imagenPortada ||
+  (Array.isArray(producto?.images) && producto.images[0]) ||
+  (Array.isArray(producto?.imagenes) && producto.imagenes[0]) ||
+  '';
+
+// LO QUE LOS TRES AVISOS DE PRODUCTO GUARDAN DEL PRODUCTO Y DE QUIEN ACTUA.
+//
+// El nombre va con DOS claves a proposito. El codigo guardaba `productName`,
+// pero la plantilla editable de Firestore dice "El producto {{nombreProducto}}
+// tiene stock bajo: {{stock}}": no encontraba nada y el aviso salia "El producto
+// tiene stock bajo: ." —sin nombre y sin cantidad—.
+//
+// La foto del producto va para que la campana enseñe DE QUE producto habla.
+const metadatosDeProducto = (producto = {}, extra = {}) => {
+  const productName = obtenerNombreProducto(producto);
+
+  return {
+    productId: obtenerIdProducto(producto),
+    productName,
+    nombreProducto: productName,
+    imagenProducto: obtenerFotoProducto(producto) || null,
+    sku: producto?.sku || null,
+    ...extra,
+  };
+};
+
+// `||` y no `??`: la sesion trae `photoURL: ''` cuando no hay foto, y con `??`
+// esa cadena vacia se guardaba como la foto de quien actua y la campana pintaba
+// un circulo vacio en vez de su cara.
+const fotoDeQuienActua = (usuario = {}) => usuario?.photoURL || usuario?.avatarUrl || null;
+
 export async function crearNotificacionProductoPublicado({ producto = {}, usuario = {} }) {
   const productId = obtenerIdProducto(producto);
   const productName = obtenerNombreProducto(producto);
@@ -1628,12 +1704,10 @@ export async function crearNotificacionProductoPublicado({ producto = {}, usuari
     entidadId: productId,
     ruta: productId ? `/dashboard/product/${productId}` : '/dashboard/product',
     etiquetaAccion: 'Ver producto',
-    metadatos: {
-      productId,
-      productName,
-      sku: producto?.sku || null,
+    actorFotoURL: fotoDeQuienActua(usuario),
+    metadatos: metadatosDeProducto(producto, {
       disponibles: producto?.available ?? producto?.disponibles ?? null,
-    },
+    }),
     usuario,
     notificationId: `producto_publicado_${sanitizeNotificationIdPart(productId)}_${Date.now()}`,
   });
@@ -1654,12 +1728,11 @@ export async function crearNotificacionProductoSinStock({ producto = {}, usuario
     entidadId: productId,
     ruta: productId ? `/dashboard/product/${productId}` : '/dashboard/product',
     etiquetaAccion: 'Ver producto',
-    metadatos: {
-      productId,
-      productName,
+    actorFotoURL: fotoDeQuienActua(usuario),
+    metadatos: metadatosDeProducto(producto, {
       disponibles: producto?.available ?? producto?.disponibles ?? 0,
-      sku: producto?.sku || null,
-    },
+      stock: producto?.available ?? producto?.disponibles ?? 0,
+    }),
     usuario,
     notificationId: `producto_sin_stock_${sanitizeNotificationIdPart(productId)}_${Date.now()}`,
   });
@@ -1681,12 +1754,8 @@ export async function crearNotificacionProductoStockBajo({ producto = {}, usuari
     entidadId: productId,
     ruta: productId ? `/dashboard/product/${productId}` : '/dashboard/product',
     etiquetaAccion: 'Ver producto',
-    metadatos: {
-      productId,
-      productName,
-      disponibles,
-      sku: producto?.sku || null,
-    },
+    actorFotoURL: fotoDeQuienActua(usuario),
+    metadatos: metadatosDeProducto(producto, { disponibles, stock: disponibles }),
     usuario,
     notificationId: `producto_stock_bajo_${sanitizeNotificationIdPart(productId)}_${Date.now()}`,
   });

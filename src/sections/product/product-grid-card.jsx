@@ -39,6 +39,52 @@ import { etiquetaDeCategoria } from './product-table-row';
 // pinta media estrella: se dice que aun no hay valoraciones.
 // ----------------------------------------------------------------------
 
+// LA CINTA ROJA "NUEVO".
+//
+// La enciende quien gestiona la tienda desde la ficha del producto —crear o
+// editar, "Mostrar cinta roja de nuevo en la tienda"— y se guarda en
+// `etiquetaNuevo`. El texto es el que se escribio ahi; vacio, "Nuevo".
+//
+// Recortado a 12 caracteres tambien aqui y no solo en el formulario: la cinta
+// mide lo que mide, y un texto largo guardado antes de ese tope se saldria por
+// los dos lados.
+const TEXTO_DE_CINTA_POR_DEFECTO = 'Nuevo';
+
+const textoDeLaCinta = (product) => {
+  if (!product?.newLabel?.enabled) return '';
+
+  return (String(product.newLabel.content || '').trim() || TEXTO_DE_CINTA_POR_DEFECTO).slice(0, 12);
+};
+
+// ------------------------------------------------------------------
+// PRUEBA LOCAL: LA CINTA "CASI AGOTADO".
+//
+// Para ver como se veria, en UN producto elegido por nombre y SOLO en
+// desarrollo —`next build` la apaga—, asi que aunque se suba por descuido no
+// sale en la tienda real. Si pisa a la de "Nuevo" es a proposito: es la que se
+// quiere mirar.
+//
+// PARA QUITARLA: borrar este bloque y la linea `cintaDePrueba` del componente.
+// ------------------------------------------------------------------
+const CINTA_CASI_AGOTADO_DE_PRUEBA =
+  process.env.NODE_ENV === 'development'
+    ? {
+        producto: 'correa nylon caqui',
+        texto: 'Casi agotado',
+        fondo: 'warning.main',
+        tinta: 'grey.900',
+      }
+    : null;
+
+const cintaDePruebaPara = (product) =>
+  CINTA_CASI_AGOTADO_DE_PRUEBA &&
+  String(product?.name || '')
+    .trim()
+    .toLowerCase()
+    .startsWith(CINTA_CASI_AGOTADO_DE_PRUEBA.producto)
+    ? CINTA_CASI_AGOTADO_DE_PRUEBA
+    : null;
+
 export function ProductGridCard({
   product,
   detailsHref,
@@ -143,6 +189,55 @@ export function ProductGridCard({
       </Stack>
     );
 
+  const textoNuevo = textoDeLaCinta(product);
+  const cintaDePrueba = cintaDePruebaPara(product);
+  const cinta =
+    cintaDePrueba ||
+    (textoNuevo ? { texto: textoNuevo, fondo: 'error.main', tinta: 'common.white' } : null);
+  // Un texto de dos palabras necesita mas cinta: con la medida de "Nuevo",
+  // "CASI AGOTADO" se cortaba por las dos puntas.
+  const cintaLarga = (cinta?.texto || '').length > 6;
+
+  // La cinta cruzada en la esquina de arriba a la derecha. Va dentro de una caja
+  // que recorta: la banda es mas larga que la esquina a proposito, para que sus
+  // dos puntas salgan por los bordes y se lea como una cinta y no como una
+  // etiqueta girada.
+  const renderCinta = () => (
+    <Box
+      sx={{
+        top: 0,
+        right: 0,
+        width: cintaLarga ? 120 : 96,
+        height: cintaLarga ? 120 : 96,
+        overflow: 'hidden',
+        position: 'absolute',
+        pointerEvents: 'none',
+      }}
+    >
+      <Box
+        sx={{
+          top: cintaLarga ? 26 : 18,
+          right: cintaLarga ? -44 : -34,
+          width: cintaLarga ? 180 : 140,
+          py: 0.5,
+          position: 'absolute',
+          textAlign: 'center',
+          transform: 'rotate(45deg)',
+          typography: 'caption',
+          fontWeight: 'fontWeightBold',
+          letterSpacing: cintaLarga ? 0.25 : 0.5,
+          whiteSpace: 'nowrap',
+          textTransform: 'uppercase',
+          color: cinta.tinta,
+          bgcolor: cinta.fondo,
+          boxShadow: (theme) => theme.vars.customShadows.z8,
+        }}
+      >
+        {cinta.texto}
+      </Box>
+    </Box>
+  );
+
   return (
     <Card
       sx={{
@@ -178,6 +273,8 @@ export function ProductGridCard({
         </Link>
 
         {renderEstadosSobreLaFoto()}
+
+        {cinta && renderCinta()}
 
         {/* LA CATEGORIA, AL PIE DE LA FOTO Y A LA DERECHA. Debajo del nombre
               competia con el; aqui va pegada a lo que describe y le deja el

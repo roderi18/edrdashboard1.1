@@ -79,6 +79,11 @@ const renderTwoLineHeader = (firstLine, secondLine) => (
 
 // ----------------------------------------------------------------------
 
+// "Todos" en "Filas por pagina". El -1 es el valor que la paginacion de MUI
+// reconoce para no partir en paginas: con el pone "1–83 de 83" y apaga las
+// flechas por si sola.
+const TODOS_LOS_PRODUCTOS = -1;
+
 export function ProductListView() {
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
@@ -178,7 +183,11 @@ export function ProductListView() {
     setGridPage(0);
   }, [mobileSearch, filters.state]);
 
-  const gridData = mobileData.slice(
+  // "Todos" llega como -1, que es como lo entiende la paginacion de MUI. Sin
+  // tratarlo aparte, `slice(0, -1)` devolvia todos MENOS el ultimo producto.
+  const gridData = gridRowsPerPage === TODOS_LOS_PRODUCTOS
+    ? mobileData
+    : mobileData.slice(
     gridPage * gridRowsPerPage,
     gridPage * gridRowsPerPage + gridRowsPerPage
   );
@@ -617,7 +626,7 @@ export function ProductListView() {
                       page={gridPage}
                       count={mobileData.length}
                       rowsPerPage={gridRowsPerPage}
-                      rowsPerPageOptions={[12, 24, 48]}
+                      rowsPerPageOptions={[12, 24, 48, { label: 'Todos', value: TODOS_LOS_PRODUCTOS }]}
                       onPageChange={(event, nuevaPagina) => setGridPage(nuevaPagina)}
                       onRowsPerPageChange={(event) => {
                         setGridRowsPerPage(parseInt(event.target.value, 10));

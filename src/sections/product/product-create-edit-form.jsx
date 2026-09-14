@@ -670,15 +670,27 @@ export function ProductCreateEditForm({ currentProduct }) {
             />
           </Box>
 
-          <Box sx={{ gap: 3, display: 'flex', alignItems: 'center' }}>
-            <Field.Switch name="newLabel.enabled" label={null} sx={{ m: 0 }} />
+          {/* LA CINTA ROJA "NUEVO". Es la cinta cruzada que sale en la esquina
+              de la foto en la tienda. El interruptor la pone o la quita; el texto
+              es opcional —vacio, dice "Nuevo"— para no obligar a escribir lo que
+              casi siempre es la misma palabra. Sirve igual al crear que al
+              editar: el formulario es uno. */}
+          <Stack spacing={1.5}>
+            <Field.Switch
+              name="newLabel.enabled"
+              label="Mostrar cinta roja de nuevo en la tienda"
+              sx={{ m: 0 }}
+            />
             <Field.Text
               name="newLabel.content"
-              label="Etiqueta de nuevo"
+              label="Texto de la cinta"
+              placeholder="Nuevo"
+              helperText="Opcional. Si lo dejas vacío dice «Nuevo». Mejor corto: la cinta es estrecha."
+              inputProps={{ maxLength: 12 }}
               fullWidth
               disabled={!values.newLabel.enabled}
             />
-          </Box>
+          </Stack>
         </Stack>
       </Collapse>
     </Card>
