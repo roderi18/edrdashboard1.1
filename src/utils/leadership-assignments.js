@@ -7,6 +7,10 @@
 // `node --test tests/directivas/`.
 // ----------------------------------------------------------------------
 
+// Relativo y con extension, como el resto de `utils`: asi las pruebas que
+// importan este archivo por ruta lo cargan sin tener que resolver el alias.
+import { primerApellidoDePalabras } from './nombres-de-persona.js';
+
 export const normalizarIdAsignacion = (value) => String(value ?? '').trim();
 
 // Los ids de nodo de los diagramas y los del catalogo describen lo mismo pero no
@@ -125,29 +129,11 @@ export const getNombreCompletoMiembro = (member = {}) =>
   member?.codigoMiembro ||
   '';
 
-// Partículas que forman parte del apellido: "De los Santos" es un apellido, no
-// tres, y quedarse con "De" no identifica a nadie.
-const PARTICULAS_APELLIDO = ['de', 'del', 'la', 'las', 'los', 'da', 'di', 'van', 'von'];
-
-const partirPalabras = (value) => String(value ?? '').trim().split(/\s+/).filter(Boolean);
-
-// Primer apellido, respetando las partículas que lo acompañan.
-const getPrimerApellido = (palabras = []) => {
-  if (!palabras.length) return '';
-
-  const primerApellido = [palabras[0]];
-  let indice = 1;
-
-  while (
-    indice < palabras.length &&
-    PARTICULAS_APELLIDO.includes(primerApellido[primerApellido.length - 1].toLowerCase())
-  ) {
-    primerApellido.push(palabras[indice]);
-    indice += 1;
-  }
-
-  return primerApellido.join(' ');
-};
+const partirPalabras = (value) =>
+  String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
 // Nombre ABREVIADO para las tarjetas del organigrama: primer nombre, inicial del
 // segundo si lo hay, y primer apellido. "Mario Alejandro Peña Felix" se muestra
@@ -172,7 +158,7 @@ export const getLeadershipShortName = (member = {}) => {
     }
   }
 
-  const primerApellido = getPrimerApellido(apellidos);
+  const primerApellido = primerApellidoDePalabras(apellidos);
 
   if (!primerNombre) {
     return primerApellido || getNombreCompletoMiembro(member);
@@ -180,7 +166,8 @@ export const getLeadershipShortName = (member = {}) => {
 
   // La inicial acompaña al apellido; sin apellido, "Mario A." se lee peor que
   // "Mario".
-  const inicial = primerApellido && segundoNombre ? `${segundoNombre.charAt(0).toUpperCase()}.` : '';
+  const inicial =
+    primerApellido && segundoNombre ? `${segundoNombre.charAt(0).toUpperCase()}.` : '';
 
   return [primerNombre, inicial, primerApellido].filter(Boolean).join(' ');
 };

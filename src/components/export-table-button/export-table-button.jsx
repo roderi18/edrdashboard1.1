@@ -56,6 +56,75 @@ const downloadCsv = ({ rows = [], columns = [], fileName }) => {
   });
 };
 
+// De `#DDE7F6` al `FFDDE7F6` que pide ExcelJS. Devuelve null si no hay color,
+// que es como se dice "esta fila va sin pintar".
+const comoArgb = (hex) => {
+  const limpio = String(hex || '')
+    .replace('#', '')
+    .trim();
+
+  if (limpio.length !== 6) return null;
+
+  return `FF${limpio.toUpperCase()}`;
+};
+
+// EL EXCEL CON COLORES SE ESCRIBE CON EXCELJS, NO CON `xlsx`.
+//
+// `xlsx` —el paquete que escribe la hoja simple de aqui abajo— guarda los datos
+// pero descarta el estilo: pintar las celdas es de su version de pago. La hoja
+// salia en blanco y negro mientras el PDF si tenia el color, asi que el mismo
+// dato se leia de dos maneras distintas segun donde se abriera.
+//
+// ExcelJS ya esta en el proyecto (la lista de precios y la plantilla de miembros
+// se arman con el). Se carga a demanda: es una libreria grande y solo hace falta
+// cuando alguien pulsa Excel.
+const downloadExcelConColores = async ({ rows = [], columns = [], fileName, fondoDeFila }) => {
+  const { default: ExcelJS } = await import('exceljs');
+
+  const libro = new ExcelJS.Workbook();
+  libro.created = new Date();
+
+  const hoja = libro.addWorksheet('Datos', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+  hoja.columns = columns.map((column) => ({
+    header: column.label,
+    key: String(column.id || column.value || column.label),
+    // Ancho por el titulo, con suelo: sin esto las columnas salen estrechas y
+    // hay que ensancharlas a mano cada vez que se abre el archivo.
+    width: Math.max(14, String(column.label || '').length + 6),
+  }));
+
+  hoja.getRow(1).font = { bold: true };
+
+  rows.forEach((row) => {
+    const linea = hoja.addRow(
+      columns.map((column) => {
+        const valor = getColumnValue(column, row);
+
+        return valor === null || valor === undefined ? '' : valor;
+      })
+    );
+    const argb = comoArgb(fondoDeFila(row));
+
+    if (!argb) return;
+
+    // El relleno va celda por celda: pintar `linea.fill` no alcanza a las celdas
+    // de la fila en ExcelJS.
+    linea.eachCell((celda) => {
+      celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+    });
+  });
+
+  const buffer = await libro.xlsx.writeBuffer();
+
+  downloadBlob({
+    blob: new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+    fileName,
+  });
+};
+
 const downloadExcel = async ({ rows = [], columns = [], fileName }) => {
   const XLSX = await import('xlsx');
   const worksheet = XLSX.utils.json_to_sheet(getExportRows(rows, columns));
@@ -76,6 +145,10 @@ export function ExportTableButton({
   // Lo mismo para el Excel: recibe las filas y devuelve el Blob del .xlsx ya
   // armado. Sin el, se escribe la hoja simple de siempre.
   buildExcelBlob = null,
+  // Color de fondo de cada fila, segun su contenido: `(fila) => '#DDE7F6'`. Lo
+  // usa la asistencia para que cada marca se reconozca por el color. Sin el, las
+  // tres descargas salen como siempre.
+  fondoDeFila = null,
   title = 'Exportación',
   fileNamePrefix = 'exportacion',
   disabled = false,
@@ -119,6 +192,13 @@ export function ExportTableButton({
               blob: await buildExcelBlob(rows),
               fileName: getExportFileName(fileNamePrefix, 'xlsx'),
             });
+          } else if (fondoDeFila) {
+            await downloadExcelConColores({
+              rows,
+              columns,
+              fondoDeFila,
+              fileName: getExportFileName(fileNamePrefix, 'xlsx'),
+            });
           } else {
             await downloadExcel({
               rows,
@@ -133,6 +213,7 @@ export function ExportTableButton({
             title,
             rows,
             columns: currentPdfColumns,
+            fondoDeFila,
             documento: renderPdfDocument ? renderPdfDocument(rows) : null,
             fileName: getExportFileName(fileNamePrefix, 'pdf'),
           });
@@ -147,7 +228,16 @@ export function ExportTableButton({
         setExporting(false);
       }
     },
-    [buildExcelBlob, columns, currentPdfColumns, fileNamePrefix, renderPdfDocument, rows, title]
+    [
+      buildExcelBlob,
+      columns,
+      currentPdfColumns,
+      fileNamePrefix,
+      fondoDeFila,
+      renderPdfDocument,
+      rows,
+      title,
+    ]
   );
 
   return (

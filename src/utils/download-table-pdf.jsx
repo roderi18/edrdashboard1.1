@@ -29,7 +29,25 @@ const getCellValue = (column, row) => {
   return row?.[column?.value || column?.id];
 };
 
-function TablePdfDocument({ title, rows, columns }) {
+// LA FILA ENTERA PUEDE PINTARSE SEGUN SU CONTENIDO.
+//
+// Lo usa la asistencia: la marca de cada quien —presente, ausente, excusa— se
+// lee mucho mejor con un fondo que sin el, sobre todo en una lista de treinta
+// nombres donde lo unico que cambia es esa palabra.
+//
+// Se pinta la FILA y no solo la celda del estado: un rectangulo de color en
+// medio de una fila blanca marca la celda, pero no separa a una persona de la
+// siguiente cuando se recorre la lista con el dedo. Pintando el renglon completo
+// los presentes se leen como un bloque.
+//
+// Es opcional: una tabla que no pase `fondoDeFila` sale como siempre.
+const getRowBackground = (fondoDeFila, row) => {
+  if (typeof fondoDeFila !== 'function') return null;
+
+  return fondoDeFila(row) || null;
+};
+
+function TablePdfDocument({ title, rows, columns, fondoDeFila = null }) {
   const width = `${100 / columns.length}%`;
 
   return (
@@ -43,28 +61,38 @@ function TablePdfDocument({ title, rows, columns }) {
             {columns.map((column, index) => (
               <Text
                 key={column.label}
-                style={[styles.cell, { width, borderRightWidth: index === columns.length - 1 ? 0 : 1 }]}
+                style={[
+                  styles.cell,
+                  { width, borderRightWidth: index === columns.length - 1 ? 0 : 1 },
+                ]}
               >
                 {column.label}
               </Text>
             ))}
           </View>
 
-          {rows.map((row, rowIndex) => (
-            <View key={`${row.id || row.idDestacamento || rowIndex}`} style={styles.row}>
-              {columns.map((column, columnIndex) => (
-                <Text
-                  key={`${column.label}-${rowIndex}`}
-                  style={[
-                    styles.cell,
-                    { width, borderRightWidth: columnIndex === columns.length - 1 ? 0 : 1 },
-                  ]}
-                >
-                  {getValue(getCellValue(column, row))}
-                </Text>
-              ))}
-            </View>
-          ))}
+          {rows.map((row, rowIndex) => {
+            const fondo = getRowBackground(fondoDeFila, row);
+
+            return (
+              <View
+                key={`${row.id || row.idDestacamento || rowIndex}`}
+                style={[styles.row, ...(fondo ? [{ backgroundColor: fondo }] : [])]}
+              >
+                {columns.map((column, columnIndex) => (
+                  <Text
+                    key={`${column.label}-${rowIndex}`}
+                    style={[
+                      styles.cell,
+                      { width, borderRightWidth: columnIndex === columns.length - 1 ? 0 : 1 },
+                    ]}
+                  >
+                    {getValue(getCellValue(column, row))}
+                  </Text>
+                ))}
+              </View>
+            );
+          })}
         </View>
       </Page>
     </Document>
@@ -76,9 +104,18 @@ function TablePdfDocument({ title, rows, columns }) {
  * forma propia —la lista de precios de la tienda imita al documento oficial—.
  * Sin el, se sigue pintando la tabla de siempre.
  */
-export const downloadTablePdf = async ({ title, fileName, rows, columns, documento = null }) => {
+export const downloadTablePdf = async ({
+  title,
+  fileName,
+  rows,
+  columns,
+  documento = null,
+  fondoDeFila = null,
+}) => {
   const blob = await pdf(
-    documento || <TablePdfDocument title={title} rows={rows} columns={columns} />
+    documento || (
+      <TablePdfDocument title={title} rows={rows} columns={columns} fondoDeFila={fondoDeFila} />
+    )
   ).toBlob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -89,8 +126,10 @@ export const downloadTablePdf = async ({ title, fileName, rows, columns, documen
   URL.revokeObjectURL(url);
 };
 
-export const printTablePdf = async ({ title, rows, columns }) => {
-  const blob = await pdf(<TablePdfDocument title={title} rows={rows} columns={columns} />).toBlob();
+export const printTablePdf = async ({ title, rows, columns, fondoDeFila = null }) => {
+  const blob = await pdf(
+    <TablePdfDocument title={title} rows={rows} columns={columns} fondoDeFila={fondoDeFila} />
+  ).toBlob();
   const url = URL.createObjectURL(blob);
   const iframe = document.createElement('iframe');
 

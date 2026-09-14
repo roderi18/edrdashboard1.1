@@ -228,8 +228,22 @@ export const guardarAsistenciaDestacamento = async ({
     const idMiembro = String(member.idMiembro || member.idMiembros || member.id || member.memberId || '');
     if (!idMiembro) return;
 
+    // A QUIEN NO SE MARCO SE LE GUARDA COMO AUSENTE, NO COMO UN ESTADO APARTE.
+    //
+    // Antes se guardaba `ausente_sin_marcar`, un cuarto estado. En pantalla se
+    // leia "Ausente" igual que el ausente de verdad —mismo texto, mismo ambar—,
+    // pero en el dato y en los conteos era otra cosa: `conteo.ausentes` no los
+    // incluia, asi que un pase de lista donde solo se marcan los presentes salia
+    // con cero ausentes.
+    //
+    // No se pierde nada: quien no fue marcado a mano sigue distinguiendose por
+    // `marcadoManualmente: false`, y `conteo.ausentesSinMarcar` sigue diciendo
+    // cuantas de esas ausencias las puso el sistema. Lo que cambia es que ahora
+    // una ausencia es una ausencia, la haya escrito una persona o el guardado.
     const estadoUi = estados[idMiembro] || 'absent-unmarked';
-    const estado = convertirEstadoAsistenciaAFirebase(estadoUi);
+    const estadoOriginal = convertirEstadoAsistenciaAFirebase(estadoUi);
+    const sinMarcar = estadoOriginal === 'ausente_sin_marcar';
+    const estado = sinMarcar ? 'ausente' : estadoOriginal;
     const idRegistro = `${idAsistencia}_${normalizeIdSegment(idMiembro)}`;
 
     if (estado === 'presente') conteo.presentes += 1;
@@ -237,7 +251,7 @@ export const guardarAsistenciaDestacamento = async ({
     if (estado === 'excusa') conteo.excusas += 1;
     if (estado === 'enfermo') conteo.enfermos += 1;
     if (estado === 'otro') conteo.otros += 1;
-    if (estado === 'ausente_sin_marcar') conteo.ausentesSinMarcar += 1;
+    if (sinMarcar) conteo.ausentesSinMarcar += 1;
 
     estadosResumen[idMiembro] = estado;
 
@@ -252,7 +266,7 @@ export const guardarAsistenciaDestacamento = async ({
       nombreMiembro: getMemberName(member),
       division: member.memberDivision || member.division || member.divisionName || '',
       estado,
-      marcadoManualmente: estado !== 'ausente_sin_marcar',
+      marcadoManualmente: !sinMarcar,
       actualizadoEn: now,
       actualizadoPor: usuario || null,
       actualizadoEnServidor: serverTimestamp(),

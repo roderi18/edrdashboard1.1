@@ -37,8 +37,14 @@ import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { rolesQueEjerce, ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
+import {
+  primerNombreDeTexto,
+  primerApellidoDeTexto,
+  primerApellidoDePalabras,
+} from 'src/utils/nombres-de-persona';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
+import { themeConfig } from 'src/theme/theme-config';
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
@@ -103,6 +109,58 @@ function useHayConexion() {
 
 const AUTO_ABSENT_STATUS = 'absent-unmarked';
 
+// EL COLOR DE CADA MARCA, EN EL PAPEL.
+//
+// El PDF no tiene tema, asi que el color hay que escribirlo. Se toman los tonos
+// `lighter` de la paleta del proyecto —los mismos que usa la etiqueta en
+// pantalla— para que el documento y la pantalla hablen el mismo idioma: verde es
+// vino, ambar es falto, azul es excusa.
+//
+// Claros a proposito: es un fondo detras de un texto que hay que leer, no un
+// semaforo. Con el tono fuerte la palabra deja de distinguirse.
+const FONDO_DE_ESTADO = {
+  present: themeConfig.palette.success.lighter,
+  absent: themeConfig.palette.warning.lighter,
+  // Azul claro, no el verde-azulado de `info`: el teal se confundia con el verde
+  // de presente al imprimir en escala de grises o en una impresora pobre.
+  excused: themeConfig.palette.primary.lighter,
+  sick: themeConfig.palette.error.lighter,
+  other: themeConfig.palette.grey[200],
+  pending: themeConfig.palette.grey[100],
+};
+
+// EL ORDEN EN QUE SE LEE LA LISTA DESCARGADA.
+//
+// En pantalla la lista va alfabetica, que es como se pasa lista. En el papel se
+// busca otra cosa: quien falto. Con los treinta nombres en orden alfabetico hay
+// que recorrer la hoja entera para reunir a los ausentes, asi que la descarga
+// agrupa por marca —primero los presentes— y dentro de cada grupo alfabetico.
+const ORDEN_DE_ESTADOS = ['present', 'absent', 'excused', 'sick', 'other', 'pending'];
+
+const pesoDelEstado = (clave) => {
+  const posicion = ORDEN_DE_ESTADOS.indexOf(clave);
+
+  return posicion === -1 ? ORDEN_DE_ESTADOS.length : posicion;
+};
+
+// `absent-unmarked` es un ausente a todos los efectos: se guarda como ausente y
+// en pantalla se lee "Ausente". Aqui se traduce para que ordene y se pinte con
+// los suyos, y no caiga al final con los desconocidos.
+const claveDeEstado = (status) => {
+  if (status === AUTO_ABSENT_STATUS) return 'absent';
+  if (!status || !STATUS_OPTION_BY_VALUE[status]) return 'pending';
+
+  return status;
+};
+
+const ordenarParaDescarga = (filas) =>
+  [...filas].sort(
+    (a, b) =>
+      pesoDelEstado(a.clave) - pesoDelEstado(b.clave) || a.nombre.localeCompare(b.nombre, 'es')
+  );
+
+const fondoDeFilaPorEstado = (fila) => FONDO_DE_ESTADO[fila?.clave] || null;
+
 // EL DESPLEGABLE DE DESTACAMENTOS ES PARA QUIEN RESPONDE POR VARIOS.
 //
 // El Administrador Global, el Funcional y los cargos del Consejo Ejecutivo miran
@@ -136,7 +194,10 @@ const puedeElegirDestacamento = (user = {}) =>
 const STATUS_OPTIONS = [
   {
     value: 'present',
-    label: 'Asistió',
+    // "Presente", no "Asistió". El resto de la pantalla ya hablaba asi —"Marcar
+    // todos presentes", "Presentes a la semana anterior", el contador del
+    // resumen—: era la unica etiqueta que llamaba de otra forma a lo mismo.
+    label: 'Presente',
     color: 'success',
     icon: 'solar:check-circle-bold',
   },
@@ -182,7 +243,11 @@ const STATUS_FILTERS = [
 
 // Lo que se lee en la columna ESTADO. Sin marcar no es lo mismo que ausente:
 // nadie ha dicho todavia nada de esta persona.
-const SIN_REGISTRO = { label: 'Sin registro', color: 'default', icon: 'solar:question-circle-bold' };
+const SIN_REGISTRO = {
+  label: 'Sin registro',
+  color: 'default',
+  icon: 'solar:question-circle-bold',
+};
 
 const getStatusLabel = (status) => {
   if (status === AUTO_ABSENT_STATUS) {
@@ -195,9 +260,7 @@ const getStatusLabel = (status) => {
 
   const option = STATUS_OPTION_BY_VALUE[status];
 
-  return option
-    ? { label: option.label, color: option.color, icon: option.icon }
-    : SIN_REGISTRO;
+  return option ? { label: option.label, color: option.color, icon: option.icon } : SIN_REGISTRO;
 };
 
 // LA MARCA DEL DIA, EN EL MOVIL, ES SU ICONO. La etiqueta con la palabra se
@@ -214,11 +277,7 @@ function AttendanceStatusLabel({ estado, sx }) {
       sx={[{ height: 28, width: { xs: 40, sm: 104 } }, ...(Array.isArray(sx) ? sx : [sx])]}
     >
       {estado.icon ? (
-        <Iconify
-          icon={estado.icon}
-          width={18}
-          sx={{ display: { xs: 'block', sm: 'none' } }}
-        />
+        <Iconify icon={estado.icon} width={18} sx={{ display: { xs: 'block', sm: 'none' } }} />
       ) : null}
       <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
         {estado.label}
@@ -323,20 +382,24 @@ function AttendanceMemberNameLink({ memberId, name, sx }) {
   );
 }
 
-const getFirstWord = (value) =>
-  String(value ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)[0] || '';
-
+// El nombre con el que esta persona aparece en la lista: primer nombre y primer
+// apellido. La lista se pasa mirando caras y buscando un nombre, y el nombre
+// completo de cuatro palabras parte la fila en dos lineas.
+//
+// El apellido se corta con `primerApellidoDeTexto` y no por la primera palabra:
+// "Fausto Del Rosario Peralta" salia como "Fausto Del" —la particula sola, que
+// no es el apellido de nadie—. Ahora sale "Fausto Del Rosario", en la pantalla y
+// en lo que se descarga, que es lo mismo.
 const getMemberName = (member) => {
-  const firstName = getFirstWord(member?.firstName ?? member?.nombres);
-  const lastName = getFirstWord(member?.lastName ?? member?.apellidos);
+  const firstName = primerNombreDeTexto(member?.firstName ?? member?.nombres);
+  const lastName = primerApellidoDeTexto(member?.lastName ?? member?.apellidos);
 
   if (firstName || lastName) {
     return [firstName, lastName].filter(Boolean).join(' ');
   }
 
+  // Sin los campos separados solo queda la cadena entera: la primera palabra es
+  // el nombre y lo que sigue, el apellido con sus particulas.
   const fallbackName =
     getMemberFullName(member) ||
     member?.name ||
@@ -345,12 +408,12 @@ const getMemberName = (member) => {
     member?.codigoMiembro ||
     '';
 
-  const [fallbackFirstName = '', fallbackLastName = ''] = String(fallbackName)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const palabras = String(fallbackName).trim().split(/\s+/).filter(Boolean);
 
-  return [fallbackFirstName, fallbackLastName].filter(Boolean).join(' ') || 'Miembro sin nombre';
+  return (
+    [palabras[0] || '', primerApellidoDePalabras(palabras.slice(1))].filter(Boolean).join(' ') ||
+    'Miembro sin nombre'
+  );
 };
 
 // La MISMA rejilla para la cabecera y para cada fila: es lo unico que mantiene
@@ -522,10 +585,7 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
           alignItems="center"
           sx={{ minWidth: 0, gridArea: 'miembro' }}
         >
-          <AttendanceMemberProfileLink
-            memberId={memberId}
-            sx={{ display: 'flex', flexShrink: 0 }}
-          >
+          <AttendanceMemberProfileLink memberId={memberId} sx={{ display: 'flex', flexShrink: 0 }}>
             <Avatar
               src={avatarUrl}
               alt={memberName}
@@ -541,9 +601,7 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
           <Box sx={{ minWidth: 0 }}>
             <AttendanceMemberNameLink memberId={memberId} name={memberName} />
             <Typography variant="caption" color="text.secondary" noWrap>
-              {[getMemberCode(member), resolveMemberDivision(member)]
-                .filter(Boolean)
-                .join(' • ')}
+              {[getMemberCode(member), resolveMemberDivision(member)].filter(Boolean).join(' • ')}
             </Typography>
           </Box>
         </Stack>
@@ -609,12 +667,7 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
               {asistidas} de {actividadesDelDia}{' '}
               {actividadesDelDia === 1 ? 'actividad' : 'actividades'}
             </Typography>
-            <Typography
-              variant="caption"
-              color="text.disabled"
-              noWrap
-              sx={{ display: 'block' }}
-            >
+            <Typography variant="caption" color="text.disabled" noWrap sx={{ display: 'block' }}>
               Última: {formatAttendanceDate(lastPresentAt)}
             </Typography>
           </Box>
@@ -1200,6 +1253,9 @@ export function AttendanceQuickView() {
         nombre: getMemberName(member),
         codigo: getMemberCode(member),
         division: resolveMemberDivision(member),
+        // La clave —`present`, `absent`...— ademas de la etiqueta: con el texto
+        // no se puede ordenar ni elegir color sin volver a adivinar el estado.
+        clave,
         estado: getStatusLabel(status),
         // La misma foto que en la lista: quien repasa el resumen busca caras,
         // igual que al pasar lista.
@@ -1230,14 +1286,22 @@ export function AttendanceQuickView() {
   // El resumen, para llevarselo. Son las MISMAS filas que se estan leyendo en la
   // ventana —nombre, codigo, division y su marca del dia—, no una segunda
   // consulta que pudiera contar otra cosa.
+  // PRIMERO LOS QUE VINIERON, y dentro de cada marca por nombre.
+  //
+  // Quien abre el resumen busca dos cosas: cuantos vinieron y quienes faltaron.
+  // Mezclados por orden alfabetico hay que recorrer las treinta y cuatro lineas
+  // para responder a cualquiera de las dos. Agrupados, se responde mirando.
   const resumenExportRows = useMemo(
     () =>
-      resumen.miembros.map((miembro) => ({
-        codigo: miembro.codigo,
-        nombre: miembro.nombre,
-        division: miembro.division,
-        estado: miembro.estado.label,
-      })),
+      ordenarParaDescarga(
+        resumen.miembros.map((miembro) => ({
+          codigo: miembro.codigo,
+          nombre: miembro.nombre,
+          estado: miembro.estado.label,
+          division: miembro.division,
+          clave: miembro.clave,
+        }))
+      ),
     [resumen]
   );
 
@@ -1245,27 +1309,32 @@ export function AttendanceQuickView() {
     () => [
       { id: 'codigo', label: 'Código' },
       { id: 'nombre', label: 'Miembro' },
-      { id: 'division', label: 'División' },
       { id: 'estado', label: 'Estado' },
+      { id: 'division', label: 'División' },
     ],
     []
   );
 
-  // Lo que se lleva quien pulsa "Exportar": la misma lista que esta viendo, con
-  // la marca de cada quien en palabras y no en el codigo interno.
+  // Lo que se lleva quien pulsa "Descargar": la misma lista que esta viendo, con
+  // la marca de cada quien en palabras y no en el codigo interno, agrupada por
+  // marca y con el color de cada estado detras de la fila.
   const exportRows = useMemo(
     () =>
-      visibleMembers.map((member) => {
-        const memberId = getMemberId(member);
+      ordenarParaDescarga(
+        visibleMembers.map((member) => {
+          const memberId = getMemberId(member);
+          const status = statusByMemberId[memberId];
 
-        return {
-          codigo: member?.memberId || member?.codigoMiembro || '',
-          nombre: getMemberName(member),
-          division: resolveMemberDivision(member),
-          estado: getStatusLabel(statusByMemberId[memberId]).label,
-          ultimaPresencia: formatAttendanceDate(lastPresentByMemberId[memberId]),
-        };
-      }),
+          return {
+            codigo: member?.memberId || member?.codigoMiembro || '',
+            nombre: getMemberName(member),
+            division: resolveMemberDivision(member),
+            estado: getStatusLabel(status).label,
+            ultimaPresencia: formatAttendanceDate(lastPresentByMemberId[memberId]),
+            clave: claveDeEstado(status),
+          };
+        })
+      ),
     [visibleMembers, statusByMemberId, lastPresentByMemberId]
   );
 
@@ -1273,8 +1342,11 @@ export function AttendanceQuickView() {
     () => [
       { id: 'codigo', label: 'Código' },
       { id: 'nombre', label: 'Miembro' },
-      { id: 'division', label: 'División' },
+      // EL ESTADO PEGADO AL NOMBRE. Iba detras de la division: el ojo tenia que
+      // cruzar la fila entera para emparejar a cada persona con su marca, que es
+      // lo unico que se va a leer de este documento.
       { id: 'estado', label: 'Estado' },
+      { id: 'division', label: 'División' },
       { id: 'ultimaPresencia', label: 'Última presencia' },
     ],
     []
@@ -1314,15 +1386,15 @@ export function AttendanceQuickView() {
     () =>
       user
         ? {
-          uid: user.uid || user.id || '',
-          nombre:
-            user.displayName ||
-            user.name ||
-            [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
-            user.email ||
-            '',
-          correo: user.email || '',
-        }
+            uid: user.uid || user.id || '',
+            nombre:
+              user.displayName ||
+              user.name ||
+              [user.nombres, user.apellidos].filter(Boolean).join(' ') ||
+              user.email ||
+              '',
+            correo: user.email || '',
+          }
         : null,
     [user]
   );
@@ -1393,10 +1465,23 @@ export function AttendanceQuickView() {
         usuario: getAuditUser(),
       });
 
-      setStatusByMemberId(statusesToSave);
+      // LO QUE SE VE TIENE QUE SER LO QUE QUEDO ESCRITO.
+      //
+      // El servicio guarda a los no marcados como `ausente` a secas. Si aqui se
+      // dejara `absent-unmarked`, la pantalla seguiria con el estado de antes
+      // hasta recargar, y el resumen contaria una cosa distinta de la que hay en
+      // Firebase.
+      const estadosEscritos = Object.fromEntries(
+        Object.entries(statusesToSave).map(([memberId, estado]) => [
+          memberId,
+          estado === AUTO_ABSENT_STATUS ? 'absent' : estado,
+        ])
+      );
+
+      setStatusByMemberId(estadosEscritos);
       // Lo recien escrito pasa a ser "lo guardado": si el resumen se abre otra
       // vez, cuenta esto y no lo de antes.
-      setEstadosGuardados(statusesToSave);
+      setEstadosGuardados(estadosEscritos);
       setLastPresentByMemberId((current) => {
         const next = { ...current };
 
@@ -1475,6 +1560,7 @@ export function AttendanceQuickView() {
   const propsDescargaResumen = {
     rows: resumenExportRows,
     columns: resumenExportColumns,
+    fondoDeFila: fondoDeFilaPorEstado,
     title: `Resumen del día · ${subtituloResumen}`,
     fileNamePrefix: construirPrefijoDescarga('resumen-del-dia', selectedDest, selectedDestId),
   };
@@ -1780,7 +1866,11 @@ export function AttendanceQuickView() {
             sube solo al volver la conexion. Se avisa para que nadie crea que ha
             perdido el trabajo, ni cierre la aplicacion antes de que suba. */}
         {!hayConexion && (
-          <Alert severity="info" icon={<Iconify icon="solar:wi-fi-router-minimalistic-bold" />} sx={{ mb: 3 }}>
+          <Alert
+            severity="info"
+            icon={<Iconify icon="solar:wi-fi-router-minimalistic-bold" />}
+            sx={{ mb: 3 }}
+          >
             <AlertTitle>Sin conexión</AlertTitle>
             Puedes seguir pasando lista: lo que marques se guarda en este dispositivo y se envía
             solo en cuanto vuelva la señal. No cierres la aplicación hasta entonces.
@@ -2014,6 +2104,7 @@ export function AttendanceQuickView() {
                 <ExportTableButton
                   rows={exportRows}
                   columns={exportColumns}
+                  fondoDeFila={fondoDeFilaPorEstado}
                   title={attendanceTitle}
                   fileNamePrefix={construirPrefijoDescarga(
                     'asistencia',

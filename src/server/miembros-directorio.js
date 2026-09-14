@@ -2,6 +2,7 @@ import 'server-only';
 
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, fetchUpstreamText } from 'src/utils/upstream-cache';
+import { primerNombreDeTexto, primerApellidoDeTexto } from 'src/utils/nombres-de-persona';
 
 // ----------------------------------------------------------------------
 // El padron, del lado del servidor.
@@ -77,7 +78,8 @@ export const buscarMiembroPorNumero = async (numeroEscrito) => {
 };
 
 /** El miembro con ese codigo completo (`EDR-10011`), o null. */
-export const buscarMiembroPorCodigo = async (codigo) => buscarMiembroPorNumero(numeroDeCodigo(codigo));
+export const buscarMiembroPorCodigo = async (codigo) =>
+  buscarMiembroPorNumero(numeroDeCodigo(codigo));
 
 /** El miembro con ese id, o null. */
 export const buscarMiembroPorId = async (idMiembros) => {
@@ -88,8 +90,9 @@ export const buscarMiembroPorId = async (idMiembros) => {
   const miembros = await listarMiembros();
 
   return (
-    miembros.find((candidato) => String(candidato?.idMiembros ?? candidato?.id ?? '') === buscado) ??
-    null
+    miembros.find(
+      (candidato) => String(candidato?.idMiembros ?? candidato?.id ?? '') === buscado
+    ) ?? null
   );
 };
 
@@ -123,7 +126,8 @@ export const correoUsadoPorOtroMiembro = async ({ correo, idMiembros }) => {
 // seccion y a su region para compararlas con las casillas del solicitante.
 // ----------------------------------------------------------------------
 
-const URL_DESTACAMENTOS = 'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos';
+const URL_DESTACAMENTOS =
+  'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos';
 const URL_IGLESIAS = 'https://systexploradores.somee.com/api/Iglesias/GetAllIglesias';
 const URL_SECCIONES = 'https://systexploradores.somee.com/api/Secciones/GetAllSecciones';
 
@@ -192,9 +196,10 @@ export const ubicacionDeDestacamento = async (idDestacamento) => {
 
 /** Su nombre corto, para poder decirle a quien acudir sin dar la ficha entera. */
 export const nombreCortoDeMiembro = (miembro) => {
-  const primero = (texto) => String(texto ?? '').trim().split(/\s+/)[0] || '';
-  const nombre = primero(miembro?.nombres ?? miembro?.firstName);
-  const apellido = primero(miembro?.apellidos ?? miembro?.lastName);
+  const nombre = primerNombreDeTexto(miembro?.nombres ?? miembro?.firstName);
+  // El primer apellido CON su particula: quedarse con la primera palabra dejaba
+  // "Fausto Del" en vez de "Fausto Del Rosario".
+  const apellido = primerApellidoDeTexto(miembro?.apellidos ?? miembro?.lastName);
   const corto = [nombre, apellido].filter(Boolean).join(' ');
 
   return corto || String(miembro?.nombreMiembro || codigoDe(miembro) || '').trim();

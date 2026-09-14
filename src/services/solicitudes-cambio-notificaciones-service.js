@@ -1,5 +1,7 @@
 import { doc, query, where, getDoc, getDocs, collection } from 'firebase/firestore';
 
+import { primerNombreDeTexto, primerApellidoDeTexto } from 'src/utils/nombres-de-persona';
+
 import { FIRESTORE } from 'src/lib/firebase';
 
 import { crearNotificacionAdmin, crearNotificacionUsuario } from './notification-service';
@@ -36,9 +38,9 @@ export const resolverDestinatariosPorIdMiembros = async (idMiembros) => {
       snapshot?.docs?.forEach(agregarDesdeData);
     }),
     (async () => {
-      const directo = await getDoc(
-        doc(FIRESTORE, 'usuarios_roles', String(idMiembros))
-      ).catch(() => null);
+      const directo = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(idMiembros))).catch(
+        () => null
+      );
 
       if (directo?.exists()) {
         agregarDesdeData(directo);
@@ -80,7 +82,10 @@ const idsDeCoordinadores = async (asignaciones = []) => {
   listas
     .filter(({ ids }) => !ids.length)
     .forEach(({ idMiembros }) =>
-      console.warn('[solicitudes cambio] coordinador sin cuenta de usuario para notificar', idMiembros)
+      console.warn(
+        '[solicitudes cambio] coordinador sin cuenta de usuario para notificar',
+        idMiembros
+      )
     );
 
   return {
@@ -398,10 +403,12 @@ export const notificarAgregadoSistemaAscenso = async ({
 // ----------------------------------------------------------------------
 
 // "Roderi Daniel Peña Rosario" -> "Roderi Peña": primer nombre y primer apellido.
+// El apellido se saca con `primerApellidoDeTexto`, que respeta las particulas.
 export const nombreCortoDeMiembro = (miembro) => {
-  const primero = (texto) => String(texto ?? '').trim().split(/\s+/)[0] || '';
-  const nombre = primero(miembro?.nombres ?? miembro?.firstName);
-  const apellido = primero(miembro?.apellidos ?? miembro?.lastName);
+  const nombre = primerNombreDeTexto(miembro?.nombres ?? miembro?.firstName);
+  // El primer apellido CON su particula: quedarse con la primera palabra dejaba
+  // "Fausto Del" en vez de "Fausto Del Rosario".
+  const apellido = primerApellidoDeTexto(miembro?.apellidos ?? miembro?.lastName);
   const corto = [nombre, apellido].filter(Boolean).join(' ');
 
   return corto || String(miembro?.nombreMiembro || miembro?.codigoMiembro || '').trim();
