@@ -16,7 +16,12 @@ import { Iconify } from 'src/components/iconify';
 
 import { MarcaDeEjemplo } from './marca-de-ejemplo';
 import { useTonosDeMarca } from './use-tonos-de-marca';
-import { LapizDeImagen, fondoDeTarjeta, useImagenDeTarjeta } from './imagen-de-tarjeta';
+import {
+  FondoEnVideo,
+  LapizDeImagen,
+  fondoDeTarjeta,
+  useImagenDeTarjeta,
+} from './imagen-de-tarjeta';
 
 // ----------------------------------------------------------------------
 // LA PROXIMA ACTIVIDAD Y COMO VOY.
@@ -33,7 +38,10 @@ const ID_DE_LA_TARJETA = 'proxima-actividad';
 
 export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
   const { NAVY, ORO, AZUL } = useTonosDeMarca();
-  const { foto, subiendo, elegirFoto } = useImagenDeTarjeta(ID_DE_LA_TARJETA);
+  // Esta tarjeta admite tambien un video corto, que corre en bucle como un GIF.
+  const { foto, esVideo, subiendo, elegirFoto } = useImagenDeTarjeta(ID_DE_LA_TARJETA, {
+    aceptaVideo: true,
+  });
 
   return (
     <Card
@@ -58,9 +66,11 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
         // El contenedor no cambia: misma proporcion y mismo relleno.
         rowGap: 0.5,
         justifyContent: 'space-between',
-        ...fondoDeTarjeta({ foto, navy: NAVY, varAlpha }),
+        ...fondoDeTarjeta({ foto, esVideo, navy: NAVY, varAlpha }),
       }}
     >
+      {foto && esVideo && <FondoEnVideo src={foto} navy={NAVY} varAlpha={varAlpha} />}
+
       {/* AIRE ENTRE LAS CUATRO COSAS QUE HAY QUE LEER. Iban pegadas —medio paso
           entre una y otra— y la tarjeta se leia como un bloque de texto. Los
           margenes crecen aqui dentro y el contenedor no se mueve: la proporcion
@@ -74,7 +84,12 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
 
         {puedeEditar && (
           <Box sx={{ ml: 'auto', display: 'flex' }}>
-            <LapizDeImagen tieneFoto={Boolean(foto)} subiendo={subiendo} onElegir={elegirFoto} />
+            <LapizDeImagen
+              aceptaVideo
+              tieneFoto={Boolean(foto)}
+              subiendo={subiendo}
+              onElegir={elegirFoto}
+            />
           </Box>
         )}
       </Stack>
@@ -143,6 +158,11 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
           variant="filled"
           color="success"
           startIcon={<Iconify icon="solar:check-circle-bold" />}
+          // LA MISMA ALTURA QUE EL BOTON DE AL LADO. La etiqueta trae 24px fijos y
+          // el boton pequeño 30: juntos en la fila del pie, el sello se veia un
+          // escalon mas bajo. Se estira a la altura de la fila en vez de escribir
+          // un numero que habria que cambiar si el boton cambia de tamaño.
+          sx={{ height: 'auto', alignSelf: 'stretch', px: 1.25 }}
         >
           {actividad.estado}
         </Label>
@@ -155,7 +175,7 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
           endIcon={<Iconify icon="solar:double-alt-arrow-right-bold-duotone" />}
           sx={{ ml: 'auto', bgcolor: AZUL.principal, '&:hover': { bgcolor: AZUL.encima } }}
         >
-          Ver actividad
+          ¡Inscrbirme ahora!
         </Button>
       </Stack>
     </Card>

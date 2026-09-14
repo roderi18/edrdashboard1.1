@@ -1,4 +1,4 @@
-import { ref, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import {
   doc,
   query,
@@ -62,6 +62,10 @@ export async function registrarFotoEntidadSubida({
   urlFoto,
   urlFotoMiniatura = '',
   subidoPor,
+  // 'imagen' o 'video'. Se escribe SIEMPRE, tambien al subir una imagen: el
+  // registro se guarda con `merge`, y sin pisarlo una imagen nueva heredaba el
+  // 'video' de la anterior y se intentaba reproducir.
+  tipoMedio = 'imagen',
 }) {
   asegurarFirebaseFotos();
 
@@ -80,6 +84,7 @@ export async function registrarFotoEntidadSubida({
     // La misma cara, pero para listas. Vacia en las fotos de antes: quien la lee
     // se queda con `urlFoto`, que siempre esta.
     urlFotoMiniatura: urlFotoMiniatura || '',
+    tipoMedio,
     tipoFoto,
     esPrincipal: true,
     subidoPor: subidoPor || null,
@@ -108,6 +113,9 @@ export async function subirFotoEntidad({
   idEntidad,
   tipoFoto = 'perfil',
   subidoPor,
+  // `avatar` por defecto porque casi todo lo que pasa por aqui es una cara. Las
+  // portadas anchas piden `portada`: con `avatar` quedaban en 900px de ancho.
+  preset = 'avatar',
 }) {
   asegurarFirebaseFotos();
 
@@ -130,7 +138,7 @@ export async function subirFotoEntidad({
   // —el buscador del chat, los contactos—, donde la cara se dibuja a 40px y
   // bajarse 300 kB por cada persona no tiene ningun sentido.
   const [uploadResult, miniatura] = await Promise.all([
-    uploadOptimizedImage({ file, preset: 'avatar', storagePath: basePath, metadata: metadatos }),
+    uploadOptimizedImage({ file, preset, storagePath: basePath, metadata: metadatos }),
     uploadOptimizedImage({
       file,
       preset: 'miniatura',
@@ -149,6 +157,72 @@ export async function subirFotoEntidad({
     urlFoto: uploadResult.downloadUrl,
     urlFotoMiniatura: miniatura?.downloadUrl || '',
     subidoPor,
+  });
+}
+
+// Lo que admite la regla de Storage de `principal-tarjetas`. MP4 y WebM porque son
+// los que reproducen todos los navegadores; el .mov de un iPhone no se ve en
+// Chrome ni en Windows.
+export const TIPOS_DE_VIDEO_ADMITIDOS = ['video/mp4', 'video/webm'];
+export const TOPE_DE_VIDEO_EN_MB = 20;
+
+/**
+ * Sube un VIDEO como medio principal de una entidad.
+ *
+ * Tal cual, sin optimizar: en el navegador no hay forma razonable de
+ * recomprimir un video, asi que el tope de tamaño hace de freno. Va a una ruta
+ * distinta de la imagen (`<tipoFoto>-video.mp4`) para que la regla de Storage
+ * pueda distinguirlos por el nombre.
+ */
+export async function subirVideoEntidad({
+  file,
+  // El tipo ya resuelto por quien llama. `file.type` llega vacio en algunos
+  // Windows, y sin tipo la regla de Storage rechaza el video.
+  tipoMime = file?.type,
+  tipoEntidad,
+  idEntidad,
+  tipoFoto = 'portada',
+  subidoPor,
+}) {
+  asegurarFirebaseFotos();
+
+  if (!file) throw new Error('Selecciona un video para subir.');
+  if (tipoMime === 'video/quicktime') {
+    throw new Error('Los videos .mov no se ven en todos los navegadores: expórtalo a MP4.');
+  }
+  if (!TIPOS_DE_VIDEO_ADMITIDOS.includes(tipoMime)) {
+    throw new Error('El video tiene que ser MP4 o WebM.');
+  }
+  if (file.size > TOPE_DE_VIDEO_EN_MB * 1024 * 1024) {
+    throw new Error(`El video pesa demasiado: el máximo es ${TOPE_DE_VIDEO_EN_MB} MB.`);
+  }
+
+  const folder = carpetaDeEntidad(tipoEntidad);
+  const extension = tipoMime === 'video/webm' ? 'webm' : 'mp4';
+  const storagePath = `${folder}/${idEntidad}/${tipoFoto}-video.${extension}`;
+  const storageRef = ref(FIREBASE_STORAGE, storagePath);
+
+  await uploadBytes(storageRef, file, {
+    contentType: tipoMime,
+    // Mismo motivo que en las imagenes: al reemplazarlo Storage da otra
+    // direccion, asi que guardarlo para siempre no sirve el viejo.
+    cacheControl: 'public, max-age=31536000, immutable',
+    customMetadata: {
+      tipoEntidad,
+      idEntidad: String(idEntidad),
+      tipoFoto,
+      subidoPor: subidoPor || '',
+    },
+  });
+
+  return registrarFotoEntidadSubida({
+    tipoEntidad,
+    idEntidad,
+    tipoFoto,
+    rutaArchivo: storagePath,
+    urlFoto: await getDownloadURL(storageRef),
+    subidoPor,
+    tipoMedio: 'video',
   });
 }
 

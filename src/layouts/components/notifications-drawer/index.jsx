@@ -11,6 +11,7 @@ import Badge from '@mui/material/Badge';
 import Drawer from '@mui/material/Drawer';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 
@@ -30,6 +31,31 @@ const TABS = [
   { value: 'archived', label: 'Archivadas', count: 10 },
 ];
 
+// LA LISTA SE PINTA POR TANDAS, NO ENTERA.
+//
+// Al pulsar la campana el panel tardaba en aparecer: React pintaba TODAS las
+// filas —cada una con su HTML, sus botones y, las de producto, sus fotos— antes
+// de dejar que el cajon se abriera. Ahora el cajon sale en el acto con la
+// cabecera y unas filas de espera; la lista llega en el siguiente fotograma y de
+// quince en quince, y la siguiente tanda se pide al acercarse al final.
+const TANDA = 15;
+
+function FilasDeEspera() {
+  return (
+    <Box sx={{ px: 2.5, py: 1 }}>
+      {[0, 1, 2, 3].map((fila) => (
+        <Box key={fila} sx={{ gap: 2, py: 1.5, display: 'flex' }}>
+          <Skeleton variant="circular" width={40} height={40} sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: '1 1 auto' }}>
+            <Skeleton variant="text" width="90%" />
+            <Skeleton variant="text" width="40%" />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 // ----------------------------------------------------------------------
 
 export function NotificationsDrawer({
@@ -44,6 +70,31 @@ export function NotificationsDrawer({
 
   const [currentTab, setCurrentTab] = useState('all');
   const [notifications, setNotifications] = useState(data);
+  // Si la lista ya se puede pintar (un fotograma despues de abrir) y cuantas
+  // filas van pintadas.
+  const [listaLista, setListaLista] = useState(false);
+  const [filasVisibles, setFilasVisibles] = useState(TANDA);
+  const [finDeLista, setFinDeLista] = useState(null);
+
+  useEffect(() => {
+    if (!open) {
+      setListaLista(false);
+      setFilasVisibles(TANDA);
+      return undefined;
+    }
+
+    // Dos fotogramas: en el primero el navegador pinta el cajon abierto; en el
+    // segundo ya se puede cargar la lista sin frenar esa animacion.
+    let segundo = 0;
+    const primero = window.requestAnimationFrame(() => {
+      segundo = window.requestAnimationFrame(() => setListaLista(true));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(primero);
+      window.cancelAnimationFrame(segundo);
+    };
+  }, [open]);
 
   useEffect(() => {
     setNotifications(data);
@@ -51,6 +102,7 @@ export function NotificationsDrawer({
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
+    setFilasVisibles(TANDA);
   }, []);
 
   const totalUnRead = notifications.filter((item) => item.isUnRead === true).length;
@@ -74,18 +126,34 @@ export function NotificationsDrawer({
   });
 
   const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((notification) => ({ ...notification, isUnRead: false })));
-    onMarkAllAsRead?.();
+    setNotifications((prevState) =>
+      prevState.map((notification) => ({
+        ...notification,
+        isUnRead: false,
+        estado: notification.estado === 'no_leida' ? 'leida' : notification.estado,
+      }))
+    );
+    Promise.resolve(onMarkAllAsRead?.()).catch((error) => {
+      console.error('[notifications] no se pudieron marcar todas como leidas', error);
+    });
   };
 
-  const handleClickNotification = async (notification) => {
+  // LEIDO AL INSTANTE. Antes se esperaba a que Firestore confirmara la escritura
+  // para cerrar el cajon y navegar: durante ese viaje la fila seguia igual y
+  // parecia que el clic no habia hecho nada. La marca se ve ya y la escritura va
+  // por detras; si falla, quien la persiste lo registra.
+  const handleClickNotification = (notification) => {
     setNotifications((prevState) =>
       prevState.map((item) =>
         item.id === notification.id ? { ...item, isUnRead: false, estado: 'leida' } : item
       )
     );
 
-    await onMarkAsRead?.(notification.idsNotificaciones || notification.id);
+    Promise.resolve(onMarkAsRead?.(notification.idsNotificaciones || notification.id)).catch(
+      (error) => {
+        console.error('[notifications] no se pudo marcar como leida', error);
+      }
+    );
     setCurrentTab('all');
     onClose();
   };
@@ -177,10 +245,33 @@ export function NotificationsDrawer({
     </Tabs>
   );
 
+  // Pide la siguiente tanda cuando el final de la lista asoma en pantalla.
+  useEffect(() => {
+    const vigia = finDeLista;
+
+    if (!vigia || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((entrada) => entrada.isIntersecting)) {
+          setFilasVisibles((actual) => actual + TANDA);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observador.observe(vigia);
+    return () => observador.disconnect();
+  }, [finDeLista]);
+
+  const hayMasFilas = notificationsFiltradas.length > filasVisibles;
+
   const renderList = () => (
     <Scrollbar>
-      <Box component="ul">
-        {notificationsFiltradas?.map((notification) => (
+      {!listaLista && <FilasDeEspera />}
+
+      <Box component="ul" sx={{ display: listaLista ? 'block' : 'none' }}>
+        {listaLista && notificationsFiltradas.slice(0, filasVisibles).map((notification) => (
           <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
             <NotificationItem
               notification={notification}
@@ -190,6 +281,12 @@ export function NotificationsDrawer({
           </Box>
         ))}
       </Box>
+
+      {listaLista && hayMasFilas && (
+        <Box ref={setFinDeLista} sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
+          <Skeleton variant="rounded" width="80%" height={48} />
+        </Box>
+      )}
     </Scrollbar>
   );
 

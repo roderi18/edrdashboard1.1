@@ -39,51 +39,95 @@ import { etiquetaDeCategoria } from './product-table-row';
 // pinta media estrella: se dice que aun no hay valoraciones.
 // ----------------------------------------------------------------------
 
-// LA CINTA ROJA "NUEVO".
+// LA CINTA ROJA "RECIÉN AGREGADO".
 //
 // La enciende quien gestiona la tienda desde la ficha del producto —crear o
 // editar, "Mostrar cinta roja de nuevo en la tienda"— y se guarda en
-// `etiquetaNuevo`. El texto es el que se escribio ahi; vacio, "Nuevo".
+// `etiquetaNuevo`. El texto es el que se escribio ahi; vacio, "Recién agregado".
 //
-// Recortado a 12 caracteres tambien aqui y no solo en el formulario: la cinta
-// mide lo que mide, y un texto largo guardado antes de ese tope se saldria por
-// los dos lados.
-const TEXTO_DE_CINTA_POR_DEFECTO = 'Nuevo';
+// Vacio decia "Nuevo". Se cambio porque es lo que se quiere leer en la tienda
+// cuando algo acaba de entrar, y asi no hay que escribirlo a mano en cada
+// producto. Por eso el campo sigue llamandose `etiquetaNuevo`: renombrarlo
+// dejaria sin cinta a los productos que ya la tienen guardada.
+//
+// Recortado tambien aqui y no solo en el formulario: la cinta mide lo que mide,
+// y un texto largo guardado antes de ese tope se saldria por los dos lados. Era
+// 12 y "Recién agregado" salia como "RECIÉN AGREG"; con 16 cabe, y la cinta de
+// los textos mas largos va mas metida en la foto (ver `MEDIDAS_DE_CINTA`).
+const TEXTO_DE_CINTA_POR_DEFECTO = 'Recién agregado';
+const TOPE_DE_TEXTO_DE_CINTA = 16;
 
 const textoDeLaCinta = (product) => {
   if (!product?.newLabel?.enabled) return '';
 
-  return (String(product.newLabel.content || '').trim() || TEXTO_DE_CINTA_POR_DEFECTO).slice(0, 12);
+  return (String(product.newLabel.content || '').trim() || TEXTO_DE_CINTA_POR_DEFECTO).slice(
+    0,
+    TOPE_DE_TEXTO_DE_CINTA
+  );
 };
 
-// ------------------------------------------------------------------
-// PRUEBA LOCAL: LA CINTA "CASI AGOTADO".
+// LA CINTA CRECE CON SU TEXTO, METIENDOSE EN LA FOTO.
 //
-// Para ver como se veria, en UN producto elegido por nombre y SOLO en
-// desarrollo —`next build` la apaga—, asi que aunque se suba por descuido no
-// sale en la tienda real. Si pisa a la de "Nuevo" es a proposito: es la que se
-// quiere mirar.
-//
-// PARA QUITARLA: borrar este bloque y la linea `cintaDePrueba` del componente.
-// ------------------------------------------------------------------
-const CINTA_CASI_AGOTADO_DE_PRUEBA =
-  process.env.NODE_ENV === 'development'
-    ? {
-        producto: 'correa nylon caqui',
-        texto: 'Casi agotado',
-        fondo: 'warning.main',
-        tinta: 'grey.900',
-      }
-    : null;
+// Cruza la esquina en diagonal, asi que el hueco que le queda al texto es el
+// ancho de la foto a la altura de la cinta: cuanto mas lejos de la esquina, mas
+// ancho. Por eso un texto largo no pide una cinta mas larga —las puntas ya se
+// salen—, pide una cinta MAS ADENTRO. `caja` es el cuadrado que recorta; `arriba`
+// y `derecha` colocan la banda dentro de el.
+const MEDIDAS_DE_CINTA = [
+  // Los cortos que se escriban a mano, como "Nuevo" u "Oferta".
+  { hasta: 6, caja: 96, ancho: 140, arriba: 18, derecha: -34, espacio: 0.5 },
+  // "Casi agotado" y "Recién agregado", EN EL MISMO SITIO. Tenian cada una su
+  // medida y, puestas una al lado de la otra en la rejilla, las cintas de dos
+  // palabras quedaban a alturas distintas. La de "Recién agregado" es la que
+  // cabe entera, asi que es la que manda para todas las largas.
+  { hasta: Infinity, caja: 160, ancho: 220, arriba: 42, derecha: -50, espacio: 0.25 },
+];
 
-const cintaDePruebaPara = (product) =>
-  CINTA_CASI_AGOTADO_DE_PRUEBA &&
-  String(product?.name || '')
+const medidasDeCinta = (texto = '') =>
+  MEDIDAS_DE_CINTA.find((medida) => texto.length <= medida.hasta);
+
+// ------------------------------------------------------------------
+// PRUEBA LOCAL: CINTAS DE EXISTENCIAS.
+//
+// Para ver como se verian, en productos elegidos por nombre y SOLO en
+// desarrollo —`next build` las apaga—, asi que aunque se suban por descuido no
+// salen en la tienda real. Si pisan a la de "Recién agregado" es a proposito:
+// son las que se quieren mirar.
+//
+// Una lista y no una constante suelta: con la segunda cinta de prueba copiar el
+// bloque entero habria dejado dos funciones casi iguales.
+//
+// PARA QUITARLAS: borrar este bloque y la linea `cintaDePrueba` del componente.
+// ------------------------------------------------------------------
+const CINTAS_DE_PRUEBA =
+  process.env.NODE_ENV === 'development'
+    ? [
+        {
+          producto: 'correa nylon caqui',
+          texto: 'Pocas existencias',
+          fondo: 'warning.main',
+          // Blanco, como la de "Recién agregado": las cintas se leen como una
+          // misma pieza.
+          tinta: 'common.white',
+        },
+        {
+          producto: 'libro convirtiéndose en un hombre de dios',
+          texto: 'Agotado',
+          // Gris oscuro y no rojo: el rojo ya es "Recién agregado", y un agotado
+          // no invita a nada; tiene que leerse como apagado.
+          fondo: 'grey.800',
+          tinta: 'common.white',
+        },
+      ]
+    : [];
+
+const cintaDePruebaPara = (product) => {
+  const nombre = String(product?.name || '')
     .trim()
-    .toLowerCase()
-    .startsWith(CINTA_CASI_AGOTADO_DE_PRUEBA.producto)
-    ? CINTA_CASI_AGOTADO_DE_PRUEBA
-    : null;
+    .toLowerCase();
+
+  return CINTAS_DE_PRUEBA.find((cinta) => nombre.startsWith(cinta.producto)) || null;
+};
 
 export function ProductGridCard({
   product,
@@ -191,12 +235,20 @@ export function ProductGridCard({
 
   const textoNuevo = textoDeLaCinta(product);
   const cintaDePrueba = cintaDePruebaPara(product);
+  // "AGOTADO" VA EN GRIS. La cinta es una sola y el texto lo escribe quien
+  // gestiona la tienda; en rojo, un agotado se leia como una novedad —el rojo es
+  // "Recién agregado"— e invitaba a pulsar algo que no se puede comprar.
+  const esAgotado = textoNuevo.trim().toLowerCase() === 'agotado';
   const cinta =
     cintaDePrueba ||
-    (textoNuevo ? { texto: textoNuevo, fondo: 'error.main', tinta: 'common.white' } : null);
-  // Un texto de dos palabras necesita mas cinta: con la medida de "Nuevo",
-  // "CASI AGOTADO" se cortaba por las dos puntas.
-  const cintaLarga = (cinta?.texto || '').length > 6;
+    (textoNuevo
+      ? {
+          texto: textoNuevo,
+          fondo: esAgotado ? 'grey.800' : 'error.main',
+          tinta: 'common.white',
+        }
+      : null);
+  const medidas = medidasDeCinta(cinta?.texto);
 
   // La cinta cruzada en la esquina de arriba a la derecha. Va dentro de una caja
   // que recorta: la banda es mas larga que la esquina a proposito, para que sus
@@ -207,8 +259,8 @@ export function ProductGridCard({
       sx={{
         top: 0,
         right: 0,
-        width: cintaLarga ? 120 : 96,
-        height: cintaLarga ? 120 : 96,
+        width: medidas.caja,
+        height: medidas.caja,
         overflow: 'hidden',
         position: 'absolute',
         pointerEvents: 'none',
@@ -216,16 +268,16 @@ export function ProductGridCard({
     >
       <Box
         sx={{
-          top: cintaLarga ? 26 : 18,
-          right: cintaLarga ? -44 : -34,
-          width: cintaLarga ? 180 : 140,
+          top: medidas.arriba,
+          right: medidas.derecha,
+          width: medidas.ancho,
           py: 0.5,
           position: 'absolute',
           textAlign: 'center',
           transform: 'rotate(45deg)',
           typography: 'caption',
           fontWeight: 'fontWeightBold',
-          letterSpacing: cintaLarga ? 0.25 : 0.5,
+          letterSpacing: medidas.espacio,
           whiteSpace: 'nowrap',
           textTransform: 'uppercase',
           color: cinta.tinta,

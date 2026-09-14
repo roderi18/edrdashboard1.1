@@ -22,6 +22,18 @@ export const IMAGE_UPLOAD_PRESETS = {
     mimeType: 'image/webp',
     maxSizeBytes: 320000,
   },
+  // Las imagenes de fondo de las tarjetas de la pantalla Principal. Se subian con
+  // `avatar`: una franja de 1525x120 bajaba a 900x71 y el `cover` la volvia a
+  // estirar a todo el ancho de la tarjeta, que es lo que se veia pixelado.
+  // 2560 de ancho cubre un monitor grande; el alto no limita, que en una franja
+  // apaisada nunca es el lado que manda.
+  portada: {
+    maxWidth: 2560,
+    maxHeight: 2560,
+    quality: 0.9,
+    mimeType: 'image/webp',
+    maxSizeBytes: 900000,
+  },
   producto: {
     maxWidth: 1800,
     maxHeight: 1800,

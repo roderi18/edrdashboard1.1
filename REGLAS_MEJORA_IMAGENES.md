@@ -24,7 +24,7 @@ Mejorar fotografías de parches, cintas, medallas, correas y accesorios para su 
 
 - Entregar en formato WebP.
 - Usar una dimensión máxima normal de 600 px en el lado más largo.
-- Mantener formato cuadrado de 600 × 600 px cuando se solicite.
+- Entregar todas las imágenes en proporción 1:1 por defecto, normalmente a 600 × 600 px.
 - Optimizar el peso para que cargue rápidamente en una tienda web.
 - No sobrescribir la imagen original.
 

@@ -92,8 +92,7 @@ export const MI_PROGRESO_DE_EJEMPLO = {
   total: 30,
   areas: [
     { nombre: 'Campismo', estado: 'Completado', avance: 100, acento: 'verde' },
-    { nombre: 'Orientación', estado: 'Completado', avance: 100, acento: 'ambar' },
-    { nombre: 'Primeros auxilios', estado: 'En progreso', avance: 70, acento: 'azul' },
+    { nombre: 'Primeros auxilios', estado: 'Completado', avance: 100, acento: 'azul' },
     { nombre: 'Alas de Bronce', estado: 'En progreso', avance: 40, acento: 'morado' },
   ],
 };

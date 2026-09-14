@@ -2,7 +2,7 @@
 
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -150,6 +150,36 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   ).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
+  // LO QUE SE ACABA DE MARCAR NO VUELVE ATRAS.
+  //
+  // Las notificaciones se recargan cada 30 segundos. Si la recarga llegaba antes
+  // de que Firestore guardara la marca, el aviso volvia a "no leido" y parecia
+  // que el clic no habia servido. Aqui se apunta lo marcado y se aplica encima de
+  // cada recarga durante un minuto, que sobra para que la escritura llegue.
+  const marcasPendientesRef = useRef(new Map());
+
+  const apuntarMarca = (ids, cambios) => {
+    const hasta = Date.now() + 60000;
+
+    ids.forEach((id) => marcasPendientesRef.current.set(String(id), { cambios, hasta }));
+  };
+
+  const conMarcasPendientes = (lista) => {
+    const ahora = Date.now();
+    const pendientes = marcasPendientesRef.current;
+
+    pendientes.forEach((marca, id) => {
+      if (marca.hasta < ahora) pendientes.delete(id);
+    });
+
+    if (!pendientes.size) return lista;
+
+    return lista.map((notification) => {
+      const marca = pendientes.get(String(notification.id));
+
+      return marca ? { ...notification, ...marca.cambios } : notification;
+    });
+  };
 
   const settings = useSettingsContext();
 
@@ -171,6 +201,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     }));
 
     setNotificacionesDrawer(notificacionesActualizadas);
+    notificacionesActualizadas.forEach((notification) =>
+      apuntarMarca([notification.id], { isUnRead: false, estado: notification.estado })
+    );
 
     if (!user?.uid) {
       return;
@@ -193,6 +226,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           : notification
       )
     );
+    apuntarMarca(notificationIds, { isUnRead: false, estado: 'leida' });
 
     try {
       await marcarNotificacionComoLeida(notificationId, user?.uid);
@@ -211,6 +245,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           : notification
       )
     );
+    apuntarMarca(notificationIds, { isUnRead: false, estado: 'atendida' });
 
     try {
       await marcarNotificacionComoAtendida(notificationId, user?.uid);
@@ -237,11 +272,13 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
         if (!isMounted) return;
 
-        setNotificacionesDrawer([
-          ...notificacionesReportesLocales,
-          ...notificacionesFirestore,
-          ..._notifications,
-        ]);
+        setNotificacionesDrawer(
+          conMarcasPendientes([
+            ...notificacionesReportesLocales,
+            ...notificacionesFirestore,
+            ..._notifications,
+          ])
+        );
       } catch (error) {
         console.error('[notifications test] no se pudo cargar la prueba', error);
 
@@ -391,6 +428,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {(esAdministradorGlobal || pruebaDeRolesActiva) && (
             <WorkspacesPopover
               data={_workspaces}
+              // SEPARADO DEL BUSCADOR. Iba pegado al borde del campo y el nombre
+              // del rol se leia como parte de la busqueda. El margen va aqui y no
+              // en el buscador: el buscador lo ve todo el mundo y este selector
+              // solo el Administrador Global, asi que sin el nadie hereda un
+              // hueco vacio.
               // Durante la prueba sigue a la vista, tachado: dice cual es el rol
               // de verdad y que ahora mismo no manda el.
               nombreForzado={pruebaDeRolesActiva ? 'Administrador Global' : ''}
@@ -398,7 +440,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
               // solo rol se queda a la vista pero sin efecto, para que no haya
               // dos mandos discutiendo por la misma sesion.
               disabled={pruebaDeRolesActiva}
-              sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
+              sx={{
+                ml: { sm: 2, md: 3 },
+                ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }),
+              }}
             />
           )}
 

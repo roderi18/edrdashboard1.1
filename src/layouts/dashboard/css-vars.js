@@ -28,6 +28,11 @@ export function dashboardLayoutVars(theme, enBlanco = false) {
   // juntura— y `navyLight` al llegar a la derecha, donde estan la cuenta y los
   // avisos.
   //
+  // Con las MISMAS paradas que el fade de la barra lateral, girado 90 grados:
+  // navy fijo hasta el 60% y solo entonces aclara. Iba de 0 a 100 de corrido y
+  // la cabecera empezaba a lavarse ya a la altura del buscador, mientras la
+  // barra lateral aguantaba el navy; las dos no se leian como la misma pieza.
+  //
   // En blanco no hay degradado: un fade sobre el color del contenido se lee como
   // una mancha, no como una cabecera.
   const cabecera = enBlanco
@@ -39,7 +44,7 @@ export function dashboardLayoutVars(theme, enBlanco = false) {
       }
     : {
         '--layout-header-bg': palette.brand.navy,
-        '--layout-header-bg-image': `linear-gradient(90deg, ${palette.brand.navy} 0%, ${palette.brand.navyLight} 100%)`,
+        '--layout-header-bg-image': `linear-gradient(90deg, ${palette.brand.navy} 0%, ${palette.brand.navy} 60%, ${palette.brand.navyLight} 100%)`,
         '--layout-header-text': palette.common.white,
         // Lo de menos peso —iconos en reposo, textos de apoyo— en el mismo
         // azulado que usa la barra lateral, para que las dos hablen igual.

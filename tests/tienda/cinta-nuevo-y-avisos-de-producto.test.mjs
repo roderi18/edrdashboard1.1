@@ -30,10 +30,15 @@ test('la cinta sale del producto, no de un nombre escrito en el codigo', () => {
   assert.doesNotMatch(cintaNuevo.split('PRUEBA LOCAL')[0], /NODE_ENV/);
 });
 
-test('sin texto dice "Nuevo", y un texto largo no se sale de la cinta', () => {
-  assert.match(TARJETA, /const TEXTO_DE_CINTA_POR_DEFECTO = 'Nuevo';/);
-  assert.match(TARJETA, /\.slice\(0, 12\)/);
-  assert.match(TARJETA, /texto: textoNuevo, fondo: 'error\.main'/);
+// Vacio decia "Nuevo"; ahora "Recién agregado", que con el tope de 12 se cortaba
+// en "RECIÉN AGREG". El tope es 16, el mismo en la tarjeta y en el formulario.
+test('sin texto dice "Recién agregado", y cabe entero en la cinta', () => {
+  assert.match(TARJETA, /const TEXTO_DE_CINTA_POR_DEFECTO = 'Recién agregado';/);
+  assert.match(TARJETA, /const TOPE_DE_TEXTO_DE_CINTA = 16;/);
+  assert.match(FORMULARIO, /maxLength: 16/);
+  assert.ok('Recién agregado'.length <= 16);
+  // Roja, salvo "Agotado", que va en gris.
+  assert.match(TARJETA, /fondo: esAgotado \? 'grey\.800' : 'error\.main'/);
 });
 
 test('la opcion esta en el formulario, que es el mismo para crear y editar', () => {

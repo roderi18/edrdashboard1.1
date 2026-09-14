@@ -215,7 +215,11 @@ test('la tarjeta ya no lleva etiqueta de inventario', () => {
   // queden existencias se sigue viendo: el carrito se apaga.
   // Se mira el codigo, no los comentarios: uno de ellos cuenta justamente por
   // que se quito la etiqueta y nombra los textos que tenia.
+  //
+  // Tampoco las CINTAS DE PRUEBA: solo existen en desarrollo, van en la esquina
+  // de la foto y una se llama justo "Pocas existencias". No son la etiqueta.
   const codigo = tarjeta
+    .replace(/const CINTAS_DE_PRUEBA =[\s\S]*?\n {4}: \[\];/, '')
     .split('\n')
     .filter((linea) => !linea.trimStart().startsWith('//'))
     .join('\n');

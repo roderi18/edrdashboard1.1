@@ -672,7 +672,7 @@ export function ProductCreateEditForm({ currentProduct }) {
 
           {/* LA CINTA ROJA "NUEVO". Es la cinta cruzada que sale en la esquina
               de la foto en la tienda. El interruptor la pone o la quita; el texto
-              es opcional —vacio, dice "Nuevo"— para no obligar a escribir lo que
+              es opcional —vacio, dice "Recién agregado"— para no obligar a escribir lo que
               casi siempre es la misma palabra. Sirve igual al crear que al
               editar: el formulario es uno. */}
           <Stack spacing={1.5}>
@@ -684,9 +684,11 @@ export function ProductCreateEditForm({ currentProduct }) {
             <Field.Text
               name="newLabel.content"
               label="Texto de la cinta"
-              placeholder="Nuevo"
-              helperText="Opcional. Si lo dejas vacío dice «Nuevo». Mejor corto: la cinta es estrecha."
-              inputProps={{ maxLength: 12 }}
+              placeholder="RECIÉN AGREGADO"
+              helperText="Opcional. Si lo dejas vacío dice «RECIÉN AGREGADO». "
+              // 16 y no 12: "Recién agregado" (15) se guardaba como "Recién agreg".
+              // El tope tiene que ser el mismo que el de `product-grid-card.jsx`.
+              inputProps={{ maxLength: 16 }}
               fullWidth
               disabled={!values.newLabel.enabled}
             />
