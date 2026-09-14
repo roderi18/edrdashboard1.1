@@ -13,8 +13,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
-import { filterDashboardNavDataByUser } from 'src/utils/member-access';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
+import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
@@ -53,7 +53,11 @@ import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
 import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
-import { navDataDesarrollo, navData as dashboardNavData } from '../nav-config-dashboard';
+import {
+  navDataDesarrollo,
+  conTiendaDeAdministracion,
+  navData as dashboardNavData,
+} from '../nav-config-dashboard';
 
 // ----------------------------------------------------------------------
 
@@ -278,8 +282,17 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       chatUnreadCount: chatsSinLeer,
       mailUnreadCount: mailsSinLeer,
     });
+    const navDataFiltrada = filterDashboardNavDataByUser(navDataConIndicadores, user);
 
-    return filterDashboardNavDataByUser(navDataConIndicadores, user);
+    // LA TIENDA ENTERA PARA QUIEN LA ADMINISTRA: el Administrador Global y el de
+    // Gestion de Tienda ven Tienda Virtual, Ordenes y Recibos debajo de "Tienda".
+    // Se pone DESPUES del filtro a proposito: el filtro convierte cualquier
+    // entrada de la tienda en el desplegable de cliente —"Mis ordenes", "Mis
+    // recibos"— y, puesta antes, podia deshacerla. El resto de los miembros se
+    // queda con ese desplegable.
+    return esAdministradorGlobal || canManageStoreProducts(user)
+      ? conTiendaDeAdministracion(navDataFiltrada)
+      : navDataFiltrada;
   }, [chatsSinLeer, esAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';

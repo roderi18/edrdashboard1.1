@@ -174,6 +174,68 @@ export const navData = [
 ];
 
 // ----------------------------------------------------------------------
+// LA TIENDA DE QUIEN LA ADMINISTRA.
+//
+// Al reorganizar el menu, "Tienda" se quedo en un enlace directo a la lista y
+// Ordenes y Recibos bajaron al grupo de Desarrollo, al final de todo. Para quien
+// administra la tienda entera eso lo dejaba sin la vista de pedidos y recibos
+// donde la buscaba: debajo de "Tienda", como estaba antes.
+//
+// `layout.jsx` pone estas entradas en lugar de "Tienda Virtual" SOLO para el
+// Administrador Global y el Administrador de Gestion de Tienda. El resto de los
+// miembros sigue con su desplegable de cliente —Lista de productos, Mis ordenes,
+// Mis recibos—, que arma el filtro del menu.
+// ----------------------------------------------------------------------
+
+export const tiendaDeAdministracion = [
+  {
+    title: 'Tienda Virtual',
+    path: paths.dashboard.product.root,
+    icon: ICONS.product,
+    children: [
+      { title: 'Lista', path: paths.dashboard.product.root },
+      { title: 'Detalles', path: paths.dashboard.product.demo.details },
+      { title: 'Crear', path: paths.dashboard.product.new },
+      { title: 'Editar', path: paths.dashboard.product.demo.edit },
+    ],
+  },
+  {
+    title: 'Órdenes',
+    path: paths.dashboard.order.root,
+    icon: ICONS.ecommerce,
+    children: [
+      { title: 'Lista', path: paths.dashboard.order.root },
+      { title: 'Detalles', path: paths.dashboard.order.demo.details },
+    ],
+  },
+  {
+    title: 'Recibos',
+    path: paths.dashboard.invoice.root,
+    icon: ICONS.invoice,
+    children: [
+      { title: 'Lista', path: paths.dashboard.invoice.root },
+      { title: 'Detalles', path: paths.dashboard.invoice.demo.details },
+      { title: 'Crear', path: paths.dashboard.invoice.new },
+      { title: 'Editar', path: paths.dashboard.invoice.demo.edit },
+    ],
+  },
+];
+
+// Pone la tienda de administracion en lugar de "Tienda Virtual", dentro del
+// grupo "Tienda". Lo demas del grupo —"Mi carrito"— se queda donde esta.
+export const conTiendaDeAdministracion = (secciones = []) =>
+  secciones.map((seccion) =>
+    seccion.subheader === 'Tienda'
+      ? {
+          ...seccion,
+          items: (seccion.items ?? []).flatMap((item) =>
+            item.path === paths.dashboard.product.root ? tiendaDeAdministracion : [item]
+          ),
+        }
+      : seccion
+  );
+
+// ----------------------------------------------------------------------
 // LO QUE SOLO VE EL ADMINISTRADOR GLOBAL.
 //
 // Al reorganizar el menu en seis grupos por area de trabajo, estas entradas se
@@ -257,36 +319,9 @@ export const navDataDesarrollo = [
           { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
         ],
       },
-      {
-        title: 'Tienda - DEV',
-        path: paths.dashboard.product.root,
-        icon: ICONS.product,
-        children: [
-          { title: 'Detalles', path: paths.dashboard.product.demo.details },
-          { title: 'Crear', path: paths.dashboard.product.new },
-          { title: 'Editar', path: paths.dashboard.product.demo.edit },
-        ],
-      },
-      {
-        title: 'Ordenes - DEV',
-        path: paths.dashboard.order.root,
-        icon: ICONS.ecommerce,
-        children: [
-          { title: 'Lista', path: paths.dashboard.order.root },
-          { title: 'Detalles', path: paths.dashboard.order.demo.details },
-        ],
-      },
-      {
-        title: 'Recibos - DEV',
-        path: paths.dashboard.invoice.root,
-        icon: ICONS.invoice,
-        children: [
-          { title: 'Lista', path: paths.dashboard.invoice.root },
-          { title: 'Detalles', path: paths.dashboard.invoice.demo.details },
-          { title: 'Crear', path: paths.dashboard.invoice.new },
-          { title: 'Editar', path: paths.dashboard.invoice.demo.edit },
-        ],
-      },
+      // Tienda, Ordenes y Recibos ya no van aqui: el Administrador Global los
+      // tiene debajo de "Tienda" (`tiendaDeAdministracion`). Repetirlos aqui eran
+      // dos entradas iguales en el mismo menu.
     ],
   },
 ];
