@@ -113,7 +113,11 @@ export function PrincipalHomeView() {
 
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
                   a "¿que tengo por delante?" desde dos lados: la fecha que viene
-                  y lo que falta para el siguiente nivel. */}
+                  y lo que falta para el siguiente nivel.
+
+                  El hueco entre las dos es el MISMO que separa "Mi progreso" de la
+                  columna de eventos (`spacing={3}`, 24px): se probo con mas aire y
+                  la fila se leia descuadrada respecto al resto de la pantalla. */}
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 7 }}>
                   <PrincipalProximaActividad
@@ -142,9 +146,34 @@ export function PrincipalHomeView() {
           </Grid>
 
           <Grid size={{ xs: 12, lg: 4 }}>
+            {/* LA COLUMNA FIJA SE DESPLAZA SOLA. Iba `sticky` sin tope de alto y
+                es mas alta que la pantalla: se quedaba quieta mientras bajaba el
+                muro, y los comunicados y el lema no se alcanzaban hasta el final
+                de la pagina. Ahora mide como mucho lo que queda de ventana bajo la
+                cabecera y tiene su propio desplazamiento: con el raton encima, la
+                rueda la mueve a ella, y al llegar a su final sigue la pagina.
+
+                Sin barra visible, como el muro de al lado. El relleno de 4px y su
+                margen negativo son para que el recorte no se coma la sombra de las
+                tarjetas. */}
             <Stack
               spacing={3}
-              sx={{ top: 96, alignSelf: 'flex-start', position: { lg: 'sticky' } }}
+              sx={{
+                top: 96,
+                alignSelf: 'flex-start',
+                position: { lg: 'sticky' },
+                maxHeight: { lg: 'calc(100vh - 96px)' },
+                overflowY: { lg: 'auto' },
+                p: { lg: 0.5 },
+                m: { lg: -0.5 },
+                pb: { lg: 3 },
+                // Sin esto las tarjetas se aplastaban para caber en vez de
+                // desbordar: una `Card` recorta lo suyo, asi que la columna flex
+                // la encogia y no quedaba nada que desplazar.
+                '& > *': { flexShrink: 0 },
+                scrollbarWidth: 'none',
+                '&::-webkit-scrollbar': { display: 'none' },
+              }}
             >
               <PrincipalEventos eventos={EVENTOS_DE_EJEMPLO} esEjemplo={HAY_DATOS_DE_EJEMPLO} />
 

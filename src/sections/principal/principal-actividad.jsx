@@ -47,11 +47,12 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
     <Card
       sx={{
         p: 2,
-        // 16:9, NO LA ALTURA DE LA VECINA. Llevaba `height: 1`, asi que se
-        // estiraba hasta igualar a "Mi progreso" y le sobraban 150 pixeles de
-        // vacio entre la cuenta atras y el pie. Con una proporcion fija la
-        // tarjeta mide lo que tiene que medir y se encoge con el ancho.
-        aspectRatio: '16 / 9',
+        // LA ALTURA DE LA VECINA, OTRA VEZ, Y SIN 16:9. Se habia fijado en 16:9
+        // porque "Mi progreso" tenia cuatro areas y al estirarse le dejaba 150
+        // pixeles de vacio. Con tres areas las dos piden casi lo mismo, y el 16:9
+        // solo servia para que no terminaran a la misma altura. Ahora manda la
+        // fila: las dos tarjetas miden lo mismo a cualquier ancho.
+        height: 1,
         color: '#FFFFFF',
         display: 'flex',
         position: 'relative',

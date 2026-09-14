@@ -139,7 +139,7 @@ export const EVENTOS_DE_EJEMPLO = [
 
 export const DESTACAMENTO_DESTACADO_DE_EJEMPLO = {
   nombre: 'Destacamento 52 — Halcones del Este',
-  region: 'Región Este',
+  region: 'Región Central',
   miembros: 38,
   valoracion: 4.9,
 };
