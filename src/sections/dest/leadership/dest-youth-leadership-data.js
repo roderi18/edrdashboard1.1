@@ -29,6 +29,19 @@ export const DIVISIONES_JUVENILES = [
   { id: 'navegantes', nombre: 'Navegantes', edades: '5 a 7 años' },
 ];
 
+// UN SOLO DISENO PARA TODOS LOS DESTACAMENTOS.
+//
+// El diseno se guardaba por destacamento, y solo Tribu de Juda 18 tenia uno
+// afinado: los demas —y cada destacamento nuevo— salian con las posiciones de
+// partida, con otra forma. El cuadro es el mismo en todos, asi que la
+// colocacion tambien: se guarda UNA vez, con esta clave, y la leen todos.
+//
+// Mientras nadie guarde el global, se lee el de Tribu de Juda 18 (id 231), que
+// es el modelo. Su documento no se toca: solo se lee.
+export const NIVEL_DISENO_JUVENIL = 'destacamento-juvenil';
+export const ID_DISENO_JUVENIL_GLOBAL = 'global';
+export const ID_DESTACAMENTO_MODELO_JUVENIL = '231';
+
 // Cuantas casillas hay de los cargos que se repiten.
 export const ASISTENTES_DE_GRUPO = 2;
 export const PATRULLAS = 3;

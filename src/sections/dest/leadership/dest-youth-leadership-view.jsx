@@ -59,7 +59,13 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { DIVISIONES_JUVENILES, construirArbolJuvenil } from './dest-youth-leadership-data';
+import {
+  NIVEL_DISENO_JUVENIL,
+  DIVISIONES_JUVENILES,
+  construirArbolJuvenil,
+  ID_DISENO_JUVENIL_GLOBAL,
+  ID_DESTACAMENTO_MODELO_JUVENIL,
+} from './dest-youth-leadership-data';
 
 // ----------------------------------------------------------------------
 // DIRECTIVA DE LIDERES JUVENILES.
@@ -89,7 +95,7 @@ const CONTROL_BUTTON_GAP = 6;
 // organizacional: solo forma la clave del documento, y hace falta que sea
 // distinto del de la Directiva Local para que una no se lleve la colocacion de
 // la otra.
-const NIVEL_DISENO = 'destacamento-juvenil';
+const NIVEL_DISENO = NIVEL_DISENO_JUVENIL;
 
 // Las asignaciones, en cambio, SI son de destacamento: son los mismos cargos que
 // lee la ficha del miembro y la Directiva Local.
@@ -442,9 +448,12 @@ export function DestYouthLeadershipView() {
   const layoutStorage = useLeadershipLayoutStorage({
     editor: editorCompartido,
     nivel: NIVEL_DISENO,
-    // SIN division: un solo diseño para las cuatro.
-    idEntidad: destId ? String(destId) : '',
-    nombreEntidad: destNombreCompleto,
+    // SIN division ni destacamento: un solo diseño para las cuatro divisiones de
+    // todos los destacamentos, los de hoy y los que se creen.
+    idEntidad: ID_DISENO_JUVENIL_GLOBAL,
+    // Hasta que se guarde el global, manda el de Tribu de Judá 18.
+    idEntidadRespaldo: ID_DESTACAMENTO_MODELO_JUVENIL,
+    nombreEntidad: 'Todos los destacamentos',
     canManage: canManageLayout,
     // Los valores por defecto, tambien en forma de plantilla.
     defaultNodeOffsets: ESPINA_EN_PLANTILLA,

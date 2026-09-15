@@ -22,6 +22,9 @@ export function useLeadershipLayoutStorage({
   editor,
   nivel,
   idEntidad,
+  // Si no hay diseno guardado con `idEntidad`, se lee este otro antes de caer en
+  // los valores de partida. Solo se LEE: guardar sigue yendo a `idEntidad`.
+  idEntidadRespaldo = '',
   nombreEntidad = '',
   canManage = false,
   defaultNodeOffsets = {},
@@ -40,7 +43,13 @@ export function useLeadershipLayoutStorage({
     let cancelled = false;
 
     const cargar = async () => {
-      const diseno = await obtenerDisenoDirectiva({ nivel, idEntidad }).catch(() => null);
+      let diseno = await obtenerDisenoDirectiva({ nivel, idEntidad }).catch(() => null);
+
+      if (!diseno && idEntidadRespaldo) {
+        diseno = await obtenerDisenoDirectiva({ nivel, idEntidad: idEntidadRespaldo }).catch(
+          () => null
+        );
+      }
 
       if (cancelled) return;
 
@@ -81,7 +90,7 @@ export function useLeadershipLayoutStorage({
     // Los valores por defecto son constantes de modulo en cada vista; incluirlos
     // en las dependencias volveria a cargar el diseno en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nivel, idEntidad, applyLayout]);
+  }, [nivel, idEntidad, idEntidadRespaldo, applyLayout]);
 
   const guardar = useCallback(async () => {
     if (!canManage) {

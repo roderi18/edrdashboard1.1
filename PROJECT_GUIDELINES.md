@@ -267,7 +267,7 @@ combinar dos cargos.
 | **Niveles organizacionales** | `/dashboard/level/{national,regional,sectional,dest}` | CRUD + organigrama de directiva por nivel. |
 | **Miembros** | `/dashboard/level/member` | Lista (tabla y tarjetas), ficha, creación, carga masiva por Excel, PDF, solicitudes de cambio. |
 | **Miembros de un destacamento** | `/dashboard/level/dest/[id]/edit/members` | Pestaña que reutiliza la misma vista de miembros. |
-| **Directivas** | `.../edit/leadership`, `.../edit/youth-leadership` | Organigrama, asignaciones, diseños. |
+| **Directivas** | `.../edit/leadership`, `.../edit/youth-leadership` | Organigrama, asignaciones, diseños. El diseño de **Líderes Juveniles es uno solo para todos los destacamentos** (`destacamento-juvenil_global`); sin él se lee el de Tribu de Judá 18 (`231`), el modelo. Test: `tests/directivas/diseno-juvenil-global.test.mjs`. |
 | **Asistencia** | `/dashboard/level/attendance` | Pase de lista diario, resumen, informe avanzado, exportación. Offline-capable. |
 | **Dispensa médica** | `/dashboard/level/member/[id]/edit/health` | Info básica, medicamentos, alergias, condiciones, documentos, solicitudes de acceso. |
 | **Sistema de ascenso** | `.../edit/awards` | Catálogo de 490 premios transcrito del inventario oficial. |
