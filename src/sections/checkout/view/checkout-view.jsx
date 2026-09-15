@@ -72,6 +72,7 @@ export function CheckoutView() {
               orderId={checkoutState.order?.id}
               orderNumber={checkoutState.order?.orderNumber}
               evaluationInProcess={checkoutState.order?.requiereEvaluacion}
+              requestInProcess={checkoutState.order?.esSolicitud}
               onResetCart={onResetCart}
             />
           )}

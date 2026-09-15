@@ -185,13 +185,18 @@ export function OrderTableRow({
       <TableCell>
         <ListItemText
           primary={fDopCurrency(row.totalAmount ?? row.subtotal)}
+          // UNA SOLICITUD NO SE PAGA: debajo del total salia "solicitud" con el
+          // icono de tarjeta, como si fuera una forma de pago. Se deja solo el
+          // importe; el estado "Solicitado" ya dice lo que es.
           secondary={
-            <Box component="span" sx={{ gap: 0.5, display: 'inline-flex', alignItems: 'center' }}>
-              <Iconify icon={pago.icono} width={16} />
-              {pago.label}
-              {!!ultimosCuatro(row.payment?.cardNumber) &&
-                ` · ${ultimosCuatro(row.payment.cardNumber)}`}
-            </Box>
+            row.esSolicitud ? null : (
+              <Box component="span" sx={{ gap: 0.5, display: 'inline-flex', alignItems: 'center' }}>
+                <Iconify icon={pago.icono} width={16} />
+                {pago.label}
+                {!!ultimosCuatro(row.payment?.cardNumber) &&
+                  ` · ${ultimosCuatro(row.payment.cardNumber)}`}
+              </Box>
+            )
           }
           slotProps={{
             primary: { sx: { typography: 'subtitle2' } },

@@ -769,6 +769,10 @@ export default {
   'custom:estado-cancelado': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="m9.2 9.2 5.6 5.6"/><path d="m14.8 9.2-5.6 5.6"/></g>',
   },
+  // Una campana: lo solicitado espera a que alguien lo atienda y reponga.
+  'custom:estado-solicitado': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 16.5v-5a5.5 5.5 0 0 1 11 0v5l1.5 1.5H5z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></g>',
+  },
   'custom:estado-reembolsado': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 12a7.8 7.8 0 1 0 2.6-5.8"/><path d="M4 4v3.2h3.2"/></g>',
   },

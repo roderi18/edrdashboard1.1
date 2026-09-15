@@ -18,7 +18,11 @@ import { useSearchParams } from 'src/routes/hooks';
 
 import { fDopCurrency } from 'src/utils/format-number';
 import { fIsAfter, fDateTime, fIsBetween } from 'src/utils/format-time';
-import { isMemberSessionUser, filterOrdersByMemberSession } from 'src/utils/member-access';
+import {
+  isMemberSessionUser,
+  atiendeSolicitudesDeTienda,
+  filterOrdersByMemberSession,
+} from 'src/utils/member-access';
 
 import { _orders } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -69,7 +73,11 @@ const COLUMNAS_DESCARGA = [
   { label: 'Fecha', value: (row) => fDateTime(row.createdAt) },
   { label: 'Artículos', value: (row) => (row.items || []).length },
   { label: 'Total', value: (row) => fDopCurrency(row.totalAmount ?? row.subtotal) },
-  { label: 'Método de pago', value: (row) => metodoDePago(row.payment).label },
+  // Igual que en la columna: una solicitud no tiene forma de pago.
+  {
+    label: 'Método de pago',
+    value: (row) => (row.esSolicitud ? '' : metodoDePago(row.payment).label),
+  },
   {
     label: 'Estado',
     value: (row) => ESTADOS_DE_ORDEN.find((estado) => estado.value === row.status)?.label || '',
@@ -83,6 +91,7 @@ export function OrderListView() {
   const table = useTable({ defaultOrderBy: 'orderNumber' });
   const { onResetPage } = table;
   const { user } = useAuthContext();
+  const atiendeSolicitudes = atiendeSolicitudesDeTienda(user);
   const searchParams = useSearchParams();
   const canDelete = !isMemberSessionUser(user);
   const orderNumberParam = searchParams.get('orderNumber') || '';
@@ -231,6 +240,7 @@ export function OrderListView() {
         <Card sx={{ p: 2, mb: 2 }}>
           <OrderListFilters
             filters={filters}
+            atiendeSolicitudes={atiendeSolicitudes}
             onResetPage={table.onResetPage}
             dateError={dateError}
             acciones={
@@ -292,6 +302,7 @@ export function OrderListView() {
               valor={currentFilters.status}
               cuentas={cuentasPorEstado}
               onCambiar={handleFilterStatus}
+              atiendeSolicitudes={atiendeSolicitudes}
               onContactar={() => toast.info('Escríbenos desde el chat del panel.')}
               // `flex` Y NO `block`: la columna es un `Stack`, que reparte el
               // aire entre sus tarjetas con `gap` de flex. Con `display: block`

@@ -183,6 +183,16 @@ leer el test que las cubre.**
    es la Tienda**: el 20001 se rechaza al iniciar sesión y en las reglas. Quien
    contestó se guarda aparte, en `respuestas_tienda`, y el miembro no lo ve.
    Test: `tests/chat/chat-tienda-virtual.test.mjs`.
+9. **Un producto agotado se solicita, no se compra.** Con el inventario en 0 el
+   botón principal dice **"Solicitar producto"** y deja una orden en estado
+   `solicitada` (`esSolicitud: true`): **no descuenta inventario, no genera
+   recibo ni vacía el carrito**, y cancelarla o reactivarla tampoco mueve
+   existencias. Avisa a quien **atiende las solicitudes** —Administrador Global,
+   Administrador de Gestión de Tienda y Oficina Nacional
+   (`atiendeSolicitudesDeTienda`)—, no a todos los administradores. Solo ellos
+   ven el apartado **"Solicitados"**, y para ellos la lista se llama **"Órdenes"**
+   (con "Estados de los pedidos a Tienda Virtual."): ven las de todo el mundo.
+   Test: `tests/tienda/solicitar-producto-agotado.test.mjs`.
 
 ### Cargos que ocupan el mismo sitio pueden lo mismo ✅
 

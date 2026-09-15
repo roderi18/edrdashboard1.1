@@ -13,6 +13,10 @@ import {
 
 import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
+import {
+  AVISO_SOLICITUD_ENVIADA,
+  perfilAtiendeSolicitudes,
+} from 'src/utils/solicitud-producto.mjs';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -1354,6 +1358,170 @@ export async function crearNotificacionesPedidoCreado({ orden = {}, usuario = {}
       )
     )
   );
+
+  return notificacionesConfiguradas;
+}
+
+// ----------------------------------------------------------------------
+// A QUIEN SE AVISA DE UNA SOLICITUD DE PRODUCTO AGOTADO.
+//
+// A la Tienda Virtual —su Administrador de Gestion y el Administrador Global,
+// que atienden su buzon— y a la Oficina Nacional. No al resto de
+// administradores: "Nuevo pedido recibido" llega a toda cuenta administrativa,
+// y una solicitud que no puede atender nadie mas que la tienda seria ruido para
+// los coordinadores de cada destacamento.
+//
+// Se pregunta por TODOS los cargos de cada cuenta, no por el principal.
+// ----------------------------------------------------------------------
+
+const obtenerIdsQuienAtiendeSolicitudes = async () => {
+  const ids = new Set();
+
+  const leerColeccion = async (nombreColeccion) => {
+    const snapshot = await getDocs(collection(FIRESTORE, nombreColeccion)).catch(() => null);
+
+    snapshot?.docs?.forEach((item) => {
+      const data = item.data() ?? {};
+      const idUsuario = normalizarId(data.uid ?? data.idUsuario ?? item.id);
+
+      if (!idUsuario) return;
+
+      // La coleccion `admins` es el Administrador Global: entra sin mas.
+      if (
+        nombreColeccion === 'admins' ||
+        perfilAtiendeSolicitudes(cargosDelPerfil(data).map((cargo) => cargo.rol))
+      ) {
+        ids.add(idUsuario);
+      }
+    });
+  };
+
+  await Promise.all(['admins', 'users', 'usuarios_roles'].map(leerColeccion));
+
+  return Array.from(ids);
+};
+
+/**
+ * Alguien solicito un producto agotado. Avisa a quienes lo atienden y deja a
+ * quien lo pidio constancia de que el aviso salio.
+ */
+export async function crearNotificacionesSolicitudProducto({ orden = {}, usuario = {} }) {
+  asegurarFirebaseNotificaciones();
+
+  const idsQuienAtiende = await obtenerIdsQuienAtiendeSolicitudes();
+  const idUsuario = obtenerIdUsuarioNotificaciones(usuario) || String(orden?.usuarioId || '');
+  const fechaActual = new Date().toISOString();
+  const ordenId = orden?.ordenId || orden?.id || '';
+  const { numeroOrden, monto, cantidad, clienteNombre, clienteCorreo } =
+    construirDescripcionPedido(orden);
+  const productos = (orden?.items || [])
+    .map((item) => `${item?.nombre || 'Producto'} (x${Number(item?.cantidad || 0)})`)
+    .join(', ');
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || clienteNombre || usuario?.email || 'Cliente';
+  const ruta = numeroOrden ? `/dashboard/order/${numeroOrden}` : '/dashboard/order';
+  const metadatos = {
+    ordenId,
+    numeroOrden,
+    montoTotal: monto,
+    cantidadTotal: cantidad,
+    clienteNombre,
+    clienteCorreo,
+    productos,
+    miembroId: orden?.miembroId ?? usuario?.idMiembros ?? null,
+    codigoMiembro: orden?.cliente?.codigoMiembro ?? usuario?.codigoMiembro ?? null,
+  };
+  const base = {
+    modulo: 'pedidos',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    entidadTipo: 'pedido',
+    entidadId: ordenId,
+    ruta,
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos,
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  const notificaciones = [];
+  // Quien pide tambien puede atender (un Administrador de Tienda probando): no
+  // se le avisa de su propia solicitud como si fuera de otro.
+  const idsParaAtender = idsQuienAtiende.filter((id) => id !== idUsuario);
+
+  if (idsParaAtender.length) {
+    const mensaje = `solicitó ${productos || 'un producto agotado'} (pedido ${numeroOrden}).`;
+
+    notificaciones.push({
+      ...base,
+      id: `producto_solicitado_${sanitizeNotificationIdPart(ordenId || String(Date.now()))}`,
+      tipoNotificacion: 'producto_solicitado',
+      titulo: 'Producto solicitado',
+      tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> ${escapeHtml(mensaje)}</p>`,
+      mensaje,
+      mensajeVisual: mensaje,
+      rolDestinatario: 'admin',
+      idsDestinatarios: idsParaAtender,
+      prioridad: 'importante',
+      actorId: idUsuario || 'sistema',
+      actorTipo: 'usuario',
+      actorNombre,
+      actorFotoURL: usuario?.photoURL || null,
+      etiquetaAccion: 'Ver solicitud',
+    });
+  }
+
+  if (idUsuario) {
+    const mensaje = `tu solicitud ${numeroOrden} quedó registrada. ${AVISO_SOLICITUD_ENVIADA}`;
+
+    notificaciones.push({
+      ...base,
+      id: `producto_solicitado_miembro_${sanitizeNotificationIdPart(ordenId || String(Date.now()))}_${idUsuario}`,
+      tipoNotificacion: 'producto_solicitado_miembro',
+      titulo: 'Solicitud enviada',
+      tituloHtml: `<p><strong>${escapeHtml(numeroOrden)}</strong> quedó solicitado. ${escapeHtml(AVISO_SOLICITUD_ENVIADA)}</p>`,
+      mensaje,
+      mensajeVisual: mensaje,
+      rolDestinatario: 'usuario',
+      idsDestinatarios: [idUsuario],
+      prioridad: 'informativa',
+      actorId: 'sistema',
+      actorTipo: 'sistema',
+      actorNombre: 'Tienda',
+      actorFotoURL: null,
+      etiquetaAccion: 'Ver solicitud',
+    });
+  }
+
+  const notificacionesConfiguradas = (
+    await Promise.all(
+      notificaciones.map((notificacion) => resolverNotificacionConConfiguracion(notificacion))
+    )
+  ).filter(Boolean);
+
+  await Promise.all(
+    notificacionesConfiguradas.map((notificacion) =>
+      setDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
+        notificacion,
+        { merge: true }
+      )
+    )
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
 
   return notificacionesConfiguradas;
 }

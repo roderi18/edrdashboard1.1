@@ -8,6 +8,7 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { ESTADO_SOLICITADA } from 'src/utils/solicitud-producto.mjs';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 import { ID_TIENDA_VIRTUAL, idConversacionConTienda } from 'src/utils/chat-tienda-virtual.mjs';
 import {
@@ -33,6 +34,7 @@ import { guardarReciboFirestore, actualizarEstadoReciboFirestore } from './recei
 import {
   crearNotificacionesPedidoCreado,
   crearNotificacionEvaluacionPedido,
+  crearNotificacionesSolicitudProducto,
   crearNotificacionPedidoCanceladoAdmin,
   crearNotificacionArchivosFaltantesPedido,
 } from './notification-service';
@@ -260,6 +262,82 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
   };
 };
 
+// ----------------------------------------------------------------------
+// SOLICITAR UN PRODUCTO AGOTADO.
+//
+// Deja una orden en estado SOLICITADA con el numero de siempre —asi se busca y
+// se habla de ella igual que de un pedido—, pero sin lo que hace una compra: no
+// descuenta inventario, que esta en 0; no genera recibo, porque no se cobro
+// nada; y no vacia el carrito de la persona, que puede tener otras cosas.
+// ----------------------------------------------------------------------
+
+export const crearSolicitudProductoFirestore = async ({ user, item }) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !item) return null;
+
+  const orderId = `orden-${Date.now()}`;
+  const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
+  const numeroOrden = await siguienteNumeroDeOrden();
+  const subtotal = Number(item?.subtotal ?? Number(item?.price || 0) * Number(item?.quantity || 0));
+  const checkoutState = { items: [item], subtotal, discount: 0, shipping: 0, billing: null };
+
+  const base = crearDocumentoOrden({
+    user,
+    orderId,
+    receiptId: null,
+    numeroOrden,
+    checkoutState,
+    paymentData: { payment: 'solicitud', reference: 'Solicitud de producto agotado' },
+  });
+  const [primerEvento, ...resto] = base.historial?.lineaDeTiempo || [];
+
+  const orderDoc = {
+    ...base,
+    esSolicitud: true,
+    estado: ESTADO_SOLICITADA,
+    // Se quita la evaluacion que pondria un producto restringido: lo que espera
+    // una solicitud es reposicion, no que alguien revise evidencias de compra.
+    requiereEvaluacion: false,
+    reciboId: null,
+    pago: { ...base.pago, estadoPago: 'no_aplica' },
+    historial: {
+      ...base.historial,
+      fechaPago: null,
+      lineaDeTiempo: [
+        {
+          ...primerEvento,
+          titulo: 'Producto solicitado',
+          descripcion: 'Sin existencias. Se notificó a Tienda Virtual y Oficina Nacional.',
+        },
+        ...resto,
+      ],
+    },
+  };
+
+  await setDoc(orderRef, orderDoc);
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'pedidos',
+    accion: 'producto_solicitado',
+    descripcion: `Solicitud ${orderDoc.numeroOrden || orderId} creada.`,
+    entidad: {
+      tipo: 'pedido',
+      id: orderId,
+      nombre: orderDoc.numeroOrden || orderId,
+      ruta: `/dashboard/order/${orderId}`,
+    },
+    despues: orderDoc,
+    realizadoPor: user,
+  });
+
+  try {
+    await crearNotificacionesSolicitudProducto({ orden: orderDoc, usuario: user });
+  } catch (notificationError) {
+    console.error('[order service] no se pudo notificar la solicitud', notificationError);
+  }
+
+  return { order: mapearOrdenFirestoreAUi({ id: orderId, ...orderDoc }) };
+};
+
 export const listarOrdenesFirestore = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
@@ -311,7 +389,12 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
   const nextStatusEs = mapearEstadoOrdenUiAFirestore(nextStatus);
   const isCancelling = currentStatus !== 'cancelada' && nextStatusEs === 'cancelada';
   const isReactivating = currentStatus === 'cancelada' && nextStatusEs !== 'cancelada';
-  const inventarioFueDescontado = !ordenRequiereEvaluacion(currentData);
+  // Una solicitud nunca desconto nada: cancelarla no puede devolver existencias
+  // que no se quitaron, ni pasarla a pendiente quitarlas de un producto en 0.
+  const inventarioFueDescontado =
+    !ordenRequiereEvaluacion(currentData) &&
+    !currentData?.esSolicitud &&
+    currentStatus !== ESTADO_SOLICITADA;
 
   if (inventarioFueDescontado && (isCancelling || isReactivating)) {
     for (const item of currentData?.items || []) {

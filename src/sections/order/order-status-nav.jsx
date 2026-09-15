@@ -31,6 +31,19 @@ import { Iconify } from 'src/components/iconify';
 // que espera, verde lo hecho, rojo lo que se cayo.
 export const ESTADOS_DE_ORDEN = [
   { value: 'all', label: 'Todos', color: 'primary', icono: 'custom:estado-todos' },
+  // LO SOLICITADO: productos agotados que alguien pidio. El apartado solo lo ven
+  // quienes lo atienden —Tienda Virtual y Oficina Nacional—; quien solicito ve
+  // su orden en "Todos", con la etiqueta "Solicitado".
+  {
+    value: 'requested',
+    label: 'Solicitado',
+    apartado: 'Solicitados',
+    // VIOLETA (`secondary`): no es ninguno de los que ya dicen algo —amarillo
+    // espera, verde hecho, rojo caido— ni el azul de "Todos".
+    color: 'secondary',
+    icono: 'custom:estado-solicitado',
+    soloQuienAtiende: true,
+  },
   { value: 'pending', label: 'Pendiente', color: 'warning', icono: 'custom:estado-pendiente' },
   {
     value: 'completed',
@@ -47,6 +60,10 @@ export const ESTADOS_DE_ORDEN = [
   },
 ];
 
+/** Los estados que se ofrecen para filtrar, segun quien mira. */
+export const estadosVisibles = (atiendeSolicitudes = false) =>
+  ESTADOS_DE_ORDEN.filter((estado) => !estado.soloQuienAtiende || atiendeSolicitudes);
+
 /** Cuantos pedidos hay en cada estado. "Todos" es el total, no un estado mas. */
 export const contarPorEstado = (ordenes = []) =>
   ESTADOS_DE_ORDEN.reduce(
@@ -60,7 +77,14 @@ export const contarPorEstado = (ordenes = []) =>
     {}
   );
 
-export function OrderStatusNav({ valor, cuentas, onCambiar, onContactar, sx }) {
+export function OrderStatusNav({
+  valor,
+  cuentas,
+  onCambiar,
+  onContactar,
+  atiendeSolicitudes = false,
+  sx,
+}) {
   return (
     <Stack spacing={3} sx={sx}>
       {/* MARGEN AL BORDE Y ENTRE BLOQUES. Las filas llegaban hasta el filo de la
@@ -84,16 +108,23 @@ export function OrderStatusNav({ valor, cuentas, onCambiar, onContactar, sx }) {
           </Box>
 
           <Box>
-            <Typography variant="subtitle1">Mis órdenes</Typography>
+            {/* "MIS" ORDENES SOLO PARA QUIEN MIRA LAS SUYAS. Tienda Virtual y
+                Oficina Nacional ven los pedidos de todo el mundo: para ellos
+                "Mis ordenes" decia algo que no era. */}
+            <Typography variant="subtitle1">
+              {atiendeSolicitudes ? 'Órdenes' : 'Mis órdenes'}
+            </Typography>
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Consulta el estado de tus pedidos.
+              {atiendeSolicitudes
+                ? 'Estados de los pedidos a Tienda Virtual.'
+                : 'Consulta el estado de tus pedidos.'}
             </Typography>
           </Box>
         </Stack>
 
         <MenuList sx={{ p: 0, gap: 0.5, display: 'flex', flexDirection: 'column' }}>
-          {ESTADOS_DE_ORDEN.map((estado) => (
+          {estadosVisibles(atiendeSolicitudes).map((estado) => (
             <MenuItem
               key={estado.value}
               selected={valor === estado.value}
@@ -108,7 +139,7 @@ export function OrderStatusNav({ valor, cuentas, onCambiar, onContactar, sx }) {
                 }}
               />
 
-              <Box sx={{ flexGrow: 1, typography: 'body2' }}>{estado.label}</Box>
+              <Box sx={{ flexGrow: 1, typography: 'body2' }}>{estado.apartado ?? estado.label}</Box>
 
               {/* La cuenta en gris y no en color: lo que tiene que saltar a la
                   vista es el estado elegido, no cuantos hay de cada uno. */}

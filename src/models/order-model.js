@@ -170,6 +170,8 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
   orderNumber: doc?.numeroOrden,
   createdAt: timestampToIsoString(doc?.fechaCreacion),
   taxes: Number(doc?.impuestos ?? 0),
+  // Una solicitud de producto agotado: no descuenta inventario ni lleva recibo.
+  esSolicitud: Boolean(doc?.esSolicitud || doc?.estado === 'solicitada'),
   requiereEvaluacion: Boolean(
     doc?.requiereEvaluacion ||
       (doc?.items || []).some((item) => item?.requiereAprobacion || item?.renglon === 'restringido')
@@ -243,7 +245,9 @@ export const mapearOrdenFirestoreAUi = (doc = {}) => ({
         ? 'completed'
         : doc?.estado === 'reembolsada'
           ? 'refunded'
-          : 'pending',
+          : doc?.estado === 'solicitada'
+            ? 'requested'
+            : 'pending',
   receiptId: doc?.reciboId || null,
 });
 
@@ -254,6 +258,7 @@ export const mapearEstadoOrdenUiAFirestore = (status = '') => {
   if (normalized === 'completed') return 'completada';
   if (normalized === 'refunded') return 'reembolsada';
   if (normalized === 'paid') return 'pagada';
+  if (normalized === 'requested') return 'solicitada';
 
   return 'pendiente';
 };

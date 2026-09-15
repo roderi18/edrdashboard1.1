@@ -6,9 +6,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
-import {
-  crearOrdenFirestore,
-} from 'src/services/order-service';
+import { crearOrdenFirestore, crearSolicitudProductoFirestore } from 'src/services/order-service';
 import {
   guardarCarritoUsuario,
   limpiarCarritoUsuario,
@@ -308,6 +306,22 @@ function CheckoutContainer({ children }) {
     [commitState, normalizeCheckoutState, state, user]
   );
 
+  // SOLICITAR UN PRODUCTO AGOTADO. Termina en el mismo cierre del carrito que
+  // una compra, pero con la orden en estado Solicitado. Los articulos que la
+  // persona ya tenia en el carrito se quedan: la solicitud va aparte.
+  const onCreateProductRequest = useCallback(
+    async ({ item }) => {
+      const request = await crearSolicitudProductoFirestore({ user, item });
+
+      if (request) {
+        commitState({ ...state, order: request.order, receipt: null }, { persist: false });
+      }
+
+      return request;
+    },
+    [commitState, state, user]
+  );
+
   const memoizedValue = useMemo(
     () => ({
       state,
@@ -326,6 +340,7 @@ function CheckoutContainer({ children }) {
       onResetCart,
       onCreateOrder,
       onCreateEvaluationOrder,
+      onCreateProductRequest,
       onApplyDiscount,
       onApplyShipping,
       onDeleteCartItem,
@@ -343,6 +358,7 @@ function CheckoutContainer({ children }) {
       onResetCart,
       onCreateOrder,
       onCreateEvaluationOrder,
+      onCreateProductRequest,
       onAddToCart,
       onChangeStep,
       onApplyDiscount,

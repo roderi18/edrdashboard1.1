@@ -20,6 +20,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
+  requested: 'Solicitado',
   completed: 'Completado',
   cancelled: 'Cancelado',
   refunded: 'Reembolsado',
@@ -84,6 +85,7 @@ export function OrderDetailsToolbar({
                   (status === 'completed' && 'success') ||
                   (status === 'pending' && 'warning') ||
                   (status === 'cancelled' && 'error') ||
+                  (status === 'requested' && 'secondary') ||
                   'default'
                 }
               >

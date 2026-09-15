@@ -60,7 +60,7 @@ const SUMMARY = [
 // ----------------------------------------------------------------------
 
 export function ProductShopDetailsView({ product, productId }) {
-  const { state: checkoutState, onAddToCart } = useCheckoutContext();
+  const { state: checkoutState, onAddToCart, onCreateProductRequest } = useCheckoutContext();
   const { user } = useAuthContext();
 
   const searchParams = useSearchParams();
@@ -155,6 +155,7 @@ export function ProductShopDetailsView({ product, productId }) {
                     product={resolvedProduct}
                     items={checkoutState.items}
                     onAddToCart={onAddToCart}
+                    onCreateProductRequest={onCreateProductRequest}
                     disableActions={!resolvedProduct?.available}
                   />
                 )}

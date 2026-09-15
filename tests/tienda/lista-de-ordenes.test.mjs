@@ -25,8 +25,15 @@ test('los estados salen de una sola lista, no de tres copias', () => {
   // añada un estado se añade en uno y no en los otros, y las cuentas dejan de
   // cuadrar entre si.
   assert.match(navegacion, /export const ESTADOS_DE_ORDEN = \[/);
-  assert.match(filtros, /ESTADOS_DE_ORDEN\.map/);
-  assert.match(navegacion, /ESTADOS_DE_ORDEN\.map/);
+  // La columna y el desplegable ofrecen los que ve cada cual —"Solicitados"
+  // solo lo ve quien atiende la tienda—, pero salen de la MISMA lista: el
+  // recorte se hace en un solo sitio y no hay una segunda lista escrita a mano.
+  assert.match(
+    navegacion,
+    /export const estadosVisibles = \(atiendeSolicitudes = false\) =>\s*ESTADOS_DE_ORDEN\.filter\(/
+  );
+  assert.match(filtros, /estadosVisibles\(atiendeSolicitudes\)\.map/);
+  assert.match(navegacion, /estadosVisibles\(atiendeSolicitudes\)\.map/);
   // La fila tambien la usa: tenerla escrita alli otra vez era pedir que un
   // pedido cancelado fuera rojo en un sitio y gris en otro.
   assert.match(fila, /import \{ ESTADOS_DE_ORDEN \} from '\.\/order-status-nav';/);
@@ -389,6 +396,7 @@ test('los iconos de estado y de garantia son de linea', () => {
     ])
     .forEach(deLinea);
 
-  // Y son cinco estados y tres garantias, no menos.
-  assert.equal(navegacion.match(/icono: 'custom:estado-/g).length, 5);
+  // Y son seis estados —con "Solicitado", el de los productos agotados— y tres
+  // garantias, no menos.
+  assert.equal(navegacion.match(/icono: 'custom:estado-/g).length, 6);
 });

@@ -6,7 +6,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { Iconify } from 'src/components/iconify';
 
-import { ESTADOS_DE_ORDEN } from './order-status-nav';
+import { estadosVisibles } from './order-status-nav';
 
 // ----------------------------------------------------------------------
 // LOS FILTROS DE LA LISTA DE PEDIDOS.
@@ -80,7 +80,13 @@ export const ORDENES_DE_LISTA = [
   { value: 'menor', label: 'Menor importe' },
 ];
 
-export function OrderListFilters({ filters, onResetPage, dateError, acciones }) {
+export function OrderListFilters({
+  filters,
+  onResetPage,
+  dateError,
+  acciones,
+  atiendeSolicitudes = false,
+}) {
   const { state: actuales, setState: cambiar } = filters;
 
   const aplicar = (cambios) => {
@@ -155,7 +161,7 @@ export function OrderListFilters({ filters, onResetPage, dateError, acciones }) 
         value={actuales.status}
         onChange={(evento) => aplicar({ status: evento.target.value })}
       >
-        {ESTADOS_DE_ORDEN.map((estado) => (
+        {estadosVisibles(atiendeSolicitudes).map((estado) => (
           <MenuItem key={estado.value} value={estado.value}>
             {estado.label}
           </MenuItem>

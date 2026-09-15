@@ -16,10 +16,12 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
+import { productoAgotado } from 'src/utils/solicitud-producto.mjs';
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { ColorPicker } from 'src/components/color-utils';
@@ -41,6 +43,7 @@ export function ProductDetailsSummary({
   onAddToCart,
   disableActions,
   onCreateEvaluationOrder,
+  onCreateProductRequest,
   ...other
 }) {
   const router = useRouter();
@@ -81,6 +84,11 @@ export function ProductDetailsSummary({
   const [evidenceFiles, setEvidenceFiles] = useState([]);
 
   const availableQuantity = Number(available) || 0;
+  // SIN EXISTENCIAS SE SOLICITA. El boton principal pasa a "Solicitar producto"
+  // y la cantidad deja de estar atada a lo disponible, que es 0: lo que se pide
+  // es cuantas hacen falta.
+  const isOutOfStock = productoAgotado({ available });
+  const MAX_SOLICITUD = 99;
   const isMaxQuantity =
     !!items?.length &&
     items.filter((item) => item.id === id).map((item) => item.quantity)[0] >= availableQuantity;
@@ -99,10 +107,11 @@ export function ProductDetailsSummary({
       tipoProducto,
       colors: productColors[0] || '',
       size: isUniformProduct ? productSizes[0] || '' : '',
-      quantity: availableQuantity < 1 ? 0 : 1,
+      quantity: availableQuantity < 1 && !isOutOfStock ? 0 : 1,
     }),
     [
       availableQuantity,
+      isOutOfStock,
       coverUrl,
       id,
       name,
@@ -157,6 +166,17 @@ export function ProductDetailsSummary({
         subtotal: values.price * values.quantity,
       };
 
+      if (isOutOfStock) {
+        const request = await onCreateProductRequest?.({ item: itemToOrder });
+
+        if (request) {
+          router.push(`${checkoutPath}?step=3`);
+        } else {
+          toast.error('No se pudo enviar la solicitud. Inténtalo de nuevo.');
+        }
+        return;
+      }
+
       if (isRestrictedProduct) {
         await onCreateEvaluationOrder?.({ item: itemToOrder });
         router.push(`${checkoutPath}?step=3`);
@@ -171,6 +191,10 @@ export function ProductDetailsSummary({
       router.push(checkoutPath);
     } catch (error) {
       console.error(error);
+
+      if (isOutOfStock) {
+        toast.error('No se pudo enviar la solicitud. Inténtalo de nuevo.');
+      }
     }
   });
 
@@ -317,8 +341,8 @@ export function ProductDetailsSummary({
           hideDivider
           value={values.quantity}
           onChange={(event, quantity) => setValue('quantity', quantity)}
-          min={availableQuantity > 0 ? 1 : 0}
-          max={availableQuantity}
+          min={availableQuantity > 0 || isOutOfStock ? 1 : 0}
+          max={isOutOfStock ? MAX_SOLICITUD : availableQuantity}
           sx={{ maxWidth: 112 }}
         />
 
@@ -404,9 +428,13 @@ export function ProductDetailsSummary({
             type="submit"
             variant="contained"
             loading={isSubmitting}
-            disabled={disableActions || !hasQuantity || !hasRequiredEvidence}
+            disabled={(disableActions && !isOutOfStock) || !hasQuantity || !hasRequiredEvidence}
           >
-            {isRestrictedProduct ? 'Enviar a evaluación' : 'Comprar ahora'}
+            {isOutOfStock
+              ? 'Solicitar producto'
+              : isRestrictedProduct
+                ? 'Enviar a evaluación'
+                : 'Comprar ahora'}
           </Button>
         </Box>
       </Tooltip>

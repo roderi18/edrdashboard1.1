@@ -76,7 +76,12 @@ export function ProductDetailsView({ product, productId }) {
   const selectedReviewId = searchParams.get('reviewId') || '';
   const tabs = useTabs(selectedTab);
   const { setValue: setTabValue } = tabs;
-  const { state: checkoutState, onAddToCart, onCreateEvaluationOrder } = useCheckoutContext();
+  const {
+    state: checkoutState,
+    onAddToCart,
+    onCreateEvaluationOrder,
+    onCreateProductRequest,
+  } = useCheckoutContext();
   const { user } = useAuthContext();
 
   const [publish, setPublish] = useState('');
@@ -191,6 +196,7 @@ export function ProductDetailsView({ product, productId }) {
                   items={checkoutState.items}
                   onAddToCart={onAddToCart}
                   onCreateEvaluationOrder={onCreateEvaluationOrder}
+                  onCreateProductRequest={onCreateProductRequest}
                   disableActions={!resolvedProduct?.available}
                 />
               )}

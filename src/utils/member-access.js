@@ -2217,6 +2217,13 @@ export const canEditStoreProduct = (user = {}) =>
 // definitivo; por eso pasa por una confirmacion y queda en la auditoria.
 export const canDeleteProductFromDetails = (user = {}) => isAdminGlobal(user);
 
+// QUIEN ATIENDE LO QUE SE PIDE A LA TIENDA: la Tienda Virtual —su Administrador
+// de Gestion y el Administrador Global— y la Oficina Nacional. Ven el apartado
+// "Solicitados", reciben el aviso de cada solicitud de un producto agotado y
+// para ellos la lista es "Ordenes", no "Mis ordenes": ven las de todo el mundo.
+export const atiendeSolicitudesDeTienda = (user = {}) =>
+  isAdminGlobal(user) || canManageStoreProducts(user) || isOficinaNacional(user);
+
 const hasExplicitAdminPermissions = (permissions = {}) =>
   hasExplicitPermissions(permissions) &&
   Object.keys(permissions).some((permissionKey) => ADMIN_PERMISSION_MODULE_KEYS.has(permissionKey));
@@ -2271,7 +2278,7 @@ const isShopNavItem = (item = {}) => {
   );
 };
 
-const buildCustomerShopNavItem = (item = {}) => ({
+const buildCustomerShopNavItem = (item = {}, user = {}) => ({
   ...item,
   title: 'Tienda Virtual',
   path: paths.dashboard.product.root,
@@ -2283,7 +2290,8 @@ const buildCustomerShopNavItem = (item = {}) => ({
       memberShopChild: true,
     },
     {
-      title: 'Mis ordenes',
+      // Quien atiende la tienda ve los pedidos de todos: "Mis" no le cuadra.
+      title: atiendeSolicitudesDeTienda(user) ? 'Órdenes' : 'Mis ordenes',
       path: paths.dashboard.order.root,
       deepMatch: true,
       memberShopChild: true,
@@ -2470,7 +2478,7 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
 
             if (item.children) {
               if (isMemberSessionUser(user) && isShopItem) {
-                return itemAllowed ? buildCustomerShopNavItem(item) : null;
+                return itemAllowed ? buildCustomerShopNavItem(item, user) : null;
               }
 
               if (isMemberSessionUser(user) && isMemberDirectContentItem && itemAllowed) {
@@ -2570,7 +2578,7 @@ export const filterDashboardNavDataByUser = (navData = [], user) => {
     items
       .map((item) => {
         if (shouldUseCustomerShopNav(user) && isCustomerShopParentItem(item)) {
-          return buildCustomerShopNavItem(item);
+          return buildCustomerShopNavItem(item, user);
         }
 
         const childItems = item.children ? filterItems(item.children) : [];

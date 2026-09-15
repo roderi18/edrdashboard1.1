@@ -11,8 +11,11 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { AVISO_SOLICITUD_ENVIADA } from 'src/utils/solicitud-producto.mjs';
+
 import { OrderCompleteIllustration } from 'src/assets/illustrations';
 
+import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -30,6 +33,7 @@ export function CheckoutOrderComplete({
   orderNumber,
   onResetCart,
   evaluationInProcess = false,
+  requestInProcess = false,
   slotProps,
   ...other
 }) {
@@ -40,6 +44,9 @@ export function CheckoutOrderComplete({
   const dialogPaperSx = slotProps?.paper?.sx;
   const receiptLabel = receipt?.invoiceNumber || orderNumber || 'Recibo local creado';
   const receiptDetailsPath = receipt?.id ? paths.dashboard.invoice.details(receipt.id) : '';
+  // Una solicitud no tiene recibo: se enlaza la orden, que es donde se sigue.
+  const orderDetailsPath =
+    orderNumber || orderId ? paths.dashboard.order.details(orderNumber || orderId) : '';
 
   return (
     <Dialog
@@ -74,30 +81,54 @@ export function CheckoutOrderComplete({
         }}
       >
         <Typography variant="h4">
-          {evaluationInProcess ? 'Evaluación en proceso' : 'Gracias por tu compra!'}
+          {requestInProcess
+            ? 'Producto solicitado'
+            : evaluationInProcess
+              ? 'Evaluación en proceso'
+              : 'Gracias por tu compra!'}
         </Typography>
 
         <OrderCompleteIllustration />
 
-        <Typography>
-          {evaluationInProcess ? 'Tu solicitud fue enviada correctamente' : 'Orden creada correctamente'}
-          <br />
-          <br />
-          {receiptDetailsPath ? (
-            <Link component={RouterLink} href={receiptDetailsPath}>
-              {receiptLabel}
+        {requestInProcess ? (
+          <Typography component="div">
+            Tu solicitud quedó registrada con el estado
+            <Label variant="soft" color="secondary" sx={{ mx: 0.75 }}>
+              Solicitado
+            </Label>
+            <br />
+            <br />
+            <Link component={RouterLink} href={orderDetailsPath}>
+              {orderNumber || 'Ver solicitud'}
             </Link>
-          ) : (
-            <Link component="span">{receiptLabel}</Link>
-          )}
-          <br />
-          <br />
-          {evaluationInProcess
-            ? 'Tu evaluación está en proceso. Te enviaremos una notificación cuando sea revisada.'
-            : 'Te enviaremos una notificacion cuando la orden sea procesada.'}
-          <br /> Si tienes alguna pregunta, contacta a soporte. <br />
-          Gracias,
-        </Typography>
+            <br />
+            <br />
+            {AVISO_SOLICITUD_ENVIADA}
+            <br /> Te avisaremos cuando el producto esté disponible.
+          </Typography>
+        ) : (
+          <Typography>
+            {evaluationInProcess
+              ? 'Tu solicitud fue enviada correctamente'
+              : 'Orden creada correctamente'}
+            <br />
+            <br />
+            {receiptDetailsPath ? (
+              <Link component={RouterLink} href={receiptDetailsPath}>
+                {receiptLabel}
+              </Link>
+            ) : (
+              <Link component="span">{receiptLabel}</Link>
+            )}
+            <br />
+            <br />
+            {evaluationInProcess
+              ? 'Tu evaluación está en proceso. Te enviaremos una notificación cuando sea revisada.'
+              : 'Te enviaremos una notificacion cuando la orden sea procesada.'}
+            <br /> Si tienes alguna pregunta, contacta a soporte. <br />
+            Gracias,
+          </Typography>
+        )}
 
         <Divider sx={{ width: 1, borderStyle: 'dashed' }} />
 
@@ -115,7 +146,10 @@ export function CheckoutOrderComplete({
             size="large"
             color="inherit"
             variant="outlined"
-            onClick={onResetCart}
+            // Tras una solicitud el carrito se deja como estaba: vaciarlo borraba
+            // lo que la persona ya iba a comprar, que no tiene que ver con el
+            // producto agotado que acaba de pedir.
+            onClick={requestInProcess ? undefined : onResetCart}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           >
             Continuar comprando
