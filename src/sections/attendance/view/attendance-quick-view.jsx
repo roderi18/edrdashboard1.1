@@ -3,7 +3,7 @@
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
+import { memo, useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -28,7 +28,9 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 import CircularProgress from '@mui/material/CircularProgress';
+import { PickersActionBar } from '@mui/x-date-pickers/PickersActionBar';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -42,6 +44,13 @@ import {
   primerApellidoDeTexto,
   primerApellidoDePalabras,
 } from 'src/utils/nombres-de-persona';
+import {
+  ordenarRango,
+  fechasConActividad,
+  fechaSeleccionable,
+  motivoRangoInvalido,
+  corregirFechaDeAsistencia,
+} from 'src/utils/actividades-asistencia.mjs';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
 import { themeConfig } from 'src/theme/theme-config';
@@ -51,6 +60,8 @@ import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import {
+  crearActividadAsistencia,
+  listarActividadesAsistencia,
   limpiarAsistenciaDestacamento,
   guardarAsistenciaDestacamento,
   obtenerAsistenciaDestacamento,
@@ -792,6 +803,144 @@ function AttendanceMemberSkeleton() {
 
 // ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+// EL CALENDARIO CON ACTIVIDADES.
+//
+// Los dos van fuera de la vista: un componente de `slots` declarado dentro se
+// crearia de nuevo en cada pintado y el calendario se desmontaria al pulsar.
+// Lo que necesitan les llega por `slotProps`.
+// ----------------------------------------------------------------------
+
+// El dia: en el modo "Agregar actividad" pulsar elige el rango en vez de la
+// fecha, y los dias que ya son de una actividad llevan un punto debajo.
+function DiaDelCalendario({
+  modoActividad = false,
+  rango = null,
+  conActividad = null,
+  onElegirDiaActividad,
+  ...props
+}) {
+  const fecha = props.day ? dayjs(props.day).format('YYYY-MM-DD') : '';
+  const { fechaInicio, fechaFin } = rango?.inicio
+    ? ordenarRango(rango.inicio, rango.fin || rango.inicio)
+    : { fechaInicio: '', fechaFin: '' };
+  const enRango = modoActividad && fechaInicio && fecha >= fechaInicio && fecha <= fechaFin;
+  const esExtremo = enRango && (fecha === fechaInicio || fecha === fechaFin);
+  const tieneActividad = !modoActividad && conActividad?.has(fecha) && !props.outsideCurrentMonth;
+
+  return (
+    <PickersDay
+      {...props}
+      selected={modoActividad ? Boolean(esExtremo) : props.selected}
+      onDaySelect={(dia) =>
+        modoActividad ? onElegirDiaActividad?.(dayjs(dia)) : props.onDaySelect?.(dia)
+      }
+      sx={[
+        enRango &&
+          !esExtremo && {
+            borderRadius: 1,
+            bgcolor: 'primary.lighter',
+            color: 'primary.darker',
+            '&:hover, &:focus': { bgcolor: 'primary.light' },
+          },
+        tieneActividad && {
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 3,
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            bgcolor: 'warning.main',
+          },
+        },
+      ]}
+    />
+  );
+}
+
+// La barra de abajo del calendario. Fuera del modo, "Agregar actividad" junto a
+// los botones de siempre (en el movil, Cancelar/Aceptar). Dentro, el rango
+// elegido y la confirmacion.
+function BarraDelCalendario({
+  className,
+  puedeAgregarActividad = false,
+  modoActividad = false,
+  rango = null,
+  guardandoActividad = false,
+  onEmpezarActividad,
+  onCancelarActividad,
+  onAceptarActividad,
+  ...props
+}) {
+  if (!modoActividad) {
+    return (
+      <Box
+        className={className}
+        sx={{ px: 2, pb: 1.5, gap: 1, display: 'flex', alignItems: 'center' }}
+      >
+        {puedeAgregarActividad && (
+          <Button
+            size="small"
+            color="primary"
+            onClick={onEmpezarActividad}
+            startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+          >
+            Agregar actividad
+          </Button>
+        )}
+
+        <PickersActionBar {...props} sx={{ ml: 'auto', p: 0 }} />
+      </Box>
+    );
+  }
+
+  const inicio = rango?.inicio ? dayjs(rango.inicio).format('DD/MM/YYYY') : '';
+  const fin = rango?.fin ? dayjs(rango.fin).format('DD/MM/YYYY') : '';
+  const { fechaInicio, fechaFin } = rango?.inicio
+    ? ordenarRango(rango.inicio, rango.fin || rango.inicio)
+    : { fechaInicio: '', fechaFin: '' };
+  const motivo = rango?.inicio ? motivoRangoInvalido(fechaInicio, fechaFin) : '';
+
+  return (
+    <Box className={className} sx={{ px: 2, pb: 1.5, maxWidth: 320 }}>
+      <Typography variant="caption" component="div" sx={{ color: 'text.secondary', mb: 1 }}>
+        {!inicio && 'Elige el día de la actividad, o el primero y el último si dura varios.'}
+        {inicio && !fin && `Actividad el ${inicio}. Pulsa otro día si dura más.`}
+        {inicio && fin && fechaInicio !== fechaFin && (
+          <>
+            Desde <strong>{dayjs(fechaInicio).format('DD/MM/YYYY')}</strong> hasta{' '}
+            <strong>{dayjs(fechaFin).format('DD/MM/YYYY')}</strong>
+          </>
+        )}
+        {inicio && fin && fechaInicio === fechaFin && `Actividad el ${inicio}.`}
+      </Typography>
+
+      {motivo && inicio && (
+        <Typography variant="caption" component="div" sx={{ color: 'error.main', mb: 1 }}>
+          {motivo}
+        </Typography>
+      )}
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <Button size="small" color="inherit" onClick={onCancelarActividad}>
+          Cancelar
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={onAceptarActividad}
+          disabled={!inicio || Boolean(motivo) || guardandoActividad}
+          loading={guardandoActividad}
+        >
+          Aceptar
+        </Button>
+      </Stack>
+    </Box>
+  );
+}
+
 export function AttendanceQuickView() {
   const { user } = useAuthContext();
   const menuActions = usePopover();
@@ -827,6 +976,27 @@ export function AttendanceQuickView() {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const hayConexion = useHayConexion();
+  // ACTIVIDADES del destacamento: sus dias se abren aunque no sean de reunion y
+  // aunque todavia no hayan llegado. El calendario va controlado para poder
+  // quedarse abierto mientras se elige el rango de una actividad nueva.
+  const [actividades, setActividades] = useState([]);
+  const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+  const [modoActividad, setModoActividad] = useState(false);
+  const [rangoActividad, setRangoActividad] = useState({ inicio: '', fin: '' });
+  const [guardandoActividad, setGuardandoActividad] = useState(false);
+  const conActividad = useMemo(() => fechasConActividad(actividades), [actividades]);
+  // GUARDADO AUTOMATICO. Cada marca sube el contador; lo guardado recuerda hasta
+  // cual llego. Lo que carga Firebase no lo sube, asi que abrir un dia no lo
+  // vuelve a escribir.
+  const [versionCambios, setVersionCambios] = useState(0);
+  const versionGuardadaRef = useRef(0);
+  const versionCambiosRef = useRef(0);
+  const pendienteRef = useRef(null);
+  // Donde esta la pantalla ahora, para saber si lo que termina de guardarse
+  // sigue siendo lo que se ve; y la funcion de guardar para usarla al salir.
+  const pantallaRef = useRef({ fecha: date, idDestacamento: '' });
+  const guardarInstantaneaRef = useRef(null);
+  const [ultimoAutoguardado, setUltimoAutoguardado] = useState(null);
   // LA ESTRUCTURA CON LA QUE SE ACOTA, entera y sin filtrar.
   //
   // `dests` va aparte de la lista que se pinta: aquella ya viene acotada por el
@@ -1015,29 +1185,55 @@ export function AttendanceQuickView() {
   //
   // Se corrige sola, y siempre HACIA ATRAS: al ultimo dia de reunion ya
   // celebrado, que es el que se viene a pasar.
+  //
+  // Salvo que sea dia de una actividad: esa fecha se respeta, sea futura o no.
   useEffect(() => {
-    if (!date) return;
+    if (!date || !dayjs(date).isValid()) return;
 
-    const hoy = dayjs();
-    let fecha = dayjs(date);
-
-    if (!fecha.isValid()) return;
-
-    // Primero se trae del futuro; despues se retrocede a su dia de la semana.
-    if (fecha.isAfter(hoy, 'day')) {
-      fecha = hoy;
-    }
-
-    if (diaDeReunion !== null) {
-      fecha = fecha.subtract((fecha.day() - diaDeReunion + 7) % 7, 'day');
-    }
-
-    const corregida = fecha.format('YYYY-MM-DD');
+    const corregida = corregirFechaDeAsistencia({
+      fecha: date,
+      hoy: dayjs().format('YYYY-MM-DD'),
+      diaDeReunion,
+      conActividad,
+    });
 
     if (corregida !== date) {
       setDate(corregida);
     }
-  }, [date, diaDeReunion]);
+  }, [date, diaDeReunion, conActividad]);
+
+  useEffect(() => {
+    let activo = true;
+
+    setActividades([]);
+
+    if (!selectedDestId) return undefined;
+
+    listarActividadesAsistencia({ idDestacamento: selectedDestId })
+      .then((lista) => {
+        if (activo) setActividades(lista);
+      })
+      .catch((error) => console.error('[asistencia] no se pudieron leer las actividades', error));
+
+    return () => {
+      activo = false;
+    };
+  }, [selectedDestId]);
+
+  const cerrarCalendario = useCallback(() => {
+    setCalendarioAbierto(false);
+    setModoActividad(false);
+    setRangoActividad({ inicio: '', fin: '' });
+  }, []);
+
+  // Primer clic, el inicio; segundo, el fin. Un tercero empieza otro rango.
+  const handleElegirDiaActividad = useCallback((dia) => {
+    const fecha = dayjs(dia).format('YYYY-MM-DD');
+
+    setRangoActividad((actual) =>
+      !actual.inicio || actual.fin ? { inicio: fecha, fin: '' } : { ...actual, fin: fecha }
+    );
+  }, []);
 
   const attendanceTitle = selectedDestId
     ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
@@ -1364,6 +1560,7 @@ export function AttendanceQuickView() {
       next[memberId] = status;
       return next;
     });
+    setVersionCambios((actual) => actual + 1);
   }, []);
 
   const handleMarkAllPresent = useCallback(() => {
@@ -1376,6 +1573,7 @@ export function AttendanceQuickView() {
 
       return next;
     });
+    setVersionCambios((actual) => actual + 1);
   }, [divisionFilteredMembers]);
 
   const handleClear = useCallback(() => {
@@ -1413,6 +1611,10 @@ export function AttendanceQuickView() {
       });
       handleClear();
       setEstadosGuardados(null);
+      // Lo que quedara por guardar ya no vale: sin esto, el guardado automatico
+      // volvia a escribir el dia que se acababa de limpiar.
+      pendienteRef.current = null;
+      versionGuardadaRef.current = versionCambiosRef.current;
       toast.success('Asistencia limpiada.');
     } catch (error) {
       toast.error(error?.message || 'No se pudo limpiar la asistencia.');
@@ -1421,99 +1623,240 @@ export function AttendanceQuickView() {
     }
   }, [date, getAuditUser, handleClear, selectedDestId]);
 
-  const handleSave = useCallback(async () => {
-    // Ver la asistencia y PASARLA son cosas distintas: los cargos de consulta
-    // —solo lectura— entran a mirarla y no marcan a nadie. La comprobacion de
-    // verdad la hace el servidor; esto evita lanzar una escritura que va a
-    // rechazar y, sobre todo, no ofrecer un boton que miente.
-    if (!puedePasarAsistencia) {
-      toast.error('Tu cargo no pasa asistencia.');
-      return;
-    }
-
-    if (!selectedDestId) {
-      return;
-    }
-
-    // SE GUARDA EL DESTACAMENTO ENTERO, no lo que se este viendo.
-    //
-    // Antes se guardaba `divisionFilteredMembers`: con el filtro de division
-    // puesto, la asistencia del dia quedaba escrita a medias —y lo marcado en
-    // otra division antes de cambiar de filtro no llegaba a Firebase—. La
-    // asistencia es del destacamento y de la fecha, no de la vista.
-    const statusesToSave = { ...statusByMemberId };
-
-    selectedDestMembers.forEach((member) => {
-      const memberId = getMemberId(member);
-
-      if (!statusesToSave[memberId]) {
-        statusesToSave[memberId] = AUTO_ABSENT_STATUS;
+  // GUARDAR UNA FOTO DEL PASE DE LISTA, no "lo que haya ahora".
+  //
+  // Lo usan el boton y el guardado automatico. Recibe la fecha, el destacamento
+  // y las marcas del momento en que se hicieron: si se guardara leyendo el
+  // estado actual, un cambio de fecha a mitad de camino escribiria las marcas de
+  // un dia en el otro.
+  const guardarInstantanea = useCallback(
+    async (foto, { automatico = false } = {}) => {
+      // Ver la asistencia y PASARLA son cosas distintas: los cargos de consulta
+      // —solo lectura— entran a mirarla y no marcan a nadie. La comprobacion de
+      // verdad la hace el servidor; esto evita lanzar una escritura que va a
+      // rechazar y, sobre todo, no ofrecer un boton que miente.
+      if (!puedePasarAsistencia) {
+        if (!automatico) toast.error('Tu cargo no pasa asistencia.');
+        return false;
       }
-    });
+
+      if (!foto?.idDestacamento || !foto?.fecha) {
+        return false;
+      }
+
+      // SE GUARDA EL DESTACAMENTO ENTERO, no lo que se este viendo.
+      //
+      // Antes se guardaba `divisionFilteredMembers`: con el filtro de division
+      // puesto, la asistencia del dia quedaba escrita a medias —y lo marcado en
+      // otra division antes de cambiar de filtro no llegaba a Firebase—. La
+      // asistencia es del destacamento y de la fecha, no de la vista.
+      const statusesToSave = { ...foto.estados };
+
+      foto.miembros.forEach((member) => {
+        const memberId = getMemberId(member);
+
+        if (!statusesToSave[memberId]) {
+          statusesToSave[memberId] = AUTO_ABSENT_STATUS;
+        }
+      });
+
+      try {
+        if (!automatico) setSavingAttendance(true);
+
+        await guardarAsistenciaDestacamento({
+          fecha: foto.fecha,
+          destacamento: {
+            idDestacamento: foto.idDestacamento,
+            nombreDestacamento: foto.nombreDestacamento,
+          },
+          miembros: foto.miembros,
+          estados: statusesToSave,
+          usuario: getAuditUser(),
+        });
+
+        if (foto.version > versionGuardadaRef.current) {
+          versionGuardadaRef.current = foto.version;
+        }
+
+        // LO QUE SE VE TIENE QUE SER LO QUE QUEDO ESCRITO.
+        //
+        // El servicio guarda a los no marcados como `ausente` a secas. Si aqui se
+        // dejara `absent-unmarked`, la pantalla seguiria con el estado de antes
+        // hasta recargar, y el resumen contaria una cosa distinta de la que hay en
+        // Firebase.
+        const estadosEscritos = Object.fromEntries(
+          Object.entries(statusesToSave).map(([memberId, estado]) => [
+            memberId,
+            estado === AUTO_ABSENT_STATUS ? 'absent' : estado,
+          ])
+        );
+        const sigueEnPantalla =
+          foto.fecha === pantallaRef.current.fecha &&
+          foto.idDestacamento === pantallaRef.current.idDestacamento;
+
+        if (sigueEnPantalla) {
+          // El automatico NO toca las marcas de la pantalla: mientras se guardaba
+          // se pudo marcar a alguien mas, y pisarlas lo desharia. Tampoco pasa a
+          // "ausente" a quien aun no se marco: se sigue pasando lista.
+          if (!automatico) setStatusByMemberId(estadosEscritos);
+          // Lo recien escrito pasa a ser "lo guardado": si el resumen se abre otra
+          // vez, cuenta esto y no lo de antes.
+          setEstadosGuardados(estadosEscritos);
+          setLastPresentByMemberId((current) => {
+            const next = { ...current };
+
+            foto.miembros.forEach((member) => {
+              const memberId = getMemberId(member);
+
+              if (statusesToSave[memberId] === 'present') {
+                next[memberId] = foto.fecha;
+              }
+            });
+
+            return next;
+          });
+        }
+
+        if (automatico) {
+          setUltimoAutoguardado(dayjs().format('hh:mm A'));
+        } else {
+          toast.success('Asistencia guardada en Firebase.');
+        }
+
+        return true;
+      } catch (error) {
+        toast.error(error?.message || 'No se pudo guardar la asistencia en Firebase.');
+        return false;
+      } finally {
+        if (!automatico) setSavingAttendance(false);
+      }
+    },
+    [puedePasarAsistencia, getAuditUser]
+  );
+
+  useEffect(() => {
+    guardarInstantaneaRef.current = guardarInstantanea;
+  }, [guardarInstantanea]);
+
+  useEffect(() => {
+    pantallaRef.current = { fecha: date, idDestacamento: selectedDestId };
+  }, [date, selectedDestId]);
+
+  useEffect(() => {
+    versionCambiosRef.current = versionCambios;
+  }, [versionCambios]);
+
+  const fotoActual = useCallback(
+    () => ({
+      version: versionCambios,
+      fecha: date,
+      idDestacamento: selectedDestId,
+      nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
+      miembros: selectedDestMembers,
+      estados: statusByMemberId,
+    }),
+    [versionCambios, date, selectedDestId, selectedDest, selectedDestMembers, statusByMemberId]
+  );
+
+  const handleSave = useCallback(
+    () => guardarInstantanea(fotoActual()),
+    [guardarInstantanea, fotoActual]
+  );
+
+  // GUARDAR SIN PULSAR "GUARDAR ASISTENCIA".
+  //
+  // Se perdia el pase de lista entero si alguien marcaba a todos y cerraba la
+  // pagina o cambiaba de fecha sin pulsar el boton. Ahora cada marca se guarda
+  // sola un momento despues —se espera un poco para no escribir en cada toque
+  // mientras se va bajando por la lista—.
+  useEffect(() => {
+    if (!puedePasarAsistencia || versionCambios <= versionGuardadaRef.current) return undefined;
+
+    const foto = fotoActual();
+
+    pendienteRef.current = foto;
+
+    const temporizador = setTimeout(() => {
+      pendienteRef.current = null;
+      guardarInstantanea(foto, { automatico: true });
+    }, 1500);
+
+    return () => clearTimeout(temporizador);
+  }, [versionCambios, fotoActual, guardarInstantanea, puedePasarAsistencia]);
+
+  // Y lo que quede por guardar se guarda YA al cambiar de fecha o de destacamento
+  // o al salir de la pantalla: esa espera no puede llevarse las marcas por delante.
+  // La foto pendiente es la del dia anterior, asi que cae en su fecha.
+  useEffect(
+    () => () => {
+      const pendiente = pendienteRef.current;
+
+      pendienteRef.current = null;
+
+      if (pendiente && pendiente.version > versionGuardadaRef.current) {
+        guardarInstantaneaRef.current(pendiente, { automatico: true });
+      }
+
+      // Lo marcado alli ya va de camino: en el dia nuevo no queda nada pendiente.
+      versionGuardadaRef.current = Math.max(versionGuardadaRef.current, versionCambiosRef.current);
+    },
+    [date, selectedDestId]
+  );
+
+  useEffect(() => {
+    const alSalir = () => {
+      const pendiente = pendienteRef.current;
+
+      if (pendiente && pendiente.version > versionGuardadaRef.current) {
+        guardarInstantaneaRef.current(pendiente, { automatico: true });
+      }
+    };
+
+    window.addEventListener('pagehide', alSalir);
+
+    return () => window.removeEventListener('pagehide', alSalir);
+  }, []);
+
+  // ACEPTAR UNA ACTIVIDAD: se guarda, sus dias se abren y la fecha salta a su
+  // primer dia, que es donde se va a pasar lista.
+  const handleAceptarActividad = useCallback(async () => {
+    if (!rangoActividad.inicio || !selectedDestId) return;
+
+    const { fechaInicio, fechaFin } = ordenarRango(
+      rangoActividad.inicio,
+      rangoActividad.fin || rangoActividad.inicio
+    );
 
     try {
-      setSavingAttendance(true);
+      setGuardandoActividad(true);
 
-      await guardarAsistenciaDestacamento({
-        fecha: date,
+      const actividad = await crearActividadAsistencia({
         destacamento: {
           idDestacamento: selectedDestId,
           nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
         },
-        miembros: selectedDestMembers,
-        estados: statusesToSave,
+        fechaInicio,
+        fechaFin,
         usuario: getAuditUser(),
       });
 
-      // LO QUE SE VE TIENE QUE SER LO QUE QUEDO ESCRITO.
-      //
-      // El servicio guarda a los no marcados como `ausente` a secas. Si aqui se
-      // dejara `absent-unmarked`, la pantalla seguiria con el estado de antes
-      // hasta recargar, y el resumen contaria una cosa distinta de la que hay en
-      // Firebase.
-      const estadosEscritos = Object.fromEntries(
-        Object.entries(statusesToSave).map(([memberId, estado]) => [
-          memberId,
-          estado === AUTO_ABSENT_STATUS ? 'absent' : estado,
-        ])
+      setActividades((actuales) => [
+        ...actuales.filter((item) => item.id !== actividad.id),
+        actividad,
+      ]);
+      setDate(fechaInicio);
+      cerrarCalendario();
+      toast.success(
+        fechaInicio === fechaFin
+          ? `Actividad agregada el ${dayjs(fechaInicio).format('DD/MM/YYYY')}.`
+          : `Actividad agregada del ${dayjs(fechaInicio).format('DD/MM/YYYY')} al ${dayjs(fechaFin).format('DD/MM/YYYY')}.`
       );
-
-      setStatusByMemberId(estadosEscritos);
-      // Lo recien escrito pasa a ser "lo guardado": si el resumen se abre otra
-      // vez, cuenta esto y no lo de antes.
-      setEstadosGuardados(estadosEscritos);
-      setLastPresentByMemberId((current) => {
-        const next = { ...current };
-
-        selectedDestMembers.forEach((member) => {
-          const memberId = getMemberId(member);
-
-          if (statusesToSave[memberId] === 'present') {
-            next[memberId] = date;
-          }
-        });
-
-        return next;
-      });
-      toast.success('Asistencia guardada en Firebase.');
     } catch (error) {
-      toast.error(error?.message || 'No se pudo guardar la asistencia en Firebase.');
+      toast.error(error?.message || 'No se pudo guardar la actividad.');
     } finally {
-      setSavingAttendance(false);
+      setGuardandoActividad(false);
     }
-    // El segundo argumento era `puedePasarAsistencia` —un booleano— y la lista de
-    // dependencias iba de tercero, donde `useCallback` no la mira: la funcion se
-    // rehacia en cada pintado. Ahora las dependencias van donde toca, con el
-    // permiso dentro.
-  }, [
-    date,
-    selectedDest,
-    selectedDestId,
-    statusByMemberId,
-    selectedDestMembers,
-    puedePasarAsistencia,
-    getAuditUser,
-  ]);
+  }, [cerrarCalendario, getAuditUser, rangoActividad, selectedDest, selectedDestId]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -1960,21 +2303,55 @@ export function AttendanceQuickView() {
                 views={['year', 'month', 'day']}
                 // Un dia queda apagado por dos razones: todavia no llego, o el
                 // destacamento no se reune ese dia de la semana y no hay
-                // asistencia que pasar.
-                shouldDisableDate={(fecha) => {
-                  const dia = dayjs(fecha);
-
-                  if (dia.isAfter(dayjs(), 'day')) return true;
-
-                  return diaDeReunion !== null && dia.day() !== diaDeReunion;
-                }}
+                // asistencia que pasar. Salvo que sea de una actividad. Y al
+                // agregar una, todos se pueden pulsar: la actividad puede caer
+                // cualquier dia, tambien en el futuro.
+                shouldDisableDate={(fecha) =>
+                  !modoActividad &&
+                  !fechaSeleccionable({
+                    fecha: dayjs(fecha).format('YYYY-MM-DD'),
+                    hoy: dayjs().format('YYYY-MM-DD'),
+                    diaDeReunion,
+                    conActividad,
+                  })
+                }
+                open={calendarioAbierto}
+                onOpen={() => setCalendarioAbierto(true)}
+                onClose={cerrarCalendario}
+                // Eligiendo el rango de una actividad el calendario no se cierra
+                // al primer clic: hace falta pulsar el ultimo dia y "Aceptar".
+                closeOnSelect={!modoActividad}
                 onChange={(newValue) => {
+                  if (modoActividad) return;
+
                   const parsed = dayjs(newValue);
                   setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
                 }}
+                slots={{ day: DiaDelCalendario, actionBar: BarraDelCalendario }}
                 slotProps={{
                   textField: {
                     fullWidth: true,
+                  },
+                  day: {
+                    modoActividad,
+                    rango: rangoActividad,
+                    conActividad,
+                    onElegirDiaActividad: handleElegirDiaActividad,
+                  },
+                  actionBar: {
+                    puedeAgregarActividad: puedePasarAsistencia && Boolean(selectedDestId),
+                    modoActividad,
+                    rango: rangoActividad,
+                    guardandoActividad,
+                    onEmpezarActividad: () => {
+                      setRangoActividad({ inicio: '', fin: '' });
+                      setModoActividad(true);
+                    },
+                    onCancelarActividad: () => {
+                      setModoActividad(false);
+                      setRangoActividad({ inicio: '', fin: '' });
+                    },
+                    onAceptarActividad: handleAceptarActividad,
                   },
                 }}
               />
@@ -2312,7 +2689,11 @@ export function AttendanceQuickView() {
                   noWrap
                   sx={{ opacity: 0.72, fontWeight: 400, display: { xs: 'none', sm: 'block' } }}
                 >
-                  Se guardarán los cambios realizados
+                  {/* Cada marca ya se guarda sola: el boton sigue para quien
+                      quiera asegurarse, pero no hace falta pulsarlo. */}
+                  {ultimoAutoguardado
+                    ? `Guardado automático · ${ultimoAutoguardado}`
+                    : 'Se guarda automáticamente al marcar'}
                 </Typography>
               </Box>
             </Button>

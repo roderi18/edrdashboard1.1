@@ -229,6 +229,10 @@ export default [
       // pulsaciones anonimas. Las reglas acotan que solo puede tocar esos dos
       // numeros.
       'src/services/store-header-analytics-service.js',
+      // Marcar un producto como favorito es una preferencia de quien lo marca,
+      // no un cambio de la tienda: nadie tiene que aprobarlo y llenaria Historial
+      // de pulsaciones. Las reglas solo dejan a cada uno tocar su documento.
+      'src/services/product-favorite-service.js',
       // Las rutas de `src/app/api/**` son el proxy hacia el backend .NET: la
       // puerta esta del lado de quien decide el cambio, no del transporte.
       'src/app/api/**',

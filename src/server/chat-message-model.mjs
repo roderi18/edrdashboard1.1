@@ -147,10 +147,33 @@ const normalizeMetadata = (value) => {
     };
   }
 
+  // UN PRODUCTO COMPARTIDO DESDE LA TIENDA. Llegaba como texto con la URL
+  // pegada; ahora viaja su tarjeta —nombre, imagen y precio— y el chat la pinta
+  // como tal. La ruta solo puede ser la ficha de un producto de la aplicacion, y
+  // la imagen, una URL segura: nada de lo que llega del navegador se guarda sin
+  // pasar por aqui.
+  const sharedProduct = asObject(metadata.sharedProduct);
+  const productId = cleanText(sharedProduct.id).slice(0, 160);
+  const productName = cleanText(sharedProduct.name).slice(0, 255);
+  const productUrl = cleanText(sharedProduct.url);
+  const productPrice = Number(sharedProduct.price);
+
+  if (productId && productName && /^\/dashboard\/product\/[^\s?#]+\/?$/.test(productUrl)) {
+    const imageUrl = safeWebOrAppUrl(sharedProduct.imageUrl);
+
+    normalized.sharedProduct = {
+      id: productId,
+      name: productName,
+      url: productUrl,
+      ...(Number.isFinite(productPrice) && productPrice >= 0 && { price: productPrice }),
+      ...(imageUrl && { imageUrl }),
+    };
+  }
+
   return normalized;
 };
 
-const normalizeAttachment = ({ attachment, conversationId, contentType }) => {
+const normalizeAttachment =({ attachment, conversationId, contentType }) => {
   const source = asObject(attachment);
   const storagePath = cleanText(source.storagePath);
   const normalizedConversationId = cleanText(conversationId);

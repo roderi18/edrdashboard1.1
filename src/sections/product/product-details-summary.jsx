@@ -20,12 +20,21 @@ import { productoAgotado } from 'src/utils/solicitud-producto.mjs';
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 
+import {
+  guardarFavoritoProducto,
+  obtenerFavoritosProductos,
+} from 'src/services/product-favorite-service';
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { ColorPicker } from 'src/components/color-utils';
 import { NumberInput } from 'src/components/number-input';
+
+import { useAuthContext } from 'src/auth/hooks';
+
+import { ProductShareChatDialog } from './product-share-chat-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -222,13 +231,63 @@ export function ProductDetailsSummary({
     }
   }, [evidenceFiles, id, name, onAddToCart, renglon, values]);
 
+  // FAVORITO: se lee al abrir la ficha y se guarda al pulsar. El corazon cambia
+  // al momento y vuelve atras si Firestore no lo acepta, para no enseñar como
+  // marcado algo que no quedo guardado.
+  const { user } = useAuthContext();
+  const uid = user?.uid;
+  const [esFavorito, setEsFavorito] = useState(false);
+  const [guardandoFavorito, setGuardandoFavorito] = useState(false);
+  const [compartirAbierto, setCompartirAbierto] = useState(false);
+
+  useEffect(() => {
+    let activo = true;
+
+    if (!uid || !id) {
+      setEsFavorito(false);
+      return undefined;
+    }
+
+    obtenerFavoritosProductos(uid)
+      .then((favoritos) => {
+        if (activo) setEsFavorito(favoritos.has(String(id)));
+      })
+      .catch((error) => console.error('[producto] no se pudieron leer los favoritos', error));
+
+    return () => {
+      activo = false;
+    };
+  }, [id, uid]);
+
+  const handleFavorito = useCallback(async () => {
+    if (!uid || !id || guardandoFavorito) return;
+
+    const siguiente = !esFavorito;
+
+    setEsFavorito(siguiente);
+    setGuardandoFavorito(true);
+
+    try {
+      await guardarFavoritoProducto({ uid, productoId: id, favorito: siguiente });
+      toast.success(siguiente ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
+    } catch (error) {
+      console.error('[producto] no se pudo guardar el favorito', error);
+      setEsFavorito(!siguiente);
+      toast.error('No se pudo guardar el favorito.');
+    } finally {
+      setGuardandoFavorito(false);
+    }
+  }, [esFavorito, guardandoFavorito, id, uid]);
+
   const handleEvidenceChange = useCallback((event) => {
     setEvidenceFiles(Array.from(event.target.files || []).filter(isAllowedEvidenceFile).slice(0, 10));
   }, []);
 
   const renderPrice = () => (
     <Box sx={{ typography: 'h5' }}>
-      {priceSale && (
+      {/* Con `priceSale && …` un precio de oferta 0 pintaba el 0 delante del
+          precio: "0RD$200". */}
+      {Number(priceSale) > 0 && (
         <Box
           component="span"
           sx={{ color: 'text.disabled', textDecoration: 'line-through', mr: 0.5 }}
@@ -254,6 +313,12 @@ export function ProductDetailsSummary({
           color: 'text.secondary',
           typography: 'subtitle2',
         },
+        // Marcado: el corazon en amarillo y el texto en negro. Va aqui y no en el
+        // `sx` del enlace: el gris de arriba es mas especifico y lo tapaba.
+        [`& .${linkClasses.root}[aria-pressed="true"]`]: {
+          color: 'text.primary',
+          '& svg': { color: 'warning.main' },
+        },
       }}
     >
       {/* PREGUNTAR ANTES DE COMPRAR. Abre el chat con la Tienda Virtual, que
@@ -264,20 +329,35 @@ export function ProductDetailsSummary({
         Escribir a la Tienda
       </Link>
 
-      <Link>
-        <Iconify icon="mingcute:add-line" width={16} />
-        Comparar
+      {/* `type="button"`: van dentro del formulario de compra, y un boton sin
+          tipo lo enviaria como si se pulsara "Comprar". */}
+      <Link
+        component="button"
+        type="button"
+        underline="none"
+        onClick={handleFavorito}
+        disabled={!uid || guardandoFavorito}
+        aria-pressed={esFavorito}
+      >
+        <Iconify icon={esFavorito ? 'solar:heart-bold' : 'solar:heart-outline'} width={16} />
+        {esFavorito ? 'En favoritos' : 'Favorito'}
       </Link>
 
-      <Link>
-        <Iconify icon="solar:heart-bold" width={16} />
-        Favorito
-      </Link>
-
-      <Link>
+      <Link
+        component="button"
+        type="button"
+        underline="none"
+        onClick={() => setCompartirAbierto(true)}
+      >
         <Iconify icon="solar:share-bold" width={16} />
         Compartir
       </Link>
+
+      <ProductShareChatDialog
+        open={compartirAbierto}
+        onClose={() => setCompartirAbierto(false)}
+        product={product}
+      />
     </Box>
   );
 
@@ -480,7 +560,12 @@ export function ProductDetailsSummary({
           'success.main',
       }}
     >
-      {inventoryType}
+      {/* `inventoryType` es la clave interna en ingles ('out of stock'): se
+          pintaba tal cual en la ficha. Se enseña con las mismas palabras que el
+          filtro y la tabla de productos. */}
+      {(inventoryType === 'out of stock' && 'Sin existencias') ||
+        (inventoryType === 'low stock' && 'Pocas existencias') ||
+        'En existencia'}
     </Box>
   );
 

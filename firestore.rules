@@ -931,6 +931,35 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ACTIVIDADES DE ASISTENCIA: los dias fuera de la reunion semanal en que
+    // tambien se pasa lista. Las lee y las crea el mismo publico que la
+    // asistencia —que hoy cae en el comodin: usuario del sistema—, pero con la
+    // forma acotada: un rango de fechas en orden y el id que sale de el. Nadie
+    // las borra desde la aplicacion.
+    match /actividadesAsistencia/{idActividad} {
+      allow read: if esUsuarioDelSistema();
+      allow create, update: if esUsuarioDelSistema()
+        && request.resource.data.idActividad == idActividad
+        && request.resource.data.idDestacamento is string
+        && request.resource.data.fechaInicio is string
+        && request.resource.data.fechaFin is string
+        && request.resource.data.fechaInicio <= request.resource.data.fechaFin;
+      allow delete: if false;
+    }
+
+    // FAVORITOS DE LA TIENDA. Un documento por persona con su uid como id: cada
+    // uno lee y marca solo los suyos. Nadie los borra enteros; quitar un
+    // favorito es una actualizacion del mapa `productos`.
+    match /favoritos_productos/{uid} {
+      allow get: if estaAutenticado() && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update: if estaAutenticado()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.productos is map;
+      allow delete: if false;
+    }
+
     match /posicionesDirectiva/{idPosicion} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
@@ -1313,6 +1342,10 @@ service cloud.firestore {
         // El encabezado de la tienda tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.
         && coleccion != 'configuracion_tienda'
+        // Los favoritos de la tienda son de cada persona: sin excluirlos aqui,
+        // el comodin dejaria leer y cambiar los de cualquiera.
+        && coleccion != 'favoritos_productos'
+        && coleccion != 'actividadesAsistencia'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
         && coleccion != 'analiticas_encabezado_tienda'

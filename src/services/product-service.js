@@ -9,6 +9,10 @@ import {
 
 import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
+import {
+  aplicarResumenResenas,
+  agruparResumenPorProducto,
+} from 'src/utils/resumen-resenas-producto.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
@@ -36,8 +40,26 @@ const getProductCreatedAtTime = (product) => {
 export const listarProductosFirestore = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
-  const snapshot = await getDocs(collection(FIRESTORE, COLECCIONES_COMERCIO.productos));
-  return snapshot.docs.map((item) => mapearProductoFirestoreAUi({ id: item.id, ...item.data() }));
+  // Las resenas se leen junto a los productos: el resumen guardado en cada
+  // producto se quedaba en 0 y la lista enseñaba sin estrellas a productos que
+  // si las tenian. Si fallan, se queda el resumen guardado antes que nada.
+  const [snapshot, snapshotResenas] = await Promise.all([
+    getDocs(collection(FIRESTORE, COLECCIONES_COMERCIO.productos)),
+    getDocs(collection(FIRESTORE, COLECCIONES_COMERCIO.resenasProductos)).catch((error) => {
+      console.error('[product service] no se pudieron leer las resenas', error);
+      return null;
+    }),
+  ]);
+  const productos = snapshot.docs.map((item) =>
+    mapearProductoFirestoreAUi({ id: item.id, ...item.data() })
+  );
+
+  if (!snapshotResenas) return productos;
+
+  return aplicarResumenResenas(
+    productos,
+    agruparResumenPorProducto(snapshotResenas.docs.map((item) => ({ id: item.id, ...item.data() })))
+  );
 };
 
 export const combinarProductosConFirestore = ({
@@ -161,6 +183,13 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
     publicacion: publish ? 'publicado' : 'borrador',
     fechaCreacion: previous.exists() ? previous.data()?.fechaCreacion : null,
   });
+
+  // El resumen de resenas no es del formulario: lo escribe quien publica una
+  // resena. Tomarlo del formulario lo dejaba en 0 en cada guardado del producto.
+  if (previous.exists()) {
+    productDoc.totalCalificaciones = Number(previous.data()?.totalCalificaciones ?? 0);
+    productDoc.totalResenas = Number(previous.data()?.totalResenas ?? 0);
+  }
 
   // La tienda tambien entra por la puerta: no necesita aprobacion de la Oficina
   // Nacional —la gestiona su administrador— pero cada cambio queda en Historial.

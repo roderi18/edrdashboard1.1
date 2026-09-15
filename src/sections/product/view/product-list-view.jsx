@@ -11,6 +11,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import { esES } from '@mui/x-data-grid/locales';
+import Typography from '@mui/material/Typography';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -349,11 +350,10 @@ export function ProductListView() {
                 alignItems: 'flex-start',
               }}
             >
-              <StoreCategorySidebar
-                options={categoriaOptions}
-                value={filters.state.categoria}
-                onChange={(categoria) => filters.setState({ categoria })}
-                total={tableData.length}
+              {/* La columna fija lleva debajo el aviso del descuento: van juntos
+                  en la misma caja pegajosa para que el texto no se quede atras
+                  al bajar por la rejilla. */}
+              <Box
                 sx={{
                   top: 88,
                   width: 260,
@@ -361,7 +361,22 @@ export function ProductListView() {
                   position: 'sticky',
                   display: { xs: 'none', lg: 'block' },
                 }}
-              />
+              >
+                <StoreCategorySidebar
+                  options={categoriaOptions}
+                  value={filters.state.categoria}
+                  onChange={(categoria) => filters.setState({ categoria })}
+                  total={tableData.length}
+                />
+
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 2, px: 1, color: 'text.secondary', fontStyle: 'italic' }}
+                >
+                  Al estar inscrito en Oficina Nacional, se aplica automáticamente a un{' '}
+                  <strong>descuento especial</strong> en todos los productos de nuestra tienda.
+                </Typography>
+              </Box>
 
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Card sx={{ p: { xs: 1.5, md: 2 }, mb: 2.5 }}>

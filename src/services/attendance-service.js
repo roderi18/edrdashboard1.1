@@ -3,11 +3,14 @@ import {
   query,
   where,
   getDoc,
+  setDoc,
   getDocs,
   writeBatch,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
+
+import { ordenarRango, motivoRangoInvalido } from 'src/utils/actividades-asistencia.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -332,4 +335,79 @@ export const guardarAsistenciaDestacamento = async ({
   });
 
   return asistencia;
+};
+
+// ----------------------------------------------------------------------
+// ACTIVIDADES: los dias fuera de la reunion semanal en que tambien se pasa lista.
+//
+// Un documento por actividad, con el destacamento y el rango de fechas. Su id
+// sale del destacamento y del rango: agregar dos veces la misma actividad no la
+// duplica. Ver `src/utils/actividades-asistencia.mjs`.
+// ----------------------------------------------------------------------
+
+export const COLECCION_ACTIVIDADES_ASISTENCIA = 'actividadesAsistencia';
+
+export const listarActividadesAsistencia = async ({ idDestacamento } = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_ACTIVIDADES_ASISTENCIA),
+      where('idDestacamento', '==', String(idDestacamento))
+    )
+  );
+
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((actividad) => actividad.fechaInicio && actividad.fechaFin);
+};
+
+export const crearActividadAsistencia = async ({
+  destacamento = {},
+  fechaInicio,
+  fechaFin,
+  usuario = null,
+} = {}) => {
+  const idDestacamento = String(destacamento?.idDestacamento || '');
+  const { fechaInicio: desde, fechaFin: hasta } = ordenarRango(fechaInicio, fechaFin);
+  const motivo = motivoRangoInvalido(desde, hasta);
+
+  if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) {
+    throw new Error('Firebase no esta configurado para guardar la actividad.');
+  }
+
+  if (motivo) throw new Error(motivo);
+
+  const idActividad = `${normalizeIdSegment(idDestacamento)}_${desde}_${hasta}`;
+  const actividad = {
+    idActividad,
+    idDestacamento,
+    nombreDestacamento: destacamento.nombreDestacamento || '',
+    fechaInicio: desde,
+    fechaFin: hasta,
+    creadoEn: new Date().toISOString(),
+    creadoPor: usuario || null,
+    creadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(doc(FIRESTORE, COLECCION_ACTIVIDADES_ASISTENCIA, idActividad), actividad, {
+    merge: true,
+  });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'actividad_asistencia_creada',
+    descripcion: `Actividad del ${desde} al ${hasta} en ${actividad.nombreDestacamento || idDestacamento}.`,
+    entidad: {
+      tipo: 'actividad_asistencia',
+      id: idActividad,
+      nombre: actividad.nombreDestacamento || idDestacamento,
+      ruta: '/dashboard/attendance',
+    },
+    despues: { fechaInicio: desde, fechaFin: hasta, idDestacamento },
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
+
+  return { ...actividad, id: idActividad };
 };

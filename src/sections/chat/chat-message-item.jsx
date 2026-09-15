@@ -9,8 +9,10 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 
 import { fToNow } from 'src/utils/format-time';
+import { fDopCurrency } from 'src/utils/format-number';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
 import { toast } from 'src/components/snackbar';
@@ -134,6 +136,69 @@ const renderSharedFileLink = (text = '', metadata = {}, participants = []) => {
     </>
   );
 };
+
+// UN PRODUCTO COMPARTIDO SE VE COMO TARJETA: imagen, nombre y precio, y al
+// pulsarla se va a la ficha. Antes llegaba el texto con la URL pegada, que habia
+// que copiar o pulsar a ciegas.
+function TarjetaProductoCompartido({ producto }) {
+  return (
+    <Box
+      component={RouterLink}
+      href={producto.url}
+      sx={{
+        // Todo el ancho del globo, que lo marca el texto de encima: con un ancho
+        // fijo la tarjeta quedaba mas estrecha que la frase y se veia descuadrada.
+        width: 1,
+        display: 'block',
+        overflow: 'hidden',
+        borderRadius: 1.5,
+        color: 'text.primary',
+        textDecoration: 'none',
+        bgcolor: 'background.paper',
+        border: (theme) => `1px solid ${theme.vars.palette.divider}`,
+        transition: (theme) => theme.transitions.create(['box-shadow']),
+        '&:hover': { boxShadow: (theme) => theme.vars.customShadows.z8 },
+      }}
+    >
+      <Box
+        sx={{
+          aspectRatio: '1 / 1',
+          bgcolor: 'background.neutral',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {producto.imageUrl ? (
+          <Box
+            component="img"
+            alt={producto.name}
+            src={producto.imageUrl}
+            sx={{ width: 1, height: 1, objectFit: 'cover' }}
+          />
+        ) : (
+          <Iconify icon="solar:cart-3-bold" width={40} sx={{ color: 'text.disabled' }} />
+        )}
+      </Box>
+
+      <Box sx={{ px: 1.5, py: 1.25 }}>
+        <Typography variant="subtitle2" noWrap title={producto.name}>
+          {producto.name}
+        </Typography>
+
+        {Number.isFinite(producto.price) && (
+          <Typography variant="subtitle2" sx={{ color: 'primary.main', mt: 0.25 }}>
+            {fDopCurrency(producto.price)}
+          </Typography>
+        )}
+
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          Ver producto
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
 
 const renderMessageBodyText = (text = '', metadata = {}, participants = []) => {
   const sharedFileLink = renderSharedFileLink(text, metadata, participants);
@@ -401,9 +466,25 @@ export function ChatMessageItem({
             </Box>
           )}
 
-          <Typography component="span" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-            {renderMessageBodyText(body, message.metadata, participants)}
-          </Typography>
+          {message.metadata?.sharedProduct ? (
+            <>
+              {/* El texto del mensaje encima de la tarjeta, sin la URL —esa
+                  es la tarjeta— ni el nombre, que ya va dentro. Sin el, la
+                  tarjeta llegaba sola y no se sabia que era un envio. */}
+              <Typography component="div" variant="body2" sx={{ mb: 1 }}>
+                {String(body || '')
+                  .split('\n')[0]
+                  .replace(`: ${message.metadata.sharedProduct.name}`, '')
+                  .trim() || 'Te comparto este producto de la Tienda Virtual'}
+              </Typography>
+
+              <TarjetaProductoCompartido producto={message.metadata.sharedProduct} />
+            </>
+          ) : (
+            <Typography component="span" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+              {renderMessageBodyText(body, message.metadata, participants)}
+            </Typography>
+          )}
         </>
       )}
     </Stack>
