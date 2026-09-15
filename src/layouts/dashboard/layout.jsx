@@ -19,10 +19,11 @@ import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
 import { _contacts, _notifications } from 'src/_mock';
-import { useGetChatUnreadSummary } from 'src/actions/chat';
+import { useGetChatUnreadSummary, useGetUnreadSummaryDeBuzones } from 'src/actions/chat';
 import {
   marcarNotificacionComoLeida,
   marcarNotificacionComoAtendida,
+  escucharNotificacionesDelUsuario,
   listarNotificacionesDrawerParaUsuario,
   marcarNotificacionesComoLeidasPorUsuario,
 } from 'src/services/notification-service';
@@ -31,6 +32,8 @@ import { Logo } from 'src/components/logo';
 import { Label } from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
 
+import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
+import { useBuzonesEnVivo } from 'src/sections/chat/hooks/use-buzones-en-vivo';
 import { useChatRealtimeSync } from 'src/sections/chat/hooks/use-chat-realtime-sync';
 import { usePresenceHeartbeat } from 'src/sections/chat/hooks/use-presence-heartbeat';
 
@@ -144,10 +147,21 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   });
   usePresenceHeartbeat(!isChatRoute && chatSummaryEnabled ? chatMemberId : null);
 
+  // LOS BUZONES COMPARTIDOS QUE ATIENDE ESTA SESION (Tienda Virtual, Oficina
+  // Nacional). Lo que les escriben cuenta en el mismo contador de "Chats" y se
+  // escucha en tiempo real desde cualquier pantalla, no solo dentro del chat.
+  const buzonesQueAtiendo = useMemo(() => buzonesQueAtiende(user), [user]);
+  const { unreadByConversation: pendientesDeBuzones } = useGetUnreadSummaryDeBuzones(
+    buzonesQueAtiendo.map((buzon) => buzon.idMiembros),
+    Boolean(user?.accessToken)
+  );
+
+  useBuzonesEnVivo(buzonesQueAtiendo, Boolean(user?.accessToken));
+
   const activeChatId = isChatRoute ? searchParams.get('id') : null;
-  const chatsSinLeer = Object.keys(unreadByConversation).filter(
-    (conversationId) => conversationId !== activeChatId
-  ).length;
+  const chatsSinLeer = [
+    ...new Set([...Object.keys(unreadByConversation), ...Object.keys(pendientesDeBuzones)]),
+  ].filter((conversationId) => conversationId !== activeChatId).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
   // LO QUE SE ACABA DE MARCAR NO VUELVE ATRAS.
@@ -290,6 +304,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
     cargarNotificaciones();
     window.addEventListener('notificaciones:actualizar', cargarNotificaciones);
+
+    // LA CAMPANA, EN TIEMPO REAL. Solo se recargaba cada 30 segundos: un aviso
+    // —un mensaje para la Tienda o la Oficina, una aprobacion— tardaba hasta
+    // medio minuto en aparecer. Ahora un aviso nuevo para esta cuenta la recarga
+    // al instante; la recarga periodica queda como red de seguridad.
+    const cancelarEscucha = escucharNotificacionesDelUsuario(user?.uid, cargarNotificaciones);
     const intervalId = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
         return;
@@ -302,6 +322,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       isMounted = false;
       window.clearInterval(intervalId);
       window.removeEventListener('notificaciones:actualizar', cargarNotificaciones);
+      cancelarEscucha();
     };
   }, [user]);
 

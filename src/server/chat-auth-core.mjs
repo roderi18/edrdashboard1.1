@@ -90,12 +90,13 @@ export const resolveAuthenticatedMember = ({ decodedToken = {}, profiles = [] } 
   const profileMemberIds = linkedProfiles.map(getProfileMemberId).filter(Boolean);
   const memberIds = [...new Set([tokenMemberId, ...profileMemberIds].filter(Boolean))];
 
-  // UNA PERSONA NUNCA ES LA TIENDA. Su numero es un entero positivo como el de
-  // cualquier miembro; si el padron llegara a darselo a alguien, esa sesion
-  // entraria en el buzon de toda la tienda. Se corta aqui, antes de nada.
+  // UNA PERSONA NUNCA ES UN BUZON. Los numeros de la Tienda Virtual y de Oficina
+  // Nacional son enteros positivos como el de cualquier miembro; si el padron
+  // llegara a darle uno a alguien, esa sesion entraria en las conversaciones de
+  // todo el buzon. Se corta aqui, antes de nada.
   if (memberIds.some(esIdReservadoDeTienda)) {
     throw new ChatAuthenticationError(
-      'La cuenta autenticada usa un número reservado para la Tienda Virtual.',
+      'La cuenta autenticada usa un número reservado para un buzón compartido del chat.',
       { status: 403, code: CHAT_AUTH_CODES.MEMBER_ID_CONFLICT }
     );
   }

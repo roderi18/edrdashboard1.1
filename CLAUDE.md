@@ -32,6 +32,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 6. `/member` es la lista del destacamento propio (salvo Administrador Global); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha.
 7. **Coordinador Regional y Sub-Director Regional proponen en las secciones de su región** (ficha y directiva): el titular propone, el asistente sugiere, y lo aprueba la Oficina Nacional. Los otros seis cargos regionales siguen siendo de consulta, y los destacamentos siguen cerrados para los ocho.
 
+8. **Buzones compartidos del chat** (Tienda Virtual 20001, Oficina Nacional 20002): un poder, no una cuenta. Cada uno es una entrada de `src/utils/chat-buzones.mjs`; lo atienden sus cargos (entre todos los de la persona) y el Administrador Global atiende todos. El servidor comprueba el cargo antes de escribir como el buzón; una persona nunca usa esos números. Test: `tests/chat/chat-buzones-compartidos.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 

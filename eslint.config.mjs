@@ -222,6 +222,9 @@ export default [
       // Mismo caso: solo contiene la escritura que la puerta de cambios ejecuta
       // DESPUES de registrar el cambio del encabezado de la tienda en Historial.
       'src/services/store-settings-apply.js',
+      // Mismo caso: la escritura de la foto de un buzon del chat, que la puerta
+      // ejecuta DESPUES de registrar el cambio en Historial.
+      'src/services/chat-buzones-apply.js',
       // Contadores de vistas y clics de la portada de la tienda. No es un
       // cambio del que haya que responder —nadie decide nada, se suma uno— y
       // ademas lo escribe el navegador de cualquier visitante: hacerlo pasar por

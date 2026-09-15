@@ -34,7 +34,7 @@ import { SelectorDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
 import { rutaDelChat } from './utils/ruta-del-chat';
 import { buildChatDraftKey } from './utils/productivity.mjs';
-import { useBuzonDeTienda } from './hooks/use-buzon-de-tienda';
+import { useBuzonesDelChat } from './hooks/use-buzones-del-chat';
 import { initialConversation } from './utils/initial-conversation';
 
 // ----------------------------------------------------------------------
@@ -92,7 +92,7 @@ export function ChatMessageInput({
   respondiendoComo = '',
 }) {
   const router = useRouter();
-  const { enBuzon } = useBuzonDeTienda();
+  const { bandeja, enBuzon } = useBuzonesDelChat();
 
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -340,7 +340,7 @@ export function ChatMessageInput({
           );
 
           activeConversationId = res.conversation.id;
-          router.push(rutaDelChat({ id: activeConversationId, enBuzon }));
+          router.push(rutaDelChat({ id: activeConversationId, bandeja }));
           onAddRecipients([]);
         }
 
@@ -477,7 +477,7 @@ export function ChatMessageInput({
           },
           currentContact.idMiembros
         );
-        router.push(rutaDelChat({ id: res.conversation.id, enBuzon }));
+        router.push(rutaDelChat({ id: res.conversation.id, bandeja }));
 
         onAddRecipients([]);
       }
@@ -516,7 +516,7 @@ export function ChatMessageInput({
     messageData,
     onAddRecipients,
     onClearEditing,
-    enBuzon,
+    bandeja,
     onClearReply,
     pendingAttachments,
     router,
@@ -652,8 +652,8 @@ export function ChatMessageInput({
 
   return (
     <>
-      {/* A NOMBRE DE QUIEN SALE. Quien atiende el buzon de la Tienda escribe unas
-          veces como el y otras como la Tienda, con la misma caja de texto: sin
+      {/* A NOMBRE DE QUIEN SALE. Quien atiende un buzon compartido escribe unas
+          veces como el y otras como el buzon, con la misma caja de texto: sin
           esta linea no habia forma de saberlo antes de enviar. */}
       {respondiendoComo && (
         <Typography

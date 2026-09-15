@@ -28,9 +28,9 @@ test('un token sin el numero de miembro se renueva antes de salir', () => {
 
 // LOS CUATRO METODOS AUTENTICAN, AHORA A TRAVES DE `autenticarActorDelChat`.
 //
-// Con el buzon de la Tienda Virtual hay dos formas de autenticar: la de siempre
-// (una persona, su token) y la del buzon (una persona CON CARGO que actua como
-// la Tienda). Las dos verifican el token. Lo que no puede volver es un metodo
+// Con los buzones compartidos (Tienda Virtual, Oficina Nacional) hay dos formas
+// de autenticar: la de siempre (una persona, su token) y la del buzon (una
+// persona CON CARGO que actua como el buzon). Las dos verifican el token. Lo que no puede volver es un metodo
 // que se salte ambas.
 test('los cuatro métodos autentican la solicitud', () => {
   const calls = routeSource.match(/autenticarActorDelChat\(\s*req\b/g) ?? [];
@@ -39,7 +39,7 @@ test('los cuatro métodos autentican la solicitud', () => {
   // Y el selector solo reparte entre las dos autenticaciones verificadas.
   assert.match(
     routeSource,
-    /esTiendaVirtual\(idMiembrosPedido\) \? autenticarBuzonDeTienda\(req\) : authenticateChatRequest\(req\)/
+    /buzon \? autenticarBuzon\(buzon, req\) : authenticateChatRequest\(req\)/
   );
 });
 
@@ -104,10 +104,10 @@ test('la vista espera el token y el sidebar usa el resumen global de no leidos',
   );
 
   // Los contactos esperan al token. El segundo argumento solo pide la lista a
-  // nombre del buzon de la Tienda cuando se esta en el.
+  // nombre de un buzon compartido cuando se esta en su bandeja.
   assert.match(
     chatViewSource,
-    /useGetContacts\(\s*Boolean\(user\?\.accessToken\),\s*enBuzon \? ID_TIENDA_VIRTUAL : null\s*\)/
+    /useGetContacts\(\s*Boolean\(user\?\.accessToken\),\s*buzonActual\?\.idMiembros \?\? null\s*\)/
   );
   assert.match(
     dashboardLayoutSource,

@@ -2199,7 +2199,13 @@ const getAuthorizationPermissionCodes = (user = {}) =>
 // Solo el administrador de gestión de la tienda puede administrar productos
 // (crear/editar/publicar/eliminar). Por auditoría y por tratarse de dinero,
 // ningún otro administrador —ni el global— tiene acceso a esa gestión.
-export const hasStoreAdminAccess = (user = {}) => STORE_ADMIN_ROLE_IDS.has(getUserRoleId(user));
+//
+// POR TODOS SUS CARGOS, no solo el principal (regla 1): el Administrador de
+// Gestion de Tienda puede ademas coordinar su destacamento, y si la tienda no
+// quedaba como cargo principal se le escondia la tienda entera.
+export const hasStoreAdminAccess = (user = {}) =>
+  STORE_ADMIN_ROLE_IDS.has(getUserRoleId(user)) ||
+  rolesQueEjerce(user).some((codigo) => STORE_ADMIN_ROLE_IDS.has(codigo));
 
 export const canManageStoreProducts = (user = {}) => hasStoreAdminAccess(user);
 
@@ -2215,7 +2221,11 @@ export const canEditStoreProduct = (user = {}) =>
 // Global: limpiando la tienda de productos de prueba tenia que pedirle cada
 // borrado al de Tienda, que es el unico con el boton en la lista. Borrar es
 // definitivo; por eso pasa por una confirmacion y queda en la auditoria.
-export const canDeleteProductFromDetails = (user = {}) => isAdminGlobal(user);
+//
+// Y del Administrador de Gestion de Tienda: es quien administra la tienda, y
+// tiene que ver en ella los mismos botones que el Administrador Global.
+export const canDeleteProductFromDetails = (user = {}) =>
+  isAdminGlobal(user) || canManageStoreProducts(user);
 
 // QUIEN ATIENDE LO QUE SE PIDE A LA TIENDA: la Tienda Virtual —su Administrador
 // de Gestion y el Administrador Global— y la Oficina Nacional. Ven el apartado

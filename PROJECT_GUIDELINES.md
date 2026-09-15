@@ -155,6 +155,18 @@ leer el test que las cubre.**
    pero **solo los miembros de su destacamento**.
 5. **Oficina Nacional es un rol a mano**: no ocupa casilla de directiva. Un cargo
    de directiva se lo borraba y con él la bandeja de aprobaciones.
+   - **Los cuatro cargos de administración** (Global, Funcional, Gestión de Tienda
+     y Oficina Nacional) se asignan desde Administradores y **se escriben en la
+     cuenta de Firebase con la que la persona entra** (`usuarios_roles/<uid>`),
+     aunque la pantalla mande su número de miembro: la ruta localiza sus cuentas
+     (`src/server/cuenta-del-objetivo.mjs`) y emite los claims de cada una. Antes
+     se guardaba en `usuarios_roles/<número>`, que nadie lee, y la persona entraba
+     sin los permisos. **Se suma a sus cargos de la directiva, no los borra.**
+     Test: `tests/acceso/cargo-de-administracion-en-la-cuenta-real.test.mjs`.
+   - **El Administrador de Gestión de Tienda manda en toda la tienda** —productos,
+     órdenes, recibos y carrito— con los mismos botones que el Administrador
+     Global, tenga la tienda como cargo principal o no (`hasStoreAdminAccess`
+     mira todos sus cargos).
 6. **Los roles de solo lectura** (p. ej. Pastor) usan el estado vacío "Sin
    información registrada"; no se les ofrece editar.
 7. **El nivel región propone sobre sus secciones, pero solo dos de sus cargos.**
@@ -172,17 +184,53 @@ leer el test que las cubre.**
    que estos dos guardas se comprueban por la **región de la sección** —el
    servicio la resuelve él mismo, no la acepta de la pantalla—.
    Test: `tests/acceso/region-propone-en-sus-secciones.test.mjs`.
-8. **La Tienda Virtual es un poder, no una cuenta.** En el chat participa con
-   `idMiembros` **20001** (código `EDR-20001`, ver
-   `src/utils/chat-tienda-virtual.mjs`). Cualquier miembro le escribe; atienden su
-   buzón quienes ejercen **Administrador de Gestión de Tienda** o **Administrador
-   Global**, entre **todos** sus cargos. El navegador pide el buzón mandando ese
-   `idMiembros`, pero **no se concede por pedirlo**: el servidor comprueba el cargo
-   (`src/server/chat-tienda-core.mjs`) y solo entonces escribe con un token a
-   nombre de `tienda-virtual` que únicamente él puede emitir. **Una persona nunca
-   es la Tienda**: el 20001 se rechaza al iniciar sesión y en las reglas. Quien
-   contestó se guarda aparte, en `respuestas_tienda`, y el miembro no lo ve.
-   Test: `tests/chat/chat-tienda-virtual.test.mjs`.
+8. **Los buzones compartidos del chat son un poder, no una cuenta.** Hay dos:
+   **Tienda Virtual** (`idMiembros` **20001**, `EDR-20001`) y **Oficina Nacional**
+   (**20002**, `EDR-20002`). Cada buzón es **una entrada** de
+   `src/utils/chat-buzones.mjs` —número, identidad de Firebase, cargos que lo
+   atienden, colección de respuestas— y de ella salen el token del servidor, la
+   bandeja de la pantalla, los avisos y las reglas. Cualquier miembro les escribe.
+   - **Quién atiende**: la Tienda, **Administrador de Gestión de Tienda**; la
+     Oficina, **Oficina Nacional**. El **Administrador Global atiende todos**. Se
+     mira **entre todos los cargos** de la persona: quien tenga asignados Tienda y
+     Oficina ve las dos bandejas.
+   - El navegador pide el buzón mandando su `idMiembros`, pero **no se concede por
+     pedirlo**: el servidor comprueba el cargo para **ese** buzón
+     (`src/server/chat-buzones-core.mjs`) y solo entonces escribe con un token a
+     nombre de `tienda-virtual` / `oficina-nacional` que únicamente él emite.
+     Tener acceso a uno no abre el otro, y el token de un buzón no abre ninguno.
+   - **Una persona nunca es un buzón**: el 20001 y el 20002 se rechazan al iniciar
+     sesión y en las reglas.
+   - **Auditoría de quien contesta**: cada mensaje que sale en nombre de un buzón
+     guarda el **nombre, el usuario** (código de miembro o correo) y el uid de la
+     persona, aparte del mensaje (`respuestas_tienda`, `respuestas_oficina`) y en
+     **Historial** (`auditoria_sistema`, acción `respuesta_buzon_compartido`). En la
+     conversación, "respondió Nombre (usuario)" **solo lo ve el Administrador
+     Global**; ni el miembro ni el resto de quienes atienden el buzón lo reciben.
+   - **Avisos en tiempo real**: quien atiende un buzón recibe el aviso en la
+     campana —tenga sesión de miembro o de administrador; el aviso lleva
+     `metadatos.buzon` y no se filtra por rol— y el contador de "Chats" suma lo
+     pendiente de sus buzones. La campana escucha sus avisos en vivo
+     (`escucharNotificacionesDelUsuario`) y los buzones se escuchan desde cualquier
+     pantalla (`useBuzonesEnVivo`).
+   - **Las reglas cuentan todos los cargos, en cualquier posición** (no solo el
+     principal) con `rolesQueEjerce`, la lista
+     plana que el servidor escribe en `usuarios_roles` junto a `cargos`
+     (`src/utils/lista-roles-que-ejerce.mjs`). Una cuenta sin esa lista la recibe
+     al volver a sincronizar su rol.
+   - **La foto de cada buzón** la cambia **solo el Administrador Global**, desde el
+     chat: en el menú de su cuenta, debajo de "Perfil", o pasando el ratón por la
+     foto del buzón en su bandeja. Vive en `buzones_chat/<clave>`, pasa por
+     `proponerCambio` (ámbito `buzon_chat`) y el servidor la pone en contactos,
+     conversaciones y avisos.
+   - **Componentes**: `ChatBandejas` (pestañas por permisos), `ChatAvatarDeBuzon` y
+     `useCambiarFotoDeBuzon`; `useBuzonesDelChat` dice qué buzones atiende la
+     sesión y en cuál está (`?bandeja=tienda|oficina`).
+   - **Para añadir otro buzón**: una entrada en `chat-buzones.mjs`, su número en
+     `idMiembroNoUsurpaUnBuzon` y su `atiendeBuzonDe…` en `firestore.rules` y
+     `storage.rules`, y su colección de respuestas.
+   Tests: `tests/chat/chat-buzones-compartidos.test.mjs` y
+   `tests/chat/chat-tienda-virtual.test.mjs`.
 9. **Un producto agotado se solicita, no se compra.** Con el inventario en 0 el
    botón principal dice **"Solicitar producto"** y deja una orden en estado
    `solicitada` (`esSolicitud: true`): **no descuenta inventario, no genera
@@ -273,7 +321,7 @@ combinar dos cargos.
 | **Sistema de ascenso** | `.../edit/awards` | Catálogo de 490 premios transcrito del inventario oficial. |
 | **Padres / tutores** | `.../edit/parents` | Con notas y autoguardado. |
 | **Historial del miembro** | `.../edit/history` | |
-| **Chat** | `/dashboard/chat` | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. Buzón compartido **Tienda Virtual** (`?bandeja=tienda`) para quien administra la tienda. 27 ficheros de test. |
+| **Chat** | `/dashboard/chat` | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. Buzones compartidos **Tienda Virtual** (`?bandeja=tienda`) y **Oficina Nacional** (`?bandeja=oficina`), según los cargos de cada quien; el Administrador Global ve los dos y cambia su foto. 27 ficheros de test. |
 | **Notificaciones** | Campana + `/dashboard/admin/notifications` | Tipos, plantillas, preferencias y tareas en Firestore. |
 | **Tienda** | `/dashboard/product`, `/checkout`, `/order`, `/invoice` | Productos, inventario, reseñas, carrito, órdenes, recibos. |
 | **Certificados** | `/dashboard/certificates` | Plantillas y generación. |
@@ -376,8 +424,8 @@ personas podían compartir número.
 `amistades`, `solicitudes_amistad`, `galeria_usuarios`, `anuncios_principal`
 
 **Chat** — `conversaciones_chat` (+ subcolecciones `mensajes`, `recibos`,
-`auditoria` y `respuestas_tienda`, esta última solo del servidor), `presencia_chat`,
-`fotos`
+`auditoria`, `respuestas_tienda` y `respuestas_oficina`, estas dos solo del servidor),
+`presencia_chat`, `fotos`, `buzones_chat` (la foto de cada buzón compartido)
 
 **Notificaciones** — `notificaciones`, `tipos_notificaciones`,
 `plantillas_notificaciones`, `preferencias_notificaciones`,

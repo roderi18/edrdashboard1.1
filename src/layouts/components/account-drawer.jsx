@@ -20,9 +20,9 @@ import { RouterLink } from 'src/routes/components';
 
 import { etiquetaDeCargo, useCargosDelUsuario } from 'src/hooks/use-cargos-del-usuario';
 
-import { getAdminRoleLabel } from 'src/utils/admin-role-label';
+import { rolesQueEjerce } from 'src/utils/org-level-access';
+import { getAdminRoleLabel, ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
 import {
-  getRealMemberEmail,
   isMemberSessionUser,
   getMemberCodeForDisplay,
 } from 'src/utils/member-access';
@@ -36,6 +36,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { AnimateBorder } from 'src/components/animate';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
 import { UpgradeBlock } from './nav-upgrade';
 import { AccountButton } from './account-button';
@@ -48,7 +49,6 @@ export function AccountDrawer({ data = [], sx, ...other }) {
 
   const { user } = useAuthContext();
   const memberCode = getMemberCodeForDisplay(user);
-  const realEmail = getRealMemberEmail(user);
   // Destacamentos, para traducir el id del alcance a su NÚMERO en la etiqueta del
   // rol. Se parte de la caché local (ya poblada por las listas) y solo se pide a
   // la API si está vacía, p. ej. al entrar directo sin pasar por la lista.
@@ -73,6 +73,14 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const adminRoleLabel = !isMemberSessionUser(user) ? getAdminRoleLabel(user, { dests }) : '';
   const accountName = user?.displayName || user?.nombres || user?.name || user?.email || '';
   const cargos = useCargosDelUsuario(user);
+  // LOS CARGOS DE ADMINISTRACION, debajo de los de la organizacion. Se asignan
+  // aparte —desde Administradores, no en una casilla de la directiva—, asi que
+  // no salen en `cargos`: quien era Coordinador Asistente y Administrador de
+  // Gestion de Tienda solo veia lo primero, y no sabia que tenia lo segundo.
+  const cargosDeAdministracion = rolesQueEjerce(user)
+    .filter((codigo) => ROLES_DE_ADMINISTRACION.includes(codigo))
+    .map((codigo) => ROLES_POR_CODIGO[codigo]?.nombre)
+    .filter(Boolean);
   const accountPhotoURL = user?.photoURL || '';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
@@ -194,7 +202,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
               {accountName}
             </Typography>
 
-            {!isMemberSessionUser(user) && !cargos.length && (
+            {!isMemberSessionUser(user) && !cargos.length && !cargosDeAdministracion.length && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
                 {adminRoleLabel}
               </Typography>
@@ -213,21 +221,21 @@ export function AccountDrawer({ data = [], sx, ...other }) {
               </Typography>
             ))}
 
+            {cargosDeAdministracion.map((nombre) => (
+              <Typography
+                key={nombre}
+                variant="body2"
+                sx={{ color: 'text.secondary', mt: 0.5, textAlign: 'center', px: 2 }}
+              >
+                {nombre}
+              </Typography>
+            ))}
+
+            {/* El correo no se enseña aqui: el panel lo abre cualquiera que pase
+                por delante de la pantalla. Basta con el codigo de miembro. */}
             {memberCode && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
                 {memberCode}
-              </Typography>
-            )}
-
-            {realEmail && (
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-                {realEmail}
-              </Typography>
-            )}
-
-            {!memberCode && !realEmail && (
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-                {user?.email}
               </Typography>
             )}
           </Box>

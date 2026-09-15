@@ -12,11 +12,10 @@ import {
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import {
-  esTiendaVirtual,
-  ID_TIENDA_VIRTUAL,
-  AVATAR_TIENDA_VIRTUAL,
-  contactoTiendaVirtual,
-} from 'src/utils/chat-tienda-virtual.mjs';
+  contactoDeBuzon,
+  esBuzonCompartido,
+  buzonPorIdMiembros,
+} from 'src/utils/chat-buzones.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
@@ -40,12 +39,6 @@ import {
   decodeConversationCursor,
 } from 'src/server/chat-pagination.mjs';
 import {
-  leerRespuestasDeTienda,
-  autenticarBuzonDeTienda,
-  perfilesDelBuzonDeTienda,
-  registrarRespuestaDeTienda,
-} from 'src/server/chat-tienda';
-import {
   chatMessageToUi,
   normalizeChatReaction,
   createChatMessageDocument,
@@ -57,6 +50,14 @@ import {
   collectChatAttachmentPaths,
   applyChatMessageLifecycleAction,
 } from 'src/server/chat-message-lifecycle.mjs';
+import {
+  autenticarBuzon,
+  perfilesDelBuzon,
+  contactosDeBuzones,
+  avatarActualDeBuzon,
+  leerRespuestasDeBuzon,
+  registrarRespuestaDeBuzon,
+} from 'src/server/chat-buzones';
 import {
   authenticateChatRequest,
   bindAuthenticatedMessage,
@@ -214,62 +215,79 @@ const createChatStore = (chatActor = {}) =>
     token: chatActor.token,
   });
 
-// ¿QUIEN PIDE: UNA PERSONA O EL BUZON DE LA TIENDA?
+// ¿QUIEN PIDE: UNA PERSONA O UN BUZON COMPARTIDO?
 //
 // Todas las llamadas del chat ya mandan el `idMiembros` de quien esta mirando,
-// aunque el servidor no se fiaba de el —la identidad sale del token—. Ahora ese
-// dato decide una sola cosa: si viene el de la Tienda Virtual, la peticion quiere
-// actuar como la Tienda. Y eso NO se concede por pedirlo: `autenticarBuzonDeTienda`
-// comprueba el cargo de la persona antes de darle la identidad de la Tienda.
-const autenticarActorDelChat = (req, idMiembrosPedido) =>
-  esTiendaVirtual(idMiembrosPedido) ? autenticarBuzonDeTienda(req) : authenticateChatRequest(req);
+// aunque el servidor no se fiaba de el —la identidad sale del token—. Ese dato
+// decide una sola cosa: si viene el de un buzon (Tienda Virtual, Oficina
+// Nacional), la peticion quiere actuar como ese buzon. Y eso NO se concede por
+// pedirlo: `autenticarBuzon` comprueba el cargo de la persona para ESE buzon
+// antes de darle su identidad.
+const autenticarActorDelChat = (req, idMiembrosPedido) => {
+  const buzon = buzonPorIdMiembros(idMiembrosPedido);
 
-// La Tienda Virtual es un contacto mas para todo el mundo: asi se la encuentra en
-// el buscador y se le puede escribir. Si el padron trajera a alguien con su mismo
-// numero, se queda la Tienda: una persona nunca ocupa su lugar.
-const conLaTienda = (contactos = []) => [
-  ...contactos.filter((contacto) => !esTiendaVirtual(contacto?.idMiembros ?? contacto?.id)),
-  contactoTiendaVirtual(),
+  return buzon ? autenticarBuzon(buzon, req) : authenticateChatRequest(req);
+};
+
+// Los buzones son un contacto mas para todo el mundo: asi se los encuentra en el
+// buscador y se les puede escribir, con la foto que haya elegido el
+// Administrador Global. Si el padron trajera a alguien con uno de sus numeros,
+// se queda el buzon: una persona nunca ocupa su lugar.
+const conLosBuzones = async (contactos = []) => [
+  ...contactos.filter((contacto) => !esBuzonCompartido(contacto?.idMiembros ?? contacto?.id)),
+  ...(await contactosDeBuzones()),
 ];
 
-// Quien contesto cada mensaje de la Tienda. Solo se añade cuando mira el propio
-// buzon; al miembro nunca le llega.
+// Quien contesto cada mensaje del buzon —nombre y usuario—. SOLO se añade cuando
+// mira el buzon el Administrador Global: al miembro nunca le llega, y el resto de
+// quienes atienden el buzon tampoco lo ven —para ellos y para el miembro, quien
+// contesta es el buzon—. Queda ademas en Historial para la auditoria.
 const conQuienContesto = async (conversationUi, chatActor) => {
+  const buzon =
+    chatActor?.esBuzonCompartido && chatActor?.responsable?.esAdministradorGlobal
+      ? buzonPorIdMiembros(chatActor.idMiembros)
+      : null;
+
   // Sin lista de mensajes no hay nada que anotar: algunas acciones (entregado,
   // escribiendo) devuelven un acuse y no la conversacion.
-  if (
-    !chatActor?.esTiendaVirtual ||
-    !conversationUi?.id ||
-    !Array.isArray(conversationUi.messages)
-  ) {
+  if (!buzon || !conversationUi?.id || !Array.isArray(conversationUi.messages)) {
     return conversationUi;
   }
 
-  const respuestas = await leerRespuestasDeTienda(conversationUi.id).catch(() => new Map());
+  const respuestas = await leerRespuestasDeBuzon(buzon, conversationUi.id).catch(() => new Map());
 
   if (!respuestas.size) return conversationUi;
 
   return {
     ...conversationUi,
-    messages: asArray(conversationUi.messages).map((message) =>
-      respuestas.has(String(message.id))
-        ? { ...message, respondidoPor: respuestas.get(String(message.id)) }
-        : message
-    ),
+    messages: asArray(conversationUi.messages).map((message) => {
+      const respuesta = respuestas.get(String(message.id));
+
+      if (!respuesta) return message;
+
+      return {
+        ...message,
+        respondidoPor: respuesta.nombre,
+        ...(respuesta.usuario && { respondidoPorUsuario: respuesta.usuario }),
+      };
+    }),
   };
 };
 
-const anotarRespuestaDeTienda = (chatActor, idConversacion, idMensaje) => {
-  if (!chatActor?.esTiendaVirtual) return Promise.resolve();
+const anotarRespuestaDeBuzon = (chatActor, idConversacion, idMensaje) => {
+  const buzon = chatActor?.esBuzonCompartido ? buzonPorIdMiembros(chatActor.idMiembros) : null;
+
+  if (!buzon) return Promise.resolve();
 
   // Dejar constancia es un extra: el mensaje ya esta enviado.
-  return registrarRespuestaDeTienda({
+  return registrarRespuestaDeBuzon({
+    buzon,
     idConversacion,
     idMensaje,
     responsable: chatActor.responsable,
   }).catch((error) => {
     console.warn(
-      JSON.stringify({ event: 'chat_tienda_responsable_error', ...toSafeChatErrorMetric(error) })
+      JSON.stringify({ event: 'chat_buzon_responsable_error', ...toSafeChatErrorMetric(error) })
     );
   });
 };
@@ -407,7 +425,7 @@ async function resolveConversationParticipants(conversationData = {}) {
     getMembersFromApi().catch(() => []),
     getMembersFromFirestoreProfiles().catch(() => []),
   ]);
-  const contacts = conLaTienda(getAllContacts([...members, ...firestoreProfiles]));
+  const contacts = await conLosBuzones(getAllContacts([...members, ...firestoreProfiles]));
 
   return rawParticipants
     .map((participant) => resolveParticipantFromContacts(participant, contacts))
@@ -453,8 +471,16 @@ const resolveMessageSender = ({ messageData = {}, conversation = {} }) => {
 const messageToUi = (message = {}) => chatMessageToUi(message);
 
 const contactWithCurrentPhoto = async (member = {}) => {
-  if (esTiendaVirtual(member.idMiembros ?? member.id)) {
-    return { ...memberToContact(member), ...contactoTiendaVirtual() };
+  // Un buzon sale siempre con su foto ACTUAL, no con la que quedo guardada en la
+  // conversacion cuando se abrio: si el Administrador Global la cambia, cambia
+  // tambien en las conversaciones de antes.
+  const buzon = buzonPorIdMiembros(member.idMiembros ?? member.id);
+
+  if (buzon) {
+    return {
+      ...memberToContact(member),
+      ...contactoDeBuzon(buzon, await avatarActualDeBuzon(buzon)),
+    };
   }
 
   const contact = memberToContact(member);
@@ -618,12 +644,17 @@ async function getNotificationProfilesByMemberIds(idMiembrosList = []) {
 }
 
 async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
-  if (fallbackUrl) {
-    return fallbackUrl;
+  // El buzon va ANTES que la foto que llegue de fuera: la que trae el
+  // participante es la de cuando se abrio la conversacion, y con ella los avisos
+  // seguian enseñando la foto vieja despues de cambiarla.
+  const buzon = buzonPorIdMiembros(idMiembros);
+
+  if (buzon) {
+    return avatarActualDeBuzon(buzon);
   }
 
-  if (esTiendaVirtual(idMiembros)) {
-    return AVATAR_TIENDA_VIRTUAL;
+  if (fallbackUrl) {
+    return fallbackUrl;
   }
 
   const memberId = toNumberOrNull(idMiembros);
@@ -736,35 +767,41 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
     ) ?? message.remitente;
   const senderName = buildNombreCompleto(sender);
   const senderPhotoUrl = await getMemberPhotoUrl(senderId, sender?.avatarUrl);
-  // ESCRIBIRLE A LA TIENDA AVISA A QUIEN LA ATIENDE. La Tienda no tiene cuenta
-  // que reciba avisos: sin esto, el mensaje llegaba al buzon y nadie se enteraba
-  // hasta abrir el chat. Avisa a quien ejerce uno de los cargos del buzon, y el
-  // enlace abre la conversacion ya dentro de "Chats de la Tienda".
-  const escribenALaTienda = recipientsIds.some(esTiendaVirtual);
+  // ESCRIBIRLE A UN BUZON AVISA A QUIEN LO ATIENDE. Un buzon no tiene cuenta que
+  // reciba avisos: sin esto, el mensaje llegaba y nadie se enteraba hasta abrir
+  // el chat. Avisa a quien ejerce uno de los cargos de ESE buzon, y el enlace
+  // abre la conversacion ya dentro de su bandeja.
+  const buzonesDestino = recipientsIds.map(buzonPorIdMiembros).filter(Boolean);
   const recipientProfiles = [
     ...(await getNotificationProfilesByMemberIds(
-      recipientsIds.filter((idMiembros) => !esTiendaVirtual(idMiembros))
+      recipientsIds.filter((idMiembros) => !esBuzonCompartido(idMiembros))
     )),
-    ...(escribenALaTienda
-      ? (await perfilesDelBuzonDeTienda().catch(() => [])).map((profile) => ({
-          ...profile,
-          idMiembros: ID_TIENDA_VIRTUAL,
-          paraLaTienda: true,
-        }))
-      : []),
+    ...(
+      await Promise.all(
+        buzonesDestino.map(async (buzon) =>
+          (await perfilesDelBuzon(buzon).catch(() => [])).map((profile) => ({
+            ...profile,
+            idMiembros: buzon.idMiembros,
+            buzon,
+          }))
+        )
+      )
+    ).flat(),
   ];
   const idConversacion = conversation.idConversacion || conversation.id;
 
   await Promise.all(
     recipientProfiles.map((profile) => {
-      const notificationId = `mensaje_recibido_${idConversacion}_${message.idMensaje}_${profile.uid}`;
-      const frase = profile.paraLaTienda ? 'escribió a la Tienda Virtual' : 'te envió un mensaje';
+      // La clave lleva el buzon: quien atiende la Tienda y la Oficina recibe un
+      // aviso por cada una, no uno que pisa al otro.
+      const notificationId = `mensaje_recibido_${idConversacion}_${message.idMensaje}_${profile.uid}${profile.buzon ? `_${profile.buzon.clave}` : ''}`;
+      const frase = profile.buzon ? profile.buzon.fraseAviso : 'te envió un mensaje';
 
       return guardarNotificacionConfigurada({
         id: notificationId,
         tipoNotificacion: 'mensaje_recibido',
         modulo: 'mensajes',
-        titulo: profile.paraLaTienda ? 'Mensaje para la Tienda' : 'Mensaje recibido',
+        titulo: profile.buzon ? profile.buzon.tituloAviso : 'Mensaje recibido',
         tituloHtml: `<p><strong>${escapeHtml(senderName)}</strong> ${frase}</p>`,
         mensaje: `${frase}.`,
         mensajeVisual: `${frase}.`,
@@ -780,8 +817,8 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
         actorFotoURL: senderPhotoUrl || null,
         entidadTipo: 'mensaje',
         entidadId: message.idMensaje,
-        ruta: profile.paraLaTienda
-          ? `/dashboard/chat?id=${idConversacion}&bandeja=tienda`
+        ruta: profile.buzon
+          ? `/dashboard/chat?id=${idConversacion}&bandeja=${profile.buzon.clave}`
           : `/dashboard/chat?id=${idConversacion}`,
         imagenTipo: 'persona',
         imagenURL: senderPhotoUrl || null,
@@ -795,6 +832,9 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
         fechaExpiracion: null,
         fechaLectura: null,
         metadatos: {
+          // Un aviso de buzon va a quien lo atiende por su uid, tenga o no una
+          // sesion de administrador: la campana no lo filtra por rol.
+          ...(profile.buzon && { buzon: profile.buzon.clave }),
           idMensaje: message.idMensaje,
           idConversacion: conversation.idConversacion || conversation.id,
           remitenteIdMiembros: senderId,
@@ -1127,7 +1167,7 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
       `${conversationPath}/${SUBCOLECCION_MENSAJES}/${primerMensaje.idMensaje}`,
       primerMensaje
     );
-    await anotarRespuestaDeTienda(chatActor, idConversacion, primerMensaje.idMensaje);
+    await anotarRespuestaDeBuzon(chatActor, idConversacion, primerMensaje.idMensaje);
 
     // El aviso es un extra. El mensaje ya esta guardado: si el aviso falla, se
     // anota y se sigue. Tumbar un mensaje entregado por su notificacion es
@@ -1197,7 +1237,7 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
     `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`,
     messageDoc
   );
-  await anotarRespuestaDeTienda(chatActor, conversationId, messageDoc.idMensaje);
+  await anotarRespuestaDeBuzon(chatActor, conversationId, messageDoc.idMensaje);
   await chatStore.setDocument(
     conversationPath,
     {
@@ -2004,7 +2044,7 @@ export async function GET(req) {
       return Response.json(
         {
           contacts: await conSusFotos(
-            conLaTienda(getAllContacts([...members, ...firestoreProfiles]))
+            await conLosBuzones(getAllContacts([...members, ...firestoreProfiles]))
           ),
         },
         { headers: { 'Cache-Control': 'private, no-store' } }

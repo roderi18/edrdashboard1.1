@@ -85,35 +85,68 @@ service cloud.firestore {
       return estaAutenticado()
         && 'idMiembros' in request.auth.token
         && idMiembro() is int
-        && idMiembroNoUsurpaLaTienda()
+        && idMiembroNoUsurpaUnBuzon()
         && !permisoChatExcluido()
         && !moduloChatDeshabilitado();
     }
 
     // ------------------------------------------------------------------
-    // TIENDA VIRTUAL: EL BUZON COMPARTIDO DE LA TIENDA.
+    // BUZONES COMPARTIDOS: TIENDA VIRTUAL (20001) Y OFICINA NACIONAL (20002).
     //
-    // La Tienda participa en el chat con `idMiembros` 20001 (ver
-    // `src/utils/chat-tienda-virtual.mjs`). Ese numero solo lo puede llevar el
-    // token que emite el SERVIDOR, a nombre de `tienda-virtual`: si el padron
-    // llegara a darselo a una persona, su sesion no podria usarlo, o entraria en
-    // las conversaciones de toda la tienda.
+    // Cada buzon participa en el chat con su `idMiembros` (ver
+    // `src/utils/chat-buzones.mjs`). Ese numero solo lo puede llevar el token que
+    // emite el SERVIDOR, a nombre de su identidad (`tienda-virtual`,
+    // `oficina-nacional`): si el padron llegara a darselo a una persona, su
+    // sesion no podria usarlo, o entraria en las conversaciones de todo el buzon.
     // ------------------------------------------------------------------
-    function idMiembroNoUsurpaLaTienda() {
-      return request.auth.token.idMiembros != 20001
-        || request.auth.uid == 'tienda-virtual';
+    function idMiembroNoUsurpaUnBuzon() {
+      return (
+          request.auth.token.idMiembros != 20001
+          || request.auth.uid == 'tienda-virtual'
+        )
+        && (
+          request.auth.token.idMiembros != 20002
+          || request.auth.uid == 'oficina-nacional'
+        );
     }
 
-    // Quien ejerce uno de los cargos del buzon puede LEER las conversaciones de la
-    // Tienda: sin esto, "Chats de la Tienda" no se actualizaba al llegar un
-    // mensaje, porque la escucha en tiempo real va directa a Firestore. ESCRIBIR
-    // no: eso lo hace el servidor con el token de la Tienda, despues de comprobar
-    // el cargo.
+    // Quien ejerce uno de los cargos del buzon puede LEER sus conversaciones: sin
+    // esto, "Chats de la Tienda" no se actualizaba al llegar un mensaje, porque
+    // la escucha en tiempo real va directa a Firestore. ESCRIBIR no: eso lo hace
+    // el servidor con el token del buzon, despues de comprobar el cargo.
+    // Un cargo cuenta aunque no sea el principal: `rolesQueEjerce` es la lista
+    // plana de todos los que ejerce (la escribe el servidor junto a `cargos`).
+    // Da igual en que posicion este: la segunda, la cuarta... Sin esto, quien
+    // tenia la Oficina Nacional fuera del cargo principal atendia su
+    // buzon en la pantalla pero no lo escuchaba en tiempo real.
+    function ejerceRol(codigo) {
+      return rolDelToken() == codigo
+        || rolDelDocumento() == codigo
+        || (
+          exists(rutaAsignacion())
+          && 'rolesQueEjerce' in get(rutaAsignacion()).data
+          && get(rutaAsignacion()).data.rolesQueEjerce is list
+          && get(rutaAsignacion()).data.rolesQueEjerce.hasAny([codigo])
+        );
+    }
+
+    // El Administrador Global atiende TODOS los buzones.
     function atiendeBuzonDeTienda(datosConversacion) {
       return estaAutenticado()
-        && (esAdministradorGlobal() || esAdministradorDeTienda())
+        && (esAdministradorGlobal() || ejerceRol('administrador_tienda'))
         && datosConversacion.participantesIds is list
         && 20001 in datosConversacion.participantesIds;
+    }
+
+    function atiendeBuzonDeOficina(datosConversacion) {
+      return estaAutenticado()
+        && (esAdministradorGlobal() || ejerceRol('oficina_nacional'))
+        && datosConversacion.participantesIds is list
+        && 20002 in datosConversacion.participantesIds;
+    }
+
+    function atiendeUnBuzon(datosConversacion) {
+      return atiendeBuzonDeTienda(datosConversacion) || atiendeBuzonDeOficina(datosConversacion);
     }
 
     function esParticipante(datosConversacion) {
@@ -524,22 +557,22 @@ service cloud.firestore {
       // puede preguntar; lo que hay dentro sigue siendo solo de sus participantes.
       allow get: if (resource == null && puedeUsarChat())
         || (resource != null && esParticipante(resource.data))
-        || (resource != null && atiendeBuzonDeTienda(resource.data));
+        || (resource != null && atiendeUnBuzon(resource.data));
       allow list: if (
           estaAutenticado()
           && 'idMiembros' in request.auth.token
           && request.auth.token.idMiembros is int
-          && idMiembroNoUsurpaLaTienda()
+          && idMiembroNoUsurpaUnBuzon()
           && request.auth.token.idMiembros in resource.data.participantesIds
         )
-        || atiendeBuzonDeTienda(resource.data);
+        || atiendeUnBuzon(resource.data);
       allow create: if creacionConversacionValida(idConversacion);
       allow update: if actualizacionConversacionValida();
       allow delete: if esCreador(resource.data);
 
       match /mensajes/{idMensaje} {
         allow get, list: if puedeLeerConversacion(idConversacion)
-          || atiendeBuzonDeTienda(conversacion(idConversacion));
+          || atiendeUnBuzon(conversacion(idConversacion));
         allow create: if puedeLeerConversacion(idConversacion) && mensajeNuevoValido(idMensaje);
         allow update: if puedeLeerConversacion(idConversacion)
           && (actualizacionMensajePropioValida() || actualizacionReaccionValida());
@@ -576,9 +609,14 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Lo mismo para quien contesto como Oficina Nacional.
+      match /respuestas_oficina/{idMensaje} {
+        allow read, write: if false;
+      }
+
       match /recibos/{idRecibo} {
         allow get, list: if puedeLeerConversacion(idConversacion)
-          || atiendeBuzonDeTienda(conversacion(idConversacion));
+          || atiendeUnBuzon(conversacion(idConversacion));
         allow create: if puedeLeerConversacion(idConversacion)
           && idRecibo == request.auth.uid
           && request.resource.data.keys().hasOnly([
@@ -928,6 +966,18 @@ service cloud.firestore {
         )
         && request.resource.data.idDirectiva == idDirectiva
         && nivelDirectivaValido(request.resource.data.nivel);
+      allow delete: if false;
+    }
+
+    // LA FOTO DE CADA BUZON COMPARTIDO DEL CHAT (`buzones_chat/tienda`,
+    // `buzones_chat/oficina`). La ve cualquier sesion —sale en contactos, chats y
+    // avisos— y la cambia solo el Administrador Global, desde el propio chat. Un
+    // documento por buzon con su clave como id; nadie los borra.
+    match /buzones_chat/{claveBuzon} {
+      allow read: if estaAutenticado();
+      allow create, update: if esAdministradorGlobal()
+        && claveBuzon in ['tienda', 'oficina']
+        && request.resource.data.avatarUrl is string;
       allow delete: if false;
     }
 
@@ -1346,6 +1396,7 @@ service cloud.firestore {
         // el comodin dejaria leer y cambiar los de cualquiera.
         && coleccion != 'favoritos_productos'
         && coleccion != 'actividadesAsistencia'
+        && coleccion != 'buzones_chat'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
         && coleccion != 'analiticas_encabezado_tienda'

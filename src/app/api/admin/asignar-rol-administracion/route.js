@@ -1,3 +1,6 @@
+import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
+
+import { resolverCuentasDelObjetivo } from 'src/server/cuenta-del-objetivo.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import { ROLES } from 'src/auth/permissions/roles';
@@ -79,13 +82,14 @@ const leerAsignacion = async (db, docId) => {
  * antigua sin `rolId` daria via libre para quitarle el cargo al ultimo
  * administrador de verdad.
  */
-const otrosAdministradoresGlobales = async (db, docIdExcluido) => {
+const otrosAdministradoresGlobales = async (db, docIdsExcluidos = []) => {
+  const excluidos = new Set([docIdsExcluidos].flat().map(String));
   const snap = await db
     .collection(COLECCION_USUARIOS_ROLES)
     .where('rolId', '==', ROLES.ADMINISTRADOR_GLOBAL)
     .get();
 
-  return snap.docs.filter((documento) => String(documento.id) !== String(docIdExcluido)).length;
+  return snap.docs.filter((documento) => !excluidos.has(String(documento.id))).length;
 };
 
 export async function POST(req) {
@@ -150,12 +154,40 @@ export async function POST(req) {
     );
   }
 
-  // 4) Que no se quede en cero.
-  const asignacionActual = await leerAsignacion(db, uidUsuario);
-  const cargoActual = normalizar(asignacionActual?.rolId);
+  // 4) LA CUENTA DE VERDAD. La pantalla puede mandar el numero de miembro en vez
+  //    del uid de Firebase; el cargo tiene que acabar en el documento que leen la
+  //    sesion, las reglas y la sincronizacion. Ver `cuenta-del-objetivo.mjs`.
+  const cuentas = await resolverCuentasDelObjetivo({
+    idObjetivo: uidUsuario,
+    correo,
+    obtenerUsuario: (uid) => auth.getUser(uid),
+    obtenerPorCorreo: (valor) => auth.getUserByEmail(valor),
+    leerRol: (id) => leerAsignacion(db, id),
+    buscarPerfiles: async (campo, valor) =>
+      (
+        await Promise.all(
+          [COLECCION_USUARIOS_ROLES, 'users'].map((coleccion) =>
+            db.collection(coleccion).where(campo, '==', valor).limit(10).get()
+          )
+        )
+      ).flatMap((consulta) => consulta.docs.map((doc) => ({ id: doc.id, data: doc.data() }))),
+  });
+  // Donde se escribe: cada cuenta de Firebase de la persona y, ademas, el
+  // documento que mando la pantalla, para que la lista de Administradores siga
+  // enseñando lo mismo que tiene de verdad.
+  const documentos = [...new Set([...cuentas.uids, String(uidUsuario)])];
+  const asignaciones = new Map(
+    await Promise.all(documentos.map(async (id) => [id, await leerAsignacion(db, id)]))
+  );
 
-  if (cargoActual === ROLES.ADMINISTRADOR_GLOBAL && cargoNuevo !== ROLES.ADMINISTRADOR_GLOBAL) {
-    const quedan = await otrosAdministradoresGlobales(db, uidUsuario);
+  // 5) Que no se quede en cero. Se mira en todos sus documentos: basta con que
+  //    uno la tenga como Administradora Global.
+  const eraAdministradorGlobal = [...asignaciones.values()].some(
+    (asignacion) => normalizar(asignacion?.rolId) === ROLES.ADMINISTRADOR_GLOBAL
+  );
+
+  if (eraAdministradorGlobal && cargoNuevo !== ROLES.ADMINISTRADOR_GLOBAL) {
+    const quedan = await otrosAdministradoresGlobales(db, documentos);
 
     if (quedan === 0) {
       return jsonError(
@@ -165,60 +197,92 @@ export async function POST(req) {
     }
   }
 
-  // 5) Escribir.
+  // 6) Escribir, documento por documento: cada uno conserva SUS cargos de la
+  //    directiva. El cargo de administracion se suma a ellos, no los borra.
   const ahora = new Date().toISOString();
-  const payload = {
-    uidUsuario: String(uidUsuario),
-    correo,
-    nombre,
-    rolId: cargoNuevo,
-    rolNombre,
-    alcance,
-    restricciones,
-    ...(Array.isArray(cargos) ? { cargos } : {}),
-    activo: true,
-    // El campo heredado se alinea con el cargo: varias pantallas y las propias
-    // reglas caen a `rol` cuando no hay claim, y dejarlo desalineado hacia que la
-    // persona apareciera con un cargo en un sitio y otro en el de al lado.
-    rol: cargoNuevo === ROLES.ADMINISTRADOR_GLOBAL ? 'administrador' : cargoNuevo,
-    asignadoPor: quienLlama.uid || quienLlama.email || 'sistema',
-    asignadoEn: ahora,
-    actualizadoEn: ahora,
-  };
+  let payload = null;
 
-  await db
-    .collection(COLECCION_USUARIOS_ROLES)
-    .doc(String(uidUsuario))
-    .set(payload, { merge: true });
+  await Promise.all(
+    documentos.map(async (id) => {
+      const actual = asignaciones.get(id) ?? {};
+      const susCargos = Array.isArray(cargos) ? cargos : (actual.cargos ?? []);
+      // QUITAR el cargo de administracion no deja a nadie en Usuario Comun si
+      // ocupa casillas de la directiva: vuelve a mandar su primer cargo, igual que
+      // hara la sincronizacion en su proximo acceso.
+      const rolQueQueda =
+        cargoNuevo === ROLES.USUARIO_COMUN && susCargos.length
+          ? normalizar(susCargos[0]?.rol ?? susCargos[0]?.rolId) || cargoNuevo
+          : cargoNuevo;
+      const esCuentaDeMiembro = normalizar(actual.rol) === 'miembro';
+      const datos = {
+        uidUsuario: cuentas.uids[0] || String(uidUsuario),
+        ...(correo && { correo }),
+        ...(nombre && { nombre }),
+        ...(cuentas.idMiembros && !actual.idMiembros && { idMiembros: cuentas.idMiembros }),
+        ...(cuentas.codigoMiembro && !actual.codigoMiembro && { codigoMiembro: cuentas.codigoMiembro }),
+        rolId: rolQueQueda,
+        rolNombre,
+        alcance,
+        restricciones,
+        ...(Array.isArray(cargos) ? { cargos } : {}),
+        // La lista plana que leen las reglas —el cargo de administracion mas los
+        // que ya tuviera, en cualquier posicion—: sin ella, en Firestore solo
+        // contaba el principal. Ver `lista-roles-que-ejerce.mjs`.
+        rolesQueEjerce: listaDeRolesQueEjerce({ rolId: rolQueQueda, cargos: susCargos }),
+        activo: true,
+        // El campo heredado se alinea con el cargo: varias pantallas y las propias
+        // reglas caen a `rol` cuando no hay claim, y dejarlo desalineado hacia que
+        // la persona apareciera con un cargo en un sitio y otro en el de al lado.
+        // Salvo la marca 'miembro' de una cuenta de miembro, que es la que dice
+        // como entra a la aplicacion y no su cargo.
+        rol: esCuentaDeMiembro
+          ? actual.rol
+          : rolQueQueda === ROLES.ADMINISTRADOR_GLOBAL
+            ? 'administrador'
+            : rolQueQueda,
+        asignadoPor: quienLlama.uid || quienLlama.email || 'sistema',
+        asignadoEn: ahora,
+        actualizadoEn: ahora,
+      };
 
-  // 6) Los claims, para que la sesion del objetivo refleje el cargo nuevo. Si
-  //    falla, la asignacion ya esta guardada: se sincroniza al volver a entrar.
+      await db.collection(COLECCION_USUARIOS_ROLES).doc(id).set(datos, { merge: true });
+
+      if (!payload || id === cuentas.uids[0]) payload = datos;
+    })
+  );
+
+  // 7) Los claims de CADA cuenta de Firebase, para que su sesion refleje el cargo
+  //    nuevo sin esperar a volver a entrar. Si fallan, la asignacion ya esta
+  //    guardada: se sincroniza en el proximo acceso.
   let claims = null;
 
-  try {
-    const authUid = await auth
-      .getUser(String(uidUsuario))
-      .then((registro) => registro.uid)
-      .catch(async () => {
-        if (!correo) return '';
+  await Promise.all(
+    cuentas.uids.map(async (uid) => {
+      try {
+        const actual = asignaciones.get(uid) ?? {};
+        const suyos = deriveUserClaims({
+          rolId: payload?.rolId ?? cargoNuevo,
+          alcance,
+          idMiembros: actual.idMiembros ?? actual.memberId ?? cuentas.idMiembros,
+        });
 
-        return auth
-          .getUserByEmail(correo)
-          .then((registro) => registro.uid)
-          .catch(() => '');
-      });
+        await auth.setCustomUserClaims(uid, suyos);
+        claims = claims ?? suyos;
+      } catch (error) {
+        console.warn('[asignar-rol-administracion] no se pudieron emitir los claims', error);
+      }
+    })
+  );
 
-    if (authUid) {
-      claims = deriveUserClaims({
-        rolId: cargoNuevo,
-        alcance,
-        idMiembros: asignacionActual?.idMiembros ?? asignacionActual?.memberId,
-      });
-
-      await auth.setCustomUserClaims(authUid, claims);
-    }
-  } catch (error) {
-    console.warn('[asignar-rol-administracion] no se pudieron emitir los claims', error);
+  // Sin cuenta de Firebase todavia (nunca ha entrado): el cargo queda en su
+  // documento y se le aplica cuando cree su acceso.
+  if (!cuentas.uids.length) {
+    return Response.json({
+      ok: true,
+      asignacion: payload,
+      claims: null,
+      aviso: 'Esta persona aún no tiene cuenta de acceso: el cargo se aplicará cuando entre.',
+    });
   }
 
   return Response.json({ ok: true, asignacion: payload, claims });

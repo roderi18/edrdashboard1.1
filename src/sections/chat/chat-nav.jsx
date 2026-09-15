@@ -2,7 +2,6 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Tooltip from '@mui/material/Tooltip';
@@ -26,6 +25,7 @@ import { ChatNavItem } from './chat-nav-item';
 import { ChatNavAccount } from './chat-nav-account';
 import { rutaDelChat } from './utils/ruta-del-chat';
 import { ChatNavItemSkeleton } from './chat-skeleton';
+import { ChatAvatarDeBuzon } from './chat-avatar-de-buzon';
 import { ChatNavSearchResults } from './chat-nav-search-results';
 import { usePresenceStatuses } from './hooks/use-presence-status';
 import { useChatCurrentContact } from './hooks/use-chat-current-contact';
@@ -51,7 +51,8 @@ export function ChatNav({
   onLoadMore,
   onStartChat,
   currentContact,
-  enBuzon = false,
+  bandeja = '',
+  buzonActual = null,
 }) {
   const router = useRouter();
   const conversationsInFlightRef = useRef(new Set());
@@ -106,8 +107,8 @@ export function ChatNav({
     if (!mdUp) {
       onCloseMobile();
     }
-    router.push(rutaDelChat({ enBuzon }));
-  }, [enBuzon, mdUp, onCloseMobile, router]);
+    router.push(rutaDelChat({ bandeja }));
+  }, [bandeja, mdUp, onCloseMobile, router]);
 
   const handleSearchContacts = useCallback(
     (inputValue) => {
@@ -137,8 +138,8 @@ export function ChatNav({
       currentId: selectedConversationId,
     });
 
-    if (conversationId) router.push(rutaDelChat({ id: conversationId, enBuzon }));
-  }, [conversations, enBuzon, router, selectedConversationId]);
+    if (conversationId) router.push(rutaDelChat({ id: conversationId, bandeja }));
+  }, [bandeja, conversations, router, selectedConversationId]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -162,7 +163,7 @@ export function ChatNav({
     async (result) => {
       handleClickAwaySearch();
 
-      const linkTo = (id) => router.push(rutaDelChat({ id, enBuzon }));
+      const linkTo = (id) => router.push(rutaDelChat({ id, bandeja }));
       const resultId = String(result.id);
 
       if (conversationsInFlightRef.current.has(resultId)) return;
@@ -210,7 +211,7 @@ export function ChatNav({
         toast.error(getChatErrorMessage(error, 'No se pudo abrir la conversación.'));
       }
     },
-    [contacts, conversations.byId, enBuzon, handleClickAwaySearch, onStartChat, router]
+    [bandeja, contacts, conversations.byId, handleClickAwaySearch, onStartChat, router]
   );
 
   const renderLoading = () => <ChatNavItemSkeleton />;
@@ -223,7 +224,7 @@ export function ChatNav({
             key={conversationId}
             collapse={collapseDesktop}
             currentContact={myContact}
-            enBuzon={enBuzon}
+            bandeja={bandeja}
             conversation={conversations.byId[conversationId]}
             presenceStatuses={presenceStatuses}
             selected={conversationId === selectedConversationId}
@@ -255,7 +256,7 @@ export function ChatNav({
       onClickResult={handleClickResult}
       onClickConversationResult={(conversation) => {
         handleClickAwaySearch();
-        router.push(rutaDelChat({ id: conversation.id, enBuzon }));
+        router.push(rutaDelChat({ id: conversation.id, bandeja }));
       }}
     />
   );
@@ -299,9 +300,11 @@ export function ChatNav({
             "conectada" ni "ausente", y su presencia la escribiria alguien que no
             es ella. Se enseña quien responde y nada mas. */}
         {!collapseDesktop &&
-          (enBuzon ? (
+          (buzonActual ? (
             <>
-              <Avatar alt={myContact.name} src={myContact.avatarUrl} sx={{ width: 48, height: 48 }} />
+              {/* La foto del buzon: el Administrador Global la cambia aqui mismo,
+                  pasando el raton por encima. */}
+              <ChatAvatarDeBuzon buzon={buzonActual} size={48} />
               <Typography variant="subtitle2" noWrap sx={{ ml: 1.5, minWidth: 0 }}>
                 {myContact.name}
               </Typography>

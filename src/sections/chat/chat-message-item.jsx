@@ -187,7 +187,15 @@ function TarjetaProductoCompartido({ producto }) {
         </Typography>
 
         {Number.isFinite(producto.price) && (
-          <Typography variant="subtitle2" sx={{ color: 'primary.main', mt: 0.25 }}>
+          <Typography
+            variant="subtitle2"
+            sx={(theme) => ({
+              mt: 0.25,
+              color: 'primary.main',
+              // El color principal, oscuro, no se lee sobre la tarjeta oscura.
+              ...theme.applyStyles('dark', { color: 'primary.light' }),
+            })}
+          >
             {fDopCurrency(producto.price)}
           </Typography>
         )}
@@ -325,24 +333,36 @@ export function ChatMessageItem({
 
       {formatChatTime(createdAt)}
 
-      {/* Quien contesto como la Tienda. El servidor solo lo manda al propio
-          buzon, asi que al miembro nunca le llega este dato. */}
-      {message.respondidoPor && ` · respondió ${message.respondidoPor}`}
+      {/* Quien contesto como el buzon, con su usuario. El servidor solo lo manda
+          al Administrador Global cuando mira el buzon: ni el miembro ni el resto
+          de quienes lo atienden reciben este dato. */}
+      {message.respondidoPor &&
+        ` · respondió ${message.respondidoPor}${
+          message.respondidoPorUsuario ? ` (${message.respondidoPorUsuario})` : ''
+        }`}
     </Typography>
   );
 
   const renderBody = () => (
     <Stack
-      sx={{
-        p: 1.5,
-        minWidth: 48,
-        maxWidth: 320,
-        borderRadius: 1,
-        typography: 'body2',
-        bgcolor: 'background.neutral',
-        ...(me && { color: 'grey.800', bgcolor: 'primary.lighter' }),
-        ...(hasImage && { p: 0, bgcolor: 'transparent' }),
-      }}
+      sx={[
+        {
+          p: 1.5,
+          minWidth: 48,
+          maxWidth: 320,
+          borderRadius: 1,
+          typography: 'body2',
+          bgcolor: 'background.neutral',
+          ...(me && { color: 'grey.800', bgcolor: 'primary.lighter' }),
+          ...(hasImage && { p: 0, bgcolor: 'transparent' }),
+        },
+        // EL PRODUCTO COMPARTIDO, OSCURO EN EL TEMA OSCURO. El globo propio es
+        // celeste en los dos temas, y con la tarjeta ya oscura dentro quedaba un
+        // recuadro claro alrededor de una tarjeta oscura.
+        !!message.metadata?.sharedProduct &&
+          ((theme) =>
+            theme.applyStyles('dark', { color: 'text.primary', bgcolor: 'background.neutral' })),
+      ]}
     >
       {isDeleted ? (
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>

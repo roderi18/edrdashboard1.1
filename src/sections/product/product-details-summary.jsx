@@ -16,6 +16,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
+import { isMemberSessionUser } from 'src/utils/member-access';
 import { productoAgotado } from 'src/utils/solicitud-producto.mjs';
 import { fDopCurrency, fShortenNumber } from 'src/utils/format-number';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
@@ -283,21 +284,42 @@ export function ProductDetailsSummary({
     setEvidenceFiles(Array.from(event.target.files || []).filter(isAllowedEvidenceFile).slice(0, 10));
   }, []);
 
+  // LOS MISMOS DOS PRECIOS QUE LA TARJETA DE LA LISTA. La tarjeta enseñaba el de
+  // registrados con el de no registrados tachado al lado, y la ficha solo uno:
+  // el mismo producto parecia tener otro precio al entrar. No es una rebaja, son
+  // dos publicos, y por eso el tachado va del mismo tamaño. Al miembro, como en
+  // la tarjeta, solo el suyo.
+  const precioNoRegistradoNumero = Number(precioNoRegistrado ?? 0);
+  const muestraDosPrecios = !isMemberSessionUser(user) && precioNoRegistradoNumero > 0;
+
   const renderPrice = () => (
-    <Box sx={{ typography: 'h5' }}>
+    <Stack direction="row" spacing={1} alignItems="baseline" sx={{ flexWrap: 'wrap' }}>
       {/* Con `priceSale && …` un precio de oferta 0 pintaba el 0 delante del
           precio: "0RD$200". */}
-      {Number(priceSale) > 0 && (
+      {!muestraDosPrecios && Number(priceSale) > 0 && (
         <Box
           component="span"
-          sx={{ color: 'text.disabled', textDecoration: 'line-through', mr: 0.5 }}
+          sx={{ typography: 'h5', color: 'text.disabled', textDecoration: 'line-through' }}
         >
           {fDopCurrency(priceSale)}
         </Box>
       )}
 
-      {fDopCurrency(price)}
-    </Box>
+      <Box component="span" sx={{ typography: 'h5' }}>
+        {fDopCurrency(muestraDosPrecios ? (precioRegistrado ?? price) : price)}
+      </Box>
+
+      {muestraDosPrecios && (
+        <Tooltip title="Precio para destacamentos no registrados">
+          <Box
+            component="span"
+            sx={{ typography: 'h5', color: 'text.disabled', textDecoration: 'line-through' }}
+          >
+            {fDopCurrency(precioNoRegistradoNumero)}
+          </Box>
+        </Tooltip>
+      )}
+    </Stack>
   );
 
   const renderShare = () => (

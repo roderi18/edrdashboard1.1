@@ -82,6 +82,10 @@ export const AMBITOS_CAMBIO = {
   // el Administrador Global, asi que no espera aprobacion de nadie, pero cada
   // ajuste queda en Historial: es lo que decide quien puede que.
   combinacionesRoles: 'combinaciones_roles',
+  // La foto de un buzon compartido del chat (Tienda Virtual, Oficina Nacional).
+  // Solo la cambia el Administrador Global: se aplica en el acto, pero queda en
+  // Historial porque es la cara con la que el buzon habla a todo el mundo.
+  buzonChat: 'buzon_chat',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

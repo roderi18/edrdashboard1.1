@@ -179,6 +179,47 @@ export function useGetConversation(conversationId, idMiembros) {
 
 // ----------------------------------------------------------------------
 
+// LO PENDIENTE DE LOS BUZONES COMPARTIDOS QUE ATIENDE ESTA SESION.
+//
+// El contador de "Chats" del menu solo contaba las conversaciones personales:
+// quien atiende la Tienda o la Oficina no se enteraba de que alguien habia
+// escrito hasta entrar al chat y abrir su bandeja. Una peticion por cada buzon,
+// en una sola clave; `mutate` la revalida como a cualquier resumen porque su
+// clave tambien es de 'unread-summary'.
+export function useGetUnreadSummaryDeBuzones(idsMiembros = [], enabled = true) {
+  const ids = idsMiembros.filter(Boolean).map(Number);
+  const url =
+    enabled && ids.length
+      ? [CHAT_ENDPOINT, { params: { endpoint: 'unread-summary', buzones: ids.join(',') } }]
+      : '';
+
+  const { data } = useSWR(
+    url,
+    () =>
+      Promise.all(
+        ids.map((sessionMemberId) =>
+          fetcher([CHAT_ENDPOINT, { params: { endpoint: 'unread-summary', sessionMemberId } }]).catch(
+            () => null
+          )
+        )
+      ),
+    { ...swrOptions, refreshInterval: 0 }
+  );
+
+  return useMemo(() => {
+    const resumenes = Array.isArray(data) ? data.filter(Boolean) : [];
+
+    return {
+      unreadByConversation: Object.assign(
+        {},
+        ...resumenes.map((resumen) => resumen?.unreadByConversation ?? {})
+      ),
+    };
+  }, [data]);
+}
+
+// ----------------------------------------------------------------------
+
 export async function sendMessage(conversationId, messageData, idMiembros) {
   const conversationsUrl = [CHAT_ENDPOINT, { params: { endpoint: 'conversations', idMiembros } }];
 

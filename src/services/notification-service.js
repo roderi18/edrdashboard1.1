@@ -8,6 +8,7 @@ import {
   updateDoc,
   collection,
   arrayUnion,
+  onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -2922,6 +2923,33 @@ const publicarRecordatoriosPublicacionVencidos = async (idUsuario) => {
   }
 };
 
+/**
+ * Avisa cuando llega o cambia un aviso de esta cuenta. Solo es un disparador: la
+ * lista se sigue leyendo con `listarNotificacionesDrawerParaUsuario`, que aplica
+ * los filtros y agrupa. La primera foto —lo que ya habia— no avisa.
+ */
+export function escucharNotificacionesDelUsuario(idUsuario, alCambiar) {
+  if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) return () => {};
+
+  let primeraFoto = true;
+
+  return onSnapshot(
+    query(
+      collection(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones),
+      where('idsDestinatarios', 'array-contains', String(idUsuario))
+    ),
+    (snapshot) => {
+      if (primeraFoto) {
+        primeraFoto = false;
+        return;
+      }
+
+      if (snapshot.docChanges().length) alCambiar?.();
+    },
+    (error) => console.error('[notificaciones] no se pudo escuchar la campana', error)
+  );
+}
+
 export async function listarNotificacionesFirestorePorUsuario(idUsuario) {
   if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) {
     return [];
@@ -2979,6 +3007,12 @@ export async function listarNotificacionesFirestoreParaUsuario(usuario = {}) {
     // se le tiraba el aviso a la basura y se quedaba sin enterarse del
     // cumpleaños de su propio compañero.
     if (String(notificacion.modulo ?? '').toLowerCase() === 'cumpleanos') return true;
+
+    // EL AVISO DE UN BUZON COMPARTIDO va a quien lo atiende, por su uid. Se
+    // guarda como 'admin', y la regla de abajo lo tiraba a quien atiende la
+    // Tienda o la Oficina desde una sesion de miembro: su mensaje llegaba y la
+    // campana no decia nada.
+    if (notificacion.metadatos?.buzon) return true;
 
     if (rolDestinatario === 'admin') return usuarioEsAdmin;
     if (rolDestinatario === 'usuario') return !usuarioEsAdmin;

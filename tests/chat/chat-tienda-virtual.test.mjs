@@ -44,8 +44,15 @@ const {
   crearProveedorDeTokenDeTienda,
   crearAutenticadorDeBuzonDeTienda,
 } = await import('src/server/chat-tienda-core.mjs');
-const { sesionPuedeAtenderBuzonDeTienda, identidadEnElChat } =
-  await import('src/sections/chat/utils/buzon-de-tienda.js');
+const { BUZON_TIENDA } = await import('src/utils/chat-buzones.mjs');
+const { sesionPuedeAtenderBuzon, identidadDeBuzonEnElChat } =
+  await import('src/sections/chat/utils/buzones-del-chat.js');
+
+// La Tienda es ahora uno de los buzones compartidos: se prueba con el codigo
+// general, atado a su buzon.
+const sesionPuedeAtenderBuzonDeTienda = (user) => sesionPuedeAtenderBuzon(user, BUZON_TIENDA);
+const identidadEnElChat = (yo, enBuzon) =>
+  identidadDeBuzonEnElChat(yo, enBuzon ? BUZON_TIENDA : null);
 const { rutaDelChat } = await import('src/sections/chat/utils/ruta-del-chat.js');
 
 const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), 'utf8');
@@ -229,11 +236,10 @@ test('con el cargo, la peticion actua como la Tienda y guarda quien contesto', a
   assert.equal(actor.idMiembros, ID_TIENDA_VIRTUAL);
   assert.equal(actor.token, 'token-de-la-tienda');
   assert.equal(actor.esTiendaVirtual, true);
-  assert.deepEqual(actor.responsable, {
-    uid: 'uid-encargada',
-    nombre: 'Encargada de Tienda',
-    idMiembros: 134,
-  });
+  assert.equal(actor.responsable.uid, 'uid-encargada');
+  assert.equal(actor.responsable.nombre, 'Encargada de Tienda');
+  assert.equal(actor.responsable.idMiembros, 134);
+  assert.equal(actor.responsable.esAdministradorGlobal, false);
 });
 
 test('sin el cargo, pedir el buzon de la Tienda se rechaza con 403', async () => {
@@ -308,12 +314,15 @@ test('el token de la Tienda se reutiliza mientras dura y se renueva antes de cad
 // LO QUE VE CADA QUIEN, Y LAS REGLAS
 // ----------------------------------------------------------------------
 
-test('quien contesto como la Tienda solo se añade al mirar el propio buzon', () => {
+test('quien contesto como la Tienda solo lo ve el Administrador Global en el buzon', () => {
   const ruta = leer('src/app/api/chat/route.js');
 
-  assert.match(ruta, /!chatActor\?\.esTiendaVirtual \|\|/);
+  assert.match(
+    ruta,
+    /chatActor\?\.esBuzonCompartido && chatActor\?\.responsable\?\.esAdministradorGlobal/
+  );
   // Se guarda aparte del mensaje, que el miembro puede leer entero.
-  assert.match(leer('src/server/chat-tienda.js'), /collection\(COLECCION_RESPUESTAS\)/);
+  assert.match(leer('src/server/chat-buzones.js'), /collection\(buzon\.coleccionRespuestas\)/);
 });
 
 test('las reglas: nadie usurpa el 20001, el buzon solo lee, y respuestas_tienda es del servidor', () => {
@@ -324,13 +333,13 @@ test('las reglas: nadie usurpa el 20001, el buzon solo lee, y respuestas_tienda 
     /request\.auth\.token\.idMiembros != 20001\s*\|\| request\.auth\.uid == 'tienda-virtual'/
   );
   assert.match(reglas, /function atiendeBuzonDeTienda\(datosConversacion\)/);
-  assert.match(reglas, /\|\| atiendeBuzonDeTienda\(resource\.data\);/);
+  assert.match(reglas, /\|\| atiendeUnBuzon\(resource\.data\);/);
   assert.match(
     reglas,
     /match \/respuestas_tienda\/\{idMensaje\} \{\s*allow read, write: if false;/
   );
   // El buzon no gana escritura: create y update siguen como estaban.
-  assert.doesNotMatch(reglas, /allow (create|update)[^;]*atiendeBuzonDeTienda/);
+  assert.doesNotMatch(reglas, /allow (create|update)[^;]*atiende(BuzonDeTienda|UnBuzon)/);
 
   const almacen = leer('storage.rules');
   assert.match(almacen, /idMiembroChat\(\) != 20001 \|\| request\.auth\.uid == 'tienda-virtual'/);

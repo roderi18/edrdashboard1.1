@@ -27,7 +27,7 @@ export function ChatNavItem({
   collapse,
   conversation,
   currentContact,
-  enBuzon = false,
+  bandeja = '',
   onCloseMobile,
   presenceStatuses = {},
 }) {
@@ -54,7 +54,7 @@ export function ChatNavItem({
       onCloseMobile();
     }
 
-    const redirectPath = rutaDelChat({ id: conversation.id, enBuzon });
+    const redirectPath = rutaDelChat({ id: conversation.id, bandeja });
 
     startTransition(() => {
       router.push(redirectPath);
@@ -63,7 +63,7 @@ export function ChatNavItem({
     clickConversation(conversation.id, currentContact.idMiembros).catch((error) => {
       console.error(error);
     });
-  }, [conversation.id, currentContact.idMiembros, enBuzon, mdUp, onCloseMobile, router]);
+  }, [conversation.id, currentContact.idMiembros, bandeja, mdUp, onCloseMobile, router]);
 
   const renderGroup = () => (
     <Badge variant={hasOnlineInGroup ? 'online' : 'invisible'} badgeContent=" ">

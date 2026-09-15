@@ -314,25 +314,52 @@ service firebase.storage {
       return request.auth.token.idMiembros;
     }
 
-    // El 20001 es la Tienda Virtual: solo lo lleva el token que emite el servidor
-    // a nombre de `tienda-virtual`. Ver `firestore.rules` y
-    // `src/utils/chat-tienda-virtual.mjs`.
+    // El 20001 es la Tienda Virtual y el 20002 la Oficina Nacional: solo los lleva
+    // el token que emite el servidor a nombre de `tienda-virtual` y
+    // `oficina-nacional`. Ver `firestore.rules` y `src/utils/chat-buzones.mjs`.
     function puedeUsarChat() {
       return estaAutenticado()
         && 'idMiembros' in request.auth.token
         && idMiembroChat() is int
-        && (idMiembroChat() != 20001 || request.auth.uid == 'tienda-virtual');
+        && (idMiembroChat() != 20001 || request.auth.uid == 'tienda-virtual')
+        && (idMiembroChat() != 20002 || request.auth.uid == 'oficina-nacional');
     }
 
     // Quien atiende el buzon de la Tienda sube las fotos y archivos que la Tienda
     // envia: el mensaje lo firma el servidor como la Tienda, pero el archivo sale
     // del navegador de la persona, que no es participante. Sin esto, contestar
     // con una foto fallaba con "permisos insuficientes".
+    // Un cargo cuenta aunque no sea el principal: `rolesQueEjerce` es la lista
+    // plana de todos los que ejerce. Ver `firestore.rules` (`ejerceRol`).
+    function ejerceRolChat(codigo) {
+      return ('rol' in request.auth.token && request.auth.token.rol == codigo)
+        || (
+          tieneDocumento('usuarios_roles')
+          && (
+            documentoUsuario('usuarios_roles').data.get('rolId', '') == codigo
+            || documentoUsuario('usuarios_roles').data.get('rolesQueEjerce', []).hasAny([codigo])
+          )
+        );
+    }
+
     function atiendeBuzonDeTiendaChat(idConversacion) {
       return estaAutenticado()
-        && (esAdministradorGlobal() || esAdministradorDeTienda())
+        && (esAdministradorGlobal() || ejerceRolChat('administrador_tienda'))
         && firestore.exists(rutaConversacionChat(idConversacion))
         && 20001 in firestore.get(rutaConversacionChat(idConversacion)).data.participantesIds;
+    }
+
+    // Lo mismo para quien atiende el buzon de Oficina Nacional.
+    function atiendeBuzonDeOficinaChat(idConversacion) {
+      return estaAutenticado()
+        && (esAdministradorGlobal() || ejerceRolChat('oficina_nacional'))
+        && firestore.exists(rutaConversacionChat(idConversacion))
+        && 20002 in firestore.get(rutaConversacionChat(idConversacion)).data.participantesIds;
+    }
+
+    function atiendeUnBuzonChat(idConversacion) {
+      return atiendeBuzonDeTiendaChat(idConversacion)
+        || atiendeBuzonDeOficinaChat(idConversacion);
     }
 
     function rutaConversacionChat(idConversacion) {
@@ -407,31 +434,31 @@ service firebase.storage {
 
     match /chat/{idConversacion}/imagenes/{archivo} {
       allow read: if esParticipanteChat(idConversacion)
-        || atiendeBuzonDeTiendaChat(idConversacion);
+        || atiendeUnBuzonChat(idConversacion);
       allow create: if (esParticipanteChat(idConversacion)
-          || atiendeBuzonDeTiendaChat(idConversacion))
+          || atiendeUnBuzonChat(idConversacion))
         && resource == null
         && imagenChatValida(idConversacion, archivo);
       allow update: if false;
       allow delete: if (esParticipanteChat(idConversacion)
           && (resource.metadata.uploaderUid == request.auth.uid
             || esCreadorChat(idConversacion)))
-        || (atiendeBuzonDeTiendaChat(idConversacion)
+        || (atiendeUnBuzonChat(idConversacion)
           && resource.metadata.uploaderUid == request.auth.uid);
     }
 
     match /chat/{idConversacion}/archivos/{archivo} {
       allow read: if esParticipanteChat(idConversacion)
-        || atiendeBuzonDeTiendaChat(idConversacion);
+        || atiendeUnBuzonChat(idConversacion);
       allow create: if (esParticipanteChat(idConversacion)
-          || atiendeBuzonDeTiendaChat(idConversacion))
+          || atiendeUnBuzonChat(idConversacion))
         && resource == null
         && documentoChatValido(idConversacion, archivo);
       allow update: if false;
       allow delete: if (esParticipanteChat(idConversacion)
           && (resource.metadata.uploaderUid == request.auth.uid
             || esCreadorChat(idConversacion)))
-        || (atiendeBuzonDeTiendaChat(idConversacion)
+        || (atiendeUnBuzonChat(idConversacion)
           && resource.metadata.uploaderUid == request.auth.uid);
     }
 
@@ -523,6 +550,18 @@ service firebase.storage {
         && esArchivoPerfil(archivo)
         && esImagenPermitida();
       allow delete: if puedeResolverPropuestaDeFoto();
+    }
+
+    // LA FOTO DE UN BUZON COMPARTIDO DEL CHAT (Tienda Virtual, Oficina Nacional).
+    // Sale en contactos, conversaciones y avisos de todo el mundo, asi que la lee
+    // cualquier sesion; la cambia solo el Administrador Global. Cada foto lleva
+    // marca de tiempo en el nombre: subir otra no pisa la anterior.
+    match /chat-buzones/{claveBuzon}/{archivo} {
+      allow read: if estaAutenticado();
+      allow create, update: if esAdministradorGlobal()
+        && claveBuzon in ['tienda', 'oficina']
+        && esImagenPermitida();
+      allow delete: if false;
     }
 
     // La FOTOGRAFIA DE LA PORTADA DE LA TIENDA. La ve cualquiera que entre a la

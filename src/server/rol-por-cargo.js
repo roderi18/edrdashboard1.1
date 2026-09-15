@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
+
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 
 import { ROLES } from 'src/auth/permissions/roles';
@@ -82,6 +84,8 @@ export const escribirAccesoPorCargo = async ({ db, auth, uid, idMiembros, acceso
         idMiembros: String(idMiembros),
         rolId: acceso.rolId,
         cargos: acceso.cargos,
+        // La lista plana que leen las reglas: ver `lista-roles-que-ejerce.mjs`.
+        rolesQueEjerce: listaDeRolesQueEjerce(acceso),
         permisos: acceso.permisos,
         alcance: acceso.alcance,
         // Deja constancia de que lo puso el sistema a partir de la directiva,

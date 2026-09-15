@@ -12,11 +12,14 @@ import FormControl from '@mui/material/FormControl';
 import ListItemText from '@mui/material/ListItemText';
 import Badge, { badgeClasses } from '@mui/material/Badge';
 
+import { BUZONES_COMPARTIDOS } from 'src/utils/chat-buzones.mjs';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { useCambiarFotoDeBuzon } from './chat-avatar-de-buzon';
 import { usePresenceStatus } from './hooks/use-presence-status';
 import { PRESENCE_STATUS_OPTIONS } from './utils/presence-labels';
 import { usePresenceHeartbeat } from './hooks/use-presence-heartbeat';
@@ -48,6 +51,7 @@ export function ChatNavAccount({ currentContact }) {
   const photoURL = currentContact?.avatarUrl || user?.photoURL || '';
 
   const menuActions = usePopover();
+  const { puedeCambiar, elegirFoto, inputFoto, subiendo } = useCambiarFotoDeBuzon();
 
   const idMiembros = currentContact?.idMiembros;
   const { setManualOverride } = usePresenceHeartbeat(idMiembros);
@@ -127,6 +131,26 @@ export function ChatNavAccount({ currentContact }) {
           Perfil
         </MenuItem>
 
+        {/* CAMBIAR LA FOTO DE LOS BUZONES, debajo de "Perfil". Solo el
+            Administrador Global, y una entrada por buzon: la Tienda y la Oficina
+            tienen cada una su foto. */}
+        {puedeCambiar &&
+          BUZONES_COMPARTIDOS.map((buzon) => (
+            <MenuItem
+              key={buzon.clave}
+              disabled={subiendo === buzon.clave}
+              onClick={() => {
+                menuActions.onClose();
+                elegirFoto(buzon);
+              }}
+            >
+              <Iconify width={24} icon="solar:camera-add-bold" />
+              {subiendo === buzon.clave
+                ? `Subiendo foto de ${buzon.nombre}…`
+                : `Cambiar foto de ${buzon.nombre}`}
+            </MenuItem>
+          ))}
+
         <MenuItem>
           <Iconify width={24} icon="solar:settings-bold" />
           Configuración
@@ -154,6 +178,7 @@ export function ChatNavAccount({ currentContact }) {
       </Badge>
 
       {renderMenuActions()}
+      {inputFoto}
     </>
   );
 }

@@ -2,20 +2,16 @@
 
 import { useMemo, useState, useEffect, useCallback, startTransition } from 'react';
 
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import {
-  esTiendaVirtual,
-  ID_TIENDA_VIRTUAL,
-  contactoTiendaVirtual,
-  NOMBRE_TIENDA_VIRTUAL,
-  idConversacionConTienda,
-} from 'src/utils/chat-tienda-virtual.mjs';
+  buzonPorClave,
+  contactoDeBuzon,
+  idConversacionConBuzon,
+} from 'src/utils/chat-buzones.mjs';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -37,12 +33,9 @@ import {
   setGroupAdministrator,
   toggleMuteConversation,
   transferGroupOwnership,
-  useGetChatUnreadSummary,
   clearConversationGlobally,
 } from 'src/actions/chat';
 
-import { Label } from 'src/components/label';
-import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -50,6 +43,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
 import { ChatRoom } from '../chat-room';
+import { ChatBandejas } from '../chat-bandejas';
 import { rutaDelChat } from '../utils/ruta-del-chat';
 import { ChatMessageList } from '../chat-message-list';
 import { ChatMessageInput } from '../chat-message-input';
@@ -58,7 +52,8 @@ import { ChatHeaderCompose } from '../chat-header-compose';
 import { useCollapseNav } from '../hooks/use-collapse-nav';
 import { useChatRealtimeSync } from '../hooks/use-chat-realtime-sync';
 import { useChatCurrentContact } from '../hooks/use-chat-current-contact';
-import { useBuzonDeTienda, identidadEnElChat } from '../hooks/use-buzon-de-tienda';
+import { useBuzonesDelChat, useAvataresDeBuzones } from '../hooks/use-buzones-del-chat';
+import { conAvataresDeBuzones, identidadDeBuzonEnElChat } from '../utils/buzones-del-chat';
 
 // ----------------------------------------------------------------------
 
@@ -71,38 +66,51 @@ export function ChatView() {
   const router = useRouter();
 
   const { user } = useAuthContext();
-  const { puedeAtender, enBuzon } = useBuzonDeTienda();
+  // LOS BUZONES QUE ATIENDE ESTA SESION (Tienda Virtual, Oficina Nacional) y en
+  // cual esta ahora. Todo sale de los permisos: ver `useBuzonesDelChat`.
+  const { buzones, buzonActual, bandeja, puedeAtender } = useBuzonesDelChat();
+  // La foto de cada buzon en vivo: quien la cambia la ve al momento, sin esperar
+  // a que el servidor renueve su copia.
+  const avataresDeBuzones = useAvataresDeBuzones();
 
-  const { contacts, contactsError, contactsLoading } = useGetContacts(
-    Boolean(user?.accessToken),
-    enBuzon ? ID_TIENDA_VIRTUAL : null
+  const {
+    contacts: contactosDelServidor,
+    contactsError,
+    contactsLoading,
+  } = useGetContacts(Boolean(user?.accessToken), buzonActual?.idMiembros ?? null);
+  const contacts = useMemo(
+    () => conAvataresDeBuzones(contactosDelServidor, avataresDeBuzones),
+    [contactosDelServidor, avataresDeBuzones]
   );
   const contactoPropio = useChatCurrentContact(contacts);
-  // Quien soy AHORA: en el buzon, la Tienda. Todo lo de abajo lo usa sin saber de
-  // bandejas: con que id pide, que mensajes son suyos y a nombre de quien escribe.
+  // Quien soy AHORA: en una bandeja, su buzon. Todo lo de abajo lo usa sin saber
+  // de bandejas: con que id pide, que mensajes son suyos y a nombre de quien
+  // escribe.
   const currentContact = useMemo(
-    () => identidadEnElChat(contactoPropio, enBuzon),
-    [contactoPropio, enBuzon]
+    () =>
+      identidadDeBuzonEnElChat(
+        contactoPropio,
+        buzonActual,
+        buzonActual ? avataresDeBuzones.get(buzonActual.clave) : ''
+      ),
+    [contactoPropio, buzonActual, avataresDeBuzones]
   );
-  // En el buzon la Tienda no se busca a si misma.
+  // En su bandeja el buzon no se busca a si mismo.
   const visibleContacts = useMemo(
     () =>
-      enBuzon
-        ? contacts.filter((contact) => !esTiendaVirtual(contact.idMiembros ?? contact.id))
+      buzonActual
+        ? contacts.filter(
+            (contact) => Number(contact.idMiembros ?? contact.id) !== buzonActual.idMiembros
+          )
         : contacts,
-    [contacts, enBuzon]
-  );
-  // Lo pendiente del buzon se ve desde "Mis chats": sin esto habia que entrar a
-  // mirar si alguien habia escrito a la Tienda.
-  const { unreadConversationCount: pendientesDeLaTienda } = useGetChatUnreadSummary(
-    ID_TIENDA_VIRTUAL,
-    puedeAtender
+    [contacts, buzonActual]
   );
 
   const searchParams = useSearchParams();
   const selectedConversationId = searchParams.get('id') || '';
   const sharedMessageParam = searchParams.get('share') || '';
-  const abrirConLaTienda = searchParams.get('con') === 'tienda';
+  // "Escribir a la Tienda" llega con `?con=tienda`; a la Oficina, con `?con=oficina`.
+  const buzonParaEscribir = buzonPorClave(searchParams.get('con'));
 
   const {
     conversations,
@@ -114,6 +122,26 @@ export function ChatView() {
   const { conversation, conversationError, conversationLoading } = useGetConversation(
     selectedConversationId,
     currentContact.idMiembros
+  );
+  // La lista de la izquierda tambien: cada conversacion con un buzon, con su foto actual.
+  const conversacionesConFoto = useMemo(
+    () =>
+      avataresDeBuzones.size
+        ? {
+            ...conversations,
+            byId: Object.fromEntries(
+              Object.entries(conversations.byId).map(([id, item]) => [
+                id,
+                { ...item, participants: conAvataresDeBuzones(item.participants, avataresDeBuzones) },
+              ])
+            ),
+          }
+        : conversations,
+    [conversations, avataresDeBuzones]
+  );
+  const participantesConFoto = useMemo(
+    () => conAvataresDeBuzones(conversation?.participants ?? [], avataresDeBuzones),
+    [conversation?.participants, avataresDeBuzones]
   );
 
   const roomNav = useCollapseNav();
@@ -142,16 +170,16 @@ export function ChatView() {
       // quitarlo —si no, seguiria viendose la conversacion anterior—, pero si no
       // lo hay, navegar a la misma direccion volvia a montar la pantalla entera
       // y las caras de la lista parpadeaban por nada.
-      if (selectedConversationId) router.replace(rutaDelChat({ enBuzon }));
+      if (selectedConversationId) router.replace(rutaDelChat({ bandeja }));
     },
-    [enBuzon, router, selectedConversationId]
+    [bandeja, router, selectedConversationId]
   );
 
   const handleCambiarBandeja = useCallback(
-    (event, bandeja) => {
+    (clave) => {
       setRecipients([]);
       startTransition(() => {
-        router.push(rutaDelChat({ enBuzon: bandeja === 'tienda' }));
+        router.push(rutaDelChat({ bandeja: clave }));
       });
     },
     [router]
@@ -180,28 +208,29 @@ export function ChatView() {
   }, [selectedConversationId]);
 
   useEffect(() => {
-    if (!selectedConversationId && !sharedMessageParam && !abrirConLaTienda) {
+    if (!selectedConversationId && !sharedMessageParam && !buzonParaEscribir) {
       startTransition(() => {
-        router.push(rutaDelChat({ enBuzon }));
+        router.push(rutaDelChat({ bandeja }));
       });
     }
   }, [
-    abrirConLaTienda,
+    buzonParaEscribir,
     conversationError,
-    enBuzon,
+    bandeja,
     router,
     selectedConversationId,
     sharedMessageParam,
   ]);
 
-  // "ESCRIBIR A LA TIENDA" DESDE LA TIENDA. Llega con `?con=tienda`. Si ya hay
-  // conversacion con ella se abre, con su historia; si no, se entra al chat nuevo
-  // con la Tienda puesta y la conversacion se crea con el primer mensaje.
+  // "ESCRIBIR A LA TIENDA" DESDE LA TIENDA —y lo mismo a la Oficina—. Llega con
+  // `?con=<buzon>`. Si ya hay conversacion con el se abre, con su historia; si no,
+  // se entra al chat nuevo con el buzon puesto y la conversacion se crea con el
+  // primer mensaje.
   useEffect(() => {
-    if (!abrirConLaTienda || enBuzon || conversationsLoading) return;
+    if (!buzonParaEscribir || buzonActual || conversationsLoading) return;
 
     const idExistente = currentContact.idMiembros
-      ? idConversacionConTienda(currentContact.idMiembros)
+      ? idConversacionConBuzon(buzonParaEscribir, currentContact.idMiembros)
       : '';
 
     if (idExistente && conversations.byId[idExistente]) {
@@ -209,14 +238,17 @@ export function ChatView() {
       return;
     }
 
-    setRecipients([contactoTiendaVirtual()]);
+    setRecipients([
+      contactoDeBuzon(buzonParaEscribir, avataresDeBuzones.get(buzonParaEscribir.clave)),
+    ]);
     router.replace(rutaDelChat());
   }, [
-    abrirConLaTienda,
+    avataresDeBuzones,
+    buzonActual,
+    buzonParaEscribir,
     conversations.byId,
     conversationsLoading,
     currentContact.idMiembros,
-    enBuzon,
     router,
   ]);
 
@@ -289,8 +321,8 @@ export function ChatView() {
     if (!selectedConversationId) return;
 
     await leaveGroup(selectedConversationId, currentContact.idMiembros);
-    startTransition(() => router.push(rutaDelChat({ enBuzon })));
-  }, [currentContact.idMiembros, enBuzon, router, selectedConversationId]);
+    startTransition(() => router.push(rutaDelChat({ bandeja })));
+  }, [currentContact.idMiembros, bandeja, router, selectedConversationId]);
 
   const handleSetGroupAdministrator = useCallback(
     async (administratorIdMiembros, makeAdmin) => {
@@ -437,7 +469,7 @@ export function ChatView() {
   }, [currentContact.idMiembros, selectedConversationId]);
 
   const filteredParticipants = conversation
-    ? conversation.participants.filter((participant) => !isSameMember(participant, currentContact))
+    ? participantesConFoto.filter((participant) => !isSameMember(participant, currentContact))
     : [];
 
   const typingParticipantNames = typingIds
@@ -462,34 +494,9 @@ export function ChatView() {
       >
         <Typography variant="h4">Mensajes</Typography>
 
-        {/* LAS DOS BANDEJAS. Solo para quien atiende el buzon de la Tienda; el
-            resto no tiene nada que elegir. */}
-        {puedeAtender && (
-          <Tabs value={enBuzon ? 'tienda' : 'mios'} onChange={handleCambiarBandeja}>
-            <Tab
-              value="mios"
-              label="Mis chats"
-              iconPosition="start"
-              icon={<Iconify width={20} icon="solar:chat-round-dots-bold" />}
-            />
-            <Tab
-              value="tienda"
-              label="Chats de la Tienda"
-              iconPosition="start"
-              icon={<Iconify width={20} icon="solar:cart-3-bold" />}
-              {...(pendientesDeLaTienda > 0 && {
-                label: (
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <span>Chats de la Tienda</span>
-                    <Label variant="filled" color="error">
-                      {pendientesDeLaTienda}
-                    </Label>
-                  </Stack>
-                ),
-              })}
-            />
-          </Tabs>
-        )}
+        {/* LAS BANDEJAS: "Mis chats" y una por cada buzon compartido que atienda
+            esta sesion. Quien no atiende ninguno no ve pestañas. */}
+        <ChatBandejas buzones={buzones} bandeja={bandeja} onCambiar={handleCambiarBandeja} />
       </Stack>
 
       <ChatLayout
@@ -530,8 +537,9 @@ export function ChatView() {
               onStartChat={abrirChatCon}
               contacts={visibleContacts}
               currentContact={currentContact}
-              enBuzon={enBuzon}
-              conversations={conversations}
+              bandeja={bandeja}
+              buzonActual={buzonActual}
+              conversations={conversacionesConFoto}
               selectedConversationId={selectedConversationId}
               collapseNav={conversationsNav}
               loading={contactsLoading || conversationsLoading}
@@ -552,7 +560,7 @@ export function ChatView() {
                 ) : (
                   <ChatMessageList
                     messages={conversation?.messages ?? []}
-                    participants={conversation?.participants ?? []}
+                    participants={participantesConFoto}
                     currentContact={currentContact}
                     loading={conversationLoading}
                     onReply={handleReplyMessage}
@@ -595,7 +603,7 @@ export function ChatView() {
                 authReady={Boolean(user?.accessToken)}
                 recipients={recipients}
                 groupName={groupName}
-                participants={conversation?.participants ?? recipients}
+                participants={conversation ? participantesConFoto : recipients}
                 currentContact={currentContact}
                 onAddRecipients={handleAddRecipients}
                 replyMessage={replyMessage}
@@ -606,7 +614,7 @@ export function ChatView() {
                 // A nombre de quien sale lo que se escribe. Solo se dice a quien
                 // tiene dos bandejas: para el resto no hay duda posible.
                 respondiendoComo={
-                  puedeAtender ? (enBuzon ? NOMBRE_TIENDA_VIRTUAL : contactoPropio.name) : ''
+                  puedeAtender ? (buzonActual ? buzonActual.nombre : contactoPropio.name) : ''
                 }
                 sharedMessage={sharedMessage}
                 onConsumeSharedMessage={handleConsumeSharedMessage}
@@ -617,7 +625,7 @@ export function ChatView() {
           details: conversation && selectedConversationId && (
             <ChatRoom
               collapseNav={roomNav}
-              participants={conversation?.participants ?? []}
+              participants={participantesConFoto}
               loading={conversationLoading}
               messages={conversation?.messages ?? []}
               contacts={visibleContacts}
