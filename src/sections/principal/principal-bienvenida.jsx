@@ -75,7 +75,11 @@ export function PrincipalBienvenida({
 }) {
   const { NAVY, ORO, AZUL } = useTonosDeMarca();
   // `foto` es la del MIEMBRO —su avatar—; esta es la del fondo del banner.
-  const { foto: fondo, subiendo, elegirFoto } = useImagenDeTarjeta(ID_DEL_BANNER);
+  const banner = useImagenDeTarjeta(ID_DEL_BANNER);
+  const { subiendo, elegirFoto } = banner;
+  // El fondo publicado desde EVEREST Designer, si lo hay, manda sobre el de
+  // siempre. Sin el —el valor de fabrica— se usa el de siempre.
+  const fondo = resumen.fondo ? resumen.fondo.url : banner.foto;
 
   const primerNombre =
     String(nombre || '')

@@ -41,6 +41,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { InsigniasPerfil } from 'src/components/insignias-perfil';
 import LocationSelect from 'src/components/location/location-select';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
@@ -224,9 +225,8 @@ const mapMemberToValues = (member) => {
     // Valor de partida, para el primer pintado. En cuanto llega la lista de
     // destacamentos se reescribe con el nombre y el numero de verdad.
     destDisplay:
-      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${
-        member?.destacamentoNumero ?? ''
-      }`.trim() || formatDestDisplay(null, destId),
+      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${member?.destacamentoNumero ?? ''
+        }`.trim() || formatDestDisplay(null, destId),
     instructorCertificadoCi:
       member?.instructorCertificadoCi === true || member?.instructorCertificadoCi === 1
         ? 'Sí'
@@ -289,23 +289,14 @@ const ReadOnlyTextField = ({ name, label }) => (
   <Field.Text name={name} label={label} slotProps={{ htmlInput: { readOnly: true } }} />
 );
 
-const PROFILE_RIBBON_EXAMPLES = [
-  {
-    color: 'verde y blanca',
-    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-verde-blanca.webp',
-  },
-  {
-    color: 'roja y gris',
-    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja-gris.webp',
-  },
-  {
-    color: 'roja y blanca a rayas',
-    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja-blanca-rayas.webp',
-  },
-  { color: 'azul', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-azul.webp' },
-  { color: 'roja', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja.webp' },
-  { color: 'verde', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-verde.webp' },
-  { color: 'naranja', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-naranja.webp' },
+const INSIGNIAS_PERFIL_EJEMPLO = [
+  'cinta-verde-blanca',
+  'cinta-roja-gris',
+  'cinta-roja-blanca-rayas',
+  'cinta-azul',
+  { id: 'cinta-roja', numero: 4 },
+  'cinta-verde',
+  'cinta-naranja',
 ];
 
 // ----------------------------------------------------------------------
@@ -362,9 +353,9 @@ export function UserAccountGeneral() {
               String(item?.correo ?? '')
                 .trim()
                 .toLowerCase() ===
-                String(user?.email ?? '')
-                  .trim()
-                  .toLowerCase())
+              String(user?.email ?? '')
+                .trim()
+                .toLowerCase())
           );
         });
 
@@ -594,9 +585,8 @@ export function UserAccountGeneral() {
       registrarCambiosHistorialMiembro({
         idMiembros: memberId,
         codigoMiembro: member?.codigoMiembro || user?.codigoMiembro || '',
-        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${
-          member?.apellidos ?? user?.apellidos ?? ''
-        }`.trim(),
+        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${member?.apellidos ?? user?.apellidos ?? ''
+          }`.trim(),
         modulo: 'Información general',
         antes: { avatarUrl: member?.avatarUrl || '' },
         despues: { avatarUrl },
@@ -833,58 +823,7 @@ export function UserAccountGeneral() {
             </Typography>
 
             {showRibbonExamples && (
-              <Box
-                sx={{
-                  mx: 'auto',
-                  mt: 2.5,
-                  rowGap: 0,
-                  columnGap: 0,
-                  width: '100%',
-                  maxWidth: 300,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                }}
-              >
-                {PROFILE_RIBBON_EXAMPLES.map((ribbon, index) => (
-                  <Box
-                    key={ribbon.color}
-                    title={`Cinta ${ribbon.color}`}
-                    sx={{
-                      width: 1,
-                      lineHeight: 0,
-                      position: 'relative',
-                      gridColumn:
-                        index === PROFILE_RIBBON_EXAMPLES.length - 1 &&
-                        PROFILE_RIBBON_EXAMPLES.length % 3 === 1
-                          ? '2'
-                          : 'auto',
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={ribbon.src}
-                      alt={`Cinta ${ribbon.color}`}
-                      sx={{ width: 1, height: 'auto', display: 'block' }}
-                    />
-
-                    {ribbon.color === 'roja' && (
-                      <Box
-                        component="img"
-                        src="/parches/Cintas%20y%20medallas/cintas-perfil/numero-2-dorado.webp?v=3"
-                        alt="Número 2"
-                        sx={{
-                          top: '50%',
-                          left: '50%',
-                          width: '20%',
-                          height: 'auto',
-                          position: 'absolute',
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      />
-                    )}
-                  </Box>
-                ))}
-              </Box>
+              <InsigniasPerfil insignias={INSIGNIAS_PERFIL_EJEMPLO} sx={{ mt: 2 }} />
             )}
 
             <SignOutButton sx={{ mt: 3 }} />

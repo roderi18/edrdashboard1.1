@@ -20,16 +20,20 @@
 
 import { PANTALLAS_EVEREST } from './colecciones.mjs';
 import {
+  boton,
   clave,
   icono,
   lista,
+  medio,
   texto,
   numero,
   destino,
   esObjeto,
+  fechaISO,
   siTodoVale,
   acentoDeMarca,
   colorDeEstado,
+  conOpcionales,
   clavesSinRepetir,
 } from './saneado.mjs';
 
@@ -54,7 +58,7 @@ const listaConClaves = (valor, elemento, opciones) => {
 const sanearBienvenida = (contenido) => {
   if (!esObjeto(contenido) || !esObjeto(contenido.nivel)) return null;
 
-  return siTodoVale({
+  const base = siTodoVale({
     lema: texto(contenido.lema, { max: 160, obligatorio: true }),
     cifras: listaConClaves(
       contenido.cifras,
@@ -75,6 +79,12 @@ const sanearBienvenida = (contenido) => {
       porcentaje: numero(contenido.nivel.porcentaje, { min: 0, max: 100 }),
     }),
   });
+
+  // El fondo propio (fase 4). La bienvenida es un banner ancho con texto encima:
+  // solo imagen, igual que su lapiz de hoy.
+  return conOpcionales(base, contenido, {
+    fondo: (valor) => medio(valor, { tipos: ['imagen'] }),
+  });
 };
 
 const sanearAccesosRapidos = (contenido) =>
@@ -93,16 +103,38 @@ const sanearAccesosRapidos = (contenido) =>
     { max: 8 }
   );
 
-const sanearProximaActividad = (contenido) =>
-  esObjeto(contenido)
-    ? siTodoVale({
-        titulo: texto(contenido.titulo, { max: 120, obligatorio: true }),
-        lugar: texto(contenido.lugar, { max: 160 }),
-        fechas: texto(contenido.fechas, { max: 80 }),
-        diasQueFaltan: numero(contenido.diasQueFaltan, { min: 0, max: 3650, entero: true }),
-        estado: texto(contenido.estado, { max: 40 }),
-      })
-    : null;
+const sanearProximaActividad = (contenido) => {
+  if (!esObjeto(contenido)) return null;
+
+  // CON FECHA DE INICIO, LAS FECHAS Y LOS DIAS SE CALCULAN AL PINTAR
+  // (`actividadParaPintar`), asi que ya no hace falta escribirlos. Sin ella, son
+  // obligatorios como en el valor de fabrica.
+  const conFechaReal = fechaISO(contenido.fechaInicio) !== null;
+
+  const base = siTodoVale({
+    titulo: texto(contenido.titulo, { max: 120, obligatorio: true }),
+    lugar: texto(contenido.lugar, { max: 160 }),
+    ...(!conFechaReal && {
+      fechas: texto(contenido.fechas, { max: 80 }),
+      diasQueFaltan: numero(contenido.diasQueFaltan, { min: 0, max: 3650, entero: true }),
+    }),
+    estado: texto(contenido.estado, { max: 40 }),
+  });
+
+  const limpio = conOpcionales(base, contenido, {
+    fechaInicio: fechaISO,
+    fechaFin: fechaISO,
+    fondo: (valor) => medio(valor),
+    boton,
+  });
+
+  // Una actividad que termina antes de empezar es un error al elegir las fechas.
+  if (limpio?.fechaFin && (!limpio.fechaInicio || limpio.fechaFin < limpio.fechaInicio)) {
+    return null;
+  }
+
+  return limpio;
+};
 
 const sanearMiProgreso = (contenido) => {
   if (!esObjeto(contenido)) return null;
@@ -149,15 +181,21 @@ const sanearProximosEventos = (contenido) =>
     contenido,
     (evento) =>
       esObjeto(evento)
-        ? siTodoVale({
-            clave: clave(evento.clave),
-            dia: DIA_DEL_MES.test(String(evento.dia)) ? evento.dia : null,
-            mes: MES_ABREVIADO.test(String(evento.mes)) ? evento.mes : null,
-            titulo: texto(evento.titulo, { max: 120, obligatorio: true }),
-            lugar: texto(evento.lugar, { max: 160 }),
-            estado: texto(evento.estado, { max: 40 }),
-            color: colorDeEstado(evento.color),
-          })
+        ? // La fecha completa es opcional (fase 4): con ella, el evento se deja de
+          // enseñar solo cuando ya paso (`eventosVigentes`).
+          conOpcionales(
+            siTodoVale({
+              clave: clave(evento.clave),
+              dia: DIA_DEL_MES.test(String(evento.dia)) ? evento.dia : null,
+              mes: MES_ABREVIADO.test(String(evento.mes)) ? evento.mes : null,
+              titulo: texto(evento.titulo, { max: 120, obligatorio: true }),
+              lugar: texto(evento.lugar, { max: 160 }),
+              estado: texto(evento.estado, { max: 40 }),
+              color: colorDeEstado(evento.color),
+            }),
+            evento,
+            { fecha: fechaISO }
+          )
         : null,
     { max: 10 }
   );

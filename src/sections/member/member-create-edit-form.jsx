@@ -1,27 +1,17 @@
 // third-party
 import dayjs from 'dayjs';
+import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 // react
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { doc, where, query, getDoc, getDocs, collection } from 'firebase/firestore';
 
 // mui
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
-import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 import { useTheme, useMediaQuery } from '@mui/material';
-import LinearProgress from '@mui/material/LinearProgress';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 // routes
 import { paths } from 'src/routes/paths';
@@ -74,6 +64,7 @@ import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import { getDestsApi } from 'src/services/dest-service';
 import { getChurches } from 'src/services/church-service';
+import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getDivisions } from 'src/services/division-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
@@ -82,7 +73,6 @@ import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
-import { _allLeadershipRoles, _leadershipRolesByLevel } from 'src/_mock/_leadership';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
@@ -94,16 +84,15 @@ import {
   getLeadershipAssignments,
 } from 'src/services/member-service';
 import {
+  getNivelesARetirar,
+  getOrganigramaDestSlot,
+  AMBITO_CARGO_UNICO_POR_NIVEL,
+} from 'src/catalogs/directiva-positions';
+import {
   guardarCorreoDeAcceso,
   consultarCodigoRestablecimiento,
   generarCodigoRestablecimientoMiembro,
 } from 'src/services/primer-acceso-service';
-import {
-  getNivelesARetirar,
-  getOrganigramaDestSlot,
-  NATIONAL_LEADERSHIP_LEVELS,
-  AMBITO_CARGO_UNICO_POR_NIVEL,
-} from 'src/catalogs/directiva-positions';
 import {
   crearNotificacionAdmin,
   crearNotificacionCuentaCreada,
@@ -139,24 +128,15 @@ import {
 } from 'src/services/solicitudes-cambio-miembro-service';
 
 // components
-import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
+import { Form } from 'src/components/hook-form';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { ContextInfo } from 'src/components/info/context-info';
-import { BotonCopiar } from 'src/components/common/boton-copiar';
 import { UnderlineLink } from 'src/components/link/underline-link';
-import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
-// form sections
-import MemberGeneralSection from 'src/components/form/member-form/MemberGeneralSection';
-import MemberAddressSection from 'src/components/form/member-form/MemberAddressSection';
-import MemberInstructorCISection from 'src/components/form/member-form/MemberInstructorCISection';
-import MemberLeadershipAndOtherSection from 'src/components/form/member-form/MemberLeadershipAndOtherSection';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { MemberInfoPdfMenu } from './member-info-pdf-menu';
+import { MemberProfileCard } from './member-profile-card';
+import { MemberFormFieldsCard } from './member-form-fields-card';
 import { MemberChangeResultDialog } from './member-change-result-dialog';
 import { MemberChangeRequestDialog } from './member-change-request-dialog';
 import {
@@ -1116,7 +1096,6 @@ export function MemberCreateEditForm({
   //
   // Los demas `watch('campo')` de arriba son correctos: repintan cuando cambia
   // SU campo, que es justo cuando hace falta.
-  const status = watch('status');
   const avatarUrl = watch('avatarUrl');
   const firstName = watch('firstName');
   const lastName = watch('lastName');
@@ -2573,607 +2552,86 @@ export function MemberCreateEditForm({
       <Box component="fieldset" sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-              {currentMember && (
-                <Label
-                  color={
-                    (status === 'active' && 'success') ||
-                    (status === 'banned' && 'error') ||
-                    'warning'
-                  }
-                  sx={{ position: 'absolute', top: 24, right: 24 }}
-                >
-                  {status}
-                </Label>
-              )}
-
-              <Box sx={{ mb: 5 }}>
-                <FotoDeMiembro
-                  url={avatarUrl?.preview || avatarUrl || ''}
-                  nombre={memberFullName}
-                  cargando={uploadingPhoto}
-                  puedeEditar={canUploadMemberPhoto}
-                  onFoto={(archivo) => handleUploadMemberPhoto([archivo])}
-                  ayuda={
-                    <>
-                      {canUploadMemberPhoto && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            mt: 3,
-                            mx: 'auto',
-                            display: 'block',
-                            textAlign: 'center',
-                            color: 'text.disabled',
-                          }}
-                        >
-                          Permitido *.jpeg, *.jpg, *.png, *.gif
-                          <br /> se encuadra y se sube ligera, en WebP.
-                        </Typography>
-                      )}
-
-                      {!!photoUploadErrorMessage && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            mt: 1,
-                            mx: 'auto',
-                            display: 'block',
-                            textAlign: 'center',
-                            color: 'error.main',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {photoUploadErrorMessage}
-                        </Typography>
-                      )}
-
-                      <ContextInfo
-                        items={[
-                          {
-                            show: isCreateView && !!memberFullName,
-                            text: memberFullName,
-                            variant: 'subtitle1',
-                            bold: true,
-                            mt: 1,
-                            color: 'text.primary',
-                          },
-                          {
-                            show: !isCreateView && !!currentMember?.memberId,
-                            text: `Miembro ${currentMember?.memberId}`,
-                            // Se copia el codigo solo, sin la palabra "Miembro":
-                            // es lo que se pega en el acceso o en un mensaje.
-                            copiar: currentMember?.memberId,
-                            // Mismo aviso que en la Directiva, y con las mismas
-                            // reglas: solo lo ven los cargos del destacamento y
-                            // los administradores.
-                            aviso:
-                              esPastor && puedeVerAvisoDatosPendientes(user)
-                                ? getAvisoDatosPendientes(currentMember)
-                                : '',
-                          },
-                          {
-                            show: isCreateView && !!selectedDest?.name,
-                            text: `pertenecer? a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
-                          },
-                          {
-                            show: isCreateView && !!destChurch?.name,
-                            text: destChurch?.name,
-                          },
-                          {
-                            show: isCreateView && !!selectedSectional?.name,
-                            text: `Secci?n ${selectedSectional?.name}`,
-                          },
-                          {
-                            show: isCreateView && !!selectedRegional?.name,
-                            text: selectedRegional?.name,
-                          },
-                        ]}
-                      />
-
-                      {/* Coordinador de Dest... */}
-                      {memberDestText && !destLeadership && (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            mt: 1,
-                            mx: 'auto',
-                            display: 'block',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {memberDestText.includes(destName) ? (
-                            <>
-                              {memberDestText.replace(destName, '')}
-                              <UnderlineLink
-                                href={`/dashboard/level/dest/${destId}/edit`}
-                                sx={{ color: 'text.primary' }}
-                              >
-                                {destName}
-                              </UnderlineLink>
-                            </>
-                          ) : (
-                            memberDestText
-                          )}
-                        </Typography>
-                      )}
-
-                      {!isCreateView &&
-                        leadershipTexts.map((text, index) => (
-                          <Typography
-                            key={`${text}-${index}`}
-                            variant="body2"
-                            sx={{
-                              mt: index === 0 ? 0.5 : 0.3,
-                              mx: 'auto',
-                              display: 'block',
-                              textAlign: 'center',
-                            }}
-                          >
-                            {text}
-                          </Typography>
-                        ))}
-                    </>
-                  }
-                />
-              </Box>
-
-              {currentMember && (
-                <FormControlLabel
-                  labelPlacement="start"
-                  control={
-                    <Controller
-                      name="status"
-                      control={control}
-                      render={({ field }) => (
-                        <Switch
-                          {...field}
-                          checked={field.value !== 'active'}
-                          onChange={(event) =>
-                            field.onChange(event.target.checked ? 'banned' : 'active')
-                          }
-                        />
-                      )}
-                    />
-                  }
-                  label={
-                    <>
-                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        Desarrollo
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Lorem ipsum dolor sit.
-                      </Typography>
-                    </>
-                  }
-                  sx={{
-                    mx: 0,
-                    mb: 3,
-                    width: 1,
-                    justifyContent: 'space-between',
-                  }}
-                />
-              )}
-              {currentMember && puedeDescargarInformacion && (
-                // `stretch` con un ancho comun: los dos botones miden lo mismo
-                // sin fijarle un tamaño a ninguno, que se romperia con textos
-                // mas largos. Es el mismo patron que la ficha del destacamento.
-                <Stack
-                  spacing={1.5}
-                  sx={{ mt: 3, width: 1, maxWidth: 260, mx: 'auto', alignItems: 'stretch' }}
-                >
-                  <MemberInfoPdfMenu
-                    obtenerValores={getValues}
-                    memberCode={currentMember?.memberId}
-                    fullName={memberFullName}
-                    destName={destName}
-                    avatarUrl={currentMember?.avatarUrl}
-                    // El PDF hereda el mismo enmascarado que la ficha en pantalla.
-                    masked={maskSensitive}
-                    maskAddress={maskAddress}
-                    maskContact={maskContact}
-                    maskBirthdate={maskBirthdate}
-                  />
-
-                  {puedeRestablecerClave && !!codigoPendiente && !codigoUnUso && (
-                    <Alert severity="warning" icon={false} sx={{ textAlign: 'left' }}>
-                      <Typography variant="body2">
-                        Ya hay un código activo
-                        {codigoPendiente.generadoPorMi
-                          ? ' que generaste tú'
-                          : codigoPendiente.generadoPorNombre
-                            ? ` generado por ${codigoPendiente.generadoPorNombre}`
-                            : ''}
-                        . {codigoPendiente.expiraEn
-                          ? `Vence el ${dayjs(codigoPendiente.expiraEn).format('D [de] MMMM [a las] h:mm A')}.`
-                          : ''}{' '}
-                        Si generas otro, el suyo dejará de servir.
-                      </Typography>
-
-                      <Button
-                        size="small"
-                        color="inherit"
-                        sx={{ mt: 1 }}
-                        disabled={generandoCodigo}
-                        onClick={generarCodigoDelMiembro}
-                      >
-                        {generandoCodigo ? 'Generando…' : 'Generar otro de todas formas'}
-                      </Button>
-                    </Alert>
-                  )}
-
-                  {puedeRestablecerClave && (!codigoPendiente || codigoUnUso) && (
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      disabled={generandoCodigo}
-                      onClick={generarCodigoDelMiembro}
-                    >
-                      {generandoCodigo ? 'Generando…' : 'Restablecer contraseña'}
-                    </Button>
-                  )}
-
-                  {!!codigoUnUso && (
-                    <Alert severity="success" sx={{ textAlign: 'left' }}>
-                      <Typography variant="body2">
-                        Código temporal para crear una nueva contraseña.
-                        {horasCodigo ? ` Vence en ${horasCodigo} horas.` : ''}
-                      </Typography>
-
-                      <Box sx={{ gap: 0.5, display: 'flex', alignItems: 'center' }}>
-                        <Typography
-                          variant="h6"
-                          sx={{ letterSpacing: 2, fontFamily: 'monospace', userSelect: 'all' }}
-                        >
-                          {codigoUnUso}
-                        </Typography>
-
-                        <BotonCopiar valor={codigoUnUso} titulo="Copiar código" />
-                      </Box>
-
-                      <LinearProgress
-                        color="success"
-                        variant="determinate"
-                        value={(tiempoCodigoRestante / (SEGUNDOS_CODIGO_EN_PANTALLA * 1000)) * 100}
-                        sx={{ mt: 1 }}
-                      />
-                    </Alert>
-                  )}
-                </Stack>
-              )}
-
-            </Card>
+            <MemberProfileCard
+              avatarUrl={avatarUrl}
+              memberFullName={memberFullName}
+              uploadingPhoto={uploadingPhoto}
+              canUploadMemberPhoto={canUploadMemberPhoto}
+              onUploadPhoto={handleUploadMemberPhoto}
+              photoUploadErrorMessage={photoUploadErrorMessage}
+              isCreateView={isCreateView}
+              currentMember={currentMember}
+              memberDataNotice={
+                esPastor && puedeVerAvisoDatosPendientes(user)
+                  ? getAvisoDatosPendientes(currentMember)
+                  : ''
+              }
+              selectedDest={selectedDest}
+              destChurch={destChurch}
+              selectedSectional={selectedSectional}
+              selectedRegional={selectedRegional}
+              memberDestText={memberDestText}
+              destLeadership={destLeadership}
+              destName={destName}
+              destId={destId}
+              leadershipTexts={leadershipTexts}
+              puedeDescargarInformacion={puedeDescargarInformacion}
+              getValues={getValues}
+              maskSensitive={maskSensitive}
+              maskAddress={maskAddress}
+              maskContact={maskContact}
+              maskBirthdate={maskBirthdate}
+              puedeRestablecerClave={puedeRestablecerClave}
+              codigoPendiente={codigoPendiente}
+              codigoUnUso={codigoUnUso}
+              generandoCodigo={generandoCodigo}
+              onGenerateResetCode={generarCodigoDelMiembro}
+              horasCodigo={horasCodigo}
+              tiempoCodigoRestante={tiempoCodigoRestante}
+              resetCodeLifetimeMs={SEGUNDOS_CODIGO_EN_PANTALLA * 1000}
+            />
           </Grid>
-
           <Grid size={{ xs: 12, md: 8 }}>
-            <Card sx={{ p: 3 }}>
-              <Box
-                sx={{
-                  rowGap: 3,
-                  columnGap: 2,
-                  display: 'grid',
-                  gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
-                }}
-              >
-                {(!isCreateView || step === 1) && (
-                  <MemberGeneralSection
-                    // La edad va SIEMPRE, tambien cuando la fecha esta
-                    // enmascarada: es el dato que se necesita en pantalla —si es
-                    // menor, que division le toca— y no es lo que se protege.
-                    // Lo que se oculta es el dia exacto en que nacio, que es lo
-                    // que sigue saliendo con asteriscos.
-                    age={age}
-                    division={division}
-                    isCreateView={isCreateView}
-                    control={control}
-                    minBirthdate={minBirthdate}
-                    maxBirthdate={maxBirthdate}
-                    masked={maskContact}
-                    maskBirthdate={maskBirthdate}
-                    readOnly={readOnlyEffective}
-                    memberId={currentMember?.id}
-                  />
-                )}
-
-                {/* SOLO EDIT: mantener comportamiento "Ver m?s" */}
-                {!isCreateView && (!isMobile || showMore) && (
-                  <>
-                    <MemberAddressSection
-                      isEdit
-                      readOnly={readOnlyEffective}
-                      masked={maskAddress}
-                    />
-
-                    {isCreateView && (
-                      <>
-                        <Field.Select
-                          name="nationalLeadershipLevel"
-                          label="Posici?n en Consejo Nacional"
-                          value={watch('nationalLeadershipLevel') ?? ''}
-                        >
-                          {NATIONAL_LEADERSHIP_LEVELS.map((option) => (
-                            <MenuItem key={option.label} value={option.value}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </Field.Select>
-
-                        {watch('nationalLeadershipLevel') !== 'none' && (
-                          <Field.Select name="nationalLeadershipRole" label="Cargo">
-                            {_leadershipRolesByLevel[watch('nationalLeadershipLevel')]?.map(
-                              (role) => (
-                                <MenuItem key={role.value} value={role.value}>
-                                  {role.label}
-                                </MenuItem>
-                              )
-                            )}
-                          </Field.Select>
-                        )}
-                      </>
-                    )}
-
-                    <MemberLeadershipAndOtherSection
-                      watch={watch}
-                      methods={methods}
-                      isCreateView={false}
-                      isEdit
-                      dests={dests}
-                      lockCoreFields={lockGroupLeaderFields}
-                      readOnly={readOnlyEffective}
-                    />
-
-                    {/* Instructor CI: oculto por completo para Lider de Grupo /
-                        Lider Asistente de Grupo, y para los miembros menores de
-                        18 anos (todos los Instructores CI son mayores de edad). */}
-                    {!lockGroupLeaderFields && !isMinorForInstructorCI && (
-                      <MemberInstructorCISection
-                        instructorCI={instructorCI}
-                        diasRestantesCI={diasRestantesCI}
-                        isEdit
-                        disabled={readOnlyEffective}
-                      />
-                    )}
-                  </>
-                )}
-
-                {/* SOLO /new: STEP 1 = Direcci?n */}
-                {isCreateView && step === 1 && (
-                  <>
-                    <Box
-                      sx={{
-                        gridColumn: '1 / -1',
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                      }}
-                    >
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                      <Typography sx={{ mx: 2, typography: 'subtitle2', color: 'text.secondary' }}>
-                        Dirección
-                      </Typography>
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                    </Box>
-
-                    <MemberAddressSection />
-                  </>
-                )}
-
-                {/* SOLO /new: STEP 2 = Otros (Ocupaci?n + Size T-Shirt) */}
-                {isCreateView && step === 2 && (
-                  <>
-                    <Box
-                      sx={{
-                        gridColumn: '1 / -1',
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        my: 1,
-                      }}
-                    >
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-                      <Typography
-                        sx={{
-                          mx: 2,
-                          typography: 'subtitle2',
-                          color: 'text.secondary',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Destacamento, liderazgo, otros
-                      </Typography>
-
-                      <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                    </Box>
-
-                    <MemberLeadershipAndOtherSection
-                      watch={watch}
-                      methods={methods}
-                      isCreateView
-                      dests={dests}
-                      lockCoreFields={lockGroupLeaderFields}
-                      lockDest={Boolean(destacamentoPropioFijo)}
-                    />
-                    {/* Instructor CI: oculto por completo para Lider de Grupo /
-                        Lider Asistente de Grupo, y para los miembros menores de
-                        18 anos (todos los Instructores CI son mayores de edad). */}
-                    {!lockGroupLeaderFields && !isMinorForInstructorCI && (
-                      <>
-                        <Box
-                          sx={{
-                            gridColumn: '1 / -1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            my: 1,
-                          }}
-                        >
-                          <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-
-                          <Typography
-                            sx={{
-                              mx: 2,
-                              typography: 'subtitle2',
-                              color: 'text.secondary',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            Instructor CI
-                          </Typography>
-
-                          <Divider sx={{ flex: 1, borderStyle: 'dashed' }} />
-                        </Box>
-
-                        <Field.Select
-                          name="InstructorCertificadoCI"
-                          label="?Instructor Certificado?"
-                        >
-                          <MenuItem value={1}>S?</MenuItem>
-                          <MenuItem value={0}>No</MenuItem>
-                        </Field.Select>
-
-                        {instructorCI === 1 && (
-                          <>
-                            <Field.Select
-                              name="EstatusVigenciaCI"
-                              label="Estatus vigencia CI"
-                              defaultValue="na"
-                              sx={{
-                                '& .MuiSelect-icon': {
-                                  display: 'none',
-                                },
-                              }}
-                              disabled
-                            >
-                              <MenuItem value={1}>Activo</MenuItem>
-                              <MenuItem value={0}>Inactivo</MenuItem>
-                              <MenuItem value="na">N/A</MenuItem>
-                            </Field.Select>
-
-                            <Field.DatePicker
-                              name="FechaInicioCI"
-                              label="Fecha inicio CI"
-                              format="DD/MM/YYYY"
-                              views={['year', 'month', 'day']}
-                              minDate={dayjs().subtract(5, 'year').add(1, 'day')}
-                              maxDate={dayjs()}
-                            />
-                            <Field.DatePicker
-                              name="FechaVencimientoCI"
-                              label={`Fecha vencimiento CI${diasRestantesCI !== null && diasRestantesCI <= 365
-                                ? ` (${diasRestantesCI >= 0
-                                  ? `${diasRestantesCI} d?as restantes`
-                                  : `vencido hace ${Math.abs(diasRestantesCI)} d?as`
-                                })`
-                                : ''
-                                }`}
-                              format="DD/MM/YYYY"
-                              views={['year', 'month', 'day']}
-                              disabled
-                              sx={{
-                                '& .MuiInputAdornment-root': {
-                                  display: 'none',
-                                },
-                              }}
-                            />
-                          </>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </Box>
-
-              {/* SOLO EDIT */}
-              {!isCreateView && isMobile && (
-                <Box sx={{ mt: 2 }}>
-                  <Button variant="text" fullWidth onClick={() => setShowMore((prev) => !prev)}>
-                    {showMore ? 'Ocultar información' : 'Ver más información'}
-                  </Button>
-                </Box>
-              )}
-
-              {!readOnlyEffective && (
-                <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-                  {/* SOLO /new */}
-                  {isCreateView && step === 2 && (
-                    <Button variant="outlined" onClick={prevStep}>
-                      Atrás
-                    </Button>
-                  )}
-
-                  {isCreateView && step === 1 && (
-                    <Button variant="contained" onClick={nextStep}>
-                      Siguiente (1 / 2)
-                    </Button>
-                  )}
-
-                  {isCreateView && step === 2 && (
-                    <Button type="submit" variant="contained" loading={isSubmitting}>
-                      Crear miembro
-                    </Button>
-                  )}
-
-                  {/* SOLO EDIT */}
-                  {!isCreateView &&
-                    (lockGroupLeaderFields ? (
-                      leaderPendingRequest ? (
-                        <Button
-                          type="button"
-                          color="warning"
-                          variant="outlined"
-                          startIcon={<Iconify icon="solar:clock-circle-bold" />}
-                          onClick={() => {
-                            setChangeResult(leaderPendingRequest);
-                            setChangeResultOpen(true);
-                          }}
-                        >
-                          Ver cambios pendientes
-                        </Button>
-                      ) : (
-                        <LoadingButton
-                          type="button"
-                          variant="contained"
-                          loading={sendingApproval}
-                          disabled={!isDirty}
-                          onClick={handleRequestApproval}
-                        >
-                          Enviar a aprobación
-                        </LoadingButton>
-                      )
-                    ) : (
-                      <>
-                        {changeRequest && !changeRequestOpen && (
-                          <Button
-                            type="button"
-                            color="warning"
-                            variant="outlined"
-                            startIcon={<Iconify icon="solar:clock-circle-bold" />}
-                            onClick={() => setChangeRequestOpen(true)}
-                          >
-                            Cambios solicitados pendientes
-                          </Button>
-                        )}
-                        <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-                          Guardar cambios
-                        </LoadingButton>
-                      </>
-                    ))}
-                </Stack>
-              )}
-              {!readOnlyEffective && formErrorMessage && (
-                <Typography
-                  sx={{
-                    mt: 1,
-                    typography: 'caption',
-                    color: 'error.main',
-                    textAlign: 'right',
-                  }}
-                >
-                  Faltan campos obligatorios por completar
-                </Typography>
-              )}
-            </Card>
+            <MemberFormFieldsCard
+              age={age}
+              division={division}
+              isCreateView={isCreateView}
+              step={step}
+              control={control}
+              minBirthdate={minBirthdate}
+              maxBirthdate={maxBirthdate}
+              maskContact={maskContact}
+              maskBirthdate={maskBirthdate}
+              maskAddress={maskAddress}
+              readOnlyEffective={readOnlyEffective}
+              currentMember={currentMember}
+              isMobile={isMobile}
+              showMore={showMore}
+              onToggleShowMore={() => setShowMore((previous) => !previous)}
+              watch={watch}
+              methods={methods}
+              dests={dests}
+              lockGroupLeaderFields={lockGroupLeaderFields}
+              instructorCI={instructorCI}
+              diasRestantesCI={diasRestantesCI}
+              isMinorForInstructorCI={isMinorForInstructorCI}
+              destacamentoPropioFijo={destacamentoPropioFijo}
+              onPreviousStep={prevStep}
+              onNextStep={nextStep}
+              isSubmitting={isSubmitting}
+              leaderPendingRequest={leaderPendingRequest}
+              onShowPendingRequest={() => {
+                setChangeResult(leaderPendingRequest);
+                setChangeResultOpen(true);
+              }}
+              sendingApproval={sendingApproval}
+              isDirty={isDirty}
+              onRequestApproval={handleRequestApproval}
+              changeRequest={changeRequest}
+              changeRequestOpen={changeRequestOpen}
+              onOpenChangeRequest={() => setChangeRequestOpen(true)}
+              formErrorMessage={formErrorMessage}
+            />
           </Grid>
         </Grid>
       </Box>

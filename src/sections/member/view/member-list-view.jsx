@@ -1,7 +1,6 @@
 'use client';
 
 import { varAlpha } from 'minimal-shared/utils';
-import { useSearchParams } from 'next/navigation';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
@@ -13,15 +12,15 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
-import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { sortOwnFirst } from 'src/utils/sort-own-first';
-import { normalizeText } from 'src/utils/normalize-text';
-import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import {
+  obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
   isAdminGlobal,
@@ -29,16 +28,12 @@ import {
   ejerceCargoSobreDestacamento,
 } from 'src/utils/org-level-access';
 import {
-  obtenerFotosPrincipalesEnCache,
-  obtenerFotosPrincipalesPorEntidad,
-} from 'src/utils/firebase-photos';
-import {
   isMemberSessionUser,
   canMemberManageMembers,
   esFichaDelPropioMiembro,
   filterMembersByMemberScope,
-  filtrarMiembrosDentroDelAlcance,
   isCoordinadorDestacamentoRole,
+  filtrarMiembrosDentroDelAlcance,
 } from 'src/utils/member-access';
 
 import { MEMBER_DIVISION_OPTIONS } from 'src/_mock';
@@ -61,7 +56,6 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
-  useTable,
   emptyRows,
   rowInPage,
   getComparator,
@@ -81,130 +75,22 @@ import { MemberTableRow } from '../member-table-row';
 import { MemberCardList } from '../member-card-list';
 import { MemberTableToolbar } from '../member-table-toolbar';
 import { MemberTableFiltersResult } from '../member-table-filters-result';
+import { useMemberListViewState } from '../hooks/use-member-list-view-state';
+import {
+  TABLE_HEAD,
+  applyFilter,
+  getCargoLabel,
+  ORDEN_CARGO_DEST,
+  mapMemberPhotoUrls,
+  mapMemberToTableRow,
+  getCargoOptionValue,
+  getDirectivaDivisionByMemberDivision,
+} from '../member-list-utils';
 // ----------------------------------------------------------------------
 
 // Rango de cada cargo de destacamento segun el catalogo local. El `orden` que
 // llega de Firestore puede venir en 0 —y entonces todos los cargos empatan—, asi
 // que el catalogo hace de respaldo.
-const ORDEN_CARGO_DEST = new Map(
-  DIRECTIVA_POSITIONS.filter((position) => position.nivel === 'destacamento').flatMap((position) =>
-    [position.idPosicionDirectiva, position.idCargo, position.idCargoApi]
-      .filter(Boolean)
-      .map((id) => [String(id), Number(position.orden) || Infinity])
-  )
-);
-
-const TABLE_HEAD = [
-  { id: 'name', label: 'Nombre' },
-  { id: 'destName', label: 'Destacamento', width: 250 },
-  { id: 'memberPosition', label: 'Posición', width: 180 },
-  { id: 'sectionalName', label: 'Sección', width: 160 },
-  { id: 'memberDivision', label: 'División', width: 90 },
-  { id: '', width: 88 },
-];
-
-const getMemberAge = (birthdate) => {
-  if (!birthdate) return null;
-
-  const parsed = new Date(birthdate);
-  if (Number.isNaN(parsed.getTime())) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - parsed.getFullYear();
-  const monthDiff = today.getMonth() - parsed.getMonth();
-
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsed.getDate())) {
-    age--;
-  }
-
-  return age;
-};
-
-const resolveMemberDivision = (member) => {
-  const currentDivision = String(
-    member?.memberDivision ?? member?.division ?? member?.divisionName ?? ''
-  ).trim();
-
-  if (currentDivision) {
-    const normalized = currentDivision.toLowerCase();
-    if (normalized.includes('lider')) return 'Liderazgo';
-    if (normalized.includes('explor')) return 'Exploradores';
-    if (normalized.includes('segu')) return 'Seguidores';
-    if (normalized.includes('pion')) return 'Pioneros';
-    if (normalized.includes('naveg')) return 'Navegantes';
-    return currentDivision;
-  }
-
-  const age = getMemberAge(
-    member?.birthDate || member?.birth || member?.dateOfBirth || member?.fechaNacimiento
-  );
-
-  if (age === null) return '';
-  if (age >= 18) return 'Liderazgo';
-  if (age >= 14) return 'Exploradores';
-  if (age >= 11) return 'Seguidores';
-  if (age >= 8) return 'Pioneros';
-  if (age >= 5) return 'Navegantes';
-
-  return '';
-};
-
-const getDirectivaDivisionByMemberDivision = (memberDivision = '') => {
-  const normalized = String(memberDivision || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-  if (normalized.includes('naveg')) return 'navegantes';
-  if (normalized.includes('pion')) return 'pioneros';
-  if (normalized.includes('segu')) return 'seguidores';
-  if (normalized.includes('explor')) return 'exploradores';
-
-  return '';
-};
-
-const getCargoOptionValue = (cargo = {}) => cargo.idPosicionDirectiva || cargo.id || cargo.idCargo;
-
-const getCargoLabel = (cargo = {}) => {
-  const cargoName = cargo.nombreCargo || cargo.nombre || cargo.label || '';
-
-  if (cargo.nivel === 'destacamento' && cargo.nombreDivision && !cargoName.includes('(')) {
-    return `${cargoName} (${cargo.nombreDivision})`;
-  }
-
-  return cargoName;
-};
-
-const mapMemberToTableRow = (member) => ({
-  ...member,
-  id: member.id,
-  idMiembros: member.id,
-  memberId: member.memberId || member.codigoMiembro || member.id,
-  destId: member.destId || member.idDestacamento || '',
-  avatarUrl: member.avatarUrl || null,
-  name: getMemberFullName(member),
-  memberDivision: resolveMemberDivision(member),
-  churchId: null,
-  churchName: 'Iglesia desconocida',
-  sectionalId: '',
-  sectionalName: 'Sección desconocida',
-  regionalId: '',
-  regionalName: '',
-  memberPosition: member.memberPosition || [],
-  destLeadershipPosition: member.destLeadershipPosition || '',
-  directivaLeadershipPosition: member.directivaLeadershipPosition || '',
-  nationalLeadershipPosition: member.nationalLeadershipPosition || '',
-});
-
-const mapMemberPhotoUrls = (memberPhotos) =>
-  Object.fromEntries(
-    Object.entries(memberPhotos || obtenerFotosPrincipalesEnCache({ tipoEntidad: 'miembro' }) || {})
-      .filter(([, photo]) => photo?.urlFoto)
-      .map(([memberId, photo]) => [String(memberId), photo.urlFoto])
-  );
-
-// ----------------------------------------------------------------------
-
 /**
  * LA LISTA DE MIEMBROS, EN SUS DOS SITIOS.
  *
@@ -218,20 +104,22 @@ const mapMemberPhotoUrls = (memberPhotos) =>
  */
 export function MemberListView({ destId = null }) {
   const esPestanaDeDestacamento = Boolean(destId);
-  const searchParams = useSearchParams();
   // Abrir un miembro y volver atras remonta esta vista, asi que la pagina se
   // guarda en la URL (?p=2). Sin eso el usuario aterrizaba siempre en la #1.
-  const pageFromUrl = Math.max(0, (Number(searchParams.get('p')) || 1) - 1);
-  const table = useTable({ defaultCurrentPage: pageFromUrl });
+  const {
+    table,
+    displayMode,
+    setDisplayMode,
+    pageFromUrl,
+    handleChangePage,
+    handleChangeCardPage,
+    handleResetPage,
+    memberIdFromUrl,
+    destFromUrl,
+    sectionFromUrl,
+  } = useMemberListViewState();
   const { user, loading } = useAuthContext();
   const [dests, setDests] = useState([]);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
-  const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);
-  const displayMode = selectedDisplayMode || (isMobile ? 'grid' : 'panel');
-  const setDisplayMode = useCallback((nextMode) => {
-    setSelectedDisplayMode(nextMode);
-  }, []);
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
@@ -682,9 +570,6 @@ export function MemberListView({ destId = null }) {
       return found?.regionalName || found?.name || id;
     },
   });
-  const memberIdFromUrl = searchParams.get('member');
-  const destFromUrl = searchParams.get('dest');
-  const sectionFromUrl = searchParams.get('sectional');
   const appliedFromUrl = useRef(false);
 
   useEffect(() => {
@@ -703,44 +588,6 @@ export function MemberListView({ destId = null }) {
       appliedFromUrl.current = true;
     }
   }, [destFromUrl, sectionFromUrl, pageFromUrl, updateFilters, table]);
-
-  const syncPageInUrl = useCallback((zeroBasedPage) => {
-    if (typeof window === 'undefined') return;
-
-    const params = new URLSearchParams(window.location.search);
-
-    if (zeroBasedPage > 0) {
-      params.set('p', String(zeroBasedPage + 1));
-    } else {
-      params.delete('p');
-    }
-
-    const queryString = params.toString();
-
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${queryString ? `?${queryString}` : ''}`
-    );
-  }, []);
-
-  const handleChangePage = useCallback(
-    (event, newPage) => {
-      table.onChangePage(event, newPage);
-      syncPageInUrl(newPage);
-    },
-    [table, syncPageInUrl]
-  );
-
-  const handleChangeCardPage = useCallback(
-    (event, newPage) => handleChangePage(event, newPage - 1),
-    [handleChangePage]
-  );
-
-  const handleResetPage = useCallback(() => {
-    table.onResetPage();
-    syncPageInUrl(0);
-  }, [table, syncPageInUrl]);
 
   const memberFromUrl = memberIdFromUrl
     ? visibleMembers.find((m) => m.id === memberIdFromUrl || m.memberId === memberIdFromUrl)
@@ -1053,53 +900,5 @@ export function MemberListView({ destId = null }) {
     </>
   );
 }
-
 // ----------------------------------------------------------------------
 
-function applyFilter({ inputData, comparator, filters }) {
-  const { name, memberDivision, memberPosition, sectionalId, destName } = filters;
-
-  if (destName.length) {
-    inputData = inputData.filter((member) => destName.includes(member.destId?.toString()));
-  }
-
-  if (memberDivision.length) {
-    inputData = inputData.filter((member) => memberDivision.includes(member.memberDivision));
-  }
-
-  const stabilizedThis = inputData.map((el, index) => [el, index]);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (name) {
-    inputData = inputData.filter((member) =>
-      normalizeText(`${member.firstName || ''} ${member.lastName || ''}`).includes(
-        normalizeText(name)
-      )
-    );
-  }
-
-  if (sectionalId.length) {
-    inputData = inputData.filter((member) => sectionalId.includes(member.sectionalId?.toString()));
-  }
-
-  if (memberPosition?.length) {
-    inputData = inputData.filter((member) => {
-      const positions = [
-        ...(member.memberPosition || []),
-        member.destLeadershipPosition,
-        member.directivaLeadershipPosition,
-      ].filter(Boolean);
-
-      return positions.some((role) => memberPosition.includes(role));
-    });
-  }
-
-  return inputData;
-}

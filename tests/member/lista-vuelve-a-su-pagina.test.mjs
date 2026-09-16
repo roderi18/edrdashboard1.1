@@ -6,14 +6,16 @@ import assert from 'node:assert/strict';
 const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), 'utf8');
 
 const vista = leer('src/sections/member/view/member-list-view.jsx');
+const estadoVista = leer('src/sections/member/hooks/use-member-list-view-state.js');
 const listaDeTarjetas = leer('src/sections/common/compact-entity-card-list.jsx');
 const fotos = leer('src/utils/firebase-photos.js');
 
 test('la pagina de la lista de miembros viaja en la URL', () => {
-  assert.match(vista, /searchParams\.get\('p'\)/);
-  assert.match(vista, /useTable\(\{ defaultCurrentPage: pageFromUrl \}\)/);
-  assert.match(vista, /params\.set\('p', String\(zeroBasedPage \+ 1\)\)/);
-  assert.match(vista, /window\.history\.replaceState/);
+  assert.match(estadoVista, /searchParams\.get\('p'\)/);
+  assert.match(estadoVista, /useTable\(\{ defaultCurrentPage: pageFromUrl \}\)/);
+  assert.match(estadoVista, /params\.set\('p', String\(zeroBasedPage \+ 1\)\)/);
+  assert.match(estadoVista, /window\.history\.replaceState/);
+  assert.match(vista, /useMemberListViewState\(\)/);
 });
 
 test('tabla y tarjetas comparten la misma pagina guardada', () => {

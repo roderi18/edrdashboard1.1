@@ -10,6 +10,8 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { eventosVigentes } from 'src/utils/everest/presentacion.mjs';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
@@ -68,7 +70,8 @@ export function PrincipalEventos({ eventos, esEjemplo }) {
       />
 
       <Stack divider={<Divider sx={{ my: 1.5 }} />}>
-        {eventos.map((evento) => (
+        {/* Los que ya pasaron se dejan de enseñar solos, si traen fecha. */}
+        {eventosVigentes(eventos).map((evento) => (
           <Stack key={evento.clave} direction="row" spacing={1.5} alignItems="flex-start">
             {/* EL DIA Y EL MES, COMO UNA HOJA DE CALENDARIO. Se busca por fecha
                 antes que por nombre: quien mira esto quiere saber cuando, no que. */}

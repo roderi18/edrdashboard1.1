@@ -136,3 +136,78 @@ export const siTodoVale = (objeto) =>
  */
 export const clavesSinRepetir = (elementos) =>
   new Set(elementos.map((elemento) => elemento.clave)).size === elementos.length;
+
+// ----------------------------------------------------------------------
+// LOS CAMPOS OPCIONALES (fase 4).
+//
+// Los editores añaden campos que el diseño original no tenia —fechas de verdad,
+// un fondo propio, el texto del boton—. Son OPCIONALES a proposito: el valor de
+// fabrica no los trae, y tiene que seguir pasando el saneado tal cual y
+// pintandose exactamente igual que antes.
+//
+// La regla: si el campo NO esta, no se añade (ni siquiera vacio). Si esta y no
+// vale, invalida el bloque entero, como cualquier otro campo roto.
+// ----------------------------------------------------------------------
+
+const FECHA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Una fecha de calendario `AAAA-MM-DD` que existe de verdad (no un 31 de febrero). */
+export function fechaISO(valor) {
+  if (typeof valor !== 'string') return null;
+
+  const partes = FECHA_ISO.exec(valor);
+
+  if (!partes) return null;
+
+  const [, anio, mes, dia] = partes.map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+
+  return fecha.getUTCFullYear() === anio &&
+    fecha.getUTCMonth() === mes - 1 &&
+    fecha.getUTCDate() === dia
+    ? valor
+    : null;
+}
+
+export const TIPOS_DE_MEDIO = Object.freeze(['imagen', 'video']);
+
+/**
+ * El fondo propio de una tarjeta: una direccion `https` y si es imagen o video.
+ * `tipos` dice cuales admite esa tarjeta (la bienvenida, solo imagen).
+ */
+export function medio(valor, { tipos = TIPOS_DE_MEDIO } = {}) {
+  if (!esObjeto(valor)) return null;
+
+  const url = destino(valor.url);
+  const tipo = unoDe(valor.tipo, tipos);
+
+  return url && url.startsWith('https://') && tipo ? { url, tipo } : null;
+}
+
+/** Un boton: texto corto y a donde lleva. */
+export function boton(valor) {
+  if (!esObjeto(valor)) return null;
+
+  return siTodoVale({
+    texto: texto(valor.texto, { max: 30, obligatorio: true }),
+    destino: destino(valor.destino),
+  });
+}
+
+/**
+ * Añade a `base` los campos opcionales que vengan en `contenido`.
+ *
+ * `piezas` es `{ campo: (valor) => limpio | null }`. Un campo ausente no se
+ * añade; uno presente que no pasa su pieza devuelve `null` para todo.
+ */
+export function conOpcionales(base, contenido, piezas) {
+  if (base === null) return null;
+
+  const presentes = Object.entries(piezas)
+    .filter(([campo]) => contenido?.[campo] !== undefined)
+    .map(([campo, pieza]) => [campo, pieza(contenido[campo])]);
+
+  return presentes.some(([, limpio]) => limpio === null)
+    ? null
+    : { ...base, ...Object.fromEntries(presentes) };
+}

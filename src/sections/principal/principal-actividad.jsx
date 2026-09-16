@@ -11,6 +11,8 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { actividadParaPintar } from 'src/utils/everest/presentacion.mjs';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
@@ -36,12 +38,21 @@ import {
 // organizacion entera, que es lo que se quiere.
 const ID_DE_LA_TARJETA = 'proxima-actividad';
 
-export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
+export function PrincipalProximaActividad({ actividad: recibida, puedeEditar = false }) {
   const { NAVY, ORO, AZUL } = useTonosDeMarca();
   // Esta tarjeta admite tambien un video corto, que corre en bucle como un GIF.
-  const { foto, esVideo, subiendo, elegirFoto } = useImagenDeTarjeta(ID_DE_LA_TARJETA, {
+  const tarjeta = useImagenDeTarjeta(ID_DE_LA_TARJETA, {
     aceptaVideo: true,
   });
+  const { subiendo, elegirFoto } = tarjeta;
+
+  // LO QUE SE PUBLICA DESDE EVEREST DESIGNER (fase 4), SI LO HAY. Con fecha de
+  // inicio, las fechas y los dias que faltan se calculan hoy, al pintar. Con
+  // fondo propio, manda sobre la foto de siempre. Sin nada de eso —el valor de
+  // fabrica— la tarjeta se pinta exactamente como antes.
+  const actividad = actividadParaPintar(recibida);
+  const foto = actividad.fondo ? actividad.fondo.url : tarjeta.foto;
+  const esVideo = actividad.fondo ? actividad.fondo.tipo === 'video' : tarjeta.esVideo;
 
   return (
     <Card
@@ -170,13 +181,13 @@ export function PrincipalProximaActividad({ actividad, puedeEditar = false }) {
 
         <Button
           component={RouterLink}
-          href={paths.dashboard.calendar}
+          href={actividad.boton?.destino ?? paths.dashboard.calendar}
           size="small"
           variant="contained"
           endIcon={<Iconify icon="solar:double-alt-arrow-right-bold-duotone" />}
           sx={{ ml: 'auto', bgcolor: AZUL.principal, '&:hover': { bgcolor: AZUL.encima } }}
         >
-          ¡Inscrbirme ahora!
+          {actividad.boton?.texto ?? '¡Inscrbirme ahora!'}
         </Button>
       </Stack>
     </Card>

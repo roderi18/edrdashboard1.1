@@ -20,6 +20,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestVistaPrevia } from '../everest-vista-previa';
 import { useEverestDesigner } from '../hooks/use-everest-designer';
 import { EverestPanelDelBloque } from '../everest-panel-del-bloque';
@@ -66,7 +67,24 @@ export function EverestDesignerView() {
     );
   }
 
-  const { estadoSeleccionado } = designer;
+  const { estadoSeleccionado, idSeleccionado } = designer;
+
+  // EL EDITOR DEL BLOQUE ABIERTO, SI TIENE. Parte del borrador si hay uno, y si
+  // no, de lo que esta en vivo. Cada cambio pasa por `cambiarContenido`: se ve al
+  // momento en la vista previa y se guarda solo como borrador, nunca en la
+  // portada. La `key` lo reinicia al cambiar de bloque.
+  const Editor = EDITORES_DE_BLOQUE[idSeleccionado];
+  const contenidoAEditar =
+    estadoSeleccionado?.borrador?.contenido ?? estadoSeleccionado?.enVivo?.contenido;
+  const editor =
+    Editor && contenidoAEditar != null ? (
+      <Editor
+        key={idSeleccionado}
+        idBloque={idSeleccionado}
+        contenido={contenidoAEditar}
+        onCambiar={(contenido) => designer.cambiarContenido(idSeleccionado, contenido)}
+      />
+    ) : null;
 
   return (
     <DashboardContent maxWidth="xl">
@@ -143,6 +161,7 @@ export function EverestDesignerView() {
             <Grid size={{ xs: 12, lg: 3 }}>
               <EverestPanelDelBloque
                 estado={estadoSeleccionado}
+                editor={editor}
                 guardando={Boolean(designer.guardando[designer.idSeleccionado])}
                 accion={designer.accion}
                 onPublicar={designer.publicar}
