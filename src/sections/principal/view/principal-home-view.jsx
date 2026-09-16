@@ -80,7 +80,7 @@ const regionDeLaSesion = (user) =>
 export function PrincipalHomeView() {
   const { user } = useAuthContext();
   const settings = useSettingsContext();
-  const accesosVisibles = settings.state.accesosRapidos !== false;
+  const accesosVisibles = settings.state.accesosRapidos === true;
 
   const identidad = useMemo(
     () => ({
@@ -115,9 +115,8 @@ export function PrincipalHomeView() {
                   abajo y las tres piezas se leen como una sola columna.
 
                   Se pueden apagar desde el panel de ajustes ("Accesos rápidos"):
-                  son atajos a sitios que tambien estan en el menu. Se pregunta por
-                  `!== false` porque las sesiones que guardaron sus ajustes antes
-                  de que existiera la clave no la tienen, y ahi vale "encendido". */}
+                  son atajos a sitios que tambien estan en el menu. Solo aparecen
+                  cuando el usuario los activa de forma expresa. */}
               {accesosVisibles && <PrincipalAccesos accesos={ACCESOS_RAPIDOS} />}
 
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden

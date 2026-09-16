@@ -14,10 +14,9 @@ register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 // son atajos a sitios que tambien estan en el menu. Quien no los use los quita
 // desde el panel de ajustes, debajo de "Barra y cabecera".
 //
-// LO QUE SE ROMPIA: un ajuste nuevo no esta en los ajustes YA GUARDADOS de cada
-// navegador. Si la pantalla preguntara por el valor a secas, a todo el mundo le
-// desaparecerian los accesos al actualizar, porque ahi la clave llega
-// `undefined`. Se pregunta por `!== false`: solo los apaga quien los apago.
+// Un ajuste nuevo no esta en los ajustes YA GUARDADOS de cada navegador. La
+// ausencia de la clave también debe significar "apagado": solo aparecen cuando
+// el usuario los activa de forma expresa.
 // ----------------------------------------------------------------------
 
 const { defaultSettings } = await import('src/components/settings/settings-config.js');
@@ -27,22 +26,22 @@ const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), '
 const VISTA = leer('src/sections/principal/view/principal-home-view.jsx');
 const PANEL = leer('src/components/settings/drawer/settings-drawer.jsx');
 
-test('vienen encendidos', () => {
-  assert.equal(defaultSettings.accesosRapidos, true);
+test('vienen apagados', () => {
+  assert.equal(defaultSettings.accesosRapidos, false);
 });
 
 // La regla, ejecutada tal cual la escribe la pantalla.
-const accesosVisibles = (ajustes) => ajustes.accesosRapidos !== false;
+const accesosVisibles = (ajustes) => ajustes.accesosRapidos === true;
 
-test('solo se apagan si alguien los apago', () => {
+test('solo se muestran si alguien los activo', () => {
   assert.equal(accesosVisibles({ accesosRapidos: false }), false);
   assert.equal(accesosVisibles({ accesosRapidos: true }), true);
   // Ajustes guardados antes de que existiera la clave.
-  assert.equal(accesosVisibles({}), true);
+  assert.equal(accesosVisibles({}), false);
 });
 
 test('la pantalla Principal los esconde con esa misma regla', () => {
-  assert.match(VISTA, /settings\.state\.accesosRapidos !== false/);
+  assert.match(VISTA, /settings\.state\.accesosRapidos === true/);
   assert.match(VISTA, /\{accesosVisibles && <PrincipalAccesos accesos=\{ACCESOS_RAPIDOS\} \/>\}/);
 });
 

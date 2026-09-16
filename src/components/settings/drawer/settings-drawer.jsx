@@ -229,11 +229,9 @@ export function SettingsDrawer({ sx, defaultSettings }) {
   // actividad, Mis insignias, Capacitacion—, y quien no los use se los quita sin
   // perder nada: todos llevan a sitios que tambien estan en el menu.
   //
-  // Se pregunta por `!== false` y no por el valor: las sesiones que guardaron sus
-  // ajustes antes de que existiera esta clave no la tienen, y ahi `undefined`
-  // significa "encendido". Sin esto, a todo el mundo le desaparecian los accesos
-  // al actualizar.
-  const accesosVisibles = settings.state.accesosRapidos !== false;
+  // Solo se muestran cuando el usuario los activa de forma expresa. Esto también
+  // mantiene apagadas las sesiones antiguas que todavía no guardaron esta clave.
+  const accesosVisibles = settings.state.accesosRapidos === true;
 
   const renderAccesosRapidos = () => (
     <LargeBlock

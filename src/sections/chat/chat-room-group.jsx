@@ -29,7 +29,7 @@ import { ChatRoomParticipantDialog } from './chat-room-participant-dialog';
 
 const MAX_VISIBLE_QUEUED_MEMBERS = 5;
 const QUEUED_MEMBERS_MAX_HEIGHT = 170;
-const MAX_VISIBLE_GROUP_PARTICIPANTS = 7;
+const MAX_VISIBLE_GROUP_PARTICIPANTS = 6;
 const GROUP_PARTICIPANT_ROW_HEIGHT = 56;
 
 export function ChatRoomGroup({
