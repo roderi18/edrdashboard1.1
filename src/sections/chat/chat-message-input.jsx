@@ -13,7 +13,7 @@ import TextareaAutosize from '@mui/material/TextareaAutosize';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { sonarAviso, silenciarAvisos } from 'src/utils/sonidos-de-aviso.mjs';
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
 import {
   uploadFilesToStorage,
@@ -28,6 +28,7 @@ import {
   addLocalMessage,
   removeLocalMessage,
   createConversation,
+  discardEmptyConversation,
 } from 'src/actions/chat';
 
 import { toast } from 'src/components/snackbar';
@@ -150,8 +151,8 @@ const isZipOrPdf = (file) => {
   return ALLOWED_DOCUMENT_TYPES.has(file?.type) || name.endsWith('.pdf') || name.endsWith('.zip');
 };
 
-const buildAttachmentMessage = ({ upload, senderId, contentType }) => ({
-  id: uuidv4(),
+const buildAttachmentMessage = ({ id, upload, senderId, contentType }) => ({
+  id: id || uuidv4(),
   attachments: [upload],
   body: contentType === 'image' ? upload.url : upload.nombre,
   contentType,
@@ -187,6 +188,7 @@ export function ChatMessageInput({
   const typingRequestRef = useRef(Promise.resolve());
   const uploadAbortControllerRef = useRef(null);
   const pendingAttachmentsRef = useRef([]);
+  const retryPayloadRef = useRef(null);
   const hydratedDraftKeyRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -370,6 +372,10 @@ export function ChatMessageInput({
       const value = event.target.value;
       setMessage(value);
 
+      if (retryPayloadRef.current && retryPayloadRef.current.text !== value) {
+        retryPayloadRef.current = null;
+      }
+
       const mentionMatch = value.match(/(?:^|\s)@([^@\n]*)$/u);
       setMentionQuery(mentionMatch ? mentionMatch[1].trimStart() : null);
       setMentionIndex(0);
@@ -418,19 +424,30 @@ export function ChatMessageInput({
     // En una conversacion silenciada no suena NADA suyo: ni el envio ni el
     // archivo que se sube con el. Es lo que se espera de "Silenciar
     // notificaciones"; la subida se apaga desde aqui porque ocurre dentro.
-    silenciarAvisos(silenciada);
-    sonarAviso('mensajeEnviado', { retrasoMs: 100 });
+    sonarAviso('mensajeEnviado', { retrasoMs: 100, silenciado: silenciada });
 
     const textToSend = message;
     const attachmentsToSend = pendingAttachments;
+    const retryPayload = retryPayloadRef.current?.text === textToSend
+      ? retryPayloadRef.current
+      : null;
+    const outgoingMessageData = retryPayload?.messageData ?? {
+      ...messageData,
+      body: textToSend,
+    };
+    const outgoingConversationData = retryPayload?.conversationData ?? conversationData;
     const deliveredAttachmentIds = new Set();
+    const uploadsCreatedThisAttempt = [];
     let activeConversationId = selectedConversationId;
     let localImageMessageId = null;
+    let createdEmptyConversationId = null;
+    let createdConversationData = null;
+    let latestServerConversation = null;
     const optimisticFirstConversation =
       !activeConversationId && textToSend && !attachmentsToSend.length
         ? crearConversacionOptimista({
-            conversacion: conversationData,
-            mensaje: messageData,
+            conversacion: outgoingConversationData,
+            mensaje: outgoingMessageData,
             texto: textToSend,
           })
         : null;
@@ -454,27 +471,28 @@ export function ChatMessageInput({
 
     try {
       if (editingMessage && selectedConversationId) {
-        onClearEditing?.();
         await editMessage(
           selectedConversationId,
           editingMessage.id,
           textToSend,
           currentContact.idMiembros
         );
+        onClearEditing?.();
         onClearReply?.();
+        retryPayloadRef.current = null;
         return;
       }
 
       if (attachmentsToSend.length) {
         if (!activeConversationId) {
           const res = await createConversation(
-            { ...conversationData, messages: [] },
+            { ...outgoingConversationData, messages: [] },
             currentContact.idMiembros
           );
 
           activeConversationId = res.conversation.id;
-          onConversationCreated?.(res.conversation);
-          router.push(rutaDelChat({ id: activeConversationId, bandeja }));
+          createdEmptyConversationId = activeConversationId;
+          createdConversationData = res.conversation;
         }
 
         const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
@@ -517,11 +535,13 @@ export function ChatMessageInput({
                   remitenteIdMiembros: String(currentContact.idMiembros || ''),
                 }),
                 ...buildUploadCallbacks(missingImages),
+                silenciado: silenciada,
               })
             : [];
           const uploadByAttachmentId = new Map(
             missingImages.map((item, index) => [item.id, newUploads[index]])
           );
+          uploadsCreatedThisAttempt.push(...newUploads.filter(Boolean));
           const uploads = imageAttachments.map(
             (item) => item.upload || uploadByAttachmentId.get(item.id)
           );
@@ -535,7 +555,7 @@ export function ChatMessageInput({
             });
           });
 
-          await sendMessage(
+          latestServerConversation = await sendMessage(
             activeConversationId,
             {
               ...localImageMessage,
@@ -568,11 +588,13 @@ export function ChatMessageInput({
                   remitenteIdMiembros: String(currentContact.idMiembros || ''),
                 }),
                 ...buildUploadCallbacks(missingFiles),
+                silenciado: silenciada,
               })
             : [];
           const uploadByAttachmentId = new Map(
             missingFiles.map((item, index) => [item.id, newUploads[index]])
           );
+          uploadsCreatedThisAttempt.push(...newUploads.filter(Boolean));
 
           fileAttachments.forEach((item) => {
             const upload = item.upload || uploadByAttachmentId.get(item.id);
@@ -582,11 +604,16 @@ export function ChatMessageInput({
           for (const item of fileAttachments) {
             const upload = item.upload || uploadByAttachmentId.get(item.id);
             const attachmentMessage = buildAttachmentMessage({
+              id: item.localMessageId,
               upload,
               contentType: 'file',
               senderId: currentContact.idMiembros || currentContact.id,
             });
-            await sendMessage(activeConversationId, attachmentMessage, currentContact.idMiembros);
+            latestServerConversation = await sendMessage(
+              activeConversationId,
+              attachmentMessage,
+              currentContact.idMiembros
+            );
             deliveredAttachmentIds.add(item.id);
             if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
             setPendingAttachments((currentItems) =>
@@ -597,16 +624,16 @@ export function ChatMessageInput({
       }
 
       if (textToSend && activeConversationId) {
-        await sendMessage(
+        latestServerConversation = await sendMessage(
           activeConversationId,
-          { ...messageData, body: textToSend },
+          outgoingMessageData,
           currentContact.idMiembros
         );
       } else if (textToSend) {
         const res = await createConversation(
           {
-            ...conversationData,
-            messages: [{ ...messageData, body: textToSend }],
+            ...outgoingConversationData,
+            messages: [outgoingMessageData],
           },
           currentContact.idMiembros
         );
@@ -614,13 +641,26 @@ export function ChatMessageInput({
         router.push(rutaDelChat({ id: res.conversation.id, bandeja }));
       }
 
+      if (createdEmptyConversationId) {
+        onConversationCreated?.(latestServerConversation ?? createdConversationData);
+        router.push(rutaDelChat({ id: createdEmptyConversationId, bandeja }));
+      }
+
       onClearReply?.();
+      retryPayloadRef.current = null;
       if (draftKey && typeof window !== 'undefined') window.localStorage.removeItem(draftKey);
     } catch (error) {
       const errorMessage = getChatErrorMessage(error, 'No se pudo enviar el mensaje.');
       logChatClientError('send-message', error);
       toast.error(errorMessage);
       if (optimisticFirstConversation) onConversationCreated?.(null);
+      if (textToSend && !editingMessage) {
+        retryPayloadRef.current = {
+          text: textToSend,
+          messageData: outgoingMessageData,
+          conversationData: outgoingConversationData,
+        };
+      }
       const cancelled = error?.cancelled || error?.code === 'chat/upload-cancelled';
       if (localImageMessageId && activeConversationId) {
         await removeLocalMessage(activeConversationId, localImageMessageId).catch(() => undefined);
@@ -635,8 +675,37 @@ export function ChatMessageInput({
           }))
       );
       setMessage(textToSend);
+
+      if (createdEmptyConversationId) {
+        const discarded = await discardEmptyConversation(
+          createdEmptyConversationId,
+          currentContact.idMiembros
+        ).catch(() => null);
+
+        if (!discarded?.discarded) {
+          onConversationCreated?.(latestServerConversation ?? createdConversationData);
+          router.push(rutaDelChat({ id: createdEmptyConversationId, bandeja }));
+        } else if (uploadsCreatedThisAttempt.length) {
+          await deleteUploadedFilesFromStorage(uploadsCreatedThisAttempt).catch(() => undefined);
+          const discardedPaths = new Set(
+            uploadsCreatedThisAttempt.map((upload) => upload.storagePath).filter(Boolean)
+          );
+          setPendingAttachments((currentItems) =>
+            currentItems.map((item) =>
+              item.upload?.storagePath && discardedPaths.has(item.upload.storagePath)
+                ? {
+                    ...item,
+                    upload: undefined,
+                    localMessageId: undefined,
+                    progress: 0,
+                    status: 'error',
+                  }
+                : item
+            )
+          );
+        }
+      }
     } finally {
-      silenciarAvisos(false);
       uploadAbortControllerRef.current = null;
       setIsUploading(false);
     }
@@ -737,6 +806,7 @@ export function ChatMessageInput({
         ...currentItems,
         ...imageFiles.map((file, index) => ({
           id: `image-${uuidv4()}-${index}`,
+          localMessageId: uuidv4(),
           file,
           contentType: 'image',
           previewUrl: URL.createObjectURL(file),
@@ -791,6 +861,7 @@ export function ChatMessageInput({
         ...currentItems,
         ...files.map((file, index) => ({
           id: `file-${uuidv4()}-${index}`,
+          localMessageId: uuidv4(),
           file,
           contentType: 'file',
           previewUrl:

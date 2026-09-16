@@ -72,7 +72,7 @@ test('cada aviso está conectado a su módulo', () => {
   // no se confunda con el golpe de la tecla.
   assert.match(
     leer('src/sections/chat/chat-message-input.jsx'),
-    /sonarAviso\('mensajeEnviado', \{ retrasoMs: 100 \}\)/
+    /sonarAviso\('mensajeEnviado', \{ retrasoMs: 100, silenciado: silenciada \}\)/
   );
   // Campana: en el propio aviso de Firestore, no después de recargar la lista.
   assert.match(
@@ -80,7 +80,10 @@ test('cada aviso está conectado a su módulo', () => {
     /if \(cambio\?\.nuevas > 0\) sonarAviso\('campana'\)/
   );
   // Subidas: las dos puertas, archivos y fotos.
-  assert.match(leer('src/utils/firebase-file-storage.js'), /sonarAviso\('archivoSubido'\)/);
+  assert.match(
+    leer('src/utils/firebase-file-storage.js'),
+    /sonarAviso\('archivoSubido', \{ silenciado \}\)/
+  );
   assert.match(leer('src/utils/firebase-image-storage.js'), /sonarAviso\('archivoSubido'\)/);
 });
 
@@ -146,17 +149,19 @@ test('un mensaje suena una sola vez, aunque escuchen tres pantallas', () => {
 test('silenciar una conversación calla también sus sonidos al escribir', () => {
   const entrada = leer('src/sections/chat/chat-message-input.jsx');
 
-  assert.match(entrada, /silenciarAvisos\(silenciada\);/);
-  assert.match(entrada, /silenciarAvisos\(false\);/);
+  assert.match(entrada, /sonarAviso\('mensajeEnviado', \{ retrasoMs: 100, silenciado: silenciada \}\)/);
+  assert.match(entrada, /silenciado: silenciada/g);
+  assert.doesNotMatch(entrada, /silenciarAvisos/);
   assert.match(
     leer('src/sections/chat/view/chat-view.jsx'),
     /silenciada=\{Boolean\(conversation\?\.muted\)\}/
   );
-  // Y el interruptor de verdad: con los avisos apagados, `sonarAviso` no suena.
+  // La decisión viaja con cada aviso y no apaga sonidos ajenos mientras espera.
   assert.match(
     leer('src/utils/sonidos-de-aviso.mjs'),
-    /if \(avisosSilenciados \|\| !sonido \|\| sonido === SIN_SONIDO\) return false;/
+    /if \(silenciado \|\| !sonido \|\| sonido === SIN_SONIDO\) return false;/
   );
+  assert.doesNotMatch(leer('src/utils/sonidos-de-aviso.mjs'), /avisosSilenciados/);
 });
 
 test('la elección se guarda para toda la organización y queda en Historial', () => {

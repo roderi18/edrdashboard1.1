@@ -168,6 +168,7 @@ export async function uploadFilesToStorage({
   onProgress,
   onTask,
   signal,
+  silenciado = false,
 } = {}) {
   if (!files.length) return [];
 
@@ -303,7 +304,7 @@ export async function uploadFilesToStorage({
     // subida sin sonido no se distingue de una subida a medias.
     //
     // Suena al terminar TODO el lote, no una vez por archivo.
-    sonarAviso('archivoSubido');
+    sonarAviso('archivoSubido', { silenciado });
 
     return completed;
   } finally {

@@ -189,18 +189,6 @@ export function reproducirSonido(clave, { volumenGeneral = 1 } = {}) {
 
 let eleccionActiva = eleccionPorDefecto();
 
-// SILENCIO A RATOS.
-//
-// "Silenciar notificaciones" es de una conversacion, pero los sonidos de enviar
-// y de subir un archivo se disparan desde sitios que no saben en que
-// conversacion estan (la subida es la misma funcion para todo el sistema). Se
-// apagan mientras dure la operacion y se vuelven a encender al terminar.
-let avisosSilenciados = false;
-
-export const silenciarAvisos = (silenciar) => {
-  avisosSilenciados = Boolean(silenciar);
-};
-
 export const fijarEleccionDeSonidos = (eleccion) => {
   eleccionActiva = { ...eleccionPorDefecto(), ...(eleccion ?? {}) };
 };
@@ -229,10 +217,10 @@ export function prepararAudio() {
  * No falla nunca: si el aviso esta en "Sin sonido", o el navegador no deja sonar
  * todavia —hace falta que la persona haya tocado algo—, no pasa nada.
  */
-export function sonarAviso(clave, { retrasoMs = 0 } = {}) {
+export function sonarAviso(clave, { retrasoMs = 0, silenciado = false } = {}) {
   const sonido = eleccionActiva[clave];
 
-  if (avisosSilenciados || !sonido || sonido === SIN_SONIDO) return false;
+  if (silenciado || !sonido || sonido === SIN_SONIDO) return false;
 
   // El retraso es para los avisos que acompañan a algo que se ve: el mensaje
   // aparece en la conversacion y el sonido entra justo detras. Pegado al golpe

@@ -426,3 +426,38 @@ test('la foto del buzon la escribe solo el Administrador Global, y el comodin no
     /match \/chat-buzones\/\{claveBuzon\}\/\{archivo\} \{[\s\S]*?esAdministradorGlobal\(\)/
   );
 });
+
+// ----------------------------------------------------------------------
+// LO QUE ABRE UNO, LO HAN VISTO TODOS
+// ----------------------------------------------------------------------
+
+// El contador de un buzon ya era uno solo, pero el aviso de campana es uno por
+// persona: si abria el mensaje quien atiende la Tienda, los demas seguian con su
+// aviso "no leido" de algo que ya estaba atendido.
+test('abrir un mensaje del buzon marca leido el aviso de todos los que lo atienden', () => {
+  const ruta = leer('src/app/api/chat/route.js');
+  const marcar = ruta.slice(ruta.indexOf('async function markAsSeen'));
+
+  assert.match(marcar, /if \(hadUnreadMessages && chatActor\?\.esBuzonCompartido\)/);
+
+  const limpiar = ruta.slice(ruta.indexOf('async function marcarAvisosDelBuzonComoLeidos'));
+
+  // Solo los de "mensaje recibido" de esa conversacion y de ese buzon: abrir no
+  // es contestar, y los de "sin responder" siguen.
+  assert.match(limpiar, /'metadatos\.idConversacion', '==', String\(conversationId\)/);
+  assert.match(limpiar, /'tipoNotificacion', '==', 'mensaje_recibido'/);
+  assert.match(limpiar, /aviso\.metadatos\?\.buzon !== buzon\.clave/);
+});
+
+test('el circulo de un buzon se repasa solo, y quien abre ve su contador al momento', () => {
+  const acciones = leer('src/actions/chat.js');
+
+  assert.match(
+    acciones,
+    /refreshInterval: esBuzonCompartido\(idMiembros\)\s*\?\s*CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL/
+  );
+
+  const abrir = acciones.slice(acciones.indexOf('export async function clickConversation'));
+
+  assert.match(abrir, /endpoint: 'mark-as-seen'[\s\S]*?mutate\(\(key\) => isChatUnreadSummaryKey\(key\)\)/);
+});

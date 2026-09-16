@@ -19,6 +19,10 @@ test('Storage restringe archivos del chat a participantes de la conversación', 
   assert.match(storageRules, /match \/chat\/\{idConversacion\}\/archivos\/\{archivo\}/);
   assert.match(storageRules, /resource == null/g);
   assert.match(storageRules, /allow update: if false/g);
+  assert.match(
+    storageRules,
+    /allow delete: if \(estaAutenticado\(\)\s*&& resource\.metadata\.uploaderUid == request\.auth\.uid\)/
+  );
 });
 
 test('el administrador global puede crear o reemplazar imagenes en cualquier ruta', () => {
@@ -59,7 +63,10 @@ test('el borrado solo existe en la carpeta de fotos propuestas', () => {
 });
 
 test('las cargas usan la conversación real y metadatos ligados al usuario autenticado', () => {
-  assert.match(inputSource, /createConversation\(\s*\{ \.\.\.conversationData, messages: \[\] \}/);
+  assert.match(
+    inputSource,
+    /createConversation\(\s*\{ \.\.\.outgoingConversationData, messages: \[\] \}/
+  );
   assert.match(inputSource, /chat\/\$\{activeConversationId\}\/imagenes/);
   assert.match(inputSource, /chat\/\$\{activeConversationId\}\/archivos/);
   assert.match(inputSource, /idConversacion: String\(activeConversationId\)/g);

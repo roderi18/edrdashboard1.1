@@ -150,7 +150,11 @@ export function useChatRealtimeSync({
 
         // Con el id de quien mira: en el buzon de la Tienda, la entrega la confirma
         // la Tienda y no la persona que atiende.
-        void markConversationDelivered(change.doc.id, idMiembros);
+        void markConversationDelivered(change.doc.id, idMiembros).then((result) => {
+          if (!result && deliveredMarkersRef.current.get(change.doc.id) === deliveryMarker) {
+            deliveredMarkersRef.current.delete(change.doc.id);
+          }
+        });
       });
 
       if (shouldRevalidate) revalidateConversations();

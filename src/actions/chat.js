@@ -3,6 +3,7 @@ import useSWR, { mutate } from 'swr';
 import useSWRInfinite from 'swr/infinite';
 import { useMemo, useCallback } from 'react';
 
+import { esBuzonCompartido } from 'src/utils/chat-buzones.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
 import axios, { fetcher, endpoints } from 'src/lib/axios';
@@ -24,6 +25,11 @@ const swrOptions = {
 
 const CHAT_CONTACTS_REFRESH_INTERVAL = 0;
 const CHAT_CONVERSATIONS_PAGE_SIZE = 30;
+// El paso del tiempo no produce eventos de Firestore. Los avisos de buzones que
+// llevan una hora sin respuesta necesitan volver a consultar el resumen aunque
+// nadie escriba otro mensaje. Un minuto mantiene el aviso cerca de la hora
+// prevista; el servidor evita repetir notificaciones mediante IDs estables.
+const CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL = 60_000;
 // El polling ahora es solo una red de seguridad: el push en tiempo real
 // (useChatRealtimeSync) es quien dispara la revalidación real vía mutate().
 const CHAT_CONVERSATIONS_REFRESH_INTERVAL = 45000;
@@ -79,7 +85,14 @@ export function useGetChatUnreadSummary(idMiembros, enabled = true) {
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,
-    refreshInterval: 0,
+    // UN BUZON SE REPASA SOLO, COMO EN LA CABECERA. Su contador lo mueven otras
+    // personas —quien atiende la Tienda y abre un mensaje se lo limpia a todos—,
+    // y aqui solo lo refrescaba la escucha en vivo: si esa escucha se perdia un
+    // cambio, el circulo seguia marcando pendiente algo que otro ya habia
+    // abierto. El mismo minuto que ya usa el resumen de la cabecera.
+    refreshInterval: esBuzonCompartido(idMiembros)
+      ? CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL
+      : 0,
   });
 
   return useMemo(
@@ -203,7 +216,11 @@ export function useGetUnreadSummaryDeBuzones(idsMiembros = [], enabled = true) {
           )
         )
       ),
-    { ...swrOptions, refreshInterval: 0 }
+    {
+      ...swrOptions,
+      refreshInterval: CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL,
+      refreshWhenHidden: true,
+    }
   );
 
   return useMemo(() => {
@@ -311,9 +328,14 @@ export async function sendMessage(conversationId, messageData, idMiembros) {
    * Work on server
    */
   if (enableServer) {
-    const data = { conversationId, messageData, idMiembros };
-    const res = await axios.put(CHAT_ENDPOINT, data);
-    serverConversation = res.data?.conversation ?? null;
+    try {
+      const data = { conversationId, messageData, idMiembros };
+      const res = await axios.put(CHAT_ENDPOINT, data);
+      serverConversation = res.data?.conversation ?? null;
+    } catch (error) {
+      await removeLocalMessage(conversationId, optimisticMessage.id);
+      throw error;
+    }
   }
 
   await mutate(
@@ -456,6 +478,21 @@ export async function createConversation(conversationData, idMiembros) {
   return res.data;
 }
 
+export async function discardEmptyConversation(conversationId, idMiembros) {
+  if (!conversationId) return null;
+
+  const res = await axios.patch(CHAT_ENDPOINT, {
+    action: 'discard-empty',
+    conversationId,
+    idMiembros,
+  });
+
+  mutate((key) => isConversationKey(key, conversationId), undefined, { revalidate: false });
+  mutate((key) => isConversationsKey(key));
+
+  return res.data?.conversation ?? null;
+}
+
 // ----------------------------------------------------------------------
 
 export async function clickConversation(conversationId, idMiembros) {
@@ -466,6 +503,11 @@ export async function clickConversation(conversationId, idMiembros) {
     await axios.get(CHAT_ENDPOINT, {
       params: { conversationId, endpoint: 'mark-as-seen', idMiembros },
     });
+
+    // Los contadores, al momento. Solo se tocaba la lista de conversaciones, asi
+    // que el circulo y la cabecera de quien acababa de abrirlo seguian marcando
+    // pendiente hasta la siguiente vuelta.
+    mutate((key) => isChatUnreadSummaryKey(key));
   }
 
   /**
@@ -937,19 +979,28 @@ export async function leaveGroup(conversationId, idMiembros) {
 export async function markConversationDelivered(conversationId, idMiembros) {
   if (!conversationId) return null;
 
-  try {
-    const response = await axios.patch(CHAT_ENDPOINT, {
-      action: 'mark-delivered',
-      conversationId,
-      idMiembros,
-    });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await axios.patch(CHAT_ENDPOINT, {
+        action: 'mark-delivered',
+        conversationId,
+        idMiembros,
+      });
 
-    return response.data?.conversation ?? null;
-  } catch (error) {
-    // La confirmación de entrega es secundaria y se reintenta con el siguiente snapshot.
-    console.warn('[chat] no se pudo confirmar la entrega', error?.message ?? error);
-    return null;
+      return response.data?.conversation ?? null;
+    } catch (error) {
+      if (attempt === 2) {
+        console.warn('[chat] no se pudo confirmar la entrega', error?.message ?? error);
+        return null;
+      }
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 250 * (attempt + 1));
+      });
+    }
   }
+
+  return null;
 }
 
 export async function transferGroupOwnership(conversationId, idMiembros, targetIdMiembros) {

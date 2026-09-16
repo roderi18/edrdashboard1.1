@@ -187,6 +187,27 @@ test('cada paso y cada destinatario tienen su propio aviso', () => {
   assert.equal(de(AVISO_PRIMERO, 'uid-1'), de(AVISO_PRIMERO, 'uid-1'));
 });
 
+test('el resumen de buzones se vuelve a consultar aunque no llegue otro mensaje', () => {
+  const acciones = fs.readFileSync(path.resolve('src/actions/chat.js'), 'utf8');
+  const ruta = fs.readFileSync(path.resolve('src/app/api/chat/route.js'), 'utf8');
+
+  assert.match(acciones, /CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL = 60_000/);
+  assert.match(
+    acciones,
+    /refreshInterval: CHAT_SHARED_MAILBOX_REMINDER_REFRESH_INTERVAL[\s\S]*?refreshWhenHidden: true/
+  );
+  assert.match(ruta, /const CADA_CUANTO_SE_REVISA_MS = 60_000/);
+  assert.match(ruta, /FieldValue\.serverTimestamp\(\) : serverTimestamp\(\)/);
+  assert.match(ruta, /avatarActualDeBuzon\(buzon\)/);
+  assert.match(ruta, /actorFotoURL: avatarDelBuzon/);
+  assert.match(ruta, /imagenURL: avatarDelBuzon/);
+  assert.match(ruta, /miniaturaURL: avatarDelBuzon/);
+  assert.doesNotMatch(
+    ruta,
+    /creadoEnServidor: serverTimestamp\(\)|actualizadoEnServidor: serverTimestamp\(\)/
+  );
+});
+
 // ----------------------------------------------------------------------
 // EL CABLEADO
 // ----------------------------------------------------------------------
@@ -212,4 +233,19 @@ test('el reloj de la conversacion cabe en las reglas', () => {
   // campo nuevo no estaria en la lista de los que se pueden tocar.
   assert.match(reglas, /'sinResponderDesde',\s+'activa'/);
   assert.equal(reglas.split('sinResponderDesde').length - 1, 4);
+});
+
+// Iba dentro de la escritura del ultimo mensaje. Con unas reglas publicadas que
+// no conocian el campo, Firestore rechazaba la escritura entera: el mensaje
+// quedaba guardado pero la conversacion no se actualizaba, y a quien escribia
+// como la Tienda le salia "No tienes permiso para realizar esta acción".
+test('el reloj se apunta aparte y un fallo suyo no tumba el mensaje', () => {
+  const ruta = leer('src/app/api/chat/route.js');
+
+  assert.doesNotMatch(ruta, /\.\.\.\(relojDelBuzon \?\? \{\}\)/);
+  assert.match(ruta, /await apuntarRelojDelBuzon\(chatStore, conversationPath, relojDelBuzon\)/);
+
+  const apuntar = ruta.slice(ruta.indexOf('async function apuntarRelojDelBuzon'));
+
+  assert.match(apuntar, /setDocument\(conversationPath, reloj, \{ merge: true \}\)\.catch\(/);
 });

@@ -1,3 +1,4 @@
+import { FieldValue } from 'firebase-admin/firestore';
 import {
   doc,
   query,
@@ -365,6 +366,12 @@ const guardarNotificacionConfigurada = async (notificacion) => {
 
   return notificacionConfigurada;
 };
+
+// `serverTimestamp()` del SDK web no se puede serializar con Firebase Admin.
+// Esta ruta puede escribir con cualquiera de los dos SDK según el entorno, así
+// que cada escritor debe recibir su propio marcador de fecha de servidor.
+const timestampDelServidor = () =>
+  isAdminConfigured() ? FieldValue.serverTimestamp() : serverTimestamp();
 
 const normalizeMember = (member = {}) => {
   const idMiembros = toNumberOrNull(member.idMiembros ?? member.id ?? member.memberId);
@@ -859,8 +866,8 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
           destinatarioIdMiembros: profile.idMiembros,
           texto: message.texto,
         },
-        creadoEnServidor: serverTimestamp(),
-        actualizadoEnServidor: serverTimestamp(),
+        creadoEnServidor: timestampDelServidor(),
+        actualizadoEnServidor: timestampDelServidor(),
       });
     })
   );
@@ -879,9 +886,11 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
 //
 // Y SE MIRA POCO. Ese contador se pide a menudo y lo piden todos los que
 // atienden el buzon; sin este freno, cada uno repetiria la misma comprobacion.
-// Un minuto arriba o abajo no le cambia nada a un plazo de una hora.
+// El navegador vuelve a consultar cada minuto para que el paso del tiempo, aun
+// sin mensajes nuevos, pueda disparar el aviso. Este freno evita que varias
+// sesiones del mismo cargo repitan la revisión dentro de ese minuto.
 const ULTIMA_REVISION_DE_BUZON = new Map();
-const CADA_CUANTO_SE_REVISA_MS = 5 * 60_000;
+const CADA_CUANTO_SE_REVISA_MS = 60_000;
 
 const existeNotificacion = async (id) => {
   if (isAdminConfigured()) {
@@ -911,7 +920,10 @@ async function avisarDeLoQueNadieContesta(buzon, conversaciones = []) {
 
   // Quien ejerce el cargo del buzon y el Administrador Global: los mismos que
   // reciben el aviso del mensaje.
-  const perfiles = await perfilesDelBuzon(buzon).catch(() => []);
+  const [perfiles, avatarDelBuzon] = await Promise.all([
+    perfilesDelBuzon(buzon).catch(() => []),
+    avatarActualDeBuzon(buzon).catch(() => buzon.avatarPorDefecto),
+  ]);
 
   if (!perfiles.length) return;
 
@@ -950,13 +962,13 @@ async function avisarDeLoQueNadieContesta(buzon, conversaciones = []) {
           actorId: String(remitenteIdMiembros || ''),
           actorTipo: 'usuario',
           actorNombre: nombreDeQuienEscribio,
-          actorFotoURL: null,
+          actorFotoURL: avatarDelBuzon,
           entidadTipo: 'conversacion',
           entidadId: idConversacion,
           ruta: `/dashboard/chat?id=${idConversacion}&bandeja=${buzon.clave}`,
           imagenTipo: 'persona',
-          imagenURL: null,
-          miniaturaURL: null,
+          imagenURL: avatarDelBuzon,
+          miniaturaURL: avatarDelBuzon,
           tipoAccion: 'responder',
           etiquetaAccion: 'Responder',
           tipoAccionSecundaria: null,
@@ -976,12 +988,36 @@ async function avisarDeLoQueNadieContesta(buzon, conversaciones = []) {
             sinResponderDesde:
               conversacion.sinResponderDesde || conversacion.ultimoMensaje?.enviadoEn || '',
           },
-          creadoEnServidor: serverTimestamp(),
-          actualizadoEnServidor: serverTimestamp(),
+          creadoEnServidor: timestampDelServidor(),
+          actualizadoEnServidor: timestampDelServidor(),
         });
       });
     })
   );
+}
+
+// EL RELOJ DE LO QUE NADIE CONTESTA SE ESCRIBE APARTE, Y SI FALLA NO PASA NADA.
+//
+// Iba dentro de la misma escritura que el ultimo mensaje y los no leidos. Las
+// escrituras del chat pasan por las reglas de Firestore, y con unas reglas
+// publicadas que aun no conocian el campo, Firestore rechazaba la escritura
+// ENTERA: el mensaje quedaba guardado, pero la conversacion no se enteraba —la
+// lista seguia mostrando el mensaje anterior— y a quien escribia como la Tienda
+// le salia "No tienes permiso para realizar esta acción".
+//
+// El reloj es un extra de los avisos, y un extra no tumba un mensaje. Si no se
+// puede apuntar, los avisos siguen saliendo: cuentan desde el ultimo mensaje.
+async function apuntarRelojDelBuzon(chatStore, conversationPath, reloj) {
+  if (!reloj) return;
+
+  await chatStore.setDocument(conversationPath, reloj, { merge: true }).catch((error) => {
+    console.warn(
+      JSON.stringify({
+        event: 'chat_buzon_reloj_error',
+        ...toSafeChatErrorMetric(error),
+      })
+    );
+  });
 }
 
 async function getAdminNotificationProfiles() {
@@ -1311,19 +1347,24 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
     noLeidosPorIdMiembros,
     activa: true,
     eliminada: false,
-    // El reloj de lo que nadie contesta, desde el primer mensaje: escribirle a
-    // la Tienda estrena la conversacion, y ese mensaje cuenta como los demas.
-    ...(primerMensaje
-      ? (relojSinResponder({
-          participantesIds,
-          remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
-          enviadoEn: primerMensaje.enviadoEn,
-          esBuzon: esBuzonCompartido,
-        }) ?? {})
-      : {}),
   };
 
   await chatStore.setDocument(conversationPath, conversationDoc);
+  // El reloj de lo que nadie contesta, desde el primer mensaje: escribirle a la
+  // Tienda estrena la conversacion, y ese mensaje cuenta como los demas. Aparte,
+  // como al enviar: que no pueda tumbar la creacion de la conversacion.
+  if (primerMensaje) {
+    await apuntarRelojDelBuzon(
+      chatStore,
+      conversationPath,
+      relojSinResponder({
+        participantesIds,
+        remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
+        enviadoEn: primerMensaje.enviadoEn,
+        esBuzon: esBuzonCompartido,
+      })
+    );
+  }
   if (primerMensaje) {
     await chatStore.setDocument(
       `${conversationPath}/${SUBCOLECCION_MENSAJES}/${primerMensaje.idMensaje}`,
@@ -1382,6 +1423,20 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
   }
 
   const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
+  const messagePath = `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`;
+  const existingMessage = await chatStore.getDocument(messagePath);
+
+  // El ID funciona como clave de idempotencia. Si la escritura terminó pero la
+  // respuesta se perdió, el reintento no vuelve a sumar no leídos ni avisos.
+  if (existingMessage) {
+    return conversationToUi(
+      existingConversation,
+      (await getMessages(conversationId, {}, chatStore)).map(messageToUi),
+      viewerIdMiembros,
+      chatStore
+    );
+  }
+
   const noLeidosPorIdMiembros = {
     ...(existingConversation.noLeidosPorIdMiembros ?? {}),
   };
@@ -1408,7 +1463,7 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
   });
 
   await chatStore.setDocument(
-    `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`,
+    messagePath,
     messageDoc
   );
   await anotarRespuestaDeBuzon(chatActor, conversationId, messageDoc.idMensaje);
@@ -1425,10 +1480,10 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
         enviadoEn: messageDoc.enviadoEn,
       },
       noLeidosPorIdMiembros,
-      ...(relojDelBuzon ?? {}),
     },
     { merge: true }
   );
+  await apuntarRelojDelBuzon(chatStore, conversationPath, relojDelBuzon);
 
   await createMessageNotifications({
     conversation: { ...existingConversation, idConversacion: conversationId },
@@ -1492,7 +1547,63 @@ async function markAsSeen(conversationId, chatActor = {}, chatStore) {
 
   if (writes.length) await chatStore.commitWrites(writes);
 
+  // En un buzon, lo que uno abre lo han abierto todos. Es un extra: si falla, la
+  // conversacion ya quedo leida igual.
+  if (hadUnreadMessages && chatActor?.esBuzonCompartido) {
+    await marcarAvisosDelBuzonComoLeidos(
+      buzonPorIdMiembros(chatActor.idMiembros),
+      conversationId
+    ).catch((error) => {
+      console.warn(
+        JSON.stringify({
+          event: 'chat_notification_error',
+          stage: 'buzon_leido',
+          ...toSafeChatErrorMetric(error),
+        })
+      );
+    });
+  }
+
   return { ...existingConversation, noLeidosPorIdMiembros };
+}
+
+// ----------------------------------------------------------------------
+// LO QUE ABRE UNO, LO HAN VISTO TODOS LOS QUE ATIENDEN EL BUZON.
+//
+// El contador de un buzon ya era uno solo —`noLeidosPorIdMiembros` lleva el
+// numero del buzon, no el de cada persona—, asi que al abrir la conversacion se
+// ponia a cero para todos. Pero el aviso de la campana es UNO POR PERSONA: cada
+// quien que atiende la Tienda recibe el suyo. Y ese se quedaba en "no leido"
+// para todos menos para quien lo habia pulsado, asi que los demas seguian
+// viendo un mensaje pendiente que ya estaba atendido, y cada uno lo iba a abrir
+// por su cuenta.
+//
+// Se marcan leidos solo los avisos de "mensaje recibido" de ESA conversacion y
+// de ESE buzon. Los de "lleva una hora sin respuesta" no: abrir no es contestar.
+async function marcarAvisosDelBuzonComoLeidos(buzon, conversationId) {
+  // Sin la cuenta del servidor no hay con que escribir avisos ajenos: las reglas
+  // solo dejan tocar a cada uno los suyos.
+  if (!buzon || !conversationId || !isAdminConfigured()) return;
+
+  const pendientes = await getAdminDb()
+    .collection(COLECCIONES_NOTIFICACIONES.notificaciones)
+    .where('metadatos.idConversacion', '==', String(conversationId))
+    .where('tipoNotificacion', '==', 'mensaje_recibido')
+    .get();
+  const ahora = nowIso();
+  const lote = getAdminDb().batch();
+  let marcados = 0;
+
+  pendientes.forEach((documento) => {
+    const aviso = documento.data() ?? {};
+
+    if (aviso.metadatos?.buzon !== buzon.clave || aviso.estado === 'leida') return;
+
+    lote.update(documento.ref, { estado: 'leida', fechaLectura: ahora, actualizadoEn: ahora });
+    marcados += 1;
+  });
+
+  if (marcados) await lote.commit();
 }
 
 async function updateMessageAction({
@@ -1754,6 +1865,7 @@ async function updateConversationAction({
     'transfer-ownership': CHAT_PERMISSIONS.MANAGE_GROUP,
     'set-group-admin': CHAT_PERMISSIONS.MANAGE_GROUP,
     'update-group': CHAT_PERMISSIONS.MANAGE_GROUP,
+    'discard-empty': CHAT_PERMISSIONS.SEND,
   };
   const permission = permissionByAction[action];
 
@@ -1765,8 +1877,19 @@ async function updateConversationAction({
     actor: chatActor,
     conversation: existingConversation,
     permission,
-    creatorOnly: ['clear-global'].includes(action),
+    creatorOnly: ['clear-global', 'discard-empty'].includes(action),
   });
+
+  if (action === 'discard-empty') {
+    const messages = await getMessages(conversationId, { pageLimit: 1 }, chatStore);
+
+    if (messages.length) {
+      return { id: String(conversationId), discarded: false };
+    }
+
+    await chatStore.deleteDocument(conversationPath);
+    return { id: String(conversationId), discarded: true };
+  }
 
   if (action === 'typing') {
     if (!viewerId) {
@@ -2003,7 +2126,7 @@ async function updateConversationAction({
             reportadoPor: reporterName,
             comentario: cleanComment,
           },
-          actualizadoEnServidor: serverTimestamp(),
+          actualizadoEnServidor: timestampDelServidor(),
         });
       })
     );
@@ -2400,6 +2523,7 @@ export async function PATCH(req) {
       'transfer-ownership',
       'set-group-admin',
       'update-group',
+      'discard-empty',
     ];
 
     const conversation = conversationActions.includes(body.action)

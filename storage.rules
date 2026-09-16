@@ -440,7 +440,9 @@ service firebase.storage {
         && resource == null
         && imagenChatValida(idConversacion, archivo);
       allow update: if false;
-      allow delete: if (esParticipanteChat(idConversacion)
+      allow delete: if (estaAutenticado()
+          && resource.metadata.uploaderUid == request.auth.uid)
+        || (esParticipanteChat(idConversacion)
           && (resource.metadata.uploaderUid == request.auth.uid
             || esCreadorChat(idConversacion)))
         || (atiendeUnBuzonChat(idConversacion)
@@ -455,7 +457,9 @@ service firebase.storage {
         && resource == null
         && documentoChatValido(idConversacion, archivo);
       allow update: if false;
-      allow delete: if (esParticipanteChat(idConversacion)
+      allow delete: if (estaAutenticado()
+          && resource.metadata.uploaderUid == request.auth.uid)
+        || (esParticipanteChat(idConversacion)
           && (resource.metadata.uploaderUid == request.auth.uid
             || esCreadorChat(idConversacion)))
         || (atiendeUnBuzonChat(idConversacion)
