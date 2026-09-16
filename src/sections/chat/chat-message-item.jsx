@@ -17,11 +17,16 @@ import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { FileThumbnail } from 'src/components/file-thumbnail';
 import { UnderlineLink } from 'src/components/link/underline-link';
+import { detectFileFormat } from 'src/components/file-thumbnail/utils';
 import { PanelDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
 import { getMessage } from './utils/get-message';
+import { pesoDeArchivo } from './utils/peso-de-archivo.mjs';
+import { ESTILO_DE_MENCION } from './utils/estilo-de-mencion';
 import { buildReactionGroups } from './utils/reaction-groups.mjs';
+import { partirPorMenciones, nombresMencionables } from './utils/menciones-en-el-texto.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -57,33 +62,23 @@ const formatChatTime = (input) => {
   return value.toLowerCase().startsWith('hace ') ? value : `hace ${value}`;
 };
 
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const highlightMentions = (text, participants = []) => {
-  const names = participants.map((participant) => participant.name).filter(Boolean);
-
-  if (!names.length || !String(text).includes('@')) {
-    return text;
-  }
-
-  const mentionRegex = new RegExp(`(@(?:${names.map(escapeRegExp).join('|')}))`, 'g');
-
-  return String(text)
-    .split(mentionRegex)
-    .map((part, index) =>
-      names.some((name) => part === `@${name}`) ? (
+// Donde estan las menciones lo dice `menciones-en-el-texto.mjs`, que es la misma
+// regla que sigue la caja de escribir: asi una mencion no cambia de aspecto al
+// pulsar Enter. Aqui solo se pintan.
+const highlightMentions = (text, participants = []) =>
+  partirPorMenciones(text, nombresMencionables(participants)).map((part, index) =>
+      part.esMencion ? (
         <Box
-          key={`mention-${part}-${index}`}
+          key={`mention-${part.texto}-${index}`}
           component="span"
-          sx={{ color: 'primary.main', fontWeight: 700 }}
+          sx={ESTILO_DE_MENCION}
         >
-          {part}
+          {part.texto}
         </Box>
       ) : (
-        part
+        part.texto
       )
-    );
-};
+  );
 
 const renderMessageTextWithOrderLinks = (text = '', metadata = {}, participants = []) =>
   String(text)
@@ -208,6 +203,19 @@ function TarjetaProductoCompartido({ producto }) {
   );
 }
 
+// DE QUE TIPO ES EL ARCHIVO, PARA ELEGIRLE EL ICONO.
+//
+// Manda el tipo que declaro el navegador al subirlo, no el nombre: la gente
+// renombra archivos, y un PDF llamado "Nuevo Documento de Microsoft Word.pdf"
+// salia con el icono de Word. El nombre queda de reserva para los tipos que
+// Windows manda a su manera —un .zip suele viajar como
+// `application/x-zip-compressed`—.
+const formatoDelAdjunto = (adjunto) => {
+  const porTipo = detectFileFormat(adjunto?.tipo);
+
+  return porTipo !== 'unknown' ? porTipo : detectFileFormat(adjunto?.nombre);
+};
+
 const renderMessageBodyText = (text = '', metadata = {}, participants = []) => {
   const sharedFileLink = renderSharedFileLink(text, metadata, participants);
 
@@ -281,6 +289,8 @@ export function ChatMessageItem({
     currentContact,
   });
   const isDeleted = message.eliminado;
+  const isSystemMessage =
+    message.contentType === 'system' || message.tipoContenido === 'system';
   const sentAtTime = new Date(createdAt).getTime();
   const canDeleteMessage =
     Number.isFinite(sentAtTime) && currentTime - sentAtTime <= MESSAGE_DELETE_WINDOW_MS;
@@ -359,6 +369,13 @@ export function ChatMessageItem({
         // EL PRODUCTO COMPARTIDO, OSCURO EN EL TEMA OSCURO. El globo propio es
         // celeste en los dos temas, y con la tarjeta ya oscura dentro quedaba un
         // recuadro claro alrededor de una tarjeta oscura.
+        !!message.metadata?.sharedProduct && {
+          // Y MAS ESTRECHO EN EL CELULAR. Con los 320px del globo, la imagen
+          // cuadrada de la tarjeta se estiraba a lo alto casi como la pantalla:
+          // un solo producto compartido tapaba la conversacion entera. Misma
+          // medida que las fotos enviadas, que ya se acotan por ancho de pantalla.
+          maxWidth: { xs: 'min(64vw, 230px)', sm: 320 },
+        },
         !!message.metadata?.sharedProduct &&
           ((theme) =>
             theme.applyStyles('dark', { color: 'text.primary', bgcolor: 'background.neutral' })),
@@ -438,13 +455,25 @@ export function ChatMessageItem({
             '&:hover': { textDecoration: 'underline' },
           }}
         >
-          <Iconify icon="solar:file-bold" width={24} />
+          {/* EL ICONO DEL TIPO QUE ES. Todos los documentos salian con la misma
+              hoja gris: un PDF, un ZIP y una hoja de calculo se distinguian
+              leyendo la letra pequeña. Es el mismo juego de iconos del panel de
+              adjuntos, asi que el archivo se ve igual en los dos sitios. */}
+          <FileThumbnail
+            file={formatoDelAdjunto(attachment)}
+            slotProps={{ icon: { sx: { width: 24, height: 24 } } }}
+            sx={{ width: 32, height: 32 }}
+          />
           <Box sx={{ minWidth: 0 }}>
             <Typography noWrap variant="body2" sx={{ fontWeight: 700 }}>
               {attachment.nombre || body}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {attachment.tipo || 'Archivo'}
+              {/* Y lo que pesa, detras del tipo: antes habia que descargarlo
+                  para saber si eran 80 kB o 40 MB. */}
+              {[attachment.tipo || 'Archivo', pesoDeArchivo(attachment.tamano ?? attachment.size)]
+                .filter(Boolean)
+                .join(' · ')}
             </Typography>
           </Box>
         </Box>
@@ -737,6 +766,41 @@ export function ChatMessageItem({
 
   if (!message.body) {
     return null;
+  }
+
+  // Los cambios del grupo los escribe el sistema, no una persona. Se muestran
+  // como avisos neutrales: sin avatar, burbuja, reacciones ni estado de entrega.
+  if (isSystemMessage) {
+    return (
+      <Box
+        id={`chat-message-${message.id}`}
+        sx={{
+          mb: 3,
+          px: 2,
+          width: 1,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <Box sx={{ maxWidth: 520, textAlign: 'center' }}>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}
+          >
+            {renderMessageBodyText(body, message.metadata, participants)}
+          </Typography>
+
+          <Typography
+            component="time"
+            dateTime={createdAt}
+            variant="caption"
+            sx={{ mt: 0.25, display: 'block', color: 'text.disabled', fontStyle: 'italic' }}
+          >
+            {formatChatTime(createdAt)}
+          </Typography>
+        </Box>
+      </Box>
+    );
   }
 
   return (

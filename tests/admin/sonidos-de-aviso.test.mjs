@@ -86,11 +86,22 @@ test('cada aviso está conectado a su módulo', () => {
 
 // Al entrar, el listener trae TODAS las conversaciones y la campana ya tiene
 // avisos sin leer: sin estas dos guardas sonaba una vez por cada una.
+//
+// El QUE suena se decide en `sonido-de-mensaje.mjs` y se prueba de verdad —con
+// conversaciones y relojes— en `tests/chat/sonido-de-mensaje-recibido.test.mjs`.
+// Aqui solo se comprueba que cada escucha esta enchufada a esa decision.
 test('al entrar no suena nada: solo cuando llega algo nuevo', () => {
-  const chat = leer('src/sections/chat/hooks/use-chat-realtime-sync.js');
+  const decision = leer('src/sections/chat/utils/sonido-de-mensaje.mjs');
 
-  assert.match(chat, /if \(yaSonado === undefined \|\| yaSonado === idMensaje\) return false;/);
-  assert.match(chat, /return esDeOtro && sinLeer && !silenciada;/);
+  assert.match(decision, /if \(yaSonado === idMensaje \|\| primeraFoto\) return false;/);
+  assert.match(decision, /return esDeOtro && sinLeer && !silenciada;/);
+  // Las dos escuchas dicen cual es su primera foto: la del panel y la de los
+  // buzones compartidos.
+  assert.match(
+    leer('src/sections/chat/hooks/use-chat-realtime-sync.js'),
+    /primeraFoto: esPrimeraFoto/
+  );
+  assert.match(leer('src/sections/chat/hooks/use-buzones-en-vivo.js'), /primeraFoto: esPrimeraFoto/);
 
   // La campana solo cuenta las que llegan NUEVAS: marcar una como leída también
   // es un cambio, y eso no tiene que sonar. Y la primera foto no avisa.
@@ -101,27 +112,33 @@ test('al entrar no suena nada: solo cuando llega algo nuevo', () => {
 });
 
 test('el propio mensaje no suena como recibido, y una conversación silenciada tampoco', () => {
-  const chat = leer('src/sections/chat/hooks/use-chat-realtime-sync.js');
+  const decision = leer('src/sections/chat/utils/sonido-de-mensaje.mjs');
 
-  assert.match(chat, /ultimoMensaje\?\.remitenteIdMiembros\) !== Number\(idMiembros\)/);
-  assert.match(chat, /silenciadoPorIdMiembros\?\.\[String\(idMiembros\)\]/);
+  assert.match(decision, /ultimoMensaje\?\.remitenteIdMiembros\) !== Number\(idMiembros\)/);
+  assert.match(decision, /silenciadoPorIdMiembros\?\.\[String\(idMiembros\)\]/);
 });
 
-// UN SONIDO POR MENSAJE. La escucha esta montada dos veces —el marco del panel y
-// la pantalla del chat—, y ademas cada cambio de la conversacion (el acuse de
-// entrega, el contador) la despertaba otra vez: un mensaje sonaba tres o cuatro
-// veces seguidas.
-test('un mensaje suena una sola vez, aunque escuchen dos pantallas', () => {
-  const chat = leer('src/sections/chat/hooks/use-chat-realtime-sync.js');
+// UN SONIDO POR MENSAJE. La escucha esta montada tres veces —el marco del panel,
+// la pantalla del chat y los buzones compartidos—, y ademas cada cambio de la
+// conversacion (el acuse de entrega, el contador) la despertaba otra vez: un
+// mensaje sonaba tres o cuatro veces seguidas.
+test('un mensaje suena una sola vez, aunque escuchen tres pantallas', () => {
+  const decision = leer('src/sections/chat/utils/sonido-de-mensaje.mjs');
 
-  // La memoria vive FUERA del componente: las dos escuchas comparten la misma.
-  assert.match(chat, /^const ultimoMensajeQueSono = new Map\(\);$/m);
-  assert.match(chat, /ultimoMensajeQueSono\.set\(idConversacion, idMensaje\)/);
+  // La memoria vive en UN modulo: todas las escuchas comparten la misma.
+  assert.match(decision, /^const ultimoMensajeQueSono = new Map\(\);$/m);
+  assert.match(decision, /ultimoMensajeQueSono\.set\(idConversacion, idMensaje\)/);
   // Y se decide por el mensaje, no por cualquier cambio de la conversacion.
   assert.match(
-    chat,
+    decision,
     /const idMensaje = String\(conversacion\?\.ultimoMensaje\?\.idMensaje \?\? ''\)/
   );
+  ['use-chat-realtime-sync.js', 'use-buzones-en-vivo.js'].forEach((escucha) => {
+    assert.match(
+      leer(`src/sections/chat/hooks/${escucha}`),
+      /import \{ debeSonarPorMensajeNuevo \} from '\.\.\/utils\/sonido-de-mensaje\.mjs'/
+    );
+  });
 });
 
 // "Silenciar notificaciones" es de la conversacion: tiene que callar TODO lo

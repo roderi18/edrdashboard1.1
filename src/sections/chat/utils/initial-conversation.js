@@ -23,7 +23,7 @@ export function initialConversation({
     contentType: 'text',
     createdAt: fSub({ minutes: 1 }),
     senderId: me.idMiembros ? String(me.idMiembros) : me.id,
-    mentionIds: resolveMentionIds(message, participants),
+    mentionIds: resolveMentionIds(message, participants, me.idMiembros ?? me.id),
     replyTo: replyMessage
       ? {
           id: replyMessage.id,

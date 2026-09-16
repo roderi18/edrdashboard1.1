@@ -99,9 +99,10 @@ const obtenerCategoriaNotificacion = (modulo) => MODULOS_CATEGORIAS[modulo] || '
 const obtenerTipoVisualNotificacion = (tipoNotificacion) =>
   TIPOS_VISUALES[tipoNotificacion] || 'mail';
 
-// El titulo pone SIEMPRE en negrita a quien actua, y algunas plantillas ya
-// empiezan por su nombre ("{{actorNombre}} registró a ..."). Sin esto salia
-// "Rodery Peña Rodery Peña registró a ...": el nombre dos veces seguidas.
+// Convierte una plantilla en una oración completa. El nombre solo se antepone
+// cuando la plantilla es un fragmento verbal ("actualizó la información...").
+// Las frases completas ("Se recibió el pedido...", "Tu factura...") se dejan
+// intactas: anteponerles una persona producía "Roderi Se recibió el pedido".
 const componerTituloHtml = (actorNombre, mensaje) => {
   const nombre = String(actorNombre || 'Sistema').trim();
   const texto = String(mensaje || '').trim();
@@ -110,7 +111,11 @@ const componerTituloHtml = (actorNombre, mensaje) => {
     return `<p><strong>${escapeHtml(nombre)}</strong>${escapeHtml(texto.slice(nombre.length))}</p>`;
   }
 
-  return `<p><strong>${escapeHtml(nombre)}</strong> ${escapeHtml(texto)}</p>`;
+  if (/^[a-záéíóúüñ]/.test(texto)) {
+    return `<p><strong>${escapeHtml(nombre)}</strong> ${escapeHtml(texto)}</p>`;
+  }
+
+  return `<p>${escapeHtml(texto)}</p>`;
 };
 
 // LO QUE LEE QUIEN LO HIZO.
@@ -164,12 +169,50 @@ const construirTituloDeProducto = (notificacion = {}) => {
   const bruto = metadatos.stock ?? metadatos.disponibles;
   const numero = bruto === null || bruto === undefined || bruto === '' ? NaN : Number(bruto);
   const cantidad = Number.isFinite(numero) ? numero : null;
-  const actor = String(notificacion.actorNombre || 'Sistema').trim();
-
-  return `<p><strong>${escapeHtml(actor)}</strong> ${frase(nombre, cantidad)}</p>`;
+  return `<p>${frase(nombre, cantidad)}</p>`;
 };
 
-const construirTituloHtml = (notificacion, idUsuario = '') => {
+// Repara al pintar las notificaciones históricas que se guardaron con una
+// plantilla incompleta o con el actor equivocado. De esta forma no hace falta
+// reescribir miles de documentos existentes para que la campana vuelva a hablar
+// con naturalidad.
+const construirTituloHumano = (notificacion = {}) => {
+  const metadatos = notificacion.metadatos || {};
+  const tipo = notificacion.tipoNotificacion;
+  const actor = String(notificacion.actorNombre || '').trim();
+  const persona = String(
+    metadatos.nombreUsuario || metadatos.nombreMiembro || metadatos.clienteNombre || actor
+  ).trim();
+  const numeroOrden = String(
+    metadatos.numeroOrden || metadatos.idPedido || metadatos.ordenId || ''
+  ).trim();
+  const numeroFactura = String(
+    metadatos.numeroFactura || metadatos.idFactura || metadatos.facturaId || ''
+  ).trim();
+
+  if (tipo === 'administrador_creado' && persona) {
+    return `<p><strong>${escapeHtml(persona)}</strong> fue asignado como administrador.</p>`;
+  }
+
+  if (tipo === 'pedido_recibido' && persona) {
+    const pedido = numeroOrden
+      ? `el pedido <strong>${escapeHtml(numeroOrden)}</strong>`
+      : 'un pedido';
+    return `<p>Se recibió ${pedido} de <strong>${escapeHtml(persona)}</strong>.</p>`;
+  }
+
+  if (tipo === 'factura_generada') {
+    const factura = numeroFactura
+      ? `la factura <strong>${escapeHtml(numeroFactura)}</strong>`
+      : 'una factura';
+    const cliente = persona ? ` para <strong>${escapeHtml(persona)}</strong>` : '';
+    return `<p>Se generó ${factura}${cliente}.</p>`;
+  }
+
+  return '';
+};
+
+export const construirTituloHtml = (notificacion, idUsuario = '') => {
   const usuarioId = String(idUsuario || '').trim();
   const esElActor = Boolean(usuarioId) && String(notificacion.actorId || '') === usuarioId;
 
@@ -182,6 +225,10 @@ const construirTituloHtml = (notificacion, idUsuario = '') => {
   const tituloDeProducto = construirTituloDeProducto(notificacion);
 
   if (tituloDeProducto) return tituloDeProducto;
+
+  const tituloHumano = construirTituloHumano(notificacion);
+
+  if (tituloHumano) return tituloHumano;
 
   if (notificacion.tituloHtml) {
     return notificacion.tituloHtml;
@@ -256,8 +303,9 @@ const filtrarDestinatariosPorPreferencias = async ({
 };
 
 export const resolverNotificacionConConfiguracion = async (notificacion = {}) => {
-  const { tipo: tipoConfig, plantilla: plantillaConfig } =
-    await obtenerConfiguracionNotificacion(notificacion.tipoNotificacion);
+  const { tipo: tipoConfig, plantilla: plantillaConfig } = await obtenerConfiguracionNotificacion(
+    notificacion.tipoNotificacion
+  );
 
   if (tipoConfig?.activa === false || plantillaConfig?.activa === false) {
     return null;
@@ -301,7 +349,8 @@ export const resolverNotificacionConConfiguracion = async (notificacion = {}) =>
       ? componerTituloHtml(actorNombre, mensaje)
       : notificacion.tituloHtml,
     mensaje,
-    mensajeVisual: notificacion.mensajeVisual === notificacion.mensaje ? mensaje : notificacion.mensajeVisual,
+    mensajeVisual:
+      notificacion.mensajeVisual === notificacion.mensaje ? mensaje : notificacion.mensajeVisual,
     prioridad:
       plantillaConfig?.prioridadPorDefecto ||
       tipoConfig?.prioridadPorDefecto ||
@@ -355,7 +404,9 @@ const construirMetadatosMiembro = (miembro = {}) => ({
   direccion: miembro.memberAddress || miembro.direccion || '',
   correo: miembro.email || miembro.correo || '',
   idDivision: Number(miembro.idDivision || 0),
-  instructorCertificadoCi: Boolean(miembro.InstructorCertificadoCI ?? miembro.instructorCertificadoCi),
+  instructorCertificadoCi: Boolean(
+    miembro.InstructorCertificadoCI ?? miembro.instructorCertificadoCi
+  ),
   estatusVigenciaCi: Boolean(miembro.EstatusVigenciaCI ?? miembro.estatusVigenciaCi),
   fechaInicioCertificado: miembro.FechaInicioCI || miembro.fechaInicioCertificado || null,
   fechaFinCertificado: miembro.FechaVencimientoCI || miembro.fechaFinCertificado || null,
@@ -392,7 +443,11 @@ const obtenerIdsAdministradoresNotificaciones = async (usuarioActual = {}) => {
     }
   };
 
-  await Promise.all([leerColeccion('admins'), leerColeccion('users'), leerColeccion('usuarios_roles')]);
+  await Promise.all([
+    leerColeccion('admins'),
+    leerColeccion('users'),
+    leerColeccion('usuarios_roles'),
+  ]);
 
   return Array.from(ids);
 };
@@ -403,18 +458,27 @@ const isAdminRole = (value = '') => {
   return role === 'admin' || role === 'administrador' || role === 'administrator';
 };
 
-const obtenerUsuariosNoAdminNotificaciones = async ({ destacamentoId = null, alcance = null } = {}) => {
+const obtenerUsuariosNoAdminNotificaciones = async ({
+  destacamentoId = null,
+  alcance = null,
+} = {}) => {
   const usuarios = new Map();
-  const nivelAlcance = alcance?.nivel || alcance?.level || (destacamentoId ? 'mi-destacamento' : 'nacional');
-  const idAlcance = String(alcance?.id || alcance?.value || alcance?.valor || destacamentoId || '').trim();
+  const nivelAlcance =
+    alcance?.nivel || alcance?.level || (destacamentoId ? 'mi-destacamento' : 'nacional');
+  const idAlcance = String(
+    alcance?.id || alcance?.value || alcance?.valor || destacamentoId || ''
+  ).trim();
   const targetDest = nivelAlcance === 'mi-destacamento' ? idAlcance : '';
 
-  const getProfileDestIds = (data = {}) => [
-    data.idDestacamento,
-    data.destId,
-    data.destacamentoId,
-    ...(Array.isArray(data.alcance?.destacamentos) ? data.alcance.destacamentos : []),
-  ].map((value) => String(value || '').trim()).filter(Boolean);
+  const getProfileDestIds = (data = {}) =>
+    [
+      data.idDestacamento,
+      data.destId,
+      data.destacamentoId,
+      ...(Array.isArray(data.alcance?.destacamentos) ? data.alcance.destacamentos : []),
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
 
   const addUser = (data = {}, fallbackId = '') => {
     const rol = data.rol ?? data.role ?? data.tipoUsuario ?? '';
@@ -434,7 +498,9 @@ const obtenerUsuariosNoAdminNotificaciones = async ({ destacamentoId = null, alc
         data.regionalId,
         data.regionId,
         ...(Array.isArray(data.alcance?.regiones) ? data.alcance.regiones : []),
-      ].map((value) => String(value || '').trim()).filter(Boolean);
+      ]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
 
       if (idAlcance && !regiones.includes(idAlcance)) return;
     }
@@ -444,7 +510,9 @@ const obtenerUsuariosNoAdminNotificaciones = async ({ destacamentoId = null, alc
         data.idSeccional,
         data.sectionalId,
         ...(Array.isArray(data.alcance?.secciones) ? data.alcance.secciones : []),
-      ].map((value) => String(value || '').trim()).filter(Boolean);
+      ]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
 
       if (idAlcance && !secciones.includes(idAlcance)) return;
     }
@@ -479,7 +547,9 @@ const resolverIdsDestinatariosUsuario = async ({ usuario = {}, idsDestinatarios 
     usuario?.uid,
     usuario?.idUsuario,
     usuario?.usuarioId,
-  ].map((value) => String(value || '').trim()).filter(Boolean);
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
 
   if (directIds.length) {
     return [...new Set(directIds)];
@@ -499,7 +569,8 @@ const resolverIdsDestinatariosUsuario = async ({ usuario = {}, idsDestinatarios 
         const sameMember =
           idMiembros && String(data.idMiembros || data.memberId || '') === String(idMiembros);
         const sameCode =
-          codigoMiembro && String(data.codigoMiembro || data.memberId || '') === String(codigoMiembro);
+          codigoMiembro &&
+          String(data.codigoMiembro || data.memberId || '') === String(codigoMiembro);
         const sameEmail = correo && String(data.correo || data.email || '') === String(correo);
 
         if (sameMember || sameCode || sameEmail) {
@@ -551,7 +622,7 @@ const obtenerUsuariosConProductoEnCarrito = async (producto = {}) => {
 export async function crearNotificacionUsuario({
   tipoNotificacion,
   modulo = 'general',
-  titulo = 'Nueva notificacion',
+  titulo = 'Nueva notificación',
   tituloHtml = null,
   mensaje = '',
   mensajeVisual = null,
@@ -668,7 +739,7 @@ const sanitizeNotificationIdPart = (value = '') =>
 export async function crearNotificacionAdmin({
   tipoNotificacion,
   modulo = 'administradores',
-  titulo = 'Nueva notificacion',
+  titulo = 'Nueva notificación',
   tituloHtml = null,
   mensaje = '',
   mensajeVisual = null,
@@ -714,7 +785,10 @@ export async function crearNotificacionAdmin({
     return null;
   }
 
-  if (Array.isArray(tipoConfig?.rolesDisponibles) && !tipoConfig.rolesDisponibles.includes('admin')) {
+  if (
+    Array.isArray(tipoConfig?.rolesDisponibles) &&
+    !tipoConfig.rolesDisponibles.includes('admin')
+  ) {
     return null;
   }
 
@@ -744,15 +818,14 @@ export async function crearNotificacionAdmin({
   }
 
   const resolvedNotificationId =
-    notificationId ||
-    `${tipoNotificacion}_${sanitizeNotificationIdPart(entidadId)}_${Date.now()}`;
+    notificationId || `${tipoNotificacion}_${sanitizeNotificationIdPart(entidadId)}_${Date.now()}`;
   const notificacion = {
     id: resolvedNotificationId,
     tipoNotificacion,
     modulo: resolvedModulo,
     titulo: resolvedTitulo,
     tituloHtml: plantillaConfig?.mensajePlantilla
-      ? `<p><strong>${escapeHtml(resolvedActorNombre)}</strong> ${escapeHtml(resolvedMensaje)}</p>`
+      ? componerTituloHtml(resolvedActorNombre, resolvedMensaje)
       : tituloHtml,
     mensaje: resolvedMensaje,
     mensajeVisual: mensajeVisual || resolvedMensaje,
@@ -827,7 +900,10 @@ const ROLES_DEL_REGISTRO_NACIONAL = [
   ...ROLES_CONSEJO_EJECUTIVO,
 ].map((codigo) => String(codigo).toLowerCase());
 
-const normalizarCodigo = (valor) => String(valor ?? '').trim().toLowerCase();
+const normalizarCodigo = (valor) =>
+  String(valor ?? '')
+    .trim()
+    .toLowerCase();
 
 const normalizarId = (valor) => String(valor ?? '').trim();
 
@@ -884,7 +960,9 @@ const obtenerIdsAvisoNumeroDestacamento = async ({ seccionId = '', regionId = ''
       }
 
       const cargos = cargosDelPerfil(data);
-      const seccionesDelPerfil = new Set(idsDeAlcance(data, ['secciones', 'idSeccion', 'seccionId']));
+      const seccionesDelPerfil = new Set(
+        idsDeAlcance(data, ['secciones', 'idSeccion', 'seccionId'])
+      );
       const regionesDelPerfil = new Set(idsDeAlcance(data, ['regiones', 'idRegion', 'regionId']));
 
       const leInteresa = cargos.some((cargo) => {
@@ -937,7 +1015,8 @@ export async function crearNotificacionNumeroDestacamento({
   const idDestacamento = normalizarId(dest?.id ?? dest?.idDestacamento);
   const seccionId = normalizarId(dest?.sectionId ?? dest?.idSeccion ?? dest?.seccionId);
   const regionId = normalizarId(dest?.regionId ?? dest?.idRegion ?? dest?.regionalId);
-  const nombreDestacamento = String(dest?.name ?? dest?.nombre ?? '').trim() || `Destacamento ${idDestacamento}`;
+  const nombreDestacamento =
+    String(dest?.name ?? dest?.nombre ?? '').trim() || `Destacamento ${idDestacamento}`;
 
   const idsDestinatarios = await obtenerIdsAvisoNumeroDestacamento({ seccionId, regionId });
 
@@ -1100,7 +1179,7 @@ export async function crearNotificacionMiembroActualizado({ miembro = {}, usuari
     modulo: 'miembros',
     titulo: 'Miembro actualizado',
     tituloHtml: `<p><strong>${escapeHtml(nombreMiembro)}</strong> fue actualizado</p>`,
-    mensaje: `actualizo la informacion de ${nombreMiembro}.`,
+    mensaje: `actualizó la información de ${nombreMiembro}.`,
     prioridad: 'informativa',
     entidadTipo: 'miembro',
     entidadId: idMiembro || codigoMiembro,
@@ -1116,7 +1195,8 @@ export async function crearNotificacionMiembroActualizado({ miembro = {}, usuari
 }
 
 export async function crearNotificacionCuentaCreada({ cuenta = {}, usuario = {} }) {
-  const idCuenta = cuenta?.uid || cuenta?.id || cuenta?.idMiembros || cuenta?.codigoMiembro || Date.now();
+  const idCuenta =
+    cuenta?.uid || cuenta?.id || cuenta?.idMiembros || cuenta?.codigoMiembro || Date.now();
   const nombreCuenta =
     cuenta?.displayName ||
     cuenta?.nombre ||
@@ -1175,8 +1255,8 @@ export async function crearNotificacionPerfilActualizado({ perfil = {}, usuario 
     tipoNotificacion: 'perfil_actualizado',
     modulo: 'miembros',
     titulo: 'Perfil actualizado',
-    tituloHtml: `<p><strong>${escapeHtml(nombrePerfil)}</strong> actualizo su perfil</p>`,
-    mensaje: `actualizo su perfil de usuario.`,
+    tituloHtml: `<p><strong>${escapeHtml(nombrePerfil)}</strong> actualizó su perfil.</p>`,
+    mensaje: `actualizó su perfil de usuario.`,
     prioridad: 'informativa',
     actorTipo: 'usuario',
     entidadTipo: 'miembro',
@@ -1758,14 +1838,14 @@ export async function crearNotificacionResenaProductoBaja({
   const safeProductId = String(productId || 'producto').replace(/[/.]/g, '_');
   const safeReviewId = String(reviewId).replace(/[/.]/g, '_');
   const notificationId = `producto_resena_baja_${safeProductId}_${safeReviewId}`;
-  const mensaje = `dejo una resena de ${rating || '-'} estrellas en ${productLabel}.`;
+  const mensaje = `dejó una reseña de ${rating || '-'} estrellas en ${productLabel}.`;
 
   const notificacion = {
     id: notificationId,
     tipoNotificacion: 'producto_resena_baja',
     modulo: 'productos',
     titulo: 'Resena baja recibida',
-    tituloHtml: `<p><strong>${escapeHtml(reviewerName)}</strong> dejo una resena de <strong>${escapeHtml(rating || '-')} estrellas</strong> en <strong>${escapeHtml(productLabel)}</strong></p>`,
+    tituloHtml: `<p><strong>${escapeHtml(reviewerName)}</strong> dejó una reseña de <strong>${escapeHtml(rating || '-')} estrellas</strong> en <strong>${escapeHtml(productLabel)}</strong>.</p>`,
     mensaje,
     mensajeVisual: mensaje,
     rolDestinatario: 'admin',
@@ -1822,7 +1902,8 @@ export async function crearNotificacionResenaProductoBaja({
 const obtenerNombreProducto = (producto = {}) =>
   producto?.name || producto?.nombre || producto?.title || producto?.titulo || 'Producto';
 
-const obtenerIdProducto = (producto = {}) => producto?.id || producto?.productoId || producto?.sku || '';
+const obtenerIdProducto = (producto = {}) =>
+  producto?.id || producto?.productoId || producto?.sku || '';
 
 const obtenerFotoProducto = (producto = {}) =>
   producto?.coverUrl ||
@@ -1866,7 +1947,7 @@ export async function crearNotificacionProductoPublicado({ producto = {}, usuari
     modulo: 'productos',
     titulo: 'Producto publicado',
     tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> fue publicado en la tienda</p>`,
-    mensaje: `publico el producto ${productName}.`,
+    mensaje: `publicó el producto ${productName}.`,
     prioridad: 'informativa',
     actorTipo: usuario?.role === 'admin' ? 'admin' : 'sistema',
     entidadTipo: 'producto',
@@ -1890,8 +1971,8 @@ export async function crearNotificacionProductoSinStock({ producto = {}, usuario
     tipoNotificacion: 'producto_sin_stock',
     modulo: 'productos',
     titulo: 'Producto sin stock',
-    tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> se quedo sin stock</p>`,
-    mensaje: `detecto que ${productName} se quedo sin stock.`,
+    tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> se quedó sin stock.</p>`,
+    mensaje: `detectó que ${productName} se quedó sin stock.`,
     prioridad: 'critica',
     entidadTipo: 'producto',
     entidadId: productId,
@@ -1917,7 +1998,7 @@ export async function crearNotificacionProductoStockBajo({ producto = {}, usuari
     modulo: 'productos',
     titulo: 'Producto con stock bajo',
     tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> tiene stock bajo: <strong>${escapeHtml(disponibles)}</strong></p>`,
-    mensaje: `detecto stock bajo en ${productName}: ${disponibles}.`,
+    mensaje: `detectó stock bajo en ${productName}: ${disponibles}.`,
     prioridad: 'importante',
     entidadTipo: 'producto',
     entidadId: productId,
@@ -1938,16 +2019,14 @@ export async function crearNotificacionProductoDisponibleNuevamente({
   const productId = obtenerIdProducto(producto);
   const productName = obtenerNombreProducto(producto);
   const disponibles = Number(producto?.available ?? producto?.disponibles ?? 0);
-  const recipients =
-    idsDestinatarios ||
-    (await obtenerUsuariosConProductoEnCarrito(producto));
+  const recipients = idsDestinatarios || (await obtenerUsuariosConProductoEnCarrito(producto));
 
   return crearNotificacionUsuario({
     tipoNotificacion: 'producto_disponible_nuevamente',
     modulo: 'productos',
     titulo: 'Producto disponible nuevamente',
-    tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> esta disponible nuevamente</p>`,
-    mensaje: `${productName} esta disponible nuevamente.`,
+    tituloHtml: `<p><strong>${escapeHtml(productName)}</strong> está disponible nuevamente.</p>`,
+    mensaje: `${productName} está disponible nuevamente.`,
     prioridad: 'informativa',
     actorId: String(usuario?.uid || usuario?.id || 'sistema'),
     actorTipo: 'sistema',
@@ -1969,17 +2048,21 @@ export async function crearNotificacionProductoDisponibleNuevamente({
 }
 
 export async function crearNotificacionFacturaGenerada({ factura = {}, usuario = {} }) {
-  const facturaId = factura?.reciboId || factura?.receiptId || factura?.id || factura?.numeroRecibo || '';
+  const facturaId =
+    factura?.reciboId || factura?.receiptId || factura?.id || factura?.numeroRecibo || '';
   const numeroFactura = factura?.numeroRecibo || factura?.invoiceNumber || facturaId || 'Factura';
   const clienteNombre =
-    factura?.emitidoPara?.nombre || factura?.cliente?.nombre || factura?.customer?.name || 'Cliente';
+    factura?.emitidoPara?.nombre ||
+    factura?.cliente?.nombre ||
+    factura?.customer?.name ||
+    'Cliente';
 
   return crearNotificacionAdmin({
     tipoNotificacion: 'factura_generada',
     modulo: 'facturas',
     titulo: 'Factura generada',
-    tituloHtml: `<p>Se genero la factura <strong>${escapeHtml(numeroFactura)}</strong> para <strong>${escapeHtml(clienteNombre)}</strong></p>`,
-    mensaje: `genero la factura ${numeroFactura} para ${clienteNombre}.`,
+    tituloHtml: `<p>Se generó la factura <strong>${escapeHtml(numeroFactura)}</strong> para <strong>${escapeHtml(clienteNombre)}</strong>.</p>`,
+    mensaje: `generó la factura ${numeroFactura} para ${clienteNombre}.`,
     prioridad: 'informativa',
     entidadTipo: 'factura',
     entidadId: facturaId,
@@ -1998,7 +2081,8 @@ export async function crearNotificacionFacturaGenerada({ factura = {}, usuario =
 }
 
 export async function crearNotificacionFacturaDisponible({ factura = {}, usuario = {} }) {
-  const facturaId = factura?.reciboId || factura?.receiptId || factura?.id || factura?.numeroRecibo || '';
+  const facturaId =
+    factura?.reciboId || factura?.receiptId || factura?.id || factura?.numeroRecibo || '';
   const numeroFactura = factura?.numeroRecibo || factura?.invoiceNumber || facturaId || 'Factura';
   const clienteNombre =
     factura?.emitidoPara?.nombre ||
@@ -2020,8 +2104,8 @@ export async function crearNotificacionFacturaDisponible({ factura = {}, usuario
     tipoNotificacion: 'factura_disponible',
     modulo: 'facturas',
     titulo: 'Factura disponible',
-    tituloHtml: `<p>Tu factura <strong>${escapeHtml(numeroFactura)}</strong> esta disponible</p>`,
-    mensaje: `tu factura ${numeroFactura} esta disponible.`,
+    tituloHtml: `<p>Tu factura <strong>${escapeHtml(numeroFactura)}</strong> está disponible.</p>`,
+    mensaje: `tu factura ${numeroFactura} está disponible.`,
     prioridad: 'informativa',
     actorId: 'sistema',
     actorTipo: 'sistema',
@@ -2043,8 +2127,15 @@ export async function crearNotificacionFacturaDisponible({ factura = {}, usuario
       uid: idUsuario || usuario?.uid,
       idUsuario: idUsuario || usuario?.idUsuario,
       idMiembros: factura?.miembroId || factura?.invoiceTo?.idMiembros || usuario?.idMiembros,
-      codigoMiembro: factura?.emitidoPara?.codigoMiembro || factura?.invoiceTo?.codigoMiembro || usuario?.codigoMiembro,
-      correo: factura?.emitidoPara?.correo || factura?.invoiceTo?.company || usuario?.correo || usuario?.email,
+      codigoMiembro:
+        factura?.emitidoPara?.codigoMiembro ||
+        factura?.invoiceTo?.codigoMiembro ||
+        usuario?.codigoMiembro,
+      correo:
+        factura?.emitidoPara?.correo ||
+        factura?.invoiceTo?.company ||
+        usuario?.correo ||
+        usuario?.email,
     },
     notificationId: `factura_disponible_${sanitizeNotificationIdPart(facturaId || numeroFactura)}_${sanitizeNotificationIdPart(idUsuario || usuario?.uid || '')}`,
   });
@@ -2083,10 +2174,7 @@ export async function crearNotificacionErrorSubidaArchivoImagen({
   });
 }
 
-export async function crearNotificacionSaludSistemaAlerta({
-  chequeo = {},
-  usuario = {},
-}) {
+export async function crearNotificacionSaludSistemaAlerta({ chequeo = {}, usuario = {} }) {
   const nombreChequeo = chequeo?.name || 'Chequeo de salud';
   const detalle = chequeo?.detail || '';
   const entidadId = chequeo?.id || sanitizeNotificationIdPart(nombreChequeo);
@@ -2135,14 +2223,14 @@ export async function crearNotificacionReportePublicacion({
     usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Usuario';
   const actorId = String(usuario?.uid || usuario?.id || usuario?.idMiembros || 'usuario');
   const notificationId = `publicacion_reportada_${idPublicacion}_${Date.now()}`;
-  const mensaje = `reporto una publicacion. Motivo: ${razon}.`;
+  const mensaje = `reportó una publicación. Motivo: ${razon}.`;
 
   const notificacion = {
     id: notificationId,
     tipoNotificacion: 'publicacion_reportada',
     modulo: 'publicaciones',
     titulo: 'Publicacion reportada',
-    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> reporto una publicacion</p>`,
+    tituloHtml: `<p><strong>${escapeHtml(actorNombre)}</strong> reportó una publicación.</p>`,
     mensaje,
     mensajeVisual: mensaje,
     rolDestinatario: 'admin',
@@ -2162,7 +2250,7 @@ export async function crearNotificacionReportePublicacion({
     imagenURL: usuario?.photoURL || null,
     miniaturaURL: usuario?.photoURL || null,
     tipoAccion: 'ver',
-    etiquetaAccion: 'Ver publicacion',
+    etiquetaAccion: 'Ver publicación',
     tipoAccionSecundaria: null,
     etiquetaAccionSecundaria: null,
     leidaPor: [],
@@ -2275,11 +2363,7 @@ const getDaysUntilBirthday = (birthDateValue, today = new Date()) => {
   if (Number.isNaN(birthDate.getTime())) return null;
 
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  let nextBirthday = new Date(
-    today.getFullYear(),
-    birthDate.getMonth(),
-    birthDate.getDate()
-  );
+  let nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
 
   if (nextBirthday < startToday) {
     nextBirthday = new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate());
@@ -2323,16 +2407,16 @@ export async function crearNotificacionesCumpleanosMiembros({
         : 'cumpleanos_miembro_destacamento_7_dias';
     const mensaje =
       diasHastaCumpleanos === 0
-        ? `hoy esta de cumpleanos ${nombreMiembro}.`
-        : `faltan 7 dias para el cumpleanos de ${nombreMiembro}.`;
+        ? `hoy está de cumpleaños ${nombreMiembro}.`
+        : `faltan 7 días para el cumpleaños de ${nombreMiembro}.`;
     const idDestacamento = miembro?.idDestacamento || miembro?.destId || null;
 
     const notificacion = await crearNotificacionAdmin({
       tipoNotificacion,
       modulo: 'cumpleanos',
-      titulo: diasHastaCumpleanos === 0 ? 'Cumpleanos hoy' : 'Cumpleanos proximo',
+      titulo: diasHastaCumpleanos === 0 ? 'Cumpleaños hoy' : 'Cumpleaños próximo',
       tituloHtml: `<p><strong>${escapeHtml(nombreMiembro)}</strong> ${
-        diasHastaCumpleanos === 0 ? 'esta de cumpleanos hoy' : 'cumple en 7 dias'
+        diasHastaCumpleanos === 0 ? 'está de cumpleaños hoy' : 'cumple en 7 días'
       }</p>`,
       mensaje,
       prioridad: 'informativa',
@@ -2364,15 +2448,15 @@ export async function crearNotificacionesCumpleanosMiembros({
       const notificacionDestacamento = await crearNotificacionUsuario({
         tipoNotificacion: tipoNotificacionDestacamento,
         modulo: 'cumpleanos',
-        titulo: diasHastaCumpleanos === 0 ? 'Cumpleanos hoy' : 'Cumpleanos proximo',
+        titulo: diasHastaCumpleanos === 0 ? 'Cumpleaños hoy' : 'Cumpleaños próximo',
         tituloHtml: `<p><strong>${escapeHtml(nombreMiembro)}</strong> ${
-          diasHastaCumpleanos === 0 ? 'esta de cumpleanos hoy' : 'cumple en 7 dias'
+          diasHastaCumpleanos === 0 ? 'está de cumpleaños hoy' : 'cumple en 7 días'
         }</p>`,
         mensaje,
         prioridad: 'informativa',
         actorId: 'sistema',
         actorTipo: 'sistema',
-        actorNombre: 'Cumpleanos',
+        actorNombre: 'Cumpleaños',
         entidadTipo: 'miembro',
         entidadId: idMiembro || codigoMiembro,
         ruta: idMiembro ? `/dashboard/level/member/${idMiembro}/edit` : '/dashboard/level/member',
@@ -2910,11 +2994,14 @@ const publicarRecordatoriosPublicacionVencidos = async (idUsuario) => {
         );
       }
 
-      await updateDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.tareas, tarea.idTarea || tarea.id), {
-        estado: 'enviada',
-        fechaEnvio: fechaActual,
-        actualizadoEnServidor: serverTimestamp(),
-      }).catch(() => null);
+      await updateDoc(
+        doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.tareas, tarea.idTarea || tarea.id),
+        {
+          estado: 'enviada',
+          fechaEnvio: fechaActual,
+          actualizadoEnServidor: serverTimestamp(),
+        }
+      ).catch(() => null);
     })
   );
 

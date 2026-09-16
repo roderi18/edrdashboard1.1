@@ -32,6 +32,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'perfil_actualizado',
   'evento_reprogramado',
   'mensaje_recibido',
+  'buzon_sin_responder',
   'publicacion_comentada',
   'publicacion_reportada',
   'recordatorio_publicacion',
@@ -71,7 +72,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   miembro_actualizado: {
     modulo: 'miembros',
     titulo: 'Miembro actualizado',
-    mensajePlantilla: 'actualizó la información de {{nombres}} {{apellidos}}.',
+    mensajePlantilla: '{{actorNombre}} actualizó la información de {{nombres}} {{apellidos}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'miembro',
@@ -82,7 +83,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   pedido_recibido: {
     modulo: 'pedidos',
     titulo: 'Nuevo pedido recibido',
-    mensajePlantilla: 'Se recibió el pedido {{idPedido}}.',
+    mensajePlantilla: 'Se recibió el pedido {{numeroOrden}} de {{clienteNombre}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'pedido',
@@ -93,7 +94,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   pedido_creado: {
     modulo: 'pedidos',
     titulo: 'Pedido creado',
-    mensajePlantilla: 'Tu pedido {{idPedido}} fue creado correctamente.',
+    mensajePlantilla: 'Tu pedido {{numeroOrden}} fue creado correctamente.',
     rolesDisponibles: ['usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'pedido',
@@ -104,7 +105,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   pedido_confirmado: {
     modulo: 'pedidos',
     titulo: 'Pedido confirmado',
-    mensajePlantilla: 'Tu pedido {{idPedido}} fue confirmado.',
+    mensajePlantilla: 'Tu pedido {{numeroOrden}} fue confirmado.',
     rolesDisponibles: ['usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'pedido',
@@ -115,7 +116,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   pedido_cancelado: {
     modulo: 'pedidos',
     titulo: 'Pedido cancelado',
-    mensajePlantilla: 'El pedido {{idPedido}} fue cancelado.',
+    mensajePlantilla: 'El pedido {{numeroOrden}} fue cancelado.',
     rolesDisponibles: ['admin', 'usuario'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'pedido',
@@ -126,7 +127,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   factura_generada: {
     modulo: 'facturas',
     titulo: 'Factura generada',
-    mensajePlantilla: 'Se generó la factura {{idFactura}}.',
+    mensajePlantilla: 'Se generó la factura {{numeroFactura}} para {{clienteNombre}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'factura',
@@ -137,7 +138,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   factura_disponible: {
     modulo: 'facturas',
     titulo: 'Factura disponible',
-    mensajePlantilla: 'Tu factura {{idFactura}} ya está disponible.',
+    mensajePlantilla: 'Tu factura {{numeroFactura}} ya está disponible.',
     rolesDisponibles: ['usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'factura',
@@ -180,8 +181,8 @@ const DEFINICIONES_NOTIFICACIONES = {
   },
   producto_resena_baja: {
     modulo: 'productos',
-    titulo: 'Resena baja recibida',
-    mensajePlantilla: 'Se recibio una resena de {{calificacion}} estrellas en {{nombreProducto}}.',
+    titulo: 'Reseña baja recibida',
+    mensajePlantilla: 'Se recibió una reseña de {{calificacion}} estrellas en {{nombreProducto}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'producto',
@@ -235,8 +236,8 @@ const DEFINICIONES_NOTIFICACIONES = {
   },
   administrador_creado: {
     modulo: 'administradores',
-    titulo: 'Nuevo administrador creado',
-    mensajePlantilla: '{{actorNombre}} creó al administrador {{nombreUsuario}}.',
+    titulo: 'Administrador asignado',
+    mensajePlantilla: '{{nombreMiembro}} fue asignado como administrador.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'administrador',
@@ -292,7 +293,7 @@ const DEFINICIONES_NOTIFICACIONES = {
     modulo: 'destacamentos',
     titulo: 'Número de destacamento',
     mensajePlantilla:
-      'asignó el número {{numero}} al destacamento {{nombreDestacamento}}.',
+      '{{actorNombre}} asignó el número {{numero}} al destacamento {{nombreDestacamento}}.',
     // 'todos': el aviso es UNO para el registro nacional y para los cargos de
     // la seccion y la region del destacamento, que no son ni solo administradores
     // ni solo usuarios.
@@ -347,10 +348,27 @@ const DEFINICIONES_NOTIFICACIONES = {
     tipoAccion: 'responder',
     requiereFotoPersona: true,
   },
+  // LO QUE LE ESCRIBEN A UN BUZON COMPARTIDO Y NADIE CONTESTA (a la hora, y otra
+  // vez a las 24 con señal de advertencia). Solo para quien lo atiende, que
+  // siempre es un cargo: nunca llega al miembro que escribio.
+  //
+  // La plantilla es el texto tal cual (`{{textoDelAviso}}`) porque el primer
+  // aviso y el segundo no dicen lo mismo, y una plantilla fija los igualaria.
+  buzon_sin_responder: {
+    modulo: 'mensajes',
+    titulo: 'Mensaje sin responder',
+    mensajePlantilla: '{{textoDelAviso}}',
+    rolesDisponibles: ['admin'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'conversacion',
+    etiquetaAccion: 'Responder',
+    tipoAccion: 'responder',
+    requiereFotoPersona: false,
+  },
   publicacion_comentada: {
     modulo: 'publicaciones',
-    titulo: 'Comentario en publicacion',
-    mensajePlantilla: '{{actorNombre}} comentó tu publicacion.',
+    titulo: 'Comentario en publicación',
+    mensajePlantilla: '{{actorNombre}} comentó tu publicación.',
     rolesDisponibles: ['admin', 'usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'publicacion',
@@ -360,8 +378,8 @@ const DEFINICIONES_NOTIFICACIONES = {
   },
   publicacion_reportada: {
     modulo: 'publicaciones',
-    titulo: 'Publicacion reportada',
-    mensajePlantilla: '{{actorNombre}} reporto una publicacion. Motivo: {{razon}}.',
+    titulo: 'Publicación reportada',
+    mensajePlantilla: '{{actorNombre}} reportó una publicación. Motivo: {{razon}}.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'publicacion',
@@ -371,8 +389,8 @@ const DEFINICIONES_NOTIFICACIONES = {
   },
   recordatorio_publicacion: {
     modulo: 'publicaciones',
-    titulo: 'Recordatorio de publicacion',
-    mensajePlantilla: 'Tienes una publicacion guardada para recordar.',
+    titulo: 'Recordatorio de publicación',
+    mensajePlantilla: 'Tienes una publicación guardada para recordar.',
     rolesDisponibles: ['admin', 'usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'publicacion',
@@ -383,7 +401,7 @@ const DEFINICIONES_NOTIFICACIONES = {
   chat_reportado: {
     modulo: 'mensajes',
     titulo: 'Chat reportado',
-    mensajePlantilla: '{{actorNombre}} reporto un chat.',
+    mensajePlantilla: '{{actorNombre}} reportó una conversación.',
     rolesDisponibles: ['admin'],
     prioridadPorDefecto: 'importante',
     entidadTipo: 'chat',

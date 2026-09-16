@@ -22,6 +22,7 @@ export function ChatRoom({
   sx,
   contacts,
   currentContact,
+  esGrupo = false,
   creatorIdMiembros,
   administratorIds,
   onAddParticipants,
@@ -33,7 +34,11 @@ export function ChatRoom({
 }) {
   const { collapseDesktop, openMobile, onCloseMobile } = collapseNav;
 
-  const isGroup = participants.length > 1;
+  // CON DOS PERSONAS YA HAY LISTA QUE ENSEÑAR. Este panel sale tambien en un
+  // chat de dos —para ver a quien se tiene delante y poder abrir un grupo con
+  // el—; que sea un grupo DE VERDAD lo dice la conversacion, no cuanta gente
+  // hay, y de eso dependen las acciones que se ofrecen.
+  const hayVariosParticipantes = participants.length > 1;
 
   const attachments = messages.map((msg) => msg.attachments).flat(1) || [];
 
@@ -43,11 +48,12 @@ export function ChatRoom({
     ) : (
       <Scrollbar>
         <div>
-          {isGroup ? (
+          {hayVariosParticipantes ? (
             <ChatRoomGroup
               participants={participants}
               contacts={contacts}
               currentContact={currentContact}
+              esGrupo={esGrupo}
               creatorIdMiembros={creatorIdMiembros}
               administratorIds={administratorIds}
               onAddParticipants={onAddParticipants}

@@ -4,10 +4,8 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
-import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
@@ -26,6 +24,7 @@ import { ChatNavAccount } from './chat-nav-account';
 import { rutaDelChat } from './utils/ruta-del-chat';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatAvatarDeBuzon } from './chat-avatar-de-buzon';
+import { ChatBandejasAvatares } from './chat-bandejas-avatares';
 import { ChatNavSearchResults } from './chat-nav-search-results';
 import { usePresenceStatuses } from './hooks/use-presence-status';
 import { useChatCurrentContact } from './hooks/use-chat-current-contact';
@@ -52,7 +51,9 @@ export function ChatNav({
   onStartChat,
   currentContact,
   bandeja = '',
+  buzones = [],
   buzonActual = null,
+  onCambiarBandeja,
 }) {
   const router = useRouter();
   const conversationsInFlightRef = useRef(new Set());
@@ -299,23 +300,39 @@ export function ChatNav({
             presencia de quien lo mira y deja cambiarla; la Tienda no esta
             "conectada" ni "ausente", y su presencia la escribiria alguien que no
             es ella. Se enseña quien responde y nada mas. */}
-        {!collapseDesktop &&
-          (buzonActual ? (
-            <>
-              {/* La foto del buzon: el Administrador Global la cambia aqui mismo,
-                  pasando el raton por encima. */}
+        {!collapseDesktop && (
+          <>
+            {/* La bandeja abierta, en grande: la cuenta de quien mira —con su
+                menu de presencia— o la foto del buzon que atiende. El nombre no
+                va al lado: lo dice el titulo emergente, y el sitio hace falta
+                para los circulos. */}
+            {buzonActual ? (
               <ChatAvatarDeBuzon buzon={buzonActual} size={48} />
-              <Typography variant="subtitle2" noWrap sx={{ ml: 1.5, minWidth: 0 }}>
-                {myContact.name}
-              </Typography>
-              <Box sx={{ flexGrow: 1 }} />
-            </>
-          ) : (
-            <>
+            ) : (
               <ChatNavAccount currentContact={myContact} />
-              <Box sx={{ flexGrow: 1 }} />
-            </>
-          ))}
+            )}
+
+            {/* LAS BANDEJAS, AL LADO DE LA FOTO. Eran pestañas encima del chat
+                —"Mis chats", "Chats de la Tienda"...— y se llevaban una franja de
+                alto en todas las pantallas. Aqui son la misma cosa dicha con
+                fotos, sin quitarle sitio a los mensajes. */}
+            <ChatBandejasAvatares
+              buzones={buzones}
+              bandeja={bandeja}
+              contactoPropio={contactoPropio}
+              onCambiar={onCambiarBandeja}
+              sx={{ ml: 1, minWidth: 0, flex: '1 1 auto' }}
+            />
+
+            <Box
+              sx={{
+                flexGrow: 1,
+                // Sin buzones no hay circulos que empujen: el hueco lo pone este.
+                ...(buzones.length && { display: 'none' }),
+              }}
+            />
+          </>
+        )}
 
         <IconButton onClick={handleToggleNav}>
           <Iconify
@@ -324,24 +341,9 @@ export function ChatNav({
         </IconButton>
 
         {!collapseDesktop && (
-          <>
-            <Tooltip title="Siguiente conversación no leída (Alt+Mayús+N)">
-              <span>
-                <IconButton
-                  aria-label="Ir a la siguiente conversación no leída"
-                  disabled={!conversations.allIds.some(
-                    (id) => Number(conversations.byId[id]?.unreadCount) > 0
-                  )}
-                  onClick={handleNavigateUnread}
-                >
-                  <Iconify width={22} icon="solar:chat-unread-bold" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <IconButton aria-label="Crear conversación" onClick={handleClickCompose}>
-              <Iconify width={24} icon="solar:user-plus-bold" />
-            </IconButton>
-          </>
+          <IconButton aria-label="Crear conversación" onClick={handleClickCompose}>
+            <Iconify width={24} icon="solar:user-plus-bold" />
+          </IconButton>
         )}
       </Box>
 

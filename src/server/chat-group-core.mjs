@@ -15,6 +15,49 @@ const memberId = (value) => {
 };
 const uniqueMemberIds = (values) => Array.from(new Set(asArray(values).map(memberId).filter(Boolean)));
 
+export const CHAT_GROUP_HISTORY_VISIBILITY = Object.freeze({
+  NONE: 'none',
+  LAST_HOUR: 'last_hour',
+  ALL: 'all',
+});
+
+export const applyAddedParticipantHistoryVisibility = ({
+  currentCutoffs = {},
+  participantIds = [],
+  visibility = CHAT_GROUP_HISTORY_VISIBILITY.NONE,
+  now = new Date().toISOString(),
+} = {}) => {
+  const allowedVisibility = Object.values(CHAT_GROUP_HISTORY_VISIBILITY);
+
+  if (!allowedVisibility.includes(visibility)) {
+    throw new ChatGroupError(
+      'Selecciona cuánto historial podrán ver los participantes nuevos.',
+      'CHAT_GROUP_HISTORY_VISIBILITY_INVALID'
+    );
+  }
+
+  const nowMs = new Date(now).getTime();
+  if (!Number.isFinite(nowMs)) {
+    throw new ChatGroupError('No se pudo determinar el momento de incorporación al grupo.');
+  }
+
+  const cutoffs = { ...(currentCutoffs ?? {}) };
+  const cutoff =
+    visibility === CHAT_GROUP_HISTORY_VISIBILITY.LAST_HOUR
+      ? new Date(nowMs - 60 * 60 * 1_000).toISOString()
+      : new Date(nowMs - 1).toISOString();
+
+  uniqueMemberIds(participantIds).forEach((id) => {
+    if (visibility === CHAT_GROUP_HISTORY_VISIBILITY.ALL) {
+      delete cutoffs[String(id)];
+    } else {
+      cutoffs[String(id)] = cutoff;
+    }
+  });
+
+  return cutoffs;
+};
+
 export const getChatGroupState = (conversation = {}) => {
   if (conversation.tipoConversacion !== 'GRUPAL' && conversation.type !== 'GROUP') {
     throw new ChatGroupError('Esta operación solo está disponible en conversaciones grupales.');

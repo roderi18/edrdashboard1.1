@@ -37,19 +37,19 @@ export function dashboardLayoutVars(theme, enBlanco = false) {
   // una mancha, no como una cabecera.
   const cabecera = enBlanco
     ? {
-        '--layout-header-bg': palette.background.default,
-        '--layout-header-bg-image': 'none',
-        '--layout-header-text': palette.text.primary,
-        '--layout-header-text-secondary': palette.text.secondary,
-      }
+      '--layout-header-bg': palette.background.default,
+      '--layout-header-bg-image': 'none',
+      '--layout-header-text': palette.text.primary,
+      '--layout-header-text-secondary': palette.text.secondary,
+    }
     : {
-        '--layout-header-bg': palette.brand.navy,
-        '--layout-header-bg-image': `linear-gradient(90deg, ${palette.brand.navy} 0%, ${palette.brand.navy} 60%, ${palette.brand.navyLight} 100%)`,
-        '--layout-header-text': palette.common.white,
-        // Lo de menos peso —iconos en reposo, textos de apoyo— en el mismo
-        // azulado que usa la barra lateral, para que las dos hablen igual.
-        '--layout-header-text-secondary': palette.grey[400],
-      };
+      '--layout-header-bg': palette.brand.navy,
+      '--layout-header-bg-image': `linear-gradient(90deg, ${palette.brand.navy} 0%, ${palette.brand.navy} 60%, ${palette.brand.navyLight} 100%)`,
+      '--layout-header-text': palette.common.white,
+      // Lo de menos peso —iconos en reposo, textos de apoyo— en el mismo
+      // azulado que usa la barra lateral, para que las dos hablen igual.
+      '--layout-header-text-secondary': palette.grey[400],
+    };
 
   return {
     ...cabecera,

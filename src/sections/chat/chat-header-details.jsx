@@ -1,15 +1,18 @@
-import { useState, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { usePopover } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import AvatarGroup, { avatarGroupClasses } from '@mui/material/AvatarGroup';
@@ -24,6 +27,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ChatHeaderSkeleton } from './chat-skeleton';
 import { PRESENCE_LABELS } from './utils/presence-labels';
 import { usePresenceStatus } from './hooks/use-presence-status';
+import { resolveGroupNameEdit } from './utils/group-name-edit.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -41,13 +45,14 @@ export function ChatHeaderDetails({
   const lgUp = useMediaQuery((theme) => theme.breakpoints.up('lg'));
 
   const menuActions = usePopover();
+  const cancelGroupEditRef = useRef(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [globalClearOpen, setGlobalClearOpen] = useState(false);
-  const [groupEditOpen, setGroupEditOpen] = useState(false);
+  const [editingGroupName, setEditingGroupName] = useState(false);
   const [reportComment, setReportComment] = useState('');
   const [groupName, setGroupName] = useState('');
-  const [groupAvatarUrl, setGroupAvatarUrl] = useState('');
+  const [optimisticGroupName, setOptimisticGroupName] = useState('');
   const [reporting, setReporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [savingGroup, setSavingGroup] = useState(false);
@@ -56,10 +61,28 @@ export function ChatHeaderDetails({
   const isMuted = Boolean(conversation?.muted);
   const canManageGroup = ['creator', 'admin'].includes(conversation?.currentUserGroupRole);
   const canClearGlobally = Boolean(conversation?.canClearGlobally);
+  const persistedGroupDisplayName =
+    conversation?.groupName || participants.map((participant) => participant.name).join(', ');
+  const groupDisplayName = optimisticGroupName || persistedGroupDisplayName;
 
   const singleParticipant = participants[0];
 
   const { collapseDesktop, onCollapseDesktop, onOpenMobile } = collapseNav;
+
+  useEffect(() => {
+    setEditingGroupName(false);
+    setGroupName('');
+    setOptimisticGroupName('');
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    if (
+      optimisticGroupName &&
+      String(conversation?.groupName || '').trim() === optimisticGroupName
+    ) {
+      setOptimisticGroupName('');
+    }
+  }, [conversation?.groupName, optimisticGroupName]);
 
   const handleToggleNav = useCallback(() => {
     if (lgUp) {
@@ -92,10 +115,10 @@ export function ChatHeaderDetails({
 
   const handleOpenGroupEdit = useCallback(() => {
     menuActions.onClose();
-    setGroupName(conversation?.groupName || '');
-    setGroupAvatarUrl(conversation?.groupAvatarUrl || '');
-    setGroupEditOpen(true);
-  }, [conversation?.groupAvatarUrl, conversation?.groupName, menuActions]);
+    cancelGroupEditRef.current = false;
+    setGroupName(groupDisplayName);
+    setEditingGroupName(true);
+  }, [groupDisplayName, menuActions]);
 
   const handleSubmitReport = useCallback(async () => {
     if (!reportComment.trim()) {
@@ -149,22 +172,69 @@ export function ChatHeaderDetails({
   }, [onClearGlobal]);
 
   const handleSubmitGroup = useCallback(async () => {
-    setSavingGroup(true);
+    const edit = resolveGroupNameEdit(persistedGroupDisplayName, groupName);
+
+    // Un campo vacío o intacto equivale a cancelar: el grupo conserva exactamente
+    // el nombre que ya mostraba.
+    if (!edit.shouldSave) {
+      setEditingGroupName(false);
+      setGroupName('');
+      return;
+    }
+
+    const previousName = persistedGroupDisplayName;
+
+    // Confirma el nombre en pantalla antes de iniciar cualquier trabajo remoto.
+    // flushSync evita que React agrupe este render con la respuesta de la API.
+    flushSync(() => {
+      setOptimisticGroupName(edit.name);
+      setEditingGroupName(false);
+      setGroupName('');
+      setSavingGroup(true);
+    });
 
     try {
-      await onUpdateGroup?.(groupName, groupAvatarUrl);
-      toast.success('Información del grupo actualizada.');
-      setGroupEditOpen(false);
+      await onUpdateGroup?.(edit.name, conversation?.groupAvatarUrl || '');
+      toast.success('Nombre del grupo actualizado.');
     } catch (error) {
       console.error(error);
-      toast.error(error.message || 'No se pudo actualizar el grupo.');
+      setOptimisticGroupName('');
+      setGroupName(previousName);
+      toast.error(error.message || 'No se pudo cambiar el nombre del grupo.');
     } finally {
       setSavingGroup(false);
     }
-  }, [groupAvatarUrl, groupName, onUpdateGroup]);
+  }, [conversation?.groupAvatarUrl, groupName, onUpdateGroup, persistedGroupDisplayName]);
 
-  const groupDisplayName =
-    conversation?.groupName || participants.map((participant) => participant.name).join(', ');
+  const handleGroupNameBlur = useCallback(() => {
+    if (cancelGroupEditRef.current) {
+      cancelGroupEditRef.current = false;
+      return;
+    }
+
+    void handleSubmitGroup();
+  }, [handleSubmitGroup]);
+
+  const handleGroupNameKeyDown = useCallback(
+    (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        cancelGroupEditRef.current = true;
+        void handleSubmitGroup();
+        queueMicrotask(() => {
+          cancelGroupEditRef.current = false;
+        });
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelGroupEditRef.current = true;
+        setEditingGroupName(false);
+        setGroupName('');
+      }
+    },
+    [handleSubmitGroup]
+  );
 
   const renderGroup = () => (
     <Box sx={{ gap: 2, display: 'flex', alignItems: 'center', minWidth: 0 }}>
@@ -186,11 +256,61 @@ export function ChatHeaderDetails({
         ))}
       </AvatarGroup>
 
-      <ListItemText
-        primary={groupDisplayName}
-        secondary={`${participants.length} participantes`}
-        slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }}
-      />
+      <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
+        {editingGroupName ? (
+          <TextField
+            autoFocus
+            fullWidth
+            hiddenLabel
+            size="small"
+            variant="standard"
+            value={groupName}
+            disabled={savingGroup}
+            inputProps={{ maxLength: 80, 'aria-label': 'Nombre del grupo' }}
+            onChange={(event) => setGroupName(event.target.value)}
+            onKeyDown={handleGroupNameKeyDown}
+            onBlur={handleGroupNameBlur}
+            sx={{ maxWidth: 520 }}
+          />
+        ) : (
+          <Typography
+            noWrap
+            variant="subtitle2"
+            component={canManageGroup ? 'button' : 'div'}
+            type={canManageGroup ? 'button' : undefined}
+            onClick={canManageGroup ? handleOpenGroupEdit : undefined}
+            sx={{
+              p: 0,
+              m: 0,
+              width: 1,
+              border: 0,
+              color: 'text.primary',
+              textAlign: 'left',
+              bgcolor: 'transparent',
+              cursor: canManageGroup ? 'text' : 'default',
+            }}
+          >
+            {groupDisplayName}
+          </Typography>
+        )}
+
+        <Typography noWrap variant="body2" color="text.secondary">
+          {participants.length} participantes
+        </Typography>
+      </Box>
+
+      {canManageGroup && !editingGroupName && (
+        <Tooltip title="Cambiar nombre del chat">
+          <IconButton
+            size="small"
+            aria-label="Cambiar nombre del chat"
+            onClick={handleOpenGroupEdit}
+            sx={{ flexShrink: 0 }}
+          >
+            <Iconify icon="solar:pen-bold" width={18} />
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   );
 
@@ -332,34 +452,6 @@ export function ChatHeaderDetails({
             onClick={handleSubmitGlobalClear}
           >
             Eliminar para todos
-          </Button>
-        }
-      />
-
-      <ConfirmDialog
-        open={groupEditOpen}
-        title="Editar grupo"
-        onClose={() => setGroupEditOpen(false)}
-        content={
-          <Box sx={{ gap: 2, pt: 1, display: 'flex', flexDirection: 'column' }}>
-            <TextField
-              fullWidth
-              label="Nombre del grupo"
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
-              inputProps={{ maxLength: 80 }}
-            />
-            <TextField
-              fullWidth
-              label="URL HTTPS del avatar (opcional)"
-              value={groupAvatarUrl}
-              onChange={(event) => setGroupAvatarUrl(event.target.value)}
-            />
-          </Box>
-        }
-        action={
-          <Button variant="contained" loading={savingGroup} onClick={handleSubmitGroup}>
-            Guardar cambios
           </Button>
         }
       />

@@ -17,19 +17,55 @@ export const buildChatDraftKey = ({ currentMemberId, conversationId, recipientId
   return `chat-draft:v1:${memberId}:${target}`;
 };
 
-export const resolveMentionIds = (text, participants = []) => {
+export const resolveMentionIds = (text, participants = [], currentMemberId = null) => {
   const normalizedText = normalize(text);
+  const mentionsEveryone = /(?:^|\s)@todos(?=$|\s|[.,!?;:])/u.test(normalizedText);
+  const currentId = Number(currentMemberId);
 
   return [...new Set(
     asArray(participants)
       .filter((participant) => {
         const name = normalize(participant?.name);
 
-        return name && normalizedText.includes(`@${name}`);
+        return mentionsEveryone || (name && normalizedText.includes(`@${name}`));
       })
       .map((participant) => Number(participant.idMiembros ?? participant.id))
-      .filter((id) => Number.isSafeInteger(id) && id > 0)
+      .filter(
+        (id) =>
+          Number.isSafeInteger(id) &&
+          id > 0 &&
+          (!Number.isSafeInteger(currentId) || id !== currentId)
+      )
   )];
+};
+
+export const filterMentionCandidates = ({
+  participants = [],
+  query = '',
+  currentMemberId,
+} = {}) => {
+  const term = normalize(query);
+  const currentId = String(currentMemberId ?? '').trim();
+
+  const people = asArray(participants).filter((participant) => {
+    const participantId = String(participant?.idMiembros ?? participant?.id ?? '').trim();
+
+    return participantId && participantId !== currentId;
+  });
+
+  if (!people.length) return [];
+
+  return [
+    { id: 'mention-all', name: 'todos', mentionAll: true },
+    ...people,
+  ].filter((participant) => normalize(participant.name).includes(term));
+};
+
+export const moveMentionSelection = ({ currentIndex = 0, count = 0, direction = 1 } = {}) => {
+  const total = Number(count);
+  if (!Number.isSafeInteger(total) || total <= 0) return 0;
+
+  return (Number(currentIndex || 0) + (direction < 0 ? -1 : 1) + total) % total;
 };
 
 export const getNextUnreadConversationId = ({

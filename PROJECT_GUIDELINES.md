@@ -212,24 +212,47 @@ leer el test que las cubre.**
      `metadatos.buzon` y no se filtra por rol— y el contador de "Chats" suma lo
      pendiente de sus buzones. La campana escucha sus avisos en vivo
      (`escucharNotificacionesDelUsuario`) y los buzones se escuchan desde cualquier
-     pantalla (`useBuzonesEnVivo`).
+     pantalla (`useBuzonesEnVivo`), **con sonido**: lo que le escriben a un buzón
+     suena igual que un mensaje propio, y la decisión de si suena es única para
+     todas las escuchas (`src/sections/chat/utils/sonido-de-mensaje.mjs`), que
+     además calla la primera foto de cada suscripción y no repite un mensaje ya
+     sonado.
+   - **Lo que nadie contesta se reclama solo.** Un buzón lo atienden varios, y un
+     mensaje podía quedarse sin respuesta sin que nadie se enterara: el único
+     rastro era el contador de la bandeja. **A los 60 minutos** sin responder va
+     un aviso de campana (`buzon_sin_responder`) a **quien ejerce el cargo del
+     buzón y al Administrador Global** —los mismos de `perfilesDelBuzon`—, y **a
+     las 24 horas** va un segundo aviso que **termina en ⚠️**. El reloj empieza en
+     el **primer** mensaje sin contestar (`sinResponderDesde` en la conversación),
+     no en el último: contando desde el último, quien insiste retrasaría el aviso
+     para siempre. Solo **responder** para el reloj; leer no. Como no hay tareas
+     programadas, se revisa cuando quien atiende el buzón tiene la aplicación
+     abierta y el panel pide su contador (`unread-summary`), como mucho una vez
+     cada cinco minutos, y cada aviso se escribe **una sola vez** (identificador
+     por conversación, paso y destinatario). La decisión vive en
+     `src/server/chat-buzon-sin-responder.mjs`.
    - **Las reglas cuentan todos los cargos, en cualquier posición** (no solo el
      principal) con `rolesQueEjerce`, la lista
      plana que el servidor escribe en `usuarios_roles` junto a `cargos`
      (`src/utils/lista-roles-que-ejerce.mjs`). Una cuenta sin esa lista la recibe
      al volver a sincronizar su rol.
-   - **La foto de cada buzón** la cambia **solo el Administrador Global**, desde el
-     chat: en el menú de su cuenta, debajo de "Perfil", o pasando el ratón por la
-     foto del buzón en su bandeja. Vive en `buzones_chat/<clave>`, pasa por
+   - **La foto de cada buzón** la cambia **solo el Administrador Global**, y por un
+     solo camino: el menú de su cuenta en el chat, debajo de "Perfil". La foto del
+     buzón **no se pulsa** —es de quien escribe, no un botón: tocándola saltaba el
+     selector de archivos sin querer—. Vive en `buzones_chat/<clave>`, pasa por
      `proponerCambio` (ámbito `buzon_chat`) y el servidor la pone en contactos,
      conversaciones y avisos.
-   - **Componentes**: `ChatBandejas` (pestañas por permisos), `ChatAvatarDeBuzon` y
-     `useCambiarFotoDeBuzon`; `useBuzonesDelChat` dice qué buzones atiende la
-     sesión y en cuál está (`?bandeja=tienda|oficina`).
+   - **Componentes**: `ChatBandejasAvatares` (las bandejas, en círculos junto a la
+     foto de la que está abierta, dentro de la lista de conversaciones; la abierta
+     **no se repite** como opción), `ChatAvatarDeBuzon` y `useCambiarFotoDeBuzon`;
+     `useBuzonesDelChat` dice qué buzones atiende la sesión y en cuál está
+     (`?bandeja=tienda|oficina`).
    - **Para añadir otro buzón**: una entrada en `chat-buzones.mjs`, su número en
      `idMiembroNoUsurpaUnBuzon` y su `atiendeBuzonDe…` en `firestore.rules` y
      `storage.rules`, y su colección de respuestas.
-   Tests: `tests/chat/chat-buzones-compartidos.test.mjs` y
+   Tests: `tests/chat/chat-buzones-compartidos.test.mjs`,
+   `tests/chat/buzon-sin-responder.test.mjs`,
+   `tests/chat/sonido-de-mensaje-recibido.test.mjs` y
    `tests/chat/chat-tienda-virtual.test.mjs`.
 9. **Un producto agotado se solicita, no se compra.** Con el inventario en 0 el
    botón principal dice **"Solicitar producto"** y deja una orden en estado

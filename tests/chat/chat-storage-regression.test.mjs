@@ -88,3 +88,18 @@ test('la selección muestra límites coherentes y vista previa para imagen y PDF
   assert.match(inputSource, /máximo 10 y 10 MB en conjunto/);
   assert.doesNotMatch(inputSource, /no pueden superar 1 MB/);
 });
+
+test('la carga completa el MIME de PDF y ZIP cuando Windows no lo informa', () => {
+  assert.match(uploadSource, /CONTENT_TYPE_BY_EXTENSION/);
+  assert.match(uploadSource, /'\.pdf': 'application\/pdf'/);
+  assert.match(uploadSource, /'\.zip': 'application\/zip'/);
+  assert.match(uploadSource, /resolveUploadContentType\(finalFile, originalFile\)/);
+  assert.match(uploadSource, /contentType,/);
+});
+
+test('Storage refresca el token del chat y conserva el motivo real de un rechazo', () => {
+  assert.match(uploadSource, /getIdTokenResult/);
+  assert.match(uploadSource, /getIdToken\?\.\(true\)/);
+  assert.match(uploadSource, /'storage\/unauthorized'/);
+  assert.match(uploadSource, /no tiene permiso para subir archivos a esta conversación/);
+});

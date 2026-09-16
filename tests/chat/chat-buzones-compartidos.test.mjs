@@ -314,12 +314,34 @@ test('la ruta del chat reparte la autenticacion por buzon y avisa a los de cada 
 // LA PANTALLA
 // ----------------------------------------------------------------------
 
-test('las bandejas salen de los permisos y la pantalla usa el componente', () => {
+// UN BUZON TAMBIEN ENTRA EN UN GRUPO. Al agregarlo, la ruta buscaba el numero
+// 20001 en el padron —donde no esta, porque un buzon se añade aparte—, no
+// encontraba a nadie y le preguntaba el numero a ese `null`: la peticion entera
+// se caia con "No se pudo actualizar el chat".
+test('agregar un buzon a un grupo lo busca donde vive, y un desconocido no tumba nada', () => {
+  const ruta = leer('src/app/api/chat/route.js');
+  const agregar = ruta.slice(ruta.indexOf("if (action === 'add-participants')"));
+
+  assert.match(agregar, /await conLosBuzones\(getAllContacts\(/);
+  assert.match(agregar, /member\?\.idMiembros &&/);
+});
+
+test('las bandejas salen de los permisos y se cambian desde la lista', () => {
   const vista = leer('src/sections/chat/view/chat-view.jsx');
+  const lista = leer('src/sections/chat/chat-nav.jsx');
   const util = leer('src/sections/chat/utils/buzones-del-chat.js');
 
-  assert.match(vista, /<ChatBandejas buzones=\{buzones\} bandeja=\{bandeja\}/);
-  assert.doesNotMatch(vista, /Chats de la Tienda/);
+  // LAS BANDEJAS VIVEN EN LA LISTA, NO ENCIMA DEL CHAT. Eran pestañas con su
+  // propia fila —titulo "Mensajes" incluido— y se llevaban unos 80px de alto de
+  // una pantalla que lo que enseña son mensajes. Ahora son las fotos que hay al
+  // lado de la del buzon abierto, y la vista solo reparte los datos.
+  assert.match(vista, /buzones=\{buzones\}/);
+  assert.match(vista, /onCambiarBandeja=\{handleCambiarBandeja\}/);
+  // Ni el titulo ni las pestañas: se mira el JSX, no los comentarios que
+  // cuentan por que se fueron.
+  assert.doesNotMatch(vista, /<Typography variant="h4">/);
+  assert.doesNotMatch(vista, /<ChatBandejas[\s>]/);
+  assert.match(lista, /<ChatBandejasAvatares/);
   // Quien atiende se decide con TODOS los cargos, y el Administrador Global entra.
   assert.match(util, /rolesQueEjerce\(user\)\.some/);
   assert.match(util, /isAdminGlobal\(user\)/);

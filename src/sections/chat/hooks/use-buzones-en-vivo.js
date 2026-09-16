@@ -2,8 +2,12 @@ import { mutate } from 'swr';
 import { useEffect } from 'react';
 import { query, where, collection, onSnapshot } from 'firebase/firestore';
 
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { isConversationsKey, isChatUnreadSummaryKey } from 'src/actions/chat';
+
+import { debeSonarPorMensajeNuevo } from '../utils/sonido-de-mensaje.mjs';
 
 // ----------------------------------------------------------------------
 // LOS BUZONES COMPARTIDOS, EN TIEMPO REAL, desde cualquier pantalla.
@@ -17,6 +21,13 @@ import { isConversationsKey, isChatUnreadSummaryKey } from 'src/actions/chat';
 // cambiar una, revalida los contadores y las listas. No marca nada como
 // entregado ni leido: eso lo hace el chat cuando de verdad se abre la bandeja.
 // Las reglas dejan leerlas a quien ejerce su cargo (`atiendeUnBuzon`).
+//
+// Y SUENA, como suena un mensaje propio. Lo que le escriben a la Tienda se veia
+// llegar —el contador subia— pero en silencio: quien la atiende desde la
+// pantalla de inicio no tenia por que estar mirando el numerito. La decision de
+// si suena es la misma de siempre (`debeSonarPorMensajeNuevo`), que ademas
+// comparte memoria con la escucha del chat: estando dentro de la bandeja, el
+// mensaje no suena dos veces.
 // ----------------------------------------------------------------------
 
 export function useBuzonesEnVivo(buzones = [], enabled = true) {
@@ -34,13 +45,34 @@ export function useBuzonesEnVivo(buzones = [], enabled = true) {
           where('participantesIds', 'array-contains', Number(idMiembros))
         ),
         (snapshot) => {
-          // La primera foto es lo que ya habia: no hay nada nuevo que avisar.
-          if (primeraFoto) {
-            primeraFoto = false;
-            return;
-          }
+          const esPrimeraFoto = primeraFoto;
+          const cambios = snapshot.docChanges();
 
-          if (!snapshot.docChanges().length) return;
+          primeraFoto = false;
+
+          // La primera foto es lo que ya habia: no suena, pero SI se apunta.
+          // Sin apuntarla, el primer acuse de entrega de una conversacion vieja
+          // con mensajes sin leer se habria tomado por un mensaje recien
+          // llegado.
+          cambios.forEach((cambio) => {
+            if (cambio.type === 'removed') return;
+
+            const conversacion = cambio.doc.data();
+
+            if (conversacion?.eliminada === true) return;
+
+            if (
+              debeSonarPorMensajeNuevo(
+                { ...conversacion, idConversacion: cambio.doc.id },
+                Number(idMiembros),
+                { primeraFoto: esPrimeraFoto }
+              )
+            ) {
+              sonarAviso('mensajeRecibido');
+            }
+          });
+
+          if (esPrimeraFoto || !cambios.length) return;
 
           mutate((key) => isChatUnreadSummaryKey(key));
           mutate((key) => isConversationsKey(key));

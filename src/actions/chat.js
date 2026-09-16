@@ -894,7 +894,12 @@ export async function loadOlderMessages(conversationId, oldestTimestamp, idMiemb
 
 // ----------------------------------------------------------------------
 
-export async function addParticipants(conversationId, idMiembros, newParticipants) {
+export async function addParticipants(
+  conversationId,
+  idMiembros,
+  newParticipants,
+  historyVisibility = 'none'
+) {
   return mutateConversationAction({
     conversationId,
     request: () =>
@@ -903,6 +908,7 @@ export async function addParticipants(conversationId, idMiembros, newParticipant
         conversationId,
         idMiembros,
         newParticipants,
+        historyVisibility,
       }),
   });
 }
@@ -984,17 +990,28 @@ export async function updateGroupDetails(
   groupName,
   groupAvatarUrl = ''
 ) {
-  return mutateConversationAction({
+  await mutateConversation({
     conversationId,
-    request: () =>
-      axios.patch(CHAT_ENDPOINT, {
-        action: 'update-group',
-        conversationId,
-        idMiembros,
-        groupName,
-        groupAvatarUrl,
-      }),
+    updater: (conversation) => ({ ...conversation, groupName, groupAvatarUrl }),
   });
+
+  try {
+    return await mutateConversationAction({
+      conversationId,
+      request: () =>
+        axios.patch(CHAT_ENDPOINT, {
+          action: 'update-group',
+          conversationId,
+          idMiembros,
+          groupName,
+          groupAvatarUrl,
+        }),
+    });
+  } catch (error) {
+    mutate((key) => isConversationKey(key, conversationId));
+    mutate((key) => isConversationsKey(key));
+    throw error;
+  }
 }
 
 // ----------------------------------------------------------------------

@@ -1,11 +1,12 @@
+import { useMemo } from 'react';
+
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
+import AvatarGroup from '@mui/material/AvatarGroup';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
-
-import { Iconify } from 'src/components/iconify';
 
 import { getNavItem } from './utils/get-nav-item';
 import { usePresenceStatuses } from './hooks/use-presence-status';
@@ -21,9 +22,21 @@ export function ChatNavSearchResults({
   onClickConversationResult,
 }) {
   const totalResults = results.length + conversationResults.length;
-  const presenceStatuses = usePresenceStatuses(
-    results.map((result) => result.idMiembros ?? result.id)
+  // La presencia de TODOS los que salen: los contactos y los de cada
+  // conversacion. Sin los segundos, la misma persona salia conectada en la lista
+  // de contactos y gris justo debajo, en su conversacion.
+  const idsQueSalen = useMemo(
+    () => [
+      ...results.map((result) => result.idMiembros ?? result.id),
+      ...conversationResults.flatMap((conversation) =>
+        (conversation.participants ?? []).map(
+          (participante) => participante.idMiembros ?? participante.id
+        )
+      ),
+    ],
+    [results, conversationResults]
   );
+  const presenceStatuses = usePresenceStatuses(idsQueSalen);
 
   const notFound = !totalResults && !!query;
 
@@ -82,6 +95,48 @@ export function ChatNavSearchResults({
     </>
   );
 
+  // LA CARA DE CON QUIEN SE HABLA, igual que en la lista de conversaciones.
+  //
+  // Cada resultado llevaba el mismo globito de chat: una columna de iconos
+  // identicos donde hay que leer el nombre entero para saber cual es cual. Las
+  // fotos se reconocen de un vistazo, que es justo lo que se esta haciendo al
+  // buscar.
+  const renderFotoDeLaConversacion = ({ group, participants }) => {
+    const acompanante = participants[0];
+
+    if (group) {
+      return (
+        <AvatarGroup variant="compact" sx={{ width: 40, height: 40 }}>
+          {participants.slice(0, 2).map((participante, index) => (
+            <Avatar
+              slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
+              key={`${participante.id ?? participante.idMiembros ?? participante.name ?? 'participante'}-${index}`}
+              alt={participante.name}
+              src={participante.avatarUrl}
+            />
+          ))}
+        </AvatarGroup>
+      );
+    }
+
+    return (
+      <Badge
+        variant={
+          presenceStatuses[String(acompanante?.idMiembros ?? acompanante?.id)]?.status ?? 'offline'
+        }
+        badgeContent=" "
+        overlap="circular"
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Avatar
+          slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
+          alt={acompanante?.name}
+          src={acompanante?.avatarUrl}
+        />
+      </Badge>
+    );
+  };
+
   const renderConversationResults = () => (
     <>
       <Typography variant="subtitle2" sx={{ px: 2.5, pt: 1, pb: 0.5 }}>
@@ -97,7 +152,7 @@ export function ChatNavSearchResults({
                 onClick={() => onClickConversationResult(conversation)}
                 sx={{ gap: 2, py: 1.25, px: 2.5 }}
               >
-                <Iconify icon="solar:chat-round-dots-bold" width={24} />
+                {renderFotoDeLaConversacion(navItem)}
                 <ListItemText
                   primary={navItem.displayName}
                   secondary={navItem.displayText}

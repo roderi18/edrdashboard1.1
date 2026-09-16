@@ -6,11 +6,59 @@ import { createCachedChatAuthenticator } from '../../src/server/chat-auth-core.m
 import { buildConversationPage } from '../../src/server/chat-pagination.mjs';
 import { chunkPresenceIds } from '../../src/sections/chat/utils/presence-state.mjs';
 import { mergeRealtimeMessageChanges } from '../../src/sections/chat/utils/realtime-sync.mjs';
+import {
+  crearConversacionOptimista,
+  resolverConversacionVisible,
+} from '../../src/sections/chat/utils/conversacion-recien-creada.mjs';
 
 const makeToken = () => {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
   return `${encode({ alg: 'none' })}.${encode({ exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
 };
+
+test('el primer mensaje conserva la conversación visible mientras termina la carga por id', () => {
+  const conversacionRecienCreada = {
+    id: 'chat-42-99',
+    messages: [{ id: 'mensaje-1', body: 'Hola' }],
+  };
+
+  const duranteLaNavegacion = resolverConversacionVisible({
+    conversacionDelServidor: undefined,
+    conversacionRecienCreada,
+    idConversacionSeleccionada: 'chat-42-99',
+    cargando: true,
+  });
+
+  assert.equal(duranteLaNavegacion.conversacion, conversacionRecienCreada);
+  assert.equal(duranteLaNavegacion.cargando, false);
+
+  const otraConversacion = resolverConversacionVisible({
+    conversacionDelServidor: undefined,
+    conversacionRecienCreada,
+    idConversacionSeleccionada: 'chat-distinto',
+    cargando: true,
+  });
+
+  assert.equal(otraConversacion.conversacion, undefined);
+  assert.equal(otraConversacion.cargando, true);
+});
+
+test('el primer mensaje se pinta como enviado pendiente antes de crear la conversación', () => {
+  const conversacion = crearConversacionOptimista({
+    conversacion: { id: 'provisional', messages: [] },
+    mensaje: { id: 'mensaje-1', senderId: '42' },
+    texto: 'Mensaje inmediato',
+  });
+
+  assert.deepEqual(conversacion.messages, [
+    {
+      id: 'mensaje-1',
+      senderId: '42',
+      body: 'Mensaje inmediato',
+      estadoEnvio: 'enviando',
+    },
+  ]);
+});
 
 test('large realtime message sets merge without duplicates or data loss', () => {
   const messages = Array.from({ length: 10_000 }, (_, index) => ({

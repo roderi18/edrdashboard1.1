@@ -8,6 +8,8 @@ import {
   validateChatGroupRemoval,
   transferChatGroupOwnership,
   updateChatGroupAdministrator,
+  CHAT_GROUP_HISTORY_VISIBILITY,
+  applyAddedParticipantHistoryVisibility,
 } from '../../src/server/chat-group-core.mjs';
 
 const group = {
@@ -99,5 +101,51 @@ test('administrador actualiza nombre y avatar con validación', () => {
       avatarUrl: 'http://inseguro.test/a.png',
     }),
     ChatGroupError
+  );
+});
+
+test('un participante nuevo puede entrar sin historial, con la última hora o con todo', () => {
+  const now = '2026-09-16T12:00:00.000Z';
+  const previous = { 77: '2026-09-10T00:00:00.000Z', 99: '2026-09-11T00:00:00.000Z' };
+
+  assert.deepEqual(
+    applyAddedParticipantHistoryVisibility({
+      currentCutoffs: previous,
+      participantIds: [77],
+      visibility: CHAT_GROUP_HISTORY_VISIBILITY.NONE,
+      now,
+    }),
+    { ...previous, 77: '2026-09-16T11:59:59.999Z' }
+  );
+
+  assert.deepEqual(
+    applyAddedParticipantHistoryVisibility({
+      currentCutoffs: previous,
+      participantIds: [77],
+      visibility: CHAT_GROUP_HISTORY_VISIBILITY.LAST_HOUR,
+      now,
+    }),
+    { ...previous, 77: '2026-09-16T11:00:00.000Z' }
+  );
+
+  assert.deepEqual(
+    applyAddedParticipantHistoryVisibility({
+      currentCutoffs: previous,
+      participantIds: [77],
+      visibility: CHAT_GROUP_HISTORY_VISIBILITY.ALL,
+      now,
+    }),
+    { 99: previous[99] }
+  );
+});
+
+test('una opción de historial desconocida se rechaza sin agregar participantes', () => {
+  assert.throws(
+    () =>
+      applyAddedParticipantHistoryVisibility({
+        participantIds: [77],
+        visibility: 'cualquier_cosa',
+      }),
+    (error) => error.code === 'CHAT_GROUP_HISTORY_VISIBILITY_INVALID'
   );
 });

@@ -928,6 +928,14 @@ export function ProfileHome({
         p: { xs: 2, sm: 3 },
         flexShrink: 0,
         border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        // EL MURO SE SALE DE MARGENES EN EL CELULAR, LA CAJA DE ESCRIBIR NO.
+        //
+        // Las publicaciones van de borde a borde para que las fotos respiren
+        // (`MOBILE_EDGE_TO_EDGE_POSTS`), y esta caja se iba con ellas: 16px mas
+        // ancha por cada lado que la tira de Historias que tiene justo encima,
+        // con lo que las dos tarjetas se veian descuadradas. Aqui no hay foto que
+        // ganar ancho, asi que se le devuelve el margen de la pagina.
+        ...(MOBILE_EDGE_TO_EDGE_POSTS && { mx: { xs: 2, sm: 0 } }),
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="flex-start">

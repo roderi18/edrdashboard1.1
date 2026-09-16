@@ -11,6 +11,7 @@ import { fDateTime } from 'src/utils/format-time';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 
 import { CollapseButton } from './styles';
+import { pesoDeArchivo } from './utils/peso-de-archivo.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -45,6 +46,12 @@ export function ChatRoomAttachments({ attachments }) {
         attachment?.preview || attachment?.url || attachment?.downloadURL || attachmentName;
       const attachmentUrl = attachment?.url || attachment?.downloadURL || attachment?.preview;
       const attachmentCreatedAt = attachment?.createdAt || attachment?.fechaCarga;
+      // LO QUE PESA, AL LADO DE LA FECHA. La cabecera del panel dice el total de
+      // los tres, pero no cual de ellos son los 500 kB: antes de descargarlo con
+      // datos del telefono conviene saberlo.
+      const peso = pesoDeArchivo(
+        attachment?.size || attachment?.tamano || attachment?.tamanoOriginal
+      );
 
       return (
       <Box
@@ -64,7 +71,7 @@ export function ChatRoomAttachments({ attachments }) {
 
         <ListItemText
           primary={attachmentName}
-          secondary={fDateTime(attachmentCreatedAt)}
+          secondary={[fDateTime(attachmentCreatedAt), peso].filter(Boolean).join(' · ')}
           slotProps={{
             primary: { noWrap: true, sx: { typography: 'body2' } },
             secondary: {

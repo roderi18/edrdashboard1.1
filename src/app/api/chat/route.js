@@ -51,6 +51,13 @@ import {
   applyChatMessageLifecycleAction,
 } from 'src/server/chat-message-lifecycle.mjs';
 import {
+  AVISO_SEGUNDO,
+  relojSinResponder,
+  avisoPendienteDeBuzon,
+  idDeAvisoSinResponder,
+  textoDeAvisoSinResponder,
+} from 'src/server/chat-buzon-sin-responder.mjs';
+import {
   autenticarBuzon,
   perfilesDelBuzon,
   contactosDeBuzones,
@@ -82,6 +89,8 @@ import {
   validateChatGroupRemoval,
   transferChatGroupOwnership,
   updateChatGroupAdministrator,
+  CHAT_GROUP_HISTORY_VISIBILITY,
+  applyAddedParticipantHistoryVisibility,
 } from 'src/server/chat-group-core.mjs';
 
 // ----------------------------------------------------------------------
@@ -500,7 +509,7 @@ const conversationToUi = async (
   { includeReceipts = true, summaryOnly = false, enrichParticipantPhotos = true } = {}
 ) => {
   const visibilityCutoff = getPersonalClearCutoff(conversation, viewerIdMiembros);
-  const loadedMessages =
+  const candidateMessages =
     messages ??
     (summaryOnly
       ? conversation.ultimoMensaje
@@ -513,6 +522,14 @@ const conversationToUi = async (
             chatStore
           )
         ).map((message) => messageToUi(message)));
+  const visibilityCutoffMs = visibilityCutoff ? new Date(visibilityCutoff).getTime() : null;
+  const loadedMessages = visibilityCutoff
+    ? candidateMessages.filter((message) => {
+        const sentAtMs = new Date(message.enviadoEn ?? message.createdAt ?? '').getTime();
+
+        return Number.isFinite(sentAtMs) && sentAtMs > visibilityCutoffMs;
+      })
+    : candidateMessages;
   const receipts =
     includeReceipts && chatStore
       ? await getConversationReceipts(conversation.idConversacion ?? conversation.id, chatStore)
@@ -552,6 +569,7 @@ const conversationToUi = async (
       conversation.creadoEn ??
       conversation.createdAt ??
       null,
+    visibleAfter: visibilityCutoff,
     participants: enrichParticipantPhotos
       ? await Promise.all(asArray(conversation.participantes).map(contactWithCurrentPhoto))
       : asArray(conversation.participantes).map(toPublicChatContact),
@@ -848,6 +866,124 @@ async function createMessageNotifications({ conversation = {}, message = {} }) {
   );
 }
 
+// ----------------------------------------------------------------------
+// AVISAR DE LO QUE LE ESCRIBEN A UN BUZON Y NADIE CONTESTA.
+//
+// Cuando y a quien esta en `chat-buzon-sin-responder.mjs`; aqui solo se escribe.
+//
+// SE MIRA CUANDO ALGUIEN PREGUNTA POR SU BANDEJA. No hay tareas programadas en
+// esta aplicacion, asi que el momento de comprobarlo es el unico que hay: cuando
+// quien atiende el buzon tiene la aplicacion abierta y el panel pide su contador
+// (`unread-summary`). Las conversaciones ya vienen leidas de esa misma consulta,
+// asi que mirar el reloj no cuesta ni una lectura mas.
+//
+// Y SE MIRA POCO. Ese contador se pide a menudo y lo piden todos los que
+// atienden el buzon; sin este freno, cada uno repetiria la misma comprobacion.
+// Un minuto arriba o abajo no le cambia nada a un plazo de una hora.
+const ULTIMA_REVISION_DE_BUZON = new Map();
+const CADA_CUANTO_SE_REVISA_MS = 5 * 60_000;
+
+const existeNotificacion = async (id) => {
+  if (isAdminConfigured()) {
+    return (
+      await getAdminDb().collection(COLECCIONES_NOTIFICACIONES.notificaciones).doc(id).get()
+    ).exists;
+  }
+
+  return (await getDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id))).exists();
+};
+
+async function avisarDeLoQueNadieContesta(buzon, conversaciones = []) {
+  const ahora = Date.now();
+
+  if (ahora - (ULTIMA_REVISION_DE_BUZON.get(buzon.clave) ?? 0) < CADA_CUANTO_SE_REVISA_MS) return;
+
+  ULTIMA_REVISION_DE_BUZON.set(buzon.clave, ahora);
+
+  const pendientes = conversaciones
+    .map((conversacion) => ({
+      conversacion,
+      paso: avisoPendienteDeBuzon({ conversacion, idMiembrosBuzon: buzon.idMiembros, ahora }),
+    }))
+    .filter((pendiente) => pendiente.paso);
+
+  if (!pendientes.length) return;
+
+  // Quien ejerce el cargo del buzon y el Administrador Global: los mismos que
+  // reciben el aviso del mensaje.
+  const perfiles = await perfilesDelBuzon(buzon).catch(() => []);
+
+  if (!perfiles.length) return;
+
+  await Promise.all(
+    pendientes.flatMap(({ conversacion, paso }) => {
+      const idConversacion = String(conversacion.idConversacion ?? conversacion.id ?? '');
+      const remitenteIdMiembros = Number(conversacion.ultimoMensaje?.remitenteIdMiembros);
+      const remitente = asArray(conversacion.participantes).find(
+        (participante) => Number(participante.idMiembros) === remitenteIdMiembros
+      );
+      const nombreDeQuienEscribio = buildNombreCompleto(remitente ?? {});
+      const texto = textoDeAvisoSinResponder({ buzon, paso, nombreDeQuienEscribio });
+
+      return perfiles.map(async (perfil) => {
+        const id = idDeAvisoSinResponder({ buzon, idConversacion, paso, uid: perfil.uid });
+
+        // Si ya se escribio, no se toca: `guardarNotificacionConfigurada` pisa el
+        // documento entero, y volver a escribirlo la devolveria a "no leida" cada
+        // vez que alguien abre la aplicacion.
+        if (await existeNotificacion(id).catch(() => true)) return;
+
+        await guardarNotificacionConfigurada({
+          id,
+          tipoNotificacion: 'buzon_sin_responder',
+          modulo: 'mensajes',
+          titulo: `Sin responder en ${buzon.nombre}`,
+          tituloHtml: `<p><strong>${escapeHtml(nombreDeQuienEscribio)}</strong> sigue esperando respuesta</p>`,
+          mensaje: texto,
+          mensajeVisual: texto,
+          rolDestinatario: perfil.rolDestinatario,
+          idsDestinatarios: [perfil.uid],
+          prioridad: paso === AVISO_SEGUNDO ? 'urgente' : 'importante',
+          estado: 'no_leida',
+          fechaCreacion: nowIso(),
+          fechaEnvio: nowIso(),
+          actorId: String(remitenteIdMiembros || ''),
+          actorTipo: 'usuario',
+          actorNombre: nombreDeQuienEscribio,
+          actorFotoURL: null,
+          entidadTipo: 'conversacion',
+          entidadId: idConversacion,
+          ruta: `/dashboard/chat?id=${idConversacion}&bandeja=${buzon.clave}`,
+          imagenTipo: 'persona',
+          imagenURL: null,
+          miniaturaURL: null,
+          tipoAccion: 'responder',
+          etiquetaAccion: 'Responder',
+          tipoAccionSecundaria: null,
+          etiquetaAccionSecundaria: null,
+          leidaPor: [],
+          fechaProgramada: null,
+          fechaExpiracion: null,
+          fechaLectura: null,
+          metadatos: {
+            // El texto entero, para que la plantilla configurable lo pinte tal
+            // cual: el primer aviso y el segundo no dicen lo mismo.
+            textoDelAviso: texto,
+            buzon: buzon.clave,
+            paso,
+            idConversacion,
+            remitenteIdMiembros,
+            sinResponderDesde:
+              conversacion.sinResponderDesde || conversacion.ultimoMensaje?.enviadoEn || '',
+          },
+          creadoEnServidor: serverTimestamp(),
+          actualizadoEnServidor: serverTimestamp(),
+        });
+      });
+    })
+  );
+}
+
 async function getAdminNotificationProfiles() {
   const snapshots = await Promise.all(
     COLECCIONES_USUARIOS.map((collectionName) =>
@@ -1054,6 +1190,22 @@ async function getUnreadSummary(viewerIdMiembros, chatStore) {
     }
   });
 
+  // De paso, lo que lleva demasiado tiempo sin contestar en este buzon. Es un
+  // extra: si falla, el contador se devuelve igual.
+  const buzonDelResumen = buzonPorIdMiembros(viewerId);
+
+  if (buzonDelResumen) {
+    await avisarDeLoQueNadieContesta(buzonDelResumen, conversations).catch((error) => {
+      console.warn(
+        JSON.stringify({
+          event: 'chat_notification_error',
+          stage: 'buzon_sin_responder',
+          ...toSafeChatErrorMetric(error),
+        })
+      );
+    });
+  }
+
   return {
     unreadByConversation,
     unreadConversationCount: Object.keys(unreadByConversation).length,
@@ -1159,6 +1311,16 @@ async function createConversation(conversationData = {}, chatActor = {}, chatSto
     noLeidosPorIdMiembros,
     activa: true,
     eliminada: false,
+    // El reloj de lo que nadie contesta, desde el primer mensaje: escribirle a
+    // la Tienda estrena la conversacion, y ese mensaje cuenta como los demas.
+    ...(primerMensaje
+      ? (relojSinResponder({
+          participantesIds,
+          remitenteIdMiembros: primerMensaje.remitenteIdMiembros,
+          enviadoEn: primerMensaje.enviadoEn,
+          esBuzon: esBuzonCompartido,
+        }) ?? {})
+      : {}),
   };
 
   await chatStore.setDocument(conversationPath, conversationDoc);
@@ -1233,6 +1395,18 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
         : Number(noLeidosPorIdMiembros[key] || 0) + 1;
   });
 
+  // EL RELOJ DE LO QUE NADIE CONTESTA. Solo en las conversaciones de un buzon:
+  // arranca con el primer mensaje sin respuesta y se para cuando el buzon
+  // contesta. De el salen los avisos de "lleva una hora esperando" (ver
+  // `chat-buzon-sin-responder.mjs`).
+  const relojDelBuzon = relojSinResponder({
+    participantesIds: asArray(existingConversation.participantesIds),
+    sinResponderDesde: existingConversation.sinResponderDesde,
+    remitenteIdMiembros: messageDoc.remitenteIdMiembros,
+    enviadoEn: messageDoc.enviadoEn,
+    esBuzon: esBuzonCompartido,
+  });
+
   await chatStore.setDocument(
     `${conversationPath}/${SUBCOLECCION_MENSAJES}/${messageDoc.idMensaje}`,
     messageDoc
@@ -1251,6 +1425,7 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
         enviadoEn: messageDoc.enviadoEn,
       },
       noLeidosPorIdMiembros,
+      ...(relojDelBuzon ?? {}),
     },
     { merge: true }
   );
@@ -1467,6 +1642,7 @@ async function commitGroupChange({
   action,
   update,
   systemText,
+  auditDetails = {},
 }) {
   const changedAt = nowIso();
   const conversationPath = `${COLECCION_CONVERSACIONES}/${conversationId}`;
@@ -1517,7 +1693,7 @@ async function commitGroupChange({
     actorIdMiembros: viewerId,
     messageId: systemMessage.idMensaje,
     now: changedAt,
-    details: { participantes: participantIds.length },
+    details: { participantes: participantIds.length, ...auditDetails },
   });
 
   await chatStore.commitWrites([
@@ -1549,6 +1725,7 @@ async function updateConversationAction({
   chatActor = {},
   comment = '',
   newParticipants = [],
+  historyVisibility = CHAT_GROUP_HISTORY_VISIBILITY.NONE,
   targetIdMiembros = null,
   administratorIdMiembros = null,
   makeAdmin = false,
@@ -1846,13 +2023,19 @@ async function updateConversationAction({
       getMembersFromApi().catch(() => []),
       getMembersFromFirestoreProfiles().catch(() => []),
     ]);
-    const contacts = getAllContacts([...members, ...firestoreProfiles]);
+    // CON LOS BUZONES DENTRO. Sin ellos, agregar la Tienda Virtual o la Oficina
+    // Nacional a un grupo no encontraba a nadie con ese numero y la operacion se
+    // caia entera con un "no se pudo actualizar el chat": un buzon no sale del
+    // padron, se añade aparte, como en el resto de la ruta.
+    const contacts = await conLosBuzones(getAllContacts([...members, ...firestoreProfiles]));
 
     const nuevosParticipantes = candidatos
       .map((candidato) => resolveParticipantFromContacts(candidato, contacts))
+      // A quien no se reconoce se le deja fuera y ya. Preguntandole el numero a
+      // un `null`, un solo candidato raro tumbaba la peticion entera.
       .filter(
         (member) =>
-          member.idMiembros &&
+          member?.idMiembros &&
           !asArray(existingConversation.participantesIds).includes(member.idMiembros)
       )
       .map(toPublicChatContact);
@@ -1874,6 +2057,13 @@ async function updateConversationAction({
       ]),
     ];
     const noLeidosPorIdMiembros = { ...(existingConversation.noLeidosPorIdMiembros ?? {}) };
+    const addedAt = nowIso();
+    const ocultoAntesPorIdMiembros = applyAddedParticipantHistoryVisibility({
+      currentCutoffs: existingConversation.ocultoAntesPorIdMiembros,
+      participantIds: nuevosParticipantes.map((member) => member.idMiembros),
+      visibility: historyVisibility,
+      now: addedAt,
+    });
 
     nuevosParticipantes.forEach((member) => {
       noLeidosPorIdMiembros[String(member.idMiembros)] = 0;
@@ -1895,12 +2085,20 @@ async function updateConversationAction({
         participantes,
         participantesIds,
         noLeidosPorIdMiembros,
+        ocultoAntesPorIdMiembros,
         tipoConversacion: 'GRUPAL',
         administradoresIds: asArray(existingConversation.administradoresIds).length
           ? existingConversation.administradoresIds
           : [existingConversation.creadoPorIdMiembros],
       },
-      systemText: `${actorName} agregó a ${nuevosParticipantes.map(buildNombreCompleto).join(', ')} al grupo.`,
+      systemText: `${actorName} agregó a ${nuevosParticipantes.map(buildNombreCompleto).join(', ')} al grupo. ${
+        historyVisibility === CHAT_GROUP_HISTORY_VISIBILITY.ALL
+          ? 'Podrá ver todo el historial.'
+          : historyVisibility === CHAT_GROUP_HISTORY_VISIBILITY.LAST_HOUR
+            ? 'Podrá ver los mensajes de la última hora.'
+            : 'No podrá ver los mensajes anteriores.'
+      }`,
+      auditDetails: { historialCompartido: historyVisibility },
     });
   }
 
@@ -2211,6 +2409,7 @@ export async function PATCH(req) {
           chatActor,
           comment: body.comment,
           newParticipants: body.newParticipants,
+          historyVisibility: body.historyVisibility,
           targetIdMiembros: toNumberOrNull(body.targetIdMiembros),
           administratorIdMiembros: toNumberOrNull(body.administratorIdMiembros),
           makeAdmin: Boolean(body.makeAdmin),

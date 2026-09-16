@@ -1,5 +1,5 @@
 import { uuidv4 } from 'minimal-shared/utils';
-import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, forwardRef, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -9,6 +9,7 @@ import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
+import TextareaAutosize from '@mui/material/TextareaAutosize';
 
 import { useRouter } from 'src/routes/hooks';
 
@@ -34,9 +35,98 @@ import { Iconify } from 'src/components/iconify';
 import { SelectorDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
 import { rutaDelChat } from './utils/ruta-del-chat';
-import { buildChatDraftKey } from './utils/productivity.mjs';
+import { pesoDeArchivo } from './utils/peso-de-archivo.mjs';
 import { useBuzonesDelChat } from './hooks/use-buzones-del-chat';
 import { initialConversation } from './utils/initial-conversation';
+import { ESTILO_DE_MENCION_AL_ESCRIBIR } from './utils/estilo-de-mencion';
+import { crearConversacionOptimista } from './utils/conversacion-recien-creada.mjs';
+import { partirPorMenciones, nombresMencionables } from './utils/menciones-en-el-texto.mjs';
+import {
+  buildChatDraftKey,
+  moveMentionSelection,
+  filterMentionCandidates,
+} from './utils/productivity.mjs';
+
+// ----------------------------------------------------------------------
+// LA CAJA DE ESCRIBIR, CON LAS MENCIONES YA DEL COLOR EN QUE VAN A SALIR.
+//
+// Un area de texto no sabe pintar media palabra de otro color: es texto plano.
+// Asi que "@Fulano" se escribia en gris y salia del color de la casa al pulsar
+// Enter, como si el nombre no hubiera quedado bien puesto hasta enviarlo.
+//
+// Debajo del area va un ESPEJO: el mismo texto, en la misma caja, con las
+// menciones pintadas. Al area se le quita el relleno de las letras —no el
+// cursor, que se pide aparte— y lo que se ve es el espejo. Los dos ocupan la
+// MISMA celda de una rejilla y llevan la misma clase, asi que comparten fuente,
+// margenes y forma de partir las lineas: no hay medidas que cuadrar a mano.
+//
+// El espejo solo aparece cuando hay alguna mencion. Sin el, el area se pinta
+// sola como siempre —y el texto de ejemplo, que tambien es texto del area, se
+// sigue viendo—.
+// ----------------------------------------------------------------------
+
+const MAX_FILAS_ESCRITAS = 5;
+
+const EntradaConMenciones = forwardRef(function EntradaConMenciones(
+  { partesDelTexto = [], className, style, onScroll, ...otros },
+  ref
+) {
+  const espejoRef = useRef(null);
+  const hayMenciones = partesDelTexto.some((parte) => parte.esMencion);
+
+  const igualarDesplazamiento = (evento) => {
+    if (espejoRef.current) espejoRef.current.scrollTop = evento.currentTarget.scrollTop;
+    onScroll?.(evento);
+  };
+
+  return (
+    <Box sx={{ display: 'grid', width: 1, minWidth: 0 }}>
+      {hayMenciones && (
+        <Box
+          aria-hidden
+          ref={espejoRef}
+          className={className}
+          sx={{
+            gridArea: '1 / 1',
+            overflow: 'hidden',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
+            pointerEvents: 'none',
+          }}
+        >
+          {partesDelTexto.map((parte, indice) => (
+            <Box
+              key={`${indice}-${parte.texto}`}
+              component="span"
+              sx={parte.esMencion ? ESTILO_DE_MENCION_AL_ESCRIBIR : undefined}
+            >
+              {parte.texto}
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      <TextareaAutosize
+        {...otros}
+        ref={ref}
+        className={className}
+        maxRows={MAX_FILAS_ESCRITAS}
+        onScroll={igualarDesplazamiento}
+        style={{
+          ...style,
+          gridArea: '1 / 1',
+          ...(hayMenciones && {
+            color: 'transparent',
+            WebkitTextFillColor: 'transparent',
+            // El cursor hereda el color del texto, y el texto es invisible: sin
+            // esto se escribia a ciegas.
+            caretColor: 'var(--palette-text-primary)',
+          }),
+        }}
+      />
+    </Box>
+  );
+});
 
 // ----------------------------------------------------------------------
 
@@ -60,12 +150,6 @@ const isZipOrPdf = (file) => {
   return ALLOWED_DOCUMENT_TYPES.has(file?.type) || name.endsWith('.pdf') || name.endsWith('.zip');
 };
 
-const formatFileSize = (bytes = 0) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const buildAttachmentMessage = ({ upload, senderId, contentType }) => ({
   id: uuidv4(),
   attachments: [upload],
@@ -82,12 +166,12 @@ export function ChatMessageInput({
   groupName,
   participants = [],
   currentContact,
-  onAddRecipients,
   replyMessage,
   editingMessage,
   onClearReply,
   onClearEditing,
   selectedConversationId,
+  onConversationCreated,
   sharedMessage,
   onConsumeSharedMessage,
   respondiendoComo = '',
@@ -112,6 +196,7 @@ export function ChatMessageInput({
   const [isUploading, setIsUploading] = useState(false);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [mentionQuery, setMentionQuery] = useState(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const emojiPickerOpen = Boolean(emojiAnchorEl);
   const draftKey = useMemo(
     () =>
@@ -123,12 +208,32 @@ export function ChatMessageInput({
     [currentContact.id, currentContact.idMiembros, recipients, selectedConversationId]
   );
 
-  const mentionCandidates =
-    mentionQuery !== null
-      ? participants.filter((participant) =>
-          participant.name?.toLowerCase().includes(mentionQuery.toLowerCase())
-        )
-      : [];
+  // El texto ya partido en trozos, para que el espejo pinte las menciones. Se
+  // calcula una vez por cambio: es la misma regla que usa el mensaje enviado.
+  const partesDelTexto = useMemo(
+    () => partirPorMenciones(message, nombresMencionables(participants)),
+    [message, participants]
+  );
+
+  const mentionCandidates = useMemo(
+    () =>
+      mentionQuery !== null
+        ? filterMentionCandidates({
+            participants,
+            query: mentionQuery,
+            currentMemberId: currentContact.idMiembros ?? currentContact.id,
+          })
+        : [],
+    [currentContact.id, currentContact.idMiembros, mentionQuery, participants]
+  );
+
+  useEffect(() => {
+    if (!mentionCandidates.length) return;
+
+    document
+      .getElementById(`chat-mention-option-${mentionIndex}`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [mentionCandidates.length, mentionIndex]);
 
   useEffect(() => {
     if (editingMessage) {
@@ -267,6 +372,7 @@ export function ChatMessageInput({
 
       const mentionMatch = value.match(/(?:^|\s)@([^@\n]*)$/u);
       setMentionQuery(mentionMatch ? mentionMatch[1].trimStart() : null);
+      setMentionIndex(0);
 
       if (!value.trim()) {
         stopTyping();
@@ -293,6 +399,7 @@ export function ChatMessageInput({
       currentMessage.replace(/@([^@\n]*)$/u, `@${participant.name} `)
     );
     setMentionQuery(null);
+    setMentionIndex(0);
     inputRef.current?.focus();
   }, []);
 
@@ -319,9 +426,18 @@ export function ChatMessageInput({
     const deliveredAttachmentIds = new Set();
     let activeConversationId = selectedConversationId;
     let localImageMessageId = null;
+    const optimisticFirstConversation =
+      !activeConversationId && textToSend && !attachmentsToSend.length
+        ? crearConversacionOptimista({
+            conversacion: conversationData,
+            mensaje: messageData,
+            texto: textToSend,
+          })
+        : null;
 
     stopTyping();
     setMessage('');
+    if (optimisticFirstConversation) onConversationCreated?.(optimisticFirstConversation);
     uploadAbortControllerRef.current = new AbortController();
 
     if (attachmentsToSend.length) {
@@ -357,8 +473,8 @@ export function ChatMessageInput({
           );
 
           activeConversationId = res.conversation.id;
+          onConversationCreated?.(res.conversation);
           router.push(rutaDelChat({ id: activeConversationId, bandeja }));
-          onAddRecipients([]);
         }
 
         const imageAttachments = attachmentsToSend.filter((item) => item.contentType === 'image');
@@ -494,9 +610,8 @@ export function ChatMessageInput({
           },
           currentContact.idMiembros
         );
+        onConversationCreated?.(res.conversation);
         router.push(rutaDelChat({ id: res.conversation.id, bandeja }));
-
-        onAddRecipients([]);
       }
 
       onClearReply?.();
@@ -505,6 +620,7 @@ export function ChatMessageInput({
       const errorMessage = getChatErrorMessage(error, 'No se pudo enviar el mensaje.');
       logChatClientError('send-message', error);
       toast.error(errorMessage);
+      if (optimisticFirstConversation) onConversationCreated?.(null);
       const cancelled = error?.cancelled || error?.code === 'chat/upload-cancelled';
       if (localImageMessageId && activeConversationId) {
         await removeLocalMessage(activeConversationId, localImageMessageId).catch(() => undefined);
@@ -532,7 +648,7 @@ export function ChatMessageInput({
     editingMessage,
     message,
     messageData,
-    onAddRecipients,
+    onConversationCreated,
     onClearEditing,
     bandeja,
     onClearReply,
@@ -548,12 +664,43 @@ export function ChatMessageInput({
 
   const handleSendMessage = useCallback(
     async (event) => {
+      if (event.nativeEvent?.isComposing) return;
+
+      if (mentionCandidates.length) {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          setMentionIndex(
+            (current) =>
+              moveMentionSelection({
+                currentIndex: current,
+                count: mentionCandidates.length,
+                direction,
+              })
+          );
+          return;
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setMentionQuery(null);
+          setMentionIndex(0);
+          return;
+        }
+
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          handleSelectMention(mentionCandidates[mentionIndex] ?? mentionCandidates[0]);
+          return;
+        }
+      }
+
       if (event.key !== 'Enter' || event.shiftKey) return;
 
       event.preventDefault();
       await handleSubmitMessage();
     },
-    [handleSubmitMessage]
+    [handleSelectMention, handleSubmitMessage, mentionCandidates, mentionIndex]
   );
 
   const handleUploadImages = useCallback(async (event) => {
@@ -837,7 +984,7 @@ export function ChatMessageInput({
                   {item.status === 'uploaded' && 'Listo para enviar'}
                   {item.status === 'error' && 'Error; puedes reintentar'}
                   {item.status === 'cancelled' && 'Carga cancelada'}
-                  {(!item.status || item.status === 'pending') && formatFileSize(item.file.size)}
+                  {(!item.status || item.status === 'pending') && pesoDeArchivo(item.file.size)}
                 </Typography>
                 {item.status === 'uploading' && (
                   <LinearProgress
@@ -918,7 +1065,7 @@ export function ChatMessageInput({
               />
             )}
             <Typography noWrap variant="caption" sx={{ mt: 1, display: 'block' }}>
-              {previewAttachment.file.name} · {formatFileSize(previewAttachment.file.size)}
+              {previewAttachment.file.name} · {pesoDeArchivo(previewAttachment.file.size)}
             </Typography>
           </Box>
         )}
@@ -927,7 +1074,7 @@ export function ChatMessageInput({
       <InputBase
         inputRef={inputRef}
         multiline
-        maxRows={5}
+        maxRows={MAX_FILAS_ESCRITAS}
         name="chat-message"
         id="chat-message-input"
         value={message}
@@ -935,7 +1082,20 @@ export function ChatMessageInput({
         onChange={handleChangeMessage}
         onBlur={stopTyping}
         placeholder="Escribe un mensaje"
-        inputProps={{ 'aria-label': 'Escribir mensaje. Enter envía y Mayús más Enter crea una línea.' }}
+        inputComponent={EntradaConMenciones}
+        inputProps={{
+          partesDelTexto,
+          // El area de texto no lleva `type`: MUI se lo quita a la suya y a la
+          // nuestra no, porque no es la suya. React lo pintaria en el HTML.
+          type: undefined,
+          'aria-label': 'Escribir mensaje. Enter envía y Mayús más Enter crea una línea.',
+          'aria-autocomplete': 'list',
+          'aria-controls': mentionCandidates.length ? 'chat-mention-options' : undefined,
+          'aria-expanded': Boolean(mentionCandidates.length),
+          'aria-activedescendant': mentionCandidates.length
+            ? `chat-mention-option-${mentionIndex}`
+            : undefined,
+        }}
         disabled={disabled || isUploading}
         startAdornment={
           <IconButton
@@ -1002,21 +1162,26 @@ export function ChatMessageInput({
       <Popover
         open={!!mentionCandidates.length}
         anchorEl={inputRef.current}
-        onClose={() => setMentionQuery(null)}
+        onClose={() => {
+          setMentionQuery(null);
+          setMentionIndex(0);
+        }}
         disableAutoFocus
         disableEnforceFocus
         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{ paper: { sx: { width: 240, maxHeight: 240 } } }}
       >
-        <Box role="listbox" aria-label="Sugerencias de menciones">
-          {mentionCandidates.map((participant) => (
+        <Box id="chat-mention-options" role="listbox" aria-label="Sugerencias de menciones">
+          {mentionCandidates.map((participant, index) => (
             <Box
               key={participant.idMiembros ?? participant.id}
+              id={`chat-mention-option-${index}`}
               component="button"
               type="button"
               role="option"
-              aria-selected="false"
+              aria-selected={index === mentionIndex}
+              onMouseEnter={() => setMentionIndex(index)}
               onClick={() => handleSelectMention(participant)}
               sx={{
                 p: 1,
@@ -1027,12 +1192,12 @@ export function ChatMessageInput({
                 cursor: 'pointer',
                 textAlign: 'left',
                 alignItems: 'center',
-                bgcolor: 'transparent',
+                bgcolor: index === mentionIndex ? 'action.selected' : 'transparent',
                 typography: 'body2',
                 '&:hover': { bgcolor: 'action.hover' },
               }}
             >
-              {participant.name}
+              {participant.mentionAll ? '@todos' : participant.name}
             </Box>
           ))}
         </Box>

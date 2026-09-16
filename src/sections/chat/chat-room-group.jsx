@@ -2,16 +2,20 @@ import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Badge from '@mui/material/Badge';
+import Radio from '@mui/material/Radio';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import RadioGroup from '@mui/material/RadioGroup';
 import Autocomplete from '@mui/material/Autocomplete';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -23,10 +27,21 @@ import { ChatRoomParticipantDialog } from './chat-room-participant-dialog';
 
 // ----------------------------------------------------------------------
 
+const MAX_VISIBLE_QUEUED_MEMBERS = 5;
+const QUEUED_MEMBERS_MAX_HEIGHT = 170;
+const MAX_VISIBLE_GROUP_PARTICIPANTS = 7;
+const GROUP_PARTICIPANT_ROW_HEIGHT = 56;
+
 export function ChatRoomGroup({
   participants,
   contacts = [],
   currentContact,
+  // SI ESTO ES UN GRUPO DE VERDAD o un chat de dos. Este panel sale en los dos
+  // —en cuanto hay dos personas hay una lista de participantes que enseñar—,
+  // pero lo que se puede HACER no es lo mismo: en un chat de dos no hay
+  // administradores, ni propiedad que transferir, ni grupo del que salir, y
+  // agregar a alguien no es agregarlo aqui: es abrir un grupo nuevo con todos.
+  esGrupo = true,
   creatorIdMiembros,
   administratorIds = [],
   onAddParticipants,
@@ -40,6 +55,8 @@ export function ChatRoomGroup({
   const [selected, setSelected] = useState(null);
   const [newMembers, setNewMembers] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [historyVisibility, setHistoryVisibility] = useState('none');
   const [groupActionLoading, setGroupActionLoading] = useState(false);
   const [transferTarget, setTransferTarget] = useState(null);
 
@@ -53,6 +70,9 @@ export function ChatRoomGroup({
   const currentMemberId = String(currentContact?.idMiembros ?? currentContact?.id ?? '');
   const administratorIdSet = new Set(administratorIds.map(String));
   const isAdministrator = isCreator || administratorIdSet.has(currentMemberId);
+  // En un chat de dos cualquiera puede abrir un grupo con quien quiera: no hay
+  // a quien pedirle permiso.
+  const puedeAgregar = !esGrupo || isAdministrator;
 
   const availableContacts = contacts.filter(
     (contact) =>
@@ -69,22 +89,35 @@ export function ChatRoomGroup({
     setSelected(null);
   }, []);
 
-  const handleAddMembers = useCallback(async () => {
+  const handleAddMembers = useCallback(async (selectedHistoryVisibility = 'none') => {
     if (!newMembers.length) return;
 
     setAdding(true);
 
     try {
-      await onAddParticipants?.(newMembers);
+      await onAddParticipants?.(newMembers, selectedHistoryVisibility);
       setNewMembers([]);
-      toast.success('Miembros agregados al grupo.');
+      setHistoryDialogOpen(false);
+      toast.success(esGrupo ? 'Miembros agregados al grupo.' : 'Grupo creado.');
     } catch (error) {
       console.error(error);
       toast.error(error.message || 'No se pudo agregar a los miembros.');
     } finally {
       setAdding(false);
     }
-  }, [newMembers, onAddParticipants]);
+  }, [esGrupo, newMembers, onAddParticipants]);
+
+  const handleRequestAddMembers = useCallback(() => {
+    if (!newMembers.length) return;
+
+    if (!esGrupo) {
+      void handleAddMembers('none');
+      return;
+    }
+
+    setHistoryVisibility('none');
+    setHistoryDialogOpen(true);
+  }, [esGrupo, handleAddMembers, newMembers.length]);
 
   const handleRemove = useCallback(
     async (participant, event) => {
@@ -148,7 +181,16 @@ export function ChatRoomGroup({
   const totalParticipants = participants.length;
 
   const renderList = () => (
-    <>
+    <Box
+      sx={{
+        ...(totalParticipants > MAX_VISIBLE_GROUP_PARTICIPANTS && {
+          maxHeight: MAX_VISIBLE_GROUP_PARTICIPANTS * GROUP_PARTICIPANT_ROW_HEIGHT,
+          overflowY: 'auto',
+          scrollbarWidth: 'thin',
+          overscrollBehavior: 'contain',
+        }),
+      }}
+    >
       {participants.map((participant, index) => {
         const participantId = String(participant.idMiembros ?? participant.id);
         const status = presenceStatuses[participantId]?.status ?? 'offline';
@@ -157,14 +199,17 @@ export function ChatRoomGroup({
         const participantIsCreator = participantId === String(creatorIdMiembros ?? '');
         const participantIsAdmin = administratorIdSet.has(participantId);
         const canRemove =
-          (!participantIsCreator && isSelf) ||
-          (isCreator && !isSelf) ||
-          (isAdministrator && !participantIsAdmin && !isSelf);
-        const participantRole = participantIsCreator
-          ? 'Creador'
-          : participantIsAdmin
-            ? 'Administrador'
-            : 'Miembro';
+          esGrupo &&
+          ((!participantIsCreator && isSelf) ||
+            (isCreator && !isSelf) ||
+            (isAdministrator && !participantIsAdmin && !isSelf));
+        const participantRole = !esGrupo
+          ? 'Miembro'
+          : participantIsCreator
+            ? 'Creador'
+            : participantIsAdmin
+              ? 'Administrador'
+              : 'Miembro';
 
         return (
           <ListItemButton
@@ -198,7 +243,7 @@ export function ChatRoomGroup({
               </Tooltip>
             )}
 
-            {isCreator && !isSelf && onSetGroupAdministrator && (
+            {esGrupo && isCreator && !isSelf && onSetGroupAdministrator && (
               <Tooltip title={participantIsAdmin ? 'Quitar administrador' : 'Hacer administrador'}>
                 <IconButton
                   size="small"
@@ -215,7 +260,7 @@ export function ChatRoomGroup({
               </Tooltip>
             )}
 
-            {isCreator && !isSelf && onTransferGroupOwnership && (
+            {esGrupo && isCreator && !isSelf && onTransferGroupOwnership && (
               <Tooltip title="Transferir propiedad">
                 <IconButton
                   size="small"
@@ -232,11 +277,11 @@ export function ChatRoomGroup({
           </ListItemButton>
         );
       })}
-    </>
+    </Box>
   );
 
   const renderAddMember = () =>
-    isAdministrator && onAddParticipants && (
+    puedeAgregar && onAddParticipants && (
       <Box sx={{ gap: 1, px: 2, py: 1.5, display: 'flex', flexDirection: 'column' }}>
         <Autocomplete
           multiple
@@ -247,18 +292,83 @@ export function ChatRoomGroup({
           isOptionEqualToValue={(option, value) => option.id === value.id}
           onChange={(event, value) => setNewMembers(value)}
           noOptionsText="No hay más contactos para agregar"
-          renderInput={(params) => <TextField {...params} placeholder="Agregar miembro" />}
+          sx={{
+            '& .MuiAutocomplete-inputRoot': {
+              alignContent: 'flex-start',
+              ...(newMembers.length > MAX_VISIBLE_QUEUED_MEMBERS && {
+                maxHeight: QUEUED_MEMBERS_MAX_HEIGHT,
+                overflowY: 'auto',
+                scrollbarWidth: 'thin',
+                overscrollBehavior: 'contain',
+              }),
+            },
+          }}
+          renderInput={(params) => (
+            <TextField {...params} placeholder={esGrupo ? 'Agregar miembro' : 'Crear un grupo con'} />
+          )}
+          // CON SU CARA, como en "+ Destinatarios" y como en la lista de arriba.
+          // Era una lista de nombres a secas, y en un destacamento hay nombres
+          // que se parecen: quien elige a alguien para meterlo en un grupo lo
+          // reconoce por la foto antes que por el apellido.
+          renderOption={(props, option) => {
+            const { key, ...otherProps } = props;
+
+            return (
+              <Box component="li" key={key} {...otherProps} sx={{ gap: 1 }}>
+                <Avatar
+                  alt={option.name}
+                  src={option.avatarUrl}
+                  slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
+                  sx={{ width: 32, height: 32 }}
+                />
+                {option.name}
+              </Box>
+            );
+          }}
+          renderValue={(elegidos, getItemProps) =>
+            elegidos.map((option, index) => (
+              <Chip
+                {...getItemProps({ index })}
+                key={option.id}
+                size="small"
+                variant="soft"
+                label={option.name}
+                avatar={<Avatar alt={option.name} src={option.avatarUrl} />}
+                sx={{
+                  minWidth: 0,
+                  maxWidth: 'calc(100% - 6px)',
+                  flexBasis: 'calc(100% - 6px)',
+                  '& .MuiChip-label': {
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  },
+                }}
+              />
+            ))
+          }
         />
 
         {!!newMembers.length && (
-          <IconButton
-            color="primary"
-            disabled={adding}
-            onClick={handleAddMembers}
-            sx={{ alignSelf: 'flex-end' }}
-          >
-            <Iconify icon="eva:checkmark-fill" />
-          </IconButton>
+          // CONFIRMAR SE TIENE QUE VER. Era una palomita fina y del color del
+          // texto en una esquina: el paso que remata la operacion parecia un
+          // adorno. Redonda, rellena y del color de la casa se lee como lo que
+          // es —el boton que hay que pulsar— sin necesitar una etiqueta.
+          <Tooltip title={esGrupo ? 'Agregar al grupo' : 'Crear el grupo'}>
+            <IconButton
+              disabled={adding}
+              onClick={handleRequestAddMembers}
+              aria-label={esGrupo ? 'Agregar al grupo' : 'Crear el grupo'}
+              sx={{
+                alignSelf: 'flex-end',
+                color: 'common.white',
+                bgcolor: 'primary.main',
+                '&:hover': { bgcolor: 'primary.dark' },
+                '&.Mui-disabled': { color: 'common.white', opacity: 0.48, bgcolor: 'primary.main' },
+              }}
+            >
+              <Iconify icon="eva:checkmark-fill" width={22} sx={{ strokeWidth: 2 }} />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
     );
@@ -281,6 +391,44 @@ export function ChatRoomGroup({
       {selected && (
         <ChatRoomParticipantDialog participant={selected} open={!!selected} onClose={handleClose} />
       )}
+
+      <ConfirmDialog
+        open={historyDialogOpen}
+        title="¿Qué mensajes podrán ver?"
+        onClose={() => !adding && setHistoryDialogOpen(false)}
+        content={
+          <RadioGroup
+            value={historyVisibility}
+            onChange={(event) => setHistoryVisibility(event.target.value)}
+            sx={{ mt: 1 }}
+          >
+            <FormControlLabel
+              value="none"
+              control={<Radio />}
+              label="Ningún mensaje anterior"
+            />
+            <FormControlLabel
+              value="last_hour"
+              control={<Radio />}
+              label="Mensajes de la última hora"
+            />
+            <FormControlLabel
+              value="all"
+              control={<Radio />}
+              label="Todo el historial"
+            />
+          </RadioGroup>
+        }
+        action={
+          <Button
+            variant="contained"
+            loading={adding}
+            onClick={() => handleAddMembers(historyVisibility)}
+          >
+            Agregar al grupo
+          </Button>
+        }
+      />
 
       <ConfirmDialog
         open={!!transferTarget}

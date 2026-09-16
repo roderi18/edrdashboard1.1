@@ -13,48 +13,13 @@ import {
   markConversationDelivered,
 } from 'src/actions/chat';
 
+import { debeSonarPorMensajeNuevo } from '../utils/sonido-de-mensaje.mjs';
 import { getActiveTypingState, getConversationDeliveryMarker } from '../utils/realtime-sync.mjs';
 
 // ----------------------------------------------------------------------
 
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
-// UN SONIDO POR MENSAJE, NO UNO POR AVISO.
-//
-// Esta escucha esta montada DOS veces a la vez —el marco del panel la usa para
-// la bolita, y la pantalla del chat para la conversacion abierta—, asi que cada
-// mensaje sonaba dos veces. Y dentro de cada una volvia a sonar con cualquier
-// cambio de la conversacion (el acuse de entrega, el contador de no leidos),
-// asi que un solo mensaje podia sonar tres o cuatro veces.
-//
-// Se recuerda AQUI, fuera del componente, cual fue el ultimo mensaje que ya
-// sono en cada conversacion: las dos escuchas comparten esta memoria, y un
-// mensaje solo suena la primera vez que se ve.
-const ultimoMensajeQueSono = new Map();
-
-const debeSonarPorMensajeNuevo = (conversacion, idMiembros) => {
-  const idConversacion = String(conversacion?.idConversacion ?? '');
-  const idMensaje = String(conversacion?.ultimoMensaje?.idMensaje ?? '');
-
-  if (!idConversacion || !idMensaje) return false;
-
-  const yaSonado = ultimoMensajeQueSono.get(idConversacion);
-
-  ultimoMensajeQueSono.set(idConversacion, idMensaje);
-
-  // La primera vez que se ve una conversacion no suena: al entrar llegan todas
-  // de golpe y sonarian todas juntas.
-  if (yaSonado === undefined || yaSonado === idMensaje) return false;
-
-  const esDeOtro =
-    Number(conversacion.ultimoMensaje?.remitenteIdMiembros) !== Number(idMiembros);
-  const sinLeer = Number(conversacion.noLeidosPorIdMiembros?.[String(idMiembros)] ?? 0) > 0;
-  // SILENCIAR LA CONVERSACION SILENCIA SU SONIDO. Es lo que la gente espera del
-  // boton "Silenciar notificaciones" del chat: sin esto seguia sonando igual.
-  const silenciada = Boolean(conversacion.silenciadoPorIdMiembros?.[String(idMiembros)]);
-
-  return esDeOtro && sinLeer && !silenciada;
-};
 
 const DEBOUNCE_MS = 80;
 const TYPING_STALE_MS = 15000;
@@ -86,6 +51,7 @@ export function useChatRealtimeSync({
   enabled = true,
   idMiembros,
   conversationId,
+  visibilityCutoff = null,
   onTypingSnapshot,
 }) {
   const typingTimeoutRef = useRef(null);
@@ -128,8 +94,15 @@ export function useChatRealtimeSync({
     // conversaciones del usuario y descarta las eliminadas en el handler.
     const fallbackQuery = query(conversationsRef, viewerFilter);
 
+    // La primera foto de la suscripcion: Firestore entrega la lista entera como
+    // si fuera nueva, y eso no es correo que acabe de llegar.
+    let primeraFoto = true;
+
     const handleSnapshot = (snapshot) => {
       let shouldRevalidate = false;
+      const esPrimeraFoto = primeraFoto;
+
+      primeraFoto = false;
 
       snapshot.docChanges().forEach((change) => {
         // Con la consulta de reserva, una conversacion eliminada llega como
@@ -157,7 +130,11 @@ export function useChatRealtimeSync({
           currentMemberId: idMiembros,
         });
 
-        if (debeSonarPorMensajeNuevo({ ...conversation, idConversacion: change.doc.id }, idMiembros)) {
+        if (
+          debeSonarPorMensajeNuevo({ ...conversation, idConversacion: change.doc.id }, idMiembros, {
+            primeraFoto: esPrimeraFoto,
+          })
+        ) {
           sonarAviso('mensajeRecibido');
         }
 
@@ -182,8 +159,10 @@ export function useChatRealtimeSync({
     let active = true;
     let unsubscribe = () => {};
 
-    const subscribe = (chatQuery, { allowFallback }) =>
-      onSnapshot(chatQuery, handleSnapshot, (error) => {
+    const subscribe = (chatQuery, { allowFallback }) => {
+      primeraFoto = true;
+
+      return onSnapshot(chatQuery, handleSnapshot, (error) => {
         // `failed-precondition` = el indice compuesto todavia no esta publicado en
         // el proyecto. En vez de dejar el chat sin tiempo real (y con un error en
         // consola), se reintenta con la consulta que no lo necesita.
@@ -199,6 +178,7 @@ export function useChatRealtimeSync({
 
         console.error('[chat] error en el listener de conversaciones', error);
       });
+    };
 
     unsubscribe = subscribe(indexedQuery, { allowFallback: true });
 
@@ -215,6 +195,7 @@ export function useChatRealtimeSync({
     const conversationRef = doc(FIRESTORE, COLECCION_CONVERSACIONES, String(conversationId));
     const messagesQuery = query(
       collection(conversationRef, SUBCOLECCION_MENSAJES),
+      ...(visibilityCutoff ? [where('enviadoEn', '>', visibilityCutoff)] : []),
       orderBy('enviadoEn', 'desc'),
       limit(RECENT_MESSAGES_WINDOW)
     );
@@ -258,6 +239,7 @@ export function useChatRealtimeSync({
           conversation.nombreGrupo,
           conversation.avatarGrupoUrl,
           conversation.administradoresIds,
+          conversation.ocultoAntesPorIdMiembros?.[String(idMiembros)],
           conversation.noLeidosPorIdMiembros?.[String(idMiembros)],
           conversation.silenciadoPorIdMiembros?.[String(idMiembros)],
         ]);
@@ -297,5 +279,5 @@ export function useChatRealtimeSync({
       onTypingSnapshot?.([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, enabled, idMiembros]);
+  }, [conversationId, enabled, idMiembros, visibilityCutoff]);
 }

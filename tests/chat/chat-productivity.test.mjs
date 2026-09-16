@@ -5,6 +5,8 @@ import {
   buildChatDraftKey,
   resolveMentionIds,
   searchChatDirectory,
+  moveMentionSelection,
+  filterMentionCandidates,
   getNextUnreadConversationId,
 } from '../../src/sections/chat/utils/productivity.mjs';
 
@@ -27,6 +29,53 @@ test('resuelve menciones por nombre y deduplica miembros', () => {
     ]),
     [84, 99]
   );
+});
+
+test('@todos menciona a todos los participantes excepto a quien escribe', () => {
+  assert.deepEqual(
+    resolveMentionIds(
+      'Atención @todos, revisen esto.',
+      [
+        { idMiembros: 42, name: 'Persona actual' },
+        { idMiembros: 84, name: 'Alanna Donald' },
+        { idMiembros: 99, name: 'Roderi Peña' },
+      ],
+      42
+    ),
+    [84, 99]
+  );
+});
+
+test('las sugerencias de menciones excluyen al usuario actual y filtran sin tildes', () => {
+  const candidates = filterMentionCandidates({
+    participants: [
+      { idMiembros: 10002, name: 'Roderi Daniel Peña Rosario' },
+      { idMiembros: 10003, name: 'Matías David Pérez Ramos' },
+      { idMiembros: 10004, name: 'Stalin Peralta' },
+    ],
+    query: 'matias',
+    currentMemberId: 10002,
+  });
+
+  assert.deepEqual(candidates.map((candidate) => candidate.idMiembros), [10003]);
+
+  const allCandidates = filterMentionCandidates({
+    participants: [
+      { idMiembros: 10002, name: 'Roderi Daniel Peña Rosario' },
+      { idMiembros: 10003, name: 'Matías David Pérez Ramos' },
+    ],
+    query: '',
+    currentMemberId: 10002,
+  });
+
+  assert.equal(allCandidates[0].mentionAll, true);
+  assert.deepEqual(allCandidates.slice(1).map((candidate) => candidate.idMiembros), [10003]);
+});
+
+test('las flechas recorren circularmente las sugerencias de menciones', () => {
+  assert.equal(moveMentionSelection({ currentIndex: 0, count: 3, direction: 1 }), 1);
+  assert.equal(moveMentionSelection({ currentIndex: 2, count: 3, direction: 1 }), 0);
+  assert.equal(moveMentionSelection({ currentIndex: 0, count: 3, direction: -1 }), 2);
 });
 
 test('busca contactos, conversaciones y últimos mensajes sin datos sensibles', () => {

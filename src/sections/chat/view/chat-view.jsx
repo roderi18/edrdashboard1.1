@@ -2,9 +2,6 @@
 
 import { useMemo, useState, useEffect, useCallback, startTransition } from 'react';
 
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import {
@@ -26,6 +23,7 @@ import {
   loadOlderMessages,
   clearConversation,
   removeParticipant,
+  createConversation,
   updateGroupDetails,
   reportConversation,
   useGetConversation,
@@ -43,15 +41,16 @@ import { useAuthContext } from 'src/auth/hooks';
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
 import { ChatRoom } from '../chat-room';
-import { ChatBandejas } from '../chat-bandejas';
 import { rutaDelChat } from '../utils/ruta-del-chat';
 import { ChatMessageList } from '../chat-message-list';
 import { ChatMessageInput } from '../chat-message-input';
 import { ChatHeaderDetails } from '../chat-header-details';
 import { ChatHeaderCompose } from '../chat-header-compose';
 import { useCollapseNav } from '../hooks/use-collapse-nav';
+import { initialConversation } from '../utils/initial-conversation';
 import { useChatRealtimeSync } from '../hooks/use-chat-realtime-sync';
 import { useChatCurrentContact } from '../hooks/use-chat-current-contact';
+import { resolverConversacionVisible } from '../utils/conversacion-recien-creada.mjs';
 import { useBuzonesDelChat, useAvataresDeBuzones } from '../hooks/use-buzones-del-chat';
 import { conAvataresDeBuzones, identidadDeBuzonEnElChat } from '../utils/buzones-del-chat';
 
@@ -100,8 +99,8 @@ export function ChatView() {
     () =>
       buzonActual
         ? contacts.filter(
-            (contact) => Number(contact.idMiembros ?? contact.id) !== buzonActual.idMiembros
-          )
+          (contact) => Number(contact.idMiembros ?? contact.id) !== buzonActual.idMiembros
+        )
         : contacts,
     [contacts, buzonActual]
   );
@@ -119,23 +118,35 @@ export function ChatView() {
     conversationsLoadingMore,
     loadMoreConversations,
   } = useGetConversations(currentContact.idMiembros);
-  const { conversation, conversationError, conversationLoading } = useGetConversation(
+  const {
+    conversation: conversationFromServer,
+    conversationError,
+    conversationLoading: conversationLoadingFromServer,
+  } = useGetConversation(
     selectedConversationId,
     currentContact.idMiembros
   );
+  const [recentlyCreatedConversation, setRecentlyCreatedConversation] = useState(null);
+  const { conversacion: conversation, cargando: conversationLoading } =
+    resolverConversacionVisible({
+      conversacionDelServidor: conversationFromServer,
+      conversacionRecienCreada: recentlyCreatedConversation,
+      idConversacionSeleccionada: selectedConversationId,
+      cargando: conversationLoadingFromServer,
+    });
   // La lista de la izquierda tambien: cada conversacion con un buzon, con su foto actual.
   const conversacionesConFoto = useMemo(
     () =>
       avataresDeBuzones.size
         ? {
-            ...conversations,
-            byId: Object.fromEntries(
-              Object.entries(conversations.byId).map(([id, item]) => [
-                id,
-                { ...item, participants: conAvataresDeBuzones(item.participants, avataresDeBuzones) },
-              ])
-            ),
-          }
+          ...conversations,
+          byId: Object.fromEntries(
+            Object.entries(conversations.byId).map(([id, item]) => [
+              id,
+              { ...item, participants: conAvataresDeBuzones(item.participants, avataresDeBuzones) },
+            ])
+          ),
+        }
         : conversations,
     [conversations, avataresDeBuzones]
   );
@@ -200,6 +211,7 @@ export function ChatView() {
     enabled: Boolean(user?.accessToken),
     idMiembros: currentContact.idMiembros,
     conversationId: selectedConversationId,
+    visibilityCutoff: conversation?.visibleAfter,
     onTypingSnapshot: handleTypingSnapshot,
   });
 
@@ -291,21 +303,83 @@ export function ChatView() {
     setRecipients(selected);
   }, []);
 
+  const handleConversationCreated = useCallback((createdConversation) => {
+    setRecentlyCreatedConversation(createdConversation ?? null);
+  }, []);
+
+  // Conserva el destinatario durante la navegación del primer mensaje. Si se
+  // vacía antes de que `?id=` llegue a la vista, durante un render no existe ni
+  // destinatario ni conversación seleccionada y el centro pestañea en blanco.
+  useEffect(() => {
+    if (selectedConversationId) setRecipients([]);
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (
+      conversationFromServer?.id &&
+      String(conversationFromServer.id) === String(recentlyCreatedConversation?.id)
+    ) {
+      setRecentlyCreatedConversation(null);
+    }
+  }, [conversationFromServer, recentlyCreatedConversation?.id]);
+
   const handleChangeGroupName = useCallback((value) => {
     setGroupName(value);
   }, []);
 
   const handleAddParticipants = useCallback(
-    async (newParticipants) => {
-      if (!selectedConversationId) return;
+    async (newParticipants, historyVisibility = 'none') => {
+      if (!selectedConversationId || !newParticipants?.length) return;
+
+      // UN CHAT DE DOS NO SE CONVIERTE EN GRUPO: SE ABRE UNO NUEVO.
+      //
+      // El panel de la derecha ofrece "Agregar miembro" en cuanto hay dos
+      // personas, y en un chat de dos siempre las hay, asi que pulsarlo llamaba a
+      // "agregar participantes" y el servidor contestaba "esta operación solo
+      // está disponible en conversaciones grupales". Un mensaje de error donde
+      // deberia haber un grupo.
+      //
+      // Y la conversacion NO se convierte en grupo: lo que se escribieron los dos
+      // es de los dos, y quien entra no tiene por que leerlo. Se crea un grupo
+      // aparte con todos —los que ya estaban y los nuevos—, y el chat privado se
+      // queda donde estaba.
+      if (conversation && conversation.type !== 'GROUP') {
+        const acompanantes = participantesConFoto.filter(
+          (participant) => !isSameMember(participant, currentContact)
+        );
+        const { conversationData } = initialConversation({
+          recipients: [...acompanantes, ...newParticipants],
+          me: currentContact,
+        });
+        // Nace vacio: el grupo es el sitio, y lo primero que se diga ahi lo dice
+        // quien quiera, no un mensaje automatico.
+        const creada = await createConversation(
+          { ...conversationData, messages: [] },
+          currentContact.idMiembros
+        );
+
+        if (creada?.conversation?.id) {
+          router.push(rutaDelChat({ id: creada.conversation.id, bandeja }));
+        }
+
+        return;
+      }
 
       await addParticipants(
         selectedConversationId,
         currentContact.idMiembros,
-        newParticipants
+        newParticipants,
+        historyVisibility
       );
     },
-    [currentContact.idMiembros, selectedConversationId]
+    [
+      bandeja,
+      conversation,
+      currentContact,
+      participantesConFoto,
+      router,
+      selectedConversationId,
+    ]
   );
 
   const handleRemoveParticipant = useCallback(
@@ -481,24 +555,32 @@ export function ChatView() {
     .filter(Boolean);
 
   return (
+    // SIN CABECERA: TODA LA PANTALLA ES LA CONVERSACION.
+    //
+    // Habia un titulo "Mensajes" y una fila de pestañas de bandeja. El titulo
+    // repetia lo que ya dice el menu de donde se entro, y las pestañas se mudaron
+    // a la lista, en circulos junto a la foto (`ChatBandejasAvatares`). Entre las
+    // dos se llevaban unos 80px de alto en una pantalla que lo que quiere enseñar
+    // son los mensajes.
     <DashboardContent
       maxWidth={false}
-      sx={{ display: 'flex', flex: '1 1 auto', flexDirection: 'column' }}
+      sx={[
+        { display: 'flex', flex: '1 1 auto', flexDirection: 'column' },
+        // LA PANTALLA ES PARA LA CONVERSACION.
+        //
+        // El panel deja 64px libres abajo para que se vea que una lista termina;
+        // aqui no hay lista que siga: el chat llega hasta el campo de escribir,
+        // y ese hueco solo quitaba mensajes de vista —una pantalla entera en el
+        // celular, y un buen par de lineas tambien en el escritorio—. Queda el
+        // aire justo para que el panel no toque los bordes.
+        // El mismo aire arriba que abajo: el panel es una sola pieza y con los
+        // huecos distintos se veia caido hacia un lado.
+        (theme) => ({
+          '--layout-dashboard-content-pt': theme.spacing(3.5),
+          '--layout-dashboard-content-pb': theme.spacing(3.5),
+        }),
+      ]}
     >
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      >
-        <Typography variant="h4">Mensajes</Typography>
-
-        {/* LAS BANDEJAS: "Mis chats" y una por cada buzon compartido que atienda
-            esta sesion. Quien no atiende ninguno no ve pestañas. */}
-        <ChatBandejas buzones={buzones} bandeja={bandeja} onCambiar={handleCambiarBandeja} />
-      </Stack>
-
       <ChatLayout
         slots={{
           // UN CHAT NUEVO SE VE COMO UN CHAT, NO COMO UN FORMULARIO.
@@ -538,7 +620,9 @@ export function ChatView() {
               contacts={visibleContacts}
               currentContact={currentContact}
               bandeja={bandeja}
+              buzones={buzones}
               buzonActual={buzonActual}
+              onCambiarBandeja={handleCambiarBandeja}
               conversations={conversacionesConFoto}
               selectedConversationId={selectedConversationId}
               collapseNav={conversationsNav}
@@ -585,7 +669,7 @@ export function ChatView() {
                 // Se enseña el hilo vacio, listo para escribir. La conversacion
                 // se crea con el primer mensaje.
                 <ChatMessageList
-                  messages={[]}
+                  messages={recentlyCreatedConversation?.messages ?? []}
                   participants={recipients}
                   currentContact={currentContact}
                   loading={false}
@@ -605,12 +689,12 @@ export function ChatView() {
                 groupName={groupName}
                 participants={conversation ? participantesConFoto : recipients}
                 currentContact={currentContact}
-                onAddRecipients={handleAddRecipients}
                 replyMessage={replyMessage}
                 editingMessage={editingMessage}
                 onClearReply={handleClearReply}
                 onClearEditing={handleClearEditing}
                 selectedConversationId={selectedConversationId}
+                onConversationCreated={handleConversationCreated}
                 // Silenciar la conversacion tambien calla sus sonidos.
                 silenciada={Boolean(conversation?.muted)}
                 // A nombre de quien sale lo que se escribe. Solo se dice a quien
@@ -627,6 +711,7 @@ export function ChatView() {
           details: conversation && selectedConversationId && (
             <ChatRoom
               collapseNav={roomNav}
+              esGrupo={conversation?.type === 'GROUP'}
               participants={participantesConFoto}
               loading={conversationLoading}
               messages={conversation?.messages ?? []}
