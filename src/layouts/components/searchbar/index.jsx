@@ -19,11 +19,19 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
 
+import { paths } from 'src/routes/paths';
+
+import { buscarEnCatalogo } from 'src/utils/buscador-catalogo.mjs';
+
+import { useCatalogoDelBuscador } from 'src/actions/buscador';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { useSettingsContext } from 'src/components/settings';
 import { SearchNotFound } from 'src/components/search-not-found';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { ResultItem } from './result-item';
 import { applyFilter, flattenNavSections } from './utils';
@@ -116,7 +124,42 @@ export function Searchbar({
     [formattedNavItems, searchQuery]
   );
 
-  const notFound = searchQuery && !dataFiltered.length;
+  // LA TIENDA Y LOS PREMIOS TAMBIEN SE BUSCAN.
+  //
+  // Antes solo salian pantallas del menu, y lo que la gente escribe aqui son
+  // nombres de cosas: "emblema", "1 Cronicas". El catalogo se pide la primera vez
+  // que se abre el buscador —no al cargar la pantalla— y de ahi en adelante cada
+  // pulsacion filtra en memoria, sin ir al servidor.
+  const buscadorAbierto = open || enfocado || Boolean(searchQuery);
+  const { productos, premios } = useCatalogoDelBuscador(buscadorAbierto);
+  const { user } = useAuthContext();
+
+  // Los BORRADORES no se buscan: un producto sin publicar no esta en la tienda,
+  // y el buscador esta en la cabecera de todas las pantallas.
+  const productosFiltrados = useMemo(
+    () =>
+      buscarEnCatalogo({
+        catalogo: productos.filter((producto) => producto.publicado),
+        consulta: searchQuery,
+      }),
+    [productos, searchQuery]
+  );
+
+  const premiosFiltrados = useMemo(
+    () => buscarEnCatalogo({ catalogo: premios, consulta: searchQuery }),
+    [premios, searchQuery]
+  );
+
+  // Los premios viven en la ficha de cada quien: el resultado lleva a la suya.
+  // Sin numero de miembro —una cuenta administrativa sin ficha— no se enseñan,
+  // porque no habria adonde ir.
+  const idMiembroDeLaSesion = Number(user?.idMiembros) || null;
+
+  const notFound =
+    searchQuery &&
+    !dataFiltered.length &&
+    !productosFiltrados.length &&
+    !(idMiembroDeLaSesion && premiosFiltrados.length);
 
   const renderButton = () => (
     <Box
@@ -176,6 +219,41 @@ export function Searchbar({
     </Box>
   );
 
+  const renderRotulo = (texto) => (
+    <Box
+      component="li"
+      sx={{
+        px: 1,
+        pt: 1.5,
+        pb: 0.5,
+        typography: 'overline',
+        color: 'text.disabled',
+        listStyle: 'none',
+      }}
+    >
+      {texto}
+    </Box>
+  );
+
+  /** Un resultado del catalogo: producto o premio. Con su cara y su etiqueta. */
+  const renderResultadoDeCatalogo = ({ clave, nombre, detalle, href, imagen, etiquetas }) => {
+    const partesNombre = parse(nombre, match(nombre, searchQuery, { insideWords: true }));
+    const partesDetalle = parse(detalle, match(detalle, searchQuery, { insideWords: true }));
+
+    return (
+      <MenuItem disableRipple key={clave}>
+        <ResultItem
+          title={partesNombre}
+          path={partesDetalle}
+          href={href}
+          imagen={imagen}
+          labels={etiquetas}
+          onClick={abierto ? cerrarDesplegable : handleClose}
+        />
+      </MenuItem>
+    );
+  };
+
   const renderResults = () => (
     <MenuList
       disablePadding
@@ -187,6 +265,36 @@ export function Searchbar({
         },
       }}
     >
+      {!!productosFiltrados.length && renderRotulo('Tienda')}
+      {productosFiltrados.map((producto) =>
+        renderResultadoDeCatalogo({
+          clave: `producto-${producto.id}`,
+          nombre: producto.nombre,
+          detalle: [producto.codigo, producto.categoria].filter(Boolean).join(' · '),
+          href: paths.dashboard.product.details(producto.id),
+          imagen: producto.miniatura,
+          etiquetas: ['Tienda'],
+        })
+      )}
+
+      {!!(idMiembroDeLaSesion && premiosFiltrados.length) && renderRotulo('Premios')}
+      {idMiembroDeLaSesion &&
+        premiosFiltrados.map((premio) =>
+          renderResultadoDeCatalogo({
+            clave: `premio-${premio.id}`,
+            nombre: premio.nombre,
+            detalle: [premio.division, premio.grupo].filter(Boolean).join(' · '),
+            href: paths.dashboard.level.member.editAwards(idMiembroDeLaSesion),
+            imagen: premio.icono,
+            etiquetas: ['Premios'],
+          })
+        )}
+
+      {!!(productosFiltrados.length || premiosFiltrados.length) &&
+        !!dataFiltered.length &&
+        searchQuery &&
+        renderRotulo('Pantallas')}
+
       {dataFiltered.map((item) => {
         const matchesTitle = match(item.title, searchQuery, { insideWords: true });
         const partsTitle = parse(item.title, matchesTitle);

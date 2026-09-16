@@ -13,12 +13,14 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
 import { _contacts, _notifications } from 'src/_mock';
+import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
 import { useGetChatUnreadSummary, useGetUnreadSummaryDeBuzones } from 'src/actions/chat';
 import {
   marcarNotificacionComoLeida,
@@ -146,6 +148,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     conversationId: null,
   });
   usePresenceHeartbeat(!isChatRoute && chatSummaryEnabled ? chatMemberId : null);
+
+  // Los sonidos de aviso, listos antes del primer mensaje. Se leen una vez por
+  // sesion: los eligio el Administrador Global y valen para toda la aplicacion.
+  useCargarSonidosDeAviso();
 
   // LOS BUZONES COMPARTIDOS QUE ATIENDE ESTA SESION (Tienda Virtual, Oficina
   // Nacional). Lo que les escriben cuenta en el mismo contador de "Chats" y se
@@ -309,7 +315,14 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // —un mensaje para la Tienda o la Oficina, una aprobacion— tardaba hasta
     // medio minuto en aparecer. Ahora un aviso nuevo para esta cuenta la recarga
     // al instante; la recarga periodica queda como red de seguridad.
-    const cancelarEscucha = escucharNotificacionesDelUsuario(user?.uid, cargarNotificaciones);
+    //
+    // Y el sonido va AQUI, no donde se cuenta lo no leido: esto es lo primero
+    // que se entera de que llego un aviso. Esperar a que la lista se recargue
+    // metia una vuelta mas —y el sonido llegaba despues de la bolita—.
+    const cancelarEscucha = escucharNotificacionesDelUsuario(user?.uid, (cambio) => {
+      if (cambio?.nuevas > 0) sonarAviso('campana');
+      cargarNotificaciones();
+    });
     const intervalId = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
         return;

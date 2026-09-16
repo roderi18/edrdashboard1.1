@@ -59,6 +59,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     primaryColor: hasKeys(defaultSettings, ['primaryColor']),
     compactLayout: hasKeys(defaultSettings, ['compactLayout']),
     navBlanco: hasKeys(defaultSettings, ['navBlanco']),
+    accesosRapidos: hasKeys(defaultSettings, ['accesosRapidos']),
   };
 
   useEffect(() => {
@@ -221,6 +222,39 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     </LargeBlock>
   );
 
+  // LOS CUATRO ACCESOS RAPIDOS DE LA PANTALLA PRINCIPAL.
+  //
+  // Debajo de "Barra y cabecera" porque es la misma clase de ajuste: que se ve y
+  // que no en el marco de la aplicacion. Son atajos —Registrar actividad, Proxima
+  // actividad, Mis insignias, Capacitacion—, y quien no los use se los quita sin
+  // perder nada: todos llevan a sitios que tambien estan en el menu.
+  //
+  // Se pregunta por `!== false` y no por el valor: las sesiones que guardaron sus
+  // ajustes antes de que existiera esta clave no la tienen, y ahi `undefined`
+  // significa "encendido". Sin esto, a todo el mundo le desaparecian los accesos
+  // al actualizar.
+  const accesosVisibles = settings.state.accesosRapidos !== false;
+
+  const renderAccesosRapidos = () => (
+    <LargeBlock
+      title="Accesos rápidos"
+      canReset={accesosVisibles !== Boolean(defaultSettings.accesosRapidos)}
+      onReset={() => {
+        settings.setState({ accesosRapidos: defaultSettings.accesosRapidos });
+      }}
+    >
+      <BaseOption
+        label="Visibles"
+        tooltip="Enseña u oculta los cuatro atajos de la pantalla Principal: Registrar actividad, Próxima actividad, Mis insignias y Capacitación."
+        selected={accesosVisibles}
+        icon={<SvgIcon>{settingIcons.navMini}</SvgIcon>}
+        onChangeOption={() => {
+          settings.setState({ accesosRapidos: !accesosVisibles });
+        }}
+      />
+    </LargeBlock>
+  );
+
   const renderNav = () => (
     <LargeBlock title="Nav" tooltip="Dashboard only" sx={{ gap: 2.5 }}>
       {visibility.navLayout && (
@@ -376,6 +410,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
           {(visibility.navColor || visibility.navLayout) && renderNav()}
           {visibility.primaryColor && renderPresets()}
           {visibility.navBlanco && renderNavBlanco()}
+          {visibility.accesosRapidos && renderAccesosRapidos()}
           {(visibility.fontFamily || visibility.fontSize) && renderFont()}
         </Box>
       </Scrollbar>

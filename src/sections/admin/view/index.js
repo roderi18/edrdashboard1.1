@@ -1,6 +1,7 @@
 export * from './admin-list-view';
 export * from './admin-create-view';
 export * from './admin-palette-view';
+export * from './admin-sonidos-view';
 export * from './admin-maintenance-view';
 export * from './admin-roles-catalog-view';
 export * from './admin-notifications-view';

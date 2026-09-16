@@ -1144,6 +1144,28 @@ service cloud.firestore {
     // Un solo documento con el titulo y el subtitulo que se leen en la tienda.
     // Lo ve cualquier sesion del sistema —es lo primero que sale en la pantalla—
     // y lo cambia solo quien manda sobre todo.
+
+    // COMO SUENA LA APLICACION.
+    //
+    // Que sonido tiene cada aviso —mensaje de chat, campana, mensaje enviado,
+    // archivo cargado—. Lo elige el Administrador Global en Administracion →
+    // Sonidos y lo oye todo el mundo, asi que lo lee cualquier sesion.
+    match /configuracion_sonidos/{documento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // EL INDICE DEL BUSCADOR DE LA CABECERA.
+    //
+    // La copia pequeña de la tienda: por cada producto, su nombre y una miniatura
+    // de unos 2 kB metida como texto. Lo lee cualquiera que entre —el buscador
+    // esta en la cabecera de todas las pantallas— y lo escribe SOLO quien
+    // administra la tienda, que es quien publica los productos.
+    match /indice_buscador/{documento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal() || esAdministradorDeTienda();
+    }
+
     match /configuracion_tienda/{documento} {
       allow read: if esUsuarioDelSistema();
       // Y el ADMINISTRADOR DE TIENDA, que es quien la lleva: pone las ofertas y
@@ -1392,6 +1414,13 @@ service cloud.firestore {
         // El encabezado de la tienda tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.
         && coleccion != 'configuracion_tienda'
+        // El indice del buscador tiene su bloque arriba: sin excluirlo aqui, el
+        // comodin dejaria a cualquier sesion reescribir los nombres y las caras
+        // que ve todo el mundo al buscar.
+        && coleccion != 'indice_buscador'
+        // Los sonidos de la aplicacion tienen su bloque arriba: sin excluirlos
+        // aqui, cualquier sesion podria cambiarle el sonido a todo el mundo.
+        && coleccion != 'configuracion_sonidos'
         // Los favoritos de la tienda son de cada persona: sin excluirlos aqui,
         // el comodin dejaria leer y cambiar los de cualquiera.
         && coleccion != 'favoritos_productos'

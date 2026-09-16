@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 
 import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
+import { miniaturaDesdeArchivo } from 'src/utils/miniatura-buscador';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 import {
   aplicarResumenResenas,
@@ -19,6 +20,7 @@ import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
+import { guardarProductoEnIndice } from './buscador-indice-service';
 import {
   crearNotificacionProductoSinStock,
   crearNotificacionProductoPublicado,
@@ -215,6 +217,31 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
   });
 
   const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
+
+  // EL BUSCADOR DE LA CABECERA, AL DIA.
+  //
+  // Se apunta el nombre y una miniatura de unos 2 kB. La miniatura se saca del
+  // archivo que se acaba de subir —aqui lo tenemos en la mano, sin descargar
+  // nada— y solo cuando hay imagen nueva: al editar el precio de un producto, la
+  // que ya habia en el indice se queda.
+  //
+  // Va DESPUES de guardar y sin bloquear: si el indice falla, el producto ya
+  // esta publicado y lo unico que pasa es que sale sin foto al buscarlo.
+  miniaturaDesdeArchivo(fileImages[0])
+    .catch(() => '')
+    .then((miniatura) =>
+      guardarProductoEnIndice({
+        id: productId,
+        nombre: productDoc.nombre,
+        codigo: productDoc.codigo,
+        categoria: productDoc.categoria,
+        ...(miniatura ? { miniatura } : {}),
+      })
+    )
+    .catch((error) => {
+      console.warn('[buscador] no se pudo indexar el producto', error?.message ?? error);
+    });
+
   registrarAuditoriaSilenciosa({
     modulo: 'productos',
     accion: previous.exists() ? 'producto_actualizado' : 'producto_creado',

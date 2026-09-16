@@ -225,6 +225,9 @@ export default [
       // Mismo caso: la escritura de la foto de un buzon del chat, que la puerta
       // ejecuta DESPUES de registrar el cambio en Historial.
       'src/services/chat-buzones-apply.js',
+      // Mismo caso: la escritura de los sonidos de aviso que la puerta de cambios
+      // ejecuta despues de registrarla en Historial.
+      'src/services/sonidos-apply.js',
       // Contadores de vistas y clics de la portada de la tienda. No es un
       // cambio del que haya que responder —nadie decide nada, se suma uno— y
       // ademas lo escribe el navegador de cualquier visitante: hacerlo pasar por
@@ -232,6 +235,11 @@ export default [
       // pulsaciones anonimas. Las reglas acotan que solo puede tocar esos dos
       // numeros.
       'src/services/store-header-analytics-service.js',
+      // El indice del buscador: la copia pequeña —nombre y miniatura— de
+      // productos que YA se guardaron por la puerta. No es un cambio del que
+      // haya que responder, es una cache para que el buscador no baje fotos de
+      // 250 kB mientras se escribe.
+      'src/services/buscador-indice-service.js',
       // Marcar un producto como favorito es una preferencia de quien lo marca,
       // no un cambio de la tienda: nadie tiene que aprobarlo y llenaria Historial
       // de pulsaciones. Las reglas solo dejan a cada uno tocar su documento.

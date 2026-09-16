@@ -611,6 +611,8 @@ export function ChatView() {
                 onClearReply={handleClearReply}
                 onClearEditing={handleClearEditing}
                 selectedConversationId={selectedConversationId}
+                // Silenciar la conversacion tambien calla sus sonidos.
+                silenciada={Boolean(conversation?.muted)}
                 // A nombre de quien sale lo que se escribe. Solo se dice a quien
                 // tiene dos bandejas: para el resto no hay duda posible.
                 respondiendoComo={

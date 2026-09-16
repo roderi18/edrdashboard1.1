@@ -1,6 +1,7 @@
 import { varAlpha, isExternalLink } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 
@@ -10,7 +11,7 @@ import { Label } from 'src/components/label';
 
 // ----------------------------------------------------------------------
 
-export function ResultItem({ title, path, labels, href, sx, ...other }) {
+export function ResultItem({ title, path, labels, href, imagen = '', sx, ...other }) {
   const linkProps = isExternalLink(href)
     ? { component: 'a', href, target: '_blank', rel: 'noopener noreferrer' }
     : { component: RouterLink, href };
@@ -38,6 +39,20 @@ export function ResultItem({ title, path, labels, href, sx, ...other }) {
       ]}
       {...other}
     >
+      {/* LA CARA DEL RESULTADO. En los productos es una miniatura que viene
+          DENTRO del catalogo (un `data:` de unos 2 kB), y en los premios un icono
+          local: en los dos casos se pinta a la vez que el texto, sin pedir nada.
+          Cuadrada y no redonda: son parches y articulos, no personas. */}
+      {imagen && (
+        <Avatar
+          variant="rounded"
+          src={imagen}
+          alt=""
+          sx={{ width: 32, height: 32, mr: 1.5, flexShrink: 0, bgcolor: 'background.neutral' }}
+          slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
+        />
+      )}
+
       <ListItemText
         primary={title.map((part, index) => (
           <Box

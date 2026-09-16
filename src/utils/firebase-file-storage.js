@@ -1,5 +1,6 @@
 import { ref, deleteObject, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 
 import { AUTH, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -232,6 +233,16 @@ export async function uploadFilesToStorage({
       await deleteUploadedFilesFromStorage(completed);
       throw normalizeChatUploadError(firstFailure || rejected.reason);
     }
+
+    // EL SONIDO DE "ARCHIVO CARGADO", AQUI Y NO EN CADA PANTALLA.
+    //
+    // Por esta funcion pasan TODAS las subidas: los adjuntos del chat, las fotos
+    // del muro, los documentos, los comprobantes de un pedido. Ponerlo aqui es
+    // ponerlo una vez; en cada pantalla habria que acordarse cada vez, y una
+    // subida sin sonido no se distingue de una subida a medias.
+    //
+    // Suena al terminar TODO el lote, no una vez por archivo.
+    sonarAviso('archivoSubido');
 
     return completed;
   } finally {

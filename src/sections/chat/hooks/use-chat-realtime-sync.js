@@ -2,6 +2,8 @@ import { mutate } from 'swr';
 import { useRef, useEffect } from 'react';
 import { doc, query, where, limit, orderBy, collection, onSnapshot } from 'firebase/firestore';
 
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
   isConversationKey,
@@ -17,6 +19,43 @@ import { getActiveTypingState, getConversationDeliveryMarker } from '../utils/re
 
 const COLECCION_CONVERSACIONES = 'conversaciones_chat';
 const SUBCOLECCION_MENSAJES = 'mensajes';
+// UN SONIDO POR MENSAJE, NO UNO POR AVISO.
+//
+// Esta escucha esta montada DOS veces a la vez —el marco del panel la usa para
+// la bolita, y la pantalla del chat para la conversacion abierta—, asi que cada
+// mensaje sonaba dos veces. Y dentro de cada una volvia a sonar con cualquier
+// cambio de la conversacion (el acuse de entrega, el contador de no leidos),
+// asi que un solo mensaje podia sonar tres o cuatro veces.
+//
+// Se recuerda AQUI, fuera del componente, cual fue el ultimo mensaje que ya
+// sono en cada conversacion: las dos escuchas comparten esta memoria, y un
+// mensaje solo suena la primera vez que se ve.
+const ultimoMensajeQueSono = new Map();
+
+const debeSonarPorMensajeNuevo = (conversacion, idMiembros) => {
+  const idConversacion = String(conversacion?.idConversacion ?? '');
+  const idMensaje = String(conversacion?.ultimoMensaje?.idMensaje ?? '');
+
+  if (!idConversacion || !idMensaje) return false;
+
+  const yaSonado = ultimoMensajeQueSono.get(idConversacion);
+
+  ultimoMensajeQueSono.set(idConversacion, idMensaje);
+
+  // La primera vez que se ve una conversacion no suena: al entrar llegan todas
+  // de golpe y sonarian todas juntas.
+  if (yaSonado === undefined || yaSonado === idMensaje) return false;
+
+  const esDeOtro =
+    Number(conversacion.ultimoMensaje?.remitenteIdMiembros) !== Number(idMiembros);
+  const sinLeer = Number(conversacion.noLeidosPorIdMiembros?.[String(idMiembros)] ?? 0) > 0;
+  // SILENCIAR LA CONVERSACION SILENCIA SU SONIDO. Es lo que la gente espera del
+  // boton "Silenciar notificaciones" del chat: sin esto seguia sonando igual.
+  const silenciada = Boolean(conversacion.silenciadoPorIdMiembros?.[String(idMiembros)]);
+
+  return esDeOtro && sinLeer && !silenciada;
+};
+
 const DEBOUNCE_MS = 80;
 const TYPING_STALE_MS = 15000;
 const RECENT_MESSAGES_WINDOW = 50;
@@ -117,6 +156,10 @@ export function useChatRealtimeSync({
           conversation,
           currentMemberId: idMiembros,
         });
+
+        if (debeSonarPorMensajeNuevo({ ...conversation, idConversacion: change.doc.id }, idMiembros)) {
+          sonarAviso('mensajeRecibido');
+        }
 
         if (conversationMarkersRef.current.get(change.doc.id) !== conversationMarker) {
           conversationMarkersRef.current.set(change.doc.id, conversationMarker);

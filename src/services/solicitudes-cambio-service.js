@@ -86,6 +86,10 @@ export const AMBITOS_CAMBIO = {
   // Solo la cambia el Administrador Global: se aplica en el acto, pero queda en
   // Historial porque es la cara con la que el buzon habla a todo el mundo.
   buzonChat: 'buzon_chat',
+  // Que suena en cada aviso de la aplicacion. Igual que los anteriores: lo pone
+  // el Administrador Global, se aplica en el acto y queda en Historial, porque
+  // lo oye toda la organizacion.
+  sonidosDeAviso: 'sonidos_de_aviso',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

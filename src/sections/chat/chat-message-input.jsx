@@ -12,6 +12,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 
 import { useRouter } from 'src/routes/hooks';
 
+import { sonarAviso, silenciarAvisos } from 'src/utils/sonidos-de-aviso.mjs';
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
 import {
   uploadFilesToStorage,
@@ -90,6 +91,7 @@ export function ChatMessageInput({
   sharedMessage,
   onConsumeSharedMessage,
   respondiendoComo = '',
+  silenciada = false,
 }) {
   const router = useRouter();
   const { bandeja, enBuzon } = useBuzonesDelChat();
@@ -297,6 +299,21 @@ export function ChatMessageInput({
   const handleSubmitMessage = useCallback(async () => {
     if (isUploading || (!message.trim() && !pendingAttachments.length)) return;
 
+    // EL SONIDO DE ENVIADO VA AQUI, EN EL MISMO ENTER.
+    //
+    // Estaba al final, cuando el servidor confirmaba: entre pulsar y oirlo
+    // pasaba medio segundo o mas —lo que tarde la red—, y para entonces ya se
+    // esta escribiendo otra cosa. Un aviso que llega tarde no confirma nada.
+    //
+    // Los 100 ms son a proposito: pegado al golpe de la tecla se oye como parte
+    // del teclado. Asi entra justo detras del mensaje, que se pinta al momento.
+    //
+    // En una conversacion silenciada no suena NADA suyo: ni el envio ni el
+    // archivo que se sube con el. Es lo que se espera de "Silenciar
+    // notificaciones"; la subida se apaga desde aqui porque ocurre dentro.
+    silenciarAvisos(silenciada);
+    sonarAviso('mensajeEnviado', { retrasoMs: 100 });
+
     const textToSend = message;
     const attachmentsToSend = pendingAttachments;
     const deliveredAttachmentIds = new Set();
@@ -503,6 +520,7 @@ export function ChatMessageInput({
       );
       setMessage(textToSend);
     } finally {
+      silenciarAvisos(false);
       uploadAbortControllerRef.current = null;
       setIsUploading(false);
     }
@@ -521,6 +539,7 @@ export function ChatMessageInput({
     pendingAttachments,
     router,
     selectedConversationId,
+    silenciada,
     stopTyping,
     isUploading,
     updateAttachmentState,

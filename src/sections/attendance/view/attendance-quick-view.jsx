@@ -39,6 +39,7 @@ import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { rolesQueEjerce, ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
+import { idsDePastores, sinLosPastores } from 'src/utils/pastores-de-destacamento.mjs';
 import {
   primerNombreDeTexto,
   primerApellidoDeTexto,
@@ -59,6 +60,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
+import { obtenerAsignacionesDirectiva } from 'src/services/directivas-organizacionales-service';
 import {
   crearActividadAsistencia,
   listarActividadesAsistencia,
@@ -1240,12 +1242,51 @@ export function AttendanceQuickView() {
     : 'Asistencia';
   const showDestFilter = !scopedToDest && puedeElegirDestacamento(user);
 
+  // EL PASTOR DEL DESTACAMENTO NO ENTRA EN LA LISTA.
+  //
+  // Ocupa una casilla de la directiva, pero no es uno de los muchachos: no se le
+  // pasa asistencia. Salia como uno mas, con su "Sin registro", y cada reunion
+  // quedaba con un ausente que nunca iba a estar.
+  const [pastoresDelDestacamento, setPastoresDelDestacamento] = useState(new Set());
+
+  useEffect(() => {
+    if (!selectedDestId) {
+      setPastoresDelDestacamento(new Set());
+      return undefined;
+    }
+
+    let activo = true;
+
+    obtenerAsignacionesDirectiva({
+      nivel: 'destacamento',
+      idEntidad: selectedDestId,
+      // Tambien las que no traen `activo`: las que escribio el formulario del
+      // Pastor antes de que ese campo existiera. `idsDePastores` descarta solo
+      // las marcadas como inactivas.
+      incluirInactivas: true,
+    })
+      .then((asignaciones) => {
+        if (activo) setPastoresDelDestacamento(idsDePastores(asignaciones));
+      })
+      .catch(() => {
+        // Sin directiva no se esconde a nadie: es peor perder a un muchacho de
+        // la lista que enseñar al Pastor.
+        if (activo) setPastoresDelDestacamento(new Set());
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [selectedDestId]);
+
   const selectedDestMembers = useMemo(
     () =>
-      members
-        .filter((member) => String(getMemberDestId(member)) === String(selectedDestId))
-        .sort((a, b) => getMemberName(a).localeCompare(getMemberName(b))),
-    [members, selectedDestId]
+      sinLosPastores(
+        members.filter((member) => String(getMemberDestId(member)) === String(selectedDestId)),
+        pastoresDelDestacamento,
+        getMemberId
+      ).sort((a, b) => getMemberName(a).localeCompare(getMemberName(b))),
+    [members, pastoresDelDestacamento, selectedDestId]
   );
 
   const divisionFilteredMembers = useMemo(() => {

@@ -2944,7 +2944,14 @@ export function escucharNotificacionesDelUsuario(idUsuario, alCambiar) {
         return;
       }
 
-      if (snapshot.docChanges().length) alCambiar?.();
+      const cambios = snapshot.docChanges();
+
+      // Cuantas son NUEVAS, no cuantas cambiaron: marcar una como leida tambien
+      // es un cambio, y no es algo que tenga que sonar. Quien escucha lo usa
+      // para sonar la campana en el acto, sin esperar a recargar la lista.
+      if (cambios.length) {
+        alCambiar?.({ nuevas: cambios.filter((cambio) => cambio.type === 'added').length });
+      }
     },
     (error) => console.error('[notificaciones] no se pudo escuchar la campana', error)
   );

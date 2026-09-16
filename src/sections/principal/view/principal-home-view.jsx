@@ -9,6 +9,8 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { useSettingsContext } from 'src/components/settings';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProfileHome } from '../../user/profile-home';
@@ -77,6 +79,8 @@ const regionDeLaSesion = (user) =>
 
 export function PrincipalHomeView() {
   const { user } = useAuthContext();
+  const settings = useSettingsContext();
+  const accesosVisibles = settings.state.accesosRapidos !== false;
 
   const identidad = useMemo(
     () => ({
@@ -108,8 +112,13 @@ export function PrincipalHomeView() {
                   Ocupaban el ancho entero de la pagina, por encima de la rejilla,
                   y con cuatro tarjetas repartidas en 1045 pixeles quedaban
                   separadas por franjas de nada. Aqui miden lo mismo que la fila de
-                  abajo y las tres piezas se leen como una sola columna. */}
-              <PrincipalAccesos accesos={ACCESOS_RAPIDOS} />
+                  abajo y las tres piezas se leen como una sola columna.
+
+                  Se pueden apagar desde el panel de ajustes ("Accesos rápidos"):
+                  son atajos a sitios que tambien estan en el menu. Se pregunta por
+                  `!== false` porque las sesiones que guardaron sus ajustes antes
+                  de que existiera la clave no la tienen, y ahi vale "encendido". */}
+              {accesosVisibles && <PrincipalAccesos accesos={ACCESOS_RAPIDOS} />}
 
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
                   a "¿que tengo por delante?" desde dos lados: la fecha que viene

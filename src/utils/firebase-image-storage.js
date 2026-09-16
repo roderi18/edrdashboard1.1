@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
+import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 
 import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -56,6 +57,11 @@ export async function uploadOptimizedImage({
   });
 
   const downloadUrl = await getDownloadURL(storageRef);
+
+  // La otra puerta de las subidas: fotos de perfil, productos, portadas. El
+  // sonido va aqui por lo mismo que en `firebase-file-storage`: se pone una vez
+  // y vale para todas las pantallas.
+  sonarAviso('archivoSubido');
 
   return {
     file: optimizedFile,

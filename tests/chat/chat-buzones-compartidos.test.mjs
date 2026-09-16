@@ -267,7 +267,10 @@ test('recibe el aviso quien tiene el cargo del buzon en cualquier posicion', () 
 test('la campana y el contador de chats de los buzones se mueven en tiempo real', () => {
   const layout = leer('src/layouts/dashboard/layout.jsx');
 
-  assert.ok(layout.includes('escucharNotificacionesDelUsuario(user?.uid, cargarNotificaciones)'));
+  // La escucha sigue viva; ahora ademas suena la campana en el mismo aviso, sin
+  // esperar a que la lista se recargue.
+  assert.match(layout, /escucharNotificacionesDelUsuario\(user\?\.uid, \(cambio\) => \{/);
+  assert.ok(layout.includes('cargarNotificaciones();'));
   assert.ok(layout.includes('useBuzonesEnVivo(buzonesQueAtiendo'));
   assert.ok(layout.includes('Object.keys(pendientesDeBuzones)'));
 });

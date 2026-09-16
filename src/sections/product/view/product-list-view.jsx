@@ -43,6 +43,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { StoreHeader } from '../store-header';
 import { ProductGridCard } from '../product-grid-card';
 import { useCheckoutContext } from '../../checkout/context';
+import { BotonIndiceBuscador } from '../boton-indice-buscador';
 import { ProductTableToolbar } from '../product-table-toolbar';
 import { StoreCategorySidebar } from '../store-category-sidebar';
 import { ProductTableFiltersResult } from '../product-table-filters-result';
@@ -323,7 +324,11 @@ export function ProductListView() {
             pantalla. El selector de vista se fue con los filtros, que es donde
             se busca. */}
         {canManageStore && (
-          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <Box sx={{ mb: 3, gap: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Las caras que le faltan al buscador de la cabecera. Desaparece
+                cuando ya estan todas. */}
+            <BotonIndiceBuscador productos={products} />
+
             <Button
               component={RouterLink}
               href={paths.dashboard.product.new}

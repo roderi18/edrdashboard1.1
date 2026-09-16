@@ -34,6 +34,17 @@ export const IMAGE_UPLOAD_PRESETS = {
     mimeType: 'image/webp',
     maxSizeBytes: 900000,
   },
+  // La cara de un resultado del buscador. Se dibuja a 32px y viaja DENTRO del
+  // indice, como texto: por eso el tope es de 6 kB. Con las fotos de producto de
+  // verdad —de 16 a 250 kB— el desplegable tenia que bajarse una imagen por
+  // resultado mientras se escribe, y las primeras busquedas salian en gris.
+  miniaturaBuscador: {
+    maxWidth: 64,
+    maxHeight: 64,
+    quality: 0.72,
+    mimeType: 'image/webp',
+    maxSizeBytes: 6000,
+  },
   producto: {
     maxWidth: 1800,
     maxHeight: 1800,
