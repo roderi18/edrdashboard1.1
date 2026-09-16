@@ -66,12 +66,47 @@ Suite que lo cubre: `npm run test:acceso`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.
 
+## EVEREST Designer — la portada no cambia hasta que se publica
+
+Pestaña de Administración para editar desde la aplicación todo lo de `/principal`
+(encabezados, próxima actividad, eventos, comunicados, destacamento destacado…)
+sin tocar código. **Regla que no se rompe: `/principal` se ve exactamente igual
+—textos, orden, imágenes y videos— hasta que alguien publica ese bloque desde el
+Designer.**
+
+- **El valor de fábrica es el código.** `datos-de-ejemplo.js` y `LEMA_DE_FABRICA`
+  no se copian ni se siembran en Firestore. Un bloque sin publicar sale de ahí
+  (`src/sections/principal/fabrica-de-portada.js`).
+- **La portada pide cada bloque a `useContenidoDePortada`**, que es lo único de
+  `src/sections/principal/` que importa del Designer, y solo lee. Arranca con lo
+  de fábrica; "no se pudo leer" no borra lo que ya se pintaba.
+- **Se publica por bloque**, en `everest_publicado/principal` → `bloques`. Un
+  bloque ausente, roto o que no pasa el saneado vuelve a lo de fábrica; nunca deja
+  un hueco (`src/utils/everest/portada.mjs`).
+- **Las fotos y videos de hoy no se mueven**: siguen en `fotos` →
+  `principalTarjeta/{bienvenida,proxima-actividad}` y `principal-tarjetas/` de
+  Storage. Lo nuevo va a `everest/`.
+- **Un solo registro de bloques**: `src/utils/everest/bloques.mjs`. Cada bloque
+  guarda la misma forma que hoy recibe su componente.
+- **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
+  `everest_designer`): se aplica al momento y queda en Historial.
+- **Pantalla:** `/dashboard/everest`, entrada del menú lateral debajo de
+  "Administradores" (no es una pestaña de Administración), solo para el
+  Administrador Global. La vista previa es un iframe a `/vista-previa/everest` porque los
+  estilos dependen del ancho de la ventana; pinta con los componentes reales de
+  `/principal`. Los editores escriben por `cambiarContenido`: borrador autoguardado,
+  que no sale en la portada hasta pulsar Publicar.
+- **Reglas antes que código**: publica `firestore.rules` y `storage.rules` antes
+  de la fase que las use.
+- Plan y avance por fases: `PROJECT_GUIDELINES.md` §4.2. Test que no se borra:
+  `tests/everest/portada-congelada.test.mjs`.
+
 ## Antes de dar algo por terminado
 
 ```bash
 npm run lint
 npm run build
-node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
+node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/everest/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
 ```
 
 Regla nueva de negocio → test nuevo. Cambio que contradiga

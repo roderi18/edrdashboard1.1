@@ -48,9 +48,11 @@ test('se colocan dentro del grupo "Tienda", en lugar del enlace directo', () => 
 });
 
 test('solo para el Administrador Global y el de Gestion de Tienda, y despues del filtro', () => {
+  // Desde EVEREST Designer el resultado pasa por una entrada mas antes de
+  // devolverse (`conTienda`), pero la condicion de la tienda es la misma.
   assert.match(
     layout,
-    /return esAdministradorGlobal \|\| canManageStoreProducts\(user\)\s*\?\s*conTiendaDeAdministracion\(navDataFiltrada\)\s*:\s*navDataFiltrada;/
+    /const conTienda =\s*esAdministradorGlobal \|\| canManageStoreProducts\(user\)\s*\?\s*conTiendaDeAdministracion\(navDataFiltrada\)\s*:\s*navDataFiltrada;/
   );
   // Despues del filtro: puesta antes, el filtro podia convertirla en la de cliente.
   assert.ok(

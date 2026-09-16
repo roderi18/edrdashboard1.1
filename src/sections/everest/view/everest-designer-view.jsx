@@ -1,0 +1,158 @@
+'use client';
+
+import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { isAdminGlobal } from 'src/utils/org-level-access';
+import { ESTADOS_DEL_BLOQUE } from 'src/utils/everest/estado-del-bloque.mjs';
+
+import { DashboardContent } from 'src/layouts/dashboard';
+
+import { Iconify } from 'src/components/iconify';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { useAuthContext } from 'src/auth/hooks';
+
+import { EverestVistaPrevia } from '../everest-vista-previa';
+import { useEverestDesigner } from '../hooks/use-everest-designer';
+import { EverestPanelDelBloque } from '../everest-panel-del-bloque';
+import { EverestListaDeBloques } from '../everest-lista-de-bloques';
+
+// ----------------------------------------------------------------------
+// EVEREST DESIGNER.
+//
+// Donde se cambia la portada sin tocar codigo. Tres zonas: los bloques a la
+// izquierda con su estado, la vista previa en el centro —con los componentes de
+// verdad, en celular o escritorio— y a la derecha el bloque abierto con sus
+// acciones.
+//
+// NADA DE LO QUE SE HACE AQUI SE VE EN LA PORTADA HASTA PULSAR PUBLICAR. Editar
+// guarda un borrador que solo ve quien edita; publicar es un paso aparte, por
+// bloque, y queda en Historial (ver `PROJECT_GUIDELINES.md` §4.2).
+//
+// ES UNA PANTALLA PROPIA DEL MENU, debajo de "Administradores", y no una pestaña
+// de Administracion: por eso lleva su propio encabezado y su propio marco.
+// ----------------------------------------------------------------------
+
+const ENCABEZADO = (
+  <CustomBreadcrumbs
+    heading="EVEREST Designer"
+    links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'EVEREST Designer' }]}
+    sx={{ mb: 3 }}
+  />
+);
+
+export function EverestDesignerView() {
+  const { user } = useAuthContext();
+  const designer = useEverestDesigner();
+
+  // En su primera version es solo del Administrador Global. El menu no se lo
+  // enseña a nadie mas, pero la direccion se puede escribir a mano.
+  if (!isAdminGlobal(user)) {
+    return (
+      <DashboardContent maxWidth="xl">
+        {ENCABEZADO}
+        <Alert severity="error">
+          EVEREST Designer es, por ahora, solo para el Administrador Global.
+        </Alert>
+      </DashboardContent>
+    );
+  }
+
+  const { estadoSeleccionado } = designer;
+
+  return (
+    <DashboardContent maxWidth="xl">
+      {ENCABEZADO}
+
+      <Stack spacing={3}>
+        <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>
+          {designer.volver && (
+            <Button
+              component={RouterLink}
+              href={designer.volver}
+              color="inherit"
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            >
+              Volver
+            </Button>
+          )}
+
+          <Typography variant="body2" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+            Los cambios se guardan como borrador y no se ven en la portada hasta publicarlos.
+          </Typography>
+
+          <Button
+            color="inherit"
+            startIcon={<Iconify icon="solar:restart-bold" />}
+            onClick={designer.recargar}
+            disabled={designer.cargando}
+          >
+            Recargar
+          </Button>
+        </Stack>
+
+        {designer.error && (
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={designer.recargar}>
+                Reintentar
+              </Button>
+            }
+          >
+            No se pudo leer o guardar la portada. Si es la primera vez, comprueba que las reglas de
+            Firestore estén publicadas.
+          </Alert>
+        )}
+
+        {designer.cargando && !designer.estados.length ? (
+          <Stack alignItems="center" sx={{ py: 8 }}>
+            <CircularProgress />
+          </Stack>
+        ) : (
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+              <EverestListaDeBloques
+                estados={designer.estados}
+                idSeleccionado={designer.idSeleccionado}
+                onSeleccionar={designer.seleccionar}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 8, lg: 6 }}>
+              {estadoSeleccionado?.estado === ESTADOS_DEL_BLOQUE.externo ? (
+                <Alert severity="info">
+                  La vista previa de este encabezado está en la propia tienda.
+                </Alert>
+              ) : (
+                <EverestVistaPrevia
+                  idBloque={designer.idSeleccionado}
+                  contenido={estadoSeleccionado?.contenidoDeLaVistaPrevia}
+                />
+              )}
+            </Grid>
+
+            <Grid size={{ xs: 12, lg: 3 }}>
+              <EverestPanelDelBloque
+                estado={estadoSeleccionado}
+                guardando={Boolean(designer.guardando[designer.idSeleccionado])}
+                accion={designer.accion}
+                onPublicar={designer.publicar}
+                onDescartarBorrador={designer.descartarBorrador}
+                onVolverAlOriginal={designer.volverAlOriginal}
+              />
+            </Grid>
+          </Grid>
+        )}
+      </Stack>
+    </DashboardContent>
+  );
+}

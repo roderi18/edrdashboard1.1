@@ -289,6 +289,25 @@ const ReadOnlyTextField = ({ name, label }) => (
   <Field.Text name={name} label={label} slotProps={{ htmlInput: { readOnly: true } }} />
 );
 
+const PROFILE_RIBBON_EXAMPLES = [
+  {
+    color: 'verde y blanca',
+    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-verde-blanca.webp',
+  },
+  {
+    color: 'roja y gris',
+    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja-gris.webp',
+  },
+  {
+    color: 'roja y blanca a rayas',
+    src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja-blanca-rayas.webp',
+  },
+  { color: 'azul', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-azul.webp' },
+  { color: 'roja', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-roja.webp' },
+  { color: 'verde', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-verde.webp' },
+  { color: 'naranja', src: '/parches/Cintas%20y%20medallas/cintas-perfil/cinta-naranja.webp' },
+];
+
 // ----------------------------------------------------------------------
 
 export function UserAccountGeneral() {
@@ -304,6 +323,7 @@ export function UserAccountGeneral() {
     () => getMemberCodeLabel(user) || String(member?.codigoMiembro ?? '').toUpperCase(),
     [member?.codigoMiembro, user]
   );
+  const showRibbonExamples = String(memberCode).trim().toUpperCase() === 'EDR-10002';
 
   useEffect(() => {
     let active = true;
@@ -696,7 +716,9 @@ export function UserAccountGeneral() {
       // correo —no solo cuando cambia aqui—, porque el que ya estaba guardado en
       // la ficha nunca llego a la cuenta. Si ya coincide, el servidor no hace
       // nada.
-      const correoNuevo = String(payload.correo || '').trim().toLowerCase();
+      const correoNuevo = String(payload.correo || '')
+        .trim()
+        .toLowerCase();
 
       if (correoNuevo) {
         try {
@@ -810,20 +832,60 @@ export function UserAccountGeneral() {
               {memberCode}
             </Typography>
 
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-              {formatStatus(member.estatusMiembro)}
-            </Typography>
+            {showRibbonExamples && (
+              <Box
+                sx={{
+                  mx: 'auto',
+                  mt: 2.5,
+                  rowGap: 0,
+                  columnGap: 0,
+                  width: '100%',
+                  maxWidth: 300,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                }}
+              >
+                {PROFILE_RIBBON_EXAMPLES.map((ribbon, index) => (
+                  <Box
+                    key={ribbon.color}
+                    title={`Cinta ${ribbon.color}`}
+                    sx={{
+                      width: 1,
+                      lineHeight: 0,
+                      position: 'relative',
+                      gridColumn:
+                        index === PROFILE_RIBBON_EXAMPLES.length - 1 &&
+                        PROFILE_RIBBON_EXAMPLES.length % 3 === 1
+                          ? '2'
+                          : 'auto',
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={ribbon.src}
+                      alt={`Cinta ${ribbon.color}`}
+                      sx={{ width: 1, height: 'auto', display: 'block' }}
+                    />
 
-            {/* El hueco reservado para lo que la persona ha ganado. Va dicho a
-                proposito hasta que exista: la tarjeta se queda con mucho aire
-                bajo el estatus y quien la mira no sabe si falta algo o si es
-                que ahi no va nada. */}
-            <Typography
-              variant="caption"
-              sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}
-            >
-              Nota: aquí irán cintas, medallas
-            </Typography>
+                    {ribbon.color === 'roja' && (
+                      <Box
+                        component="img"
+                        src="/parches/Cintas%20y%20medallas/cintas-perfil/numero-2-dorado.webp?v=3"
+                        alt="Número 2"
+                        sx={{
+                          top: '50%',
+                          left: '50%',
+                          width: '20%',
+                          height: 'auto',
+                          position: 'absolute',
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      />
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
 
             <SignOutButton sx={{ mt: 3 }} />
           </Card>

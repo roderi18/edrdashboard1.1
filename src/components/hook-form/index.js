@@ -10,8 +10,6 @@ export * from './rhf-rating';
 
 export * from './rhf-switch';
 
-export * from './rhf-editor';
-
 export * from './rhf-slider';
 
 export * from './rhf-checkbox';

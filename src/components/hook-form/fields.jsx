@@ -1,6 +1,7 @@
+import dynamic from 'next/dynamic';
+
 import { RHFCode } from './rhf-code';
 import { RHFRating } from './rhf-rating';
-import { RHFEditor } from './rhf-editor';
 import { RHFSlider } from './rhf-slider';
 import { RHFTextField } from './rhf-text-field';
 import { RHFRadioGroup } from './rhf-radio-group';
@@ -13,6 +14,15 @@ import { RHFSelect, RHFMultiSelect } from './rhf-select';
 import { RHFCheckbox, RHFMultiCheckbox } from './rhf-checkbox';
 import { RHFUpload, RHFUploadBox, RHFUploadAvatar } from './rhf-upload';
 import { RHFDatePicker, RHFTimePicker, RHFDateTimePicker } from './rhf-date-picker';
+
+// ----------------------------------------------------------------------
+
+// Tiptap es uno de los paquetes más pesados del cliente. `Field` se usa en casi
+// todos los formularios, pero el editor solo aparece en unas pocas pantallas;
+// cargarlo de forma diferida evita incluirlo en cada formulario sencillo.
+const RHFEditor = dynamic(() => import('./rhf-editor').then((module) => module.RHFEditor), {
+  ssr: false,
+});
 
 // ----------------------------------------------------------------------
 

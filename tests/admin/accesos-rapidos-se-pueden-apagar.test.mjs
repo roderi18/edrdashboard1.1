@@ -42,7 +42,12 @@ test('solo se muestran si alguien los activo', () => {
 
 test('la pantalla Principal los esconde con esa misma regla', () => {
   assert.match(VISTA, /settings\.state\.accesosRapidos === true/);
-  assert.match(VISTA, /\{accesosVisibles && <PrincipalAccesos accesos=\{ACCESOS_RAPIDOS\} \/>\}/);
+  // Los accesos llegan del lector de la portada desde EVEREST Designer (fase 2);
+  // el interruptor sigue decidiendo si salen o no.
+  assert.match(
+    VISTA,
+    /\{accesosVisibles && \(\s*<PrincipalAccesos accesos=\{portada\['accesos-rapidos'\]\.contenido\} \/>\s*\)\}/
+  );
 });
 
 test('el interruptor esta en el panel de ajustes, debajo de "Barra y cabecera"', () => {

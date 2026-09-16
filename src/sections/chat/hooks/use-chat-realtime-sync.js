@@ -157,7 +157,9 @@ export function useChatRealtimeSync({
         });
       });
 
-      if (shouldRevalidate) revalidateConversations();
+      // La primera foto inicializa los marcadores locales. Revalidarla vuelve a
+      // pedir exactamente el resumen que SWR acaba de cargar al montar /chat.
+      if (!esPrimeraFoto && shouldRevalidate) revalidateConversations();
     };
 
     let active = true;

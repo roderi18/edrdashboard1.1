@@ -71,13 +71,13 @@ test('el editor arranca con el estado de publicacion del producto, no con "Publi
   assert.doesNotMatch(formulario, /const \[publish, setPublish\] = useState\(true\);/);
 });
 
-// ELIMINAR DESDE LA FICHA. El Administrador Global limpiaba la tienda de
-// productos de prueba y cada borrado se lo tenia que pedir al de Tienda. El boton
-// va a la izquierda del lapiz, y como no se puede deshacer pasa por confirmacion.
+// ELIMINAR DESDE LA FICHA. Quien administra la Tienda tiene la misma gestión de
+// productos que el Administrador Global. El botón va a la izquierda del lápiz y,
+// como no se puede deshacer, pasa por confirmación.
 
-test('elimina desde la ficha solo el Administrador Global', () => {
+test('elimina desde la ficha quien administra globalmente o la Tienda', () => {
   assert.equal(canDeleteProductFromDetails(global), true);
-  assert.equal(canDeleteProductFromDetails(tienda), false);
+  assert.equal(canDeleteProductFromDetails(tienda), true);
   assert.equal(canDeleteProductFromDetails(funcional), false);
   assert.equal(canDeleteProductFromDetails(coordinador), false);
   assert.equal(canDeleteProductFromDetails({}), false);

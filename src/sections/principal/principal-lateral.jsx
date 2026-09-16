@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -12,6 +14,7 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 import { MarcaDeEjemplo } from './marca-de-ejemplo';
+import { LEMA_DE_FABRICA } from './fabrica-de-portada';
 import { useTonosDeMarca } from './use-tonos-de-marca';
 
 // ----------------------------------------------------------------------
@@ -231,9 +234,16 @@ export function PrincipalComunicados({ comunicados, esEjemplo }) {
 
 // ----------------------------------------------------------------------
 
-/** El cierre de la columna. Es el lema, no un anuncio: no lleva boton. */
-export function PrincipalLema() {
+/**
+ * El cierre de la columna. Es el lema, no un anuncio: no lleva boton.
+ *
+ * Sus textos llegan de fuera —de lo publicado en EVEREST Designer o, si no hay
+ * nada, de `LEMA_DE_FABRICA`— en lugar de ir escritos aqui. El salto de linea del
+ * titulo se guarda como `\n` y se pinta con el mismo `<br />` de siempre.
+ */
+export function PrincipalLema({ lema = LEMA_DE_FABRICA }) {
   const { NAVY, ORO, AZUL } = useTonosDeMarca();
+  const lineasDelTitulo = String(lema?.titulo ?? '').split('\n');
 
   return (
     <Card
@@ -247,14 +257,19 @@ export function PrincipalLema() {
       <Iconify icon="solar:shield-check-bold" width={28} sx={{ color: ORO.claro, mb: 1 }} />
 
       <Typography variant="h6" sx={{ color: '#FFFFFF', lineHeight: 1.35 }}>
-        Más que una organización,
-        <br />
-        una familia.
+        {lineasDelTitulo.map((linea, indice) => (
+          <Fragment key={indice}>
+            {indice > 0 && <br />}
+            {linea}
+          </Fragment>
+        ))}
       </Typography>
 
-      <Typography variant="caption" sx={{ color: NAVY.texto, mt: 1, display: 'block' }}>
-        Servir · Liderar · Transformar
-      </Typography>
+      {!!lema?.pie && (
+        <Typography variant="caption" sx={{ color: NAVY.texto, mt: 1, display: 'block' }}>
+          {lema.pie}
+        </Typography>
+      )}
     </Card>
   );
 }

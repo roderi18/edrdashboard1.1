@@ -21,7 +21,7 @@ import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
 import { _contacts, _notifications } from 'src/_mock';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
-import { useGetChatUnreadSummary, useGetUnreadSummaryDeBuzones } from 'src/actions/chat';
+import { useGetDashboardChatSummary } from 'src/actions/chat-summary';
 import {
   marcarNotificacionComoLeida,
   marcarNotificacionComoAtendida,
@@ -35,9 +35,6 @@ import { Label } from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
 
 import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
-import { useBuzonesEnVivo } from 'src/sections/chat/hooks/use-buzones-en-vivo';
-import { useChatRealtimeSync } from 'src/sections/chat/hooks/use-chat-realtime-sync';
-import { usePresenceHeartbeat } from 'src/sections/chat/hooks/use-presence-heartbeat';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -60,6 +57,7 @@ import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 import {
   navDataDesarrollo,
+  conEverestDesigner,
   conUsuarioDeDesarrollo,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
@@ -141,33 +139,29 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const { labels: mailLabels } = useGetLabels(isMailRoute);
   const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
   const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
-  const { unreadByConversation } = useGetChatUnreadSummary(chatMemberId, chatSummaryEnabled);
-
-  useChatRealtimeSync({
-    idMiembros: !isChatRoute && chatSummaryEnabled ? chatMemberId : null,
-    conversationId: null,
-  });
-  usePresenceHeartbeat(!isChatRoute && chatSummaryEnabled ? chatMemberId : null);
 
   // Los sonidos de aviso, listos antes del primer mensaje. Se leen una vez por
   // sesion: los eligio el Administrador Global y valen para toda la aplicacion.
   useCargarSonidosDeAviso();
 
-  // LOS BUZONES COMPARTIDOS QUE ATIENDE ESTA SESION (Tienda Virtual, Oficina
-  // Nacional). Lo que les escriben cuenta en el mismo contador de "Chats" y se
-  // escucha en tiempo real desde cualquier pantalla, no solo dentro del chat.
+  // Un solo resumen para la persona y todos sus buzones. Fuera de /chat no se
+  // abren listeners de conversaciones ni se publica presencia: el contador se
+  // repasa cada minuto y el tiempo real completo vive en la pantalla de chat.
   const buzonesQueAtiendo = useMemo(() => buzonesQueAtiende(user), [user]);
-  const { unreadByConversation: pendientesDeBuzones } = useGetUnreadSummaryDeBuzones(
-    buzonesQueAtiendo.map((buzon) => buzon.idMiembros),
-    Boolean(user?.accessToken)
+  const mailboxIds = useMemo(
+    () => buzonesQueAtiendo.map((buzon) => buzon.idMiembros),
+    [buzonesQueAtiendo]
   );
-
-  useBuzonesEnVivo(buzonesQueAtiendo, Boolean(user?.accessToken));
+  const { unreadByConversation } = useGetDashboardChatSummary({
+    memberId: chatMemberId,
+    mailboxIds,
+    enabled: chatSummaryEnabled,
+  });
 
   const activeChatId = isChatRoute ? searchParams.get('id') : null;
-  const chatsSinLeer = [
-    ...new Set([...Object.keys(unreadByConversation), ...Object.keys(pendientesDeBuzones)]),
-  ].filter((conversationId) => conversationId !== activeChatId).length;
+  const chatsSinLeer = Object.keys(unreadByConversation).filter(
+    (conversationId) => conversationId !== activeChatId
+  ).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
   const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
   // LO QUE SE ACABA DE MARCAR NO VUELVE ATRAS.
@@ -371,9 +365,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // entrada de la tienda en el desplegable de cliente —"Mis ordenes", "Mis
     // recibos"— y, puesta antes, podia deshacerla. El resto de los miembros se
     // queda con ese desplegable.
-    return esAdministradorGlobal || canManageStoreProducts(user)
-      ? conTiendaDeAdministracion(navDataFiltrada)
-      : navDataFiltrada;
+    const conTienda =
+      esAdministradorGlobal || canManageStoreProducts(user)
+        ? conTiendaDeAdministracion(navDataFiltrada)
+        : navDataFiltrada;
+
+    // EVEREST DESIGNER, debajo de "Administradores", solo para el Administrador
+    // Global de verdad —no la cuenta administrativa antigua—: es la misma
+    // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
+    return isAdminGlobal(user) ? conEverestDesigner(conTienda) : conTienda;
   }, [chatsSinLeer, esAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, user]);
 
   const isNavMini = settings.state.navLayout === 'mini';

@@ -2,10 +2,32 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-
 const routeUrl = new URL('../../src/app/api/chat/route.js', import.meta.url);
 const routeSource = await readFile(routeUrl, 'utf8');
 const axiosSource = await readFile(new URL('../../src/lib/axios.js', import.meta.url), 'utf8');
+const routerLinkSource = await readFile(
+  new URL('../../src/routes/components/router-link.jsx', import.meta.url),
+  'utf8'
+);
+const fieldsSource = await readFile(
+  new URL('../../src/components/hook-form/fields.jsx', import.meta.url),
+  'utf8'
+);
+const hookFormIndexSource = await readFile(
+  new URL('../../src/components/hook-form/index.js', import.meta.url),
+  'utf8'
+);
+
+test('los enlaces no precargan pantallas completas salvo que se solicite', () => {
+  assert.match(routerLinkSource, /\{ prefetch = false, \.\.\.other \}/);
+  assert.match(routerLinkSource, /prefetch=\{prefetch\}/);
+});
+
+test('el editor enriquecido se descarga solo en los formularios que lo muestran', () => {
+  assert.doesNotMatch(fieldsSource, /import \{ RHFEditor \} from ['"]\.\/rhf-editor['"]/);
+  assert.match(fieldsSource, /dynamic\(\(\) => import\(['"]\.\/rhf-editor['"]\)/);
+  assert.doesNotMatch(hookFormIndexSource, /export \* from ['"]\.\/rhf-editor['"]/);
+});
 
 test('cada solicitud del cliente recupera el Bearer vigente de Firebase', () => {
   assert.match(axiosSource, /interceptors\.request\.use\(async/);
@@ -35,7 +57,9 @@ test('un token sin el numero de miembro se renueva antes de salir', () => {
 test('los cuatro métodos autentican la solicitud', () => {
   const calls = routeSource.match(/autenticarActorDelChat\(\s*req\b/g) ?? [];
 
-  assert.equal(calls.length, 4);
+  // Hay al menos una llamada por método. GET puede autenticar llamadas
+  // adicionales al combinar los buzones autorizados en un solo resumen.
+  assert.ok(calls.length >= 4);
   // Y el selector solo reparte entre las dos autenticaciones verificadas.
   assert.match(
     routeSource,
@@ -61,7 +85,8 @@ test('la ruta no deriva la identidad desde body.idMiembros', () => {
   assert.doesNotMatch(routeSource, /body\.idMiembros/);
 
   const lecturas = routeSource.match(/body\?\.idMiembros/g) ?? [];
-  const comoSelector = routeSource.match(/autenticarActorDelChat\(req, body\?\.idMiembros\)/g) ?? [];
+  const comoSelector =
+    routeSource.match(/autenticarActorDelChat\(req, body\?\.idMiembros\)/g) ?? [];
 
   assert.equal(lecturas.length, comoSelector.length);
 });
@@ -89,11 +114,14 @@ test('las operaciones sensibles usan la autorización centralizada del servidor'
 test('contactos y participantes se proyectan al contrato público del chat', () => {
   assert.match(routeSource, /getPublicChatContacts\(/);
   assert.match(routeSource, /toPublicChatContact\(/g);
-  assert.match(routeSource, /createChatMessageDocument\(\{ message, fallbackSender, conversationId \}\)/);
+  assert.match(
+    routeSource,
+    /createChatMessageDocument\(\{ message, fallbackSender, conversationId \}\)/
+  );
   assert.match(routeSource, /['"]Cache-Control['"]:\s*['"]private, no-store['"]/);
 });
 
-test('la vista espera el token y el sidebar usa el resumen global de no leidos', async () => {
+test('la vista espera el token y el sidebar usa el resumen ligero de no leidos', async () => {
   const chatViewSource = await readFile(
     new URL('../../src/sections/chat/view/chat-view.jsx', import.meta.url),
     'utf8'
@@ -109,13 +137,17 @@ test('la vista espera el token y el sidebar usa el resumen global de no leidos',
     chatViewSource,
     /useGetContacts\(\s*Boolean\(user\?\.accessToken\),\s*buzonActual\?\.idMiembros \?\? null\s*\)/
   );
-  assert.match(
-    dashboardLayoutSource,
-    /useGetChatUnreadSummary\(chatMemberId, chatSummaryEnabled\)/
-  );
-  assert.match(dashboardLayoutSource, /useChatRealtimeSync\(\{/);
-  assert.match(dashboardLayoutSource, /usePresenceHeartbeat\(/);
+  assert.match(dashboardLayoutSource, /useGetDashboardChatSummary\(\{/);
+  assert.doesNotMatch(dashboardLayoutSource, /useChatRealtimeSync|usePresenceHeartbeat/);
+  assert.match(chatViewSource, /useChatRealtimeSync\(\{/);
   assert.doesNotMatch(dashboardLayoutSource, /useGetConversations/);
+});
+
+test('el resumen combinado solo admite la identidad autenticada y buzones autorizados', () => {
+  assert.match(routeSource, /sessionMemberIds/);
+  assert.match(routeSource, /const requestedMailbox = buzonPorIdMiembros\(requestedId\)/);
+  assert.match(routeSource, /if \(!requestedMailbox\) return null/);
+  assert.match(routeSource, /autenticarActorDelChat\(req, requestedId\)/);
 });
 
 test('el resumen de no leidos no descarga mensajes de las conversaciones', () => {

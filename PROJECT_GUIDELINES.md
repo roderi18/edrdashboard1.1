@@ -3,12 +3,12 @@
 > Documentación de referencia del proyecto. **Todo lo que sigue sale de leer este
 > repositorio.** Cada elemento va marcado con su estado real:
 >
-> | Marca | Significado |
-> |---|---|
-> | ✅ **Implementado** | Existe, está conectado y se usa. |
-> | 🟡 **Parcial** | Existe pero le falta una pieza para estar completo. |
+> | Marca                        | Significado                                                      |
+> | ---------------------------- | ---------------------------------------------------------------- |
+> | ✅ **Implementado**          | Existe, está conectado y se usa.                                 |
+> | 🟡 **Parcial**               | Existe pero le falta una pieza para estar completo.              |
 > | ⛔ **Pendiente / plantilla** | No está hecho, o es código de la plantilla que nunca se conectó. |
-> | ❓ **Suposición** | Deducido del código; **hay que confirmarlo con el equipo**. |
+> | ❓ **Suposición**            | Deducido del código; **hay que confirmarlo con el equipo**.      |
 >
 > Si añades una funcionalidad, **actualiza este archivo en el mismo commit**.
 
@@ -16,13 +16,13 @@
 
 ## 1. Identidad de la aplicación
 
-| Dato | Valor | Fuente |
-|---|---|---|
-| Nombre visible | **Exploradores del Rey** | `src/global-config.js` → `CONFIG.appName` |
-| Nombre del paquete | `@minimal-kit/next-js` v7.6.1 | `package.json` |
-| Origen | Plantilla **Minimal UI Kit** (Next.js) | `README.md`, `src/_mock/`, `src/sections/_examples/` |
-| Organización | Exploradores del Rey, República Dominicana | `docs/ESTATUTOS Y REGLAMENTOS ERRD.pdf`, textos de la UI |
-| Proyecto Firebase | `systexploradores` | `docs/backend-dotnet-checklist.md` |
+| Dato               | Valor                                      | Fuente                                                   |
+| ------------------ | ------------------------------------------ | -------------------------------------------------------- |
+| Nombre visible     | **Exploradores del Rey**                   | `src/global-config.js` → `CONFIG.appName`                |
+| Nombre del paquete | `@minimal-kit/next-js` v7.6.1              | `package.json`                                           |
+| Origen             | Plantilla **Minimal UI Kit** (Next.js)     | `README.md`, `src/_mock/`, `src/sections/_examples/`     |
+| Organización       | Exploradores del Rey, República Dominicana | `docs/ESTATUTOS Y REGLAMENTOS ERRD.pdf`, textos de la UI |
+| Proyecto Firebase  | `systexploradores`                         | `docs/backend-dotnet-checklist.md`                       |
 
 ⚠️ **El `name` del `package.json` sigue siendo el de la plantilla.** No es el nombre
 del producto. El nombre real de la aplicación es `CONFIG.appName`.
@@ -40,8 +40,8 @@ solo lo que su cargo alcanza.**
    iglesias, hoy repartidos entre una API .NET heredada y Firestore.
 2. **Quién puede qué.** Un catálogo de ~40 cargos con permisos y alcance, aplicado
    en pantalla, en las rutas `/api` y en las reglas de Firestore.
-3. **Cambios que necesitan aprobación.** Los cargos locales *proponen*; la Oficina
-   Nacional *aprueba* (`solicitudes_cambio`).
+3. **Cambios que necesitan aprobación.** Los cargos locales _proponen_; la Oficina
+   Nacional _aprueba_ (`solicitudes_cambio`).
 4. **Asistencia sin señal.** Firestore con caché local persistente, pensado para
    campamentos (`src/lib/firebase.js`).
 5. **Datos sensibles de menores.** Dispensa médica y datos personales con
@@ -65,22 +65,22 @@ Navegador (Next.js App Router, React 19, MUI 7)
                                             (caché + timeout en upstream-cache)
 ```
 
-**No hay backend Node propio.** ✅ Lo que existe son *route handlers* de Next.js
+**No hay backend Node propio.** ✅ Lo que existe son _route handlers_ de Next.js
 bajo `src/app/api/**`, que hacen tres cosas: comprobar la sesión, hacer de proxy y
 caché de la API .NET, y ejecutar lo que necesita privilegios (`firebase-admin`).
 
 ❓ **Suposición**: la API .NET es un sistema heredado mantenido por otro equipo.
-`docs/backend-dotnet-checklist.md` es un encargo escrito *hacia* ese equipo.
+`docs/backend-dotnet-checklist.md` es un encargo escrito _hacia_ ese equipo.
 
 ### Las dos fuentes de datos
 
 Esta es **la decisión arquitectónica más importante del proyecto** y hay que
 tenerla presente antes de tocar nada.
 
-| Fuente | Qué guarda | Cómo se accede |
-|---|---|---|
-| **API .NET** (`systexploradores.somee.com`) | El padrón heredado: `Miembros`, `Destacamentos`, `Secciones`, `Regiones`, `Iglesias`, `Divisiones`, `Paises`, `Cargos`, `CargosMiembros`, `Tutores` | Siempre a través de `/api/*`, nunca desde el navegador |
-| **Firestore** | Todo lo que la aplicación añadió: notificaciones, chat, muro, salud, ascenso, asistencia, tienda, directivas, roles, auditoría, archivos, certificados | Firebase SDK desde el cliente, con `firestore.rules` |
+| Fuente                                      | Qué guarda                                                                                                                                             | Cómo se accede                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| **API .NET** (`systexploradores.somee.com`) | El padrón heredado: `Miembros`, `Destacamentos`, `Secciones`, `Regiones`, `Iglesias`, `Divisiones`, `Paises`, `Cargos`, `CargosMiembros`, `Tutores`    | Siempre a través de `/api/*`, nunca desde el navegador |
+| **Firestore**                               | Todo lo que la aplicación añadió: notificaciones, chat, muro, salud, ascenso, asistencia, tienda, directivas, roles, auditoría, archivos, certificados | Firebase SDK desde el cliente, con `firestore.rules`   |
 
 **Consecuencia práctica**: un miembro existe en los dos sitios. Su ficha básica
 (nombre, teléfono, destacamento) vive en la API .NET; su salud, sus premios, su
@@ -91,7 +91,7 @@ asistencia y sus cargos viven en Firestore, enlazados por `idMiembros`.
 `src/utils/upstream-cache.js` ✅ documenta que la API .NET **varía de 0,3 s a más
 de 17 s** porque su plan gratuito serializa la concurrencia. Por eso:
 
-- Caché en memoria por proceso, TTL 60 s, con *stale* servible hasta 10 min.
+- Caché en memoria por proceso, TTL 60 s, con _stale_ servible hasta 10 min.
 - Deduplicación de peticiones en vuelo y refresco en segundo plano.
 - Timeout: **9 s en producción** (las funciones de Netlify se cortan a los 10) y
   **25 s en desarrollo**.
@@ -107,11 +107,11 @@ razón escrita.
 
 ### Los tres tipos de sesión ✅
 
-| Tipo | Cómo entra | Dónde vive su perfil |
-|---|---|---|
-| **Miembro** | Código `EDR-NNNNN` + contraseña | `usuarios_roles` |
-| **Administrador** | Correo + contraseña | `admins` |
-| **Sesión de administrador con cargo** (`usuario_seccion`, `usuario_region`…) | Correo | `usuarios_roles` con `rolId` |
+| Tipo                                                                         | Cómo entra                      | Dónde vive su perfil         |
+| ---------------------------------------------------------------------------- | ------------------------------- | ---------------------------- |
+| **Miembro**                                                                  | Código `EDR-NNNNN` + contraseña | `usuarios_roles`             |
+| **Administrador**                                                            | Correo + contraseña             | `admins`                     |
+| **Sesión de administrador con cargo** (`usuario_seccion`, `usuario_region`…) | Correo                          | `usuarios_roles` con `rolId` |
 
 ⚠️ **`usuario_seccion` / `usuario_region` son sesiones de administrador con
 `rolId`.** El gating se hace por **códigos de rol**, no por `user.permisos`.
@@ -207,16 +207,16 @@ leer el test que las cubre.**
      **Historial** (`auditoria_sistema`, acción `respuesta_buzon_compartido`). En la
      conversación, "respondió Nombre (usuario)" **solo lo ve el Administrador
      Global**; ni el miembro ni el resto de quienes atienden el buzón lo reciben.
-   - **Avisos en tiempo real**: quien atiende un buzón recibe el aviso en la
+   - **Avisos y contador global**: quien atiende un buzón recibe el aviso en la
      campana —tenga sesión de miembro o de administrador; el aviso lleva
      `metadatos.buzon` y no se filtra por rol— y el contador de "Chats" suma lo
      pendiente de sus buzones. La campana escucha sus avisos en vivo
-     (`escucharNotificacionesDelUsuario`) y los buzones se escuchan desde cualquier
-     pantalla (`useBuzonesEnVivo`), **con sonido**: lo que le escriben a un buzón
-     suena igual que un mensaje propio, y la decisión de si suena es única para
-     todas las escuchas (`src/sections/chat/utils/sonido-de-mensaje.mjs`), que
-     además calla la primera foto de cada suscripción y no repite un mensaje ya
-     sonado.
+     (`escucharNotificacionesDelUsuario`) y reproduce el sonido al instante. El
+     contador global agrupa la identidad personal y todos los buzones autorizados
+     en **una sola petición** (`useGetDashboardChatSummary`) cada minuto. Las
+     suscripciones de conversaciones y la presencia se abren únicamente dentro
+     de `/chat`; mantenerlas en todas las pantallas multiplicaba conexiones de
+     Firestore y solicitudes de resumen.
    - **Lo que nadie contesta se reclama solo.** Un buzón lo atienden varios, y un
      mensaje podía quedarse sin respuesta sin que nadie se enterara: el único
      rastro era el contador de la bandeja. **A los 60 minutos** sin responder va
@@ -250,10 +250,10 @@ leer el test que las cubre.**
    - **Para añadir otro buzón**: una entrada en `chat-buzones.mjs`, su número en
      `idMiembroNoUsurpaUnBuzon` y su `atiendeBuzonDe…` en `firestore.rules` y
      `storage.rules`, y su colección de respuestas.
-   Tests: `tests/chat/chat-buzones-compartidos.test.mjs`,
-   `tests/chat/buzon-sin-responder.test.mjs`,
-   `tests/chat/sonido-de-mensaje-recibido.test.mjs` y
-   `tests/chat/chat-tienda-virtual.test.mjs`.
+     Tests: `tests/chat/chat-buzones-compartidos.test.mjs`,
+     `tests/chat/buzon-sin-responder.test.mjs`,
+     `tests/chat/sonido-de-mensaje-recibido.test.mjs` y
+     `tests/chat/chat-tienda-virtual.test.mjs`.
 9. **Un producto agotado se solicita, no se compra.** Con el inventario en 0 el
    botón principal dice **"Solicitar producto"** y deja una orden en estado
    `solicitada` (`esSolicitud: true`): **no descuenta inventario, no genera
@@ -273,9 +273,9 @@ lista a la que le faltaba un nombre. Quedaron igualados, y
 `tests/acceso/permisos-iguales-en-su-nivel.test.mjs` compara los guardas reales
 en lote para que no se vuelvan a separar:
 
-| Grupo | Qué los separaba |
-|---|---|
-| **Pastor** = Consejo Destacamento = Capellán | El Pastor no estaba en `REGION_WIDE_SECTION_VIEWER_ROLE_IDS`: veía menos estructura que sus dos compañeros de desplegable. Ese listado decide qué se **ve**, no con qué se interactúa — las secciones ajenas salen deshabilitadas para todos. |
+| Grupo                                                                                 | Qué los separaba                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pastor** = Consejo Destacamento = Capellán                                          | El Pastor no estaba en `REGION_WIDE_SECTION_VIEWER_ROLE_IDS`: veía menos estructura que sus dos compañeros de desplegable. Ese listado decide qué se **ve**, no con qué se interactúa — las secciones ajenas salen deshabilitadas para todos.                                            |
 | **Capellán Seccional** = **Zonas** = **Grupos Locales** = los 4 coordinadores de área | Arrastraban `soloLectura: true`, que no añadía nada (su catálogo no concede ninguna edición) pero les pintaba etiqueta aparte y mandaba el claim al .NET; les faltaba la Academia Ministerial; y sus menores no salían marcados en la lista por no estar en `MINOR_RESTRICTED_ROLE_IDS`. |
 
 **Regla que queda**: si dos cargos comparten nivel y perfil, no se los separa con
@@ -307,11 +307,11 @@ destacamento ocupe** (la visibilidad se suma entre cargos, regla 3).
 
 ### Dónde se aplican los permisos ✅ — tres capas
 
-| Capa | Archivo | Qué hace |
-|---|---|---|
-| Pantalla | `src/utils/member-access.js`, `src/utils/org-level-access.js`, `src/auth/permissions/can.js` | Oculta o deshabilita |
-| Rutas `/api` | `src/server/sesion-rest.mjs` | `exigirSesionRest`, `exigirPermisoDeCargoRest`, `exigirAdministradorGlobalRest`, `exigirCoordinadorDeDestacamentoRest` |
-| Firestore | `firestore.rules` | `esUsuarioDelSistema()`, `tienePermisoDeCargo()`, `destacamentosDeSuAlcance()` |
+| Capa         | Archivo                                                                                      | Qué hace                                                                                                               |
+| ------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Pantalla     | `src/utils/member-access.js`, `src/utils/org-level-access.js`, `src/auth/permissions/can.js` | Oculta o deshabilita                                                                                                   |
+| Rutas `/api` | `src/server/sesion-rest.mjs`                                                                 | `exigirSesionRest`, `exigirPermisoDeCargoRest`, `exigirAdministradorGlobalRest`, `exigirCoordinadorDeDestacamentoRest` |
+| Firestore    | `firestore.rules`                                                                            | `esUsuarioDelSistema()`, `tienePermisoDeCargo()`, `destacamentosDeSuAlcance()`                                         |
 
 🟡 **Hueco conocido y documentado**: el alcance de escritura sobre
 destacamentos/secciones/regiones **se decide en el navegador**. Las rutas
@@ -332,36 +332,167 @@ combinar dos cargos.
 
 ### 4.1 Implementados ✅
 
-| Módulo | Ruta | Notas |
-|---|---|---|
-| **Principal (muro)** | `/dashboard/principal` | Renderiza `UserProfileView` (`src/sections/user/view`) con `useSessionProfile`. Publicaciones, comentarios, reacciones, reportes, compartidos, ocultar, amistades y seguidores. Firestore. |
-| **Niveles organizacionales** | `/dashboard/level/{national,regional,sectional,dest}` | CRUD + organigrama de directiva por nivel. |
-| **Miembros** | `/dashboard/level/member` | Lista (tabla y tarjetas), ficha, creación, carga masiva por Excel, PDF, solicitudes de cambio. |
-| **Miembros de un destacamento** | `/dashboard/level/dest/[id]/edit/members` | Pestaña que reutiliza la misma vista de miembros. |
-| **Directivas** | `.../edit/leadership`, `.../edit/youth-leadership` | Organigrama, asignaciones, diseños. El diseño de **Líderes Juveniles es uno solo para todos los destacamentos** (`destacamento-juvenil_global`); sin él se lee el de Tribu de Judá 18 (`231`), el modelo. Test: `tests/directivas/diseno-juvenil-global.test.mjs`. |
-| **Asistencia** | `/dashboard/level/attendance` | Pase de lista diario, resumen, informe avanzado, exportación. Offline-capable. |
-| **Dispensa médica** | `/dashboard/level/member/[id]/edit/health` | Info básica, medicamentos, alergias, condiciones, documentos, solicitudes de acceso. |
-| **Sistema de ascenso** | `.../edit/awards` | Catálogo de 490 premios transcrito del inventario oficial. |
-| **Padres / tutores** | `.../edit/parents` | Con notas y autoguardado. |
-| **Historial del miembro** | `.../edit/history` | |
-| **Chat** | `/dashboard/chat` | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. Buzones compartidos **Tienda Virtual** (`?bandeja=tienda`) y **Oficina Nacional** (`?bandeja=oficina`), según los cargos de cada quien; el Administrador Global ve los dos y cambia su foto. 27 ficheros de test. |
-| **Notificaciones** | Campana + `/dashboard/admin/notifications` | Tipos, plantillas, preferencias y tareas en Firestore. |
-| **Tienda** | `/dashboard/product`, `/checkout`, `/order`, `/invoice` | Productos, inventario, reseñas, carrito, órdenes, recibos. |
-| **Certificados** | `/dashboard/certificates` | Plantillas y generación. |
-| **Documentos ministeriales** | `/dashboard/file-manager` | Firestore + Storage. |
-| **Calendario** | `/dashboard/calendar` | Firestore. |
-| **Administración** | `/dashboard/admin/*` | Administradores, logs, aprobaciones, permisos, roles, combinaciones, mantenimiento, salud del sistema. |
-| **Cuenta propia** | `/dashboard/user/account` | |
+| Módulo                          | Ruta                                                    | Notas                                                                                                                                                                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Principal (muro)**            | `/dashboard/principal`                                  | Renderiza `UserProfileView` (`src/sections/user/view`) con `useSessionProfile`. Publicaciones, comentarios, reacciones, reportes, compartidos, ocultar, amistades y seguidores. Firestore.                                                                                                     |
+| **Niveles organizacionales**    | `/dashboard/level/{national,regional,sectional,dest}`   | CRUD + organigrama de directiva por nivel.                                                                                                                                                                                                                                                     |
+| **Miembros**                    | `/dashboard/level/member`                               | Lista (tabla y tarjetas), ficha, creación, carga masiva por Excel, PDF, solicitudes de cambio.                                                                                                                                                                                                 |
+| **Miembros de un destacamento** | `/dashboard/level/dest/[id]/edit/members`               | Pestaña que reutiliza la misma vista de miembros.                                                                                                                                                                                                                                              |
+| **Directivas**                  | `.../edit/leadership`, `.../edit/youth-leadership`      | Organigrama, asignaciones, diseños. El diseño de **Líderes Juveniles es uno solo para todos los destacamentos** (`destacamento-juvenil_global`); sin él se lee el de Tribu de Judá 18 (`231`), el modelo. Test: `tests/directivas/diseno-juvenil-global.test.mjs`.                             |
+| **Asistencia**                  | `/dashboard/level/attendance`                           | Pase de lista diario, resumen, informe avanzado, exportación. Offline-capable.                                                                                                                                                                                                                 |
+| **Dispensa médica**             | `/dashboard/level/member/[id]/edit/health`              | Info básica, medicamentos, alergias, condiciones, documentos, solicitudes de acceso.                                                                                                                                                                                                           |
+| **Sistema de ascenso**          | `.../edit/awards`                                       | Catálogo de 490 premios transcrito del inventario oficial.                                                                                                                                                                                                                                     |
+| **Padres / tutores**            | `.../edit/parents`                                      | Con notas y autoguardado.                                                                                                                                                                                                                                                                      |
+| **Historial del miembro**       | `.../edit/history`                                      |                                                                                                                                                                                                                                                                                                |
+| **Chat**                        | `/dashboard/chat`                                       | Conversaciones, grupos, reacciones, presencia, recibos de lectura, adjuntos. Buzones compartidos **Tienda Virtual** (`?bandeja=tienda`) y **Oficina Nacional** (`?bandeja=oficina`), según los cargos de cada quien; el Administrador Global ve los dos y cambia su foto. 27 ficheros de test. |
+| **Notificaciones**              | Campana + `/dashboard/admin/notifications`              | Tipos, plantillas, preferencias y tareas en Firestore.                                                                                                                                                                                                                                         |
+| **Tienda**                      | `/dashboard/product`, `/checkout`, `/order`, `/invoice` | Productos, inventario, reseñas, carrito, órdenes, recibos.                                                                                                                                                                                                                                     |
+| **Certificados**                | `/dashboard/certificates`                               | Plantillas y generación.                                                                                                                                                                                                                                                                       |
+| **Documentos ministeriales**    | `/dashboard/file-manager`                               | Firestore + Storage.                                                                                                                                                                                                                                                                           |
+| **Calendario**                  | `/dashboard/calendar`                                   | Firestore.                                                                                                                                                                                                                                                                                     |
+| **Administración**              | `/dashboard/admin/*`                                    | Administradores, logs, aprobaciones, permisos, roles, combinaciones, mantenimiento, salud del sistema.                                                                                                                                                                                         |
+| **Cuenta propia**               | `/dashboard/user/account`                               |                                                                                                                                                                                                                                                                                                |
 
 ### 4.2 Parcialmente implementados 🟡
 
-| Elemento | Qué falta |
-|---|---|
+| Elemento                                           | Qué falta                                                                                                                                                                                           |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Crear recibo a mano** (`/dashboard/invoice/new`) | El formulario **no guarda nada**: `handleSaveAsDraft` y `handleCreateAndSend` solo hacen `console.info`. Arranca con `INV-1990` y direcciones de `_addressBooks`. O se conecta o se quita del menú. |
-| **Alcance en el servidor** | Ver §3. El bloqueo vive en el navegador. |
-| **`contadores_comercio`** | Cae bajo el comodín de `firestore.rules`: escribible por cualquier sesión válida. El contador de órdenes debería tener su propio bloque. |
-| **Numeración de órdenes** | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres. |
-| **Buscar por número de recibo** | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden. |
+| **Alcance en el servidor**                         | Ver §3. El bloqueo vive en el navegador.                                                                                                                                                            |
+| **`contadores_comercio`**                          | Cae bajo el comodín de `firestore.rules`: escribible por cualquier sesión válida. El contador de órdenes debería tener su propio bloque.                                                            |
+| **Numeración de órdenes**                          | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres.                                                              |
+| **Buscar por número de recibo**                    | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden.                                                                                                   |
+| **EVEREST Designer**                               | En construcción: fases 0 a 3 hechas (base, lector de la portada y pantalla con vista previa; todavía sin editores). Ver abajo.                                                                      |
+
+#### EVEREST Designer 🟡 — editar la portada desde la aplicación
+
+Entrada propia del menú lateral (grupo Administración, debajo de "Administradores") para cambiar todo lo de
+`/principal` —encabezados, próxima actividad, historias, eventos, comunicados,
+destacamento destacado, lema— **sin tocar código** al preparar un evento.
+
+**La regla que manda sobre todo lo demás:** `/principal` se ve exactamente igual
+—textos, orden, imágenes y videos— **hasta que alguien publica ese bloque desde el
+Designer**. Se cumple por construcción, no por cuidado:
+
+1. **El valor de fábrica es el código.** Lo que sale de
+   `src/sections/principal/datos-de-ejemplo.js` y el lema (`LEMA_DE_FABRICA`) no
+   se copia ni se siembra en Firestore: es el respaldo de cada bloque sin
+   publicar. El mapa bloque → valor está en
+   `src/sections/principal/fabrica-de-portada.js`, y apunta a los **mismos
+   objetos** que usaba la pantalla.
+2. **Se publica por bloque.** Publicar "Comunicados" no toca "Próxima actividad".
+3. **Una publicación rota no deja un hueco**: si el bloque no pasa el saneado, se
+   pinta el de fábrica (`resolverPortada`).
+4. **Las fotos y videos de hoy no se mueven**: siguen en `fotos` →
+   `principalTarjeta/{bienvenida,proxima-actividad}` y en `principal-tarjetas/` de
+   Storage, que no admite borrado. Lo que se suba desde el Designer va a
+   `everest/`.
+5. `tests/everest/portada-congelada.test.mjs` lo vigila y **no se borra**. En la
+   fase 2 su comprobación de "la vista importa cada dato a mano" se sustituyó por
+   la cadena entera: la vista pinta lo que da el lector, el lector sin publicación
+   da lo de fábrica, y lo de fábrica es el mismo objeto de siempre.
+
+**Cómo lee la portada (fase 2):** `principal-home-view.jsx` ya no importa datos;
+pide cada bloque a `useContenidoDePortada()` y pasa `portada[id].contenido` a su
+componente.
+
+- **Arranca con lo de fábrica**, igual en el servidor y en el navegador (si
+  arrancara con la copia local, el primer pintado no casaría).
+- **Una sola lectura por visita** (`obtenerPublicado`), no una escucha en vivo.
+- **Copia en el navegador** (`erd-everest-portada-publicada`), aplicada antes de
+  pintar, para que lo publicado no parpadee con lo viejo. Pasa por el mismo
+  saneado; sin publicación no se guarda nada.
+- **"No se pudo leer" no es "no hay nada"**: con la red caída o las reglas sin
+  publicar, se queda lo que ya se pintaba y no se borra la copia buena.
+- **Los medios siguen por el camino de siempre** (`useImagenDeTarjeta`). Un bloque
+  publicado todavía no lleva foto ni video propios: eso llega con los editores
+  (fase 4).
+- La marca "Ejemplo" nunca se pone sobre un bloque publicado.
+- `PrincipalLema` recibe el lema por props: el salto de línea del título es un
+  `\n` que se pinta como el `<br />` de antes.
+
+**La pantalla (fase 3):** `/dashboard/everest`, **entrada propia del menú
+lateral**, en el grupo Administración, justo debajo de "Administradores". Nació
+como pestaña de Administración y se sacó a petición: colgando de
+`/dashboard/admin` heredaba sus pestañas y su encabezado, y allí entran también la
+Oficina Nacional y el Administrador Funcional. La entrada la añade
+`conEverestDesigner` (`nav-config-dashboard.jsx`) **después** del filtro del menú y
+**solo para el Administrador Global**, como la tienda de administración; la vista
+lo vuelve a comprobar por si alguien escribe la dirección a mano.
+
+- **Izquierda:** los bloques por grupo, cada uno con su estado: _Original_,
+  _Publicado_, _Borrador sin publicar_ o _Editor propio_ (el encabezado de la
+  tienda).
+- **Centro:** la vista previa, en **Celular (375 px)** o **Escritorio (1280 px,
+  reducido a escala)**. Va en un **iframe** a `/vista-previa/everest`, fuera de
+  `/dashboard` (sin menú ni cabecera), porque los estilos de la portada dependen
+  del ancho de la _ventana_: encoger un recuadro seguiría enseñando el diseño de
+  escritorio. El Designer le manda el contenido por `postMessage` en cuanto cambia;
+  los dos lados comprueban el `origin` y quién manda el mensaje
+  (`mensajes-vista-previa.mjs`). Pinta con **los mismos componentes** de
+  `/principal` y con su ancho de columna real (`bloque-de-la-portada.jsx`).
+- **Derecha:** el bloque abierto: qué hay en vivo (y quién lo publicó), el
+  borrador, el hueco del editor (fase 4) y las acciones. **Publicar** solo con un
+  borrador válido; al publicar, el borrador se tira. **Descartar borrador** no
+  pregunta: solo tira lo que nadie vio. **Volver al original** pide confirmación
+  porque cambia la portada de todos.
+- **Borradores:** `cambiarContenido(idBloque, contenido)` es la entrada de los
+  editores. Lo escrito se ve al momento en la vista previa y se guarda solo como
+  borrador 1,5 s después de dejar de escribir (`everest-borradores-service.js`). Un
+  borrador a medias se marca, pero la vista previa sigue enseñando lo que está en
+  vivo hasta que sea válido. Los borradores **no** pasan por Historial (no los ve
+  nadie más; cada autoguardado sería ruido): lo que queda es la publicación.
+- **`?bloque=`** abre ese bloque; **`?volver=`** pone un botón "Volver" (solo
+  rutas de la propia aplicación: `destinoDeVuelta`). Es lo que usarán los lápices
+  de la fase 6.
+
+**Piezas (fases 1, 2 y 3):**
+
+| Pieza                                                | Qué hace                                                                                                                                                                                                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/utils/everest/bloques.mjs`                      | **Único registro de bloques**: id, nombre, grupo, pantalla, medio de tarjeta y saneado. Cada bloque guarda la **misma forma que hoy recibe su componente**; los campos más ricos (fechas reales, botones, audiencia) se añaden con su editor |
+| `src/utils/everest/saneado.mjs`                      | Piezas de limpieza: colores solo con nombre (acentos de marca o colores de estado, nunca hex), iconos solo del paquete registrado, destinos solo rutas de la app o `https`. Un elemento roto invalida la lista entera                        |
+| `src/utils/everest/portada.mjs`                      | `resolverPortada` (qué se pinta en cada bloque) y `prepararPublicacion` (limpia y firma lo que se publica)                                                                                                                                   |
+| `src/utils/everest/colecciones.mjs`                  | Nombres de colecciones, pantallas y carpeta de medios                                                                                                                                                                                        |
+| `src/services/everest-service.js`                    | `obtenerPublicado`, `publicarBloque`, `volverBloqueAlOriginal`. Solo el Administrador Global; por `proponerCambio` con el ámbito `everest_designer` (se aplica al momento y queda en Historial)                                              |
+| `src/services/everest-apply.js`                      | La escritura que ejecuta la puerta. Está en la lista de excepciones de ESLint con su motivo                                                                                                                                                  |
+| `src/sections/principal/fabrica-de-portada.js`       | `FABRICA_DE_PORTADA` (bloque → valor de fábrica) y `LEMA_DE_FABRICA`                                                                                                                                                                         |
+| `src/sections/principal/use-contenido-de-portada.js` | El lector de la portada. Es el **único** sitio de `src/sections/principal/` que importa del Designer, y solo lee                                                                                                                             |
+| `src/sections/principal/identidad-de-la-sesion.js`   | Nombre, destacamento, región y foto de la sesión para la bienvenida. Lo usan la portada y la vista previa                                                                                                                                    |
+| `src/utils/everest/estado-del-bloque.mjs`            | Estado de cada bloque (original, publicado, borrador, externo), qué enseña la vista previa y `destinoDeVuelta`                                                                                                                               |
+| `src/utils/everest/mensajes-vista-previa.mjs`        | Los tres mensajes entre el Designer y su iframe, y cómo se validan                                                                                                                                                                           |
+| `src/services/everest-borradores-service.js`         | Leer, guardar y descartar borradores. Solo el Administrador Global; en la lista de excepciones de ESLint con su motivo                                                                                                                       |
+| `src/sections/everest/`                              | La pantalla: `view/everest-designer-view.jsx`, `view/everest-vista-previa-view.jsx`, `hooks/use-everest-designer.js`, la lista, la vista previa, el panel y `bloque-de-la-portada.jsx`                                                       |
+
+Bloques registrados: `bienvenida`, `encabezado-tienda` (externo: se aloja con su
+almacén propio, `configuracion_tienda/encabezado`), `accesos-rapidos`,
+`proxima-actividad`, `mi-progreso`, `historias`, `proximos-eventos`,
+`destacamento-destacado`, `comunicados`, `lema`.
+
+**Fases:**
+
+| Fase | Qué                                                                                                                                                                   | Cambia /principal                           | Estado                                 |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------- |
+| 0    | Red de seguridad: test que congela valores, lema, medios y quién pinta cada bloque. Capturas de referencia en celular y escritorio (las toma quien tenga sesión)      | No                                          | ✅ test · ❓ capturas                  |
+| 1    | Registro, saneado, lector puro, servicio, ámbito de Historial, reglas de Firestore y Storage                                                                          | No                                          | ✅                                     |
+| 2    | `/principal` lee `everest_publicado/principal` con respaldo al código; copia en el navegador para no parpadear; el lema sale del componente                           | No, sin publicación                         | ✅ · ❓ comparar con las capturas      |
+| 3    | Pestaña y esqueleto: lista de bloques con su estado, vista previa con los componentes reales (celular/escritorio), autoguardado de borradores, `?bloque=` y `volver=` | No                                          | ✅ (sin editores: llegan en la fase 4) |
+| 4    | Editores por bloque, en orden: próxima actividad, comunicados, eventos, destacado, bienvenida y lema, accesos, historias, mi progreso, encabezado de la tienda        | Solo al publicar                            | ⏳                                     |
+| 5    | Versiones (`everest_versiones`), volver a cualquiera, Historial con antes y después                                                                                   | Solo al publicar                            | ⏳                                     |
+| 6    | Lápices en cada tarjeta y encabezado que llevan al Designer (solo Administrador Global). Sustituyen al lápiz de imagen que hoy publica en el acto                     | Solo el lápiz, para el Administrador Global | ⏳                                     |
+| 7    | Campañas con vigencia: campaña vigente → publicado → código                                                                                                           | Solo al publicar                            | ⏳                                     |
+| 8    | Audiencia por alcance, analíticas, biblioteca de medios, aviso en campana al publicar un comunicado                                                                   | Solo al publicar                            | ⏳                                     |
+
+**Decisiones tomadas** (las recomendadas al aprobar el plan): se publica por
+bloque; en la primera versión solo edita el Administrador Global; publicar se
+aplica directo y queda en Historial. **Pendientes:** "Mi progreso" como dato real
+del Sistema de Ascenso o editable; cuándo se activan los lápices; si el encabezado
+de la tienda se sigue editando también en la propia tienda.
+
+**Reglas publicadas:** hay que desplegar `firestore.rules` y `storage.rules` en el
+proyecto antes de publicar nada desde el Designer (fase 3 en adelante). Mientras
+no estén, la lectura de la portada falla y se pinta desde el código —no se rompe
+nada—, pero cualquier publicación sería rechazada.
 
 ### 4.3 Plantilla sin conectar ⛔
 
@@ -405,13 +536,13 @@ iglesias cargadas, un cargo seccional no reconoce sus propios destacamentos.
 
 **Divisiones por edad** ✅ (`src/services/member-service.js`):
 
-| id | División | Edad |
-|---|---|---|
-| 1 | Navegantes | 5–7 |
-| 2 | Pioneros | 8–10 |
-| 3 | Seguidores | 11–13 |
-| 4 | Exploradores | 14–17 |
-| 5 | Liderazgo | 18+ |
+| id  | División     | Edad  |
+| --- | ------------ | ----- |
+| 1   | Navegantes   | 5–7   |
+| 2   | Pioneros     | 8–10  |
+| 3   | Seguidores   | 11–13 |
+| 4   | Exploradores | 14–17 |
+| 5   | Liderazgo    | 18+   |
 
 **Código de miembro** ✅ (`src/catalogs/codigo-miembro.js`): `EDR-NNNNN` desde
 `10001`. Antes llevaba provincia (`DO-SD-10001`); se quitó porque la provincia
@@ -426,7 +557,7 @@ personas podían compartir número.
 
 **Directivas** — `posicionesDirectiva`, `directivasOrganizacionales`,
 `asignacionesDirectiva`, `disenosDirectiva`,
-`organigramaDirectivaDestacamentos`, `cargosDirectiva` *(obsoleta)*
+`organigramaDirectivaDestacamentos`, `cargosDirectiva` _(obsoleta)_
 
 **Miembro** — `informacion_medica_basica_miembros`, `medicamentos_miembros`,
 `alergias_miembros`, `condiciones_medicas_miembros`,
@@ -454,13 +585,20 @@ personas podían compartir número.
 `plantillas_notificaciones`, `preferencias_notificaciones`,
 `tareas_notificaciones`
 
+**EVEREST Designer** — `everest_publicado` (un documento por pantalla con el
+mapa `bloques`; lo lee cualquier sesión y lo escribe el Administrador Global),
+`everest_borradores` y `everest_versiones` (solo el Administrador Global; una
+versión no se reescribe ni se borra). Las tres, fuera del comodín.
+
 **Otros** — `solicitudes_cambio`, `solicitudes_cambio_miembro`,
 `auditoria_sistema`, `gestorArchivos`, `plantillasCertificados`
 
 ### 5.3 Storage ✅ — `storage.rules`
 
 `miembros/`, `destacamentos/`, `documentos/`, `certificados/`, `chat/`,
-`principal/`, `propuestas/`
+`principal/`, `propuestas/`, `principal-tarjetas/` (fondos de la portada de hoy),
+`everest/` (medios subidos desde EVEREST Designer; mismas condiciones que
+`principal-tarjetas/`, sin borrado)
 
 ### 5.4 Modelos y esquemas ✅ — `src/models/`
 
@@ -479,14 +617,17 @@ dos (se guardaban fichas en blanco que gastaban un código de miembro).
 Todos son Route Handlers de Next.js en `src/app/api/**/route.js`.
 
 ### Autenticación y cuentas ✅
+
 `acceso-con-codigo`, `clave-miembro`, `codigo-restablecimiento`, `correo-acceso`,
 `correo-acceso-administrador`, `correo-cuenta-miembro`, `correo-disponible`,
 `crear-cuenta-miembro`, `estado-clave`, `recuperacion`, `sincronizar-rol`
 
 ### Administración ✅
+
 `admin/set-user-claims`, `admin/sincronizar-roles`, `admin/switch-own-role`
 
 ### Proxy del padrón .NET ✅
+
 `members` (GET paginado), `members/post`, `members/put`, `members/template`,
 `dest`, `dest/post`, `dest/put`, `sectional`, `sectional/post`, `sectional/put`,
 `regional`, `regional/post`, `regional/put`, `churches`, `churches/post`,
@@ -494,13 +635,16 @@ Todos son Route Handlers de Next.js en `src/app/api/**/route.js`.
 `cargos-miembros`, `miembros/tutores`, `miembros/tutores/nota`
 
 ### Aplicación ✅
+
 `chat`, `calendar`, `notificaciones/recuperacion-atendida`, `notifications/seed`,
 `principal/metadatos-privados`, `image-data-url`
 
 ### Mock de plantilla ⛔
+
 `kanban`, `mail/*`, `post/*`, `product/*`
 
 ### Contrato de errores ✅
+
 `Response.json({ error: '…' }, { status })`. Los guardas devuelven **401** sin
 sesión, **403** sin permiso y **503** cuando el servidor no puede comprobar la
 sesión. El upstream lento produce `El servidor de datos no respondió en Ns.`
@@ -509,22 +653,22 @@ sesión. El upstream lento produce `El servidor de datos no respondió en Ns.`
 
 ## 7. Estructura de carpetas
 
-| Carpeta | Responsabilidad |
-|---|---|
-| `src/app/` | Rutas (App Router). `page.jsx` = página; `api/**/route.js` = endpoint. |
-| `src/sections/` | Las vistas de cada módulo. **Aquí vive el grueso de la lógica de pantalla.** |
-| `src/components/` | Componentes reutilizables sin dominio (form, table, iconify, upload…). |
-| `src/services/` | Acceso a datos: Firestore y `fetch` a `/api`. |
-| `src/models/` | Forma de los datos y esquemas Zod. |
-| `src/server/` | Código que solo corre en servidor (`.mjs` para poder probarlo con `node --test`). |
-| `src/auth/` | Contexto de sesión, guardas, permisos y roles. |
-| `src/catalogs/` | Catálogos fijos transcritos de documentos oficiales. |
-| `src/utils/` | Reglas transversales. **`member-access.js` y `org-level-access.js` son el corazón del alcance.** |
-| `src/layouts/` | Layouts y navegación (`nav-config-dashboard.jsx`). |
-| `src/theme/` | Sistema visual. |
-| `src/_mock/` | Datos de la plantilla. ⛔ No lo uses para nada nuevo. |
-| `tests/` | Pruebas con `node --test`. |
-| `docs/` | Auditorías y encargos al equipo .NET. |
+| Carpeta           | Responsabilidad                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| `src/app/`        | Rutas (App Router). `page.jsx` = página; `api/**/route.js` = endpoint.                           |
+| `src/sections/`   | Las vistas de cada módulo. **Aquí vive el grueso de la lógica de pantalla.**                     |
+| `src/components/` | Componentes reutilizables sin dominio (form, table, iconify, upload…).                           |
+| `src/services/`   | Acceso a datos: Firestore y `fetch` a `/api`.                                                    |
+| `src/models/`     | Forma de los datos y esquemas Zod.                                                               |
+| `src/server/`     | Código que solo corre en servidor (`.mjs` para poder probarlo con `node --test`).                |
+| `src/auth/`       | Contexto de sesión, guardas, permisos y roles.                                                   |
+| `src/catalogs/`   | Catálogos fijos transcritos de documentos oficiales.                                             |
+| `src/utils/`      | Reglas transversales. **`member-access.js` y `org-level-access.js` son el corazón del alcance.** |
+| `src/layouts/`    | Layouts y navegación (`nav-config-dashboard.jsx`).                                               |
+| `src/theme/`      | Sistema visual.                                                                                  |
+| `src/_mock/`      | Datos de la plantilla. ⛔ No lo uses para nada nuevo.                                            |
+| `tests/`          | Pruebas con `node --test`.                                                                       |
+| `docs/`           | Auditorías y encargos al equipo .NET.                                                            |
 
 ---
 
@@ -566,7 +710,7 @@ node --test tests/member/*.test.mjs
 Todo junto:
 
 ```bash
-node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
+node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/everest/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
 ```
 
 **Antes de dar por terminado un cambio: `npm run build` + la suite completa.**
@@ -699,18 +843,18 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 
 ## 13. Riesgos y deuda técnica
 
-| # | Riesgo | Gravedad |
-|---|---|---|
-| 1 | **El alcance de escritura se decide en el navegador.** Las rutas `/api` de destacamentos/secciones/regiones solo exigen sesión. | 🔴 Alta |
-| 2 | **La API .NET devuelve el padrón entero.** Sin el trabajo de `docs/backend-dotnet-checklist.md`, cualquier sesión válida puede leer todos los miembros. | 🔴 Alta |
-| 3 | **Comodín en `firestore.rules`.** Todo lo no excluido explícitamente es escribible por cualquier sesión válida. Cada colección nueva **hereda ese permiso**; hay que excluirla a mano. | 🔴 Alta |
-| 4 | **Upstream frágil** (0,3 s a 17 s, plan gratuito). Ya hay caché y timeouts, pero es un punto único de fallo. | 🟠 Media |
-| 5 | **~20 módulos de plantilla sin conectar** y sus dependencias pesadas. | 🟠 Media |
-| 6 | **Cuatro proveedores de auth sin usar.** | 🟡 Baja |
-| 7 | **Formato inconsistente.** | 🟡 Baja |
-| 8 | **Sin CI.** ❓ | 🟠 Media |
-| 9 | **`package.json` con el nombre de la plantilla.** | 🟡 Baja |
-| 10 | **Ficheros grandes**: `notification-service.js` (2.889 líneas), `member-access.js` (2.725), `member-list-view.jsx` (1.105), `org-level-access.js` (890). | 🟠 Media |
+| #   | Riesgo                                                                                                                                                                                 | Gravedad |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | **El alcance de escritura se decide en el navegador.** Las rutas `/api` de destacamentos/secciones/regiones solo exigen sesión.                                                        | 🔴 Alta  |
+| 2   | **La API .NET devuelve el padrón entero.** Sin el trabajo de `docs/backend-dotnet-checklist.md`, cualquier sesión válida puede leer todos los miembros.                                | 🔴 Alta  |
+| 3   | **Comodín en `firestore.rules`.** Todo lo no excluido explícitamente es escribible por cualquier sesión válida. Cada colección nueva **hereda ese permiso**; hay que excluirla a mano. | 🔴 Alta  |
+| 4   | **Upstream frágil** (0,3 s a 17 s, plan gratuito). Ya hay caché y timeouts, pero es un punto único de fallo.                                                                           | 🟠 Media |
+| 5   | **~20 módulos de plantilla sin conectar** y sus dependencias pesadas.                                                                                                                  | 🟠 Media |
+| 6   | **Cuatro proveedores de auth sin usar.**                                                                                                                                               | 🟡 Baja  |
+| 7   | **Formato inconsistente.**                                                                                                                                                             | 🟡 Baja  |
+| 8   | **Sin CI.** ❓                                                                                                                                                                         | 🟠 Media |
+| 9   | **`package.json` con el nombre de la plantilla.**                                                                                                                                      | 🟡 Baja  |
+| 10  | **Ficheros grandes**: `notification-service.js` (2.889 líneas), `member-access.js` (2.725), `member-list-view.jsx` (1.105), `org-level-access.js` (890).                               | 🟠 Media |
 
 ---
 
@@ -718,7 +862,7 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 
 1. **Dos fuentes de datos.** La API .NET es heredada; Firestore es donde crece la
    aplicación. Migrar el padrón no está en el alcance actual.
-2. **Caché de upstream con *stale* servible.** Antes que una lista vacía, la de
+2. **Caché de upstream con _stale_ servible.** Antes que una lista vacía, la de
    hace un minuto.
 3. **Firestore con caché local persistente.** El pase de lista ocurre donde no
    siempre hay señal.
@@ -735,30 +879,34 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 8. **Cada destacamento enseña los suyos.** `/member` es la lista del destacamento
    propio (salvo Administrador Global); a los de otro se llega por la pestaña
    "Miembros" de su ficha.
+9. **La portada tiene su valor de fábrica en el código.** EVEREST Designer no
+   siembra Firestore con lo que hay: publica por bloque, y lo no publicado —o lo
+   publicado roto— se pinta desde el código. Así la portada no cambia hasta que
+   alguien decide publicarla, y una publicación mala nunca deja un hueco.
 
 ---
 
 ## 15. Glosario
 
-| Término | Significado |
-|---|---|
-| **Destacamento** | Unidad local, ligada a una iglesia. La unidad operativa básica. |
-| **Sección** | Agrupa destacamentos. Su relación se resuelve por la iglesia. |
-| **Región** | Agrupa secciones. |
-| **Consejo Nacional / Ejecutivo** | Cargos de nivel país. |
-| **Oficina Nacional** | Rol que **aprueba o rechaza** cambios sobre entidades y directivas. No modifica por su cuenta. |
-| **Directiva** | Conjunto de cargos de una entidad. Hay de destacamento (local y juvenil), sección, región y nacional. |
-| **Alcance** | Hasta dónde llega un cargo: destacamento, sección, región, nacional o global. |
-| **Cargo** | Puesto en una directiva. Una persona puede tener varios. |
-| **Rol principal** | El de mayor nivel entre sus cargos. **No decide por sí solo**: los guardas miran todos. |
-| **División** | Grupo por edad: Navegantes, Pioneros, Seguidores, Exploradores, Liderazgo. |
-| **Sistema de Ascenso** | Catálogo de premios que un miembro completa. |
-| **Dispensa Médica** | Información de salud del miembro, con acceso restringido. |
-| **Código de miembro** | `EDR-NNNNN`. También es el usuario de acceso. |
-| **Padrón** | El conjunto de miembros de la organización. |
-| **Solicitud de cambio** | Propuesta pendiente de aprobación de la Oficina Nacional. |
-| **Candado de alcance** | Componente que bloquea una pantalla fuera del alcance del usuario. |
-| **Upstream** | La API .NET en `systexploradores.somee.com`. |
+| Término                          | Significado                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Destacamento**                 | Unidad local, ligada a una iglesia. La unidad operativa básica.                                       |
+| **Sección**                      | Agrupa destacamentos. Su relación se resuelve por la iglesia.                                         |
+| **Región**                       | Agrupa secciones.                                                                                     |
+| **Consejo Nacional / Ejecutivo** | Cargos de nivel país.                                                                                 |
+| **Oficina Nacional**             | Rol que **aprueba o rechaza** cambios sobre entidades y directivas. No modifica por su cuenta.        |
+| **Directiva**                    | Conjunto de cargos de una entidad. Hay de destacamento (local y juvenil), sección, región y nacional. |
+| **Alcance**                      | Hasta dónde llega un cargo: destacamento, sección, región, nacional o global.                         |
+| **Cargo**                        | Puesto en una directiva. Una persona puede tener varios.                                              |
+| **Rol principal**                | El de mayor nivel entre sus cargos. **No decide por sí solo**: los guardas miran todos.               |
+| **División**                     | Grupo por edad: Navegantes, Pioneros, Seguidores, Exploradores, Liderazgo.                            |
+| **Sistema de Ascenso**           | Catálogo de premios que un miembro completa.                                                          |
+| **Dispensa Médica**              | Información de salud del miembro, con acceso restringido.                                             |
+| **Código de miembro**            | `EDR-NNNNN`. También es el usuario de acceso.                                                         |
+| **Padrón**                       | El conjunto de miembros de la organización.                                                           |
+| **Solicitud de cambio**          | Propuesta pendiente de aprobación de la Oficina Nacional.                                             |
+| **Candado de alcance**           | Componente que bloquea una pantalla fuera del alcance del usuario.                                    |
+| **Upstream**                     | La API .NET en `systexploradores.somee.com`.                                                          |
 
 ---
 
@@ -797,5 +945,5 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 
 ---
 
-*Última revisión: 2026-09-09. Si el código y este documento se contradicen, manda
-el código — y corrige el documento.*
+_Última revisión: 2026-09-09. Si el código y este documento se contradicen, manda
+el código — y corrige el documento._

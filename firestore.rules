@@ -1176,6 +1176,27 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
+    // EVEREST DESIGNER. Lo que se publica es la portada de toda la organizacion:
+    // la lee cualquier sesion y la escribe SOLO el Administrador Global. Un
+    // documento por pantalla (`principal`), con un mapa `bloques`; un bloque que
+    // no esta en el mapa se pinta como siempre, desde el codigo.
+    match /everest_publicado/{pantalla} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // Lo que se esta editando sin publicar, y la copia de cada publicacion para
+    // volver atras. No lo ve nadie mas que quien edita.
+    match /everest_borradores/{pantalla} {
+      allow read, write: if esAdministradorGlobal();
+    }
+
+    match /everest_versiones/{idVersion} {
+      allow read, create: if esAdministradorGlobal();
+      // Una version es historia: no se reescribe ni se borra.
+      allow update, delete: if false;
+    }
+
     // EL INDICE DEL BUSCADOR DE LA CABECERA.
     //
     // La copia pequeña de la tienda: por cada producto, su nombre y una miniatura
@@ -1442,6 +1463,11 @@ service cloud.firestore {
         // Los sonidos de la aplicacion tienen su bloque arriba: sin excluirlos
         // aqui, cualquier sesion podria cambiarle el sonido a todo el mundo.
         && coleccion != 'configuracion_sonidos'
+        // EVEREST Designer tiene sus bloques arriba: sin excluirlo aqui,
+        // cualquier sesion podria reescribir la portada de todo el mundo.
+        && coleccion != 'everest_publicado'
+        && coleccion != 'everest_borradores'
+        && coleccion != 'everest_versiones'
         // Los favoritos de la tienda son de cada persona: sin excluirlos aqui,
         // el comodin dejaria leer y cambiar los de cualquiera.
         && coleccion != 'favoritos_productos'

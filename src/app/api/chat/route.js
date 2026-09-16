@@ -12,11 +12,7 @@ import {
 
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
-import {
-  contactoDeBuzon,
-  esBuzonCompartido,
-  buzonPorIdMiembros,
-} from 'src/utils/chat-buzones.mjs';
+import { contactoDeBuzon, esBuzonCompartido, buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
@@ -894,9 +890,8 @@ const CADA_CUANTO_SE_REVISA_MS = 60_000;
 
 const existeNotificacion = async (id) => {
   if (isAdminConfigured()) {
-    return (
-      await getAdminDb().collection(COLECCIONES_NOTIFICACIONES.notificaciones).doc(id).get()
-    ).exists;
+    return (await getAdminDb().collection(COLECCIONES_NOTIFICACIONES.notificaciones).doc(id).get())
+      .exists;
   }
 
   return (await getDoc(doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, id))).exists();
@@ -1462,10 +1457,7 @@ async function addMessage(conversationId, messageData = {}, chatActor = {}, chat
     esBuzon: esBuzonCompartido,
   });
 
-  await chatStore.setDocument(
-    messagePath,
-    messageDoc
-  );
+  await chatStore.setDocument(messagePath, messageDoc);
   await anotarRespuestaDeBuzon(chatActor, conversationId, messageDoc.idMensaje);
   await chatStore.setDocument(
     conversationPath,
@@ -1530,7 +1522,8 @@ async function markAsSeen(conversationId, chatActor = {}, chatStore) {
     markRead: true,
     persist: false,
   });
-  const hadUnreadMessages = Number(existingConversation.noLeidosPorIdMiembros?.[String(viewerId)]) > 0;
+  const hadUnreadMessages =
+    Number(existingConversation.noLeidosPorIdMiembros?.[String(viewerId)]) > 0;
   const writes = [
     ...(receipt?.changed ? [{ type: 'set', path: receipt.path, data: receipt.data }] : []),
     ...(hadUnreadMessages
@@ -2373,6 +2366,51 @@ export async function GET(req) {
     }
 
     if (endpoint === 'unread-summary') {
+      const requestedIdentityIds = [
+        ...new Set(
+          String(searchParams.get('sessionMemberIds') ?? '')
+            .split(',')
+            .map(toNumberOrNull)
+            .filter(Boolean)
+        ),
+      ];
+
+      if (requestedIdentityIds.length) {
+        const summaries = await Promise.all(
+          requestedIdentityIds.map(async (requestedId) => {
+            let summaryActor = chatActor;
+
+            if (requestedId !== viewerIdMiembros) {
+              const requestedMailbox = buzonPorIdMiembros(requestedId);
+
+              // Solo se combinan la identidad autenticada y buzones compartidos.
+              // Una identificación personal ajena nunca puede convertirse en
+              // una consulta válida por aparecer en el parámetro.
+              if (!requestedMailbox) return null;
+
+              summaryActor = await autenticarActorDelChat(req, requestedId);
+              assertChatPermission(summaryActor, CHAT_PERMISSIONS.VIEW);
+            }
+
+            return getUnreadSummary(summaryActor.idMiembros, createChatStore(summaryActor));
+          })
+        );
+        const validSummaries = summaries.filter(Boolean);
+        const unreadByConversation = Object.assign(
+          {},
+          ...validSummaries.map((summary) => summary.unreadByConversation ?? {})
+        );
+
+        return Response.json({
+          unreadByConversation,
+          unreadConversationCount: Object.keys(unreadByConversation).length,
+          unreadMessageCount: Object.values(unreadByConversation).reduce(
+            (total, count) => total + Number(count || 0),
+            0
+          ),
+        });
+      }
+
       return Response.json(await getUnreadSummary(viewerIdMiembros, chatStore));
     }
 

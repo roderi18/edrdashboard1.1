@@ -264,15 +264,18 @@ test('recibe el aviso quien tiene el cargo del buzon en cualquier posicion', () 
   );
 });
 
-test('la campana y el contador de chats de los buzones se mueven en tiempo real', () => {
+test('la campana sigue en tiempo real y el contador usa un resumen combinado', () => {
   const layout = leer('src/layouts/dashboard/layout.jsx');
+  const summary = leer('src/actions/chat-summary.js');
 
-  // La escucha sigue viva; ahora ademas suena la campana en el mismo aviso, sin
-  // esperar a que la lista se recargue.
+  // La campana conserva su escucha. El contador deja de abrir una suscripcion
+  // por buzon en todas las pantallas y los agrupa en una sola peticion.
   assert.match(layout, /escucharNotificacionesDelUsuario\(user\?\.uid, \(cambio\) => \{/);
   assert.ok(layout.includes('cargarNotificaciones();'));
-  assert.ok(layout.includes('useBuzonesEnVivo(buzonesQueAtiendo'));
-  assert.ok(layout.includes('Object.keys(pendientesDeBuzones)'));
+  assert.match(layout, /useGetDashboardChatSummary\(\{/);
+  assert.match(summary, /sessionMemberIds: identityKey/);
+  assert.match(summary, /SUMMARY_REFRESH_INTERVAL = 60_000/);
+  assert.doesNotMatch(layout, /useBuzonesEnVivo|usePresenceHeartbeat|useChatRealtimeSync/);
 });
 
 test('quien atiende la Tienda no entra en la Oficina: 403', async () => {
@@ -459,5 +462,8 @@ test('el circulo de un buzon se repasa solo, y quien abre ve su contador al mome
 
   const abrir = acciones.slice(acciones.indexOf('export async function clickConversation'));
 
-  assert.match(abrir, /endpoint: 'mark-as-seen'[\s\S]*?mutate\(\(key\) => isChatUnreadSummaryKey\(key\)\)/);
+  assert.match(
+    abrir,
+    /endpoint: 'mark-as-seen'[\s\S]*?mutate\(\(key\) => isChatUnreadSummaryKey\(key\)\)/
+  );
 });

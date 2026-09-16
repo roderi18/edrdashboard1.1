@@ -14,6 +14,9 @@ import { useSettingsContext } from 'src/components/settings';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProfileHome } from '../../user/profile-home';
+import { HAY_DATOS_DE_EJEMPLO } from '../datos-de-ejemplo';
+import { identidadDeLaSesion } from '../identidad-de-la-sesion';
+import { useContenidoDePortada } from '../use-contenido-de-portada';
 import { PrincipalAccesos, PrincipalBienvenida } from '../principal-bienvenida';
 import {
   PrincipalHistorias,
@@ -26,17 +29,6 @@ import {
   PrincipalDestacado,
   PrincipalComunicados,
 } from '../principal-lateral';
-import {
-  ACCESOS_RAPIDOS,
-  EVENTOS_DE_EJEMPLO,
-  RESUMEN_DE_EJEMPLO,
-  HAY_DATOS_DE_EJEMPLO,
-  HISTORIAS_DE_EJEMPLO,
-  COMUNICADOS_DE_EJEMPLO,
-  MI_PROGRESO_DE_EJEMPLO,
-  PROXIMA_ACTIVIDAD_DE_EJEMPLO,
-  DESTACAMENTO_DESTACADO_DE_EJEMPLO,
-} from '../datos-de-ejemplo';
 
 // ----------------------------------------------------------------------
 // LA PANTALLA PRINCIPAL.
@@ -54,43 +46,26 @@ import {
 // Lo que sale de datos de verdad: tu nombre, tu destacamento, tu region, tu foto
 // y el muro entero. Lo demas son datos de EJEMPLO y cada panel lo dice encima
 // (ver `datos-de-ejemplo.js`).
+//
+// Cada uno de esos bloques se puede publicar desde EVEREST Designer. Hasta que
+// alguien lo publique, sale exactamente lo de siempre: la pantalla ya no importa
+// los datos a mano, se los pide a `useContenidoDePortada`.
 // ----------------------------------------------------------------------
 
-const nombreDeLaSesion = (user) =>
-  user?.displayName ||
-  [user?.nombres, user?.apellidos].filter(Boolean).join(' ').trim() ||
-  user?.nombre ||
-  user?.email ||
-  'Explorador';
-
-const destacamentoDeLaSesion = (user) => {
-  const nombre =
-    user?.nombreDestacamento || user?.destacamentoName || user?.destName || user?.destacamento;
-
-  if (nombre) return String(nombre);
-
-  const numero = user?.numeroDestacamento || user?.destNumber;
-
-  return numero ? `Destacamento ${numero}` : '';
-};
-
-const regionDeLaSesion = (user) =>
-  user?.nombreRegion || user?.regionName || user?.regionalName || user?.region || '';
+// La marca "Ejemplo" solo tiene sentido sobre lo inventado: un bloque publicado
+// desde EVEREST Designer ya no es un ejemplo, aunque la bandera vuelva a encenderse.
+const esDeEjemplo = (bloque) => HAY_DATOS_DE_EJEMPLO && bloque.origen === 'codigo';
 
 export function PrincipalHomeView() {
   const { user } = useAuthContext();
   const settings = useSettingsContext();
   const accesosVisibles = settings.state.accesosRapidos === true;
+  // CADA BLOQUE, DE LO PUBLICADO O DE LO DE SIEMPRE. Mientras nadie publique nada
+  // desde EVEREST Designer, esto devuelve exactamente los mismos datos que antes
+  // se importaban a mano de `datos-de-ejemplo.js` (ver `useContenidoDePortada`).
+  const portada = useContenidoDePortada();
 
-  const identidad = useMemo(
-    () => ({
-      nombre: nombreDeLaSesion(user),
-      destacamento: destacamentoDeLaSesion(user),
-      region: regionDeLaSesion(user),
-      foto: user?.photoURL || user?.avatarUrl || '',
-    }),
-    [user]
-  );
+  const identidad = useMemo(() => identidadDeLaSesion(user), [user]);
 
   return (
     <DashboardContent maxWidth="xl">
@@ -100,8 +75,8 @@ export function PrincipalHomeView() {
           destacamento={identidad.destacamento}
           region={identidad.region}
           foto={identidad.foto}
-          resumen={RESUMEN_DE_EJEMPLO}
-          esEjemplo={HAY_DATOS_DE_EJEMPLO}
+          resumen={portada.bienvenida.contenido}
+          esEjemplo={esDeEjemplo(portada.bienvenida)}
           puedeEditar={isAdminGlobal(user)}
         />
 
@@ -117,7 +92,9 @@ export function PrincipalHomeView() {
                   Se pueden apagar desde el panel de ajustes ("Accesos rápidos"):
                   son atajos a sitios que tambien estan en el menu. Solo aparecen
                   cuando el usuario los activa de forma expresa. */}
-              {accesosVisibles && <PrincipalAccesos accesos={ACCESOS_RAPIDOS} />}
+              {accesosVisibles && (
+                <PrincipalAccesos accesos={portada['accesos-rapidos'].contenido} />
+              )}
 
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
                   a "¿que tengo por delante?" desde dos lados: la fecha que viene
@@ -129,22 +106,22 @@ export function PrincipalHomeView() {
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 7 }}>
                   <PrincipalProximaActividad
-                    actividad={PROXIMA_ACTIVIDAD_DE_EJEMPLO}
+                    actividad={portada['proxima-actividad'].contenido}
                     puedeEditar={isAdminGlobal(user)}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 5 }}>
                   <PrincipalMiProgreso
-                    progreso={MI_PROGRESO_DE_EJEMPLO}
-                    esEjemplo={HAY_DATOS_DE_EJEMPLO}
+                    progreso={portada['mi-progreso'].contenido}
+                    esEjemplo={esDeEjemplo(portada['mi-progreso'])}
                   />
                 </Grid>
               </Grid>
 
               <PrincipalHistorias
-                historias={HISTORIAS_DE_EJEMPLO}
-                esEjemplo={HAY_DATOS_DE_EJEMPLO}
+                historias={portada.historias.contenido}
+                esEjemplo={esDeEjemplo(portada.historias)}
               />
 
               {/* EL MURO, TAL CUAL. `posts` vacio: las publicaciones las trae el
@@ -183,19 +160,22 @@ export function PrincipalHomeView() {
                 '&::-webkit-scrollbar': { display: 'none' },
               }}
             >
-              <PrincipalEventos eventos={EVENTOS_DE_EJEMPLO} esEjemplo={HAY_DATOS_DE_EJEMPLO} />
+              <PrincipalEventos
+                eventos={portada['proximos-eventos'].contenido}
+                esEjemplo={esDeEjemplo(portada['proximos-eventos'])}
+              />
 
               <PrincipalDestacado
-                destacado={DESTACAMENTO_DESTACADO_DE_EJEMPLO}
-                esEjemplo={HAY_DATOS_DE_EJEMPLO}
+                destacado={portada['destacamento-destacado'].contenido}
+                esEjemplo={esDeEjemplo(portada['destacamento-destacado'])}
               />
 
               <PrincipalComunicados
-                comunicados={COMUNICADOS_DE_EJEMPLO}
-                esEjemplo={HAY_DATOS_DE_EJEMPLO}
+                comunicados={portada.comunicados.contenido}
+                esEjemplo={esDeEjemplo(portada.comunicados)}
               />
 
-              <PrincipalLema />
+              <PrincipalLema lema={portada.lema.contenido} />
             </Stack>
           </Grid>
         </Grid>

@@ -223,6 +223,37 @@ export const tiendaDeAdministracion = [
 
 // Pone la tienda de administracion en lugar de "Tienda Virtual", dentro del
 // grupo "Tienda". Lo demas del grupo —"Mi carrito"— se queda donde esta.
+// ----------------------------------------------------------------------
+// EVEREST DESIGNER, DEBAJO DE "ADMINISTRADORES".
+//
+// Cambia la portada de toda la organizacion, asi que en su primera version es
+// solo del Administrador Global. No va dentro de las pestañas de Administracion
+// —alli entran tambien la Oficina Nacional y el Administrador Funcional— sino
+// como entrada propia del menu, justo debajo de "Administradores".
+//
+// `layout.jsx` la añade DESPUES del filtro del menu y solo para el Administrador
+// Global, igual que la tienda de administracion: el filtro es una lista de
+// permisos pensada para otras entradas y no tiene por que conocer esta.
+// ----------------------------------------------------------------------
+
+export const entradaEverestDesigner = {
+  title: 'EVEREST Designer',
+  path: paths.dashboard.everest,
+  icon: ICONS.params,
+};
+
+export const conEverestDesigner = (secciones = []) =>
+  secciones.map((seccion) =>
+    seccion.subheader === 'Administración'
+      ? {
+          ...seccion,
+          items: (seccion.items ?? []).flatMap((item) =>
+            item.path === paths.dashboard.admin.root ? [item, entradaEverestDesigner] : [item]
+          ),
+        }
+      : seccion
+  );
+
 export const conTiendaDeAdministracion = (secciones = []) =>
   secciones.map((seccion) =>
     seccion.subheader === 'Tienda'
