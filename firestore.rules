@@ -1018,6 +1018,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // PREFERENCIAS DE CADA PERSONA (hoy, el destacamento que el Administrador
+    // Global eligio en Asistencia probando un rol combinado). Un documento por
+    // uid: solo su dueño lo lee y lo escribe. Nadie lo borra entero.
+    match /preferencias_usuarios/{uid} {
+      allow get: if estaAutenticado() && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update: if estaAutenticado()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
     // FAVORITOS DE LA TIENDA. Un documento por persona con su uid como id: cada
     // uno lee y marca solo los suyos. Nadie los borra enteros; quitar un
     // favorito es una actualizacion del mapa `productos`.
@@ -1486,6 +1498,7 @@ service cloud.firestore {
         // Los favoritos de la tienda son de cada persona: sin excluirlos aqui,
         // el comodin dejaria leer y cambiar los de cualquiera.
         && coleccion != 'favoritos_productos'
+        && coleccion != 'preferencias_usuarios'
         && coleccion != 'actividadesAsistencia'
         && coleccion != 'buzones_chat'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas

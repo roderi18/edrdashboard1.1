@@ -62,6 +62,10 @@ import { getChurches } from 'src/services/church-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { obtenerAsignacionesDirectiva } from 'src/services/directivas-organizacionales-service';
 import {
+  obtenerDestacamentoDeAsistencia,
+  guardarDestacamentoDeAsistencia,
+} from 'src/services/preferencias-usuario-service';
+import {
   crearActividadAsistencia,
   listarActividadesAsistencia,
   limpiarAsistenciaDestacamento,
@@ -1012,14 +1016,24 @@ export function AttendanceQuickView() {
   // "sin restriccion". Como no se le pasaba, el desplegable ofrecia los
   // destacamentos del pais entero a cualquier cargo regional o seccional, y no
   // solo cuando fallaba la red: SIEMPRE.
+  // EL ADMINISTRADOR GLOBAL PROBANDO UN ROL COMBINADO elige destacamento.
+  //
+  // La prueba lo deja en el destacamento de ejemplo, y con eso el desplegable
+  // desaparecia: para mirar la asistencia de otro destacamento habia que apagar
+  // la prueba. Solo el Administrador Global puede encenderla, asi que detras hay
+  // siempre alguien que ve todos los destacamentos.
+  const probandoRolCombinado = Boolean(user?.simulacion?.activa);
+
   const allowedDestIds = useMemo(
     () =>
-      getMemberAllowedDestIds(user, {
+      probandoRolCombinado
+        ? null
+        : getMemberAllowedDestIds(user, {
         dests: estructura.dests,
         churches: estructura.churches,
         sectionals: estructura.sectionals,
-      }),
-    [user, estructura]
+          }),
+    [user, estructura, probandoRolCombinado]
   );
   const dests = useMemo(() => {
     const todos = estructura.dests;
@@ -1120,14 +1134,61 @@ export function AttendanceQuickView() {
 
   // El destacamento elegido tiene que seguir estando en la lista. Antes vivia
   // dentro de la carga; ahora la lista se recalcula sola y esto la acompaña.
+  //
+  // Probando un rol combinado, manda el que dejo grabado en su perfil: se lee una
+  // vez y se aplica en cuanto llega la lista.
+  const [destacamentoGuardado, setDestacamentoGuardado] = useState('');
+
+  useEffect(() => {
+    let activo = true;
+
+    if (!probandoRolCombinado || !user?.uid) {
+      setDestacamentoGuardado('');
+      return undefined;
+    }
+
+    obtenerDestacamentoDeAsistencia(user.uid)
+      .then((id) => {
+        if (activo) setDestacamentoGuardado(id);
+      })
+      .catch((error) => console.error('[asistencia] no se pudo leer el destacamento', error));
+
+    return () => {
+      activo = false;
+    };
+  }, [probandoRolCombinado, user?.uid]);
+
   useEffect(() => {
     setSelectedDestId((current) => {
       if (!dests.length) return '';
-      if (dests.some((dest) => getDestId(dest) === String(current))) return current;
+
+      const existe = (id) => Boolean(id) && dests.some((dest) => getDestId(dest) === String(id));
+
+      if (destacamentoGuardado && existe(destacamentoGuardado) && !current) {
+        return String(destacamentoGuardado);
+      }
+      if (existe(current)) return current;
+      if (existe(destacamentoGuardado)) return String(destacamentoGuardado);
 
       return getDestId(dests[0]);
     });
-  }, [dests]);
+  }, [dests, destacamentoGuardado]);
+
+  const handleCambiarDestacamento = useCallback(
+    (idDestacamento) => {
+      setSelectedDestId(idDestacamento);
+
+      // Se queda grabado hasta que lo cambie. Si no se pudiera guardar, la
+      // pantalla sigue en el destacamento elegido: solo se pierde para la proxima.
+      if (probandoRolCombinado && user?.uid) {
+        setDestacamentoGuardado(String(idDestacamento));
+        guardarDestacamentoDeAsistencia(user.uid, idDestacamento).catch((error) =>
+          console.error('[asistencia] no se pudo guardar el destacamento', error)
+        );
+      }
+    },
+    [probandoRolCombinado, user?.uid]
+  );
 
   // LA CARA DE CADA UNO. Pasar lista es reconocer a la persona, y aqui salian
   // todos con la inicial en un circulo de color: el mismo grupo que en la lista
@@ -1240,7 +1301,8 @@ export function AttendanceQuickView() {
   const attendanceTitle = selectedDestId
     ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
     : 'Asistencia';
-  const showDestFilter = !scopedToDest && puedeElegirDestacamento(user);
+  const showDestFilter =
+    probandoRolCombinado || (!scopedToDest && puedeElegirDestacamento(user));
 
   // EL PASTOR DEL DESTACAMENTO NO ENTRA EN LA LISTA.
   //
@@ -2320,7 +2382,7 @@ export function AttendanceQuickView() {
                   select
                   label="Destacamento"
                   value={selectedDestId}
-                  onChange={(event) => setSelectedDestId(event.target.value)}
+                  onChange={(event) => handleCambiarDestacamento(event.target.value)}
                 >
                   {dests.map((dest) => {
                     const destId = getDestId(dest);

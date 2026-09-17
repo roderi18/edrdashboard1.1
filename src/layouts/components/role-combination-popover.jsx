@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
@@ -254,8 +253,6 @@ export function RoleCombinationPopover({ sx, ...other }) {
             'Roles combinados'
           )}
         </Box>
-
-        {combinacionActiva && <Chip size="small" color="warning" variant="soft" label="Prueba" />}
 
         <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
       </ButtonBase>

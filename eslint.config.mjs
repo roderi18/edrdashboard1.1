@@ -257,6 +257,9 @@ export default [
       // no un cambio de la tienda: nadie tiene que aprobarlo y llenaria Historial
       // de pulsaciones. Las reglas solo dejan a cada uno tocar su documento.
       'src/services/product-favorite-service.js',
+      // Mismo caso: una preferencia de la propia persona (el destacamento que
+      // eligio en Asistencia), no un cambio de la organizacion.
+      'src/services/preferencias-usuario-service.js',
       // Las rutas de `src/app/api/**` son el proxy hacia el backend .NET: la
       // puerta esta del lado de quien decide el cambio, no del transporte.
       'src/app/api/**',
