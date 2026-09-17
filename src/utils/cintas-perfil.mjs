@@ -20,6 +20,32 @@ export const COLECCION_CINTAS_MIEMBROS = 'cintas_miembros';
 export const CINTAS_POR_FILA = 3;
 export const MAXIMO_CINTAS_VISIBLES = 18;
 
+export const EFECTOS_BORDE_CINTA = Object.freeze({
+  BARRIDO: 'barrido',
+  OLA: 'ola',
+  PULSO: 'pulso',
+  CENTELLEO: 'centelleo',
+  NINGUNO: 'ninguno',
+});
+
+export const EFECTOS_NUMERO_CINTA = Object.freeze({
+  BARRIDO: 'barrido',
+  DESTELLO: 'destello',
+  AURA: 'aura',
+  CENTELLEO: 'centelleo',
+  NINGUNO: 'ninguno',
+});
+
+export const normalizarEfectoBorde = (valor) =>
+  Object.values(EFECTOS_BORDE_CINTA).includes(valor)
+    ? valor
+    : EFECTOS_BORDE_CINTA.BARRIDO;
+
+export const normalizarEfectoNumero = (valor) =>
+  Object.values(EFECTOS_NUMERO_CINTA).includes(valor)
+    ? valor
+    : EFECTOS_NUMERO_CINTA.BARRIDO;
+
 // De dónde salió la cinta. 'prueba' la pone a mano el Administrador Global;
 // 'award' queda para cuando se conecte cada award con su cinta.
 export const ORIGEN_CINTA = Object.freeze({ PRUEBA: 'prueba', AWARD: 'award' });
@@ -165,6 +191,32 @@ export const vecesPorCinta = (entradas = []) => {
   return mapa;
 };
 
+// La configuración visual se guarda junto con cada cinta. Las entradas antiguas
+// siguen usando los dos barridos originales como valores predeterminados.
+export const configuracionPorCinta = (entradas = []) => {
+  const veces = vecesPorCinta(entradas);
+  const entradasPorId = new Map(
+    (Array.isArray(entradas) ? entradas : [])
+      .filter((entrada) => entrada && typeof entrada === 'object')
+      .map((entrada) => [obtenerCintaPerfil(entrada.id)?.id, entrada])
+      .filter(([id]) => id)
+  );
+
+  return new Map(
+    [...veces].map(([id, cantidad]) => {
+      const entrada = entradasPorId.get(id) ?? {};
+      return [
+        id,
+        {
+          veces: cantidad,
+          efectoBorde: normalizarEfectoBorde(entrada.efectoBorde),
+          efectoNumero: normalizarEfectoNumero(entrada.efectoNumero),
+        },
+      ];
+    })
+  );
+};
+
 // Imágenes de los dígitos a poner sobre la cinta, de izquierda a derecha.
 // Vacío con 1: una cinta ganada una vez no lleva número.
 export const digitosDeVeces = (veces) => {
@@ -185,9 +237,32 @@ export const construirCintasAsignadas = (anteriores = [], elegidas = [], ahoraIs
       .map((entrada) => [String(entrada.id), entrada])
   );
   const veces = vecesPorCinta(elegidas);
+  const configuracionesElegidas = new Map(
+    (Array.isArray(elegidas) ? elegidas : [])
+      .filter((entrada) => entrada && typeof entrada === 'object')
+      .map((entrada) => [obtenerCintaPerfil(entrada.id)?.id, entrada])
+      .filter(([id]) => id)
+  );
 
-  return ordenarCintas(elegidas).map((id) => ({
-    ...(previas.get(id) ?? { id, origen: ORIGEN_CINTA.PRUEBA, asignadaEn: ahoraIso }),
-    veces: veces.get(id) ?? 1,
-  }));
+  return ordenarCintas(elegidas).map((id) => {
+    const previa = previas.get(id);
+    const elegida = configuracionesElegidas.get(id);
+    const resultado = {
+      ...(previa ?? { id, origen: ORIGEN_CINTA.PRUEBA, asignadaEn: ahoraIso }),
+      veces: veces.get(id) ?? 1,
+    };
+
+    if (elegida?.efectoBorde !== undefined || previa?.efectoBorde !== undefined) {
+      resultado.efectoBorde = normalizarEfectoBorde(
+        elegida?.efectoBorde ?? previa?.efectoBorde
+      );
+    }
+    if (elegida?.efectoNumero !== undefined || previa?.efectoNumero !== undefined) {
+      resultado.efectoNumero = normalizarEfectoNumero(
+        elegida?.efectoNumero ?? previa?.efectoNumero
+      );
+    }
+
+    return resultado;
+  });
 };

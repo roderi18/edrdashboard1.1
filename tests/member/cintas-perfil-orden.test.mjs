@@ -20,8 +20,11 @@ const {
   ordenarCintas,
   disponerCintasEnFilas,
   construirCintasAsignadas,
+  configuracionPorCinta,
   vecesPorCinta,
   digitosDeVeces,
+  EFECTOS_BORDE_CINTA,
+  EFECTOS_NUMERO_CINTA,
 } = await import('src/utils/cintas-perfil.mjs');
 
 test('cada cinta del catálogo tiene su imagen en la carpeta pública', () => {
@@ -104,6 +107,56 @@ test('las entradas antiguas sin veces cuentan como una', () => {
   assert.equal(veces.get('27'), 1);
   assert.equal(veces.get('28'), 5);
   assert.equal(veces.get('3'), 1);
+});
+
+test('los efectos antiguos usan el barrido y las elecciones válidas se conservan', () => {
+  const configuraciones = configuracionPorCinta([
+    '3',
+    {
+      id: '5',
+      veces: 2,
+      efectoBorde: EFECTOS_BORDE_CINTA.OLA,
+      efectoNumero: EFECTOS_NUMERO_CINTA.DESTELLO,
+    },
+  ]);
+
+  assert.deepEqual(configuraciones.get('3'), {
+    veces: 1,
+    efectoBorde: EFECTOS_BORDE_CINTA.BARRIDO,
+    efectoNumero: EFECTOS_NUMERO_CINTA.BARRIDO,
+  });
+  assert.deepEqual(configuraciones.get('5'), {
+    veces: 2,
+    efectoBorde: EFECTOS_BORDE_CINTA.OLA,
+    efectoNumero: EFECTOS_NUMERO_CINTA.DESTELLO,
+  });
+});
+
+test('la configuración visual elegida se guarda y los valores desconocidos se normalizan', () => {
+  assert.deepEqual(
+    construirCintasAsignadas(
+      [],
+      [
+        {
+          id: '7',
+          veces: 3,
+          efectoBorde: EFECTOS_BORDE_CINTA.CENTELLEO,
+          efectoNumero: 'desconocido',
+        },
+      ],
+      'ahora'
+    ),
+    [
+      {
+        id: '7',
+        origen: ORIGEN_CINTA.PRUEBA,
+        asignadaEn: 'ahora',
+        veces: 3,
+        efectoBorde: EFECTOS_BORDE_CINTA.CENTELLEO,
+        efectoNumero: EFECTOS_NUMERO_CINTA.BARRIDO,
+      },
+    ]
+  );
 });
 
 test('cada dígito tiene su imagen', () => {

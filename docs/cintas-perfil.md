@@ -50,7 +50,14 @@ Documento:
 ```js
 {
   idMiembros: 10002,
-  cintas: [{ id: '3', veces: 2, origen: 'prueba' | 'award', asignadaEn: '2026-09-16T…' }],
+  cintas: [{
+    id: '3',
+    veces: 2,
+    efectoBorde: 'ola',
+    efectoNumero: 'destello',
+    origen: 'prueba' | 'award',
+    asignadaEn: '2026-09-16T…'
+  }],
   actualizadoEn, actualizadoPor
 }
 ```
@@ -67,6 +74,19 @@ Documento:
 - `veces` (1-99; sin el campo cuenta como 1). Con 2 o más se pintan encima, centrados, los dígitos dorados de `public/parches/Cintas y medallas/numeros-cintas` (`digitosDeVeces`).
 - Es la fuente única para los awards y adiestramientos que cuentan cuántas veces se completaron.
 - El lápiz de prueba tiene `−` / `+` en cada cinta marcada.
+
+## Efectos visuales
+
+- El diálogo de prueba tiene dos selectores globales: uno para todos los bordes
+  dorados y otro para todos los números. Al guardar, la elección se aplica a las
+  cintas del miembro.
+- Bordes dorados: barrido actual, ola lenta, pulso suave, centelleo doble o sin
+  efecto. Solo se pintan en las cintas 3, 5, 6, 7 y 12a.
+- Números: barrido actual, destello de estrella, aura dorada, centelleo doble o
+  sin efecto.
+- Los documentos antiguos sin estos campos usan `barrido`, para conservar su
+  apariencia.
+- Las animaciones se desactivan con `prefers-reduced-motion`.
 
 ## Pendiente
 

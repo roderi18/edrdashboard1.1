@@ -7,6 +7,8 @@ import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { keyframes } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -16,13 +18,17 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import {
-  vecesPorCinta,
   digitosDeVeces,
   CINTAS_POR_FILA,
   normalizarVeces,
   obtenerCintaPerfil,
   MAXIMO_VECES_CINTA,
+  EFECTOS_BORDE_CINTA,
+  EFECTOS_NUMERO_CINTA,
   disponerCintasEnFilas,
+  configuracionPorCinta,
+  normalizarEfectoBorde,
+  normalizarEfectoNumero,
   CATALOGO_CINTAS_PERFIL,
 } from 'src/utils/cintas-perfil.mjs';
 
@@ -47,7 +53,105 @@ const destelloDelBorde = keyframes`
   80% { background-position: -65% 0; }
 `;
 
+const olaDelBorde = keyframes`
+  0% { background-position: -80% 50%; }
+  100% { background-position: 180% 50%; }
+`;
+
+const pulsoDelBorde = keyframes`
+  0%, 100% { opacity: 0.18; }
+  50% { opacity: 0.72; }
+`;
+
+const centelleoDelBorde = keyframes`
+  0%, 100% { background-position: -35% 50%, 135% 50%; opacity: 0.15; }
+  35% { opacity: 0.75; }
+  65% { background-position: 135% 50%, -35% 50%; opacity: 0.4; }
+`;
+
+const estrellaDorada = keyframes`
+  0% { opacity: 0; transform: scale(0.25) rotate(0deg); }
+  35% { opacity: 0.85; transform: scale(1) rotate(35deg); }
+  100% { opacity: 0; transform: scale(0.15) rotate(90deg); }
+`;
+
+const auraDorada = keyframes`
+  0%, 100% { filter: drop-shadow(0 0 1px rgba(255, 230, 130, 0.3)); }
+  50% { filter: drop-shadow(0 0 4px rgba(255, 210, 70, 0.72)); }
+`;
+
+const centelleoDelNumero = keyframes`
+  0%, 35%, 100% { opacity: 0; transform: scale(0.25) rotate(0deg); }
+  45% { opacity: 0.82; transform: scale(0.9) rotate(40deg); }
+  55% { opacity: 0; transform: scale(0.2) rotate(75deg); }
+`;
+
 const CINTAS_CON_BORDE_DORADO = new Set(['3', '5', '6', '7', '12a']);
+
+const OPCIONES_BORDE = [
+  [EFECTOS_BORDE_CINTA.BARRIDO, 'Barrido actual'],
+  [EFECTOS_BORDE_CINTA.OLA, 'Ola lenta'],
+  [EFECTOS_BORDE_CINTA.PULSO, 'Pulso suave'],
+  [EFECTOS_BORDE_CINTA.CENTELLEO, 'Centelleo doble'],
+  [EFECTOS_BORDE_CINTA.NINGUNO, 'Sin efecto'],
+];
+
+const OPCIONES_NUMERO = [
+  [EFECTOS_NUMERO_CINTA.BARRIDO, 'Barrido actual'],
+  [EFECTOS_NUMERO_CINTA.DESTELLO, 'Destello de estrella'],
+  [EFECTOS_NUMERO_CINTA.AURA, 'Aura dorada'],
+  [EFECTOS_NUMERO_CINTA.CENTELLEO, 'Centelleo doble'],
+  [EFECTOS_NUMERO_CINTA.NINGUNO, 'Sin efecto'],
+];
+
+const mascaraDelBorde = {
+  WebkitMaskImage:
+    'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
+  maskImage:
+    'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
+  WebkitMaskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
+  maskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
+  WebkitMaskPosition: 'top, bottom, left center, right center',
+  maskPosition: 'top, bottom, left center, right center',
+  WebkitMaskRepeat: 'no-repeat',
+  maskRepeat: 'no-repeat',
+};
+
+const estiloDelBorde = (efecto) => {
+  switch (normalizarEfectoBorde(efecto)) {
+    case EFECTOS_BORDE_CINTA.OLA:
+      return {
+        backgroundImage:
+          'radial-gradient(ellipse at center, rgba(255, 250, 214, 0.72) 0%, rgba(255, 205, 72, 0.34) 38%, transparent 70%)',
+        backgroundSize: '52% 220%',
+        backgroundRepeat: 'no-repeat',
+        animation: `${olaDelBorde} 9s linear infinite`,
+      };
+    case EFECTOS_BORDE_CINTA.PULSO:
+      return {
+        backgroundColor: 'rgba(255, 215, 92, 0.5)',
+        animation: `${pulsoDelBorde} 3.8s ease-in-out infinite`,
+      };
+    case EFECTOS_BORDE_CINTA.CENTELLEO:
+      return {
+        backgroundImage:
+          'radial-gradient(circle, rgba(255, 252, 221, 0.85) 0%, transparent 62%), radial-gradient(circle, rgba(255, 211, 80, 0.65) 0%, transparent 62%)',
+        backgroundSize: '22% 150%, 18% 130%',
+        backgroundRepeat: 'no-repeat',
+        animation: `${centelleoDelBorde} 6.5s ease-in-out infinite`,
+      };
+    case EFECTOS_BORDE_CINTA.NINGUNO:
+      return { display: 'none' };
+    default:
+      return {
+        backgroundImage:
+          'linear-gradient(110deg, transparent 42%, rgba(255, 249, 202, 0.7) 50%, transparent 58%)',
+        backgroundSize: '270% 100%',
+        backgroundPosition: '165% 0',
+        animation: `${destelloDelBorde} 4.8s ease-in-out infinite`,
+      };
+  }
+};
 
 // ----------------------------------------------------------------------
 
@@ -90,7 +194,7 @@ export function CintasDeMiembro({
   }, [id]);
 
   const filas = useMemo(() => disponerCintasEnFilas(asignadas), [asignadas]);
-  const veces = useMemo(() => vecesPorCinta(asignadas), [asignadas]);
+  const configuraciones = useMemo(() => configuracionPorCinta(asignadas), [asignadas]);
 
   if (!id || (!filas.length && !puedeEditar)) return null;
 
@@ -115,6 +219,7 @@ export function CintasDeMiembro({
         >
           {fila.map((idCinta) => {
             const cinta = obtenerCintaPerfil(idCinta);
+            const configuracion = configuraciones.get(idCinta);
             return (
               <Tooltip
                 key={idCinta}
@@ -130,7 +235,7 @@ export function CintasDeMiembro({
                     width: `calc((100% - ${theme.spacing(espacioHorizontal * (CINTAS_POR_FILA - 1))}) / ${CINTAS_POR_FILA})`,
                   })}
                 >
-                  <ImagenDeCinta cinta={cinta} veces={veces.get(idCinta)} />
+                  <ImagenDeCinta cinta={cinta} {...configuracion} />
                 </Box>
               </Tooltip>
             );
@@ -173,9 +278,40 @@ export function CintasDeMiembro({
 // ----------------------------------------------------------------------
 
 // La cinta con, si se ganó más de una vez, su número dorado en el centro.
-function ImagenDeCinta({ cinta, veces }) {
+function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
   const digitos = digitosDeVeces(veces);
   const tieneBordeDorado = CINTAS_CON_BORDE_DORADO.has(cinta.id);
+  const bordeElegido = normalizarEfectoBorde(efectoBorde);
+  const numeroElegido = normalizarEfectoNumero(efectoNumero);
+  const [brilloAleatorio, setBrilloAleatorio] = useState(null);
+
+  useEffect(() => {
+    if (numeroElegido !== EFECTOS_NUMERO_CINTA.DESTELLO || !digitos.length) return undefined;
+
+    let temporizadorBrillo;
+    let temporizadorSiguiente;
+
+    const programarBrillo = () => {
+      temporizadorSiguiente = setTimeout(
+        () => {
+          setBrilloAleatorio({
+            id: Date.now(),
+            indice: Math.floor(Math.random() * digitos.length),
+          });
+          temporizadorBrillo = setTimeout(() => setBrilloAleatorio(null), 850);
+          programarBrillo();
+        },
+        3500 + Math.random() * 4000
+      );
+    };
+
+    programarBrillo();
+
+    return () => {
+      clearTimeout(temporizadorBrillo);
+      clearTimeout(temporizadorSiguiente);
+    };
+  }, [digitos.length, numeroElegido]);
 
   return (
     <Box sx={{ position: 'relative', lineHeight: 0 }}>
@@ -185,7 +321,7 @@ function ImagenDeCinta({ cinta, veces }) {
         alt={cinta.nombre}
         sx={{ width: 1, height: 'auto', display: 'block' }}
       />
-      {tieneBordeDorado && (
+      {tieneBordeDorado && bordeElegido !== EFECTOS_BORDE_CINTA.NINGUNO && (
         <Box
           aria-hidden="true"
           sx={{
@@ -193,23 +329,10 @@ function ImagenDeCinta({ cinta, veces }) {
             zIndex: 1,
             position: 'absolute',
             pointerEvents: 'none',
-            backgroundImage:
-              'linear-gradient(110deg, transparent 42%, rgba(255, 249, 202, 0.7) 50%, transparent 58%)',
-            backgroundSize: '270% 100%',
-            backgroundPosition: '165% 0',
-            WebkitMaskImage:
-              'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
-            maskImage:
-              'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
-            WebkitMaskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
-            maskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
-            WebkitMaskPosition: 'top, bottom, left center, right center',
-            maskPosition: 'top, bottom, left center, right center',
-            WebkitMaskRepeat: 'no-repeat',
-            maskRepeat: 'no-repeat',
+            ...mascaraDelBorde,
+            ...estiloDelBorde(bordeElegido),
             filter: 'drop-shadow(0 0 2px rgba(255, 193, 7, 0.35))',
             willChange: 'background-position',
-            animation: `${destelloDelBorde} 4.8s ease-in-out infinite`,
             '@media (prefers-reduced-motion: reduce)': {
               display: 'none',
             },
@@ -237,28 +360,30 @@ function ImagenDeCinta({ cinta, veces }) {
                 width: 'auto',
                 display: 'inline-flex',
                 position: 'relative',
-                '&::after': {
-                  inset: 0,
-                  content: '""',
-                  position: 'absolute',
-                  backgroundImage:
-                    'linear-gradient(110deg, transparent 43%, rgba(255, 248, 190, 0.58) 50%, transparent 57%)',
-                  backgroundSize: '260% 100%',
-                  backgroundPosition: '160% 0',
-                  WebkitMaskImage: `url("${src}")`,
-                  maskImage: `url("${src}")`,
-                  WebkitMaskSize: 'contain',
-                  maskSize: 'contain',
-                  WebkitMaskRepeat: 'no-repeat',
-                  maskRepeat: 'no-repeat',
-                  WebkitMaskPosition: 'center',
-                  maskPosition: 'center',
-                  willChange: 'background-position',
-                  animation: `${destelloDorado} 3.4s ease-in-out infinite`,
-                  '@media (prefers-reduced-motion: reduce)': {
-                    display: 'none',
+                ...(numeroElegido === EFECTOS_NUMERO_CINTA.BARRIDO && {
+                  '&::after': {
+                    inset: 0,
+                    content: '""',
+                    position: 'absolute',
+                    backgroundImage:
+                      'linear-gradient(110deg, transparent 43%, rgba(255, 248, 190, 0.58) 50%, transparent 57%)',
+                    backgroundSize: '260% 100%',
+                    backgroundPosition: '160% 0',
+                    WebkitMaskImage: `url("${src}")`,
+                    maskImage: `url("${src}")`,
+                    WebkitMaskSize: 'contain',
+                    maskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    maskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskPosition: 'center',
+                    willChange: 'background-position',
+                    animation: `${destelloDorado} 3.4s ease-in-out infinite`,
+                    '@media (prefers-reduced-motion: reduce)': {
+                      display: 'none',
+                    },
                   },
-                },
+                }),
               }}
             >
               <Box
@@ -270,9 +395,78 @@ function ImagenDeCinta({ cinta, veces }) {
                   height: '100%',
                   display: 'block',
                   filter:
-                    'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48)) drop-shadow(0 0 1px rgba(255, 230, 130, 0.55)) drop-shadow(0 0 2px rgba(255, 193, 7, 0.38))',
+                    numeroElegido === EFECTOS_NUMERO_CINTA.NINGUNO
+                      ? 'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48))'
+                      : 'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48)) drop-shadow(0 0 1px rgba(255, 230, 130, 0.55)) drop-shadow(0 0 2px rgba(255, 193, 7, 0.38))',
+                  ...(numeroElegido === EFECTOS_NUMERO_CINTA.AURA && {
+                    animation: `${auraDorada} 3.6s ease-in-out infinite`,
+                    '@media (prefers-reduced-motion: reduce)': {
+                      animation: 'none',
+                    },
+                  }),
                 }}
               />
+              {numeroElegido === EFECTOS_NUMERO_CINTA.DESTELLO &&
+                brilloAleatorio?.indice === indice && (
+                  <Box
+                    key={brilloAleatorio.id}
+                    component="span"
+                    aria-hidden="true"
+                    sx={{
+                      top: '-16%',
+                      right: '-24%',
+                      zIndex: 1,
+                      color: '#fff7bd',
+                      fontSize: '0.72rem',
+                      lineHeight: 1,
+                      position: 'absolute',
+                      textShadow:
+                        '0 0 2px rgba(255, 255, 235, 0.8), 0 0 4px rgba(255, 193, 7, 0.55)',
+                      animation: `${estrellaDorada} 850ms ease-out both`,
+                      '@media (prefers-reduced-motion: reduce)': {
+                        display: 'none',
+                      },
+                    }}
+                  >
+                    ✦
+                  </Box>
+                )}
+              {numeroElegido === EFECTOS_NUMERO_CINTA.CENTELLEO && (
+                <>
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{
+                      top: '-12%',
+                      left: '-20%',
+                      color: '#fff7bd',
+                      fontSize: '0.55rem',
+                      lineHeight: 1,
+                      position: 'absolute',
+                      animation: `${centelleoDelNumero} 4.8s ease-in-out infinite`,
+                      '@media (prefers-reduced-motion: reduce)': { display: 'none' },
+                    }}
+                  >
+                    ✦
+                  </Box>
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{
+                      right: '-18%',
+                      bottom: '-8%',
+                      color: '#ffd95c',
+                      fontSize: '0.48rem',
+                      lineHeight: 1,
+                      position: 'absolute',
+                      animation: `${centelleoDelNumero} 4.8s 1.6s ease-in-out infinite`,
+                      '@media (prefers-reduced-motion: reduce)': { display: 'none' },
+                    }}
+                  >
+                    ✦
+                  </Box>
+                </>
+              )}
             </Box>
           ))}
         </Box>
@@ -327,22 +521,41 @@ function TextoDeCinta({ cinta }) {
 // ----------------------------------------------------------------------
 
 function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
-  // id → veces. Estar en el mapa es estar elegida.
-  const [elegidas, setElegidas] = useState(() => vecesPorCinta(asignadas));
+  // id → { veces, efectoBorde, efectoNumero }. Estar en el mapa es estar elegida.
+  const [elegidas, setElegidas] = useState(() => configuracionPorCinta(asignadas));
+  const configuracionInicial = [...configuracionPorCinta(asignadas).values()][0];
+  const [efectoBordeGlobal, setEfectoBordeGlobal] = useState(
+    configuracionInicial?.efectoBorde ?? EFECTOS_BORDE_CINTA.BARRIDO
+  );
+  const [efectoNumeroGlobal, setEfectoNumeroGlobal] = useState(
+    configuracionInicial?.efectoNumero ?? EFECTOS_NUMERO_CINTA.BARRIDO
+  );
   const [guardando, setGuardando] = useState(false);
 
   const alternar = (idCinta) =>
     setElegidas((previas) => {
       const siguientes = new Map(previas);
       if (siguientes.has(idCinta)) siguientes.delete(idCinta);
-      else siguientes.set(idCinta, 1);
+      else {
+        siguientes.set(idCinta, {
+          veces: 1,
+          efectoBorde: EFECTOS_BORDE_CINTA.BARRIDO,
+          efectoNumero: EFECTOS_NUMERO_CINTA.BARRIDO,
+        });
+      }
       return siguientes;
     });
 
   const cambiarVeces = (idCinta, delta) =>
-    setElegidas((previas) =>
-      new Map(previas).set(idCinta, normalizarVeces((previas.get(idCinta) ?? 1) + delta))
-    );
+    setElegidas((previas) => {
+      const siguientes = new Map(previas);
+      const configuracion = siguientes.get(idCinta);
+      siguientes.set(idCinta, {
+        ...configuracion,
+        veces: normalizarVeces((configuracion?.veces ?? 1) + delta),
+      });
+      return siguientes;
+    });
 
   const guardar = async () => {
     try {
@@ -350,7 +563,12 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
       await guardarCintasDeMiembro({
         idMiembros,
         anteriores: asignadas,
-        elegidas: [...elegidas].map(([id, vecesElegidas]) => ({ id, veces: vecesElegidas })),
+        elegidas: [...elegidas].map(([id, configuracion]) => ({
+          id,
+          veces: configuracion.veces,
+          efectoBorde: efectoBordeGlobal,
+          efectoNumero: efectoNumeroGlobal,
+        })),
         usuario: user,
       });
       toast.success('Cintas guardadas.');
@@ -377,6 +595,44 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
 
         <Box
           sx={{
+            mb: 2,
+            gap: 1.5,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 260px))' },
+          }}
+        >
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Brillo global de bordes dorados"
+            value={efectoBordeGlobal}
+            onChange={(evento) => setEfectoBordeGlobal(evento.target.value)}
+          >
+            {OPCIONES_BORDE.map(([valor, etiqueta]) => (
+              <MenuItem key={valor} value={valor}>
+                {etiqueta}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Brillo global de números"
+            value={efectoNumeroGlobal}
+            onChange={(evento) => setEfectoNumeroGlobal(evento.target.value)}
+          >
+            {OPCIONES_NUMERO.map(([valor, etiqueta]) => (
+              <MenuItem key={valor} value={valor}>
+                {etiqueta}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+
+        <Box
+          sx={{
             display: 'grid',
             gap: 1,
             // `minmax(0, 1fr)` y `minWidth: 0`: con `1fr` a secas el nombre sin
@@ -390,6 +646,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
         >
           {CATALOGO_CINTAS_PERFIL.map((cinta) => {
             const activa = elegidas.has(cinta.id);
+            const configuracion = elegidas.get(cinta.id);
             return (
               <Box
                 key={cinta.id}
@@ -431,7 +688,12 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                   }),
                 })}
               >
-                <ImagenDeCinta cinta={cinta} veces={elegidas.get(cinta.id)} />
+                <ImagenDeCinta
+                  cinta={cinta}
+                  veces={configuracion?.veces}
+                  efectoBorde={efectoBordeGlobal}
+                  efectoNumero={efectoNumeroGlobal}
+                />
                 <Typography variant="caption" noWrap sx={{ display: 'block', mt: 0.5 }}>
                   {cinta.id}. {cinta.nombre}
                 </Typography>
@@ -452,18 +714,18 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                     <IconButton
                       size="small"
                       aria-label="Una vez menos"
-                      disabled={elegidas.get(cinta.id) <= 1}
+                      disabled={configuracion.veces <= 1}
                       onClick={() => cambiarVeces(cinta.id, -1)}
                     >
                       <Iconify icon="mingcute:minimize-line" width={16} />
                     </IconButton>
                     <Typography variant="subtitle2" sx={{ minWidth: 40, textAlign: 'center' }}>
-                      ×{elegidas.get(cinta.id)}
+                      ×{configuracion.veces}
                     </Typography>
                     <IconButton
                       size="small"
                       aria-label="Una vez más"
-                      disabled={elegidas.get(cinta.id) >= MAXIMO_VECES_CINTA}
+                      disabled={configuracion.veces >= MAXIMO_VECES_CINTA}
                       onClick={() => cambiarVeces(cinta.id, 1)}
                     >
                       <Iconify icon="mingcute:add-line" width={16} />

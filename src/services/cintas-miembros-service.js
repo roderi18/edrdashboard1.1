@@ -1,4 +1,7 @@
-import { vecesPorCinta, construirCintasAsignadas } from 'src/utils/cintas-perfil.mjs';
+import {
+  configuracionPorCinta,
+  construirCintasAsignadas,
+} from 'src/utils/cintas-perfil.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
@@ -25,10 +28,14 @@ export async function guardarCintasDeMiembro({
   }
 
   const cintas = construirCintasAsignadas(anteriores, elegidas, new Date().toISOString());
-  // "3, 27 ×4": en Historial también se ve cuántas veces.
+  // "3 ×4 [borde: ola; número: destello]": el Historial también registra
+  // cambios puramente visuales aunque la cantidad de cintas no cambie.
   const describir = (lista) =>
-    [...vecesPorCinta(lista)]
-      .map(([id, veces]) => (veces > 1 ? `${id} ×${veces}` : id))
+    [...configuracionPorCinta(lista)]
+      .map(([id, configuracion]) => {
+        const cantidad = configuracion.veces > 1 ? ` ×${configuracion.veces}` : '';
+        return `${id}${cantidad} [borde: ${configuracion.efectoBorde}; número: ${configuracion.efectoNumero}]`;
+      })
       .join(', ') || 'Ninguna';
   const antes = describir(anteriores);
   const despues = describir(cintas);
