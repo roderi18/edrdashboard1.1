@@ -35,3 +35,13 @@ export const identidadDeLaSesion = (user) => ({
   region: regionDeLaSesion(user),
   foto: user?.photoURL || user?.avatarUrl || '',
 });
+
+/**
+ * La region y el destacamento de la sesion, por su numero, para las campañas de
+ * EVEREST que van solo a una parte de la organizacion (fase 8). Sin dato, vacio:
+ * una campaña acotada no le llega a quien no se sabe donde esta.
+ */
+export const alcanceDeLaSesion = (user) => ({
+  idRegion: String(user?.regionId ?? user?.idRegion ?? user?.idRegional ?? '').trim(),
+  idDestacamento: String(user?.idDestacamento ?? user?.destId ?? '').trim(),
+});

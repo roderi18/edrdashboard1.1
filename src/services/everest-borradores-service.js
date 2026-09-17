@@ -68,7 +68,13 @@ export async function obtenerBorradores(pantalla) {
  * estar a medias—, pero si se deja en algo que Firestore acepte: sin `undefined`
  * ni funciones.
  */
-export async function guardarBorradorDeBloque({ pantalla, idBloque, contenido, usuario }) {
+export async function guardarBorradorDeBloque({
+  pantalla,
+  idBloque,
+  contenido,
+  diseno = {},
+  usuario,
+}) {
   asegurar(usuario);
   asegurarBloque(idBloque);
 
@@ -80,6 +86,7 @@ export async function guardarBorradorDeBloque({ pantalla, idBloque, contenido, u
       bloques: {
         [idBloque]: {
           contenido: JSON.parse(JSON.stringify(contenido ?? null)),
+          diseno: JSON.parse(JSON.stringify(diseno ?? {})),
           guardadoEn,
           guardadoPor: {
             uid: String(usuario?.uid || usuario?.id || ''),

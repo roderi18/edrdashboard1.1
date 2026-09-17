@@ -10,7 +10,8 @@
 //     primer pintado del servidor y el del navegador no casarian.
 //   - La copia se aplica antes de pintar. Sin eso, con algo publicado, cada
 //     visita enseñaria un instante lo viejo antes de cambiar.
-//   - La copia pasa por el saneado. Tocarla a mano no cuela nada.
+//   - La copia pasa por el saneado. Tocarla a mano no cuela nada. Desde las
+//     campañas se guarda LO LEIDO y lo pintado sale siempre de `resolver`.
 //   - "No se pudo leer" no es "no hay nada publicado". Con la red caida no se
 //     tira la copia buena ni se vuelve a lo de fabrica.
 // ----------------------------------------------------------------------
@@ -25,11 +26,10 @@ const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), '
 const LECTOR = leer('src/sections/principal/use-contenido-de-portada.js');
 
 test('arranca con lo de fabrica, igual en el servidor que en el navegador', () => {
-  assert.match(LECTOR, /useState\(\(\) => resolver\(null\)\)/);
-  assert.match(
-    LECTOR,
-    /resolverPortada\(\{ publicado, fabrica: FABRICA_DE_PORTADA, pantalla: PANTALLA \}\)/
-  );
+  // Lo leido empieza vacio, y sin nada leido no se miran campañas ni el dia.
+  assert.match(LECTOR, /const \[publicado, setPublicado\] = useState\(null\);/);
+  assert.match(LECTOR, /fabrica: FABRICA_DE_PORTADA,\s*pantalla: PANTALLA,/);
+  assert.match(LECTOR, /hoy: publicado \? hoyISO\(\) : undefined,/);
 });
 
 test('la copia del navegador se aplica antes de pintar, y solo en el navegador', () => {
@@ -41,11 +41,15 @@ test('la copia del navegador se aplica antes de pintar, y solo en el navegador',
 });
 
 test('la copia pasa por el mismo saneado que lo leido de Firestore', () => {
-  // No hay otro camino al estado que `resolver`, que es `resolverPortada`.
-  const asignaciones = LECTOR.match(/setPortada\(([^)]*\))\)/g) ?? [];
-
-  assert.ok(asignaciones.length >= 2);
-  asignaciones.forEach((asignacion) => assert.match(asignacion, /setPortada\(resolver\(/));
+  // La copia y lo leido se guardan tal cual; lo que se PINTA sale solo de
+  // `resolver`, que es `resolverPortada`.
+  assert.match(LECTOR, /if \(copia\) setPublicado\(copia\);/);
+  assert.match(LECTOR, /setPublicado\(nuevo\);/);
+  assert.match(
+    LECTOR,
+    /return useMemo\(\s*\(\) => resolver\(publicado, \{ idRegion, idDestacamento \}\),/
+  );
+  assert.doesNotMatch(LECTOR, /setPortada/);
 });
 
 test('si no se puede leer, se queda lo que habia y no se borra la copia', () => {
@@ -53,7 +57,7 @@ test('si no se puede leer, se queda lo que habia y no se borra la copia', () => 
 
   const alFallar = LECTOR.slice(LECTOR.indexOf('.catch(() => {'));
 
-  assert.doesNotMatch(alFallar.slice(0, alFallar.indexOf('});')), /guardarCopia|setPortada/);
+  assert.doesNotMatch(alFallar.slice(0, alFallar.indexOf('});')), /guardarCopia|setPublicado/);
 
   // Y el servicio distingue de verdad los dos casos.
   const servicio = leer('src/services/everest-service.js');

@@ -48,7 +48,11 @@ export function EverestVistaPreviaView() {
       const mensaje = mensajeValido(evento, window.location.origin, FUENTE_DESIGNER);
 
       if (mensaje?.tipo === TIPOS_DE_MENSAJE.contenido) {
-        setRecibido({ idBloque: mensaje.idBloque, contenido: mensaje.contenido });
+        setRecibido({
+          idBloque: mensaje.idBloque,
+          contenido: mensaje.contenido,
+          diseno: mensaje.diseno,
+        });
       }
     };
 
@@ -81,7 +85,11 @@ export function EverestVistaPreviaView() {
   return (
     <Box ref={contenedorRef} sx={{ p: { xs: 2, md: 3 }, bgcolor: 'background.default' }}>
       {recibido && (
-        <BloqueDeLaPortada idBloque={recibido.idBloque} contenido={recibido.contenido} />
+        <BloqueDeLaPortada
+          idBloque={recibido.idBloque}
+          contenido={recibido.contenido}
+          diseno={recibido.diseno}
+        />
       )}
     </Box>
   );

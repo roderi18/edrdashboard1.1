@@ -362,9 +362,9 @@ combinar dos cargos.
 | **`contadores_comercio`**                          | Cae bajo el comodín de `firestore.rules`: escribible por cualquier sesión válida. El contador de órdenes debería tener su propio bloque.                                                            |
 | **Numeración de órdenes**                          | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres.                                                              |
 | **Buscar por número de recibo**                    | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden.                                                                                                   |
-| **EVEREST Designer**                               | En construcción: fases 0 a 3 hechas (base, lector de la portada y pantalla con vista previa; todavía sin editores). Ver abajo.                                                                      |
+| **EVEREST Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
 
-#### EVEREST Designer 🟡 — editar la portada desde la aplicación
+#### EVEREST Designer ✅ — editar la portada desde la aplicación
 
 Entrada propia del menú lateral (grupo Administración, debajo de "Administradores") para cambiar todo lo de
 `/principal` —encabezados, próxima actividad, historias, eventos, comunicados,
@@ -446,6 +446,127 @@ lo vuelve a comprobar por si alguien escribe la dirección a mano.
   rutas de la propia aplicación: `destinoDeVuelta`). Es lo que usarán los lápices
   de la fase 6.
 
+**Los editores (fase 4):** cada bloque con editor tiene su formulario en el panel
+derecho (`src/sections/everest/editores/`), armado con piezas comunes
+(`campos.jsx`) que ya traen las reglas del proyecto: colores con nombre, iconos
+registrados, fechas con el calendario de la casa, destinos válidos y avisos de
+error en el propio campo. Los editores **nunca tocan el contenido de partida**
+(puede ser el valor de fábrica, el mismo objeto que pinta la portada): cambian una
+copia (`cambios.js`).
+
+Campos nuevos, todos **opcionales** —el valor de fábrica no los trae y se sigue
+pintando igual—:
+
+- **Próxima actividad:** `fechaInicio`/`fechaFin` (con inicio, el texto de las
+  fechas y los días que faltan **se calculan al pintar**, en hora de la República
+  Dominicana, y ya no se escriben), `fondo` (imagen o video) y `boton` (texto y
+  destino; sin él, el de siempre).
+- **Bienvenida:** `fondo` (solo imagen). Las cifras y el nivel **se editan** con un
+  aviso a la vista: parecen de cada persona pero son los mismos para todos hasta que
+  salgan de datos reales. Lo mismo para **Mi progreso**, que tiene su editor.
+- **Próximos eventos:** `fecha` por evento; con ella, el evento **se deja de
+  enseñar solo** cuando ya pasó (`eventosVigentes`).
+- Cálculos en `src/utils/everest/presentacion.mjs`: puro, sin lecturas ni
+  escrituras, y lo único del Designer —aparte del lector— que importan las
+  tarjetas.
+- **Fondos:** se suben a `everest/<bloque>/<marca de tiempo>` (`.webp` o
+  `-video.mp4|webm`) con `everest-medios-service.js`; nunca a
+  `principal-tarjetas/`. Subir no publica: deja la dirección en el borrador.
+- Un fondo publicado desde el Designer **manda sobre** la foto o el video que ya
+  estaban puestos; sin él, se siguen leyendo de donde siempre.
+
+**Las versiones (fase 5):**
+
+- Cada **publicación** y cada **"volver al original"** deja una versión en
+  `everest_versiones` (`pantalla`, `idBloque`, `clave`, `accion`, `contenido`,
+  `creadoEn`, `creadoPor`), escrita **en el mismo lote** que el cambio
+  (`everest-apply.js`): o quedan las dos o ninguna. Una versión no se reescribe ni
+  se borra (reglas).
+- Las del bloque abierto salen debajo del panel. Se buscan por **una sola
+  igualdad** (`clave` = `principal/<bloque>`) y se ordenan en el navegador: ordenar
+  en la consulta pediría un índice compuesto creado a mano.
+- **Abrir una versión no la publica**: la deja como borrador (pide confirmación si
+  ya había uno), se ve en la vista previa y se publica con el botón de siempre. Una
+  versión que ya no pasa el saneado de hoy no se puede abrir. Volver al diseño del
+  código sigue siendo "Volver al original".
+- **Historial con antes y después, campo a campo** (`diferenciasDelBloque`): solo
+  los campos que cambiaron, resumidos en texto corto. Un bloque que es una lista se
+  compara entero ("3 elementos: …"). La ruta de la entidad es `/dashboard/everest`.
+- Lo publicado **antes** de la fase 5 no tiene versión: la primera aparece en la
+  siguiente publicación de ese bloque.
+- Lógica pura en `src/utils/everest/versiones.mjs`; test
+  `tests/everest/versiones.test.mjs`.
+
+**El diseño: colores, tamaños, textos fijos, iconos y qué se muestra.** Como en el
+encabezado de la tienda, todo lo que antes estaba escrito en el componente se
+cambia desde el Designer, en la pestaña **Diseño** del panel.
+
+- **Va aparte del contenido** (`bloques[id].diseno`, junto a `contenido`), porque
+  varios bloques son una lista y a una lista no se le cuelgan campos. Borradores,
+  versiones, campañas y vista previa llevan siempre **la pareja entera**.
+- **Un solo registro de ajustes:** `src/utils/everest/diseno.mjs`
+  (`AJUSTES_DE_DISENO`). Cada ajuste tiene tipo (`texto`, `color`, `tamano`,
+  `icono`, `destino`, `interruptor`, `opcion`), grupo y límites. El editor
+  (`editores/editor-de-diseno.jsx`) se arma solo con esa lista.
+- **Un diseño vacío se pinta exactamente como hoy.** Las piezas de
+  `src/sections/principal/diseno-de-tarjeta.js` devuelven un objeto vacío —o el
+  valor de siempre— cuando el ajuste no está. Sin publicar, ninguna tarjeta cambia.
+- **Colores en hexadecimal** (`#rrggbb` o `#rrggbbaa`), elegidos con la paleta del
+  encabezado de la tienda (`PaletaDeColores`): el diseño lo ve gente en modo claro
+  y oscuro, y tiene que significar lo mismo en los dos. Es la excepción documentada
+  a "colores con nombre", que sigue valiendo para el código. Cualquier otra cadena
+  (`url(...)`, `red; …`) invalida el diseño.
+- **Un diseño roto tumba el bloque a lo de fábrica**, igual que un contenido roto.
+  Un ajuste que el bloque ya no tiene se ignora.
+- Con color de fondo elegido, el velo de la foto de la bienvenida y de la próxima
+  actividad toma ese color (`navyDelDiseno`).
+- Historial guarda el antes y el después de cada ajuste como `diseno_<ajuste>`.
+
+**Los lápices (fase 6):** cada tarjeta de `/principal` —y los accesos rápidos—
+lleva, **solo para el Administrador Global**, un lápiz que abre ese bloque en el
+Designer con "Volver" a la portada (`lapiz-del-designer.jsx`). **Sustituye al lápiz
+de imagen**, que subía la foto y la cambiaba para todos en el acto, sin vista
+previa ni Historial; `useImagenDeTarjeta` ahora solo lee. Cada tarjeta lleva
+también `data-everest-bloque="<id>"`, un atributo que no se ve y que usan las
+analíticas.
+
+**Campañas y audiencia (fases 7 y 8):** una campaña pone un bloque distinto **solo
+entre dos fechas** (las dos incluidas, en hora de la República Dominicana) y, si
+se quiere, **solo para unas regiones o unos destacamentos**.
+
+- Orden de lo que se pinta: **campaña vigente para esa persona → lo publicado → lo
+  de fábrica**. Con dos a la vez gana la que empezó más tarde.
+- Se guardan en el mismo documento publicado (`campanas.<id>`): la portada sigue
+  haciendo **una lectura por visita**. Programar y quitar pasan por
+  `proponerCambio` y quedan en Historial.
+- Toman el borrador válido o, sin borrador, lo que está en vivo; no descartan el
+  borrador.
+- La audiencia compara con `idRegion`/`idDestacamento` de la sesión
+  (`alcanceDeLaSesion`). **Sin saber dónde está alguien, una campaña acotada no le
+  llega**: ve lo publicado para todos.
+- El lector guarda **lo leído** y resuelve con el día y la sesión; sin nada leído
+  no se miran campañas, así que el primer pintado sigue siendo idéntico en
+  servidor y navegador.
+- Lógica pura: `src/utils/everest/campanas.mjs`.
+
+**Analíticas, biblioteca y avisos (fase 8):**
+
+- **Analíticas:** `everest_analiticas/{pantalla}` con `bloques.<id>` y
+  `campanas.<id>` → `{ impresiones, clics }`. Una impresión cuando media tarjeta
+  entra en pantalla, **una vez por sesión del navegador**; un clic en un enlace o
+  botón dentro de la tarjeta. Una escritura por visita, con `increment`. **No se
+  guarda quién**. El Administrador Global no cuenta. Las reglas solo dejan tocar
+  esos dos mapas; las lee el Administrador Global. En la lista de ESLint con su
+  motivo.
+- **Biblioteca de medios:** "Biblioteca" en el campo de fondo lista lo ya subido a
+  `everest/<bloque>/` (Storage, sin registro aparte) para reutilizarlo. Elegir no
+  publica.
+- **Aviso de comunicados:** al publicar el bloque (o programar una campaña de
+  comunicados) se avisa en la campana, si se deja marcado, **solo de los
+  comunicados nuevos** por su clave —reordenar o corregir no avisa—. Tipo
+  `comunicado_publicado`, para toda la organización o para la audiencia de la
+  campaña. Si el aviso falla, la publicación sigue hecha.
+
 **Piezas (fases 1, 2 y 3):**
 
 | Pieza                                                | Qué hace                                                                                                                                                                                                                                     |
@@ -477,20 +598,24 @@ almacén propio, `configuracion_tienda/encabezado`), `accesos-rapidos`,
 | 1    | Registro, saneado, lector puro, servicio, ámbito de Historial, reglas de Firestore y Storage                                                                          | No                                          | ✅                                     |
 | 2    | `/principal` lee `everest_publicado/principal` con respaldo al código; copia en el navegador para no parpadear; el lema sale del componente                           | No, sin publicación                         | ✅ · ❓ comparar con las capturas      |
 | 3    | Pestaña y esqueleto: lista de bloques con su estado, vista previa con los componentes reales (celular/escritorio), autoguardado de borradores, `?bloque=` y `volver=` | No                                          | ✅ (sin editores: llegan en la fase 4) |
-| 4    | Editores por bloque, en orden: próxima actividad, comunicados, eventos, destacado, bienvenida y lema, accesos, historias, mi progreso, encabezado de la tienda        | Solo al publicar                            | ⏳                                     |
-| 5    | Versiones (`everest_versiones`), volver a cualquiera, Historial con antes y después                                                                                   | Solo al publicar                            | ⏳                                     |
-| 6    | Lápices en cada tarjeta y encabezado que llevan al Designer (solo Administrador Global). Sustituyen al lápiz de imagen que hoy publica en el acto                     | Solo el lápiz, para el Administrador Global | ⏳                                     |
-| 7    | Campañas con vigencia: campaña vigente → publicado → código                                                                                                           | Solo al publicar                            | ⏳                                     |
-| 8    | Audiencia por alcance, analíticas, biblioteca de medios, aviso en campana al publicar un comunicado                                                                   | Solo al publicar                            | ⏳                                     |
+| 4    | Editores de contenido de los 9 bloques (mi progreso y las cifras de la bienvenida con aviso), con fechas reales, fondo propio y botón. Editor de **diseño** de todos: colores, tamaños, textos fijos, iconos y qué se muestra | Solo al publicar | ✅ |
+| 5    | Versiones (`everest_versiones`), volver a cualquiera, Historial con antes y después                                                                                   | Solo al publicar                            | ✅                                     |
+| 6    | Lápices en cada tarjeta y encabezado que llevan al Designer (solo Administrador Global). Sustituyen al lápiz de imagen que hoy publica en el acto                     | Solo el lápiz, para el Administrador Global | ✅                                     |
+| 7    | Campañas con vigencia: campaña vigente → publicado → código                                                                                                           | Solo al publicar                            | ✅                                     |
+| 8    | Audiencia por alcance, analíticas, biblioteca de medios, aviso en campana al publicar un comunicado                                                                   | Solo al publicar                            | ✅                                     |
 
 **Decisiones tomadas** (las recomendadas al aprobar el plan): se publica por
 bloque; en la primera versión solo edita el Administrador Global; publicar se
-aplica directo y queda en Historial. **Pendientes:** "Mi progreso" como dato real
-del Sistema de Ascenso o editable; cuándo se activan los lápices; si el encabezado
-de la tienda se sigue editando también en la propia tienda.
+aplica directo y queda en Historial. Todo lo de `/principal` es editable (contenido
+y diseño); "Mi progreso" y las cifras de la bienvenida se editan a mano con aviso
+mientras no salgan del Sistema de Ascenso. El encabezado de la tienda se sigue
+editando en la propia tienda. Los lápices están activos para el Administrador
+Global. **Pendiente:** conectar "Mi progreso" y las cifras a los datos reales de
+cada miembro (y entonces quitar sus editores).
 
 **Reglas publicadas:** hay que desplegar `firestore.rules` y `storage.rules` en el
-proyecto antes de publicar nada desde el Designer (fase 3 en adelante). Mientras
+proyecto antes de publicar nada desde el Designer (fase 3 en adelante; la fase 8
+añade `everest_analiticas`). Mientras
 no estén, la lectura de la portada falla y se pinta desde el código —no se rompe
 nada—, pero cualquier publicación sería rechazada.
 
@@ -588,7 +713,8 @@ personas podían compartir número.
 **EVEREST Designer** — `everest_publicado` (un documento por pantalla con el
 mapa `bloques`; lo lee cualquier sesión y lo escribe el Administrador Global),
 `everest_borradores` y `everest_versiones` (solo el Administrador Global; una
-versión no se reescribe ni se borra). Las tres, fuera del comodín.
+versión no se reescribe ni se borra) y `everest_analiticas` (suma cualquier sesión,
+solo los contadores; la lee el Administrador Global). Las cuatro, fuera del comodín.
 
 **Otros** — `solicitudes_cambio`, `solicitudes_cambio_miembro`,
 `auditoria_sistema`, `gestorArchivos`, `plantillasCertificados`
@@ -883,6 +1009,10 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
    siembra Firestore con lo que hay: publica por bloque, y lo no publicado —o lo
    publicado roto— se pinta desde el código. Así la portada no cambia hasta que
    alguien decide publicarla, y una publicación mala nunca deja un hueco.
+10. **El diseño de la portada va aparte del contenido y en hexadecimal.** Aparte,
+    porque varios bloques son listas; en hexadecimal, como el encabezado de la
+    tienda, porque lo elige una persona y lo ve gente en modo claro y oscuro. Un
+    diseño vacío no cambia un píxel: cada tarjeta usa el suyo solo si está.
 
 ---
 

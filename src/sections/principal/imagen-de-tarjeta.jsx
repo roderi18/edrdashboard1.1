@@ -1,35 +1,23 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
-import CircularProgress from '@mui/material/CircularProgress';
 
-import {
-  subirFotoEntidad,
-  subirVideoEntidad,
-  obtenerFotoPrincipal,
-  TIPOS_DE_VIDEO_ADMITIDOS,
-} from 'src/utils/firebase-photos';
-
-import { toast } from 'src/components/snackbar';
-import { Iconify } from 'src/components/iconify';
+import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 
 // ----------------------------------------------------------------------
 // LA IMAGEN DE FONDO DE UNA TARJETA DE LA PANTALLA PRINCIPAL.
 //
-// La ponen el Administrador Global y nadie mas, y la ve toda la organizacion: no
-// es una preferencia de cada quien, es la cara de la pantalla de inicio.
+// La ponia el Administrador Global con un lapiz sobre la tarjeta, y la ve toda la
+// organizacion: no es una preferencia de cada quien, es la cara de la pantalla de
+// inicio.
 //
-// Se apoya en la infraestructura de fotos que ya existe (`firebase-photos`), que
-// se encarga de optimizar a webp, subir a Storage y dejar constancia en
-// Firestore. No hizo falta coleccion nueva. Para las imagenes tampoco regla nueva
-// —el comodin de Storage deja al Administrador Global subir cualquier imagen—,
-// pero el VIDEO de la proxima actividad si la pidio: `principal-tarjetas` tiene
-// su bloque en `storage.rules`.
-//
-// Vive aqui y no dentro de cada tarjeta porque lo usan dos —la bienvenida y la
-// proxima actividad— y va a usarlo la siguiente.
+// DESDE LA FASE 6 DE EVEREST AQUI SOLO SE LEE. Aquel lapiz subia la foto y la
+// cambiaba para todos en el acto, sin vista previa ni Historial. Ahora el lapiz
+// de cada tarjeta lleva al Designer, donde un fondo nuevo es un borrador mas que
+// se ve antes de publicarlo (y va a `everest/`). La foto o el video que ya estaban
+// puestos se siguen leyendo de donde siempre —`fotos` → `principalTarjeta`,
+// archivos en `principal-tarjetas/`— hasta que se publique otro fondo: la portada
+// no cambia sola.
 // ----------------------------------------------------------------------
 
 const TIPO_DE_ENTIDAD = 'principalTarjeta';
@@ -37,42 +25,15 @@ const TIPO_DE_ENTIDAD = 'principalTarjeta';
 // La marca de la capa del video, para que la tarjeta suba de piso todo lo demas.
 const CLASE_FONDO_EN_VIDEO = 'fondo-en-video';
 
-// EL TIPO DEL ARCHIVO, Y SI NO LO TRAE, POR SU EXTENSION.
-//
-// Windows no siempre le pone tipo a un .mp4 —depende de lo que haya instalado—,
-// y el navegador lo entrega con `type` vacio. Asi el video se tomaba por imagen,
-// se subia a `portada.webp` sin tipo y Storage lo rechazaba.
-const TIPO_POR_EXTENSION = {
-  mp4: 'video/mp4',
-  m4v: 'video/mp4',
-  webm: 'video/webm',
-  mov: 'video/quicktime',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-};
-
-const tipoDeArchivo = (archivo) => {
-  if (archivo?.type) return archivo.type;
-
-  const extension = String(archivo?.name || '')
-    .split('.')
-    .pop()
-    .toLowerCase();
-
-  return TIPO_POR_EXTENSION[extension] || '';
-};
-
 /**
+ * La foto (o el video) de fondo que tiene hoy una tarjeta.
+ *
  * `aceptaVideo` lo pide la tarjeta que sabe pintar un video de fondo. Sin el, un
- * video subido se leeria como imagen y el fondo saldria vacio.
+ * video guardado no se pintaria bien como imagen, asi que no se toma por video.
  */
 export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
   const [foto, setFoto] = useState('');
   const [esVideo, setEsVideo] = useState(false);
-  const [subiendo, setSubiendo] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -85,7 +46,7 @@ export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
       .then((registro) => {
         if (cancelado) return;
         setFoto(registro?.urlFoto || '');
-        setEsVideo(registro?.tipoMedio === 'video');
+        setEsVideo(aceptaVideo && registro?.tipoMedio === 'video');
       })
       .catch(() => {
         // Sin foto se pinta el degradado de siempre: no hay nada que avisar.
@@ -94,122 +55,9 @@ export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
     return () => {
       cancelado = true;
     };
-  }, [idTarjeta]);
+  }, [idTarjeta, aceptaVideo]);
 
-  const elegirFoto = useCallback(
-    async (evento) => {
-      const archivo = evento.target.files?.[0];
-
-      // El input se limpia SIEMPRE, tambien al cancelar: sin esto, elegir dos
-      // veces seguidas la misma foto no disparaba el `change` y parecia que el
-      // lapiz se habia roto.
-      evento.target.value = '';
-
-      if (!archivo) return;
-
-      const tipo = tipoDeArchivo(archivo);
-      const subeVideo = tipo.startsWith('video/');
-
-      if (subeVideo && !aceptaVideo) {
-        toast.error('Esta tarjeta solo admite imágenes.');
-        return;
-      }
-
-      // NI IMAGEN NI VIDEO: SE DICE AQUI. Antes todo lo que no era video iba por
-      // la rama de imagen, el optimizador lo dejaba pasar tal cual y Storage lo
-      // rechazaba con un "no tienes permiso" que no explicaba nada.
-      if (!subeVideo && !tipo.startsWith('image/')) {
-        toast.error(
-          aceptaVideo
-            ? 'Elige una imagen o un video MP4 o WebM.'
-            : 'Elige una imagen (JPG, PNG o WebP).'
-        );
-        return;
-      }
-
-      setSubiendo(true);
-
-      try {
-        const registro = subeVideo
-          ? await subirVideoEntidad({
-              file: archivo,
-              tipoMime: tipo,
-              tipoEntidad: TIPO_DE_ENTIDAD,
-              idEntidad: idTarjeta,
-              tipoFoto: 'portada',
-            })
-          : await subirFotoEntidad({
-              file: archivo,
-              tipoEntidad: TIPO_DE_ENTIDAD,
-              idEntidad: idTarjeta,
-              tipoFoto: 'portada',
-              // Sin esto se optimizaba como foto de perfil (900px de ancho) y la
-              // tarjeta, que mide casi el ancho de la pantalla, la estiraba pixelada.
-              preset: 'portada',
-            });
-
-        setFoto(registro?.urlFoto || '');
-        setEsVideo(subeVideo);
-        toast.success(subeVideo ? 'Video actualizado' : 'Imagen actualizada');
-      } catch (error) {
-        toast.error(error.message || 'No se pudo subir la imagen.');
-      } finally {
-        setSubiendo(false);
-      }
-    },
-    [idTarjeta, aceptaVideo]
-  );
-
-  return { foto, esVideo, subiendo, elegirFoto };
-}
-
-// ----------------------------------------------------------------------
-
-/**
- * El lapiz.
- *
- * `component="label"` y no un `onClick` que pulse el input por codigo: pulsarlo
- * asi fallaba al elegir la misma foto dos veces seguidas, que es justo lo que se
- * hace al probar encuadres.
- */
-export function LapizDeImagen({ tieneFoto, subiendo, onElegir, aceptaVideo = false, sx }) {
-  const medio = aceptaVideo ? 'la imagen o el video de fondo' : 'la imagen de fondo';
-  const titulo = tieneFoto
-    ? `Cambiar ${medio}`
-    : `Agregar ${aceptaVideo ? 'una imagen o un video de fondo' : 'una imagen de fondo'}`;
-
-  return (
-    <Tooltip title={titulo}>
-      <IconButton
-        component="label"
-        size="small"
-        disabled={subiendo}
-        aria-label={titulo}
-        sx={[
-          {
-            color: '#FFFFFF',
-            bgcolor: 'rgba(255, 255, 255, 0.12)',
-            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.22)' },
-          },
-          ...(Array.isArray(sx) ? sx : [sx]),
-        ]}
-      >
-        {subiendo ? (
-          <CircularProgress size={16} sx={{ color: 'inherit' }} />
-        ) : (
-          <Iconify icon="solar:pen-bold" width={16} />
-        )}
-
-        <Box
-          component="input"
-          type="file"
-          accept={aceptaVideo ? `image/*,${TIPOS_DE_VIDEO_ADMITIDOS.join(',')}` : 'image/*'}
-          hidden
-          onChange={onElegir}
-        />
-      </IconButton>
-    </Tooltip>
-  );
+  return { foto, esVideo };
 }
 
 // ----------------------------------------------------------------------

@@ -34,11 +34,12 @@ export const mensajeAlto = (alto) => ({
   alto: Math.max(0, Math.ceil(Number(alto) || 0)),
 });
 
-export const mensajeContenido = (idBloque, contenido) => ({
+export const mensajeContenido = (idBloque, contenido, diseno = {}) => ({
   fuente: FUENTE_DESIGNER,
   tipo: TIPOS_DE_MENSAJE.contenido,
   idBloque,
   contenido,
+  diseno,
 });
 
 const esObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Array.isArray(valor);

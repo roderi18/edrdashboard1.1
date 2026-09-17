@@ -32,8 +32,9 @@ const COLORES_DE_EVENTO = [
   { valor: 'default', etiqueta: 'Neutro', color: 'default' },
 ];
 
-// Los acentos de los accesos rapidos: los mismos cuatro de la portada.
-const ACENTOS = [
+// Los acentos de los accesos rapidos: los mismos cuatro de la portada. Tambien
+// los usan las areas de "Mi progreso".
+export const ACENTOS = [
   { valor: 'azul', etiqueta: 'Azul', color: 'primary' },
   { valor: 'verde', etiqueta: 'Verde', color: 'success' },
   { valor: 'ambar', etiqueta: 'Ámbar', color: 'warning' },

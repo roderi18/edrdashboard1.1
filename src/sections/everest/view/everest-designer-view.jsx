@@ -22,9 +22,12 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestVistaPrevia } from '../everest-vista-previa';
+import { EditorDeDiseno } from '../editores/editor-de-diseno';
 import { useEverestDesigner } from '../hooks/use-everest-designer';
 import { EverestPanelDelBloque } from '../everest-panel-del-bloque';
 import { EverestListaDeBloques } from '../everest-lista-de-bloques';
+import { EverestCampanasDelBloque } from '../everest-campanas-del-bloque';
+import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 
 // ----------------------------------------------------------------------
 // EVEREST DESIGNER.
@@ -76,6 +79,10 @@ export function EverestDesignerView() {
   const Editor = EDITORES_DE_BLOQUE[idSeleccionado];
   const contenidoAEditar =
     estadoSeleccionado?.borrador?.contenido ?? estadoSeleccionado?.enVivo?.contenido;
+  // El diseño, igual: el del borrador si hay uno, y si no, el que esta en vivo.
+  const disenoAEditar = estadoSeleccionado?.borrador
+    ? estadoSeleccionado.borrador.diseno
+    : estadoSeleccionado?.enVivo?.diseno;
   const editor =
     Editor && contenidoAEditar != null ? (
       <Editor
@@ -85,6 +92,14 @@ export function EverestDesignerView() {
         onCambiar={(contenido) => designer.cambiarContenido(idSeleccionado, contenido)}
       />
     ) : null;
+  const editorDeDiseno = estadoSeleccionado?.enVivo ? (
+    <EditorDeDiseno
+      key={`diseno-${idSeleccionado}`}
+      idBloque={idSeleccionado}
+      diseno={disenoAEditar ?? {}}
+      onCambiar={(diseno) => designer.cambiarDiseno(idSeleccionado, diseno)}
+    />
+  ) : null;
 
   return (
     <DashboardContent maxWidth="xl">
@@ -154,6 +169,7 @@ export function EverestDesignerView() {
                 <EverestVistaPrevia
                   idBloque={designer.idSeleccionado}
                   contenido={estadoSeleccionado?.contenidoDeLaVistaPrevia}
+                  diseno={estadoSeleccionado?.disenoDeLaVistaPrevia}
                 />
               )}
             </Grid>
@@ -162,11 +178,32 @@ export function EverestDesignerView() {
               <EverestPanelDelBloque
                 estado={estadoSeleccionado}
                 editor={editor}
+                editorDeDiseno={editorDeDiseno}
+                analiticas={designer.analiticas.bloques[idSeleccionado]}
                 guardando={Boolean(designer.guardando[designer.idSeleccionado])}
                 accion={designer.accion}
                 onPublicar={designer.publicar}
                 onDescartarBorrador={designer.descartarBorrador}
                 onVolverAlOriginal={designer.volverAlOriginal}
+              />
+
+              <EverestVersionesDelBloque
+                estado={estadoSeleccionado}
+                versiones={designer.versiones}
+                onAbrir={designer.abrirVersion}
+                onReintentar={designer.recargarVersiones}
+                sx={{ mt: 3 }}
+              />
+
+              <EverestCampanasDelBloque
+                estado={estadoSeleccionado}
+                campanas={designer.campanasDelBloque}
+                analiticas={designer.analiticas}
+                accion={designer.accion}
+                onProgramar={designer.programar}
+                onQuitar={designer.quitarCampana}
+                onAbrir={designer.abrirCampana}
+                sx={{ mt: 3 }}
               />
             </Grid>
           </Grid>

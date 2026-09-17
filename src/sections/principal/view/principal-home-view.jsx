@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -15,9 +15,10 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { ProfileHome } from '../../user/profile-home';
 import { HAY_DATOS_DE_EJEMPLO } from '../datos-de-ejemplo';
-import { identidadDeLaSesion } from '../identidad-de-la-sesion';
 import { useContenidoDePortada } from '../use-contenido-de-portada';
+import { useAnaliticasDePortada } from '../use-analiticas-de-portada';
 import { PrincipalAccesos, PrincipalBienvenida } from '../principal-bienvenida';
+import { alcanceDeLaSesion, identidadDeLaSesion } from '../identidad-de-la-sesion';
 import {
   PrincipalHistorias,
   PrincipalMiProgreso,
@@ -47,9 +48,12 @@ import {
 // y el muro entero. Lo demas son datos de EJEMPLO y cada panel lo dice encima
 // (ver `datos-de-ejemplo.js`).
 //
-// Cada uno de esos bloques se puede publicar desde EVEREST Designer. Hasta que
-// alguien lo publique, sale exactamente lo de siempre: la pantalla ya no importa
-// los datos a mano, se los pide a `useContenidoDePortada`.
+// Cada uno de esos bloques se puede publicar desde EVEREST Designer —contenido y
+// diseño—. Hasta que alguien lo publique, sale exactamente lo de siempre: la
+// pantalla ya no importa los datos a mano, se los pide a `useContenidoDePortada`.
+//
+// El Administrador Global ve un lapiz en cada tarjeta que lleva a ese bloque en
+// el Designer. Los demas no ven nada distinto.
 // ----------------------------------------------------------------------
 
 // La marca "Ejemplo" solo tiene sentido sobre lo inventado: un bloque publicado
@@ -63,21 +67,28 @@ export function PrincipalHomeView() {
   // CADA BLOQUE, DE LO PUBLICADO O DE LO DE SIEMPRE. Mientras nadie publique nada
   // desde EVEREST Designer, esto devuelve exactamente los mismos datos que antes
   // se importaban a mano de `datos-de-ejemplo.js` (ver `useContenidoDePortada`).
-  const portada = useContenidoDePortada();
+  const quien = useMemo(() => alcanceDeLaSesion(user), [user]);
+  const portada = useContenidoDePortada({ quien });
 
   const identidad = useMemo(() => identidadDeLaSesion(user), [user]);
+  const esAdministradorGlobal = isAdminGlobal(user);
+
+  // Cuantas veces se ve y se pulsa cada bloque (sin contar al Administrador Global).
+  const raizRef = useRef(null);
+  const alPulsar = useAnaliticasDePortada({ raizRef, portada, activo: !esAdministradorGlobal });
 
   return (
     <DashboardContent maxWidth="xl">
-      <Stack spacing={3}>
+      <Stack ref={raizRef} spacing={3} onClickCapture={alPulsar}>
         <PrincipalBienvenida
           nombre={identidad.nombre}
           destacamento={identidad.destacamento}
           region={identidad.region}
           foto={identidad.foto}
           resumen={portada.bienvenida.contenido}
+          diseno={portada.bienvenida.diseno}
           esEjemplo={esDeEjemplo(portada.bienvenida)}
-          puedeEditar={isAdminGlobal(user)}
+          puedeEditar={esAdministradorGlobal}
         />
 
         <Grid container spacing={3}>
@@ -93,7 +104,11 @@ export function PrincipalHomeView() {
                   son atajos a sitios que tambien estan en el menu. Solo aparecen
                   cuando el usuario los activa de forma expresa. */}
               {accesosVisibles && (
-                <PrincipalAccesos accesos={portada['accesos-rapidos'].contenido} />
+                <PrincipalAccesos
+                  accesos={portada['accesos-rapidos'].contenido}
+                  diseno={portada['accesos-rapidos'].diseno}
+                  puedeEditar={esAdministradorGlobal}
+                />
               )}
 
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
@@ -107,21 +122,26 @@ export function PrincipalHomeView() {
                 <Grid size={{ xs: 12, md: 7 }}>
                   <PrincipalProximaActividad
                     actividad={portada['proxima-actividad'].contenido}
-                    puedeEditar={isAdminGlobal(user)}
+                    diseno={portada['proxima-actividad'].diseno}
+                    puedeEditar={esAdministradorGlobal}
                   />
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 5 }}>
                   <PrincipalMiProgreso
                     progreso={portada['mi-progreso'].contenido}
+                    diseno={portada['mi-progreso'].diseno}
                     esEjemplo={esDeEjemplo(portada['mi-progreso'])}
+                    puedeEditar={esAdministradorGlobal}
                   />
                 </Grid>
               </Grid>
 
               <PrincipalHistorias
                 historias={portada.historias.contenido}
+                diseno={portada.historias.diseno}
                 esEjemplo={esDeEjemplo(portada.historias)}
+                puedeEditar={esAdministradorGlobal}
               />
 
               {/* EL MURO, TAL CUAL. `posts` vacio: las publicaciones las trae el
@@ -162,20 +182,30 @@ export function PrincipalHomeView() {
             >
               <PrincipalEventos
                 eventos={portada['proximos-eventos'].contenido}
+                diseno={portada['proximos-eventos'].diseno}
                 esEjemplo={esDeEjemplo(portada['proximos-eventos'])}
+                puedeEditar={esAdministradorGlobal}
               />
 
               <PrincipalDestacado
                 destacado={portada['destacamento-destacado'].contenido}
+                diseno={portada['destacamento-destacado'].diseno}
                 esEjemplo={esDeEjemplo(portada['destacamento-destacado'])}
+                puedeEditar={esAdministradorGlobal}
               />
 
               <PrincipalComunicados
                 comunicados={portada.comunicados.contenido}
+                diseno={portada.comunicados.diseno}
                 esEjemplo={esDeEjemplo(portada.comunicados)}
+                puedeEditar={esAdministradorGlobal}
               />
 
-              <PrincipalLema lema={portada.lema.contenido} />
+              <PrincipalLema
+                lema={portada.lema.contenido}
+                diseno={portada.lema.diseno}
+                puedeEditar={esAdministradorGlobal}
+              />
             </Stack>
           </Grid>
         </Grid>

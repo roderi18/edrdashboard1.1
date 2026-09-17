@@ -68,8 +68,8 @@ Suite que lo cubre: `npm run test:acceso`.
 
 ## EVEREST Designer — la portada no cambia hasta que se publica
 
-Pestaña de Administración para editar desde la aplicación todo lo de `/principal`
-(encabezados, próxima actividad, eventos, comunicados, destacamento destacado…)
+Herramienta del Administrador Global para editar desde la aplicación todo lo de
+`/principal` (encabezados, próxima actividad, eventos, comunicados, destacamento destacado…)
 sin tocar código. **Regla que no se rompe: `/principal` se ve exactamente igual
 —textos, orden, imágenes y videos— hasta que alguien publica ese bloque desde el
 Designer.**
@@ -96,6 +96,32 @@ Designer.**
   estilos dependen del ancho de la ventana; pinta con los componentes reales de
   `/principal`. Los editores escriben por `cambiarContenido`: borrador autoguardado,
   que no sale en la portada hasta pulsar Publicar.
+- **Los editores nunca mutan el contenido de partida** (puede ser el objeto de
+  fábrica que pinta la portada): cambian con `conCampo`/`cambiadorDe`
+  (`src/sections/everest/editores/cambios.js`), que copian.
+- **Campos nuevos, siempre opcionales** (`conOpcionales` en `saneado.mjs`): si no
+  vienen, la tarjeta se pinta como siempre; si vienen rotos, el bloque entero vuelve
+  a fábrica. Los días que faltan y los eventos pasados se calculan al pintar, en
+  hora de Santo Domingo (`src/utils/everest/presentacion.mjs`, lo único del Designer
+  que importan las tarjetas además del lector).
+- **Todo tiene editor de contenido**; "Mi progreso" y las cifras/nivel de la
+  Bienvenida avisan de que son los mismos para todos. El encabezado de la tienda
+  se edita en la tienda.
+- **Diseño aparte del contenido** (`bloques[id].diseno`): colores hex, tamaños,
+  textos fijos, iconos y qué se muestra, declarados en
+  `src/utils/everest/diseno.mjs`. **Un diseño vacío no cambia un píxel**: las
+  piezas de `src/sections/principal/diseno-de-tarjeta.js` devuelven `{}` o el valor
+  de siempre. Contenido y diseño viajan juntos (borrador, versión, campaña).
+- **Lápices (fase 6)**: solo el Administrador Global; llevan al bloque en el
+  Designer. `useImagenDeTarjeta` ya solo lee: nada publica una foto en el acto.
+- **Campañas (fases 7-8)**: `campanas.<id>` en el documento publicado; campaña
+  vigente para esa persona (región/destacamento) → publicado → fábrica.
+  Analíticas en `everest_analiticas` (solo contadores, sin quién). Aviso en la
+  campana solo de comunicados nuevos por clave; si falla, la publicación sigue.
+- **Versiones (fase 5)**: publicar y volver al original escriben su versión en
+  `everest_versiones` en el mismo lote. Abrir una versión la deja como borrador;
+  nunca publica sola. Historial guarda antes y después por campo
+  (`src/utils/everest/versiones.mjs`).
 - **Reglas antes que código**: publica `firestore.rules` y `storage.rules` antes
   de la fase que las use.
 - Plan y avance por fases: `PROJECT_GUIDELINES.md` §4.2. Test que no se borra:
@@ -118,8 +144,8 @@ Regla nueva de negocio → test nuevo. Cambio que contradiga
 - No renumerar identificadores ya emitidos: rompe enlaces ya enviados.
 - No borrar datos sin que alguien lo pida explícitamente.
 - No construir sobre los ~20 módulos de plantilla sin conectar (`/dashboard/{app,
-  ecommerce, analytics, banking, booking, file, course, job, tour, user, post,
-  mail, kanban}`, `src/_mock/`, `src/sections/_examples/`, `src/sections/prinicipal/`).
+ecommerce, analytics, banking, booking, file, course, job, tour, user, post,
+mail, kanban}`, `src/_mock/`, `src/sections/_examples/`, `src/sections/prinicipal/`).
 - No quitar `serverExternalPackages: ['firebase-admin']` ni bajar
   `AWS_LAMBDA_JS_RUNTIME` de `nodejs22.x`: revienta `/api/auth/*` en Netlify.
 - Colección nueva en Firestore → **añádela explícitamente a `firestore.rules`**.

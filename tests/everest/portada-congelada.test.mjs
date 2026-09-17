@@ -209,10 +209,11 @@ test('el lema de la columna: el mismo texto, con el mismo salto de linea', () =>
   const lateral = leer('src/sections/principal/principal-lateral.jsx');
   const lema = lateral.slice(lateral.indexOf('export function PrincipalLema'));
 
-  assert.match(lema, /export function PrincipalLema\(\{ lema = LEMA_DE_FABRICA \}\)/);
+  // Desde el diseño recibe tambien `diseno` y `puedeEditar`; el lema por defecto sigue.
+  assert.match(lema, /export function PrincipalLema\(\{ lema = LEMA_DE_FABRICA,/);
   assert.match(lema, /\.split\('\\n'\)/);
   assert.match(lema, /\{indice > 0 && <br \/>\}/);
-  assert.match(lema, /icon="solar:shield-check-bold"/);
+  assert.match(lema, /'solar:shield-check-bold'/);
 });
 
 // ----------------------------------------------------------------------
@@ -251,20 +252,20 @@ test('los archivos de las tarjetas en Storage no se pueden borrar', () => {
 // portada, asi que tambien se clava.
 const QUE_PINTA_CADA_BLOQUE = {
   bienvenida: /resumen=\{portada\.bienvenida\.contenido\}/,
-  'accesos-rapidos': /<PrincipalAccesos accesos=\{portada\['accesos-rapidos'\]\.contenido\} \/>/,
+  'accesos-rapidos': /<PrincipalAccesos\s+accesos=\{portada\['accesos-rapidos'\]\.contenido\}/,
   'proxima-actividad': /actividad=\{portada\['proxima-actividad'\]\.contenido\}/,
   'mi-progreso': /progreso=\{portada\['mi-progreso'\]\.contenido\}/,
   historias: /historias=\{portada\.historias\.contenido\}/,
   'proximos-eventos': /eventos=\{portada\['proximos-eventos'\]\.contenido\}/,
   'destacamento-destacado': /destacado=\{portada\['destacamento-destacado'\]\.contenido\}/,
   comunicados: /comunicados=\{portada\.comunicados\.contenido\}/,
-  lema: /<PrincipalLema lema=\{portada\.lema\.contenido\} \/>/,
+  lema: /<PrincipalLema\s+lema=\{portada\.lema\.contenido\}/,
 };
 
 test('la portada pinta cada bloque con lo que le da el lector, sin datos importados a mano', () => {
   const vista = leer('src/sections/principal/view/principal-home-view.jsx');
 
-  assert.match(vista, /const portada = useContenidoDePortada\(\);/);
+  assert.match(vista, /const portada = useContenidoDePortada\(\{ quien \}\);/);
   Object.entries(QUE_PINTA_CADA_BLOQUE).forEach(([idBloque, patron]) => {
     assert.match(vista, patron, idBloque);
   });

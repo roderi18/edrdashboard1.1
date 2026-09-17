@@ -50,7 +50,7 @@ const COLOCACION = {
 /** Los bloques que se pueden pintar sueltos. */
 export const BLOQUES_CON_VISTA_PREVIA = Object.keys(COLOCACION);
 
-function ComponenteDelBloque({ idBloque, contenido }) {
+function ComponenteDelBloque({ idBloque, contenido, diseno }) {
   const { user } = useAuthContext();
 
   switch (idBloque) {
@@ -64,34 +64,37 @@ function ComponenteDelBloque({ idBloque, contenido }) {
           region={identidad.region}
           foto={identidad.foto}
           resumen={contenido}
+          diseno={diseno}
         />
       );
     }
     case 'accesos-rapidos':
-      return <PrincipalAccesos accesos={contenido} />;
+      return <PrincipalAccesos accesos={contenido} diseno={diseno} />;
     case 'proxima-actividad':
-      return <PrincipalProximaActividad actividad={contenido} />;
+      return <PrincipalProximaActividad actividad={contenido} diseno={diseno} />;
     case 'mi-progreso':
-      return <PrincipalMiProgreso progreso={contenido} />;
+      return <PrincipalMiProgreso progreso={contenido} diseno={diseno} />;
     case 'historias':
-      return <PrincipalHistorias historias={contenido} />;
+      return <PrincipalHistorias historias={contenido} diseno={diseno} />;
     case 'proximos-eventos':
-      return <PrincipalEventos eventos={contenido} />;
+      return <PrincipalEventos eventos={contenido} diseno={diseno} />;
     case 'destacamento-destacado':
-      return <PrincipalDestacado destacado={contenido} />;
+      return <PrincipalDestacado destacado={contenido} diseno={diseno} />;
     case 'comunicados':
-      return <PrincipalComunicados comunicados={contenido} />;
+      return <PrincipalComunicados comunicados={contenido} diseno={diseno} />;
     case 'lema':
-      return <PrincipalLema lema={contenido} />;
+      return <PrincipalLema lema={contenido} diseno={diseno} />;
     default:
       return null;
   }
 }
 
-export function BloqueDeLaPortada({ idBloque, contenido }) {
+export function BloqueDeLaPortada({ idBloque, contenido, diseno }) {
   if (!BLOQUES_CON_VISTA_PREVIA.includes(idBloque) || contenido == null) return null;
 
-  const bloque = <ComponenteDelBloque idBloque={idBloque} contenido={contenido} />;
+  const bloque = (
+    <ComponenteDelBloque idBloque={idBloque} contenido={contenido} diseno={diseno ?? {}} />
+  );
   const columnas = COLOCACION[idBloque];
 
   if (!columnas) return bloque;

@@ -1,5 +1,6 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 
+import { hoyISO } from 'src/utils/everest/presentacion.mjs';
 import { resolverPortada } from 'src/utils/everest/portada.mjs';
 import { PANTALLAS_EVEREST } from 'src/utils/everest/colecciones.mjs';
 
@@ -11,9 +12,10 @@ import { FABRICA_DE_PORTADA } from './fabrica-de-portada';
 // LO QUE SE PINTA EN CADA BLOQUE DE LA PORTADA.
 //
 // La portada ya no importa sus datos a mano: se los pide a este gancho, que
-// devuelve para cada bloque lo publicado en EVEREST Designer o, si no hay nada
-// —o lo publicado esta roto—, exactamente lo de siempre (`FABRICA_DE_PORTADA`).
-// La decision la toma `resolverPortada`, que esta probada aparte.
+// devuelve para cada bloque —contenido y diseño— la campaña vigente para quien
+// mira, lo publicado en EVEREST Designer o, si no hay nada —o lo publicado esta
+// roto—, exactamente lo de siempre (`FABRICA_DE_PORTADA`). La decision la toma
+// `resolverPortada`, que esta probada aparte.
 //
 // POR QUE ARRANCA SIEMPRE CON LO DE FABRICA. El primer pintado —en el servidor y
 // en el navegador— tiene que ser identico, o React se queja de que no casan. Asi
@@ -27,6 +29,11 @@ import { FABRICA_DE_PORTADA } from './fabrica-de-portada';
 // ultimo leido y se aplica ANTES de pintar (`useLayoutEffect`). La copia pasa por
 // el mismo saneado que Firestore: tocarla a mano no cuela nada.
 //
+// LAS CAMPAÑAS (fase 7) dependen del dia y de quien mira (su region y su
+// destacamento, fase 8). Por eso se guarda LO LEIDO y la portada se resuelve a
+// partir de ello cada vez que cambia lo leido o la sesion: el dia no existe en el
+// primer pintado del servidor, y la sesion llega despues.
+//
 // UNA LECTURA POR VISITA, no una escucha en vivo: la portada no tiene por que
 // redibujarse mientras alguien la esta leyendo porque otro publico algo.
 // ----------------------------------------------------------------------
@@ -38,8 +45,18 @@ export const CLAVE_COPIA_DE_PORTADA = 'erd-everest-portada-publicada';
 // En el servidor no hay pintado que adelantar, y `useLayoutEffect` avisa.
 const useEfectoAntesDePintar = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-const resolver = (publicado) =>
-  resolverPortada({ publicado, fabrica: FABRICA_DE_PORTADA, pantalla: PANTALLA });
+/**
+ * El unico camino de lo leido a lo que se pinta. Sin nada leido no hay campañas
+ * que mirar —ni dia—, asi que el primer pintado es identico en servidor y navegador.
+ */
+const resolver = (publicado, quien) =>
+  resolverPortada({
+    publicado,
+    fabrica: FABRICA_DE_PORTADA,
+    pantalla: PANTALLA,
+    hoy: publicado ? hoyISO() : undefined,
+    quien,
+  });
 
 const leerCopia = () => {
   try {
@@ -64,27 +81,31 @@ const guardarCopia = (publicado) => {
 };
 
 /**
- * `{ idBloque: { origen, contenido, publicadoEn?, publicadoPor? } }` para cada
- * bloque de la portada. `contenido` es lo que recibe su componente.
+ * `{ idBloque: { origen, contenido, diseno, publicadoEn?, publicadoPor?, idCampana? } }`
+ * para cada bloque de la portada. `contenido` y `diseno` son lo que recibe su
+ * componente.
+ *
+ * @param quien `{ idRegion, idDestacamento }` de la sesion, para las campañas acotadas.
  */
-export function useContenidoDePortada() {
-  const [portada, setPortada] = useState(() => resolver(null));
+export function useContenidoDePortada({ quien } = {}) {
+  // Lo leido de Firestore (o la copia). Arranca vacio: lo de fabrica.
+  const [publicado, setPublicado] = useState(null);
 
   useEfectoAntesDePintar(() => {
     const copia = leerCopia();
 
-    if (copia) setPortada(resolver(copia));
+    if (copia) setPublicado(copia);
   }, []);
 
   useEffect(() => {
     let vigente = true;
 
     obtenerPublicado(PANTALLA, { lanzarSiFalla: true })
-      .then((publicado) => {
+      .then((nuevo) => {
         if (!vigente) return;
 
-        guardarCopia(publicado);
-        setPortada(resolver(publicado));
+        guardarCopia(nuevo);
+        setPublicado(nuevo);
       })
       .catch(() => {
         // NO SE PUDO LEER no es lo mismo que NO HAY NADA PUBLICADO. Sin red, o con
@@ -97,5 +118,11 @@ export function useContenidoDePortada() {
     };
   }, []);
 
-  return portada;
+  const idRegion = quien?.idRegion ?? '';
+  const idDestacamento = quien?.idDestacamento ?? '';
+
+  return useMemo(
+    () => resolver(publicado, { idRegion, idDestacamento }),
+    [publicado, idRegion, idDestacamento]
+  );
 }

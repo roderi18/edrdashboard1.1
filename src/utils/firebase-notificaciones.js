@@ -13,6 +13,7 @@ export const COLECCIONES_NOTIFICACIONES = {
 };
 
 export const TIPOS_NOTIFICACIONES_ADMIN = [
+  'comunicado_publicado',
   'destacamento_numero_asignado',
   'miembro_creado',
   'miembro_actualizado',
@@ -41,6 +42,7 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
 ];
 
 export const TIPOS_NOTIFICACIONES_USUARIO = [
+  'comunicado_publicado',
   'destacamento_numero_asignado',
   'cuenta_creada',
   'perfil_actualizado',
@@ -288,6 +290,20 @@ const DEFINICIONES_NOTIFICACIONES = {
     etiquetaAccion: 'Ver perfil',
     tipoAccion: 'ver',
     requiereFotoPersona: true,
+  },
+  // UN COMUNICADO OFICIAL NUEVO EN LA PORTADA, publicado desde EVEREST Designer.
+  // Va a toda la organizacion (o a la parte que se eligio), cargos y miembros.
+  comunicado_publicado: {
+    modulo: 'comunicados',
+    titulo: 'Comunicado oficial',
+    // El texto ya viene armado (uno o varios titulos): la plantilla lo repite.
+    mensajePlantilla: '{{mensaje}}',
+    rolesDisponibles: ['admin', 'usuario', 'todos'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'comunicado',
+    etiquetaAccion: 'Ver en la portada',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
   },
   destacamento_numero_asignado: {
     modulo: 'destacamentos',

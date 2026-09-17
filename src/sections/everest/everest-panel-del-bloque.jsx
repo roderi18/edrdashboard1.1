@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Checkbox from '@mui/material/Checkbox';
 import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -32,13 +36,24 @@ import { COLOR_DEL_ESTADO } from './everest-lista-de-bloques';
 //
 // "Volver al original" pide confirmacion porque lo cambia para toda la
 // organizacion, y "Descartar borrador" no, porque solo tira lo que nadie ha visto.
+//
+// Dos pestañas: CONTENIDO (que dice) y DISEÑO (como se ve: colores, tamaños,
+// textos fijos, que se muestra). Las dos escriben el mismo borrador y se publican
+// juntas.
 // ----------------------------------------------------------------------
 
 const quien = (persona) => persona?.nombre || 'alguien';
 
+const vecesVisto = (contado) =>
+  contado
+    ? `Visto ${contado.impresiones} ${contado.impresiones === 1 ? 'vez' : 'veces'} · ${contado.clics} ${contado.clics === 1 ? 'pulsación' : 'pulsaciones'}`
+    : 'Sin visitas contadas todavía.';
+
 export function EverestPanelDelBloque({
   estado,
   editor = null,
+  editorDeDiseno = null,
+  analiticas = null,
   guardando = false,
   accion = '',
   onPublicar,
@@ -47,6 +62,9 @@ export function EverestPanelDelBloque({
   sx,
 }) {
   const [confirmarOriginal, setConfirmarOriginal] = useState(false);
+  const [pestana, setPestana] = useState('contenido');
+  // Los comunicados nuevos se avisan en la campana, salvo que se desmarque.
+  const [avisar, setAvisar] = useState(true);
 
   if (!estado) return null;
 
@@ -56,8 +74,9 @@ export function EverestPanelDelBloque({
 
   const conAviso = (tarea, textoExito) => async () => {
     try {
-      await tarea();
-      toast.success(textoExito);
+      const resultado = await tarea();
+
+      toast.success(typeof textoExito === 'function' ? textoExito(resultado) : textoExito);
     } catch (error) {
       toast.error(error?.message || 'No se pudo completar la acción.');
     }
@@ -95,6 +114,10 @@ export function EverestPanelDelBloque({
                 : 'En vivo: el diseño original.'}
             </Typography>
 
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {vecesVisto(analiticas)}
+            </Typography>
+
             {estado.borrador && (
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {guardando
@@ -111,23 +134,59 @@ export function EverestPanelDelBloque({
             </Alert>
           )}
 
-          {editor ?? (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Este bloque todavía no tiene editor. La vista previa muestra lo que está en vivo.
-            </Alert>
-          )}
+          <Tabs
+            value={pestana}
+            onChange={(evento, nueva) => setPestana(nueva)}
+            sx={{ mb: 2 }}
+            variant="fullWidth"
+          >
+            <Tab value="contenido" label="Contenido" />
+            <Tab value="diseno" label="Diseño" />
+          </Tabs>
+
+          {pestana === 'contenido' &&
+            (editor ?? (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Este bloque todavía no tiene editor de contenido. Su diseño sí se puede cambiar.
+              </Alert>
+            ))}
+
+          {pestana === 'diseno' && editorDeDiseno}
 
           <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
 
           <Stack spacing={1}>
+            {estado.idBloque === 'comunicados' && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={avisar}
+                    onChange={(evento) => setAvisar(evento.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    Avisar en la campana de los comunicados nuevos
+                  </Typography>
+                }
+              />
+            )}
+
             <Button
               variant="contained"
               startIcon={<Iconify icon="eva:cloud-upload-fill" />}
               disabled={!estado.borrador?.valido || Boolean(accion)}
               loading={accion === 'publicar'}
               onClick={conAviso(
-                () => onPublicar?.(estado.idBloque),
-                `"${bloque?.nombre}" publicado.`
+                () =>
+                  onPublicar?.(estado.idBloque, {
+                    avisar: estado.idBloque === 'comunicados' && avisar,
+                  }),
+                (resultado) =>
+                  resultado?.avisados
+                    ? `"${bloque?.nombre}" publicado. Se avisó de ${resultado.avisados} comunicado(s) en la campana.`
+                    : `"${bloque?.nombre}" publicado.`
               )}
             >
               Publicar

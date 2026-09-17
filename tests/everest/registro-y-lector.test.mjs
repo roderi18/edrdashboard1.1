@@ -192,6 +192,8 @@ test('publicar firma con quien y cuando, y guarda el contenido ya limpio', () =>
 
   assert.deepEqual(publicacion, {
     contenido: { titulo: 'Siempre listos', pie: '' },
+    // Sin diseño, uno vacio: se pinta como siempre (fase de diseño).
+    diseno: {},
     publicadoEn: '2026-09-16T12:00:00.000Z',
     publicadoPor: { uid: 'uid-admin', nombre: 'Roderi Peña' },
   });

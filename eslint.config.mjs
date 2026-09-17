@@ -236,6 +236,11 @@ export default [
       // organizacion; registrar cada autoguardado llenaria Historial de ruido.
       // Lo que va por la puerta es la publicacion. Las reglas solo le dejan a el.
       'src/services/everest-borradores-service.js',
+      // Contadores de vistas y pulsaciones de la portada (EVEREST, fase 8). Mismo
+      // caso que las analiticas del encabezado de la tienda: nadie decide nada, se
+      // suma uno, y lo escribe el navegador de cualquiera. Las reglas acotan que
+      // solo puede tocar esos contadores.
+      'src/services/everest-analiticas-service.js',
       // Contadores de vistas y clics de la portada de la tienda. No es un
       // cambio del que haya que responder —nadie decide nada, se suma uno— y
       // ademas lo escribe el navegador de cualquier visitante: hacerlo pasar por

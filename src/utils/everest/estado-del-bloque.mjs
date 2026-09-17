@@ -17,6 +17,7 @@
 import { esObjeto } from './saneado.mjs';
 import { bloquePorId, BLOQUES_EVEREST } from './bloques.mjs';
 import { resolverPortada, ORIGEN_DEL_BLOQUE } from './portada.mjs';
+import { DISENO_DE_FABRICA, sanearPublicacion } from './publicacion.mjs';
 
 export const ESTADOS_DEL_BLOQUE = Object.freeze({
   original: 'original',
@@ -31,14 +32,6 @@ export const ETIQUETAS_DEL_ESTADO = Object.freeze({
   [ESTADOS_DEL_BLOQUE.borrador]: 'Borrador sin publicar',
   [ESTADOS_DEL_BLOQUE.externo]: 'Editor propio',
 });
-
-const sanearSinRomper = (bloque, contenido) => {
-  try {
-    return bloque.sanear(contenido);
-  } catch {
-    return null;
-  }
-};
 
 /**
  * @param idBloque    El bloque que se quiere mirar.
@@ -58,6 +51,7 @@ export function estadoDelBloque({ idBloque, publicado, borradores, fabrica = {} 
       enVivo: null,
       borrador: null,
       contenidoDeLaVistaPrevia: null,
+      disenoDeLaVistaPrevia: DISENO_DE_FABRICA,
     };
   }
 
@@ -66,7 +60,9 @@ export function estadoDelBloque({ idBloque, publicado, borradores, fabrica = {} 
     esObjeto(borradores) && esObjeto(borradores.bloques) && esObjeto(borradores.bloques[idBloque])
       ? borradores.bloques[idBloque]
       : null;
-  const borradorLimpio = guardado ? sanearSinRomper(bloque, guardado.contenido) : null;
+  // Contenido y diseño se validan juntos: un borrador con el diseño roto tampoco
+  // se puede publicar ni enseñar.
+  const borradorLimpio = guardado ? sanearPublicacion(bloque, guardado) : null;
 
   let estado = ESTADOS_DEL_BLOQUE.original;
 
@@ -83,12 +79,14 @@ export function estadoDelBloque({ idBloque, publicado, borradores, fabrica = {} 
     borrador: guardado
       ? {
           contenido: guardado.contenido,
+          diseno: esObjeto(guardado.diseno) ? guardado.diseno : {},
           guardadoEn: typeof guardado.guardadoEn === 'string' ? guardado.guardadoEn : '',
           guardadoPor: esObjeto(guardado.guardadoPor) ? guardado.guardadoPor : null,
           valido: borradorLimpio !== null,
         }
       : null,
-    contenidoDeLaVistaPrevia: borradorLimpio ?? enVivo.contenido,
+    contenidoDeLaVistaPrevia: borradorLimpio ? borradorLimpio.contenido : enVivo.contenido,
+    disenoDeLaVistaPrevia: borradorLimpio ? borradorLimpio.diseno : enVivo.diseno,
   };
 }
 

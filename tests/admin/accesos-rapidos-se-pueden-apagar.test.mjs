@@ -46,7 +46,7 @@ test('la pantalla Principal los esconde con esa misma regla', () => {
   // el interruptor sigue decidiendo si salen o no.
   assert.match(
     VISTA,
-    /\{accesosVisibles && \(\s*<PrincipalAccesos accesos=\{portada\['accesos-rapidos'\]\.contenido\} \/>\s*\)\}/
+    /\{accesosVisibles && \(\s*<PrincipalAccesos\s+accesos=\{portada\['accesos-rapidos'\]\.contenido\}/
   );
 });
 

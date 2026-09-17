@@ -1197,6 +1197,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // CUANTAS VECES SE VIO Y SE PULSO CADA BLOQUE DE LA PORTADA (EVEREST, fase 8).
+    //
+    // Suma cualquier sesion —la impresion la cuenta el navegador de quien mira—,
+    // pero SOLO dentro de los dos mapas de contadores: sin `hasOnly`, el documento
+    // seria un sitio libre donde cualquiera escribiria lo que quisiera. Lo lee el
+    // Administrador Global, que es quien decide que se publica.
+    match /everest_analiticas/{pantalla} {
+      allow read: if esAdministradorGlobal();
+      allow create, update: if esUsuarioDelSistema()
+        && request.resource.data.keys().hasOnly(['bloques', 'campanas', 'actualizadoEn']);
+      // Un contador que se puede bajar no sirve para decidir nada.
+      allow delete: if false;
+    }
+
     // EL INDICE DEL BUSCADOR DE LA CABECERA.
     //
     // La copia pequeña de la tienda: por cada producto, su nombre y una miniatura
@@ -1468,6 +1482,7 @@ service cloud.firestore {
         && coleccion != 'everest_publicado'
         && coleccion != 'everest_borradores'
         && coleccion != 'everest_versiones'
+        && coleccion != 'everest_analiticas'
         // Los favoritos de la tienda son de cada persona: sin excluirlos aqui,
         // el comodin dejaria leer y cambiar los de cualquiera.
         && coleccion != 'favoritos_productos'

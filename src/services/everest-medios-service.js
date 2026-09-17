@@ -1,11 +1,11 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, listAll, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
-import { bloquePorId } from 'src/utils/everest/bloques.mjs';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
-import { CARPETA_MEDIOS_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { bloquePorId, bloquesPublicablesDe } from 'src/utils/everest/bloques.mjs';
 import { TOPE_DE_VIDEO_EN_MB, TIPOS_DE_VIDEO_ADMITIDOS } from 'src/utils/firebase-photos';
+import { PANTALLAS_EVEREST, CARPETA_MEDIOS_EVEREST } from 'src/utils/everest/colecciones.mjs';
 
 import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -116,4 +116,63 @@ export async function subirMedioDeBloque({ idBloque, archivo, aceptaVideo = fals
   });
 
   return { url: subida.downloadUrl, tipo: 'imagen' };
+}
+
+// ----------------------------------------------------------------------
+// LA BIBLIOTECA DE MEDIOS (fase 8).
+//
+// Todo lo que ya se subio desde el Designer, para volver a usarlo sin subirlo
+// otra vez: la foto de la campaña del año pasado, el video de la investidura. Se
+// lee de la propia carpeta de Storage —una por bloque—, y no de un registro
+// aparte en Firestore que habria que mantener al dia con cada subida.
+// ----------------------------------------------------------------------
+
+const MAXIMO_EN_BIBLIOTECA = 80;
+
+/** El instante de subida sale del nombre (`<marca>.webp`, `<marca>-video.mp4`). */
+const marcaDelNombre = (nombre) => Number(String(nombre).split(/[.-]/)[0]) || 0;
+
+/**
+ * `[{ url, tipo, idBloque, nombre, subidoEn }]`, lo mas nuevo primero.
+ * `tipos` filtra (la bienvenida solo admite imagenes).
+ */
+export async function listarBibliotecaDeMedios({ usuario, tipos = ['imagen', 'video'] } = {}) {
+  if (!isFirebaseConfigured || !FIREBASE_STORAGE) return [];
+
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global usa la biblioteca de EVEREST Designer.');
+  }
+
+  const carpetas = await Promise.all(
+    bloquesPublicablesDe(PANTALLAS_EVEREST.principal).map(async (bloque) => {
+      // Una carpeta que aun no existe no es un error: ese bloque no tiene medios.
+      const lista = await listAll(
+        ref(FIREBASE_STORAGE, `${CARPETA_MEDIOS_EVEREST}/${bloque.id}`)
+      ).catch(() => ({ items: [] }));
+
+      return lista.items.map((item) => ({ item, idBloque: bloque.id }));
+    })
+  );
+
+  const archivos = carpetas
+    .flat()
+    .map(({ item, idBloque }) => ({
+      item,
+      idBloque,
+      nombre: item.name,
+      tipo: /-video\.(mp4|webm)$/.test(item.name) ? 'video' : 'imagen',
+      subidoEn: marcaDelNombre(item.name),
+    }))
+    .filter((archivo) => tipos.includes(archivo.tipo))
+    .sort((a, b) => b.subidoEn - a.subidoEn)
+    .slice(0, MAXIMO_EN_BIBLIOTECA);
+
+  const conDireccion = await Promise.all(
+    archivos.map(async ({ item, ...archivo }) => ({
+      ...archivo,
+      url: await getDownloadURL(item).catch(() => ''),
+    }))
+  );
+
+  return conDireccion.filter((archivo) => archivo.url);
 }

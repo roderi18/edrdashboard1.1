@@ -31,6 +31,7 @@ const MODULOS_CATEGORIAS = {
   administradores: 'Administradores',
   archivos: 'Archivos',
   cuentas: 'Cuentas',
+  comunicados: 'Comunicados',
   cumpleanos: 'Cumpleaños',
   destacamentos: 'Destacamentos',
   eventos: 'Eventos',
@@ -53,6 +54,7 @@ const MODULOS_CATEGORIAS = {
 const TIPOS_VISUALES = {
   administrador_creado: 'mail',
   chat_reportado: 'chat',
+  comunicado_publicado: 'mail',
   cuenta_creada: 'mail',
   cumpleanos_miembro_7_dias: 'mail',
   destacamento_numero_asignado: 'mail',
@@ -1071,6 +1073,119 @@ export async function crearNotificacionNumeroDestacamento({
       numeroAnterior: anterior,
       idSeccion: seccionId,
       idRegion: regionId,
+    },
+    creadoEnServidor: serverTimestamp(),
+    actualizadoEnServidor: serverTimestamp(),
+  };
+
+  const notificacionConfigurada = await resolverNotificacionConConfiguracion(notificacion);
+
+  if (!notificacionConfigurada) return null;
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificationId),
+    notificacionConfigurada,
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacionConfigurada;
+}
+
+/**
+ * Comunicados nuevos en la portada, publicados desde EVEREST Designer.
+ *
+ * Es de las pocas cosas que van a TODA la organizacion —cargos y miembros—: un
+ * comunicado oficial que solo se ve si uno entra a la portada no llega a quien
+ * no entra. Un solo aviso con todos los destinatarios, como el del numero de
+ * destacamento; `rolDestinatario: 'todos'` para que no se lo coma el reparto
+ * entre administradores y usuarios.
+ *
+ * `audiencia` (opcional) acota a unas regiones o unos destacamentos, igual que
+ * una campaña. Los administradores lo reciben siempre.
+ */
+export async function crearNotificacionComunicadosPublicados({
+  comunicados = [],
+  audiencia = null,
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const nuevos = comunicados.filter((comunicado) => comunicado?.titulo);
+
+  if (!nuevos.length) return null;
+
+  const alcances =
+    audiencia?.tipo === 'regiones'
+      ? audiencia.ids.map((id) => ({ nivel: 'regional', id }))
+      : audiencia?.tipo === 'destacamentos'
+        ? audiencia.ids.map((id) => ({ nivel: 'mi-destacamento', id }))
+        : [{ nivel: 'nacional' }];
+
+  const [administradores, ...porAlcance] = await Promise.all([
+    obtenerIdsAdministradoresNotificaciones(usuario),
+    ...alcances.map((alcance) => obtenerUsuariosNoAdminNotificaciones({ alcance })),
+  ]);
+  const idsDestinatarios = [
+    ...new Set([
+      ...administradores,
+      ...porAlcance.flat().map((destinatario) => destinatario.idUsuario),
+    ]),
+  ].filter(Boolean);
+
+  if (!idsDestinatarios.length) return null;
+
+  const actorNombre =
+    usuario?.displayName || usuario?.nombre || usuario?.email || usuario?.correo || 'Sistema';
+  const fechaActual = new Date().toISOString();
+  const [primero] = nuevos;
+  const mensaje =
+    nuevos.length === 1
+      ? `Nuevo comunicado oficial: ${primero.titulo}.`
+      : `${nuevos.length} comunicados oficiales nuevos: ${nuevos
+          .map((comunicado) => comunicado.titulo)
+          .join(', ')}.`;
+  const notificationId = `comunicado_publicado_${Date.now()}`;
+
+  const notificacion = {
+    id: notificationId,
+    tipoNotificacion: 'comunicado_publicado',
+    modulo: 'comunicados',
+    titulo: 'Comunicado oficial',
+    tituloHtml: `<p>${escapeHtml(mensaje)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'todos',
+    idsDestinatarios,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: String(usuario?.uid || usuario?.id || 'sistema'),
+    actorTipo: 'admin',
+    actorNombre,
+    actorFotoURL: usuario?.photoURL || null,
+    entidadTipo: 'comunicado',
+    entidadId: String(primero.clave || ''),
+    ruta: '/dashboard/principal',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver en la portada',
+    tipoAccionSecundaria: null,
+    etiquetaAccionSecundaria: null,
+    leidaPor: [],
+    fechaProgramada: null,
+    fechaExpiracion: null,
+    fechaLectura: null,
+    metadatos: {
+      titulos: nuevos.map((comunicado) => comunicado.titulo),
+      origen: primero.origen || '',
+      audiencia: audiencia?.tipo || 'todos',
     },
     creadoEnServidor: serverTimestamp(),
     actualizadoEnServidor: serverTimestamp(),

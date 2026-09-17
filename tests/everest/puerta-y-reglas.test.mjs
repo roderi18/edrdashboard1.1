@@ -95,16 +95,20 @@ test('publicar y volver al original pasan por la puerta y quedan en Historial', 
     leer('src/services/solicitudes-cambio-service.js'),
     /everestDesigner: 'everest_designer',/
   );
-  assert.equal(servicio.match(/ambito: AMBITOS_CAMBIO\.everestDesigner/g)?.length, 2);
+  // Publicar, volver al original, programar una campaña y quitarla (fase 7).
+  assert.equal(servicio.match(/ambito: AMBITOS_CAMBIO\.everestDesigner/g)?.length, 4);
+  assert.match(servicio, /aplicar: \(\) => escribirCampana\(pantalla, campana\)/);
+  assert.match(servicio, /aplicar: \(\) => quitarCampana\(pantalla, idCampana\)/);
+  // Desde la fase 5, cada una con su version.
   assert.match(
     servicio,
-    /aplicar: \(\) => escribirBloquePublicado\(pantalla, idBloque, publicacion\)/
+    /aplicar: \(\) => escribirBloquePublicado\(pantalla, idBloque, publicacion, version\)/
   );
-  assert.match(servicio, /aplicar: \(\) => quitarBloquePublicado\(pantalla, idBloque\)/);
+  assert.match(servicio, /aplicar: \(\) => quitarBloquePublicado\(pantalla, idBloque, version\)/);
   // Lo que se escribe ya salio del saneado.
   assert.match(
     servicio,
-    /const publicacion = prepararPublicacion\(\{ idBloque, contenido, usuario \}\);/
+    /const publicacion = prepararPublicacion\(\{ idBloque, contenido, diseno, usuario \}\);/
   );
 });
 
@@ -141,18 +145,48 @@ test('publicar un bloque no borra los demas', () => {
 
 test('la portada lee del Designer por un unico sitio, y no puede publicar nada', () => {
   const carpeta = path.join(process.cwd(), 'src/sections/principal');
-  const importanDelDesigner = fs
+  const archivos = fs
     .readdirSync(carpeta, { recursive: true })
     .filter((archivo) => /\.(jsx?|mjs)$/.test(archivo))
-    .filter((archivo) =>
-      /from 'src\/(utils\/everest|services\/everest)/.test(
-        fs.readFileSync(path.join(carpeta, archivo), 'utf8')
-      )
-    )
-    .map((archivo) => archivo.replaceAll('\\', '/'));
+    .map((archivo) => [
+      archivo.replaceAll('\\', '/'),
+      fs.readFileSync(path.join(carpeta, archivo), 'utf8'),
+    ]);
 
-  // Todo lo que la portada sabe del Designer entra por el lector.
-  assert.deepEqual(importanDelDesigner, ['use-contenido-de-portada.js']);
+  // LO QUE SE PUEDE IMPORTAR DEL DESIGNER, Y DESDE DONDE. Los servicios —leer,
+  // guardar, publicar— solo desde el lector; desde la fase 8, tambien el de las
+  // analiticas, que solo SUMA contadores (sus reglas no dejan tocar nada mas).
+  // Las tarjetas importan ademas `presentacion.mjs`, que no lee ni escribe nada:
+  // solo cuenta los dias que faltan y quita los eventos pasados al pintar.
+  const conServicios = archivos
+    .filter(([, codigo]) => /from 'src\/services\/everest/.test(codigo))
+    .map(([archivo]) => archivo)
+    .sort();
+  const otrosDelDesigner = archivos
+    .filter(([archivo]) => archivo !== 'use-contenido-de-portada.js')
+    .flatMap(([archivo, codigo]) =>
+      [...codigo.matchAll(/from '(src\/utils\/everest\/[^']+)'/g)].map(([, modulo]) => [
+        archivo,
+        modulo,
+      ])
+    );
+
+  assert.deepEqual(conServicios, ['use-analiticas-de-portada.js', 'use-contenido-de-portada.js']);
+  assert.match(
+    leer('src/sections/principal/use-analiticas-de-portada.js'),
+    /from 'src\/services\/everest-analiticas-service';/
+  );
+  assert.doesNotMatch(
+    leer('src/sections/principal/use-analiticas-de-portada.js'),
+    /everest-service'|everest-apply|everest-borradores/
+  );
+  otrosDelDesigner.forEach(([archivo, modulo]) =>
+    assert.ok(
+      ['src/utils/everest/presentacion.mjs', 'src/utils/everest/colecciones.mjs'].includes(modulo),
+      `${archivo} importa ${modulo}`
+    )
+  );
+  assert.doesNotMatch(leer('src/utils/everest/presentacion.mjs'), /firebase|everest-service/);
 
   // Y el lector solo lee: publicar se hace desde el Designer, nunca al pintar.
   const lector = leer('src/sections/principal/use-contenido-de-portada.js');

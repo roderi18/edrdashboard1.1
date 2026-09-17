@@ -12,15 +12,19 @@
 //     de toda la organizacion. Solo el Administrador Global.
 //   - `everest_versiones/{id}` → una copia de cada publicacion, para volver
 //     atras. Solo el Administrador Global.
+//   - `everest_analiticas/{pantalla}` → cuantas veces se vio y se pulso cada
+//     bloque y cada campaña (fase 8). Suma cualquier sesion, SOLO esos
+//     contadores; lo lee el Administrador Global.
 //
-// Las tres tienen su bloque en `firestore.rules` y estan excluidas del comodin
-// del final: sin eso, cualquier sesion valida podria reescribir la portada.
+// Todas tienen su bloque en `firestore.rules` y estan excluidas del comodin del
+// final: sin eso, cualquier sesion valida podria reescribir la portada.
 // ----------------------------------------------------------------------
 
 export const COLECCIONES_EVEREST = Object.freeze({
   publicado: 'everest_publicado',
   borradores: 'everest_borradores',
   versiones: 'everest_versiones',
+  analiticas: 'everest_analiticas',
 });
 
 /** Las pantallas que el Designer sabe editar. Por ahora, la portada. */

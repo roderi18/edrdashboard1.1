@@ -48,7 +48,7 @@ export const DISPOSITIVOS = Object.freeze({
 
 const ALTO_MINIMO = 160;
 
-export function EverestVistaPrevia({ idBloque, contenido, sx }) {
+export function EverestVistaPrevia({ idBloque, contenido, diseno, sx }) {
   const marcoRef = useRef(null);
   const columnaRef = useRef(null);
 
@@ -62,10 +62,10 @@ export function EverestVistaPrevia({ idBloque, contenido, sx }) {
 
   const enviarContenido = useCallback(() => {
     marcoRef.current?.contentWindow?.postMessage(
-      mensajeContenido(idBloque, contenido),
+      mensajeContenido(idBloque, contenido, diseno),
       window.location.origin
     );
-  }, [contenido, idBloque]);
+  }, [contenido, diseno, idBloque]);
 
   // El ancho de la columna, para calcular la escala.
   useEffect(() => {

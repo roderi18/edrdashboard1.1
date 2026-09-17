@@ -1,13 +1,34 @@
-import { getDoc } from 'firebase/firestore';
+import { query, where, getDoc, getDocs, collection } from 'firebase/firestore';
+
+import { paths } from 'src/routes/paths';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
-import { ORIGEN_DEL_BLOQUE, prepararPublicacion } from 'src/utils/everest/portada.mjs';
+import { comunicadosNuevos } from 'src/utils/everest/avisos.mjs';
+import { COLECCIONES_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { campanasDe, prepararCampana } from 'src/utils/everest/campanas.mjs';
+import {
+  resolverPortada,
+  ORIGEN_DEL_BLOQUE,
+  prepararPublicacion,
+} from 'src/utils/everest/portada.mjs';
+import {
+  claveDeVersion,
+  prepararVersion,
+  ordenarVersiones,
+  ACCIONES_DE_VERSION,
+  diferenciasDelBloque,
+} from 'src/utils/everest/versiones.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { FABRICA_DE_PORTADA } from 'src/sections/principal/fabrica-de-portada';
+
 import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
+import { crearNotificacionComunicadosPublicados } from './notification-service';
 import {
+  quitarCampana,
+  escribirCampana,
   referenciaDePublicado,
   quitarBloquePublicado,
   escribirBloquePublicado,
@@ -25,11 +46,12 @@ import {
 // de verdad protege es la de `firestore.rules`: solo el Administrador Global
 // escribe en `everest_publicado`.
 //
-// Fase 1: nada de la aplicacion llama todavia a este servicio. Lo usara el
-// Designer (fase 3) y la portada lo leera en la fase 2.
+// Desde la fase 5, Historial guarda el antes y el despues de cada campo, y cada
+// cambio deja una version en `everest_versiones` para poder volver a ella.
+//
+// Desde la fase 7, las campañas —un bloque distinto durante unas fechas, y si se
+// quiere solo para una parte de la organizacion— pasan por la misma puerta.
 // ----------------------------------------------------------------------
-
-const RUTA_DEL_DESIGNER = '/dashboard/admin/everest';
 
 const asegurarPuedePublicar = (usuario) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -68,38 +90,130 @@ const describirOrigen = (publicado, idBloque) =>
     ? `Publicado el ${publicado.bloques[idBloque].publicadoEn || 'fecha desconocida'}`
     : 'Original del código';
 
-/** Publica un bloque. Devuelve lo escrito, ya limpio y firmado. */
-export async function publicarBloque({ pantalla, idBloque, contenido, usuario }) {
+const entidadDelBloque = (pantalla, bloque) => ({
+  tipo: 'everest_bloque',
+  id: `${pantalla}/${bloque.id}`,
+  nombre: `EVEREST Designer · ${bloque.nombre}`,
+  ruta: `${paths.dashboard.everest}?bloque=${bloque.id}`,
+});
+
+/** Lo que se pinta HOY en ese bloque (contenido y diseño): lo publicado si vale, o lo de fabrica. */
+const enVivo = (publicado, pantalla, idBloque) =>
+  resolverPortada({ publicado, fabrica: FABRICA_DE_PORTADA, pantalla })[idBloque];
+
+/**
+ * Los cambios para Historial, campo a campo: los del contenido y los del diseño
+ * (estos con `diseno_` delante, para no confundir el "titulo" de la actividad con
+ * el "titulo" fijo de la tarjeta). Si no cambio nada que se vea —publicar dos
+ * veces lo mismo—, queda igual una linea: la accion si ocurrio y tiene que constar.
+ */
+const cambiosParaHistorial = ({ idBloque, bloque, anterior, antes, despues, textoDespues }) => {
+  const diferencias = [
+    ...diferenciasDelBloque({ idBloque, antes: antes?.contenido, despues: despues?.contenido }),
+    ...diferenciasDelBloque({
+      idBloque,
+      antes: antes?.diseno ?? {},
+      despues: despues?.diseno ?? {},
+    }).map((cambio) => ({
+      ...cambio,
+      campo: `diseno_${cambio.campo}`,
+      etiqueta: `${bloque.nombre} · diseño · ${cambio.campo}`,
+    })),
+  ];
+
+  return diferencias.length
+    ? diferencias
+    : [
+        {
+          campo: idBloque,
+          etiqueta: bloque.nombre,
+          antes: describirOrigen(anterior, idBloque),
+          despues: textoDespues,
+        },
+      ];
+};
+
+/**
+ * Avisa en la campana de los comunicados nuevos. NUNCA tumba la publicacion: lo
+ * publicado ya esta en la portada, y un aviso que no sale no es motivo para
+ * decir que no se publico.
+ */
+const avisarComunicados = async ({ comunicados, audiencia, usuario }) => {
+  if (!comunicados.length) return 0;
+
+  try {
+    const aviso = await crearNotificacionComunicadosPublicados({ comunicados, audiencia, usuario });
+
+    return aviso ? comunicados.length : 0;
+  } catch (error) {
+    console.error('[everest] no se pudo avisar de los comunicados', error);
+
+    return 0;
+  }
+};
+
+/**
+ * Publica un bloque. Devuelve lo escrito, ya limpio y firmado.
+ *
+ * `avisar` (solo comunicados): manda a la campana los comunicados que no estaban.
+ * `avisados` en lo devuelto dice cuantos se avisaron.
+ */
+export async function publicarBloque({
+  pantalla,
+  idBloque,
+  contenido,
+  diseno,
+  usuario,
+  avisar = false,
+}) {
   asegurarPuedePublicar(usuario);
 
-  // Lanza si el bloque no existe o el contenido no pasa el saneado: se enseña el
-  // error y no se publica a medias.
-  const publicacion = prepararPublicacion({ idBloque, contenido, usuario });
+  // Lanza si el bloque no existe o el contenido o el diseño no pasan el saneado:
+  // se enseña el error y no se publica a medias.
+  const publicacion = prepararPublicacion({ idBloque, contenido, diseno, usuario });
   const bloque = bloquePorId(idBloque);
-  const anterior = await obtenerPublicado(pantalla);
+  // Leer lo de antes es obligatorio: sin ello, Historial diria que antes no
+  // habia nada. Si falla, no se publica.
+  const anterior = await obtenerPublicado(pantalla, { lanzarSiFalla: true });
+  const version = prepararVersion({
+    pantalla,
+    idBloque,
+    accion: ACCIONES_DE_VERSION.publicar,
+    contenido: publicacion.contenido,
+    diseno: publicacion.diseno,
+    usuario,
+    // La misma hora que la publicacion: asi el panel reconoce cual esta en vivo.
+    ahora: new Date(publicacion.publicadoEn),
+  });
 
   await proponerCambio({
     ambito: AMBITOS_CAMBIO.everestDesigner,
-    entidad: {
-      tipo: 'everest_bloque',
-      id: `${pantalla}/${idBloque}`,
-      nombre: `EVEREST Designer · ${bloque.nombre}`,
-      ruta: `${RUTA_DEL_DESIGNER}?bloque=${idBloque}`,
-    },
-    cambios: [
-      {
-        campo: idBloque,
-        etiqueta: bloque.nombre,
-        antes: describirOrigen(anterior, idBloque),
-        despues: 'Publicado desde EVEREST Designer',
-      },
-    ],
+    entidad: entidadDelBloque(pantalla, bloque),
+    cambios: cambiosParaHistorial({
+      idBloque,
+      bloque,
+      anterior,
+      antes: enVivo(anterior, pantalla, idBloque),
+      despues: publicacion,
+      textoDespues: 'Publicado desde EVEREST Designer',
+    }),
     usuario,
     descripcion: `Publicó "${bloque.nombre}" en la pantalla ${pantalla} desde EVEREST Designer.`,
-    aplicar: () => escribirBloquePublicado(pantalla, idBloque, publicacion),
+    aplicar: () => escribirBloquePublicado(pantalla, idBloque, publicacion, version),
   });
 
-  return { ...publicacion, origen: ORIGEN_DEL_BLOQUE.designer };
+  const avisados =
+    avisar && idBloque === 'comunicados'
+      ? await avisarComunicados({
+          comunicados: comunicadosNuevos(
+            enVivo(anterior, pantalla, idBloque)?.contenido,
+            publicacion.contenido
+          ),
+          usuario,
+        })
+      : 0;
+
+  return { ...publicacion, origen: ORIGEN_DEL_BLOQUE.designer, avisados };
 }
 
 /** Quita lo publicado de un bloque: vuelve a pintarse el del codigo. */
@@ -112,29 +226,172 @@ export async function volverBloqueAlOriginal({ pantalla, idBloque, usuario }) {
     throw new Error(`"${idBloque}" no es un bloque que se publique desde el Designer.`);
   }
 
-  const anterior = await obtenerPublicado(pantalla);
+  const anterior = await obtenerPublicado(pantalla, { lanzarSiFalla: true });
 
   // Ya esta en su original: no hay nada que registrar en Historial.
   if (!anterior?.bloques?.[idBloque]) return;
 
+  const version = prepararVersion({
+    pantalla,
+    idBloque,
+    accion: ACCIONES_DE_VERSION.original,
+    usuario,
+  });
+
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.everestDesigner,
+    entidad: entidadDelBloque(pantalla, bloque),
+    cambios: cambiosParaHistorial({
+      idBloque,
+      bloque,
+      anterior,
+      antes: enVivo(anterior, pantalla, idBloque),
+      despues: { contenido: FABRICA_DE_PORTADA[idBloque], diseno: {} },
+      textoDespues: 'Original del código',
+    }),
+    usuario,
+    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EVEREST Designer.`,
+    aplicar: () => quitarBloquePublicado(pantalla, idBloque, version),
+  });
+}
+
+/**
+ * Las versiones de un bloque, de la mas nueva a la mas vieja. Se buscan por una
+ * sola igualdad (`clave`) y se ordenan aqui: ordenar en la consulta pediria un
+ * indice compuesto que habria que crear a mano en la consola. Un bloque tiene
+ * pocas versiones.
+ *
+ * LANZA si no se pudo leer: el panel tiene que decirlo, no enseñar "sin versiones".
+ */
+export async function obtenerVersionesDeBloque({ pantalla, idBloque, usuario }) {
+  asegurarPuedePublicar(usuario);
+
+  const resultado = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCIONES_EVEREST.versiones),
+      where('clave', '==', claveDeVersion(pantalla, idBloque))
+    )
+  );
+
+  return ordenarVersiones(
+    resultado.docs.map((documento) => ({ id: documento.id, ...documento.data() }))
+  );
+}
+
+// ----------------------------------------------------------------------
+// CAMPAÑAS (fases 7 y 8)
+// ----------------------------------------------------------------------
+
+const describirCampana = (campana) => {
+  const { audiencia } = campana;
+  const destino =
+    audiencia.tipo === 'todos'
+      ? 'toda la organización'
+      : `${audiencia.tipo}: ${(audiencia.nombres?.length ? audiencia.nombres : audiencia.ids).join(', ')}`;
+
+  return `${campana.nombre} · del ${campana.desde} al ${campana.hasta} · ${destino}`;
+};
+
+/**
+ * Programa una campaña para un bloque. No cambia nada hasta su fecha de inicio;
+ * desde ese dia manda sobre lo publicado, y al pasar su fecha de fin deja de
+ * existir para la portada sola.
+ *
+ * `avisar` (solo comunicados): el aviso sale al programarla, a quien va dirigida.
+ */
+export async function programarCampana({
+  pantalla,
+  idBloque,
+  nombre,
+  desde,
+  hasta,
+  audiencia,
+  contenido,
+  diseno,
+  usuario,
+  avisar = false,
+}) {
+  asegurarPuedePublicar(usuario);
+
+  // Lanza con un mensaje claro si algo no vale: no se programa a medias.
+  const campana = prepararCampana({
+    idBloque,
+    nombre,
+    desde,
+    hasta,
+    audiencia,
+    contenido,
+    diseno,
+    usuario,
+  });
+  const bloque = bloquePorId(idBloque);
+  const anterior = await obtenerPublicado(pantalla, { lanzarSiFalla: true });
+
   await proponerCambio({
     ambito: AMBITOS_CAMBIO.everestDesigner,
     entidad: {
-      tipo: 'everest_bloque',
-      id: `${pantalla}/${idBloque}`,
-      nombre: `EVEREST Designer · ${bloque.nombre}`,
-      ruta: `${RUTA_DEL_DESIGNER}?bloque=${idBloque}`,
+      ...entidadDelBloque(pantalla, bloque),
+      id: `${pantalla}/${idBloque}/${campana.id}`,
+      nombre: `EVEREST Designer · ${bloque.nombre} · campaña ${campana.nombre}`,
     },
     cambios: [
       {
-        campo: idBloque,
-        etiqueta: bloque.nombre,
-        antes: describirOrigen(anterior, idBloque),
-        despues: 'Original del código',
+        campo: `campana_${campana.id}`,
+        etiqueta: `${bloque.nombre} · campaña`,
+        antes: '—',
+        despues: describirCampana(campana),
       },
     ],
     usuario,
-    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EVEREST Designer.`,
-    aplicar: () => quitarBloquePublicado(pantalla, idBloque),
+    descripcion: `Programó la campaña "${campana.nombre}" en "${bloque.nombre}" desde EVEREST Designer.`,
+    aplicar: () => escribirCampana(pantalla, campana),
+  });
+
+  const avisados =
+    avisar && idBloque === 'comunicados'
+      ? await avisarComunicados({
+          comunicados: comunicadosNuevos(
+            enVivo(anterior, pantalla, idBloque)?.contenido,
+            campana.contenido
+          ),
+          audiencia: campana.audiencia,
+          usuario,
+        })
+      : 0;
+
+  return { ...campana, avisados };
+}
+
+/** Quita una campaña: su bloque vuelve a lo publicado o a lo de fabrica. */
+export async function quitarCampanaProgramada({ pantalla, idCampana, usuario }) {
+  asegurarPuedePublicar(usuario);
+
+  const anterior = await obtenerPublicado(pantalla, { lanzarSiFalla: true });
+  const campana = campanasDe(anterior).find((item) => item.id === idCampana);
+
+  // Ya no esta: no hay nada que registrar.
+  if (!campana && !anterior?.campanas?.[idCampana]) return;
+
+  const bloque = bloquePorId(campana?.idBloque);
+
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.everestDesigner,
+    entidad: {
+      tipo: 'everest_campana',
+      id: `${pantalla}/${idCampana}`,
+      nombre: `EVEREST Designer · campaña ${campana?.nombre ?? idCampana}`,
+      ruta: bloque ? `${paths.dashboard.everest}?bloque=${bloque.id}` : paths.dashboard.everest,
+    },
+    cambios: [
+      {
+        campo: `campana_${idCampana}`,
+        etiqueta: `${bloque?.nombre ?? 'Bloque'} · campaña`,
+        antes: campana ? describirCampana(campana) : idCampana,
+        despues: 'Quitada',
+      },
+    ],
+    usuario,
+    descripcion: `Quitó la campaña "${campana?.nombre ?? idCampana}" desde EVEREST Designer.`,
+    aplicar: () => quitarCampana(pantalla, idCampana),
   });
 }

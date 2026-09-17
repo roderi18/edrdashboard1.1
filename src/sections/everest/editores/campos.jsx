@@ -1,25 +1,30 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
 import { destino as destinoValido } from 'src/utils/everest/saneado.mjs';
 
-import { subirMedioDeBloque } from 'src/services/everest-medios-service';
+import { subirMedioDeBloque, listarBibliotecaDeMedios } from 'src/services/everest-medios-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -237,6 +242,124 @@ export function CampoFecha({ etiqueta, valor, onCambiar, minimo }) {
 }
 
 /**
+ * LA BIBLIOTECA: lo que ya se subio desde el Designer, para reutilizarlo sin
+ * subirlo otra vez (fase 8). Elegir no publica: deja la direccion en el borrador,
+ * igual que subir.
+ */
+function BibliotecaDeMedios({ abierta, aceptaVideo, onCerrar, onElegir }) {
+  const { user } = useAuthContext();
+  const [medios, setMedios] = useState(null);
+
+  useEffect(() => {
+    if (!abierta) return undefined;
+
+    let vigente = true;
+
+    setMedios(null);
+    listarBibliotecaDeMedios({
+      usuario: user,
+      tipos: aceptaVideo ? ['imagen', 'video'] : ['imagen'],
+    })
+      .then((lista) => vigente && setMedios(lista))
+      .catch((error) => {
+        if (!vigente) return;
+        toast.error(error?.message || 'No se pudo abrir la biblioteca.');
+        setMedios([]);
+      });
+
+    return () => {
+      vigente = false;
+    };
+  }, [abierta, aceptaVideo, user]);
+
+  return (
+    <Dialog open={abierta} onClose={onCerrar} fullWidth maxWidth="md">
+      <DialogTitle>Biblioteca de medios</DialogTitle>
+
+      <DialogContent>
+        {!medios && (
+          <Stack alignItems="center" sx={{ py: 6 }}>
+            <CircularProgress />
+          </Stack>
+        )}
+
+        {medios && !medios.length && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', py: 4, textAlign: 'center' }}>
+            Todavía no se ha subido nada desde EVEREST Designer.
+          </Typography>
+        )}
+
+        {!!medios?.length && (
+          <Box
+            sx={{
+              gap: 1.5,
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(3, 1fr)',
+                md: 'repeat(4, 1fr)',
+              },
+            }}
+          >
+            {medios.map((medio) => (
+              <Box
+                key={medio.url}
+                component="button"
+                type="button"
+                onClick={() => onElegir({ url: medio.url, tipo: medio.tipo })}
+                sx={{
+                  p: 0,
+                  height: 110,
+                  border: 0,
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  borderRadius: 1,
+                  position: 'relative',
+                  bgcolor: 'background.neutral',
+                  outline: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                  '&:hover': { outline: (theme) => `solid 2px ${theme.vars.palette.primary.main}` },
+                }}
+              >
+                {medio.tipo === 'video' ? (
+                  <Box
+                    component="video"
+                    src={medio.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    sx={{ width: 1, height: 1, objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Box
+                    component="img"
+                    src={medio.url}
+                    alt=""
+                    loading="lazy"
+                    sx={{ width: 1, height: 1, objectFit: 'cover' }}
+                  />
+                )}
+                <Label
+                  variant="filled"
+                  sx={{ left: 6, bottom: 6, position: 'absolute', textTransform: 'none' }}
+                >
+                  {medio.tipo === 'video' ? 'Video' : 'Imagen'}
+                </Label>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button color="inherit" onClick={onCerrar}>
+          Cerrar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/**
  * El fondo propio de una tarjeta. Subir no publica: deja la direccion en el
  * borrador. "Quitar" vuelve al fondo de siempre.
  */
@@ -244,6 +367,7 @@ export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) 
   const { user } = useAuthContext();
   const entradaRef = useRef(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [biblioteca, setBiblioteca] = useState(false);
 
   const elegir = async (evento) => {
     const archivo = evento.target.files?.[0];
@@ -314,6 +438,15 @@ export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) 
           {valor ? 'Cambiar' : 'Subir'}
         </Button>
 
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<Iconify icon="solar:gallery-wide-bold" />}
+          onClick={() => setBiblioteca(true)}
+        >
+          Biblioteca
+        </Button>
+
         {valor && (
           <Button size="small" color="inherit" onClick={() => onCambiar(undefined)}>
             Quitar
@@ -327,6 +460,16 @@ export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) 
         type="file"
         accept={aceptaVideo ? 'image/*,video/mp4,video/webm' : 'image/*'}
         onChange={elegir}
+      />
+
+      <BibliotecaDeMedios
+        abierta={biblioteca}
+        aceptaVideo={aceptaVideo}
+        onCerrar={() => setBiblioteca(false)}
+        onElegir={(medio) => {
+          onCambiar(medio);
+          setBiblioteca(false);
+        }}
       />
     </Stack>
   );
