@@ -421,6 +421,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <NavMobile
             data={navData}
             open={open}
+            isNavLight={navEnBlanco}
             onClose={onClose}
             cssVars={navVars.section}
             checkPermissions={canDisplayItemByRole}

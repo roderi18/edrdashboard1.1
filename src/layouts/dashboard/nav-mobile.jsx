@@ -3,11 +3,9 @@ import { mergeClasses } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
-import Typography from '@mui/material/Typography';
 
 import { usePathname } from 'src/routes/hooks';
 
-import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
 import { NavSectionVertical } from 'src/components/nav-section';
 
@@ -23,6 +21,7 @@ export function NavMobile({
   slots,
   onClose,
   className,
+  isNavLight,
   checkPermissions,
   ...other
 }) {
@@ -54,23 +53,28 @@ export function NavMobile({
       }}
     >
       {slots?.topArea ?? (
-        // El nombre junto al escudo, igual que en el menu de escritorio: en el movil
-        // salia solo el escudo y no se leia de que aplicacion era el menu.
-        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Logo />
-          <Typography
-            component='span'
-            variant='body1'
+        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
+          <Box
+            component="img"
+            src={
+              isNavLight
+                ? '/logo/explora-wordmark.webp?v=2'
+                : '/logo/explora-wordmark-light.webp?v=2'
+            }
+            alt="EXPLORA"
+            width={170}
+            height={36}
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
             sx={{
-              color: 'var(--layout-nav-text-primary)',
-              fontWeight: 800,
-              fontSize: '1.05rem',
-              letterSpacing: '0.12em',
-              lineHeight: 1,
+              width: 170,
+              height: 36,
+              display: 'block',
+              objectFit: 'contain',
+              objectPosition: 'left center',
             }}
-          >
-            EXPLORA
-          </Typography>
+          />
         </Box>
       )}
 

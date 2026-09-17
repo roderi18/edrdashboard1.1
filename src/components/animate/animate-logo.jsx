@@ -27,11 +27,15 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
         style={{ display: 'inline-flex' }}
       >
         {logo ?? (
-          <Logo
-            disabled
+          <LoadingIsotipo
+            src="/logo/explora-o-isotipo.webp?v=1"
+            alt=""
+            aria-hidden="true"
+            width={64}
+            height={64}
             {...slotProps?.logo}
             sx={[
-              { width: 64, height: 64 },
+              { width: 64, height: 64, objectFit: 'contain' },
               ...(Array.isArray(slotProps?.logo?.sx) ? slotProps.logo.sx : [slotProps?.logo?.sx]),
             ]}
           />
@@ -68,6 +72,13 @@ const LogoZoomRoot = styled('div')(() => ({
   position: 'relative',
   display: 'inline-flex',
   justifyContent: 'center',
+}));
+
+const LoadingIsotipo = styled('img')(({ theme }) => ({
+  display: 'block',
+  ...theme.applyStyles('dark', {
+    filter: 'brightness(0) invert(1)',
+  }),
 }));
 
 const LogoZoomPrimaryOutline = styled(m.span)(({ theme }) => ({

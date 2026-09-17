@@ -38,7 +38,18 @@ export function NavVertical({
                 : '/logo/explora-wordmark-light.webp?v=2'
             }
             alt="EXPLORA"
-            sx={{ width: 190, height: 'auto', display: 'block' }}
+            width={190}
+            height={40}
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
+            sx={{
+              width: 190,
+              height: 40,
+              display: 'block',
+              objectFit: 'contain',
+              objectPosition: 'left center',
+            }}
           />
         </Box>
       )}
