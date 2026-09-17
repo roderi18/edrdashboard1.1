@@ -1196,6 +1196,15 @@ service cloud.firestore {
     // sesión del sistema porque salen en el perfil; por ahora solo las escribe el
     // Administrador Global (cintas de prueba). Sin esta regla caían en el
     // comodín del final y cualquier sesión podía ponerse cintas.
+    // ESTATUS DE CADA MIEMBRO Y SUS RACHAS DE ASISTENCIA.
+    //
+    // Lo mueve la regla de asistencia desde el navegador de quien pasa lista, y
+    // lo lee cualquier sesion del sistema para pintar el chip del perfil. Sin
+    // esta regla caia en el comodin del final.
+    match /estatus_miembros/{idMiembros} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
     match /cintas_miembros/{idMiembros} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();

@@ -341,7 +341,7 @@ combinar dos cargos.
 | **Miembros**                    | `/dashboard/level/member`                               | Lista (tabla y tarjetas), ficha, creación, carga masiva por Excel, PDF, solicitudes de cambio.                                                                                                                                                                                                 |
 | **Miembros de un destacamento** | `/dashboard/level/dest/[id]/edit/members`               | Pestaña que reutiliza la misma vista de miembros.                                                                                                                                                                                                                                              |
 | **Directivas**                  | `.../edit/leadership`, `.../edit/youth-leadership`      | Organigrama, asignaciones, diseños. El diseño de **Líderes Juveniles es uno solo para todos los destacamentos** (`destacamento-juvenil_global`); sin él se lee el de Tribu de Judá 18 (`231`), el modelo. Test: `tests/directivas/diseno-juvenil-global.test.mjs`.                             |
-| **Asistencia**                  | `/dashboard/level/attendance`                           | Pase de lista diario, resumen, informe avanzado, exportación. El calendario permite crear actividades con nombre y rango, consultar su nombre al señalar o tocar sus días y eliminarlas con confirmación. Offline-capable. El Administrador Global que prueba un rol combinado ve el selector de destacamentos y su elección queda en `preferencias_usuarios/<uid>`. |
+| **Asistencia**                  | `/dashboard/level/attendance`                           | Pase de lista diario, resumen, informe avanzado, exportación. El calendario permite crear actividades con nombre y rango, consultar su nombre al señalar o tocar sus días y eliminarlas con confirmación. Offline-capable. El Administrador Global que prueba un rol combinado ve el selector de destacamentos y su elección queda en `preferencias_usuarios/<uid>`. **Al guardar el pase de lista y al abrir el destacamento se recalcula el estatus de cada miembro** (`docs/estatus-miembro.md`): los fallecidos no salen a pasar lista y los inactivos quedan al final, recogidos. |
 | **Dispensa médica**             | `/dashboard/level/member/[id]/edit/health`              | Info básica, medicamentos, alergias, condiciones, documentos, solicitudes de acceso.                                                                                                                                                                                                           |
 | **Sistema de ascenso**          | `.../edit/awards`                                       | Catálogo de 490 premios transcrito del inventario oficial.                                                                                                                                                                                                                                     |
 | **Padres / tutores**            | `.../edit/parents`                                      | Con notas y autoguardado.                                                                                                                                                                                                                                                                      |
@@ -353,6 +353,8 @@ combinar dos cargos.
 | **Documentos ministeriales**    | `/dashboard/file-manager`                               | Firestore + Storage.                                                                                                                                                                                                                                                                           |
 | **Calendario**                  | `/dashboard/calendar`                                   | Firestore.                                                                                                                                                                                                                                                                                     |
 | **Administración**              | `/dashboard/admin/*`                                    | Administradores, logs, aprobaciones, permisos, roles, combinaciones, mantenimiento, salud del sistema.                                                                                                                                                                                         |
+| **Cintas del perfil**           | Perfil y ficha del miembro                              | Las cintas del uniforme (40 imágenes de `public/parches/Cintas y medallas/cintas-perfil`) en el orden oficial del manual: 3 por fila, hasta 18, la fila incompleta arriba, y el número dorado encima cuando el premio se ganó más de una vez. Firestore `cintas_miembros`. Detalle: `docs/cintas-perfil.md`. |
+| **Estatus del miembro**         | Perfil, ficha y `/dashboard/level/attendance`           | Cuatro estatus (activo, reclutamiento, inactivo, fallecido) que **mueve la asistencia sola**. Avisos por cargo, cambio a mano con motivo y `Fallecido` restringido. Firestore `estatus_miembros`. Detalle: `docs/estatus-miembro.md`. |
 | **Cuenta propia**               | `/dashboard/user/account`                               |                                                                                                                                                                                                                                                                                                |
 
 ### 4.2 Parcialmente implementados 🟡
@@ -693,6 +695,13 @@ personas podían compartir número.
 `progresoAscensoMiembros`, `vinculosCertificadosAscenso`,
 `favoritosAscensoMiembros`
 
+**Cintas y estatus del miembro** — `cintas_miembros` (una por `idMiembros`: qué
+cintas lleva, cuántas veces ganó cada una y su origen; la lee cualquier sesión y
+hoy solo la escribe el Administrador Global) y `estatus_miembros` (una por
+`idMiembros`: estatus, faltas y presencias seguidas, última presencia, desde
+cuándo, motivo y hasta cuándo se respeta un cambio a mano; la escribe quien pasa
+lista). Las dos, fuera del comodín.
+
 **Preferencias** — `preferencias_usuarios` (una por uid; hoy, el destacamento elegido en Asistencia durante la prueba de roles)
 
 **Asistencia** — `asistencias`, `registrosAsistencia`,
@@ -831,6 +840,11 @@ npm run test:ascenso
 npm run test:tienda
 ```
 
+`tests/member/` cubre además el estatus del miembro
+(`estatus-miembro.test.mjs`, `estatus-por-asistencia.test.mjs`,
+`estatus-miembro-avisos.test.mjs`) y las cintas del perfil
+(`cintas-perfil-orden.test.mjs`).
+
 ⚠️ `tests/member/` **no tiene script**. Ejecútala así:
 
 ```bash
@@ -842,6 +856,13 @@ Todo junto:
 ```bash
 node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/everest/*.test.mjs tests/member/*.test.mjs tests/tienda/*.test.mjs
 ```
+
+Las pruebas importan el código real con `tests/soporte/resolver-alias-src.mjs`,
+que resuelve el alias `src/` **y declara cada `.js` como módulo**: el proyecto no
+tiene `"type": "module"`, así que node los leía como CommonJS y el `export` de
+ficheros como `src/auth/permissions/roles.js` tumbaba el archivo de prueba entero.
+Quedan diez pruebas en rojo que importan `src/` con rutas relativas **sin registrar
+el resolver**: son las que hay que migrar, no una regla que falle.
 
 **Antes de dar por terminado un cambio: `npm run build` + la suite completa.**
 No hay CI configurado en el repositorio. ❓
@@ -985,6 +1006,8 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 | 8   | **Sin CI.** ❓                                                                                                                                                                         | 🟠 Media |
 | 9   | **`package.json` con el nombre de la plantilla.**                                                                                                                                      | 🟡 Baja  |
 | 10  | **Ficheros grandes**: `notification-service.js` (2.889 líneas), `member-access.js` (2.725), `member-list-view.jsx` (1.105), `org-level-access.js` (890).                               | 🟠 Media |
+| 11  | **El estatus del miembro vive en dos sitios.** Las rachas y el estatus calculado están en `estatus_miembros` (Firestore), pero el campo `estatusMiembro` es de la API .NET y no se ha comprobado que acepte los valores nuevos (`reclutamiento`, `fallecido`). | 🟠 Media |
+| 12  | **Los 3 meses para pasar a Inactivo se calculan cuando alguien abre el destacamento.** Si nadie entra, el cambio espera; haría falta una tarea diaria en el servidor. | 🟡 Baja  |
 
 ---
 

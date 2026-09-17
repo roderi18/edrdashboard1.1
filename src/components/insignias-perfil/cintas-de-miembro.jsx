@@ -384,7 +384,8 @@ export function CintasDeMiembro({
           <IconButton
             size="small"
             onClick={() => setAbierto(true)}
-            sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}
+            // Debajo del chip de estatus, que ocupa la esquina.
+            sx={{ position: 'absolute', top: 48, right: 12, zIndex: 1 }}
           >
             <Iconify icon="solar:pen-bold" width={18} />
           </IconButton>

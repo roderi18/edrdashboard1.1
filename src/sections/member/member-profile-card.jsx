@@ -8,6 +8,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
+import { ChipEstatusMiembro } from 'src/components/label';
 import { ContextInfo } from 'src/components/info/context-info';
 import { BotonCopiar } from 'src/components/common/boton-copiar';
 import { CintasDeMiembro } from 'src/components/insignias-perfil';
@@ -52,6 +53,10 @@ export function MemberProfileCard({
 }) {
   return (
     <Card sx={{ pt: 5, pb: 5, px: 3, position: 'relative' }}>
+      {!isCreateView && (
+        <ChipEstatusMiembro estatus={currentMember?.status ?? currentMember?.estatusMiembro} />
+      )}
+
       <Box sx={{ mb: 5 }}>
         <FotoDeMiembro
           url={avatarUrl?.preview || avatarUrl || ''}

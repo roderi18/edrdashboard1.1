@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 
+import { normalizarEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
 import { AUTH } from 'src/lib/firebase';
@@ -78,17 +79,9 @@ const getDivisionNameById = (idDivision) => DIVISION_NAME_BY_ID[Number(idDivisio
 const getDivisionNameByBirthdate = (birthDate) =>
   getDivisionNameById(getDivisionIdByBirthdate(birthDate));
 
-const normalizeMemberStatus = (status) => {
-  const normalizedStatus = String(status || '')
-    .trim()
-    .toLowerCase();
-
-  if (['banned', 'inactivo', 'inactive', 'suspendido', 'bloqueado'].includes(normalizedStatus)) {
-    return 'banned';
-  }
-
-  return 'active';
-};
+// Cuatro estatus (activo, necesita reclutamiento, inactivo, fallecido): antes
+// todo lo que no era inactivo se volvía activo y se perdían los otros dos.
+const normalizeMemberStatus = (status) => normalizarEstatusMiembro(status);
 
 const normalizeCachedMember = (member) => {
   if (!member) return null;

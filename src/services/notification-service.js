@@ -14,10 +14,17 @@ import {
 
 import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
+import { ESTATUS_MIEMBRO, opcionEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
 import {
   AVISO_SOLICITUD_ENVIADA,
   perfilAtiendeSolicitudes,
 } from 'src/utils/solicitud-producto.mjs';
+import {
+  resumirCambios,
+  seAvisaElEstatus,
+  llegaALaOficinaNacional,
+  cargosDeDestacamentoQueSeAvisan,
+} from 'src/utils/estatus-miembro-avisos.mjs';
 
 import { getMembers } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -3366,4 +3373,252 @@ export async function sembrarNotificacionesPrueba(usuario = {}) {
       )
     )
   );
+}
+
+// ----------------------------------------------------------------------
+// EL ESTATUS DE UNO O VARIOS MIEMBROS CAMBIO.
+//
+// Un miembro que deja de venir es asunto de su destacamento; uno que se va o
+// fallece, de toda la organizacion:
+//
+//   - Reclutamiento → los cargos del destacamento MENOS el Pastor.
+//   - Inactivo y Fallecido → los cargos del destacamento (Pastor incluido) y
+//     ademas Oficina Nacional, Administrador Global y Consejo Ejecutivo.
+//
+// UN aviso por pase de lista, no uno por miembro: un sabado puede mover a media
+// docena y serian seis campanas seguidas.
+// ----------------------------------------------------------------------
+
+const idsDeCargosDeDestacamento = async ({ idDestacamento = '', cargosQueSeAvisan = [], tambienNacionales = false } = {}) => {
+  const dest = normalizarId(idDestacamento);
+  const cargosBuscados = new Set(cargosQueSeAvisan.map(normalizarCodigo));
+  const nacionales = new Set(ROLES_DEL_REGISTRO_NACIONAL);
+  const ids = new Set();
+
+  const leerColeccion = async (nombreColeccion) => {
+    const snapshot = await getDocs(collection(FIRESTORE, nombreColeccion)).catch(() => null);
+
+    snapshot?.docs?.forEach((item) => {
+      const data = item.data() ?? {};
+      const idUsuario = normalizarId(data.uid ?? data.idUsuario ?? item.id);
+
+      if (!idUsuario) return;
+
+      // `admins` es el Administrador Global: solo en los que llegan a la nacion.
+      if (nombreColeccion === 'admins') {
+        if (tambienNacionales) ids.add(idUsuario);
+        return;
+      }
+
+      const cargos = cargosDelPerfil(data);
+      const destacamentosDelPerfil = new Set(
+        idsDeAlcance(data, ['destacamentos', 'idDestacamento', 'destacamentoId', 'destId'])
+      );
+
+      const leInteresa = cargos.some((cargo) => {
+        if (tambienNacionales && nacionales.has(cargo.rol)) return true;
+
+        if (!cargosBuscados.has(cargo.rol) || !dest) return false;
+
+        // El cargo puede traer su destacamento o tenerlo en el alcance del perfil.
+        return cargo.idEntidad ? cargo.idEntidad === dest : destacamentosDelPerfil.has(dest);
+      });
+
+      if (leInteresa) ids.add(idUsuario);
+    });
+  };
+
+  await Promise.all(['admins', 'users', 'usuarios_roles'].map(leerColeccion));
+
+  return Array.from(ids);
+};
+
+const guardarNotificacion = async (notificacion) => {
+  const notificacionConfigurada = await resolverNotificacionConConfiguracion(notificacion);
+
+  if (!notificacionConfigurada) return null;
+
+  await setDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.notificaciones, notificacion.id),
+    notificacionConfigurada,
+    { merge: true }
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('notificaciones:actualizar'));
+  }
+
+  return notificacionConfigurada;
+};
+
+export async function crearNotificacionEstatusMiembros({
+  cambios = [],
+  destacamento = {},
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const lista = (Array.isArray(cambios) ? cambios : []).filter((cambio) =>
+    seAvisaElEstatus(cambio?.estatus)
+  );
+
+  if (!lista.length) return null;
+
+  const idDestacamento = normalizarId(
+    destacamento?.idDestacamento ?? destacamento?.id ?? lista[0]?.idDestacamento
+  );
+  const nombreDestacamento =
+    String(destacamento?.nombreDestacamento ?? destacamento?.name ?? destacamento?.nombre ?? '').trim() ||
+    `Destacamento ${idDestacamento}`;
+
+  // Un aviso por estatus: no se mezcla "necesita reclutamiento" con "fallecido",
+  // porque no van a los mismos cargos ni tienen la misma urgencia.
+  const porEstatus = new Map();
+
+  lista.forEach((cambio) => {
+    const clave = cambio.estatus;
+    porEstatus.set(clave, [...(porEstatus.get(clave) ?? []), cambio]);
+  });
+
+  const enviados = [];
+
+  await Promise.all(
+    [...porEstatus].map(async ([estatus, cambiosDelEstatus]) => {
+      const aLaNacion = llegaALaOficinaNacional(estatus);
+      const idsDestinatarios = await idsDeCargosDeDestacamento({
+        idDestacamento,
+        cargosQueSeAvisan: cargosDeDestacamentoQueSeAvisan(estatus),
+        tambienNacionales: aLaNacion,
+      });
+
+      if (!idsDestinatarios.length) return;
+
+      const etiqueta = opcionEstatusMiembro(estatus).label.toLowerCase();
+      const quienes = resumirCambios(cambiosDelEstatus);
+      const mensaje = `${quienes} pasó a "${etiqueta}" en ${nombreDestacamento}.`.replace(
+        'miembros: ',
+        'miembros pasaron a: '
+      );
+      const fechaActual = new Date().toISOString();
+      const notificationId = `estatus_miembro_${sanitizeNotificationIdPart(estatus)}_${sanitizeNotificationIdPart(idDestacamento)}_${Date.now()}`;
+
+      const guardada = await guardarNotificacion({
+        id: notificationId,
+        tipoNotificacion: 'estatus_miembro_cambiado',
+        modulo: 'miembros',
+        titulo: 'Estatus de miembro',
+        tituloHtml: `<p><strong>${escapeHtml(nombreDestacamento)}</strong> ${escapeHtml(mensaje)}</p>`,
+        mensaje,
+        mensajeVisual: mensaje,
+        rolDestinatario: 'todos',
+        idsDestinatarios,
+        // Un fallecimiento o una baja no es una noticia mas de la campana.
+        prioridad: aLaNacion ? 'urgente' : 'importante',
+        estado: 'no_leida',
+        fechaCreacion: fechaActual,
+        fechaEnvio: fechaActual,
+        actorId: 'sistema',
+        actorTipo: 'sistema',
+        actorNombre: 'Sistema',
+        actorFotoURL: null,
+        entidadTipo: 'miembro',
+        entidadId: cambiosDelEstatus[0]?.idMiembros ?? '',
+        ruta: '/dashboard/member/list',
+        imagenTipo: 'icono',
+        imagenURL: null,
+        miniaturaURL: null,
+        tipoAccion: 'ver',
+        etiquetaAccion: 'Ver miembros',
+        metadatos: {
+          estatus,
+          idDestacamento,
+          nombreDestacamento,
+          miembros: cambiosDelEstatus.map((cambio) => ({
+            idMiembros: cambio.idMiembros,
+            nombreMiembro: cambio.nombreMiembro,
+            codigoMiembro: cambio.codigoMiembro ?? '',
+            motivo: cambio.motivo ?? '',
+          })),
+          pasoLista: usuario?.displayName ?? '',
+        },
+      });
+
+      if (guardada) enviados.push(guardada);
+    })
+  );
+
+  return enviados.length ? enviados : null;
+}
+
+/**
+ * Aviso previo: a estos miembros les faltan dos semanas para caer en Inactivo.
+ *
+ * El objetivo del estatus es reclutar, no etiquetar: avisar cuando ya cayo llega
+ * tarde. Va solo a los cargos del destacamento, sin el Pastor, como el de
+ * reclutamiento.
+ */
+export async function crearNotificacionProximosAInactivo({
+  miembros = [],
+  destacamento = {},
+  usuario = {},
+}) {
+  asegurarFirebaseNotificaciones();
+
+  const lista = (Array.isArray(miembros) ? miembros : []).filter(Boolean);
+
+  if (!lista.length) return null;
+
+  const idDestacamento = normalizarId(
+    destacamento?.idDestacamento ?? destacamento?.id ?? lista[0]?.idDestacamento
+  );
+  const nombreDestacamento =
+    String(destacamento?.nombreDestacamento ?? destacamento?.name ?? '').trim() ||
+    `Destacamento ${idDestacamento}`;
+  const idsDestinatarios = await idsDeCargosDeDestacamento({
+    idDestacamento,
+    cargosQueSeAvisan: cargosDeDestacamentoQueSeAvisan(ESTATUS_MIEMBRO.NECESITA_RECLUTAMIENTO),
+  });
+
+  if (!idsDestinatarios.length) return null;
+
+  const mensaje = `${resumirCambios(lista)} está a punto de pasar a inactivo en ${nombreDestacamento}: quedan menos de dos semanas para reclutarlo.`;
+  const fechaActual = new Date().toISOString();
+  const notificationId = `estatus_miembro_por_caer_${sanitizeNotificationIdPart(idDestacamento)}_${new Date().toISOString().slice(0, 10)}`;
+
+  return guardarNotificacion({
+    id: notificationId,
+    tipoNotificacion: 'estatus_miembro_por_caer',
+    modulo: 'miembros',
+    titulo: 'A punto de pasar a inactivo',
+    tituloHtml: `<p><strong>${escapeHtml(nombreDestacamento)}</strong> ${escapeHtml(mensaje)}</p>`,
+    mensaje,
+    mensajeVisual: mensaje,
+    rolDestinatario: 'todos',
+    idsDestinatarios,
+    prioridad: 'importante',
+    estado: 'no_leida',
+    fechaCreacion: fechaActual,
+    fechaEnvio: fechaActual,
+    actorId: 'sistema',
+    actorTipo: 'sistema',
+    actorNombre: 'Sistema',
+    actorFotoURL: null,
+    entidadTipo: 'miembro',
+    entidadId: lista[0]?.idMiembros ?? '',
+    ruta: '/dashboard/member/list',
+    imagenTipo: 'icono',
+    imagenURL: null,
+    miniaturaURL: null,
+    tipoAccion: 'ver',
+    etiquetaAccion: 'Ver miembros',
+    metadatos: {
+      idDestacamento,
+      nombreDestacamento,
+      miembros: lista.map((miembro) => ({
+        idMiembros: miembro.idMiembros,
+        nombreMiembro: miembro.nombreMiembro,
+      })),
+      pasoLista: usuario?.displayName ?? '',
+    },
+  });
 }

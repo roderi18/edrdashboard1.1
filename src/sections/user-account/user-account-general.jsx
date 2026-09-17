@@ -11,6 +11,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -20,6 +21,11 @@ import { getMemberCodeLabel } from 'src/utils/member-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
+import {
+  opcionEstatusMiembro,
+  normalizarEstatusMiembro,
+  OPCIONES_ESTATUS_MIEMBRO,
+} from 'src/utils/estatus-miembro.mjs';
 
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
@@ -41,10 +47,13 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { ChipEstatusMiembro } from 'src/components/label';
 import { CintasDeMiembro } from 'src/components/insignias-perfil';
 import LocationSelect from 'src/components/location/location-select';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
+
+import { MemberEstatusDialog } from 'src/sections/member/member-estatus-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -68,9 +77,7 @@ const formatGender = (gender) => {
 
 const formatStatus = (status) => {
   if (!status) return '';
-  if (status === 'active' || status === 'activo') return 'Activo';
-  if (status === 'banned' || status === 'inactivo') return 'Inactivo';
-  return String(status);
+  return opcionEstatusMiembro(status)?.label ?? String(status);
 };
 
 const buildFallbackMemberFromUser = (user = {}) => {
@@ -213,7 +220,8 @@ const mapMemberToValues = (member) => {
     division: '',
     phoneNumber: member?.telefono ?? '',
     email: member?.correo ?? '',
-    status: member?.estatusMiembro ?? 'active',
+    // Normalizado: con "activo" o "Inactivo" tal cual el selector quedaba en blanco.
+    status: normalizarEstatusMiembro(member?.estatusMiembro),
     statusDisplay: formatStatus(member?.estatusMiembro),
     idCargoLocal: member?.idCargoLocal ?? '',
     idCargoInstitucional: member?.idCargoInstitucional ?? '',
@@ -225,8 +233,9 @@ const mapMemberToValues = (member) => {
     // Valor de partida, para el primer pintado. En cuanto llega la lista de
     // destacamentos se reescribe con el nombre y el numero de verdad.
     destDisplay:
-      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${member?.destacamentoNumero ?? ''
-        }`.trim() || formatDestDisplay(null, destId),
+      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${
+        member?.destacamentoNumero ?? ''
+      }`.trim() || formatDestDisplay(null, destId),
     instructorCertificadoCi:
       member?.instructorCertificadoCi === true || member?.instructorCertificadoCi === 1
         ? 'Sí'
@@ -297,6 +306,9 @@ export function UserAccountGeneral() {
   const [dests, setDests] = useState([]);
   const [loadingMember, setLoadingMember] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // El estatus elegido que espera motivo y confirmación. Cambiarlo a mano es una
+  // excepción a la regla de asistencia, así que no sale de mover el desplegable.
+  const [estatusPendiente, setEstatusPendiente] = useState('');
   const canEditAll =
     user?.role === 'admin' || user?.role === 'administrator' || user?.memberRole === 'admin';
 
@@ -342,9 +354,9 @@ export function UserAccountGeneral() {
               String(item?.correo ?? '')
                 .trim()
                 .toLowerCase() ===
-              String(user?.email ?? '')
-                .trim()
-                .toLowerCase())
+                String(user?.email ?? '')
+                  .trim()
+                  .toLowerCase())
           );
         });
 
@@ -574,8 +586,9 @@ export function UserAccountGeneral() {
       registrarCambiosHistorialMiembro({
         idMiembros: memberId,
         codigoMiembro: member?.codigoMiembro || user?.codigoMiembro || '',
-        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${member?.apellidos ?? user?.apellidos ?? ''
-          }`.trim(),
+        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${
+          member?.apellidos ?? user?.apellidos ?? ''
+        }`.trim(),
         modulo: 'Información general',
         antes: { avatarUrl: member?.avatarUrl || '' },
         despues: { avatarUrl },
@@ -793,6 +806,20 @@ export function UserAccountGeneral() {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center', position: 'relative' }}>
+            <ChipEstatusMiembro
+              estatus={watch('status')}
+              explicacion={member?.estatusExplicacion}
+            />
+
+            {!!estatusPendiente && (
+              <MemberEstatusDialog
+                miembro={member}
+                estatus={estatusPendiente}
+                onClose={() => setEstatusPendiente('')}
+                onGuardado={(valor) => methods.setValue('status', valor, { shouldDirty: true })}
+              />
+            )}
+
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
@@ -862,9 +889,23 @@ export function UserAccountGeneral() {
                 inputProps={{ maxLength: 14 }}
               />
               <Field.Text name="email" label="Correo electrónico" />
-              <Field.Select name="status" label="Estatus miembro" disabled={!canEditAll}>
-                <MenuItem value="active">Activo</MenuItem>
-                <MenuItem value="banned">Inactivo</MenuItem>
+              {/* Cada estatus explica qué significa: al pasar el ratón en escritorio y
+                  al tocarlo en el celular (enterTouchDelay 0). */}
+              <Field.Select
+                name="status"
+                label="Estatus miembro"
+                disabled={!canEditAll}
+                onChange={(evento) => setEstatusPendiente(evento.target.value)}
+              >
+                {OPCIONES_ESTATUS_MIEMBRO.map((opcion) => (
+                  <MenuItem key={opcion.value} value={opcion.value}>
+                    <Tooltip arrow placement="right" enterTouchDelay={0} title={opcion.descripcion}>
+                      <Box component="span" sx={{ width: 1 }}>
+                        {opcion.label}
+                      </Box>
+                    </Tooltip>
+                  </MenuItem>
+                ))}
               </Field.Select>
               {canEditAll ? (
                 <Field.Autocomplete

@@ -16,6 +16,7 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import Collapse from '@mui/material/Collapse';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
@@ -35,6 +36,7 @@ import { PickersActionBar } from '@mui/x-date-pickers/PickersActionBar';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { ESTATUS_MIEMBRO } from 'src/utils/estatus-miembro.mjs';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { getMemberAllowedDestIds } from 'src/utils/member-access';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -47,6 +49,7 @@ import {
 } from 'src/utils/nombres-de-persona';
 import {
   ordenarRango,
+  diaDeLaSemana,
   actividadEnFecha,
   fechasConActividad,
   fechaSeleccionable,
@@ -67,6 +70,11 @@ import {
   guardarDestacamentoDeAsistencia,
 } from 'src/services/preferencias-usuario-service';
 import {
+  leerEstatusDeMiembros,
+  evaluarEstatusPorTiempo,
+  evaluarEstatusTrasPaseDeLista,
+} from 'src/services/estatus-miembros-service';
+import {
   crearActividadAsistencia,
   eliminarActividadAsistencia,
   listarActividadesAsistencia,
@@ -74,6 +82,7 @@ import {
   guardarAsistenciaDestacamento,
   obtenerAsistenciaDestacamento,
   obtenerUltimasPresenciasMiembros,
+  convertirEstadoAsistenciaAFirebase,
 } from 'src/services/attendance-service';
 
 import { Label } from 'src/components/label';
@@ -847,9 +856,7 @@ function DiaDelCalendario({
       onMouseEnter={() => onApuntarActividad?.(actividad)}
       onTouchStart={() => onApuntarActividad?.(actividad)}
       onDaySelect={(diaElegido) =>
-        modoActividad
-          ? onElegirDiaActividad?.(dayjs(diaElegido))
-          : props.onDaySelect?.(diaElegido)
+        modoActividad ? onElegirDiaActividad?.(dayjs(diaElegido)) : props.onDaySelect?.(diaElegido)
       }
       sx={[
         enRango &&
@@ -1026,6 +1033,13 @@ export function AttendanceQuickView() {
   // aunque todavia no hayan llegado. El calendario va controlado para poder
   // quedarse abierto mientras se elige el rango de una actividad nueva.
   const [actividades, setActividades] = useState([]);
+  // EL ESTATUS DE CADA MIEMBRO (activo / reclutamiento / inactivo / fallecido).
+  //
+  // Los fallecidos no salen a pasar lista y los inactivos van al final,
+  // recogidos: con treinta miembros, marcar ausente cada sábado a quien no va a
+  // venir en meses ensuciaba el conteo del destacamento.
+  const [estatusPorMiembro, setEstatusPorMiembro] = useState({});
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [modoActividad, setModoActividad] = useState(false);
   const [rangoActividad, setRangoActividad] = useState({ inicio: '', fin: '' });
@@ -1072,9 +1086,9 @@ export function AttendanceQuickView() {
       probandoRolCombinado
         ? null
         : getMemberAllowedDestIds(user, {
-        dests: estructura.dests,
-        churches: estructura.churches,
-        sectionals: estructura.sectionals,
+            dests: estructura.dests,
+            churches: estructura.churches,
+            sectionals: estructura.sectionals,
           }),
     [user, estructura, probandoRolCombinado]
   );
@@ -1280,6 +1294,16 @@ export function AttendanceQuickView() {
   // Dia de la semana en que se reune el destacamento elegido, o null si su ficha
   // no lo dice.
   const diaDeReunion = getDestMeetingDay(selectedDest);
+  // Solo las reuniones mueven las rachas del estatus. Un día de actividad
+  // —excursión, campamento— se pasa lista igual, pero no cuenta como reunión.
+  const esDiaDeReunion = useCallback(
+    (fecha) =>
+      !actividadEnFecha(actividades, fecha) &&
+      (diaDeReunion === null ||
+        diaDeReunion === undefined ||
+        diaDeLaSemana(fecha) === diaDeReunion),
+    [actividades, diaDeReunion]
+  );
 
   // LA FECHA CAE SOLA EN UN DIA QUE SE PUEDE ELEGIR.
   //
@@ -1346,8 +1370,7 @@ export function AttendanceQuickView() {
   const attendanceTitle = selectedDestId
     ? `Asistencia ${getDestTitle(selectedDest, selectedDestId)}`
     : 'Asistencia';
-  const showDestFilter =
-    probandoRolCombinado || (!scopedToDest && puedeElegirDestacamento(user));
+  const showDestFilter = probandoRolCombinado || (!scopedToDest && puedeElegirDestacamento(user));
 
   // EL PASTOR DEL DESTACAMENTO NO ENTRA EN LA LISTA.
   //
@@ -1392,8 +1415,13 @@ export function AttendanceQuickView() {
         members.filter((member) => String(getMemberDestId(member)) === String(selectedDestId)),
         pastoresDelDestacamento,
         getMemberId
-      ).sort((a, b) => getMemberName(a).localeCompare(getMemberName(b))),
-    [members, pastoresDelDestacamento, selectedDestId]
+      )
+        // Un fallecido ya no se pasa lista: ni presente ni ausente.
+        .filter(
+          (member) => estatusPorMiembro[getMemberId(member)]?.estatus !== ESTATUS_MIEMBRO.FALLECIDO
+        )
+        .sort((a, b) => getMemberName(a).localeCompare(getMemberName(b))),
+    [members, pastoresDelDestacamento, selectedDestId, estatusPorMiembro]
   );
 
   const divisionFilteredMembers = useMemo(() => {
@@ -1442,6 +1470,60 @@ export function AttendanceQuickView() {
       return status === statusFilter;
     });
   }, [searchedMembers, statusByMemberId, statusFilter]);
+
+  // Los inactivos se pintan aparte, al final y recogidos.
+  const inactivos = useMemo(
+    () =>
+      visibleMembers.filter(
+        (member) => estatusPorMiembro[getMemberId(member)]?.estatus === ESTATUS_MIEMBRO.INACTIVO
+      ),
+    [visibleMembers, estatusPorMiembro]
+  );
+  const miembrosActivos = useMemo(
+    () =>
+      visibleMembers.filter(
+        (member) => estatusPorMiembro[getMemberId(member)]?.estatus !== ESTATUS_MIEMBRO.INACTIVO
+      ),
+    [visibleMembers, estatusPorMiembro]
+  );
+
+  // AL ABRIR EL DESTACAMENTO: se lee el estatus de cada uno y, de paso, se
+  // aplica la regla de los 3 meses sin venir, que no la dispara ningún pase de
+  // lista (por eso se calcula aquí, con la fecha de hoy).
+  useEffect(() => {
+    let active = true;
+
+    const cargarEstatus = async () => {
+      if (!selectedDestId || !selectedDestMembers.length) return;
+
+      try {
+        await evaluarEstatusPorTiempo({
+          miembros: selectedDestMembers,
+          destacamento: {
+            idDestacamento: selectedDestId,
+            nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
+          },
+          usuario: getAuditUser(),
+        });
+
+        const leidos = await leerEstatusDeMiembros(selectedDestMembers.map(getMemberId));
+
+        if (active) setEstatusPorMiembro(leidos);
+      } catch (error) {
+        // Sin estatus, el pase de lista funciona igual que antes.
+        console.error('[asistencia] no se pudo leer el estatus de los miembros', error);
+      }
+    };
+
+    cargarEstatus();
+
+    return () => {
+      active = false;
+    };
+    // selectedDestMembers depende del estatus que este efecto escribe: se
+    // engancha al destacamento y a los miembros cargados para no dar vueltas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDestId, members.length]);
 
   useEffect(() => {
     let active = true;
@@ -1826,6 +1908,34 @@ export function AttendanceQuickView() {
           versionGuardadaRef.current = foto.version;
         }
 
+        // EL ESTATUS SE MUEVE CON LO QUE SE ACABA DE GUARDAR (3 faltas seguidas
+        // → reclutamiento; volver → activo). Si falla, el pase de lista ya está
+        // guardado y el estatus se recalcula al abrir el destacamento.
+        try {
+          const estadosParaEstatus = Object.fromEntries(
+            Object.entries(statusesToSave).map(([memberId, estado]) => [
+              memberId,
+              convertirEstadoAsistenciaAFirebase(estado === AUTO_ABSENT_STATUS ? 'absent' : estado),
+            ])
+          );
+
+          await evaluarEstatusTrasPaseDeLista({
+            fecha: foto.fecha,
+            destacamento: {
+              idDestacamento: foto.idDestacamento,
+              nombreDestacamento: foto.nombreDestacamento,
+            },
+            miembros: foto.miembros,
+            estados: estadosParaEstatus,
+            esReunion: esDiaDeReunion(foto.fecha),
+            usuario: getAuditUser(),
+          });
+
+          setEstatusPorMiembro(await leerEstatusDeMiembros(foto.miembros.map(getMemberId)));
+        } catch (error) {
+          console.error('[asistencia] no se pudo actualizar el estatus', error);
+        }
+
         // LO QUE SE VE TIENE QUE SER LO QUE QUEDO ESCRITO.
         //
         // El servicio guarda a los no marcados como `ausente` a secas. Si aqui se
@@ -1879,7 +1989,7 @@ export function AttendanceQuickView() {
         if (!automatico) setSavingAttendance(false);
       }
     },
-    [puedePasarAsistencia, getAuditUser]
+    [puedePasarAsistencia, getAuditUser, esDiaDeReunion]
   );
 
   useEffect(() => {
@@ -2021,9 +2131,7 @@ export function AttendanceQuickView() {
     try {
       setEliminandoActividad(true);
       await eliminarActividadAsistencia({ actividad: actividadApuntada, usuario: getAuditUser() });
-      setActividades((actuales) =>
-        actuales.filter((item) => item.id !== actividadApuntada.id)
-      );
+      setActividades((actuales) => actuales.filter((item) => item.id !== actividadApuntada.id));
       setActividadApuntada(null);
       confirmarEliminarActividad.onFalse();
       toast.success('Actividad eliminada.');
@@ -2494,14 +2602,14 @@ export function AttendanceQuickView() {
                   value={date ? dayjs(date) : null}
                   minDate={PRIMER_DIA_CON_ASISTENCIA}
                   maxDate={ULTIMO_DIA_CON_ASISTENCIA}
-                // Se pasa por el año y por el mes antes de llegar al dia, para
-                // poder saltar a un mes de atras sin ir flecha a flecha.
+                  // Se pasa por el año y por el mes antes de llegar al dia, para
+                  // poder saltar a un mes de atras sin ir flecha a flecha.
                   views={['year', 'month', 'day']}
-                // Un dia queda apagado por dos razones: todavia no llego, o el
-                // destacamento no se reune ese dia de la semana y no hay
-                // asistencia que pasar. Salvo que sea de una actividad. Y al
-                // agregar una, todos se pueden pulsar: la actividad puede caer
-                // cualquier dia, tambien en el futuro.
+                  // Un dia queda apagado por dos razones: todavia no llego, o el
+                  // destacamento no se reune ese dia de la semana y no hay
+                  // asistencia que pasar. Salvo que sea de una actividad. Y al
+                  // agregar una, todos se pueden pulsar: la actividad puede caer
+                  // cualquier dia, tambien en el futuro.
                   shouldDisableDate={(fecha) =>
                     !modoActividad &&
                     !fechaSeleccionable({
@@ -2514,8 +2622,8 @@ export function AttendanceQuickView() {
                   open={calendarioAbierto}
                   onOpen={() => setCalendarioAbierto(true)}
                   onClose={cerrarCalendario}
-                // Eligiendo el rango de una actividad el calendario no se cierra
-                // al primer clic: hace falta pulsar el ultimo dia y "Aceptar".
+                  // Eligiendo el rango de una actividad el calendario no se cierra
+                  // al primer clic: hace falta pulsar el ultimo dia y "Aceptar".
                   closeOnSelect={!modoActividad}
                   onChange={(newValue) => {
                     if (modoActividad) return;
@@ -2790,7 +2898,7 @@ export function AttendanceQuickView() {
             ))
           ) : (
             <>
-              {visibleMembers.map((member) => {
+              {miembrosActivos.map((member) => {
                 const memberId = getMemberId(member);
 
                 return (
@@ -2806,6 +2914,52 @@ export function AttendanceQuickView() {
                   />
                 );
               })}
+
+              {/* LOS INACTIVOS, AL FINAL Y RECOGIDOS. Llevan meses sin venir:
+                  marcarlos ausentes cada sábado no aporta nada y alarga la
+                  lista. Se pueden abrir y marcar si alguno aparece. */}
+              {!!inactivos.length && (
+                <>
+                  <Button
+                    color="inherit"
+                    onClick={() => setMostrarInactivos((valor) => !valor)}
+                    startIcon={
+                      <Iconify
+                        icon={
+                          mostrarInactivos
+                            ? 'eva:arrow-ios-upward-fill'
+                            : 'eva:arrow-ios-downward-fill'
+                        }
+                        width={18}
+                      />
+                    }
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Inactivos ({inactivos.length})
+                  </Button>
+
+                  <Collapse in={mostrarInactivos} unmountOnExit>
+                    <Stack spacing={1}>
+                      {inactivos.map((member) => {
+                        const memberId = getMemberId(member);
+
+                        return (
+                          <AttendanceMemberRow
+                            key={memberId}
+                            member={member}
+                            memberId={memberId}
+                            memberName={getMemberName(member)}
+                            avatarUrl={memberPhotoUrls[memberId] || getMemberAvatar(member)}
+                            status={statusByMemberId[memberId] || ''}
+                            lastPresentAt={lastPresentByMemberId[memberId]}
+                            onStatusChange={handleStatusChange}
+                          />
+                        );
+                      })}
+                    </Stack>
+                  </Collapse>
+                </>
+              )}
 
               {!visibleMembers.length && (
                 <Card sx={{ p: 5, textAlign: 'center' }}>

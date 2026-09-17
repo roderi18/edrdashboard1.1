@@ -97,6 +97,9 @@ export const AMBITOS_CAMBIO = {
   // Las cintas del perfil de un miembro. Por ahora solo las pone a mano el
   // Administrador Global para pruebas: se aplica en el acto y queda en Historial.
   cintasMiembro: 'cintas_miembro',
+  // El estatus de un miembro cambiado A MANO (el automatico lo registra la
+  // propia regla de asistencia como "Sistema", sin pasar por aqui).
+  estatusMiembro: 'estatus_miembro',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

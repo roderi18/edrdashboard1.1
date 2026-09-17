@@ -183,7 +183,7 @@ export const MemberValidationSchema = z.object({
     FechaInicioCI: z.any().nullable().optional(),
     FechaVencimientoCI: z.any().nullable().optional(),
 
-    status: z.enum(['active', 'banned']).default('active'),
+    status: z.enum(['active', 'reclutamiento', 'banned', 'fallecido']).default('active'),
 });
 
 export const MemberCreateSchema = z.object({

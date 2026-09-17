@@ -35,7 +35,13 @@ const resultado = (archivo) => {
   return {
     url,
     shortCircuit: true,
-    ...(url.endsWith('.json') ? { importAttributes: { type: 'json' }, format: 'json' } : {}),
+    ...(url.endsWith('.json')
+      ? { importAttributes: { type: 'json' }, format: 'json' }
+      : // El proyecto no declara `"type": "module"`, asi que node leia cada .js
+        // de `src/` como CommonJS y su `export` era un error de sintaxis: la
+        // prueba no podia importar el codigo real —por ejemplo
+        // `src/auth/permissions/roles.js`— y el fichero entero no arrancaba.
+        { format: 'module' }),
   };
 };
 

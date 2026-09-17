@@ -36,6 +36,22 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 
 9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye. Test: `tests/acceso/administrador-global-reina.test.mjs`.
 
+10. **El estatus del miembro lo mueve la asistencia** (activo, reclutamiento,
+   inactivo, fallecido): 3 faltas seguidas, 3 meses sin venir, y vuelve con 1 o 3
+   presencias. Automático y a nombre de "Sistema"; un cambio a mano manda 30 días.
+   Reclutamiento avisa al destacamento sin el Pastor; inactivo y fallecido avisan
+   además a Oficina Nacional, Administrador Global y Consejo Ejecutivo. "Fallecido"
+   solo lo marcan Coordinador de Destacamento, su Asistente y Administrador Global.
+   Regla en `src/utils/estatus-por-asistencia.mjs`, detalle en `docs/estatus-miembro.md`.
+   Tests: `tests/member/estatus-*.test.mjs`.
+
+11. **Las cintas del perfil salen en el orden del manual**: el número del archivo
+   manda (3 por fila, hasta 18, la fila incompleta arriba y centrada), y con el
+   premio ganado más de una vez va el número dorado encima. Catálogo y reglas en
+   `src/utils/cintas-perfil.mjs`; se guardan en `cintas_miembros` y hoy solo las
+   pone a mano el Administrador Global. Detalle en `docs/cintas-perfil.md`.
+   Test: `tests/member/cintas-perfil-orden.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 
