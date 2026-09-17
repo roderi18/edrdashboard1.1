@@ -19,21 +19,25 @@ import { AUTH } from 'src/lib/firebase';
 
 import { signInWithCustomToken } from 'src/auth/components/context/firebase/action';
 
+// El prefijo ya escrito: todos los códigos empiezan igual y solo cambia el número.
+const PREFIJO = 'EDR-';
+
 export function ProbarComoUsuarioDialog({ open, onClose }) {
-  const [codigo, setCodigo] = useState('');
+  const [codigo, setCodigo] = useState(PREFIJO);
   const [enviando, setEnviando] = useState(false);
   const [errorVisible, setErrorVisible] = useState('');
 
   useEffect(() => {
     if (open) return;
-    setCodigo('');
+    setCodigo(PREFIJO);
     setEnviando(false);
     setErrorVisible('');
   }, [open]);
 
   const entrar = async () => {
     const codigoMiembro = codigo.trim().toUpperCase();
-    if (!codigoMiembro) return;
+    // Solo el prefijo no es un código: sin número no se intenta entrar.
+    if (!/\d/.test(codigoMiembro)) return;
 
     setEnviando(true);
     setErrorVisible('');
@@ -87,6 +91,11 @@ export function ProbarComoUsuarioDialog({ open, onClose }) {
           value={codigo}
           disabled={enviando}
           onChange={(event) => setCodigo(event.target.value)}
+          // El cursor detrás de "EDR-", para escribir el número directamente.
+          onFocus={(event) => {
+            const largo = event.target.value.length;
+            event.target.setSelectionRange(largo, largo);
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') entrar();
           }}
@@ -99,7 +108,7 @@ export function ProbarComoUsuarioDialog({ open, onClose }) {
         <Button
           variant="contained"
           onClick={entrar}
-          disabled={enviando || !codigo.trim()}
+          disabled={enviando || !/\d/.test(codigo)}
         >
           {enviando ? 'Entrando…' : 'Entrar'}
         </Button>

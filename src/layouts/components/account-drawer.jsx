@@ -22,11 +22,12 @@ import { RouterLink } from 'src/routes/components';
 import { etiquetaDeCargo, useCargosDelUsuario } from 'src/hooks/use-cargos-del-usuario';
 
 import { rolesQueEjerce } from 'src/utils/org-level-access';
+import { isMemberSessionUser, getMemberCodeForDisplay } from 'src/utils/member-access';
 import { getAdminRoleLabel, ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
 import {
-  isMemberSessionUser,
-  getMemberCodeForDisplay,
-} from 'src/utils/member-access';
+  cambiarVerComoUsuario,
+  ejerceAdministradorGlobal,
+} from 'src/utils/administrador-global-reina.mjs';
 
 import { _mock } from 'src/_mock';
 import { getDests, getDestsApi } from 'src/services/dest-service';
@@ -83,6 +84,12 @@ export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) 
     .map((codigo) => ROLES_POR_CODIGO[codigo]?.nombre)
     .filter(Boolean);
   const accountPhotoURL = user?.photoURL || '';
+  // La cuenta administrativa antigua llega con `role: 'admin'` y sin el código.
+  const puedeVerComoUsuario =
+    ejerceAdministradorGlobal(user) ||
+    String(user?.role ?? user?.rol ?? '')
+      .trim()
+      .toLowerCase() === 'admin';
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -297,6 +304,26 @@ export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) 
               sx={{ mb: 1 }}
             >
               Probar como usuario
+            </Button>
+          )}
+          {/* Solo quien tiene Administrador Global (o lo tiene apagado con esta
+              vista): ve pestañas y pantallas como alguien sin ese rol. Vive en
+              la pestaña; volver recarga con su mando de siempre. */}
+          {(user?.verComoUsuario || puedeVerComoUsuario) && (
+            <Button
+              fullWidth
+              variant={user?.verComoUsuario ? 'contained' : 'outlined'}
+              color={user?.verComoUsuario ? 'warning' : 'inherit'}
+              startIcon={
+                <Iconify icon={user?.verComoUsuario ? 'solar:eye-closed-bold' : 'solar:eye-bold'} />
+              }
+              onClick={() => {
+                cambiarVerComoUsuario(!user?.verComoUsuario);
+                window.location.reload();
+              }}
+              sx={{ mb: 1 }}
+            >
+              {user?.verComoUsuario ? 'Volver a Administrador Global' : 'Ver como usuario'}
             </Button>
           )}
           <SignOutButton onClose={onClose} />

@@ -68,6 +68,58 @@ test('la sesión aplica la regla antes que la prueba de roles', async () => {
 
   assert.match(
     proveedor,
-    /const user = conAdministradorGlobalAlMando\(usuario\);\s*const simulacion = leerSimulacionDeRoles\(\);/
+    /: conAdministradorGlobalAlMando\(usuario\);\s*const simulacion = leerSimulacionDeRoles\(\);/
   );
+});
+
+// ----------------------------------------------------------------------
+// "VER COMO USUARIO": quien tiene Administrador Global comprueba lo que ven los
+// demás. Se le quita SOLO ese rol, y con él lo que lo delataba (`role: 'admin'`,
+// permisos sueltos): si quedara algo, seguiría viéndolo todo y no probaría nada.
+// ----------------------------------------------------------------------
+
+const { sinAdministradorGlobal } = await import('../../src/utils/administrador-global-reina.mjs');
+const { PERMISOS_POR_ROL, ALCANCE_PREDETERMINADO_ROL, RESTRICCIONES_ROL } =
+  await import('../../src/auth/permissions/role-permissions.js');
+
+const catalogo = {
+  permisosPorRol: PERMISOS_POR_ROL,
+  alcancePorRol: ALCANCE_PREDETERMINADO_ROL,
+  restriccionesPorRol: RESTRICCIONES_ROL,
+};
+
+test('ver como usuario deja sus otros cargos, con el de mayor nivel como principal', () => {
+  const vista = sinAdministradorGlobal(conCasillas({ role: 'admin' }), catalogo);
+
+  assert.equal(vista.rolId, 'usuario_region');
+  assert.equal(vista.role, 'usuario_region');
+  assert.deepEqual(
+    vista.cargos.map((cargo) => cargo.rol),
+    ['usuario_region', 'usuario_destacamento']
+  );
+  assert.equal(ejerceAdministradorGlobal(vista), false);
+  assert.equal(isAdminGlobal(vista), false);
+  assert.deepEqual(vista.permisosDirectos, []);
+  assert.equal(vista.verComoUsuario, true);
+});
+
+test('ver como usuario sin otros cargos queda como Usuario Común', () => {
+  const vista = sinAdministradorGlobal(
+    { rolId: 'administrador_global', role: 'admin', cargos: [], permisosDirectos: ['todo'] },
+    catalogo
+  );
+
+  assert.equal(vista.rolId, 'usuario_comun');
+  assert.equal(isAdminGlobal(vista), false);
+  assert.deepEqual(vista.permisosRol, [...new Set(PERMISOS_POR_ROL.usuario_comun ?? [])]);
+});
+
+test('el botón está en el panel de la cuenta, encima de cerrar sesión', async () => {
+  const panel = await readFile(
+    new URL('../../src/layouts/components/account-drawer.jsx', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(panel, /'Ver como usuario'[\s\S]*<SignOutButton/);
+  assert.match(panel, /cambiarVerComoUsuario\(!user\?\.verComoUsuario\)/);
 });

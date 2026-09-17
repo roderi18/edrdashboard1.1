@@ -8,7 +8,6 @@ import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
-import { conAdministradorGlobalAlMando } from 'src/utils/administrador-global-reina.mjs';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
 import {
   loadAdminProfile,
@@ -16,6 +15,12 @@ import {
   buildAdminSessionUser,
   findAdminProfileByLoginValue,
 } from 'src/utils/admin-profile';
+import {
+  leerVerComoUsuario,
+  sinAdministradorGlobal,
+  ejerceAdministradorGlobal,
+  conAdministradorGlobalAlMando,
+} from 'src/utils/administrador-global-reina.mjs';
 
 import axios from 'src/lib/axios';
 import { AUTH, isFirebaseConfigured } from 'src/lib/firebase';
@@ -286,11 +291,27 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
  * o cerrarla devuelve al Administrador Global sin depender de que la base de
  * datos le deje escribir su propio rol.
  */
+// La cuenta administrativa antigua llega con `role: 'admin'` y sin el código.
+const ejerceAdministradorGlobalOAdmin = (usuario) =>
+  ejerceAdministradorGlobal(usuario) ||
+  String(usuario?.role ?? usuario?.rol ?? '')
+    .trim()
+    .toLowerCase() === 'admin';
+
 const aplicarSimulacionDeRoles = (usuario) => {
   // Antes que la prueba: el Administrador Global reina sobre sus otros cargos
   // (`administrador-global-reina.mjs`). La prueba, si está encendida, sustituye
   // rol y cargos después, así que sigue probando lo que tiene que probar.
-  const user = conAdministradorGlobalAlMando(usuario);
+  // "Ver como usuario" (panel de la cuenta) le quita el Administrador Global en
+  // esta pestaña, para ver lo que ven los demás.
+  const user =
+    leerVerComoUsuario() && ejerceAdministradorGlobalOAdmin(usuario)
+      ? sinAdministradorGlobal(usuario, {
+          permisosPorRol: PERMISOS_POR_ROL,
+          alcancePorRol: ALCANCE_PREDETERMINADO_ROL,
+          restriccionesPorRol: RESTRICCIONES_ROL,
+        })
+      : conAdministradorGlobalAlMando(usuario);
   const simulacion = leerSimulacionDeRoles();
 
   if (!user || !simulacion) return user;

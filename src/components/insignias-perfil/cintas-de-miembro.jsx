@@ -90,6 +90,13 @@ const centelleoDelNumero = keyframes`
 
 const CINTAS_CON_BORDE_DORADO = new Set(['3', '5', '6', '7', '12a']);
 
+const normalizarBusqueda = (valor) =>
+  String(valor ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 export const OPCIONES_BORDE = [
   [EFECTOS_BORDE_CINTA.BARRIDO, 'Barrido actual'],
   [EFECTOS_BORDE_CINTA.OLA, 'Ola lenta'],
@@ -674,6 +681,15 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
     configuracionInicial?.efectoNumero ?? EFECTOS_NUMERO_CINTA.BARRIDO
   );
   const [guardando, setGuardando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const cintasVisibles = useMemo(() => {
+    const termino = normalizarBusqueda(busqueda);
+    if (!termino) return CATALOGO_CINTAS_PERFIL;
+
+    return CATALOGO_CINTAS_PERFIL.filter((cinta) =>
+      normalizarBusqueda(`${cinta.id} ${cinta.nombre}`).includes(termino)
+    );
+  }, [busqueda]);
 
   const alternar = (idCinta) =>
     setElegidas((previas) => {
@@ -745,6 +761,20 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
           }}
         >
           <TextField
+            fullWidth
+            size="small"
+            label="Buscar cinta"
+            placeholder="Número o nombre"
+            value={busqueda}
+            onChange={(evento) => setBusqueda(evento.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} />,
+              },
+            }}
+            sx={{ gridColumn: '1 / -1' }}
+          />
+          <TextField
             select
             fullWidth
             size="small"
@@ -787,7 +817,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
             },
           }}
         >
-          {CATALOGO_CINTAS_PERFIL.map((cinta) => {
+          {cintasVisibles.map((cinta) => {
             const activa = elegidas.has(cinta.id);
             const configuracion = elegidas.get(cinta.id);
             return (
@@ -837,7 +867,16 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                   efectoBorde={efectoBordeGlobal}
                   efectoNumero={efectoNumeroGlobal}
                 />
-                <Typography variant="caption" noWrap sx={{ display: 'block', mt: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mt: 0.5,
+                    display: 'block',
+                    lineHeight: 1.25,
+                    whiteSpace: 'normal',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {cinta.id}. {cinta.nombre}
                 </Typography>
 
@@ -878,6 +917,14 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
               </Box>
             );
           })}
+          {!cintasVisibles.length && (
+            <Typography
+              variant="body2"
+              sx={{ py: 3, color: 'text.secondary', textAlign: 'center', gridColumn: '1 / -1' }}
+            >
+              No encontramos cintas con esa búsqueda.
+            </Typography>
+          )}
         </Box>
       </DialogContent>
 
