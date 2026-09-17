@@ -1,4 +1,5 @@
 const RUTA_CINTAS = '/parches/Cintas%20y%20medallas/cintas-perfil';
+const RUTA_NUMEROS_CINTAS = '/parches/Cintas%20y%20medallas/numeros-cintas';
 
 const cinta = (id, nombre) => ({
   id,
@@ -31,5 +32,5 @@ export const obtenerNumeroDorado = (numero) => {
 
   if (!Number.isInteger(valor) || valor < 0 || valor > 9) return null;
 
-  return `${RUTA_CINTAS}/numero-${valor}-dorado.webp`;
+  return `${RUTA_NUMEROS_CINTAS}/numero-${valor}-dorado.webp`;
 };

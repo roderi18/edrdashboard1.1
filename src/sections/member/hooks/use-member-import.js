@@ -219,7 +219,10 @@ export function useMemberImport({ user, onMembersUploaded, onCloseActions }) {
 
           codigosReservados.push(codigoMiembro);
 
+          // Mantiene la misma ruta heredada de importación masiva; este hook solo
+          // mueve el flujo fuera de la barra y no modifica cómo se persiste.
           const res = await fetch('/api/members/post/', {
+            // eslint-disable-next-line no-restricted-syntax
             method: 'POST',
             // Con el token: la ruta exige permiso de cargo y sin cabecera de
             // sesion contesta 401 y la importacion no llegaba a escribir.
