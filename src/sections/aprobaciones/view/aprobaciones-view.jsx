@@ -27,6 +27,7 @@ import { paths } from 'src/routes/paths';
 import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
+import { getMembers } from 'src/services/member-service';
 import { aprobarSolicitud, rechazarSolicitud } from 'src/services/aplicar-solicitud-service';
 import {
   esSuPropiaSolicitud,
@@ -89,6 +90,62 @@ const mostrarValor = (valor) => {
   return String(valor);
 };
 
+// Una propuesta de directiva nombra a una persona, y quien aprueba tiene que
+// saber a quien: con nombre y, debajo, su codigo (dos miembros pueden llamarse
+// igual). Las guardadas cuando quien llamaba solo traia el id decian "el miembro
+// 323". Se resuelve al pintar, sin reescribir la solicitud.
+const MIEMBRO_SIN_NOMBRE = /^el miembro (\d+)$/i;
+
+const nombreDelMiembro = (miembro) =>
+  [miembro?.firstName ?? miembro?.nombres, miembro?.lastName ?? miembro?.apellidos]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+const esDeDirectiva = (solicitud) =>
+  solicitud?.entidad?.tipo === 'asignacion_directiva' && Boolean(solicitud?.payload?.idMiembro);
+
+const conMiembrosResueltos = async (solicitudes) => {
+  if (!solicitudes.some(esDeDirectiva)) return solicitudes;
+
+  let porId = new Map();
+
+  try {
+    const miembros = await getMembers();
+    porId = new Map(
+      (Array.isArray(miembros) ? miembros : []).flatMap((miembro) => [
+        [String(miembro.idMiembros ?? ''), miembro],
+        [String(miembro.id ?? ''), miembro],
+      ])
+    );
+  } catch {
+    // Sin listado se pinta lo que traiga la solicitud: mejor eso que no poder aprobar.
+  }
+
+  return solicitudes.map((solicitud) => {
+    if (!esDeDirectiva(solicitud)) return solicitud;
+
+    const { idMiembro, nombreMiembro, codigoMiembro } = solicitud.payload;
+    const miembro = porId.get(String(idMiembro));
+    const nombre = nombreDelMiembro(miembro) || String(nombreMiembro || '').trim();
+    const codigo = String(
+      miembro?.memberId || miembro?.codigoMiembro || codigoMiembro || ''
+    ).trim();
+
+    return {
+      ...solicitud,
+      cambios: (solicitud.cambios || []).map((cambio) => {
+        const texto = String(cambio.despues ?? '');
+        const esLaPersona = MIEMBRO_SIN_NOMBRE.test(texto) || (nombre && texto === nombre);
+
+        return esLaPersona
+          ? { ...cambio, despues: nombre || cambio.despues, codigoDespues: codigo }
+          : cambio;
+      }),
+    };
+  });
+};
+
 const formatearFecha = (valor) => {
   if (!valor) return '';
 
@@ -115,7 +172,9 @@ export function AprobacionesView() {
     setCargando(true);
 
     try {
-      setSolicitudes(await obtenerSolicitudesCambio({ estado: 'pendiente' }));
+      setSolicitudes(
+        await conMiembrosResueltos(await obtenerSolicitudesCambio({ estado: 'pendiente' }))
+      );
     } catch (error) {
       console.error('[aprobaciones] no se pudieron cargar las solicitudes', error);
       toast.error('No se pudieron cargar las solicitudes pendientes.');
@@ -337,6 +396,15 @@ export function AprobacionesView() {
                           </TableCell>
                           <TableCell sx={{ fontWeight: 'fontWeightMedium' }}>
                             {mostrarValor(cambio.despues)}
+                            {cambio.codigoDespues && (
+                              <Typography
+                                variant="caption"
+                                component="div"
+                                sx={{ color: 'text.secondary', fontWeight: 'fontWeightRegular' }}
+                              >
+                                {cambio.codigoDespues}
+                              </Typography>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

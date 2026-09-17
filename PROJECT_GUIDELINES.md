@@ -147,7 +147,9 @@ leer el test que las cubre.**
    (`rolesQueEjerce`, no `rolId`). Quien coordina su destacamento y además ocupa
    una casilla de su sección entra por las dos.
 2. **Dominancia por módulo**: con dos cargos, en cada módulo manda el del nivel de
-   ese módulo, no el de mayor rango.
+   ese módulo, no el de mayor rango. **Excepción: el Administrador Global reina.**
+   Si lo ejerce por cualquier vía, es su rol principal en todos los módulos
+   (`src/utils/administrador-global-reina.mjs`).
 3. **Ver se suma; editar no.** La visibilidad se acumula entre cargos; la edición
    sigue la dominancia por módulo.
 4. **Tres listas, tres alcances**: secciones, destacamentos y miembros se acotan
@@ -339,7 +341,7 @@ combinar dos cargos.
 | **Miembros**                    | `/dashboard/level/member`                               | Lista (tabla y tarjetas), ficha, creación, carga masiva por Excel, PDF, solicitudes de cambio.                                                                                                                                                                                                 |
 | **Miembros de un destacamento** | `/dashboard/level/dest/[id]/edit/members`               | Pestaña que reutiliza la misma vista de miembros.                                                                                                                                                                                                                                              |
 | **Directivas**                  | `.../edit/leadership`, `.../edit/youth-leadership`      | Organigrama, asignaciones, diseños. El diseño de **Líderes Juveniles es uno solo para todos los destacamentos** (`destacamento-juvenil_global`); sin él se lee el de Tribu de Judá 18 (`231`), el modelo. Test: `tests/directivas/diseno-juvenil-global.test.mjs`.                             |
-| **Asistencia**                  | `/dashboard/level/attendance`                           | Pase de lista diario, resumen, informe avanzado, exportación. Offline-capable. El Administrador Global que prueba un rol combinado ve el selector de destacamentos y su elección queda en `preferencias_usuarios/<uid>`.                                                                                                                                                                                                                 |
+| **Asistencia**                  | `/dashboard/level/attendance`                           | Pase de lista diario, resumen, informe avanzado, exportación. El calendario permite crear actividades con nombre y rango, consultar su nombre al señalar o tocar sus días y eliminarlas con confirmación. Offline-capable. El Administrador Global que prueba un rol combinado ve el selector de destacamentos y su elección queda en `preferencias_usuarios/<uid>`. |
 | **Dispensa médica**             | `/dashboard/level/member/[id]/edit/health`              | Info básica, medicamentos, alergias, condiciones, documentos, solicitudes de acceso.                                                                                                                                                                                                           |
 | **Sistema de ascenso**          | `.../edit/awards`                                       | Catálogo de 490 premios transcrito del inventario oficial.                                                                                                                                                                                                                                     |
 | **Padres / tutores**            | `.../edit/parents`                                      | Con notas y autoguardado.                                                                                                                                                                                                                                                                      |
@@ -694,7 +696,7 @@ personas podían compartir número.
 **Preferencias** — `preferencias_usuarios` (una por uid; hoy, el destacamento elegido en Asistencia durante la prueba de roles)
 
 **Asistencia** — `asistencias`, `registrosAsistencia`,
-`ultimasAsistenciasMiembros`
+`ultimasAsistenciasMiembros`, `actividadesAsistencia`
 
 **Comercio** — `carritos`, `ordenes`, `recibos`, `direcciones`, `productos`,
 `resenas_productos`, `movimientos_inventario`, `contadores_comercio`
@@ -1079,3 +1081,9 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 
 _Última revisión: 2026-09-09. Si el código y este documento se contradicen, manda
 el código — y corrige el documento._
+# Acceso de prueba como miembro
+
+- `rdpr18@gmail.com`, mientras siga registrado como Administrador Global activo, puede abrir la sesión real de un miembro desde **Probar como usuario** en el panel de cuenta.
+- El cambio usa tokens personalizados de Firebase y no modifica la contraseña, el rol ni los permisos del miembro.
+- La barra amarilla debe permanecer visible durante la prueba y ofrecer **Volver a mi cuenta**. La identidad original se conserva únicamente en una cookie firmada y `HttpOnly`.
+- Esta capacidad está disponible en producción. La API debe comprobar siempre el correo firmado por Firebase Auth y el registro activo de Administrador Global; ocultar el botón en el cliente no sustituye esa comprobación.

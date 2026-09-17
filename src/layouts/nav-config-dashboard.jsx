@@ -2,6 +2,7 @@ import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
 
+import { Iconify } from 'src/components/iconify';
 import { SvgColor } from 'src/components/svg-color';
 
 import { CheckoutCartNavInfo } from './components/checkout-cart-nav-info';
@@ -39,6 +40,7 @@ const ICONS = {
   ecommerce: icon('ic-ecommerce'),
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
+  designer: <Iconify width={24} icon="solar:paint-brush-bold-duotone" />,
 };
 
 // ----------------------------------------------------------------------
@@ -239,18 +241,18 @@ export const tiendaDeAdministracion = [
 export const entradaEverestDesigner = {
   title: 'EXPLORA Designer',
   path: paths.dashboard.everest,
-  icon: ICONS.params,
+  icon: ICONS.designer,
 };
 
 export const conEverestDesigner = (secciones = []) =>
   secciones.map((seccion) =>
     seccion.subheader === 'Administración'
       ? {
-          ...seccion,
-          items: (seccion.items ?? []).flatMap((item) =>
-            item.path === paths.dashboard.admin.root ? [item, entradaEverestDesigner] : [item]
-          ),
-        }
+        ...seccion,
+        items: (seccion.items ?? []).flatMap((item) =>
+          item.path === paths.dashboard.admin.root ? [item, entradaEverestDesigner] : [item]
+        ),
+      }
       : seccion
   );
 
@@ -258,11 +260,11 @@ export const conTiendaDeAdministracion = (secciones = []) =>
   secciones.map((seccion) =>
     seccion.subheader === 'Tienda'
       ? {
-          ...seccion,
-          items: (seccion.items ?? []).flatMap((item) =>
-            item.path === paths.dashboard.product.root ? tiendaDeAdministracion : [item]
-          ),
-        }
+        ...seccion,
+        items: (seccion.items ?? []).flatMap((item) =>
+          item.path === paths.dashboard.product.root ? tiendaDeAdministracion : [item]
+        ),
+      }
       : seccion
   );
 
@@ -288,7 +290,7 @@ export const conTiendaDeAdministracion = (secciones = []) =>
 // Niveles Organizacionales, que es donde encaja por lo que enseña; la coloca
 // `conUsuarioDeDesarrollo` y solo la ve el Administrador Global.
 export const ITEM_USUARIO_DESARROLLO = {
-  title: 'Usuario - desarrollo',
+  title: 'Mi usuario',
   path: paths.dashboard.user.root,
   icon: ICONS.user,
   children: [

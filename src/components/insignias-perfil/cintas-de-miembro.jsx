@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { keyframes } from '@mui/material/styles';
@@ -28,6 +29,7 @@ import {
   disponerCintasEnFilas,
   configuracionPorCinta,
   normalizarEfectoBorde,
+  MAXIMO_CINTAS_VISIBLES,
   normalizarEfectoNumero,
   CATALOGO_CINTAS_PERFIL,
 } from 'src/utils/cintas-perfil.mjs';
@@ -88,7 +90,7 @@ const centelleoDelNumero = keyframes`
 
 const CINTAS_CON_BORDE_DORADO = new Set(['3', '5', '6', '7', '12a']);
 
-const OPCIONES_BORDE = [
+export const OPCIONES_BORDE = [
   [EFECTOS_BORDE_CINTA.BARRIDO, 'Barrido actual'],
   [EFECTOS_BORDE_CINTA.OLA, 'Ola lenta'],
   [EFECTOS_BORDE_CINTA.PULSO, 'Pulso suave'],
@@ -96,7 +98,7 @@ const OPCIONES_BORDE = [
   [EFECTOS_BORDE_CINTA.NINGUNO, 'Sin efecto'],
 ];
 
-const OPCIONES_NUMERO = [
+export const OPCIONES_NUMERO = [
   [EFECTOS_NUMERO_CINTA.BARRIDO, 'Barrido actual'],
   [EFECTOS_NUMERO_CINTA.DESTELLO, 'Destello de estrella'],
   [EFECTOS_NUMERO_CINTA.AURA, 'Aura dorada'],
@@ -155,6 +157,100 @@ const estiloDelBorde = (efecto) => {
 
 // ----------------------------------------------------------------------
 
+// LAS CINTAS TARDAN EN LLEGAR (Firestore y luego cada imagen), y el perfil
+// pegaba un salto al aparecer. Se recuerda cuántas tenía la última vez para
+// guardar ese hueco con un esqueleto; quien no tenía cintas no ve ninguno.
+const claveDeCantidad = (id) => `erd-cintas-cantidad-${id}`;
+
+const cantidadRecordada = (id) => {
+  try {
+    return Number(window.localStorage.getItem(claveDeCantidad(id))) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const recordarCantidad = (id, cantidad) => {
+  try {
+    if (cantidad) window.localStorage.setItem(claveDeCantidad(id), String(cantidad));
+    else window.localStorage.removeItem(claveDeCantidad(id));
+  } catch {
+    // Ventana privada: sin esqueleto la próxima vez, nada más.
+  }
+};
+
+// Proporción de las imágenes de cinta (240 × ~71): el esqueleto ocupa lo mismo.
+const PROPORCION_CINTA = '240 / 71';
+
+// ----------------------------------------------------------------------
+
+/**
+ * El hueco de las cintas mientras cargan, con la misma forma que tendran: filas
+ * de 3 y la ultima centrada. Solo si esa persona tenia cintas la ultima vez.
+ *
+ * Lo usa tambien el esqueleto de la pagina de la cuenta, para que el hueco sea el
+ * MISMO antes y despues de que llegue el miembro: con dos esqueletos distintos
+ * la tarjeta cambiaba de forma a media carga.
+ */
+export function EsqueletoDeCintas({
+  idMiembros,
+  sx,
+  maxWidth = 300,
+  espacioHorizontal = 0.3,
+  espacioVertical = 0.3,
+}) {
+  const id = String(Number(idMiembros) || '');
+  const [esperadas] = useState(() =>
+    id && typeof window !== 'undefined'
+      ? Math.min(cantidadRecordada(id), MAXIMO_CINTAS_VISIBLES)
+      : 0
+  );
+
+  if (!esperadas) return null;
+
+  const filas = Array.from({ length: Math.ceil(esperadas / CINTAS_POR_FILA) }, (_, fila) =>
+    Math.min(CINTAS_POR_FILA, esperadas - fila * CINTAS_POR_FILA)
+  );
+
+  return (
+    <Box
+      aria-busy="true"
+      sx={[
+        {
+          mx: 'auto',
+          width: 1,
+          maxWidth,
+          display: 'flex',
+          flexDirection: 'column',
+          rowGap: espacioVertical,
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {filas.map((cuantas, fila) => (
+        <Box
+          key={fila}
+          sx={{ display: 'flex', justifyContent: 'center', columnGap: espacioHorizontal }}
+        >
+          {Array.from({ length: cuantas }, (_, indice) => (
+            <Skeleton
+              key={indice}
+              variant="rounded"
+              sx={(theme) => ({
+                height: 'auto',
+                aspectRatio: PROPORCION_CINTA,
+                width: `calc((100% - ${theme.spacing(espacioHorizontal * (CINTAS_POR_FILA - 1))}) / ${CINTAS_POR_FILA})`,
+              })}
+            />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
 // Igual que el menú lateral: la cuenta administrativa de siempre llega con
 // `role: 'admin'` y no con el cargo.
 const esAdministradorGlobal = (user) =>
@@ -179,24 +275,49 @@ export function CintasDeMiembro({
   const puedeEditar = esAdministradorGlobal(user);
   const id = String(Number(idMiembros) || '');
 
-  const [asignadas, setAsignadas] = useState([]);
+  // `idLeido` dice de quién son las cintas: mientras no coincide, siguen cargando.
+  const [leidas, setLeidas] = useState({ idLeido: '', cintas: [] });
   const [abierto, setAbierto] = useState(false);
+  const cargando = leidas.idLeido !== id;
+  const asignadas = useMemo(() => (cargando ? [] : leidas.cintas), [cargando, leidas.cintas]);
 
   useEffect(() => {
     if (!id) return undefined;
 
     return onSnapshot(
       referenciaDeCintas(id),
-      (instantanea) => setAsignadas(instantanea.data()?.cintas ?? []),
-      // Sin permiso o sin red el perfil sigue pintándose, solo que sin cintas.
-      (error) => console.error('[cintas] no se pudieron leer', error)
+      (instantanea) => {
+        const cintas = instantanea.data()?.cintas ?? [];
+
+        recordarCantidad(id, cintas.length);
+        setLeidas({ idLeido: id, cintas });
+      },
+      (error) => {
+        // Sin permiso o sin red el perfil sigue pintándose, solo que sin cintas.
+        console.error('[cintas] no se pudieron leer', error);
+        setLeidas({ idLeido: id, cintas: [] });
+      }
     );
   }, [id]);
 
   const filas = useMemo(() => disponerCintasEnFilas(asignadas), [asignadas]);
   const configuraciones = useMemo(() => configuracionPorCinta(asignadas), [asignadas]);
 
-  if (!id || (!filas.length && !puedeEditar)) return null;
+  if (!id) return null;
+
+  if (cargando) {
+    return (
+      <EsqueletoDeCintas
+        idMiembros={id}
+        sx={sx}
+        maxWidth={maxWidth}
+        espacioHorizontal={espacioHorizontal}
+        espacioVertical={espacioVertical}
+      />
+    );
+  }
+
+  if (!filas.length && !puedeEditar) return null;
 
   return (
     <Box
@@ -278,12 +399,14 @@ export function CintasDeMiembro({
 // ----------------------------------------------------------------------
 
 // La cinta con, si se ganó más de una vez, su número dorado en el centro.
-function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
+export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
   const digitos = digitosDeVeces(veces);
   const tieneBordeDorado = CINTAS_CON_BORDE_DORADO.has(cinta.id);
   const bordeElegido = normalizarEfectoBorde(efectoBorde);
   const numeroElegido = normalizarEfectoNumero(efectoNumero);
   const [brilloAleatorio, setBrilloAleatorio] = useState(null);
+  // La imagen aún no llegó: se guarda su hueco con un esqueleto.
+  const [imagenLista, setImagenLista] = useState(false);
 
   useEffect(() => {
     if (numeroElegido !== EFECTOS_NUMERO_CINTA.DESTELLO || !digitos.length) return undefined;
@@ -314,12 +437,32 @@ function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
   }, [digitos.length, numeroElegido]);
 
   return (
-    <Box sx={{ position: 'relative', lineHeight: 0 }}>
+    <Box
+      sx={{
+        position: 'relative',
+        lineHeight: 0,
+        ...(!imagenLista && { aspectRatio: PROPORCION_CINTA }),
+      }}
+    >
+      {!imagenLista && (
+        <Skeleton variant="rounded" sx={{ inset: 0, position: 'absolute', height: 1 }} />
+      )}
       <Box
         component="img"
         src={cinta.src}
         alt={cinta.nombre}
-        sx={{ width: 1, height: 'auto', display: 'block' }}
+        onLoad={() => setImagenLista(true)}
+        onError={() => setImagenLista(true)}
+        // Ya en caché, `onLoad` puede dispararse antes de hidratar: se mira `complete`.
+        ref={(imagen) => {
+          if (imagen?.complete && !imagenLista) setImagenLista(true);
+        }}
+        sx={{
+          width: 1,
+          height: 'auto',
+          display: 'block',
+          ...(!imagenLista && { opacity: 0, position: 'absolute', inset: 0 }),
+        }}
       />
       {tieneBordeDorado && bordeElegido !== EFECTOS_BORDE_CINTA.NINGUNO && (
         <Box
@@ -479,7 +622,7 @@ function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
 // para qué se da.
 // La descripción entera tapaba media tarjeta: se ven dos líneas y "Ver más"
 // abre el resto dentro del mismo aviso (el Tooltip de MUI deja pulsar dentro).
-function TextoDeCinta({ cinta }) {
+export function TextoDeCinta({ cinta }) {
   const [completa, setCompleta] = useState(false);
 
   return (

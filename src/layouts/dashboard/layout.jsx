@@ -5,7 +5,6 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
@@ -54,6 +53,8 @@ import { WorkspacesPopover } from '../components/workspaces-popover';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
 import { RoleCombinationPopover } from '../components/role-combination-popover';
+import { SesionComoUsuarioBanner } from '../components/sesion-como-usuario-banner';
+import { ProbarComoUsuarioDialog } from '../components/probar-como-usuario-dialog';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 import {
   navDataDesarrollo,
@@ -206,6 +207,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   );
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+  const probarComoUsuario = useBoolean();
 
   const handleMarcarTodasComoLeidas = async () => {
     const notificacionesActualizadas = notificacionesDrawer.map((notification) => ({
@@ -398,11 +400,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
 
     const headerSlots = {
-      topArea: (
-        <Alert severity="info" sx={{ display: 'none', borderRadius: 0 }}>
-          This is an info Alert.
-        </Alert>
-      ),
+      topArea: <SesionComoUsuarioBanner />,
       bottomArea: isNavHorizontal ? (
         <NavHorizontal
           data={navData}
@@ -512,7 +510,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <SettingsButton />
 
           {/** @slot Account drawer */}
-          <AccountDrawer data={_account} />
+          <AccountDrawer
+            data={_account}
+            onProbarComoUsuario={
+              String(user?.email ?? user?.correo ?? '').trim().toLowerCase() === 'rdpr18@gmail.com' &&
+              esAdministradorGlobal
+                ? probarComoUsuario.onTrue
+                : undefined
+            }
+          />
         </Box>
       ),
     };
@@ -617,6 +623,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ]}
     >
       {renderMain()}
+      <ProbarComoUsuarioDialog
+        open={probarComoUsuario.value}
+        onClose={probarComoUsuario.onFalse}
+      />
     </LayoutSection>
   );
 }

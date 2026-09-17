@@ -47,6 +47,7 @@ import {
 } from 'src/utils/nombres-de-persona';
 import {
   ordenarRango,
+  actividadEnFecha,
   fechasConActividad,
   fechaSeleccionable,
   motivoRangoInvalido,
@@ -67,6 +68,7 @@ import {
 } from 'src/services/preferencias-usuario-service';
 import {
   crearActividadAsistencia,
+  eliminarActividadAsistencia,
   listarActividadesAsistencia,
   limpiarAsistenciaDestacamento,
   guardarAsistenciaDestacamento,
@@ -822,7 +824,8 @@ function AttendanceMemberSkeleton() {
 function DiaDelCalendario({
   modoActividad = false,
   rango = null,
-  conActividad = null,
+  actividades = [],
+  onApuntarActividad,
   onElegirDiaActividad,
   ...props
 }) {
@@ -832,14 +835,21 @@ function DiaDelCalendario({
     : { fechaInicio: '', fechaFin: '' };
   const enRango = modoActividad && fechaInicio && fecha >= fechaInicio && fecha <= fechaFin;
   const esExtremo = enRango && (fecha === fechaInicio || fecha === fechaFin);
-  const tieneActividad = !modoActividad && conActividad?.has(fecha) && !props.outsideCurrentMonth;
+  const actividad =
+    !modoActividad && !props.outsideCurrentMonth ? actividadEnFecha(actividades, fecha) : null;
+  const tieneActividad = Boolean(actividad);
 
-  return (
+  const dia = (
     <PickersDay
       {...props}
       selected={modoActividad ? Boolean(esExtremo) : props.selected}
-      onDaySelect={(dia) =>
-        modoActividad ? onElegirDiaActividad?.(dayjs(dia)) : props.onDaySelect?.(dia)
+      onFocus={() => onApuntarActividad?.(actividad)}
+      onMouseEnter={() => onApuntarActividad?.(actividad)}
+      onTouchStart={() => onApuntarActividad?.(actividad)}
+      onDaySelect={(diaElegido) =>
+        modoActividad
+          ? onElegirDiaActividad?.(dayjs(diaElegido))
+          : props.onDaySelect?.(diaElegido)
       }
       sx={[
         enRango &&
@@ -864,6 +874,20 @@ function DiaDelCalendario({
       ]}
     />
   );
+
+  if (!actividad) return dia;
+
+  return (
+    <Tooltip
+      arrow
+      describeChild
+      enterTouchDelay={0}
+      leaveTouchDelay={4000}
+      title={actividad.nombre || 'Actividad'}
+    >
+      <span>{dia}</span>
+    </Tooltip>
+  );
 }
 
 // La barra de abajo del calendario. Fuera del modo, "Agregar actividad" junto a
@@ -874,7 +898,9 @@ function BarraDelCalendario({
   puedeAgregarActividad = false,
   modoActividad = false,
   rango = null,
+  nombreActividad = '',
   guardandoActividad = false,
+  onCambiarNombreActividad,
   onEmpezarActividad,
   onCancelarActividad,
   onAceptarActividad,
@@ -884,7 +910,7 @@ function BarraDelCalendario({
     return (
       <Box
         className={className}
-        sx={{ px: 2, pb: 1.5, gap: 1, display: 'flex', alignItems: 'center' }}
+        sx={{ px: 2, pb: 1, gap: 1, display: 'flex', alignItems: 'center' }}
       >
         {puedeAgregarActividad && (
           <Button
@@ -929,6 +955,19 @@ function BarraDelCalendario({
         </Typography>
       )}
 
+      {inicio && (
+        <TextField
+          autoFocus
+          fullWidth
+          size="small"
+          label="Nombre de la actividad"
+          value={nombreActividad}
+          onChange={onCambiarNombreActividad}
+          slotProps={{ htmlInput: { maxLength: 100 } }}
+          sx={{ mb: 1 }}
+        />
+      )}
+
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button size="small" color="inherit" onClick={onCancelarActividad}>
           Cancelar
@@ -937,7 +976,7 @@ function BarraDelCalendario({
           size="small"
           variant="contained"
           onClick={onAceptarActividad}
-          disabled={!inicio || Boolean(motivo) || guardandoActividad}
+          disabled={!inicio || !nombreActividad.trim() || Boolean(motivo) || guardandoActividad}
           loading={guardandoActividad}
         >
           Aceptar
@@ -951,6 +990,7 @@ export function AttendanceQuickView() {
   const { user } = useAuthContext();
   const menuActions = usePopover();
   const confirmClear = useBoolean();
+  const confirmarEliminarActividad = useBoolean();
   const resumenDelDia = useBoolean();
   const informeAvanzado = useBoolean();
 
@@ -989,7 +1029,10 @@ export function AttendanceQuickView() {
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [modoActividad, setModoActividad] = useState(false);
   const [rangoActividad, setRangoActividad] = useState({ inicio: '', fin: '' });
+  const [nombreActividad, setNombreActividad] = useState('');
+  const [actividadApuntada, setActividadApuntada] = useState(null);
   const [guardandoActividad, setGuardandoActividad] = useState(false);
+  const [eliminandoActividad, setEliminandoActividad] = useState(false);
   const conActividad = useMemo(() => fechasConActividad(actividades), [actividades]);
   // GUARDADO AUTOMATICO. Cada marca sube el contador; lo guardado recuerda hasta
   // cual llego. Lo que carga Firebase no lo sube, asi que abrir un dia no lo
@@ -1269,6 +1312,7 @@ export function AttendanceQuickView() {
     let activo = true;
 
     setActividades([]);
+    setActividadApuntada(null);
 
     if (!selectedDestId) return undefined;
 
@@ -1287,6 +1331,7 @@ export function AttendanceQuickView() {
     setCalendarioAbierto(false);
     setModoActividad(false);
     setRangoActividad({ inicio: '', fin: '' });
+    setNombreActividad('');
   }, []);
 
   // Primer clic, el inicio; segundo, el fin. Un tercero empieza otro rango.
@@ -1938,6 +1983,7 @@ export function AttendanceQuickView() {
           idDestacamento: selectedDestId,
           nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
         },
+        nombre: nombreActividad,
         fechaInicio,
         fechaFin,
         usuario: getAuditUser(),
@@ -1948,6 +1994,7 @@ export function AttendanceQuickView() {
         actividad,
       ]);
       setDate(fechaInicio);
+      setActividadApuntada(actividad);
       cerrarCalendario();
       toast.success(
         fechaInicio === fechaFin
@@ -1959,7 +2006,33 @@ export function AttendanceQuickView() {
     } finally {
       setGuardandoActividad(false);
     }
-  }, [cerrarCalendario, getAuditUser, rangoActividad, selectedDest, selectedDestId]);
+  }, [
+    cerrarCalendario,
+    getAuditUser,
+    nombreActividad,
+    rangoActividad,
+    selectedDest,
+    selectedDestId,
+  ]);
+
+  const handleEliminarActividad = useCallback(async () => {
+    if (!actividadApuntada) return;
+
+    try {
+      setEliminandoActividad(true);
+      await eliminarActividadAsistencia({ actividad: actividadApuntada, usuario: getAuditUser() });
+      setActividades((actuales) =>
+        actuales.filter((item) => item.id !== actividadApuntada.id)
+      );
+      setActividadApuntada(null);
+      confirmarEliminarActividad.onFalse();
+      toast.success('Actividad eliminada.');
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo eliminar la actividad.');
+    } finally {
+      setEliminandoActividad(false);
+    }
+  }, [actividadApuntada, confirmarEliminarActividad, getAuditUser]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -2295,6 +2368,25 @@ export function AttendanceQuickView() {
     />
   );
 
+  const renderConfirmarEliminarActividad = () => (
+    <ConfirmDialog
+      open={confirmarEliminarActividad.value}
+      onClose={confirmarEliminarActividad.onFalse}
+      title="Eliminar actividad"
+      content={`¿Seguro que deseas eliminar “${actividadApuntada?.nombre || 'esta actividad'}”?`}
+      action={
+        <Button
+          variant="contained"
+          color="error"
+          disabled={eliminandoActividad}
+          onClick={handleEliminarActividad}
+        >
+          {eliminandoActividad ? 'Eliminando...' : 'Eliminar'}
+        </Button>
+      }
+    />
+  );
+
   // La pantalla no comprobaba NADA: el menu no se la ofrecia a quien no lleva
   // `asistencia.ver`, pero escribiendo la URL entraba cualquiera —y con el
   // desplegable de destacamentos del pais entero, porque el alcance se pedia sin
@@ -2396,68 +2488,113 @@ export function AttendanceQuickView() {
                 </TextField>
               )}
 
-              <DatePicker
-                label="Fecha"
-                value={date ? dayjs(date) : null}
-                minDate={PRIMER_DIA_CON_ASISTENCIA}
-                maxDate={ULTIMO_DIA_CON_ASISTENCIA}
+              <Box sx={{ minWidth: 0 }}>
+                <DatePicker
+                  label="Fecha"
+                  value={date ? dayjs(date) : null}
+                  minDate={PRIMER_DIA_CON_ASISTENCIA}
+                  maxDate={ULTIMO_DIA_CON_ASISTENCIA}
                 // Se pasa por el año y por el mes antes de llegar al dia, para
                 // poder saltar a un mes de atras sin ir flecha a flecha.
-                views={['year', 'month', 'day']}
+                  views={['year', 'month', 'day']}
                 // Un dia queda apagado por dos razones: todavia no llego, o el
                 // destacamento no se reune ese dia de la semana y no hay
                 // asistencia que pasar. Salvo que sea de una actividad. Y al
                 // agregar una, todos se pueden pulsar: la actividad puede caer
                 // cualquier dia, tambien en el futuro.
-                shouldDisableDate={(fecha) =>
-                  !modoActividad &&
-                  !fechaSeleccionable({
-                    fecha: dayjs(fecha).format('YYYY-MM-DD'),
-                    hoy: dayjs().format('YYYY-MM-DD'),
-                    diaDeReunion,
-                    conActividad,
-                  })
-                }
-                open={calendarioAbierto}
-                onOpen={() => setCalendarioAbierto(true)}
-                onClose={cerrarCalendario}
+                  shouldDisableDate={(fecha) =>
+                    !modoActividad &&
+                    !fechaSeleccionable({
+                      fecha: dayjs(fecha).format('YYYY-MM-DD'),
+                      hoy: dayjs().format('YYYY-MM-DD'),
+                      diaDeReunion,
+                      conActividad,
+                    })
+                  }
+                  open={calendarioAbierto}
+                  onOpen={() => setCalendarioAbierto(true)}
+                  onClose={cerrarCalendario}
                 // Eligiendo el rango de una actividad el calendario no se cierra
                 // al primer clic: hace falta pulsar el ultimo dia y "Aceptar".
-                closeOnSelect={!modoActividad}
-                onChange={(newValue) => {
-                  if (modoActividad) return;
+                  closeOnSelect={!modoActividad}
+                  onChange={(newValue) => {
+                    if (modoActividad) return;
 
-                  const parsed = dayjs(newValue);
-                  setDate(parsed.isValid() ? parsed.format('YYYY-MM-DD') : '');
-                }}
-                slots={{ day: DiaDelCalendario, actionBar: BarraDelCalendario }}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                  },
-                  day: {
-                    modoActividad,
-                    rango: rangoActividad,
-                    conActividad,
-                    onElegirDiaActividad: handleElegirDiaActividad,
-                  },
-                  actionBar: {
-                    puedeAgregarActividad: puedePasarAsistencia && Boolean(selectedDestId),
-                    modoActividad,
-                    rango: rangoActividad,
-                    guardandoActividad,
-                    onEmpezarActividad: () => {
-                      setRangoActividad({ inicio: '', fin: '' });
-                      setModoActividad(true);
+                    const parsed = dayjs(newValue);
+                    const nuevaFecha = parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+                    setDate(nuevaFecha);
+                    setActividadApuntada(actividadEnFecha(actividades, nuevaFecha));
+                  }}
+                  slots={{ day: DiaDelCalendario, actionBar: BarraDelCalendario }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
                     },
-                    onCancelarActividad: () => {
-                      setModoActividad(false);
-                      setRangoActividad({ inicio: '', fin: '' });
+                    // El calendario reserva siempre seis semanas. Al dejar la
+                    // altura en el contenido, la accion queda junto a la ultima
+                    // fila real del mes, tambien en el dialogo del movil.
+                    layout: {
+                      sx: {
+                        '& .MuiDayCalendar-slideTransition, & .MuiDayCalendar-monthContainer': {
+                          minHeight: 'auto',
+                        },
+                      },
                     },
-                    onAceptarActividad: handleAceptarActividad,
-                  },
-                }}
-              />
+                    day: {
+                      modoActividad,
+                      rango: rangoActividad,
+                      actividades,
+                      onApuntarActividad: setActividadApuntada,
+                      onElegirDiaActividad: handleElegirDiaActividad,
+                    },
+                    actionBar: {
+                      puedeAgregarActividad: puedePasarAsistencia && Boolean(selectedDestId),
+                      modoActividad,
+                      rango: rangoActividad,
+                      nombreActividad,
+                      guardandoActividad,
+                      onCambiarNombreActividad: (event) => setNombreActividad(event.target.value),
+                      onEmpezarActividad: () => {
+                        setRangoActividad({ inicio: '', fin: '' });
+                        setNombreActividad('');
+                        setModoActividad(true);
+                      },
+                      onCancelarActividad: () => {
+                        setModoActividad(false);
+                        setRangoActividad({ inicio: '', fin: '' });
+                        setNombreActividad('');
+                      },
+                      onAceptarActividad: handleAceptarActividad,
+                    },
+                  }}
+                />
+
+                {actividadApuntada && !modoActividad && (
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    alignItems="center"
+                    sx={{ mt: 0.5, pl: 1, minWidth: 0 }}
+                  >
+                    <Iconify icon="solar:calendar-date-bold" width={16} />
+                    <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                      {actividadApuntada.nombre || 'Actividad'}
+                    </Typography>
+                    {puedePasarAsistencia && (
+                      <Tooltip title="Eliminar actividad">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={confirmarEliminarActividad.onTrue}
+                          aria-label={`Eliminar ${actividadApuntada.nombre || 'actividad'}`}
+                        >
+                          <Iconify icon="solar:trash-bin-trash-bold" width={16} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
+                )}
+              </Box>
 
               <TextField
                 select
@@ -2806,6 +2943,7 @@ export function AttendanceQuickView() {
 
       {renderMenuActions()}
       {renderConfirmClearDialog()}
+      {renderConfirmarEliminarActividad()}
       {renderResumenDialog()}
 
       <AttendanceAdvancedReportDialog

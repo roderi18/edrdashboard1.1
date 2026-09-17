@@ -772,7 +772,7 @@ export function UserAccountGeneral() {
   });
 
   if (!user || loadingMember) {
-    return <AccountSectionSkeleton variant="profile" />;
+    return <AccountSectionSkeleton variant="profile" idMiembros={user?.idMiembros} />;
   }
 
   if (!member) {

@@ -1,4 +1,5 @@
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -33,6 +34,9 @@ const ROLES_SIN_DOMINANCIA_POR_MODULO = [
 ];
 
 const codigoDeRolPrincipal = (user = {}) => {
+  // El Administrador Global reina: lo ejerza como principal o como un cargo más.
+  if (ejerceAdministradorGlobal(user)) return ROLES.ADMINISTRADOR_GLOBAL;
+
   const rawRole = String(user?.rol || user?.role || '').trim();
 
   return String(

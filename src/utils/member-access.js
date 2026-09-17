@@ -3,6 +3,7 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 import { paths } from 'src/routes/paths';
 
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
 import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 import {
   isAdminGlobal,
@@ -299,6 +300,9 @@ const rolQueMandaEnElModulo = (user = {}) => {
 };
 
 const getScopeUserRoleId = (user = {}) => {
+  // El Administrador Global reina sobre cualquier otro cargo, en todos los módulos.
+  if (ejerceAdministradorGlobal(user)) return ROLES.ADMINISTRADOR_GLOBAL;
+
   // ANTES QUE NADA, el cargo que manda en este modulo: sobre los miembros de su
   // destacamento decide su cargo de destacamento, aunque ademas ocupe una
   // casilla de mayor nivel en su seccion o su region.
@@ -2058,6 +2062,8 @@ const ADMIN_PERMISSION_MODULE_KEYS = new Set([
 ]);
 
 const getUserRoleId = (user = {}) => {
+  if (ejerceAdministradorGlobal(user)) return ROLES.ADMINISTRADOR_GLOBAL;
+
   const explicitRoleId = String(
     user?.rolId ?? user?.roleId ?? user?.rolCodigo ?? user?.roleCodigo ?? user?.memberRole ?? ''
   )
@@ -2524,7 +2530,7 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
 
 // Es el Administrador Global (control total). Es el unico rol que ve las
 // pestanas de demostracion/desarrollo del template (Aplicacion, Ecommerce,
-// Analytics, Banking, File, Course, Usuario - desarrollo, Job, Tour).
+// Analytics, Banking, File, Course, Mi usuario, Job, Tour).
 const isGlobalAdminUser = (user = {}) =>
   getUserRoleId(user) === ROLES.ADMINISTRADOR_GLOBAL || isLegacyFullDashboardAdmin(user);
 
@@ -2558,7 +2564,7 @@ const isDevDemoNavItem = (item = {}) => {
     title === 'banking' ||
     title === 'file' ||
     title === 'course' ||
-    title === 'usuario - desarrollo' ||
+    title === 'Mi usuario' ||
     title === 'job' ||
     title === 'tour'
   );

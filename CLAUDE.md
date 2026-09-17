@@ -34,6 +34,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 
 8. **Buzones compartidos del chat** (Tienda Virtual 20001, Oficina Nacional 20002): un poder, no una cuenta. Cada uno es una entrada de `src/utils/chat-buzones.mjs`; lo atienden sus cargos (entre todos los de la persona) y el Administrador Global atiende todos. El servidor comprueba el cargo antes de escribir como el buzón; una persona nunca usa esos números. Test: `tests/chat/chat-buzones-compartidos.test.mjs`.
 
+9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye. Test: `tests/acceso/administrador-global-reina.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 

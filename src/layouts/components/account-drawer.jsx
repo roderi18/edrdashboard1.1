@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
 import Drawer from '@mui/material/Drawer';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -44,7 +45,7 @@ import { SignOutButton } from './sign-out-button';
 
 // ----------------------------------------------------------------------
 
-export function AccountDrawer({ data = [], sx, ...other }) {
+export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
@@ -284,6 +285,20 @@ export function AccountDrawer({ data = [], sx, ...other }) {
         </Scrollbar>
 
         <Box sx={{ p: 2.5 }}>
+          {onProbarComoUsuario && (
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Iconify icon="solar:user-id-bold-duotone" />}
+              onClick={() => {
+                onClose();
+                onProbarComoUsuario();
+              }}
+              sx={{ mb: 1 }}
+            >
+              Probar como usuario
+            </Button>
+          )}
           <SignOutButton onClose={onClose} />
         </Box>
       </Drawer>

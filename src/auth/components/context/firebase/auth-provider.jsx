@@ -8,6 +8,7 @@ import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
+import { conAdministradorGlobalAlMando } from 'src/utils/administrador-global-reina.mjs';
 import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
 import {
   loadAdminProfile,
@@ -285,7 +286,11 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
  * o cerrarla devuelve al Administrador Global sin depender de que la base de
  * datos le deje escribir su propio rol.
  */
-const aplicarSimulacionDeRoles = (user) => {
+const aplicarSimulacionDeRoles = (usuario) => {
+  // Antes que la prueba: el Administrador Global reina sobre sus otros cargos
+  // (`administrador-global-reina.mjs`). La prueba, si está encendida, sustituye
+  // rol y cargos después, así que sigue probando lo que tiene que probar.
+  const user = conAdministradorGlobalAlMando(usuario);
   const simulacion = leerSimulacionDeRoles();
 
   if (!user || !simulacion) return user;

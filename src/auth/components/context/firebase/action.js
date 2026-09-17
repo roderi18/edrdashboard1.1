@@ -199,6 +199,11 @@ export const signOut = async () => {
   // sabria de quien era— y no puede impedir el cierre si falla.
   try {
     borrarBorradoresDeFormulario();
+    window.localStorage.removeItem('edr-sesion-como-usuario');
+    // Si se cierra mientras se prueba otra cuenta, se elimina primero la llave
+    // HttpOnly de regreso. Así el siguiente usuario de este navegador no puede
+    // recuperar la sesión administrativa anterior.
+    await fetch('/api/admin/probar-como-usuario', { method: 'DELETE' }).catch(() => {});
   } catch (error) {
     console.warn('[auth] no se pudieron limpiar los borradores', error);
   }

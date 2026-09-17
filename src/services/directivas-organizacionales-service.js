@@ -826,7 +826,10 @@ export async function guardarAsignacionDirectiva({
   // El registro va dirigido a una persona que lo lee, no a la base de datos: el
   // nombre y el cargo por delante, y el id solo cuando no hay nombre. Antes
   // decia "al miembro 306", que no le dice nada a nadie.
-  const personaAuditoria = normalizarTexto(nombreMiembro) || `el miembro ${idMiembroResolved}`;
+  // `nombreCopia`, no `nombreMiembro`: quien llama con solo el id (la directiva
+  // regional, por ejemplo) dejaba la solicitud en "el miembro 323" aunque arriba
+  // ya se hubiera resuelto el nombre.
+  const personaAuditoria = nombreCopia || `el miembro ${idMiembroResolved}`;
   const cargoAuditoria =
     POSICION_POR_ID_CARGO.get(normalizarTexto(idPosicionDirectiva))?.nombreCargo || '';
   const dondeAuditoria = normalizarTexto(nombreEntidad) || `${nivel} ${idEntidad}`;

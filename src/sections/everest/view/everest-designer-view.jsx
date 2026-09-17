@@ -1,6 +1,8 @@
 'use client';
 
+import Tab from '@mui/material/Tab';
 import Grid from '@mui/material/Grid';
+import Tabs from '@mui/material/Tabs';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -9,6 +11,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { ESTADOS_DEL_BLOQUE } from 'src/utils/everest/estado-del-bloque.mjs';
@@ -21,6 +24,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { EDITORES_DE_BLOQUE } from '../editores';
+import { EverestCintas } from '../everest-cintas';
 import { EverestVistaPrevia } from '../everest-vista-previa';
 import { EditorDeDiseno } from '../editores/editor-de-diseno';
 import { useEverestDesigner } from '../hooks/use-everest-designer';
@@ -43,7 +47,13 @@ import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 //
 // ES UNA PANTALLA PROPIA DEL MENU, debajo de "Administradores", y no una pestaña
 // de Administracion: por eso lleva su propio encabezado y su propio marco.
+//
+// DOS ESPACIOS: "Portada" (los bloques de /principal) y "Cintas" (el catalogo de
+// cintas del perfil). El espacio va en la direccion (`?seccion=cintas`) para que
+// se pueda enlazar y para que los lapices de la portada sigan cayendo en Portada.
 // ----------------------------------------------------------------------
+
+const SECCIONES = Object.freeze({ portada: 'portada', cintas: 'cintas' });
 
 const ENCABEZADO = (
   <CustomBreadcrumbs
@@ -56,6 +66,22 @@ const ENCABEZADO = (
 export function EverestDesignerView() {
   const { user } = useAuthContext();
   const designer = useEverestDesigner();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const seccion =
+    searchParams.get('seccion') === SECCIONES.cintas ? SECCIONES.cintas : SECCIONES.portada;
+
+  const cambiarSeccion = (nueva) => {
+    const parametros = new URLSearchParams(searchParams.toString());
+
+    if (nueva === SECCIONES.portada) parametros.delete('seccion');
+    else parametros.set('seccion', nueva);
+
+    const consulta = parametros.toString();
+
+    router.replace(consulta ? `${pathname}?${consulta}` : pathname);
+  };
 
   // En su primera version es solo del Administrador Global. El menu no se lo
   // enseña a nadie mas, pero la direccion se puede escribir a mano.
@@ -105,110 +131,119 @@ export function EverestDesignerView() {
     <DashboardContent maxWidth="xl">
       {ENCABEZADO}
 
-      <Stack spacing={3}>
-        <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>
-          {designer.volver && (
+      <Tabs value={seccion} onChange={(evento, nueva) => cambiarSeccion(nueva)} sx={{ mb: 3 }}>
+        <Tab value={SECCIONES.portada} label="Portada" />
+        <Tab value={SECCIONES.cintas} label="Cintas" />
+      </Tabs>
+
+      {seccion === SECCIONES.cintas ? (
+        <EverestCintas />
+      ) : (
+        <Stack spacing={3}>
+          <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>
+            {designer.volver && (
+              <Button
+                component={RouterLink}
+                href={designer.volver}
+                color="inherit"
+                startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              >
+                Volver
+              </Button>
+            )}
+
+            <Typography variant="body2" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+              Los cambios se guardan como borrador y no se ven en la portada hasta publicarlos.
+            </Typography>
+
             <Button
-              component={RouterLink}
-              href={designer.volver}
               color="inherit"
-              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              startIcon={<Iconify icon="solar:restart-bold" />}
+              onClick={designer.recargar}
+              disabled={designer.cargando}
             >
-              Volver
+              Recargar
             </Button>
+          </Stack>
+
+          {designer.error && (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" size="small" onClick={designer.recargar}>
+                  Reintentar
+                </Button>
+              }
+            >
+              No se pudo leer o guardar la portada. Si es la primera vez, comprueba que las reglas
+              de Firestore estén publicadas.
+            </Alert>
           )}
 
-          <Typography variant="body2" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-            Los cambios se guardan como borrador y no se ven en la portada hasta publicarlos.
-          </Typography>
-
-          <Button
-            color="inherit"
-            startIcon={<Iconify icon="solar:restart-bold" />}
-            onClick={designer.recargar}
-            disabled={designer.cargando}
-          >
-            Recargar
-          </Button>
-        </Stack>
-
-        {designer.error && (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" size="small" onClick={designer.recargar}>
-                Reintentar
-              </Button>
-            }
-          >
-            No se pudo leer o guardar la portada. Si es la primera vez, comprueba que las reglas de
-            Firestore estén publicadas.
-          </Alert>
-        )}
-
-        {designer.cargando && !designer.estados.length ? (
-          <Stack alignItems="center" sx={{ py: 8 }}>
-            <CircularProgress />
-          </Stack>
-        ) : (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-              <EverestListaDeBloques
-                estados={designer.estados}
-                idSeleccionado={designer.idSeleccionado}
-                onSeleccionar={designer.seleccionar}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 8, lg: 6 }}>
-              {estadoSeleccionado?.estado === ESTADOS_DEL_BLOQUE.externo ? (
-                <Alert severity="info">
-                  La vista previa de este encabezado está en la propia tienda.
-                </Alert>
-              ) : (
-                <EverestVistaPrevia
-                  idBloque={designer.idSeleccionado}
-                  contenido={estadoSeleccionado?.contenidoDeLaVistaPrevia}
-                  diseno={estadoSeleccionado?.disenoDeLaVistaPrevia}
+          {designer.cargando && !designer.estados.length ? (
+            <Stack alignItems="center" sx={{ py: 8 }}>
+              <CircularProgress />
+            </Stack>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+                <EverestListaDeBloques
+                  estados={designer.estados}
+                  idSeleccionado={designer.idSeleccionado}
+                  onSeleccionar={designer.seleccionar}
                 />
-              )}
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 8, lg: 6 }}>
+                {estadoSeleccionado?.estado === ESTADOS_DEL_BLOQUE.externo ? (
+                  <Alert severity="info">
+                    La vista previa de este encabezado está en la propia tienda.
+                  </Alert>
+                ) : (
+                  <EverestVistaPrevia
+                    idBloque={designer.idSeleccionado}
+                    contenido={estadoSeleccionado?.contenidoDeLaVistaPrevia}
+                    diseno={estadoSeleccionado?.disenoDeLaVistaPrevia}
+                  />
+                )}
+              </Grid>
+
+              <Grid size={{ xs: 12, lg: 3 }}>
+                <EverestPanelDelBloque
+                  estado={estadoSeleccionado}
+                  editor={editor}
+                  editorDeDiseno={editorDeDiseno}
+                  analiticas={designer.analiticas.bloques[idSeleccionado]}
+                  guardando={Boolean(designer.guardando[designer.idSeleccionado])}
+                  accion={designer.accion}
+                  onPublicar={designer.publicar}
+                  onDescartarBorrador={designer.descartarBorrador}
+                  onVolverAlOriginal={designer.volverAlOriginal}
+                />
+
+                <EverestVersionesDelBloque
+                  estado={estadoSeleccionado}
+                  versiones={designer.versiones}
+                  onAbrir={designer.abrirVersion}
+                  onReintentar={designer.recargarVersiones}
+                  sx={{ mt: 3 }}
+                />
+
+                <EverestCampanasDelBloque
+                  estado={estadoSeleccionado}
+                  campanas={designer.campanasDelBloque}
+                  analiticas={designer.analiticas}
+                  accion={designer.accion}
+                  onProgramar={designer.programar}
+                  onQuitar={designer.quitarCampana}
+                  onAbrir={designer.abrirCampana}
+                  sx={{ mt: 3 }}
+                />
+              </Grid>
             </Grid>
-
-            <Grid size={{ xs: 12, lg: 3 }}>
-              <EverestPanelDelBloque
-                estado={estadoSeleccionado}
-                editor={editor}
-                editorDeDiseno={editorDeDiseno}
-                analiticas={designer.analiticas.bloques[idSeleccionado]}
-                guardando={Boolean(designer.guardando[designer.idSeleccionado])}
-                accion={designer.accion}
-                onPublicar={designer.publicar}
-                onDescartarBorrador={designer.descartarBorrador}
-                onVolverAlOriginal={designer.volverAlOriginal}
-              />
-
-              <EverestVersionesDelBloque
-                estado={estadoSeleccionado}
-                versiones={designer.versiones}
-                onAbrir={designer.abrirVersion}
-                onReintentar={designer.recargarVersiones}
-                sx={{ mt: 3 }}
-              />
-
-              <EverestCampanasDelBloque
-                estado={estadoSeleccionado}
-                campanas={designer.campanasDelBloque}
-                analiticas={designer.analiticas}
-                accion={designer.accion}
-                onProgramar={designer.programar}
-                onQuitar={designer.quitarCampana}
-                onAbrir={designer.abrirCampana}
-                sx={{ mt: 3 }}
-              />
-            </Grid>
-          </Grid>
-        )}
-      </Stack>
+          )}
+        </Stack>
+      )}
     </DashboardContent>
   );
 }

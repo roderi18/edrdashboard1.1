@@ -19,6 +19,7 @@ register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 const {
   diasDelRango,
   ordenarRango,
+  actividadEnFecha,
   fechasConActividad,
   fechaSeleccionable,
   motivoRangoInvalido,
@@ -46,6 +47,18 @@ test('una actividad de hoy a tres dias abre esos dias futuros', () => {
     false,
     'el sabado siguiente todavia no llego'
   );
+});
+
+test('el calendario encuentra el nombre de la actividad que cubre cada dia', () => {
+  const actividad = {
+    id: 'actividad-1',
+    nombre: 'Campamento nacional',
+    fechaInicio: '2026-09-17',
+    fechaFin: '2026-09-19',
+  };
+
+  assert.equal(actividadEnFecha([actividad], '2026-09-18'), actividad);
+  assert.equal(actividadEnFecha([actividad], '2026-09-20'), null);
 });
 
 test('sin actividad siguen mandando el dia de reunion y que el dia haya llegado', () => {
@@ -111,7 +124,25 @@ test('la regla de actividadesAsistencia existe y el comodin no la abre', () => {
   const reglas = fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 
   assert.match(reglas, /match \/actividadesAsistencia\/\{idActividad\}/);
+  assert.match(reglas, /allow delete: if esUsuarioDelSistema\(\);/);
   assert.match(reglas, /&& coleccion != 'actividadesAsistencia'/);
+});
+
+test('crear una actividad pide nombre y la vista permite eliminarla', () => {
+  const servicio = fs.readFileSync(
+    new URL('../../src/services/attendance-service.js', import.meta.url),
+    'utf8'
+  );
+  const vista = fs.readFileSync(
+    new URL('../../src/sections/attendance/view/attendance-quick-view.jsx', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(servicio, /Escribe el nombre de la actividad/);
+  assert.match(servicio, /export const eliminarActividadAsistencia/);
+  assert.match(vista, /label="Nombre de la actividad"/);
+  assert.match(vista, /title="Eliminar actividad"/);
+  assert.match(vista, /enterTouchDelay=\{0\}/);
 });
 
 test('la asistencia se guarda sola, sin pulsar el boton', () => {

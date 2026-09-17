@@ -5,18 +5,25 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 
+import { EsqueletoDeCintas } from 'src/components/insignias-perfil';
+
 // ----------------------------------------------------------------------
 
-function AccountProfileSkeleton({ sx, ...other }) {
+// LA TARJETA DE LA IZQUIERDA CON LAS MEDIDAS DE LA DE VERDAD
+// (`user-account-general.jsx`): mismo relleno, foto de 144, nombre, codigo, las
+// cintas y el boton de cerrar sesion a todo lo ancho. Antes era mas bajita y sin
+// cintas, y al llegar el miembro la tarjeta cambiaba de forma y aparecia un
+// segundo esqueleto para las cintas.
+function AccountProfileSkeleton({ idMiembros, sx, ...other }) {
   return (
     <Grid container spacing={3} sx={sx} {...other}>
       <Grid size={{ xs: 12, md: 4 }}>
-        <Card sx={{ pt: 5, pb: 4, px: 3, textAlign: 'center' }}>
-          <Skeleton variant="circular" width={96} height={96} sx={{ mx: 'auto', mb: 2 }} />
-          <Skeleton variant="text" width="62%" height={30} sx={{ mx: 'auto' }} />
-          <Skeleton variant="text" width="46%" height={22} sx={{ mx: 'auto' }} />
-          <Skeleton variant="text" width="34%" height={18} sx={{ mx: 'auto', mb: 3 }} />
-          <Skeleton variant="rounded" width={132} height={36} sx={{ mx: 'auto' }} />
+        <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center' }}>
+          <Skeleton variant="circular" width={144} height={144} sx={{ mx: 'auto', mb: 5 }} />
+          <Skeleton variant="text" width="62%" height={24} sx={{ mx: 'auto' }} />
+          <Skeleton variant="text" width="34%" height={22} sx={{ mx: 'auto', mt: 0.5 }} />
+          <EsqueletoDeCintas idMiembros={idMiembros} sx={{ mt: 2 }} />
+          <Skeleton variant="rounded" height={48} sx={{ mt: 3 }} />
         </Card>
       </Grid>
 

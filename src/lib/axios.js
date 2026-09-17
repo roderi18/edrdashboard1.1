@@ -64,6 +64,7 @@ axiosInstance.interceptors.response.use(
       typeof responseData === 'string' && responseData.trim().toLowerCase().startsWith('<!doctype');
     const message =
       responseData?.message ||
+      responseData?.error ||
       (isHtmlResponse
         ? `La ruta ${error?.config?.url || ''} respondió HTML en lugar de JSON.`
         : error?.message) ||

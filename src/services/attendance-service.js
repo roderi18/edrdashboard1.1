@@ -5,6 +5,7 @@ import {
   getDoc,
   setDoc,
   getDocs,
+  deleteDoc,
   writeBatch,
   collection,
   serverTimestamp,
@@ -364,6 +365,7 @@ export const listarActividadesAsistencia = async ({ idDestacamento } = {}) => {
 
 export const crearActividadAsistencia = async ({
   destacamento = {},
+  nombre,
   fechaInicio,
   fechaFin,
   usuario = null,
@@ -371,18 +373,21 @@ export const crearActividadAsistencia = async ({
   const idDestacamento = String(destacamento?.idDestacamento || '');
   const { fechaInicio: desde, fechaFin: hasta } = ordenarRango(fechaInicio, fechaFin);
   const motivo = motivoRangoInvalido(desde, hasta);
+  const nombreActividad = String(nombre || '').trim();
 
   if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) {
     throw new Error('Firebase no esta configurado para guardar la actividad.');
   }
 
   if (motivo) throw new Error(motivo);
+  if (!nombreActividad) throw new Error('Escribe el nombre de la actividad.');
 
   const idActividad = `${normalizeIdSegment(idDestacamento)}_${desde}_${hasta}`;
   const actividad = {
     idActividad,
     idDestacamento,
     nombreDestacamento: destacamento.nombreDestacamento || '',
+    nombre: nombreActividad.slice(0, 100),
     fechaInicio: desde,
     fechaFin: hasta,
     creadoEn: new Date().toISOString(),
@@ -397,17 +402,42 @@ export const crearActividadAsistencia = async ({
   registrarAuditoriaSilenciosa({
     modulo: 'asistencia',
     accion: 'actividad_asistencia_creada',
-    descripcion: `Actividad del ${desde} al ${hasta} en ${actividad.nombreDestacamento || idDestacamento}.`,
+    descripcion: `${actividad.nombre}, del ${desde} al ${hasta}, en ${actividad.nombreDestacamento || idDestacamento}.`,
     entidad: {
       tipo: 'actividad_asistencia',
       id: idActividad,
-      nombre: actividad.nombreDestacamento || idDestacamento,
+      nombre: actividad.nombre,
       ruta: '/dashboard/attendance',
     },
-    despues: { fechaInicio: desde, fechaFin: hasta, idDestacamento },
+    despues: { nombre: actividad.nombre, fechaInicio: desde, fechaFin: hasta, idDestacamento },
     realizadoPor: usuario,
     origen: 'asistencia',
   });
 
   return { ...actividad, id: idActividad };
+};
+
+export const eliminarActividadAsistencia = async ({ actividad, usuario = null } = {}) => {
+  const idActividad = String(actividad?.id || actividad?.idActividad || '');
+
+  if (!isFirebaseConfigured || !FIRESTORE || !idActividad) {
+    throw new Error('No se pudo identificar la actividad que deseas eliminar.');
+  }
+
+  await deleteDoc(doc(FIRESTORE, COLECCION_ACTIVIDADES_ASISTENCIA, idActividad));
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'actividad_asistencia_eliminada',
+    descripcion: `Eliminó ${actividad?.nombre || 'una actividad'} del calendario de asistencia.`,
+    entidad: {
+      tipo: 'actividad_asistencia',
+      id: idActividad,
+      nombre: actividad?.nombre || 'Actividad',
+      ruta: '/dashboard/attendance',
+    },
+    antes: actividad,
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
 };

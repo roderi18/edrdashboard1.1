@@ -70,6 +70,19 @@ export const fechasConActividad = (actividades = []) =>
     actividades.flatMap((actividad) => diasDelRango(actividad?.fechaInicio, actividad?.fechaFin))
   );
 
+/** La actividad que cubre un dia; sirve para nombrarla y administrarla desde el calendario. */
+export const actividadEnFecha = (actividades = [], fecha = '') =>
+  actividades.find((actividad) => {
+    if (!esFechaValida(fecha)) return false;
+
+    const { fechaInicio, fechaFin } = ordenarRango(
+      actividad?.fechaInicio || '',
+      actividad?.fechaFin || actividad?.fechaInicio || ''
+    );
+
+    return esFechaValida(fechaInicio) && fecha >= fechaInicio && fecha <= fechaFin;
+  }) ?? null;
+
 /**
  * Si un dia se puede abrir para pasar lista. Un dia de actividad, siempre; los
  * demas, solo si ya llego y es el dia de reunion (cuando la ficha lo dice).

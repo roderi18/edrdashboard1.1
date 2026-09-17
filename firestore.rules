@@ -1005,8 +1005,8 @@ service cloud.firestore {
     // ACTIVIDADES DE ASISTENCIA: los dias fuera de la reunion semanal en que
     // tambien se pasa lista. Las lee y las crea el mismo publico que la
     // asistencia —que hoy cae en el comodin: usuario del sistema—, pero con la
-    // forma acotada: un rango de fechas en orden y el id que sale de el. Nadie
-    // las borra desde la aplicacion.
+    // forma acotada: un rango de fechas en orden y el id que sale de el. Quien
+    // administra la asistencia tambien puede retirar una actividad equivocada.
     match /actividadesAsistencia/{idActividad} {
       allow read: if esUsuarioDelSistema();
       allow create, update: if esUsuarioDelSistema()
@@ -1015,7 +1015,7 @@ service cloud.firestore {
         && request.resource.data.fechaInicio is string
         && request.resource.data.fechaFin is string
         && request.resource.data.fechaInicio <= request.resource.data.fechaFin;
-      allow delete: if false;
+      allow delete: if esUsuarioDelSistema();
     }
 
     // PREFERENCIAS DE CADA PERSONA (hoy, el destacamento que el Administrador
