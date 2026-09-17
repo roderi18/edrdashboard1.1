@@ -3,6 +3,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
+import Typography from '@mui/material/Typography';
 
 import { usePathname } from 'src/routes/hooks';
 
@@ -53,8 +54,23 @@ export function NavMobile({
       }}
     >
       {slots?.topArea ?? (
-        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
+        // El nombre junto al escudo, igual que en el menu de escritorio: en el movil
+        // salia solo el escudo y no se leia de que aplicacion era el menu.
+        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Logo />
+          <Typography
+            component='span'
+            variant='body1'
+            sx={{
+              color: 'var(--layout-nav-text-primary)',
+              fontWeight: 800,
+              fontSize: '1.05rem',
+              letterSpacing: '0.12em',
+              lineHeight: 1,
+            }}
+          >
+            EXPLORA
+          </Typography>
         </Box>
       )}
 

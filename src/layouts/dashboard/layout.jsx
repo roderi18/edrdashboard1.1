@@ -565,6 +565,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     <NavVertical
       data={navData}
       isNavMini={isNavMini}
+      isNavLight={navEnBlanco}
       layoutQuery={layoutQuery}
       cssVars={navVars.section}
       checkPermissions={canDisplayItemByRole}

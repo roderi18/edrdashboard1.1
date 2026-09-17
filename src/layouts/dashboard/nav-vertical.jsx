@@ -20,6 +20,7 @@ export function NavVertical({
   cssVars,
   className,
   isNavMini,
+  isNavLight,
   onToggleNav,
   checkPermissions,
   layoutQuery = 'md',
@@ -29,7 +30,16 @@ export function NavVertical({
     <>
       {slots?.topArea ?? (
         <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
-          <Logo />
+          <Box
+            component="img"
+            src={
+              isNavLight
+                ? '/logo/explora-wordmark.webp?v=2'
+                : '/logo/explora-wordmark-light.webp?v=2'
+            }
+            alt="EXPLORA"
+            sx={{ width: 190, height: 'auto', display: 'block' }}
+          />
         </Box>
       )}
 

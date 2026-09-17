@@ -31,7 +31,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
       {...other}
     >
       <img
-        src="/logo/exploradores-del-rey-logo.png"
+        src="/logo/exploradores-del-rey-logo.webp"
         alt="Exploradores del Rey"
         width="100%"
         height="100%"
