@@ -42,12 +42,12 @@ const destelloDorado = keyframes`
   78% { background-position: -60% 0; }
 `;
 
-const estrellaDorada = keyframes`
-  0% { opacity: 0; transform: scale(0.25) rotate(0deg); }
-  35% { opacity: 0.9; transform: scale(1) rotate(35deg); }
-  65% { opacity: 0.75; transform: scale(0.82) rotate(60deg); }
-  100% { opacity: 0; transform: scale(0.15) rotate(90deg); }
+const destelloDelBorde = keyframes`
+  0%, 58%, 100% { background-position: 165% 0; }
+  80% { background-position: -65% 0; }
 `;
+
+const CINTAS_CON_BORDE_DORADO = new Set(['3', '5', '6', '7', '12a']);
 
 // ----------------------------------------------------------------------
 
@@ -175,35 +175,7 @@ export function CintasDeMiembro({
 // La cinta con, si se ganó más de una vez, su número dorado en el centro.
 function ImagenDeCinta({ cinta, veces }) {
   const digitos = digitosDeVeces(veces);
-  const [brilloAleatorio, setBrilloAleatorio] = useState(null);
-
-  useEffect(() => {
-    if (!digitos.length) return undefined;
-
-    let temporizadorBrillo;
-    let temporizadorSiguiente;
-
-    const programarBrillo = () => {
-      const espera = 3500 + Math.random() * 4000;
-
-      temporizadorSiguiente = setTimeout(() => {
-        setBrilloAleatorio({
-          id: Date.now(),
-          indice: Math.floor(Math.random() * digitos.length),
-        });
-
-        temporizadorBrillo = setTimeout(() => setBrilloAleatorio(null), 850);
-        programarBrillo();
-      }, espera);
-    };
-
-    programarBrillo();
-
-    return () => {
-      clearTimeout(temporizadorBrillo);
-      clearTimeout(temporizadorSiguiente);
-    };
-  }, [digitos.length]);
+  const tieneBordeDorado = CINTAS_CON_BORDE_DORADO.has(cinta.id);
 
   return (
     <Box sx={{ position: 'relative', lineHeight: 0 }}>
@@ -213,11 +185,43 @@ function ImagenDeCinta({ cinta, veces }) {
         alt={cinta.nombre}
         sx={{ width: 1, height: 'auto', display: 'block' }}
       />
+      {tieneBordeDorado && (
+        <Box
+          aria-hidden="true"
+          sx={{
+            inset: 0,
+            zIndex: 1,
+            position: 'absolute',
+            pointerEvents: 'none',
+            backgroundImage:
+              'linear-gradient(110deg, transparent 42%, rgba(255, 249, 202, 0.7) 50%, transparent 58%)',
+            backgroundSize: '270% 100%',
+            backgroundPosition: '165% 0',
+            WebkitMaskImage:
+              'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
+            maskImage:
+              'linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0)',
+            WebkitMaskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
+            maskSize: '100% 16%, 100% 16%, 6% 68%, 6% 68%',
+            WebkitMaskPosition: 'top, bottom, left center, right center',
+            maskPosition: 'top, bottom, left center, right center',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            filter: 'drop-shadow(0 0 2px rgba(255, 193, 7, 0.35))',
+            willChange: 'background-position',
+            animation: `${destelloDelBorde} 4.8s ease-in-out infinite`,
+            '@media (prefers-reduced-motion: reduce)': {
+              display: 'none',
+            },
+          }}
+        />
+      )}
       {!!digitos.length && (
         <Box
           aria-label={`Ganada ${normalizarVeces(veces)} veces`}
           sx={{
             inset: 0,
+            zIndex: 2,
             display: 'flex',
             position: 'absolute',
             alignItems: 'center',
@@ -269,30 +273,6 @@ function ImagenDeCinta({ cinta, veces }) {
                     'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48)) drop-shadow(0 0 1px rgba(255, 230, 130, 0.55)) drop-shadow(0 0 2px rgba(255, 193, 7, 0.38))',
                 }}
               />
-              {brilloAleatorio?.indice === indice && (
-                <Box
-                  key={brilloAleatorio.id}
-                  component="span"
-                  aria-hidden="true"
-                  sx={{
-                    top: '-16%',
-                    right: '-24%',
-                    zIndex: 1,
-                    color: '#fff7bd',
-                    fontSize: '0.72rem',
-                    lineHeight: 1,
-                    position: 'absolute',
-                    textShadow:
-                      '0 0 2px rgba(255, 255, 235, 0.85), 0 0 5px rgba(255, 193, 7, 0.65)',
-                    animation: `${estrellaDorada} 850ms ease-out both`,
-                    '@media (prefers-reduced-motion: reduce)': {
-                      display: 'none',
-                    },
-                  }}
-                >
-                  ✦
-                </Box>
-              )}
             </Box>
           ))}
         </Box>
