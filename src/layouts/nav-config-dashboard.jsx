@@ -101,7 +101,7 @@ export const navData = [
         ],
       },
       {
-        title: 'Asistencia',
+        title: 'Asistencias',
         path: paths.dashboard.level.attendance,
         icon: ICONS.calendar,
         deepMatch: true,
@@ -294,12 +294,8 @@ export const ITEM_USUARIO_DESARROLLO = {
   path: paths.dashboard.user.root,
   icon: ICONS.user,
   children: [
-    { title: 'Perfil', path: paths.dashboard.user.root },
-    { title: 'Cartas', path: paths.dashboard.user.cards },
-    { title: 'Lista', path: paths.dashboard.user.list },
-    { title: 'Crear', path: paths.dashboard.user.new },
-    { title: 'Editar', path: paths.dashboard.user.demo.edit },
     { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
+    { title: 'Perfil', path: paths.dashboard.user.root },
   ],
 };
 
@@ -338,11 +334,11 @@ export const navDataDesarrollo = [
           { title: 'Editar', path: paths.dashboard.post.demo.edit },
         ],
       },
+      { title: 'Cartas', path: paths.dashboard.user.cards, icon: ICONS.user },
       {
         title: 'Job',
         path: paths.dashboard.job.root,
         icon: ICONS.job,
-        disabled: true,
         children: [
           { title: 'Lista', path: paths.dashboard.job.root },
           { title: 'Detalles', path: paths.dashboard.job.demo.details },
@@ -354,7 +350,6 @@ export const navDataDesarrollo = [
         title: 'Tour',
         path: paths.dashboard.tour.root,
         icon: ICONS.tour,
-        disabled: true,
         children: [
           { title: 'Lista', path: paths.dashboard.tour.root },
           { title: 'Detalles', path: paths.dashboard.tour.demo.details },
