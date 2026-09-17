@@ -36,7 +36,7 @@ import {
 // organizacion. Va en tarjetas separadas y no en una sola lista porque son tres
 // cosas distintas: lo que viene, a quien reconocen, y lo que manda la Direccion.
 //
-// `diseno` (EVEREST Designer) cambia colores, tamaños, textos fijos y que se
+// `diseno` (EXPLORA Designer) cambia colores, tamaños, textos fijos y que se
 // enseña. Sin diseño publicado, cada pieza usa lo que llevaba escrito.
 // ----------------------------------------------------------------------
 
@@ -353,7 +353,7 @@ export function PrincipalComunicados({ comunicados, diseno, esEjemplo, puedeEdit
 /**
  * El cierre de la columna. Es el lema, no un anuncio: no lleva boton.
  *
- * Sus textos llegan de fuera —de lo publicado en EVEREST Designer o, si no hay
+ * Sus textos llegan de fuera —de lo publicado en EXPLORA Designer o, si no hay
  * nada, de `LEMA_DE_FABRICA`— en lugar de ir escritos aqui. El salto de linea del
  * titulo se guarda como `\n` y se pinta con el mismo `<br />` de siempre.
  */

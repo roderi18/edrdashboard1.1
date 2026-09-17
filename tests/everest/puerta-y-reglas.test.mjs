@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // QUIEN PUEDE REESCRIBIR LA PORTADA, Y QUE QUEDA CONSTANCIA.
 //
-// Lo que se publica desde EVEREST Designer lo ve toda la organizacion al entrar.
+// Lo que se publica desde EXPLORA Designer lo ve toda la organizacion al entrar.
 // Tres cosas lo protegen, y las tres se comprueban aqui:
 //
 //   1. Las REGLAS: solo el Administrador Global escribe, y las colecciones estan
@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 
 register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 
-const { COLECCIONES_EVEREST, CARPETA_MEDIOS_EVEREST } =
+const { COLECCIONES_EXPLORA, CARPETA_MEDIOS_EXPLORA } =
   await import('src/utils/everest/colecciones.mjs');
 
 const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), 'utf8');
@@ -41,7 +41,7 @@ const bloqueDeRegla = (reglas, encabezado) => {
 test('lo publicado lo lee cualquier sesion y lo escribe solo el Administrador Global', () => {
   const regla = bloqueDeRegla(
     leer('firestore.rules'),
-    `match /${COLECCIONES_EVEREST.publicado}/{pantalla} {`
+    `match /${COLECCIONES_EXPLORA.publicado}/{pantalla} {`
   );
 
   assert.match(regla, /allow read: if esUsuarioDelSistema\(\);/);
@@ -52,11 +52,11 @@ test('los borradores y las versiones son solo del Administrador Global', () => {
   const reglas = leer('firestore.rules');
 
   assert.match(
-    bloqueDeRegla(reglas, `match /${COLECCIONES_EVEREST.borradores}/{pantalla} {`),
+    bloqueDeRegla(reglas, `match /${COLECCIONES_EXPLORA.borradores}/{pantalla} {`),
     /allow read, write: if esAdministradorGlobal\(\);/
   );
 
-  const versiones = bloqueDeRegla(reglas, `match /${COLECCIONES_EVEREST.versiones}/{idVersion} {`);
+  const versiones = bloqueDeRegla(reglas, `match /${COLECCIONES_EXPLORA.versiones}/{idVersion} {`);
 
   assert.match(versiones, /allow read, create: if esAdministradorGlobal\(\);/);
   // Una version es historia: no se reescribe ni se borra.
@@ -66,14 +66,14 @@ test('los borradores y las versiones son solo del Administrador Global', () => {
 test('las tres colecciones estan fuera del comodin', () => {
   const reglas = leer('firestore.rules');
 
-  Object.values(COLECCIONES_EVEREST).forEach((coleccion) => {
+  Object.values(COLECCIONES_EXPLORA).forEach((coleccion) => {
     assert.match(reglas, new RegExp(`&& coleccion != '${coleccion}'`), coleccion);
   });
 });
 
 test('los medios nuevos van a su carpeta, con las condiciones de las tarjetas de hoy', () => {
   const reglas = leer('storage.rules');
-  const nuevos = bloqueDeRegla(reglas, `match /${CARPETA_MEDIOS_EVEREST}/{idBloque}/{archivo} {`);
+  const nuevos = bloqueDeRegla(reglas, `match /${CARPETA_MEDIOS_EXPLORA}/{idBloque}/{archivo} {`);
   const deHoy = bloqueDeRegla(reglas, 'match /principal-tarjetas/{idTarjeta}/{archivo} {');
 
   // Mismas condiciones que la carpeta de hoy, y la de hoy intacta.

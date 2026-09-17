@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LOS EDITORES DE EVEREST DESIGNER (fase 4).
+// LOS EDITORES DE EXPLORA DESIGNER (fase 4).
 //
 // Lo que se podia romper al empezar a editar, y se comprueba aqui:
 //
@@ -117,9 +117,9 @@ test('los fondos se suben a everest/, con marca de tiempo, y la regla reconoce e
 
   assert.match(
     servicio,
-    /`\$\{CARPETA_MEDIOS_EVEREST\}\/\$\{idBloque\}\/\$\{marca\}-video\.\$\{extension\}`/
+    /`\$\{CARPETA_MEDIOS_EXPLORA\}\/\$\{idBloque\}\/\$\{marca\}-video\.\$\{extension\}`/
   );
-  assert.match(servicio, /`\$\{CARPETA_MEDIOS_EVEREST\}\/\$\{idBloque\}\/\$\{marca\}\.webp`/);
+  assert.match(servicio, /`\$\{CARPETA_MEDIOS_EXPLORA\}\/\$\{idBloque\}\/\$\{marca\}\.webp`/);
   assert.doesNotMatch(servicio, /principal-tarjetas|principalTarjeta/);
   assert.match(servicio, /if \(!isAdminGlobal\(usuario\)\)/);
 

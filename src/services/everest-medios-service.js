@@ -5,12 +5,12 @@ import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { bloquePorId, bloquesPublicablesDe } from 'src/utils/everest/bloques.mjs';
 import { TOPE_DE_VIDEO_EN_MB, TIPOS_DE_VIDEO_ADMITIDOS } from 'src/utils/firebase-photos';
-import { PANTALLAS_EVEREST, CARPETA_MEDIOS_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { PANTALLAS_EXPLORA, CARPETA_MEDIOS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LAS FOTOS Y VIDEOS QUE SE SUBEN DESDE EVEREST DESIGNER.
+// LAS FOTOS Y VIDEOS QUE SE SUBEN DESDE EXPLORA DESIGNER.
 //
 // Van a `everest/<bloque>/<marca de tiempo>`, y NUNCA a la carpeta de las
 // tarjetas de hoy (`principal-tarjetas/`): subir un fondo nuevo para un borrador
@@ -56,7 +56,7 @@ export async function subirMedioDeBloque({ idBloque, archivo, aceptaVideo = fals
   }
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global sube archivos en EVEREST Designer.');
+    throw new Error('Solo el Administrador Global sube archivos en EXPLORA Designer.');
   }
 
   const bloque = bloquePorId(idBloque);
@@ -87,7 +87,7 @@ export async function subirMedioDeBloque({ idBloque, archivo, aceptaVideo = fals
     const extension = tipo === 'video/webm' ? 'webm' : 'mp4';
     const destino = ref(
       FIREBASE_STORAGE,
-      `${CARPETA_MEDIOS_EVEREST}/${idBloque}/${marca}-video.${extension}`
+      `${CARPETA_MEDIOS_EXPLORA}/${idBloque}/${marca}-video.${extension}`
     );
 
     await uploadBytes(destino, archivo, {
@@ -112,7 +112,7 @@ export async function subirMedioDeBloque({ idBloque, archivo, aceptaVideo = fals
   const subida = await uploadOptimizedImage({
     file: archivo,
     preset: 'portada',
-    storagePath: `${CARPETA_MEDIOS_EVEREST}/${idBloque}/${marca}.webp`,
+    storagePath: `${CARPETA_MEDIOS_EXPLORA}/${idBloque}/${marca}.webp`,
   });
 
   return { url: subida.downloadUrl, tipo: 'imagen' };
@@ -140,14 +140,14 @@ export async function listarBibliotecaDeMedios({ usuario, tipos = ['imagen', 'vi
   if (!isFirebaseConfigured || !FIREBASE_STORAGE) return [];
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global usa la biblioteca de EVEREST Designer.');
+    throw new Error('Solo el Administrador Global usa la biblioteca de EXPLORA Designer.');
   }
 
   const carpetas = await Promise.all(
-    bloquesPublicablesDe(PANTALLAS_EVEREST.principal).map(async (bloque) => {
+    bloquesPublicablesDe(PANTALLAS_EXPLORA.principal).map(async (bloque) => {
       // Una carpeta que aun no existe no es un error: ese bloque no tiene medios.
       const lista = await listAll(
-        ref(FIREBASE_STORAGE, `${CARPETA_MEDIOS_EVEREST}/${bloque.id}`)
+        ref(FIREBASE_STORAGE, `${CARPETA_MEDIOS_EXPLORA}/${bloque.id}`)
       ).catch(() => ({ items: [] }));
 
       return lista.items.map((item) => ({ item, idBloque: bloque.id }));

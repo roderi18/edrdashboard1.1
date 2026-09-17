@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LA PANTALLA DE EVEREST DESIGNER (fase 3).
+// LA PANTALLA DE EXPLORA DESIGNER (fase 3).
 //
 // Lo que se rompia o se podia romper, y se comprueba aqui:
 //
@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 
 const { FABRICA_DE_PORTADA } = await import('src/sections/principal/fabrica-de-portada.js');
-const { BLOQUES_EVEREST } = await import('src/utils/everest/bloques.mjs');
+const { BLOQUES_EXPLORA } = await import('src/utils/everest/bloques.mjs');
 const { estadoDelBloque, estadosDeLosBloques, destinoDeVuelta, ESTADOS_DEL_BLOQUE } =
   await import('src/utils/everest/estado-del-bloque.mjs');
 const {
@@ -124,7 +124,7 @@ test('la lista trae todos los bloques, en el orden del registro, aunque lleguen 
 
   assert.deepEqual(
     estados.map((estado) => estado.idBloque),
-    BLOQUES_EVEREST.map((bloque) => bloque.id)
+    BLOQUES_EXPLORA.map((bloque) => bloque.id)
   );
   estados
     .filter((estado) => estado.estado !== ESTADOS_DEL_BLOQUE.externo)
@@ -197,7 +197,7 @@ test('el alto que manda la vista previa es siempre un numero entero y positivo',
 test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashboard/admin', () => {
   const menu = leer('src/layouts/nav-config-dashboard.jsx');
 
-  assert.match(menu, /title: 'EVEREST Designer',\s*path: paths\.dashboard\.everest,/);
+  assert.match(menu, /title: 'EXPLORA Designer',\s*path: paths\.dashboard\.everest,/);
   // Se inserta DETRAS de la entrada de Administradores, dentro de su seccion.
   assert.match(menu, /seccion\.subheader === 'Administración'/);
   assert.match(
@@ -213,7 +213,7 @@ test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashbo
   assert.ok(!fs.existsSync(path.join(process.cwd(), 'src/app/dashboard/admin/everest')));
 
   // Y las pestañas de Administracion quedan como estaban.
-  assert.doesNotMatch(leer('src/sections/admin/layout/admin-tabs-layout.jsx'), /EVEREST/);
+  assert.doesNotMatch(leer('src/sections/admin/layout/admin-tabs-layout.jsx'), /EXPLORA/);
 });
 
 test('el menu solo se la enseña al Administrador Global, el mismo que puede abrirla', () => {

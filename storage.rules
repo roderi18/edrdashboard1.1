@@ -486,7 +486,7 @@ service firebase.storage {
       allow delete: if false;
     }
 
-    // LOS MEDIOS QUE SE SUBEN DESDE EVEREST DESIGNER. Mismas condiciones que las
+    // LOS MEDIOS QUE SE SUBEN DESDE EXPLORA DESIGNER. Mismas condiciones que las
     // tarjetas de hoy (`principal-tarjetas`): imagen, o un video corto para las
     // tarjetas que lo admiten, y solo el Administrador Global. Van en carpeta
     // aparte para que publicar algo nuevo nunca pise la foto o el video que la

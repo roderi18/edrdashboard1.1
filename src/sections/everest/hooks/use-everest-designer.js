@@ -3,9 +3,9 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { campanasDe } from 'src/utils/everest/campanas.mjs';
-import { PANTALLAS_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { publicacionDeVersion } from 'src/utils/everest/versiones.mjs';
-import { bloquePorId, BLOQUES_EVEREST } from 'src/utils/everest/bloques.mjs';
+import { bloquePorId, BLOQUES_EXPLORA } from 'src/utils/everest/bloques.mjs';
 import { destinoDeVuelta, estadosDeLosBloques } from 'src/utils/everest/estado-del-bloque.mjs';
 
 import { obtenerAnaliticasDePortada } from 'src/services/everest-analiticas-service';
@@ -49,11 +49,11 @@ import { useAuthContext } from 'src/auth/hooks';
 // Y las campañas (fases 7 y 8) y lo contado en la portada (fase 8).
 // ----------------------------------------------------------------------
 
-const PANTALLA = PANTALLAS_EVEREST.principal;
+const PANTALLA = PANTALLAS_EXPLORA.principal;
 
 export const ESPERA_AUTOGUARDADO_MS = 1500;
 
-const PRIMER_BLOQUE = BLOQUES_EVEREST[0].id;
+const PRIMER_BLOQUE = BLOQUES_EXPLORA[0].id;
 
 /** Una copia del mapa sin ese bloque. */
 const sinBloque = (mapa, idBloque) =>

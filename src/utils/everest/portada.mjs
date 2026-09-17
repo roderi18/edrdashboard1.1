@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // QUE SE PINTA EN CADA BLOQUE: LO PUBLICADO, O LO DE SIEMPRE.
 //
-// La promesa de EVEREST Designer es que la portada no cambia hasta que alguien la
+// La promesa de EXPLORA Designer es que la portada no cambia hasta que alguien la
 // publica. Esta funcion es donde se cumple, y es pura a proposito: sin Firestore
 // ni React, se prueba con cualquier documento —vacio, roto o inventado— y siempre
 // contesta.

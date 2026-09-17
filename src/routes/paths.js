@@ -16,7 +16,7 @@ const ROOTS = {
 // ----------------------------------------------------------------------
 
 export const paths = {
-  // Lo que se ve dentro del iframe de la vista previa de EVEREST Designer. Va
+  // Lo que se ve dentro del iframe de la vista previa de EXPLORA Designer. Va
   // fuera de /dashboard para no cargar el menu ni la cabecera dentro del recuadro.
   everestVistaPrevia: '/vista-previa/everest',
   comingSoon: '/coming-soon',
@@ -218,7 +218,7 @@ export const paths = {
       demo: { details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}` },
     },
     checkout: `${ROOTS.DASHBOARD}/checkout`,
-    // EVEREST Designer: entrada propia del menu, debajo de Administradores. No
+    // EXPLORA Designer: entrada propia del menu, debajo de Administradores. No
     // cuelga de /admin para no heredar sus pestañas.
     everest: `${ROOTS.DASHBOARD}/everest`,
     admin: {

@@ -11,7 +11,7 @@ import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 // organizacion: no es una preferencia de cada quien, es la cara de la pantalla de
 // inicio.
 //
-// DESDE LA FASE 6 DE EVEREST AQUI SOLO SE LEE. Aquel lapiz subia la foto y la
+// DESDE LA FASE 6 DE EXPLORA AQUI SOLO SE LEE. Aquel lapiz subia la foto y la
 // cambiaba para todos en el acto, sin vista previa ni Historial. Ahora el lapiz
 // de cada tarjeta lleva al Designer, donde un fondo nuevo es un borrador mas que
 // se ve antes de publicarlo (y va a `everest/`). La foto o el video que ya estaban

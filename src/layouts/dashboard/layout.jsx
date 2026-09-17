@@ -370,7 +370,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         ? conTiendaDeAdministracion(navDataFiltrada)
         : navDataFiltrada;
 
-    // EVEREST DESIGNER, debajo de "Administradores", solo para el Administrador
+    // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
     return isAdminGlobal(user) ? conEverestDesigner(conTienda) : conTienda;

@@ -34,7 +34,7 @@ import ICONOS_REGISTRADOS from 'src/components/iconify/icon-sets';
 import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
-// LAS PIEZAS CON LAS QUE SE ARMAN LOS EDITORES DE EVEREST DESIGNER.
+// LAS PIEZAS CON LAS QUE SE ARMAN LOS EDITORES DE EXPLORA DESIGNER.
 //
 // Cada editor de bloque se compone con estas piezas, y cada pieza ya trae las
 // reglas del proyecto: los colores se eligen por nombre (nunca un hex), los
@@ -285,7 +285,7 @@ function BibliotecaDeMedios({ abierta, aceptaVideo, onCerrar, onElegir }) {
 
         {medios && !medios.length && (
           <Typography variant="body2" sx={{ color: 'text.secondary', py: 4, textAlign: 'center' }}>
-            Todavía no se ha subido nada desde EVEREST Designer.
+            Todavía no se ha subido nada desde EXPLORA Designer.
           </Typography>
         )}
 

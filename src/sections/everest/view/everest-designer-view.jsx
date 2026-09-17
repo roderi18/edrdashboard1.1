@@ -30,7 +30,7 @@ import { EverestCampanasDelBloque } from '../everest-campanas-del-bloque';
 import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 
 // ----------------------------------------------------------------------
-// EVEREST DESIGNER.
+// EXPLORA DESIGNER.
 //
 // Donde se cambia la portada sin tocar codigo. Tres zonas: los bloques a la
 // izquierda con su estado, la vista previa en el centro —con los componentes de
@@ -47,8 +47,8 @@ import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 
 const ENCABEZADO = (
   <CustomBreadcrumbs
-    heading="EVEREST Designer"
-    links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'EVEREST Designer' }]}
+    heading="EXPLORA Designer"
+    links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'EXPLORA Designer' }]}
     sx={{ mb: 3 }}
   />
 );
@@ -64,7 +64,7 @@ export function EverestDesignerView() {
       <DashboardContent maxWidth="xl">
         {ENCABEZADO}
         <Alert severity="error">
-          EVEREST Designer es, por ahora, solo para el Administrador Global.
+          EXPLORA Designer es, por ahora, solo para el Administrador Global.
         </Alert>
       </DashboardContent>
     );

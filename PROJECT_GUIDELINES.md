@@ -362,9 +362,9 @@ combinar dos cargos.
 | **`contadores_comercio`**                          | Cae bajo el comodín de `firestore.rules`: escribible por cualquier sesión válida. El contador de órdenes debería tener su propio bloque.                                                            |
 | **Numeración de órdenes**                          | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres.                                                              |
 | **Buscar por número de recibo**                    | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden.                                                                                                   |
-| **EVEREST Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
+| **EXPLORA Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
 
-#### EVEREST Designer ✅ — editar la portada desde la aplicación
+#### EXPLORA Designer ✅ — editar la portada desde la aplicación
 
 Entrada propia del menú lateral (grupo Administración, debajo de "Administradores") para cambiar todo lo de
 `/principal` —encabezados, próxima actividad, historias, eventos, comunicados,
@@ -712,7 +712,7 @@ personas podían compartir número.
 `plantillas_notificaciones`, `preferencias_notificaciones`,
 `tareas_notificaciones`
 
-**EVEREST Designer** — `everest_publicado` (un documento por pantalla con el
+**EXPLORA Designer** — `everest_publicado` (un documento por pantalla con el
 mapa `bloques`; lo lee cualquier sesión y lo escribe el Administrador Global),
 `everest_borradores` y `everest_versiones` (solo el Administrador Global; una
 versión no se reescribe ni se borra) y `everest_analiticas` (suma cualquier sesión,
@@ -725,7 +725,7 @@ solo los contadores; la lee el Administrador Global). Las cuatro, fuera del como
 
 `miembros/`, `destacamentos/`, `documentos/`, `certificados/`, `chat/`,
 `principal/`, `propuestas/`, `principal-tarjetas/` (fondos de la portada de hoy),
-`everest/` (medios subidos desde EVEREST Designer; mismas condiciones que
+`everest/` (medios subidos desde EXPLORA Designer; mismas condiciones que
 `principal-tarjetas/`, sin borrado)
 
 ### 5.4 Modelos y esquemas ✅ — `src/models/`
@@ -1007,7 +1007,7 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 8. **Cada destacamento enseña los suyos.** `/member` es la lista del destacamento
    propio (salvo Administrador Global); a los de otro se llega por la pestaña
    "Miembros" de su ficha.
-9. **La portada tiene su valor de fábrica en el código.** EVEREST Designer no
+9. **La portada tiene su valor de fábrica en el código.** EXPLORA Designer no
    siembra Firestore con lo que hay: publica por bloque, y lo no publicado —o lo
    publicado roto— se pinta desde el código. Así la portada no cambia hasta que
    alguien decide publicarla, y una publicación mala nunca deja un hueco.

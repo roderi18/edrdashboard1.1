@@ -228,15 +228,17 @@ export default [
       // Mismo caso: la escritura de los sonidos de aviso que la puerta de cambios
       // ejecuta despues de registrarla en Historial.
       'src/services/sonidos-apply.js',
-      // Mismo caso: la escritura de un bloque publicado desde EVEREST Designer,
+      // Mismo caso: la escritura de un bloque publicado desde EXPLORA Designer,
       // que la puerta ejecuta despues de registrarla en Historial.
       'src/services/everest-apply.js',
-      // Los borradores de EVEREST Designer: lo que el Administrador Global esta
+      // Mismo caso: las cintas del perfil de un miembro.
+      'src/services/cintas-miembros-apply.js',
+      // Los borradores de EXPLORA Designer: lo que el Administrador Global esta
       // editando y aun no publico. No lo ve nadie mas y no cambia nada de la
       // organizacion; registrar cada autoguardado llenaria Historial de ruido.
       // Lo que va por la puerta es la publicacion. Las reglas solo le dejan a el.
       'src/services/everest-borradores-service.js',
-      // Contadores de vistas y pulsaciones de la portada (EVEREST, fase 8). Mismo
+      // Contadores de vistas y pulsaciones de la portada (EXPLORA, fase 8). Mismo
       // caso que las analiticas del encabezado de la tienda: nadie decide nada, se
       // suma uno, y lo escribe el navegador de cualquiera. Las reglas acotan que
       // solo puede tocar esos contadores.

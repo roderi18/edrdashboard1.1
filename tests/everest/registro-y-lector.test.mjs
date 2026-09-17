@@ -19,13 +19,13 @@ import assert from 'node:assert/strict';
 register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 
 const { FABRICA_DE_PORTADA } = await import('src/sections/principal/fabrica-de-portada.js');
-const { BLOQUES_EVEREST, bloquePorId, bloquesPublicablesDe, GRUPOS_DE_BLOQUES } =
+const { BLOQUES_EXPLORA, bloquePorId, bloquesPublicablesDe, GRUPOS_DE_BLOQUES } =
   await import('src/utils/everest/bloques.mjs');
 const { resolverPortada, prepararPublicacion, ORIGEN_DEL_BLOQUE } =
   await import('src/utils/everest/portada.mjs');
-const { PANTALLAS_EVEREST } = await import('src/utils/everest/colecciones.mjs');
+const { PANTALLAS_EXPLORA } = await import('src/utils/everest/colecciones.mjs');
 
-const PRINCIPAL = PANTALLAS_EVEREST.principal;
+const PRINCIPAL = PANTALLAS_EXPLORA.principal;
 const copia = (valor) => JSON.parse(JSON.stringify(valor));
 
 // ----------------------------------------------------------------------
@@ -33,7 +33,7 @@ const copia = (valor) => JSON.parse(JSON.stringify(valor));
 // ----------------------------------------------------------------------
 
 test('cada bloque tiene un id unico, legible en una direccion', () => {
-  const ids = BLOQUES_EVEREST.map((bloque) => bloque.id);
+  const ids = BLOQUES_EXPLORA.map((bloque) => bloque.id);
 
   assert.equal(new Set(ids).size, ids.length);
   ids.forEach((id) => assert.match(id, /^[a-z]+(?:-[a-z]+)*$/));
@@ -42,7 +42,7 @@ test('cada bloque tiene un id unico, legible en una direccion', () => {
 test('cada bloque dice a que grupo pertenece y como se limpia', () => {
   const grupos = Object.values(GRUPOS_DE_BLOQUES);
 
-  BLOQUES_EVEREST.forEach((bloque) => {
+  BLOQUES_EXPLORA.forEach((bloque) => {
     assert.ok(grupos.includes(bloque.grupo), `${bloque.id}: grupo desconocido`);
     assert.ok(bloque.externo || typeof bloque.sanear === 'function', `${bloque.id}: sin saneado`);
   });

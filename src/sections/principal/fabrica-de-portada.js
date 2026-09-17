@@ -12,7 +12,7 @@ import {
 // ----------------------------------------------------------------------
 // EL VALOR DE FABRICA DE CADA BLOQUE DE LA PORTADA.
 //
-// Lo que se pinta en cada bloque mientras nadie lo publique desde EVEREST
+// Lo que se pinta en cada bloque mientras nadie lo publique desde EXPLORA
 // Designer: exactamente lo de hoy. Aqui no se inventa ni se copia nada —cada
 // entrada apunta al mismo dato que ya usaba la pantalla—, para que "sin publicar"
 // y "como siempre" sean, literalmente, la misma cosa.

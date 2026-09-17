@@ -10,6 +10,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 
 import { ContextInfo } from 'src/components/info/context-info';
 import { BotonCopiar } from 'src/components/common/boton-copiar';
+import { CintasDeMiembro } from 'src/components/insignias-perfil';
 import { UnderlineLink } from 'src/components/link/underline-link';
 import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 
@@ -50,7 +51,7 @@ export function MemberProfileCard({
   resetCodeLifetimeMs,
 }) {
   return (
-    <Card sx={{ pt: 5, pb: 5, px: 3 }}>
+    <Card sx={{ pt: 5, pb: 5, px: 3, position: 'relative' }}>
       <Box sx={{ mb: 5 }}>
         <FotoDeMiembro
           url={avatarUrl?.preview || avatarUrl || ''}
@@ -126,6 +127,13 @@ export function MemberProfileCard({
                   },
                 ]}
               />
+
+              {!isCreateView && (
+                <CintasDeMiembro
+                  idMiembros={currentMember?.idMiembros ?? currentMember?.id}
+                  sx={{ mt: 2 }}
+                />
+              )}
 
               {memberDestText && !destLeadership && (
                 <Typography

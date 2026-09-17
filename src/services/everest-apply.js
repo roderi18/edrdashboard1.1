@@ -10,12 +10,12 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-import { COLECCIONES_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import { FIRESTORE } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// EL BRAZO QUE APLICA lo que se publica en EVEREST Designer.
+// EL BRAZO QUE APLICA lo que se publica en EXPLORA Designer.
 //
 // Mismo caso que `sonidos-apply.js`: aqui solo viven las escrituras que
 // `proponerCambio` ejecuta DESPUES de haberlas registrado en Historial. No es
@@ -28,10 +28,10 @@ import { FIRESTORE } from 'src/lib/firebase';
 // ----------------------------------------------------------------------
 
 export const referenciaDePublicado = (pantalla) =>
-  doc(FIRESTORE, COLECCIONES_EVEREST.publicado, pantalla);
+  doc(FIRESTORE, COLECCIONES_EXPLORA.publicado, pantalla);
 
 // Id nuevo en cada version: una version no se reescribe nunca.
-const referenciaDeVersionNueva = () => doc(collection(FIRESTORE, COLECCIONES_EVEREST.versiones));
+const referenciaDeVersionNueva = () => doc(collection(FIRESTORE, COLECCIONES_EXPLORA.versiones));
 
 /**
  * Escribe UN bloque dentro del documento de su pantalla.

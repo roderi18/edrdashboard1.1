@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LAS PIEZAS DEL SANEADO DE EVEREST DESIGNER.
+// LAS PIEZAS DEL SANEADO DE EXPLORA DESIGNER.
 //
 // Lo que publica el Designer lo lee toda la organizacion en su portada. Estas
 // piezas son las que impiden que se cuele lo que el proyecto no admite: un hex

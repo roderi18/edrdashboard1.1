@@ -41,7 +41,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
-import { InsigniasPerfil } from 'src/components/insignias-perfil';
+import { CintasDeMiembro } from 'src/components/insignias-perfil';
 import LocationSelect from 'src/components/location/location-select';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
@@ -289,16 +289,6 @@ const ReadOnlyTextField = ({ name, label }) => (
   <Field.Text name={name} label={label} slotProps={{ htmlInput: { readOnly: true } }} />
 );
 
-const INSIGNIAS_PERFIL_EJEMPLO = [
-  'cinta-verde-blanca',
-  'cinta-roja-gris',
-  'cinta-roja-blanca-rayas',
-  'cinta-azul',
-  { id: 'cinta-roja', numero: 4 },
-  'cinta-verde',
-  'cinta-naranja',
-];
-
 // ----------------------------------------------------------------------
 
 export function UserAccountGeneral() {
@@ -314,7 +304,6 @@ export function UserAccountGeneral() {
     () => getMemberCodeLabel(user) || String(member?.codigoMiembro ?? '').toUpperCase(),
     [member?.codigoMiembro, user]
   );
-  const showRibbonExamples = String(memberCode).trim().toUpperCase() === 'EDR-10002';
 
   useEffect(() => {
     let active = true;
@@ -803,7 +792,7 @@ export function UserAccountGeneral() {
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center' }}>
+          <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center', position: 'relative' }}>
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
                 name="avatarUrl"
@@ -822,9 +811,7 @@ export function UserAccountGeneral() {
               {memberCode}
             </Typography>
 
-            {showRibbonExamples && (
-              <InsigniasPerfil insignias={INSIGNIAS_PERFIL_EJEMPLO} sx={{ mt: 2 }} />
-            )}
+            <CintasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} sx={{ mt: 2 }} />
 
             <SignOutButton sx={{ mt: 3 }} />
           </Card>

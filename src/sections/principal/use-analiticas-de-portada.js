@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 
-import { PANTALLAS_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import {
   registrarClicDePortada,
@@ -8,7 +8,7 @@ import {
 } from 'src/services/everest-analiticas-service';
 
 // ----------------------------------------------------------------------
-// CONTAR LO QUE SE VE Y LO QUE SE PULSA EN LA PORTADA (EVEREST, fase 8).
+// CONTAR LO QUE SE VE Y LO QUE SE PULSA EN LA PORTADA (EXPLORA, fase 8).
 //
 // Cada tarjeta lleva `data-everest-bloque="<id>"`, un atributo que no se ve. Aqui
 // se miran esas marcas:
@@ -22,7 +22,7 @@ import {
 // sus visitas inflarian justo los numeros con los que decide.
 // ----------------------------------------------------------------------
 
-const PANTALLA = PANTALLAS_EVEREST.principal;
+const PANTALLA = PANTALLAS_EXPLORA.principal;
 
 const quienEs = (portada, idBloque) => ({
   idBloque,
@@ -82,7 +82,7 @@ export function useAnaliticasDePortada({ raizRef, portada, activo = true }) {
       const tarjeta = evento.target?.closest?.('[data-everest-bloque]');
       const enlace = evento.target?.closest?.('a, button');
       // El lapiz del Designer no es una pulsacion de nadie que lea la portada.
-      const esLapiz = enlace?.getAttribute('aria-label') === 'Editar en EVEREST Designer';
+      const esLapiz = enlace?.getAttribute('aria-label') === 'Editar en EXPLORA Designer';
 
       if (!tarjeta || !enlace || esLapiz) return;
 

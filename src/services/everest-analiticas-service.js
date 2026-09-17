@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
 
-import { COLECCIONES_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -22,7 +22,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // portada: si la escritura no sale, se ve igual.
 // ----------------------------------------------------------------------
 
-const referencia = (pantalla) => doc(FIRESTORE, COLECCIONES_EVEREST.analiticas, pantalla);
+const referencia = (pantalla) => doc(FIRESTORE, COLECCIONES_EXPLORA.analiticas, pantalla);
 
 const CLAVE_DE_SESION = 'erd-everest-impresiones';
 

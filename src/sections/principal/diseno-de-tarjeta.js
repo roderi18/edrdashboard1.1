@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // COMO USA UNA TARJETA DE LA PORTADA SU DISEÑO PUBLICADO.
 //
-// El diseño llega de EVEREST Designer (`src/utils/everest/diseno.mjs`) y cada
+// El diseño llega de EXPLORA Designer (`src/utils/everest/diseno.mjs`) y cada
 // ajuste es opcional. La regla de todas estas piezas es la misma: SIN AJUSTE, NO
 // SE AÑADE NADA. Devuelven un objeto vacio —que al esparcirse en `sx` no cambia
 // ni un pixel— o el valor de siempre que les pasa la tarjeta. Asi una tarjeta sin

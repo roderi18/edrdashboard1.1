@@ -10,12 +10,12 @@ import {
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
-import { COLECCIONES_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LOS BORRADORES DE EVEREST DESIGNER.
+// LOS BORRADORES DE EXPLORA DESIGNER.
 //
 // Lo que se esta editando y todavia no se publico. No lo ve nadie mas que quien
 // edita —las reglas solo dejan al Administrador Global—, y por eso NO pasa por la
@@ -28,7 +28,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // ----------------------------------------------------------------------
 
 const referenciaDeBorradores = (pantalla) =>
-  doc(FIRESTORE, COLECCIONES_EVEREST.borradores, pantalla);
+  doc(FIRESTORE, COLECCIONES_EXPLORA.borradores, pantalla);
 
 const asegurar = (usuario) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -36,7 +36,7 @@ const asegurar = (usuario) => {
   }
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global edita en EVEREST Designer.');
+    throw new Error('Solo el Administrador Global edita en EXPLORA Designer.');
   }
 };
 

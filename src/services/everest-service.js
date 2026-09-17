@@ -5,7 +5,7 @@ import { paths } from 'src/routes/paths';
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
 import { comunicadosNuevos } from 'src/utils/everest/avisos.mjs';
-import { COLECCIONES_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { campanasDe, prepararCampana } from 'src/utils/everest/campanas.mjs';
 import {
   resolverPortada,
@@ -35,7 +35,7 @@ import {
 } from './everest-apply';
 
 // ----------------------------------------------------------------------
-// EVEREST DESIGNER: LEER Y PUBLICAR LA PORTADA.
+// EXPLORA DESIGNER: LEER Y PUBLICAR LA PORTADA.
 //
 // Lo que se publica aqui lo ve toda la organizacion, asi que pasa por la puerta
 // de cambios (`proponerCambio`), igual que la Paleta y los Sonidos: se aplica en
@@ -59,7 +59,7 @@ const asegurarPuedePublicar = (usuario) => {
   }
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global publica desde EVEREST Designer.');
+    throw new Error('Solo el Administrador Global publica desde EXPLORA Designer.');
   }
 };
 
@@ -93,7 +93,7 @@ const describirOrigen = (publicado, idBloque) =>
 const entidadDelBloque = (pantalla, bloque) => ({
   tipo: 'everest_bloque',
   id: `${pantalla}/${bloque.id}`,
-  nombre: `EVEREST Designer · ${bloque.nombre}`,
+  nombre: `EXPLORA Designer · ${bloque.nombre}`,
   ruta: `${paths.dashboard.everest}?bloque=${bloque.id}`,
 });
 
@@ -195,10 +195,10 @@ export async function publicarBloque({
       anterior,
       antes: enVivo(anterior, pantalla, idBloque),
       despues: publicacion,
-      textoDespues: 'Publicado desde EVEREST Designer',
+      textoDespues: 'Publicado desde EXPLORA Designer',
     }),
     usuario,
-    descripcion: `Publicó "${bloque.nombre}" en la pantalla ${pantalla} desde EVEREST Designer.`,
+    descripcion: `Publicó "${bloque.nombre}" en la pantalla ${pantalla} desde EXPLORA Designer.`,
     aplicar: () => escribirBloquePublicado(pantalla, idBloque, publicacion, version),
   });
 
@@ -250,7 +250,7 @@ export async function volverBloqueAlOriginal({ pantalla, idBloque, usuario }) {
       textoDespues: 'Original del código',
     }),
     usuario,
-    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EVEREST Designer.`,
+    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EXPLORA Designer.`,
     aplicar: () => quitarBloquePublicado(pantalla, idBloque, version),
   });
 }
@@ -268,7 +268,7 @@ export async function obtenerVersionesDeBloque({ pantalla, idBloque, usuario }) 
 
   const resultado = await getDocs(
     query(
-      collection(FIRESTORE, COLECCIONES_EVEREST.versiones),
+      collection(FIRESTORE, COLECCIONES_EXPLORA.versiones),
       where('clave', '==', claveDeVersion(pantalla, idBloque))
     )
   );
@@ -332,7 +332,7 @@ export async function programarCampana({
     entidad: {
       ...entidadDelBloque(pantalla, bloque),
       id: `${pantalla}/${idBloque}/${campana.id}`,
-      nombre: `EVEREST Designer · ${bloque.nombre} · campaña ${campana.nombre}`,
+      nombre: `EXPLORA Designer · ${bloque.nombre} · campaña ${campana.nombre}`,
     },
     cambios: [
       {
@@ -343,7 +343,7 @@ export async function programarCampana({
       },
     ],
     usuario,
-    descripcion: `Programó la campaña "${campana.nombre}" en "${bloque.nombre}" desde EVEREST Designer.`,
+    descripcion: `Programó la campaña "${campana.nombre}" en "${bloque.nombre}" desde EXPLORA Designer.`,
     aplicar: () => escribirCampana(pantalla, campana),
   });
 
@@ -379,7 +379,7 @@ export async function quitarCampanaProgramada({ pantalla, idCampana, usuario }) 
     entidad: {
       tipo: 'everest_campana',
       id: `${pantalla}/${idCampana}`,
-      nombre: `EVEREST Designer · campaña ${campana?.nombre ?? idCampana}`,
+      nombre: `EXPLORA Designer · campaña ${campana?.nombre ?? idCampana}`,
       ruta: bloque ? `${paths.dashboard.everest}?bloque=${bloque.id}` : paths.dashboard.everest,
     },
     cambios: [
@@ -391,7 +391,7 @@ export async function quitarCampanaProgramada({ pantalla, idCampana, usuario }) 
       },
     ],
     usuario,
-    descripcion: `Quitó la campaña "${campana?.nombre ?? idCampana}" desde EVEREST Designer.`,
+    descripcion: `Quitó la campaña "${campana?.nombre ?? idCampana}" desde EXPLORA Designer.`,
     aplicar: () => quitarCampana(pantalla, idCampana),
   });
 }

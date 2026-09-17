@@ -48,7 +48,7 @@ test('se colocan dentro del grupo "Tienda", en lugar del enlace directo', () => 
 });
 
 test('solo para el Administrador Global y el de Gestion de Tienda, y despues del filtro', () => {
-  // Desde EVEREST Designer el resultado pasa por una entrada mas antes de
+  // Desde EXPLORA Designer el resultado pasa por una entrada mas antes de
   // devolverse (`conTienda`), pero la condicion de la tienda es la misma.
   assert.match(
     layout,

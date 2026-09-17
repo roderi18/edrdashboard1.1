@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 
 import { hoyISO } from 'src/utils/everest/presentacion.mjs';
 import { resolverPortada } from 'src/utils/everest/portada.mjs';
-import { PANTALLAS_EVEREST } from 'src/utils/everest/colecciones.mjs';
+import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 
 import { obtenerPublicado } from 'src/services/everest-service';
 
@@ -13,7 +13,7 @@ import { FABRICA_DE_PORTADA } from './fabrica-de-portada';
 //
 // La portada ya no importa sus datos a mano: se los pide a este gancho, que
 // devuelve para cada bloque —contenido y diseño— la campaña vigente para quien
-// mira, lo publicado en EVEREST Designer o, si no hay nada —o lo publicado esta
+// mira, lo publicado en EXPLORA Designer o, si no hay nada —o lo publicado esta
 // roto—, exactamente lo de siempre (`FABRICA_DE_PORTADA`). La decision la toma
 // `resolverPortada`, que esta probada aparte.
 //
@@ -38,7 +38,7 @@ import { FABRICA_DE_PORTADA } from './fabrica-de-portada';
 // redibujarse mientras alguien la esta leyendo porque otro publico algo.
 // ----------------------------------------------------------------------
 
-const PANTALLA = PANTALLAS_EVEREST.principal;
+const PANTALLA = PANTALLAS_EXPLORA.principal;
 
 export const CLAVE_COPIA_DE_PORTADA = 'erd-everest-portada-publicada';
 

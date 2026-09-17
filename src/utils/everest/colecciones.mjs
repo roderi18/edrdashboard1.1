@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// DONDE GUARDA EVEREST DESIGNER.
+// DONDE GUARDA EXPLORA DESIGNER.
 //
 // Tres colecciones, cada una con un proposito, y separadas a proposito:
 //
@@ -20,7 +20,7 @@
 // final: sin eso, cualquier sesion valida podria reescribir la portada.
 // ----------------------------------------------------------------------
 
-export const COLECCIONES_EVEREST = Object.freeze({
+export const COLECCIONES_EXPLORA = Object.freeze({
   publicado: 'everest_publicado',
   borradores: 'everest_borradores',
   versiones: 'everest_versiones',
@@ -28,9 +28,9 @@ export const COLECCIONES_EVEREST = Object.freeze({
 });
 
 /** Las pantallas que el Designer sabe editar. Por ahora, la portada. */
-export const PANTALLAS_EVEREST = Object.freeze({
+export const PANTALLAS_EXPLORA = Object.freeze({
   principal: 'principal',
 });
 
 /** Carpeta de Storage para los medios que se suban desde el Designer. */
-export const CARPETA_MEDIOS_EVEREST = 'everest';
+export const CARPETA_MEDIOS_EXPLORA = 'everest';

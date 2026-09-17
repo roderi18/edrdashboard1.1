@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// DISEÑO, CAMPAÑAS, AUDIENCIA, LAPICES, ANALITICAS Y AVISOS (EVEREST, fases 6 a 8).
+// DISEÑO, CAMPAÑAS, AUDIENCIA, LAPICES, ANALITICAS Y AVISOS (EXPLORA, fases 6 a 8).
 //
 // Lo que se podia romper, y se comprueba aqui:
 //
@@ -431,6 +431,6 @@ test('la biblioteca lee la carpeta everest/ de Storage, solo para el Administrad
 
   assert.match(biblioteca, /if \(!isAdminGlobal\(usuario\)\)/);
   assert.match(biblioteca, /listAll\(/);
-  assert.match(biblioteca, /`\$\{CARPETA_MEDIOS_EVEREST\}\/\$\{bloque\.id\}`/);
+  assert.match(biblioteca, /`\$\{CARPETA_MEDIOS_EXPLORA\}\/\$\{bloque\.id\}`/);
   assert.doesNotMatch(biblioteca, /principal-tarjetas/);
 });

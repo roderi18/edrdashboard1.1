@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // LA PORTADA NO CAMBIA HASTA QUE ALGUIEN LA PUBLICA DESDE EL DESIGNER.
 //
-// EVEREST Designer (Administracion → EVEREST Designer) va a poder cambiar todo lo
+// EXPLORA Designer (Administracion → EXPLORA Designer) va a poder cambiar todo lo
 // que se ve en /principal. La condicion que se puso al encargarlo fue tajante:
 // mientras nadie entre al Designer y pulse Publicar, la portada se ve EXACTAMENTE
 // como hoy —textos, orden, imagenes y videos—.

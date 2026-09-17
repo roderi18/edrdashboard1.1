@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LOS BLOQUES QUE EDITA EVEREST DESIGNER.
+// LOS BLOQUES QUE EDITA EXPLORA DESIGNER.
 //
 // Es la UNICA lista. De aqui salen el menu del Designer, lo que se puede publicar
 // y como se limpia cada cosa antes de pintarse. Un bloque nuevo en la portada se
@@ -18,7 +18,7 @@
 // encabezado de la tienda—. El Designer lo aloja, pero no lo guarda aqui.
 // ----------------------------------------------------------------------
 
-import { PANTALLAS_EVEREST } from './colecciones.mjs';
+import { PANTALLAS_EXPLORA } from './colecciones.mjs';
 import {
   boton,
   clave,
@@ -236,10 +236,10 @@ const sanearLema = (contenido) =>
 // ----------------------------------------------------------------------
 
 const bloque = (definicion) =>
-  Object.freeze({ pantalla: PANTALLAS_EVEREST.principal, ...definicion });
+  Object.freeze({ pantalla: PANTALLAS_EXPLORA.principal, ...definicion });
 
 /** En el orden en que salen en el Designer. */
-export const BLOQUES_EVEREST = Object.freeze([
+export const BLOQUES_EXPLORA = Object.freeze([
   bloque({
     id: 'bienvenida',
     nombre: 'Bienvenida',
@@ -312,8 +312,8 @@ export const BLOQUES_EVEREST = Object.freeze([
   }),
 ]);
 
-export const bloquePorId = (id) => BLOQUES_EVEREST.find((item) => item.id === id) ?? null;
+export const bloquePorId = (id) => BLOQUES_EXPLORA.find((item) => item.id === id) ?? null;
 
 /** Los bloques que se guardan en el documento publicado de esa pantalla. */
 export const bloquesPublicablesDe = (pantalla) =>
-  BLOQUES_EVEREST.filter((item) => item.pantalla === pantalla && !item.externo);
+  BLOQUES_EXPLORA.filter((item) => item.pantalla === pantalla && !item.externo);

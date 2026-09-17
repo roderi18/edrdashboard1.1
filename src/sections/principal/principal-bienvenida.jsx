@@ -37,7 +37,7 @@ import {
 // color escrito —blanco, oro— en vez de heredarlo; sobre un fondo fijo, heredar
 // del tema es justo lo que lo rompe al cambiar de modo.
 //
-// `diseno` (EVEREST Designer) cambia colores, tamaños, textos fijos y que se
+// `diseno` (EXPLORA Designer) cambia colores, tamaños, textos fijos y que se
 // enseña. Sin diseño publicado, cada pieza usa lo que llevaba escrito.
 // ----------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ export function PrincipalBienvenida({
   const NAVY = navyDelDiseno(tonos.NAVY, diseno);
   // `foto` es la del MIEMBRO —su avatar—; esta es la del fondo del banner.
   const banner = useImagenDeTarjeta(ID_DEL_BANNER);
-  // El fondo publicado desde EVEREST Designer, si lo hay, manda sobre el de
+  // El fondo publicado desde EXPLORA Designer, si lo hay, manda sobre el de
   // siempre. Sin el —el valor de fabrica— se usa el de siempre.
   const fondo = resumen.fondo ? resumen.fondo.url : banner.foto;
 

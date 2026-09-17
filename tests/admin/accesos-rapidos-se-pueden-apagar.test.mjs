@@ -42,7 +42,7 @@ test('solo se muestran si alguien los activo', () => {
 
 test('la pantalla Principal los esconde con esa misma regla', () => {
   assert.match(VISTA, /settings\.state\.accesosRapidos === true/);
-  // Los accesos llegan del lector de la portada desde EVEREST Designer (fase 2);
+  // Los accesos llegan del lector de la portada desde EXPLORA Designer (fase 2);
   // el interruptor sigue decidiendo si salen o no.
   assert.match(
     VISTA,

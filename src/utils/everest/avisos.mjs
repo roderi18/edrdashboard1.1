@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// QUE MERECE UN AVISO EN LA CAMPANA AL PUBLICAR (EVEREST, fase 8).
+// QUE MERECE UN AVISO EN LA CAMPANA AL PUBLICAR (EXPLORA, fase 8).
 //
 // Solo los comunicados que NO estaban en vivo, reconocidos por su clave.
 // Reordenar la lista, corregir una fecha o una errata no es un comunicado nuevo,

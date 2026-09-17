@@ -90,10 +90,13 @@ export const AMBITOS_CAMBIO = {
   // el Administrador Global, se aplica en el acto y queda en Historial, porque
   // lo oye toda la organizacion.
   sonidosDeAviso: 'sonidos_de_aviso',
-  // Lo que se publica desde EVEREST Designer: los bloques de la portada que ve
+  // Lo que se publica desde EXPLORA Designer: los bloques de la portada que ve
   // toda la organizacion. Lo publica el Administrador Global, se aplica en el
   // acto y queda en Historial que bloque se publico, quien y cuando.
   everestDesigner: 'everest_designer',
+  // Las cintas del perfil de un miembro. Por ahora solo las pone a mano el
+  // Administrador Global para pruebas: se aplica en el acto y queda en Historial.
+  cintasMiembro: 'cintas_miembro',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

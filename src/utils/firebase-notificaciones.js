@@ -291,7 +291,7 @@ const DEFINICIONES_NOTIFICACIONES = {
     tipoAccion: 'ver',
     requiereFotoPersona: true,
   },
-  // UN COMUNICADO OFICIAL NUEVO EN LA PORTADA, publicado desde EVEREST Designer.
+  // UN COMUNICADO OFICIAL NUEVO EN LA PORTADA, publicado desde EXPLORA Designer.
   // Va a toda la organizacion (o a la parte que se eligio), cargos y miembros.
   comunicado_publicado: {
     modulo: 'comunicados',

@@ -48,7 +48,7 @@ import {
 // y el muro entero. Lo demas son datos de EJEMPLO y cada panel lo dice encima
 // (ver `datos-de-ejemplo.js`).
 //
-// Cada uno de esos bloques se puede publicar desde EVEREST Designer —contenido y
+// Cada uno de esos bloques se puede publicar desde EXPLORA Designer —contenido y
 // diseño—. Hasta que alguien lo publique, sale exactamente lo de siempre: la
 // pantalla ya no importa los datos a mano, se los pide a `useContenidoDePortada`.
 //
@@ -57,7 +57,7 @@ import {
 // ----------------------------------------------------------------------
 
 // La marca "Ejemplo" solo tiene sentido sobre lo inventado: un bloque publicado
-// desde EVEREST Designer ya no es un ejemplo, aunque la bandera vuelva a encenderse.
+// desde EXPLORA Designer ya no es un ejemplo, aunque la bandera vuelva a encenderse.
 const esDeEjemplo = (bloque) => HAY_DATOS_DE_EJEMPLO && bloque.origen === 'codigo';
 
 export function PrincipalHomeView() {
@@ -65,7 +65,7 @@ export function PrincipalHomeView() {
   const settings = useSettingsContext();
   const accesosVisibles = settings.state.accesosRapidos === true;
   // CADA BLOQUE, DE LO PUBLICADO O DE LO DE SIEMPRE. Mientras nadie publique nada
-  // desde EVEREST Designer, esto devuelve exactamente los mismos datos que antes
+  // desde EXPLORA Designer, esto devuelve exactamente los mismos datos que antes
   // se importaban a mano de `datos-de-ejemplo.js` (ver `useContenidoDePortada`).
   const quien = useMemo(() => alcanceDeLaSesion(user), [user]);
   const portada = useContenidoDePortada({ quien });

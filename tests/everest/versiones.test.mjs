@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LAS VERSIONES DE EVEREST DESIGNER (fase 5).
+// LAS VERSIONES DE EXPLORA DESIGNER (fase 5).
 //
 // Lo que se podia romper, y se comprueba aqui:
 //
@@ -9,7 +9,7 @@
 //     previa. Abrirla la deja como borrador; publicar sigue siendo un paso aparte.
 //   - Que una version vieja, que ya no cuadra con la forma de hoy del bloque,
 //     llegara al editor rota.
-//   - Que Historial siguiera diciendo solo "Publicado desde EVEREST Designer" sin
+//   - Que Historial siguiera diciendo solo "Publicado desde EXPLORA Designer" sin
 //     el antes y el despues de lo que cambio.
 //   - Que listar las versiones pidiera un indice compuesto que hay que crear a
 //     mano en la consola: sin el, la lista falla en produccion.

@@ -1188,10 +1188,19 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
-    // EVEREST DESIGNER. Lo que se publica es la portada de toda la organizacion:
+    // EXPLORA DESIGNER. Lo que se publica es la portada de toda la organizacion:
     // la lee cualquier sesion y la escribe SOLO el Administrador Global. Un
     // documento por pantalla (`principal`), con un mapa `bloques`; un bloque que
     // no esta en el mapa se pinta como siempre, desde el codigo.
+    // CINTAS DEL PERFIL de cada miembro (`{idMiembros}`). Las ve cualquier
+    // sesión del sistema porque salen en el perfil; por ahora solo las escribe el
+    // Administrador Global (cintas de prueba). Sin esta regla caían en el
+    // comodín del final y cualquier sesión podía ponerse cintas.
+    match /cintas_miembros/{idMiembros} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
     match /everest_publicado/{pantalla} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
@@ -1209,7 +1218,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // CUANTAS VECES SE VIO Y SE PULSO CADA BLOQUE DE LA PORTADA (EVEREST, fase 8).
+    // CUANTAS VECES SE VIO Y SE PULSO CADA BLOQUE DE LA PORTADA (EXPLORA, fase 8).
     //
     // Suma cualquier sesion —la impresion la cuenta el navegador de quien mira—,
     // pero SOLO dentro de los dos mapas de contadores: sin `hasOnly`, el documento
@@ -1489,7 +1498,7 @@ service cloud.firestore {
         // Los sonidos de la aplicacion tienen su bloque arriba: sin excluirlos
         // aqui, cualquier sesion podria cambiarle el sonido a todo el mundo.
         && coleccion != 'configuracion_sonidos'
-        // EVEREST Designer tiene sus bloques arriba: sin excluirlo aqui,
+        // EXPLORA Designer tiene sus bloques arriba: sin excluirlo aqui,
         // cualquier sesion podria reescribir la portada de todo el mundo.
         && coleccion != 'everest_publicado'
         && coleccion != 'everest_borradores'

@@ -7,7 +7,7 @@ import { RouterLink } from 'src/routes/components';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
-// EL LAPIZ DE CADA TARJETA DE LA PORTADA (EVEREST, fase 6).
+// EL LAPIZ DE CADA TARJETA DE LA PORTADA (EXPLORA, fase 6).
 //
 // Lleva al Designer con ese bloque abierto y un "Volver" a la portada. Sustituye
 // al lapiz de imagen de antes, que subia la foto y la cambiaba para toda la
@@ -22,12 +22,12 @@ export const enlaceAlDesigner = (idBloque) =>
 
 export function LapizDelDesigner({ idBloque, sobreOscuro = false, sx }) {
   return (
-    <Tooltip title="Editar en EVEREST Designer">
+    <Tooltip title="Editar en EXPLORA Designer">
       <IconButton
         component={RouterLink}
         href={enlaceAlDesigner(idBloque)}
         size="small"
-        aria-label="Editar en EVEREST Designer"
+        aria-label="Editar en EXPLORA Designer"
         sx={[
           sobreOscuro
             ? {

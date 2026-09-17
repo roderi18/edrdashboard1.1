@@ -38,7 +38,7 @@ import {
 // es la fecha que viene, la otra lo que falta para el siguiente nivel. Por eso
 // van juntas y en la misma fila.
 //
-// `diseno` (EVEREST Designer) cambia colores, tamaños, textos fijos y que se
+// `diseno` (EXPLORA Designer) cambia colores, tamaños, textos fijos y que se
 // enseña. Sin diseño publicado, cada pieza usa lo que llevaba escrito.
 // ----------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEd
     aceptaVideo: true,
   });
 
-  // LO QUE SE PUBLICA DESDE EVEREST DESIGNER (fase 4), SI LO HAY. Con fecha de
+  // LO QUE SE PUBLICA DESDE EXPLORA DESIGNER (fase 4), SI LO HAY. Con fecha de
   // inicio, las fechas y los dias que faltan se calculan hoy, al pintar. Con
   // fondo propio, manda sobre la foto de siempre. Sin nada de eso —el valor de
   // fabrica— la tarjeta se pinta exactamente como antes.
