@@ -905,6 +905,9 @@ function BarraDelCalendario({
   puedeAgregarActividad = false,
   modoActividad = false,
   rango = null,
+  actividadApuntada = null,
+  puedeEliminarActividad = false,
+  onEliminarActividad,
   nombreActividad = '',
   guardandoActividad = false,
   onCambiarNombreActividad,
@@ -915,22 +918,48 @@ function BarraDelCalendario({
 }) {
   if (!modoActividad) {
     return (
-      <Box
-        className={className}
-        sx={{ px: 2, pb: 1, gap: 1, display: 'flex', alignItems: 'center' }}
-      >
-        {puedeAgregarActividad && (
-          <Button
-            size="small"
-            color="primary"
-            onClick={onEmpezarActividad}
-            startIcon={<Iconify icon="mingcute:add-line" width={16} />}
-          >
-            Agregar actividad
-          </Button>
+      <Box className={className} sx={{ px: 2, pb: 1 }}>
+        {/* La actividad del dia que se está señalando, con su papelera. */}
+        {actividadApuntada && (
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0, mb: 0.5 }}>
+            <Iconify icon="solar:calendar-date-bold" width={16} />
+            <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+              {actividadApuntada.nombre || 'Actividad'}
+            </Typography>
+            {puedeEliminarActividad && (
+              <Tooltip title="Eliminar actividad">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={onEliminarActividad}
+                  aria-label={`Eliminar ${actividadApuntada.nombre || 'actividad'}`}
+                >
+                  <Iconify icon="solar:trash-bin-trash-bold" width={16} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
         )}
 
-        <PickersActionBar {...props} sx={{ ml: 'auto', p: 0 }} />
+        {/* "Agregar actividad" a la derecha, alineada con las flechas del mes. */}
+        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {puedeAgregarActividad && (
+            <Button
+              size="small"
+              color="primary"
+              onClick={onEmpezarActividad}
+              startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+            >
+              Agregar actividad
+            </Button>
+          )}
+
+          {/* Sin : empujaba la barra a la derecha y dejaba el boton
+              otra vez a la izquierda. */}
+          {/* Sin `ml: 'auto'`: empujaba la barra a la derecha y dejaba el boton
+              otra vez a la izquierda. */}
+          <PickersActionBar {...props} sx={{ p: 0 }} />
+        </Box>
       </Box>
     );
   }
@@ -2641,10 +2670,23 @@ export function AttendanceQuickView() {
                     // El calendario reserva siempre seis semanas. Al dejar la
                     // altura en el contenido, la accion queda junto a la ultima
                     // fila real del mes, tambien en el dialogo del movil.
+                    //
+                    // El mes va `position: relative`, y esto NO es un detalle:
+                    // MUI lo pinta `absolute` dentro del carrusel para poder
+                    // deslizarlo, asi que no ocupa alto. Quitando el minimo de
+                    // seis semanas sin sacarlo del absoluto, el carrusel se
+                    // quedaba en 0 px y el calendario salia SIN DIAS —los 35
+                    // botones estaban ahi, recortados por el `overflow`—.
                     layout: {
                       sx: {
-                        '& .MuiDayCalendar-slideTransition, & .MuiDayCalendar-monthContainer': {
+                        // El calendario tambien tiene ALTO FIJO (el de seis
+                        // semanas). Sin esto quedaban 28 px muertos entre el
+                        // ultimo dia y "Agregar actividad".
+                        '& .MuiDateCalendar-root': { height: 'auto', pb: 0.5 },
+                        '& .MuiDayCalendar-slideTransition': { minHeight: 'auto' },
+                        '& .MuiDayCalendar-monthContainer': {
                           minHeight: 'auto',
+                          position: 'relative',
                         },
                       },
                     },
@@ -2659,6 +2701,12 @@ export function AttendanceQuickView() {
                       puedeAgregarActividad: puedePasarAsistencia && Boolean(selectedDestId),
                       modoActividad,
                       rango: rangoActividad,
+                      // La actividad del dia señalado se lee DENTRO del calendario,
+                      // junto a sus dias: debajo del campo de fecha ocupaba una
+                      // linea permanente que no decia de que dia hablaba.
+                      actividadApuntada,
+                      puedeEliminarActividad: puedePasarAsistencia,
+                      onEliminarActividad: confirmarEliminarActividad.onTrue,
                       nombreActividad,
                       guardandoActividad,
                       onCambiarNombreActividad: (event) => setNombreActividad(event.target.value),
@@ -2676,32 +2724,6 @@ export function AttendanceQuickView() {
                     },
                   }}
                 />
-
-                {actividadApuntada && !modoActividad && (
-                  <Stack
-                    direction="row"
-                    spacing={0.5}
-                    alignItems="center"
-                    sx={{ mt: 0.5, pl: 1, minWidth: 0 }}
-                  >
-                    <Iconify icon="solar:calendar-date-bold" width={16} />
-                    <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
-                      {actividadApuntada.nombre || 'Actividad'}
-                    </Typography>
-                    {puedePasarAsistencia && (
-                      <Tooltip title="Eliminar actividad">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={confirmarEliminarActividad.onTrue}
-                          aria-label={`Eliminar ${actividadApuntada.nombre || 'actividad'}`}
-                        >
-                          <Iconify icon="solar:trash-bin-trash-bold" width={16} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Stack>
-                )}
               </Box>
 
               <TextField

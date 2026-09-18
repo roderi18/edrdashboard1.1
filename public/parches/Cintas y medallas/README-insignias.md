@@ -25,8 +25,14 @@ Las insignias del perfil pueden ser cintas, medallas o ambas juntas. Cada insign
 
 - Deben parecer piezas reales, con hilo y metal segun corresponda.
 - Todas las medallas de una misma serie deben tener el mismo tamano, calidad, entonacion y luminosidad.
+- El logo o emblema central corresponde a Exploradores del Rey y debe tratarse como un elemento oficial de la insignia.
 - Deben guardarse como WebP optimizado solo despues de aprobar el ejemplo visual.
 - No deben tener margen externo, fondo sobrante ni espacio transparente innecesario.
+- Antes de crear, editar, recortar o exportar una medalla se debe consultar `DIRECTRICES-MEDALLAS.md`.
+- El archivo final debe tener transparencia real, sin fondo blanco, sombra, halo ni fragmentos horizontales o laterales.
+- El lienzo debe recortarse al filo de la silueta visible, dejando como maximo un margen transparente minimo.
+- La pieza debe quedar centrada y ocupar casi todo el ancho del lienzo, sin perder ninguna esquina, punta, aro o parte de la cinta.
+- Para carga rapida se debe generar tambien una variante reducida cuando la medalla se muestre pequena en la interfaz.
 
 ## Peso y formato
 
@@ -46,6 +52,7 @@ Las insignias del perfil pueden ser cintas, medallas o ambas juntas. Cada insign
 - Cintas de perfil: `public/parches/Cintas y medallas/cintas-perfil`
 - Medallas: `public/parches/Cintas y medallas/medallas`
 - Numeros para cintas: `public/parches/Cintas y medallas/numeros-cintas`
+- Directrices de medallas: `public/parches/Cintas y medallas/DIRECTRICES-MEDALLAS.md`
 
 ## Catalogo de cintas aprobadas
 
