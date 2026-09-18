@@ -13,6 +13,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fToNow } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
+import { fraseDeCumpleanos } from 'src/utils/chat-sistema.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 
 import { toast } from 'src/components/snackbar';
@@ -135,6 +136,47 @@ const renderSharedFileLink = (text = '', metadata = {}, participants = []) => {
 // UN PRODUCTO COMPARTIDO SE VE COMO TARJETA: imagen, nombre y precio, y al
 // pulsarla se va a la ficha. Antes llegaba el texto con la URL pegada, que habia
 // que copiar o pulsar a ciegas.
+// LOS CUMPLEAÑOS QUE ANUNCIA SISTEMA: la foto de cada persona GRANDE, como es
+// —con su proporcion, sin recortarla en un circulo—, y su frase debajo ("Randy
+// Samuel Cruz Martinez está de cumpleaños hoy 🎊"). En un circulo de 48px la cara
+// apenas se reconocia, y es lo que importa del aviso. Pulsarla la abre ampliada,
+// como las fotos enviadas. Sin foto, solo la frase. La felicitacion al propio
+// cumpleañero lleva su foto y su texto.
+function TarjetaDeCumpleanos({ cumpleanos, texto, onOpenLightbox }) {
+  const personas = Array.isArray(cumpleanos?.personas) ? cumpleanos.personas : [];
+
+  return (
+    <Stack spacing={2}>
+      {personas.map((persona) => (
+        <Stack key={persona.idMiembros} spacing={1}>
+          {persona.fotoUrl && (
+            <Box
+              component="img"
+              src={persona.fotoUrl}
+              alt={persona.nombre}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onClick={() => onOpenLightbox?.(persona.fotoUrl)}
+              sx={{
+                width: 1,
+                height: 'auto',
+                display: 'block',
+                borderRadius: 1.5,
+                cursor: onOpenLightbox ? 'pointer' : 'default',
+                '&:hover': onOpenLightbox ? { opacity: 0.9 } : {},
+              }}
+            />
+          )}
+          <Typography variant="body2">
+            {cumpleanos?.felicitacion ? texto : fraseDeCumpleanos(persona.nombre, persona.dias)}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
 function TarjetaProductoCompartido({ producto }) {
   return (
     <Box
@@ -376,6 +418,9 @@ export function ChatMessageItem({
           // medida que las fotos enviadas, que ya se acotan por ancho de pantalla.
           maxWidth: { xs: 'min(64vw, 230px)', sm: 320 },
         },
+        // LA FOTO DEL CUMPLEAÑERO, del ancho de las fotos enviadas: a 320px una foto
+        // vertical ocupaba la pantalla entera en el celular.
+        !!message.metadata?.cumpleanosSistema && { maxWidth: { xs: 'min(70vw, 260px)', sm: 280 } },
         !!message.metadata?.sharedProduct &&
           ((theme) =>
             theme.applyStyles('dark', { color: 'text.primary', bgcolor: 'background.neutral' })),
@@ -515,7 +560,13 @@ export function ChatMessageItem({
             </Box>
           )}
 
-          {message.metadata?.sharedProduct ? (
+          {message.metadata?.cumpleanosSistema ? (
+            <TarjetaDeCumpleanos
+              cumpleanos={message.metadata.cumpleanosSistema}
+              texto={body}
+              onOpenLightbox={onOpenLightbox}
+            />
+          ) : message.metadata?.sharedProduct ? (
             <>
               {/* El texto del mensaje encima de la tarjeta, sin la URL —esa
                   es la tarjeta— ni el nombre, que ya va dentro. Sin el, la
@@ -637,14 +688,17 @@ export function ChatMessageItem({
           ...(me && { right: 0, left: 'unset' }),
         })}
       >
-        <IconButton
-          size="small"
-          disabled={isDeleted}
-          aria-label="Responder mensaje"
-          onClick={() => onReply?.(message)}
-        >
-          <Iconify icon="solar:reply-bold" width={16} />
-        </IconButton>
+        {/* Sin `onReply` no hay a quien responder: el chat de Sistema no admite respuestas. */}
+        {onReply && (
+          <IconButton
+            size="small"
+            disabled={isDeleted}
+            aria-label="Responder mensaje"
+            onClick={() => onReply(message)}
+          >
+            <Iconify icon="solar:reply-bold" width={16} />
+          </IconButton>
+        )}
 
         <IconButton
           size="small"

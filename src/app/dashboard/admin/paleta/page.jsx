@@ -1,11 +1,12 @@
-import { CONFIG } from 'src/global-config';
+import { redirect } from 'next/navigation';
 
-import { AdminPaletteView } from 'src/sections/admin/view';
+import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `Paleta | Dashboard - ${CONFIG.appName}` };
-
+// LA PALETA SE MUDO A EXPLORA DESIGNER (pestaña "Paleta"). La direccion vieja se
+// queda solo para redirigir: habia enlaces y marcadores apuntando aqui, y sin
+// esto daban 404.
 export default function Page() {
-  return <AdminPaletteView />;
+  redirect(paths.dashboard.admin.paleta);
 }

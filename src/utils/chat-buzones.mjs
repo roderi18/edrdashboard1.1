@@ -27,6 +27,8 @@
 // coleccion de respuestas. El test `chat-buzones-compartidos` avisa si falta algo.
 // ----------------------------------------------------------------------
 
+import { esCuentaSistema } from './chat-sistema.mjs';
+
 export const BUZON_TIENDA = Object.freeze({
   clave: 'tienda',
   idMiembros: 20001,
@@ -87,8 +89,12 @@ export const esBuzonCompartido = (idMiembros) => Boolean(buzonPorIdMiembros(idMi
  * Una persona nunca es un buzon. Si el padron llegara a darle a alguien uno de
  * estos numeros, esa sesion se rechaza en vez de heredar las conversaciones de
  * toda la tienda o de toda la Oficina.
+ *
+ * Sistema (20003) tambien: no es un buzon, pero quien entrara con su numero
+ * leeria los avisos de todo el mundo y escribiria como Sistema.
  */
-export const esIdReservadoDeBuzon = esBuzonCompartido;
+export const esIdReservadoDeBuzon = (idMiembros) =>
+  esBuzonCompartido(idMiembros) || esCuentaSistema(idMiembros);
 
 export const esUidDeBuzon = (uid) =>
   BUZONES_COMPARTIDOS.some((buzon) => buzon.uid === String(uid ?? '').trim());

@@ -31,7 +31,6 @@ import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { SignOutButton } from 'src/layouts/components/sign-out-button';
 import { guardarCorreoDeAcceso } from 'src/services/primer-acceso-service';
 import { getMembers, authHeaders, updateMemberApi } from 'src/services/member-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
@@ -785,7 +784,11 @@ export function UserAccountGeneral() {
   });
 
   if (!user || loadingMember) {
-    return <AccountSectionSkeleton variant="profile" idMiembros={user?.idMiembros} />;
+    return <AccountSectionSkeleton
+        variant="profile"
+        idMiembros={user?.idMiembros}
+        cerrarSesion={false}
+      />;
   }
 
   if (!member) {
@@ -840,8 +843,6 @@ export function UserAccountGeneral() {
 
             <CintasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} sx={{ mt: 2 }} />
             <MedallasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} />
-
-            <SignOutButton sx={{ mt: 3 }} />
           </Card>
         </Grid>
 

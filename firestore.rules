@@ -107,7 +107,10 @@ service cloud.firestore {
         && (
           request.auth.token.idMiembros != 20002
           || request.auth.uid == 'oficina-nacional'
-        );
+        )
+        // Sistema (20003) no lo lleva NINGUN token: solo escribe el Admin SDK,
+        // que no pasa por las reglas. Ver `src/utils/chat-sistema.mjs`.
+        && request.auth.token.idMiembros != 20003;
     }
 
     // Quien ejerce uno de los cargos del buzon puede LEER sus conversaciones: sin
@@ -235,6 +238,8 @@ service cloud.firestore {
         )
         && request.resource.data.tipoConversacion in ['INDIVIDUAL', 'GRUPAL']
         && request.resource.data.eliminada == false
+        // Con Sistema no se abre conversacion: la abre el servidor al avisar.
+        && !(20003 in request.resource.data.participantesIds)
         && camposConversacionPermitidos();
     }
 
@@ -592,7 +597,10 @@ service cloud.firestore {
             || atiendeUnBuzon(conversacion(idConversacion))
           )
           && mensajeVisibleParaMi(idConversacion, resource.data);
-        allow create: if puedeLeerConversacion(idConversacion) && mensajeNuevoValido(idMensaje);
+        // A Sistema no se le contesta: es un canal de avisos que escribe el servidor.
+        allow create: if puedeLeerConversacion(idConversacion)
+          && !(20003 in conversacion(idConversacion).participantesIds)
+          && mensajeNuevoValido(idMensaje);
         allow update: if puedeLeerConversacion(idConversacion)
           && mensajeVisibleParaMi(idConversacion, resource.data)
           && (actualizacionMensajePropioValida() || actualizacionReaccionValida());
@@ -994,6 +1002,14 @@ service cloud.firestore {
     // `buzones_chat/oficina`). La ve cualquier sesion —sale en contactos, chats y
     // avisos— y la cambia solo el Administrador Global, desde el propio chat. Un
     // documento por buzon con su clave como id; nadie los borra.
+    // EL REGISTRO DEL CHAT DE SISTEMA: dia, hora, cuantos mensajes, a que
+    // destacamento, a quienes y por que. Lo escribe solo el servidor (Admin SDK)
+    // y lo lee el Administrador Global en Administracion → Notificaciones.
+    match /chat_sistema_registro/{idRegistro} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
+    }
+
     match /buzones_chat/{claveBuzon} {
       allow read: if estaAutenticado();
       allow create, update: if esAdministradorGlobal()
@@ -1548,6 +1564,9 @@ service cloud.firestore {
         && coleccion != 'estatus_miembros'
         && coleccion != 'licenciasAsistencia'
         && coleccion != 'buzones_chat'
+        // El registro del chat de Sistema: sin excluirlo, cualquier sesion lo
+        // leeria (con nombres de todo el destacamento) o lo reescribiria.
+        && coleccion != 'chat_sistema_registro'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
         && coleccion != 'analiticas_encabezado_tienda'

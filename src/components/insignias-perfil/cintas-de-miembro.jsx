@@ -8,6 +8,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
+import Slider from '@mui/material/Slider';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
@@ -22,6 +23,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { configuracionDeMedallas, catalogoDeMedallasEnOrden } from 'src/utils/medallas-perfil.mjs';
 import {
+  AJUSTES_CINTA,
   digitosDeVeces,
   CINTAS_POR_FILA,
   normalizarVeces,
@@ -33,6 +35,7 @@ import {
   disponerCintasEnFilas,
   configuracionPorCinta,
   normalizarEfectoBorde,
+  normalizarAjusteCinta,
   MAXIMO_CINTAS_VISIBLES,
   normalizarEfectoNumero,
 } from 'src/utils/cintas-perfil.mjs';
@@ -90,7 +93,7 @@ const estrellaDorada = keyframes`
 
 const auraDorada = keyframes`
   0%, 100% { filter: drop-shadow(0 0 1px rgba(255, 230, 130, 0.3)); }
-  50% { filter: drop-shadow(0 0 4px rgba(255, 210, 70, 0.72)); }
+  50% { filter: drop-shadow(0 0 calc(4px * var(--intensidad-numero, 1)) rgba(255, 210, 70, 0.72)); }
 `;
 
 const centelleoDelNumero = keyframes`
@@ -137,7 +140,21 @@ const mascaraDelBorde = {
   maskRepeat: 'no-repeat',
 };
 
-const estiloDelBorde = (efecto) => {
+// Más velocidad = ciclo más corto; con 1, los segundos de siempre.
+const duracion = (segundos, velocidad) => `${(segundos / velocidad).toFixed(2)}s`;
+
+// La intensidad va en una capa aparte y no en el propio brillo: el pulso y el
+// centelleo ya animan su opacidad y la de la capa se multiplica con ella. Hasta 1
+// se ve menos; por encima, además más luminoso.
+const capaDeIntensidad = (intensidad) => ({
+  inset: 0,
+  position: 'absolute',
+  pointerEvents: 'none',
+  opacity: Math.min(1, intensidad),
+  ...(intensidad > 1 && { filter: `brightness(${intensidad})` }),
+});
+
+const estiloDelBorde = (efecto, velocidad = 1) => {
   switch (normalizarEfectoBorde(efecto)) {
     case EFECTOS_BORDE_CINTA.OLA:
       return {
@@ -145,12 +162,12 @@ const estiloDelBorde = (efecto) => {
           'radial-gradient(ellipse at center, rgba(255, 250, 214, 0.72) 0%, rgba(255, 205, 72, 0.34) 38%, transparent 70%)',
         backgroundSize: '52% 220%',
         backgroundRepeat: 'no-repeat',
-        animation: `${olaDelBorde} 9s linear infinite`,
+        animation: `${olaDelBorde} ${duracion(9, velocidad)} linear infinite`,
       };
     case EFECTOS_BORDE_CINTA.PULSO:
       return {
         backgroundColor: 'rgba(255, 215, 92, 0.5)',
-        animation: `${pulsoDelBorde} 3.8s ease-in-out infinite`,
+        animation: `${pulsoDelBorde} ${duracion(3.8, velocidad)} ease-in-out infinite`,
       };
     case EFECTOS_BORDE_CINTA.CENTELLEO:
       return {
@@ -158,7 +175,7 @@ const estiloDelBorde = (efecto) => {
           'radial-gradient(circle, rgba(255, 252, 221, 0.85) 0%, transparent 62%), radial-gradient(circle, rgba(255, 211, 80, 0.65) 0%, transparent 62%)',
         backgroundSize: '22% 150%, 18% 130%',
         backgroundRepeat: 'no-repeat',
-        animation: `${centelleoDelBorde} 6.5s ease-in-out infinite`,
+        animation: `${centelleoDelBorde} ${duracion(6.5, velocidad)} ease-in-out infinite`,
       };
     case EFECTOS_BORDE_CINTA.NINGUNO:
       return { display: 'none' };
@@ -168,7 +185,7 @@ const estiloDelBorde = (efecto) => {
           'linear-gradient(110deg, transparent 42%, rgba(255, 249, 202, 0.7) 50%, transparent 58%)',
         backgroundSize: '270% 100%',
         backgroundPosition: '165% 0',
-        animation: `${destelloDelBorde} 4.8s ease-in-out infinite`,
+        animation: `${destelloDelBorde} ${duracion(4.8, velocidad)} ease-in-out infinite`,
       };
   }
 };
@@ -420,12 +437,27 @@ export function CintasDeMiembro({
 
 // ----------------------------------------------------------------------
 
-// La cinta con, si se ganó más de una vez, su número dorado en el centro.
-export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
+// La cinta con, si se ganó más de una vez, su número dorado en el centro. Las
+// cuatro perillas (`AJUSTES_CINTA`) multiplican la velocidad y la intensidad de
+// los brillos; sin ellas, todo como siempre.
+export function ImagenDeCinta({
+  cinta,
+  veces,
+  efectoBorde,
+  efectoNumero,
+  velocidadBorde,
+  intensidadBorde,
+  velocidadNumero,
+  intensidadNumero,
+}) {
   const digitos = digitosDeVeces(veces);
   const tieneBordeDorado = CINTAS_CON_BORDE_DORADO.has(cinta.id);
   const bordeElegido = normalizarEfectoBorde(efectoBorde);
   const numeroElegido = normalizarEfectoNumero(efectoNumero);
+  const rapidezBorde = normalizarAjusteCinta('velocidadBorde', velocidadBorde);
+  const fuerzaBorde = normalizarAjusteCinta('intensidadBorde', intensidadBorde);
+  const rapidezNumero = normalizarAjusteCinta('velocidadNumero', velocidadNumero);
+  const fuerzaNumero = normalizarAjusteCinta('intensidadNumero', intensidadNumero);
   const [brilloAleatorio, setBrilloAleatorio] = useState(null);
   // La imagen aún no llegó: se guarda su hueco con un esqueleto.
   const [imagenLista, setImagenLista] = useState(false);
@@ -446,7 +478,7 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
           temporizadorBrillo = setTimeout(() => setBrilloAleatorio(null), 850);
           programarBrillo();
         },
-        3500 + Math.random() * 4000
+        (3500 + Math.random() * 4000) / rapidezNumero
       );
     };
 
@@ -456,7 +488,7 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
       clearTimeout(temporizadorBrillo);
       clearTimeout(temporizadorSiguiente);
     };
-  }, [digitos.length, numeroElegido]);
+  }, [digitos.length, numeroElegido, rapidezNumero]);
 
   return (
     <Box
@@ -487,22 +519,21 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
         }}
       />
       {tieneBordeDorado && bordeElegido !== EFECTOS_BORDE_CINTA.NINGUNO && (
-        <Box
-          aria-hidden="true"
-          sx={{
-            inset: 0,
-            zIndex: 1,
-            position: 'absolute',
-            pointerEvents: 'none',
-            ...mascaraDelBorde,
-            ...estiloDelBorde(bordeElegido),
-            filter: 'drop-shadow(0 0 2px rgba(255, 193, 7, 0.35))',
-            willChange: 'background-position',
-            '@media (prefers-reduced-motion: reduce)': {
-              display: 'none',
-            },
-          }}
-        />
+        <Box aria-hidden="true" sx={{ ...capaDeIntensidad(fuerzaBorde), zIndex: 1 }}>
+          <Box
+            sx={{
+              inset: 0,
+              position: 'absolute',
+              ...mascaraDelBorde,
+              ...estiloDelBorde(bordeElegido, rapidezBorde),
+              filter: 'drop-shadow(0 0 2px rgba(255, 193, 7, 0.35))',
+              willChange: 'background-position',
+              '@media (prefers-reduced-motion: reduce)': {
+                display: 'none',
+              },
+            }}
+          />
+        </Box>
       )}
       {!!digitos.length && (
         <Box
@@ -515,6 +546,7 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
             alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'none',
+            '--intensidad-numero': fuerzaNumero,
           }}
         >
           {digitos.map((src, indice) => (
@@ -542,8 +574,10 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
                     maskRepeat: 'no-repeat',
                     WebkitMaskPosition: 'center',
                     maskPosition: 'center',
+                    opacity: Math.min(1, fuerzaNumero),
+                    ...(fuerzaNumero > 1 && { filter: `brightness(${fuerzaNumero})` }),
                     willChange: 'background-position',
-                    animation: `${destelloDorado} 3.4s ease-in-out infinite`,
+                    animation: `${destelloDorado} ${duracion(3.4, rapidezNumero)} ease-in-out infinite`,
                     '@media (prefers-reduced-motion: reduce)': {
                       display: 'none',
                     },
@@ -564,7 +598,7 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
                       ? 'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48))'
                       : 'drop-shadow(0 2px 1.5px rgba(24, 18, 4, 0.48)) drop-shadow(0 0 1px rgba(255, 230, 130, 0.55)) drop-shadow(0 0 2px rgba(255, 193, 7, 0.38))',
                   ...(numeroElegido === EFECTOS_NUMERO_CINTA.AURA && {
-                    animation: `${auraDorada} 3.6s ease-in-out infinite`,
+                    animation: `${auraDorada} ${duracion(3.6, rapidezNumero)} ease-in-out infinite`,
                     '@media (prefers-reduced-motion: reduce)': {
                       animation: 'none',
                     },
@@ -573,31 +607,33 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
               />
               {numeroElegido === EFECTOS_NUMERO_CINTA.DESTELLO &&
                 brilloAleatorio?.indice === indice && (
-                  <Box
-                    key={brilloAleatorio.id}
-                    component="span"
-                    aria-hidden="true"
-                    sx={{
-                      top: '-16%',
-                      right: '-24%',
-                      zIndex: 1,
-                      color: '#fff7bd',
-                      fontSize: '0.72rem',
-                      lineHeight: 1,
-                      position: 'absolute',
-                      textShadow:
-                        '0 0 2px rgba(255, 255, 235, 0.8), 0 0 4px rgba(255, 193, 7, 0.55)',
-                      animation: `${estrellaDorada} 850ms ease-out both`,
-                      '@media (prefers-reduced-motion: reduce)': {
-                        display: 'none',
-                      },
-                    }}
-                  >
-                    ✦
+                  <Box component="span" aria-hidden="true" sx={capaDeIntensidad(fuerzaNumero)}>
+                    <Box
+                      key={brilloAleatorio.id}
+                      component="span"
+                      aria-hidden="true"
+                      sx={{
+                        top: '-16%',
+                        right: '-24%',
+                        zIndex: 1,
+                        color: '#fff7bd',
+                        fontSize: '0.72rem',
+                        lineHeight: 1,
+                        position: 'absolute',
+                        textShadow:
+                          '0 0 2px rgba(255, 255, 235, 0.8), 0 0 4px rgba(255, 193, 7, 0.55)',
+                        animation: `${estrellaDorada} 850ms ease-out both`,
+                        '@media (prefers-reduced-motion: reduce)': {
+                          display: 'none',
+                        },
+                      }}
+                    >
+                      ✦
+                    </Box>
                   </Box>
                 )}
               {numeroElegido === EFECTOS_NUMERO_CINTA.CENTELLEO && (
-                <>
+                <Box component="span" aria-hidden="true" sx={capaDeIntensidad(fuerzaNumero)}>
                   <Box
                     component="span"
                     aria-hidden="true"
@@ -608,7 +644,7 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
                       fontSize: '0.55rem',
                       lineHeight: 1,
                       position: 'absolute',
-                      animation: `${centelleoDelNumero} 4.8s ease-in-out infinite`,
+                      animation: `${centelleoDelNumero} ${duracion(4.8, rapidezNumero)} ease-in-out infinite`,
                       '@media (prefers-reduced-motion: reduce)': { display: 'none' },
                     }}
                   >
@@ -624,13 +660,13 @@ export function ImagenDeCinta({ cinta, veces, efectoBorde, efectoNumero }) {
                       fontSize: '0.48rem',
                       lineHeight: 1,
                       position: 'absolute',
-                      animation: `${centelleoDelNumero} 4.8s 1.6s ease-in-out infinite`,
+                      animation: `${centelleoDelNumero} ${duracion(4.8, rapidezNumero)} ${duracion(1.6, rapidezNumero)} ease-in-out infinite`,
                       '@media (prefers-reduced-motion: reduce)': { display: 'none' },
                     }}
                   >
                     ✦
                   </Box>
-                </>
+                </Box>
               )}
             </Box>
           ))}
@@ -685,6 +721,53 @@ export function TextoDeCinta({ cinta }) {
 
 // ----------------------------------------------------------------------
 
+/**
+ * Las cuatro perillas de los brillos de la cinta (velocidad e intensidad del
+ * borde dorado y del número), hermanas de las de las medallas. `valores` trae las
+ * claves de `AJUSTES_CINTA`.
+ */
+export function AjustesDeEfectosDeCinta({ valores = {}, onCambiar, sx }) {
+  return (
+    <Box
+      sx={[
+        {
+          columnGap: 3,
+          rowGap: 0.5,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, 1fr)' },
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {Object.entries(AJUSTES_CINTA).map(([clave, ajuste]) => {
+        const valor = normalizarAjusteCinta(clave, valores[clave]);
+
+        return (
+          <Box key={clave} sx={{ minWidth: 0 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {ajuste.etiqueta}: <strong>{valor.toFixed(2).replace(/\.?0+$/, '')}×</strong>
+            </Typography>
+            <Slider
+              size="small"
+              value={valor}
+              min={ajuste.min}
+              max={ajuste.max}
+              step={0.05}
+              marks={[{ value: 1 }]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(numero) => `${numero}×`}
+              onChange={(evento, nuevo) => onCambiar?.({ ...valores, [clave]: nuevo })}
+              aria-label={ajuste.etiqueta}
+            />
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+const PERILLAS_DE_CINTA = Object.keys(AJUSTES_CINTA);
+
 function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   // id → { veces, efectoBorde, efectoNumero }. Estar en el mapa es estar elegida.
   const [elegidas, setElegidas] = useState(() => configuracionPorCinta(asignadas));
@@ -694,6 +777,15 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   );
   const [efectoNumeroGlobal, setEfectoNumeroGlobal] = useState(
     configuracionInicial?.efectoNumero ?? EFECTOS_NUMERO_CINTA.BARRIDO
+  );
+  // Globales como los dos brillos: valen para todas sus cintas.
+  const [ajustesGlobales, setAjustesGlobales] = useState(() =>
+    Object.fromEntries(
+      PERILLAS_DE_CINTA.map((clave) => [
+        clave,
+        normalizarAjusteCinta(clave, configuracionInicial?.[clave]),
+      ])
+    )
   );
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
@@ -772,6 +864,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
           veces: configuracion.veces,
           efectoBorde: efectoBordeGlobal,
           efectoNumero: efectoNumeroGlobal,
+          ...ajustesGlobales,
         })),
         usuario: user,
       });
@@ -891,6 +984,12 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
               </TextField>
             </Box>
 
+            <AjustesDeEfectosDeCinta
+              valores={ajustesGlobales}
+              onCambiar={setAjustesGlobales}
+              sx={{ mb: 2 }}
+            />
+
             <Box
               sx={{
                 display: 'grid',
@@ -953,6 +1052,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                       veces={configuracion?.veces}
                       efectoBorde={efectoBordeGlobal}
                       efectoNumero={efectoNumeroGlobal}
+                      {...ajustesGlobales}
                     />
                     <Typography
                       variant="caption"

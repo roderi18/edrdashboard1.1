@@ -33,6 +33,7 @@ import {
   OPCIONES_BORDE,
   OPCIONES_NUMERO,
   useOrdenDeCintas,
+  AjustesDeEfectosDeCinta,
 } from 'src/components/insignias-perfil';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -61,6 +62,8 @@ export function EverestCintas() {
 
   const [efectoBorde, setEfectoBorde] = useState(EFECTOS_BORDE_CINTA.BARRIDO);
   const [efectoNumero, setEfectoNumero] = useState(EFECTOS_NUMERO_CINTA.BARRIDO);
+  // Las perillas solo se prueban aquí, como los dos brillos: no se guardan.
+  const [ajustes, setAjustes] = useState({});
   // Cuantas veces se ve ganada cada una: con mas de una, lleva el numero dorado.
   const [veces, setVeces] = useState(1);
 
@@ -169,6 +172,8 @@ export function EverestCintas() {
         </TextField>
       </Stack>
 
+      <AjustesDeEfectosDeCinta valores={ajustes} onCambiar={setAjustes} sx={{ mb: 2 }} />
+
       <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 3 }}>
         <Button
           color="inherit"
@@ -265,6 +270,7 @@ export function EverestCintas() {
                   veces={veces}
                   efectoBorde={efectoBorde}
                   efectoNumero={efectoNumero}
+                  {...ajustes}
                 />
               </Box>
             </Tooltip>

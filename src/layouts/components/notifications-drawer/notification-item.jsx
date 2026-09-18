@@ -435,10 +435,15 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   );
 
   const yaAtendida = notification.estado === 'atendida';
+  const esAvisoDeMiembro = ['miembro_creado', 'miembro_actualizado'].includes(
+    notification.tipoNotificacion
+  );
 
   const renderNotificationActions = () => (
     <Box sx={{ gap: 1, mt: 1.5, display: 'flex', flexWrap: 'wrap' }}>
-      {!!actionLabel && notificationRoute && !solicitudYaAtendida && (
+      {/* En un cumpleaños, "Ver perfil" sobra: pulsar el mensaje ya lleva al
+          perfil, y el botón que importa es el de felicitar. */}
+      {!!actionLabel && notificationRoute && !solicitudYaAtendida && !esCumpleanos && (
         <Button size="small" variant="contained" onClick={handlePrimaryAction}>
           {actionLabel}
         </Button>
@@ -495,7 +500,10 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
       <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
         {renderText()}
         {notification.type === 'friend' && renderFriendAction()}
-        {notification.type === 'project' && renderProjectAction()}
+        {/* Los avisos de miembro creado/actualizado llegan con el tipo visual
+            `project` de la plantilla, que pintaba una cita inventada y un "Reply"
+            que no hacía nada. Ahí solo van "Ver miembro" y "Marcar como atendida". */}
+        {notification.type === 'project' && !esAvisoDeMiembro && renderProjectAction()}
         {notification.type === 'file' && renderFileAction()}
         {notification.type === 'tags' && renderTagsAction()}
         {notification.type === 'payment' && renderPaymentAction()}

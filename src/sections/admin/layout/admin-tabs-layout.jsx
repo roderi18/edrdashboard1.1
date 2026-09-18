@@ -60,11 +60,6 @@ const NAV_ITEMS = [
     href: paths.dashboard.admin.health,
   },
   {
-    label: 'Paleta',
-    icon: <Iconify width={24} icon="solar:palette-bold" />,
-    href: paths.dashboard.admin.paleta,
-  },
-  {
     label: 'Sonidos',
     icon: <Iconify width={24} icon="solar:volume-loud-bold" />,
     href: paths.dashboard.admin.sonidos,

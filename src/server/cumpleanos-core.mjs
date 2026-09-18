@@ -9,7 +9,13 @@
 // dato reservado y es justo la gente que lo felicita.
 // ----------------------------------------------------------------------
 
-export const DIAS_DE_AVISO = [0, 7];
+// LA CAMPANA avisa el dia antes y el mismo dia. El aviso de los 7 dias se paso
+// al chat de Sistema (`DIAS_DE_AVISO_CHAT`): una semana antes basta con leerlo en
+// el chat, y en la campana hacia ruido tres veces por el mismo cumpleaños.
+export const DIAS_DE_AVISO = [0, 1];
+
+// EL CHAT DE SISTEMA avisa una semana antes, el dia antes y el mismo dia.
+export const DIAS_DE_AVISO_CHAT = [0, 1, 7];
 
 export const COLECCION_NOTIFICACIONES = 'notificaciones';
 export const COLECCION_PREFERENCIAS = 'preferencias_notificaciones';
@@ -81,7 +87,7 @@ export const idDelMiembro = (miembro = {}) => texto(miembro?.idMiembros ?? miemb
 export const destacamentoDelMiembro = (miembro = {}) =>
   texto(miembro?.idDestacamento ?? miembro?.destId ?? miembro?.destamentoId);
 
-/** Los que cumplen hoy o dentro de 7 dias, con los dias que faltan. */
+/** Los que cumplen en alguno de `diasAviso` (hoy, mañana...), con los dias que faltan. */
 export const cumpleanosDelDia = (miembros = [], { hoy = new Date(), diasAviso = DIAS_DE_AVISO } = {}) =>
   (Array.isArray(miembros) ? miembros : [])
     .map((miembro) => ({ miembro, dias: diasHastaCumpleanos(fechaDeNacimiento(miembro), hoy) }))
@@ -145,22 +151,31 @@ export const construirAvisoDeCumpleanos = ({
   urlFotoMiniatura = '',
 }) => {
   const esHoy = dias === 0;
+  const esManana = dias === 1;
   const tipoNotificacion = esHoy
     ? 'cumpleanos_miembro_destacamento_hoy'
-    : 'cumpleanos_miembro_destacamento_7_dias';
+    : esManana
+      ? 'cumpleanos_miembro_destacamento_manana'
+      : 'cumpleanos_miembro_destacamento_7_dias';
   const nombre = nombreDelMiembro(miembro);
   const idMiembro = idDelMiembro(miembro);
   const clave = hoy.toISOString().slice(0, 10);
   const ahora = new Date().toISOString();
   const mensaje = esHoy
     ? `Hoy está de cumpleaños ${nombre}.`
-    : `Faltan 7 días para el cumpleaños de ${nombre}.`;
+    : esManana
+      ? `Mañana está de cumpleaños ${nombre}.`
+      : `Faltan ${dias} días para el cumpleaños de ${nombre}.`;
 
   return {
     id: `${tipoNotificacion}_${idMiembro}_${clave}`,
     tipoNotificacion,
     modulo: 'cumpleanos',
-    titulo: esHoy ? 'Cumpleaños hoy en tu destacamento' : 'Cumpleaños próximo en tu destacamento',
+    titulo: esHoy
+      ? 'Cumpleaños hoy en tu destacamento'
+      : esManana
+        ? 'Cumpleaños mañana en tu destacamento'
+        : 'Cumpleaños próximo en tu destacamento',
     tituloHtml: null,
     mensaje,
     mensajeVisual: mensaje,

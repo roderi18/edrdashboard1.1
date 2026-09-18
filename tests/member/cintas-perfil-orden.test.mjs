@@ -122,15 +122,24 @@ test('los efectos antiguos usan el barrido y las elecciones válidas se conserva
     },
   ]);
 
+  // Las perillas de los brillos, sin guardar, en 1: como siempre.
+  const perillasDeSiempre = {
+    velocidadBorde: 1,
+    intensidadBorde: 1,
+    velocidadNumero: 1,
+    intensidadNumero: 1,
+  };
   assert.deepEqual(configuraciones.get('3'), {
     veces: 1,
     efectoBorde: EFECTOS_BORDE_CINTA.BARRIDO,
     efectoNumero: EFECTOS_NUMERO_CINTA.BARRIDO,
+    ...perillasDeSiempre,
   });
   assert.deepEqual(configuraciones.get('5'), {
     veces: 2,
     efectoBorde: EFECTOS_BORDE_CINTA.OLA,
     efectoNumero: EFECTOS_NUMERO_CINTA.DESTELLO,
+    ...perillasDeSiempre,
   });
 });
 

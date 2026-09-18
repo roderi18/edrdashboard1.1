@@ -18,6 +18,8 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
+
 import {
   listarConfiguracionNotificaciones,
   guardarConfiguracionTipoNotificacion,
@@ -29,6 +31,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { AdminChatSistemaRegistro } from '../admin-chat-sistema-registro';
 
 // ----------------------------------------------------------------------
 
@@ -126,6 +130,10 @@ export function AdminNotificationsView() {
   const [saving, setSaving] = useState(false);
   const [recipientSavingId, setRecipientSavingId] = useState('');
   const [currentTab, setCurrentTab] = useState('configuracion');
+  // Como en el lapiz de las cintas: la cuenta administrativa de siempre llega
+  // con `role: 'admin'` y no con el cargo.
+  const esAdministradorGlobal =
+    isAdminGlobal(user) || String(user?.role ?? user?.rol ?? '').toLowerCase() === 'admin';
   const [selectedType, setSelectedType] = useState('');
   const [typeSearch, setTypeSearch] = useState('');
   const [recipientSearch, setRecipientSearch] = useState('');
@@ -462,6 +470,9 @@ export function AdminNotificationsView() {
         <Tabs value={currentTab} onChange={handleChangeTab} sx={{ px: 3 }}>
           <Tab value="configuracion" label="Configuración" />
           <Tab value="destinatarios" label="Destinatarios" />
+          {/* El registro lleva los nombres de destacamentos enteros: solo el
+              Administrador Global, igual que en las reglas. */}
+          {esAdministradorGlobal && <Tab value="chat-sistema" label="Chat Sistema" />}
         </Tabs>
         <Divider />
 
@@ -794,6 +805,7 @@ export function AdminNotificationsView() {
             </Stack>
           </Stack>
         )}
+        {currentTab === 'chat-sistema' && esAdministradorGlobal && <AdminChatSistemaRegistro />}
       </Card>
     </Stack>
   );

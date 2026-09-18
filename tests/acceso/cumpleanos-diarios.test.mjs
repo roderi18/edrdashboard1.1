@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  DIAS_DE_AVISO,
   aceptaElAviso,
+  DIAS_DE_AVISO_CHAT,
   cumpleanosDelDia,
   diasHastaCumpleanos,
   construirAvisoDeCumpleanos,
@@ -12,8 +14,9 @@ import {
 // ----------------------------------------------------------------------
 // El barrido diario de cumpleaños.
 //
-// Corre una vez al dia y avisa de quien cumple HOY y de quien cumple dentro de
-// SIETE dias, a todos los miembros de su destacamento.
+// Corre una vez al dia y avisa a todos los miembros del destacamento: en la
+// campana, de quien cumple MAÑANA y HOY; en el chat de Sistema, ademas, de quien
+// cumple dentro de SIETE dias (ver `tests/chat/chat-sistema.test.mjs`).
 // ----------------------------------------------------------------------
 
 const HOY = new Date(2026, 7, 31); // 31 de agosto de 2026
@@ -51,11 +54,30 @@ const MIEMBROS = [
   { idMiembros: 4, nombres: 'Stalin', apellidos: 'Mota', fechaNacimiento: '2009-08-31', idDestacamento: '240' },
 ];
 
-test('el barrido recoge solo los de hoy y los de dentro de siete dias', () => {
-  const salen = cumpleanosDelDia(MIEMBROS, { hoy: HOY }).map(({ miembro, dias }) => [
+// La campana avisaba tambien a los 7 dias: tres avisos por el mismo cumpleaños.
+// Los 7 dias se fueron al chat de Sistema; la campana queda en mañana y hoy.
+test('la campana avisa el dia antes y el mismo dia; el chat, ademas, a los siete', () => {
+  assert.deepEqual(DIAS_DE_AVISO, [0, 1]);
+  assert.deepEqual(DIAS_DE_AVISO_CHAT, [0, 1, 7]);
+});
+
+test('el barrido de la campana recoge solo los de hoy y los de mañana', () => {
+  const conManana = [
+    ...MIEMBROS,
+    { idMiembros: 5, nombres: 'Luz', apellidos: 'Mar', fechaNacimiento: '2010-09-01', idDestacamento: '231' },
+  ];
+  const salen = cumpleanosDelDia(conManana, { hoy: HOY }).map(({ miembro, dias }) => [
     miembro.nombres,
     dias,
   ]);
+
+  assert.deepEqual(salen, [['Roderi', 0], ['Stalin', 0], ['Luz', 1]]);
+});
+
+test('el del chat recoge tambien los de dentro de siete dias', () => {
+  const salen = cumpleanosDelDia(MIEMBROS, { hoy: HOY, diasAviso: DIAS_DE_AVISO_CHAT }).map(
+    ({ miembro, dias }) => [miembro.nombres, dias]
+  );
 
   assert.deepEqual(salen, [['Roderi', 0], ['Daniel', 7], ['Stalin', 0]]);
 });
@@ -133,6 +155,11 @@ test('el aviso dice lo que toca segun el dia', () => {
   assert.match(hoy.mensaje, /Hoy está de cumpleaños Roderi Peña/);
   assert.equal(hoy.titulo, 'Cumpleaños hoy en tu destacamento');
   assert.match(proximo.mensaje, /Faltan 7 días para el cumpleaños de Daniel Cruz/);
+
+  const manana = construirAvisoDeCumpleanos({ miembro: MIEMBROS[1], dias: 1, idsDestinatarios: ['x'], hoy: HOY });
+  assert.match(manana.mensaje, /Mañana está de cumpleaños Daniel Cruz/);
+  assert.equal(manana.titulo, 'Cumpleaños mañana en tu destacamento');
+  assert.equal(manana.tipoNotificacion, 'cumpleanos_miembro_destacamento_manana');
   assert.equal(proximo.rolDestinatario, 'usuario');
   assert.equal(proximo.estado, 'no_leida');
 });

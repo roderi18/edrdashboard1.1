@@ -9,13 +9,11 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
@@ -293,7 +291,7 @@ export function NationalListView() {
             )
           );
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     cargar();
@@ -512,23 +510,12 @@ export function NationalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Lista de nacionales"
+          heading="Directiva Nacional"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Nacional', href: paths.dashboard.level.national.root },
             { name: 'Lista' },
           ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.level.national.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              disabled
-            >
-              Crear nuevo
-            </Button>
-          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 

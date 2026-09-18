@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback, startTransition } from 'reac
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { esConversacionDeSistema } from 'src/utils/chat-sistema.mjs';
 import {
   buzonPorClave,
   contactoDeBuzon,
@@ -154,6 +155,12 @@ export function ChatView() {
     () => conAvataresDeBuzones(conversation?.participants ?? [], avataresDeBuzones),
     [conversation?.participants, avataresDeBuzones]
   );
+  // EL CHAT DE SISTEMA SOLO SE LEE: sin caja de escribir y sin "Responder". El
+  // servidor y las reglas tambien rechazan el envio; esto solo evita ofrecerlo.
+  const esChatDeSistema =
+    esConversacionDeSistema({ id: selectedConversationId }) ||
+    (Boolean(selectedConversationId) &&
+      esConversacionDeSistema({ participants: conversation?.participants }));
 
   const roomNav = useCollapseNav();
   const conversationsNav = useCollapseNav();
@@ -647,7 +654,7 @@ export function ChatView() {
                     participants={participantesConFoto}
                     currentContact={currentContact}
                     loading={conversationLoading}
-                    onReply={handleReplyMessage}
+                    onReply={esChatDeSistema ? undefined : handleReplyMessage}
                     onReact={handleReactMessage}
                     onEdit={handleEditMessage}
                     onDelete={handleDeleteMessage}

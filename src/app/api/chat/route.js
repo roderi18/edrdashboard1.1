@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
+import { contactoSistema, esCuentaSistema } from 'src/utils/chat-sistema.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { contactoDeBuzon, esBuzonCompartido, buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
 
@@ -495,6 +496,11 @@ const contactWithCurrentPhoto = async (member = {}) => {
     };
   }
 
+  // Sistema no tiene ficha en el padron ni foto en `fotos`: sale con la suya.
+  if (esCuentaSistema(member.idMiembros ?? member.id)) {
+    return { ...memberToContact(member), ...contactoSistema() };
+  }
+
   const contact = memberToContact(member);
   const avatarUrl = await getMemberPhotoUrl(contact.idMiembros, contact.avatarUrl);
 
@@ -672,6 +678,10 @@ async function getMemberPhotoUrl(idMiembros, fallbackUrl = '') {
 
   if (buzon) {
     return avatarActualDeBuzon(buzon);
+  }
+
+  if (esCuentaSistema(idMiembros)) {
+    return contactoSistema().avatarUrl;
   }
 
   if (fallbackUrl) {

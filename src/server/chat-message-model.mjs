@@ -170,6 +170,36 @@ const normalizeMetadata = (value) => {
     };
   }
 
+  // LOS CUMPLEAÑOS QUE ANUNCIA SISTEMA: foto, nombre y cuantos dias faltan de
+  // cada uno, para que el chat los pinte como tarjeta y no como texto plano. Solo
+  // lo escribe el servidor (a Sistema nadie le escribe), pero pasa igual por aqui:
+  // lo que llega a la pantalla sale siempre de esta limpieza.
+  const cumpleanos = asObject(metadata.cumpleanosSistema);
+  const personas = asArray(cumpleanos.personas)
+    .map((persona) => {
+      const fuente = asObject(persona);
+      const idMiembros = positiveMemberId(fuente.idMiembros);
+      const nombre = cleanText(fuente.nombre).slice(0, 160);
+      const dias = Number(fuente.dias);
+      const fotoUrl = safeWebOrAppUrl(fuente.fotoUrl);
+
+      if (!idMiembros || !nombre || !Number.isSafeInteger(dias) || dias < 0 || dias > 366) {
+        return null;
+      }
+
+      return { idMiembros, nombre, dias, ...(fotoUrl && { fotoUrl }) };
+    })
+    .filter(Boolean)
+    .slice(0, 50);
+
+  if (personas.length) {
+    normalized.cumpleanosSistema = {
+      personas,
+      // El mensaje que recibe el propio cumpleañero: su felicitacion, no la lista.
+      ...(cumpleanos.felicitacion === true && { felicitacion: true }),
+    };
+  }
+
   return normalized;
 };
 

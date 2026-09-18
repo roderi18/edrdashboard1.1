@@ -34,6 +34,17 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 
 8. **Buzones compartidos del chat** (Tienda Virtual 20001, Oficina Nacional 20002): un poder, no una cuenta. Cada uno es una entrada de `src/utils/chat-buzones.mjs`; lo atienden sus cargos (entre todos los de la persona) y el Administrador Global atiende todos. El servidor comprueba el cargo antes de escribir como el buzón; una persona nunca usa esos números. Test: `tests/chat/chat-buzones-compartidos.test.mjs`.
 
+8b. **Chat de Sistema (20003): se lee, no se contesta.** No es un buzón: nadie lo
+   atiende y solo escribe el servidor (Admin SDK). Servidor, reglas y sesión
+   rechazan escribirle o usar su número. Hoy avisa de cumpleaños: a los 7, 1 y 0
+   días, UN mensaje con la lista (foto, nombre, cuándo) a todas las personas con
+   cuenta del destacamento, Pastor incluido y sin mirar preferencias; el
+   cumpleañero no se ve en la lista y el día recibe su felicitación. La campana
+   avisa solo a 1 y 0 días. Cada envío queda en `chat_sistema_registro` (pestaña
+   "Chat Sistema" de `/admin/notificaciones`, solo Administrador Global).
+   Piezas: `src/utils/chat-sistema.mjs`, `src/server/chat-sistema-*.mjs`; prueba a
+   mano: `scripts/prueba-chat-sistema-cumpleanos.mjs`. Test: `tests/chat/chat-sistema.test.mjs`.
+
 9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye, y aun entonces el menú lateral sigue siendo el suyo (`sesionSinPrueba`): los permisos de la pareja los aplican las pantallas. Test: `tests/acceso/administrador-global-reina.test.mjs`.
 
 10. **El estatus del miembro lo mueve la asistencia** (activo, reclutamiento,
@@ -120,6 +131,8 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
+- **Pestañas:** Portada, Cintas, Medallas y Paleta (`?seccion=`). La Paleta vivía
+  en Administración; `/dashboard/admin/paleta` solo redirige aquí.
 - **Pantalla:** `/dashboard/everest`, entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el
   Administrador Global. La vista previa es un iframe a `/vista-previa/everest` porque los

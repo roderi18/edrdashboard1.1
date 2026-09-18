@@ -5,16 +5,17 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 
-import { EsqueletoDeCintas } from 'src/components/insignias-perfil';
+import { EsqueletoDeCintas, EsqueletoDeMedallas } from 'src/components/insignias-perfil';
 
 // ----------------------------------------------------------------------
 
 // LA TARJETA DE LA IZQUIERDA CON LAS MEDIDAS DE LA DE VERDAD
 // (`user-account-general.jsx`): mismo relleno, foto de 144, nombre, codigo, las
-// cintas y el boton de cerrar sesion a todo lo ancho. Antes era mas bajita y sin
-// cintas, y al llegar el miembro la tarjeta cambiaba de forma y aparecia un
-// segundo esqueleto para las cintas.
-function AccountProfileSkeleton({ idMiembros, sx, ...other }) {
+// cintas, las medallas y el boton de cerrar sesion a todo lo ancho. Antes era mas
+// bajita y sin cintas, y al llegar el miembro la tarjeta cambiaba de forma y
+// aparecia un segundo esqueleto para las cintas. `/user/account` ya no lleva el
+// boton (`cerrarSesion={false}`): sin quitarlo aqui, la tarjeta encogia al cargar.
+function AccountProfileSkeleton({ idMiembros, cerrarSesion = true, sx, ...other }) {
   return (
     <Grid container spacing={3} sx={sx} {...other}>
       <Grid size={{ xs: 12, md: 4 }}>
@@ -23,7 +24,8 @@ function AccountProfileSkeleton({ idMiembros, sx, ...other }) {
           <Skeleton variant="text" width="62%" height={24} sx={{ mx: 'auto' }} />
           <Skeleton variant="text" width="34%" height={22} sx={{ mx: 'auto', mt: 0.5 }} />
           <EsqueletoDeCintas idMiembros={idMiembros} sx={{ mt: 2 }} />
-          <Skeleton variant="rounded" height={48} sx={{ mt: 3 }} />
+          <EsqueletoDeMedallas idMiembros={idMiembros} />
+          {cerrarSesion && <Skeleton variant="rounded" height={48} sx={{ mt: 3 }} />}
         </Card>
       </Grid>
 

@@ -309,11 +309,18 @@ function RampaDeColor({ familia, datos, onCambiar, onCopiar }) {
  * como era el anterior—.
  */
 function LienzoDePrueba({ paleta, claro }) {
+  // LOS NOMBRES DE VERDAD DE CADA FAMILIA. Los fondos son `paper`, `default` y
+  // `neutral`, y el gris va de `100` a `900`: se pedian `light`, `dark`,
+  // `darker`... que no existen, todo salia `undefined` y la tarjeta caia en el
+  // blanco de siempre. El "Modo oscuro" se pintaba sobre blanco, con el titulo y
+  // "Cancelar" blanco sobre blanco. La superficie es el papel del modo: la
+  // misma tarjeta que se ve en esa pantalla.
   const fondo = claro ? paleta.fondoClaro.paradas : paleta.fondoOscuro.paradas;
-  const superficie = claro ? fondo.lighter : fondo.light;
-  const linea = claro ? fondo.dark : fondo.darker;
-  const tinta = claro ? paleta.grey.paradas.darker : '#EAF1FA';
-  const suave = claro ? paleta.grey.paradas.dark : paleta.grey.paradas.main;
+  const gris = paleta.grey.paradas;
+  const superficie = fondo.paper;
+  const linea = claro ? gris[300] : 'rgba(255, 255, 255, 0.12)';
+  const tinta = claro ? gris[900] : '#EAF1FA';
+  const suave = claro ? gris[700] : gris[500];
 
   // En oscuro el tono que se lee es el claro de la familia; en claro, el oscuro.
   const tono = (familia) => (claro ? familia.dark : familia.light);
@@ -428,7 +435,7 @@ function LienzoDePrueba({ paleta, claro }) {
 
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           {boton('Guardar', paleta.primary.paradas.main)}
-          {boton('Cancelar', null, claro ? fondo.dark : paleta.grey.paradas.dark)}
+          {boton('Cancelar', null, claro ? gris[300] : gris[700])}
           {boton('Eliminar', paleta.error.paradas.main)}
         </Stack>
 
@@ -496,7 +503,7 @@ const RECOMENDACIONES = [
 
 // ----------------------------------------------------------------------
 
-export function AdminPaletteView() {
+export function EverestPaleta() {
   const theme = useTheme();
   const [paleta, setPaleta] = useState(() => desdeElTema(theme));
 

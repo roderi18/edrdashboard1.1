@@ -93,17 +93,27 @@ export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) 
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
+  // La foto lleva a "Mi cuenta": es donde se cambia, y era lo primero que se
+  // pulsaba esperando que pasara algo.
   const renderAvatar = () => (
-    <AnimateBorder
-      sx={{ mb: 2, p: '6px', width: 96, height: 96, borderRadius: '50%' }}
-      slotProps={{
-        primaryBorder: { size: 120, sx: { color: 'primary.main' } },
-      }}
+    <Link
+      component={RouterLink}
+      href={paths.dashboard.user.account}
+      onClick={onClose}
+      aria-label="Ir a Mi cuenta"
+      sx={{ mb: 2, borderRadius: '50%', display: 'inline-flex' }}
     >
-      <Avatar src={accountPhotoURL} alt={user?.displayName} sx={{ width: 1, height: 1 }}>
-        {(user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
-      </Avatar>
-    </AnimateBorder>
+      <AnimateBorder
+        sx={{ p: '6px', width: 96, height: 96, borderRadius: '50%' }}
+        slotProps={{
+          primaryBorder: { size: 120, sx: { color: 'primary.main' } },
+        }}
+      >
+        <Avatar src={accountPhotoURL} alt={user?.displayName} sx={{ width: 1, height: 1 }}>
+          {(user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
+        </Avatar>
+      </AnimateBorder>
+    </Link>
   );
 
   const renderList = () => (

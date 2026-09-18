@@ -1,4 +1,9 @@
 import { idDeParticipanteChat } from '../utils/chat-tienda-virtual.mjs';
+import {
+  AVISO_CHAT_SOLO_LECTURA,
+  esConversacionDeSistema,
+  CODIGO_CHAT_SOLO_LECTURA,
+} from '../utils/chat-sistema.mjs';
 
 export const CHAT_PERMISSIONS = Object.freeze({
   VIEW: 'chats.ver',
@@ -156,6 +161,13 @@ export const authorizeConversationOperation = ({
   creatorOnly = false,
 } = {}) => {
   assertChatPermission(actor, permission);
+
+  // A SISTEMA NO SE LE CONTESTA. Es un canal de avisos: la pantalla ya quita la
+  // caja de escribir, pero quien llamara a la API a mano podria escribirle igual.
+  // Se puede leer, reaccionar y marcar como visto; enviar, no.
+  if (permission === CHAT_PERMISSIONS.SEND && esConversacionDeSistema(conversation)) {
+    throw new ChatAuthorizationError(AVISO_CHAT_SOLO_LECTURA, { code: CODIGO_CHAT_SOLO_LECTURA });
+  }
 
   return creatorOnly
     ? assertConversationCreator(conversation, actor)

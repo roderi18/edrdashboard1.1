@@ -59,7 +59,6 @@ import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../cor
 import {
   navDataDesarrollo,
   conEverestDesigner,
-  conUsuarioDeDesarrollo,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
 } from '../nav-config-dashboard';
@@ -360,11 +359,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // No se usa `allowedRoles` porque esa comprobacion es una lista de EXCLUSION
     // —oculta a quien aparezca en ella— y aqui hace falta lo contrario.
     const baseNavData = slotProps?.nav?.data ?? dashboardNavData;
-    // La pantalla de usuario de la plantilla no va en ese bloque del final: es una
-    // entrada sola y un grupo propio para ella pesaba mas que la entrada. Se
-    // cuela dentro de "Organizacion", encima de Niveles Organizacionales.
+    // "Mi usuario" (Cuenta y Perfil) ya no va aqui: "Mi cuenta" y "Mi perfil"
+    // estan en el menu de la foto, a la derecha, para todo el mundo.
     const conDesarrollo = menuDeAdministradorGlobal
-      ? [...conUsuarioDeDesarrollo(baseNavData), ...navDataDesarrollo]
+      ? [...baseNavData, ...navDataDesarrollo]
       : baseNavData;
     const navDataConIndicadores = agregarIndicadoresMensajes(conDesarrollo, {
       chatUnreadCount: chatsSinLeer,

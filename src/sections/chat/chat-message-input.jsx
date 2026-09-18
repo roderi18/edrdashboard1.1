@@ -15,6 +15,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { logChatClientError, getChatErrorMessage } from 'src/utils/chat-error.mjs';
+import { AVISO_CHAT_SOLO_LECTURA, esConversacionDeSistema } from 'src/utils/chat-sistema.mjs';
 import {
   uploadFilesToStorage,
   buildStorageFileName,
@@ -160,7 +161,7 @@ const buildAttachmentMessage = ({ id, upload, senderId, contentType }) => ({
   senderId: String(senderId),
 });
 
-export function ChatMessageInput({
+function CajaDeEscribir({
   authReady = true,
   disabled,
   recipients,
@@ -1300,4 +1301,43 @@ export function ChatMessageInput({
       />
     </>
   );
+}
+
+// ----------------------------------------------------------------------
+
+// A SISTEMA NO SE LE ESCRIBE. La caja se sustituye por un aviso aqui mismo, y no
+// en cada pantalla que la usa: asi no hay forma de pintarla sobre la
+// conversacion de Sistema. Se decide por el id de la conversacion (se sabe desde
+// la direccion) y, si aun no hay id, por los participantes. El servidor y las
+// reglas rechazan el envio igualmente.
+export function ChatMessageInput(props) {
+  const { selectedConversationId, participants = [], recipients = [] } = props;
+  const esDeSistema =
+    esConversacionDeSistema({ id: selectedConversationId }) ||
+    esConversacionDeSistema({ participants }) ||
+    esConversacionDeSistema({ participants: recipients });
+
+  if (esDeSistema) {
+    return (
+      <Box
+        sx={{
+          px: 2.5,
+          py: 2,
+          gap: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          typography: 'body2',
+          color: 'text.secondary',
+          textAlign: 'center',
+          borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+        }}
+      >
+        <Iconify icon="solar:lock-password-outline" width={18} />
+        {AVISO_CHAT_SOLO_LECTURA}
+      </Box>
+    );
+  }
+
+  return <CajaDeEscribir {...props} />;
 }

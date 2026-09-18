@@ -322,7 +322,9 @@ service firebase.storage {
         && 'idMiembros' in request.auth.token
         && idMiembroChat() is int
         && (idMiembroChat() != 20001 || request.auth.uid == 'tienda-virtual')
-        && (idMiembroChat() != 20002 || request.auth.uid == 'oficina-nacional');
+        && (idMiembroChat() != 20002 || request.auth.uid == 'oficina-nacional')
+        // Sistema (20003) no lo lleva ningun token: solo escribe el servidor.
+        && idMiembroChat() != 20003;
     }
 
     // Quien atiende el buzon de la Tienda sube las fotos y archivos que la Tienda

@@ -35,7 +35,17 @@ export async function guardarCintasDeMiembro({
     [...configuracionPorCinta(lista)]
       .map(([id, configuracion]) => {
         const cantidad = configuracion.veces > 1 ? ` ×${configuracion.veces}` : '';
-        return `${id}${cantidad} [borde: ${configuracion.efectoBorde}; número: ${configuracion.efectoNumero}]`;
+        // Las perillas solo si se movieron: con todas en 1 el texto queda como antes.
+        const perillas = [
+          ['velocidad borde', configuracion.velocidadBorde],
+          ['intensidad borde', configuracion.intensidadBorde],
+          ['velocidad número', configuracion.velocidadNumero],
+          ['intensidad número', configuracion.intensidadNumero],
+        ]
+          .filter(([, valor]) => valor !== 1)
+          .map(([perilla, valor]) => `; ${perilla}: ${valor}×`)
+          .join('');
+        return `${id}${cantidad} [borde: ${configuracion.efectoBorde}; número: ${configuracion.efectoNumero}${perillas}]`;
       })
       .join(', ') || 'Ninguna';
   const antes = describir(anteriores);

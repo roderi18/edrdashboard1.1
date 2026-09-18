@@ -61,6 +61,7 @@ export const TIPOS_NOTIFICACIONES_USUARIO = [
   'publicacion_comentada',
   'recordatorio_publicacion',
   'cumpleanos_miembro_destacamento_7_dias',
+  'cumpleanos_miembro_destacamento_manana',
   'cumpleanos_miembro_destacamento_hoy',
 ];
 
@@ -303,6 +304,18 @@ const DEFINICIONES_NOTIFICACIONES = {
     modulo: 'cumpleanos',
     titulo: 'Cumpleaños próximo en tu destacamento',
     mensajePlantilla: 'Faltan 7 días para el cumpleaños de {{nombres}} {{apellidos}}.',
+    rolesDisponibles: ['usuario'],
+    prioridadPorDefecto: 'informativa',
+    entidadTipo: 'miembro',
+    etiquetaAccion: 'Ver perfil',
+    tipoAccion: 'ver',
+    requiereFotoPersona: true,
+  },
+  // El dia antes. Los 7 dias ya no llegan a la campana: van al chat de Sistema.
+  cumpleanos_miembro_destacamento_manana: {
+    modulo: 'cumpleanos',
+    titulo: 'Cumpleaños mañana en tu destacamento',
+    mensajePlantilla: 'Mañana está de cumpleaños {{nombres}} {{apellidos}}.',
     rolesDisponibles: ['usuario'],
     prioridadPorDefecto: 'informativa',
     entidadTipo: 'miembro',

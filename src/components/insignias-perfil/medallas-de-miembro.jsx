@@ -49,9 +49,8 @@ import { useOrdenDeMedallas } from './use-orden-de-cintas';
 
 const VACIO = [];
 
-/** El catálogo de medallas, una vez por sesión y compartido entre tarjetas. */
-export function useCatalogoDeMedallas() {
-  const { data } = useSWR(
+function useLecturaDelCatalogo() {
+  const { data, error } = useSWR(
     typeof window !== 'undefined'
       ? ['/api/insignias/medallas/', { baseURL: window.location.origin }]
       : null,
@@ -59,7 +58,97 @@ export function useCatalogoDeMedallas() {
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   );
 
-  return data?.medallas ?? VACIO;
+  return { medallas: data?.medallas ?? VACIO, cargando: !data && !error };
+}
+
+/** El catálogo de medallas, una vez por sesión y compartido entre tarjetas. */
+export function useCatalogoDeMedallas() {
+  return useLecturaDelCatalogo().medallas;
+}
+
+// Igual que las cintas: las medallas tardan (Firestore, el catálogo y luego cada
+// imagen) y el perfil pegaba un salto al aparecer debajo de las cintas. Se
+// recuerda cuántas tenía la última vez para guardar ese hueco con un esqueleto;
+// quien no tenía medallas no ve ninguno.
+const claveDeCantidad = (id) => `erd-medallas-cantidad-${id}`;
+
+const cantidadRecordada = (id) => {
+  try {
+    return Number(window.localStorage.getItem(claveDeCantidad(id))) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const recordarCantidad = (id, cantidad) => {
+  try {
+    if (cantidad) window.localStorage.setItem(claveDeCantidad(id), String(cantidad));
+    else window.localStorage.removeItem(claveDeCantidad(id));
+  } catch {
+    // Ventana privada: sin esqueleto la próxima vez, nada más.
+  }
+};
+
+/**
+ * El hueco de las medallas mientras cargan, con la forma que tendrán (alto ~1:2,
+ * filas de 3). Solo si esa persona tenía medallas la última vez. Lo usa también el
+ * esqueleto de la página de la cuenta, para que el hueco no cambie a media carga.
+ */
+export function EsqueletoDeMedallas({
+  idMiembros,
+  sx,
+  maxWidth = 300,
+  espacioHorizontal = 0.3,
+  espacioVertical = 0.3,
+}) {
+  const id = String(Number(idMiembros) || '');
+  const [esperadas] = useState(() =>
+    id && typeof window !== 'undefined' ? Math.min(cantidadRecordada(id), MAXIMO_MEDALLAS) : 0
+  );
+
+  if (!esperadas) return null;
+
+  const filas = Array.from({ length: Math.ceil(esperadas / MEDALLAS_POR_FILA) }, (_, fila) =>
+    Math.min(MEDALLAS_POR_FILA, esperadas - fila * MEDALLAS_POR_FILA)
+  );
+
+  return (
+    <Box
+      aria-busy="true"
+      sx={[
+        {
+          mx: 'auto',
+          mt: espacioVertical,
+          width: 1,
+          maxWidth,
+          display: 'flex',
+          flexDirection: 'column',
+          rowGap: espacioVertical,
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {filas.map((cuantas, fila) => (
+        <Box
+          key={fila}
+          sx={{ display: 'flex', justifyContent: 'center', columnGap: espacioHorizontal }}
+        >
+          {Array.from({ length: cuantas }, (_, indice) => (
+            <Skeleton
+              key={indice}
+              variant="rounded"
+              sx={(theme) => ({
+                height: 'auto',
+                // La misma proporción que reserva `ImagenDeMedalla` antes de cargar.
+                aspectRatio: '1 / 2',
+                width: `calc((100% - ${theme.spacing(espacioHorizontal * (MEDALLAS_POR_FILA - 1))}) / ${MEDALLAS_POR_FILA})`,
+              })}
+            />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
 }
 
 /**
@@ -368,9 +457,12 @@ export function MedallasDeMiembro({
   espacioHorizontal = 0.3,
   espacioVertical = 0.3,
 }) {
-  const catalogo = useCatalogoDeMedallas();
+  const { medallas: catalogo, cargando: cargandoCatalogo } = useLecturaDelCatalogo();
   const orden = useOrdenDeMedallas();
-  const { cargando, medallas } = useMedallasDelMiembro(idMiembros);
+  const { cargando: cargandoMedallas, medallas } = useMedallasDelMiembro(idMiembros);
+  // Sin el catálogo todavía no se sabe qué imagen es cada medalla: también es cargar.
+  const cargando = cargandoMedallas || cargandoCatalogo;
+  const id = String(Number(idMiembros) || '');
 
   const porId = useMemo(
     () => new Map(catalogo.map((medalla) => [medalla.id, medalla])),
@@ -381,6 +473,23 @@ export function MedallasDeMiembro({
     [cargando, medallas, catalogo, orden]
   );
   const configuraciones = useMemo(() => configuracionDeMedallas(medallas), [medallas]);
+  const visibles = filas.reduce((total, fila) => total + fila.length, 0);
+
+  useEffect(() => {
+    if (id && !cargando) recordarCantidad(id, visibles);
+  }, [id, cargando, visibles]);
+
+  if (cargando) {
+    return (
+      <EsqueletoDeMedallas
+        idMiembros={id}
+        sx={sx}
+        maxWidth={maxWidth}
+        espacioHorizontal={espacioHorizontal}
+        espacioVertical={espacioVertical}
+      />
+    );
+  }
 
   if (!filas.length) return null;
 

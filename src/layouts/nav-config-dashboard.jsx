@@ -283,30 +283,6 @@ export const conTiendaDeAdministracion = (secciones = []) =>
 // Van al final del menu a proposito: lo de trabajar primero, lo de probar despues.
 // ----------------------------------------------------------------------
 
-// LA PANTALLA DE USUARIO DE LA PLANTILLA, SUELTA.
-//
-// Tenia un grupo para ella sola —"Desarrollo · pantallas de demo"— con un rotulo
-// mas largo que su unica entrada. Ahora va dentro de "Organizacion", encima de
-// Niveles Organizacionales, que es donde encaja por lo que enseña; la coloca
-// `conUsuarioDeDesarrollo` y solo la ve el Administrador Global.
-export const ITEM_USUARIO_DESARROLLO = {
-  title: 'Mi usuario',
-  path: paths.dashboard.user.root,
-  icon: ICONS.user,
-  children: [
-    { title: 'Cuenta', path: paths.dashboard.user.account, deepMatch: true },
-    { title: 'Perfil', path: paths.dashboard.user.root },
-  ],
-};
-
-/** Mete esa entrada la primera del grupo "Organizacion". Sin ese grupo, no toca nada. */
-export const conUsuarioDeDesarrollo = (secciones = []) =>
-  secciones.map((seccion) =>
-    seccion.subheader === 'Organización'
-      ? { ...seccion, items: [ITEM_USUARIO_DESARROLLO, ...(seccion.items || [])] }
-      : seccion
-  );
-
 export const navDataDesarrollo = [
   {
     subheader: 'Desarrollo · plantilla',

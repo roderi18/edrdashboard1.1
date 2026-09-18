@@ -41,14 +41,31 @@ export const EFECTOS_NUMERO_CINTA = Object.freeze({
 });
 
 export const normalizarEfectoBorde = (valor) =>
-  Object.values(EFECTOS_BORDE_CINTA).includes(valor)
-    ? valor
-    : EFECTOS_BORDE_CINTA.BARRIDO;
+  Object.values(EFECTOS_BORDE_CINTA).includes(valor) ? valor : EFECTOS_BORDE_CINTA.BARRIDO;
 
 export const normalizarEfectoNumero = (valor) =>
-  Object.values(EFECTOS_NUMERO_CINTA).includes(valor)
-    ? valor
-    : EFECTOS_NUMERO_CINTA.BARRIDO;
+  Object.values(EFECTOS_NUMERO_CINTA).includes(valor) ? valor : EFECTOS_NUMERO_CINTA.BARRIDO;
+
+// LAS PERILLAS DE LOS BRILLOS, como las de las medallas: velocidad e intensidad
+// del brillo del borde dorado y del número. Multiplicadores sobre el efecto de
+// siempre (1 = como estaba), así que una cinta guardada antes no cambia. Fuera de
+// rango o sin número, vuelve al 1: un valor roto no apaga ni desboca el brillo.
+export const AJUSTES_CINTA = Object.freeze({
+  velocidadBorde: Object.freeze({ etiqueta: 'Velocidad del borde', min: 0.25, max: 3 }),
+  intensidadBorde: Object.freeze({ etiqueta: 'Intensidad del borde', min: 0.25, max: 2 }),
+  velocidadNumero: Object.freeze({ etiqueta: 'Velocidad del número', min: 0.25, max: 3 }),
+  intensidadNumero: Object.freeze({ etiqueta: 'Intensidad del número', min: 0.25, max: 2 }),
+});
+
+export const normalizarAjusteCinta = (clave, valor) => {
+  const ajuste = AJUSTES_CINTA[clave];
+  const numero = Number(valor);
+
+  if (!ajuste || valor === null || valor === '' || !Number.isFinite(numero)) return 1;
+  if (numero < ajuste.min || numero > ajuste.max) return 1;
+
+  return Math.round(numero * 100) / 100;
+};
 
 // De dónde salió la cinta. 'prueba' la pone a mano el Administrador Global;
 // 'award' queda para cuando se conecte cada award con su cinta.
@@ -274,6 +291,12 @@ export const configuracionPorCinta = (entradas = []) => {
           veces: cantidad,
           efectoBorde: normalizarEfectoBorde(entrada.efectoBorde),
           efectoNumero: normalizarEfectoNumero(entrada.efectoNumero),
+          ...Object.fromEntries(
+            Object.keys(AJUSTES_CINTA).map((clave) => [
+              clave,
+              normalizarAjusteCinta(clave, entrada[clave]),
+            ])
+          ),
         },
       ];
     })
@@ -316,15 +339,20 @@ export const construirCintasAsignadas = (anteriores = [], elegidas = [], ahoraIs
     };
 
     if (elegida?.efectoBorde !== undefined || previa?.efectoBorde !== undefined) {
-      resultado.efectoBorde = normalizarEfectoBorde(
-        elegida?.efectoBorde ?? previa?.efectoBorde
-      );
+      resultado.efectoBorde = normalizarEfectoBorde(elegida?.efectoBorde ?? previa?.efectoBorde);
     }
     if (elegida?.efectoNumero !== undefined || previa?.efectoNumero !== undefined) {
       resultado.efectoNumero = normalizarEfectoNumero(
         elegida?.efectoNumero ?? previa?.efectoNumero
       );
     }
+
+    // Las perillas, igual: solo se escriben si alguien las tocó alguna vez.
+    Object.keys(AJUSTES_CINTA).forEach((clave) => {
+      if (elegida?.[clave] !== undefined || previa?.[clave] !== undefined) {
+        resultado[clave] = normalizarAjusteCinta(clave, elegida?.[clave] ?? previa?.[clave]);
+      }
+    });
 
     return resultado;
   });

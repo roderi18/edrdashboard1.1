@@ -1,4 +1,4 @@
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 
 import {
@@ -12,12 +12,20 @@ import {
   construirAvisoDeCumpleanos,
   destinatariosDelDestacamento,
 } from '../../src/server/cumpleanos-core.mjs';
+import { enviarCumpleanosPorChatDeSistema } from '../../src/server/chat-sistema-envio.mjs';
+import {
+  leerMiembros,
+  leerFotosDeMiembros,
+  leerCuentasPorMiembro,
+  leerNombresDeDestacamentos,
+} from '../../src/server/cumpleanos-lecturas.mjs';
 
 // ----------------------------------------------------------------------
 // EL BARRIDO DIARIO DE CUMPLEAÑOS.
 //
-// Corre una vez al dia y avisa a TODOS los miembros del destacamento de quien
-// cumple hoy y de quien cumple dentro de siete dias.
+// Corre una vez al dia y avisa a TODOS los miembros del destacamento: en la
+// campana, de quien cumple mañana y de quien cumple hoy; en el chat de Sistema,
+// ademas, de quien cumple dentro de siete dias (`chat-sistema-envio.mjs`).
 //
 // Por que una funcion programada y no la ruta `/api/notifications/birthdays`
 // que ya existia: esa ruta escribe con el SDK de cliente y sin sesion, asi que
@@ -59,84 +67,6 @@ const conexion = () => {
     });
 
   return getFirestore(app);
-};
-
-const COLECCION_ACCESOS = 'usuarios_roles';
-const COLECCION_FOTOS = 'fotos';
-const MIEMBROS_UPSTREAM = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
-
-const filas = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.Data)) return payload.Data;
-  if (Array.isArray(payload?.items)) return payload.items;
-
-  return [];
-};
-
-const leerMiembros = async () => {
-  const respuesta = await fetch(MIEMBROS_UPSTREAM, { headers: { Accept: 'application/json' } });
-
-  if (!respuesta.ok) {
-    throw new Error(`El padron no respondio (${respuesta.status}).`);
-  }
-
-  return filas(await respuesta.json());
-};
-
-/** El id de miembro -> los ids de acceso de sus cuentas. */
-const leerCuentasPorMiembro = async (db) => {
-  const snapshot = await db.collection(COLECCION_ACCESOS).get();
-  const cuentas = {};
-
-  snapshot.forEach((documento) => {
-    const datos = documento.data() ?? {};
-    const idMiembros = String(datos.idMiembros ?? '').trim();
-
-    if (!idMiembros) return;
-
-    const idUsuario = String(datos.uid ?? datos.uidUsuario ?? documento.id ?? '').trim();
-
-    if (!idUsuario) return;
-
-    cuentas[idMiembros] = [...new Set([...(cuentas[idMiembros] ?? []), idUsuario])];
-  });
-
-  return cuentas;
-};
-
-/**
- * La foto de perfil de cada miembro.
- *
- * No viene en el padron de la API: vive en Firebase, en `fotos`, con el tipo de
- * entidad y el estado que la aplicacion usa para elegir la principal. Sin esto
- * el aviso de cumpleaños sale con un icono generico en vez de con su cara.
- */
-const leerFotosDeMiembros = async (db) => {
-  const snapshot = await db
-    .collection(COLECCION_FOTOS)
-    .where('tipoEntidad', '==', 'miembro')
-    .get()
-    .catch(() => null);
-
-  const fotos = {};
-
-  snapshot?.forEach((documento) => {
-    const datos = documento.data() ?? {};
-
-    if (datos.tipoFoto !== 'perfil' || datos.estado !== 'activo') return;
-
-    const idEntidad = String(datos.idEntidad ?? '').trim();
-
-    if (!idEntidad || !datos.urlFoto) return;
-
-    fotos[idEntidad] = {
-      grande: String(datos.urlFoto),
-      mini: String(datos.urlFotoMiniatura || ''),
-    };
-  });
-
-  return fotos;
 };
 
 /** Quien apago los cumpleaños en sus preferencias se queda fuera. */
@@ -217,7 +147,31 @@ export default async function handler() {
       enviados += 1;
     }
 
-    const resumen = `${enviados} aviso(s) de cumpleaños de ${cumpleaneros.length} cumpleañero(s).`;
+    // EL CHAT DE SISTEMA, despues de la campana y aparte: si el chat falla, los
+    // avisos de la campana ya salieron. Avisa a los 7 dias, el dia antes y el
+    // mismo dia, con un solo mensaje por destacamento.
+    const chat = await enviarCumpleanosPorChatDeSistema({
+      db,
+      FieldValue,
+      miembros,
+      cuentasPorMiembro,
+      fotos,
+      nombresDeDestacamentos: await leerNombresDeDestacamentos(),
+      hoy,
+    }).catch((error) => {
+      console.error('[cumpleanos] el chat de Sistema no se pudo enviar', error);
+      return { registros: [], errores: [{ mensaje: error?.message }] };
+    });
+    const mensajesDeChat = chat.registros.reduce(
+      (total, registro) => total + registro.cantidadMensajes,
+      0
+    );
+
+    chat.errores.forEach((error) =>
+      console.error('[cumpleanos] destacamento sin chat de Sistema', error)
+    );
+
+    const resumen = `${enviados} aviso(s) de cumpleaños de ${cumpleaneros.length} cumpleañero(s); ${mensajesDeChat} mensaje(s) de Sistema en ${chat.registros.length} destacamento(s).`;
 
     console.info(`[cumpleanos] ${resumen}`);
 
