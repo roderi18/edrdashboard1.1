@@ -17,6 +17,8 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
   'destacamento_numero_asignado',
   'miembro_creado',
   'miembro_actualizado',
+  'estatus_miembro_cambiado',
+  'estatus_miembro_por_caer',
   'pedido_recibido',
   'pedido_cancelado',
   'factura_generada',
@@ -44,6 +46,9 @@ export const TIPOS_NOTIFICACIONES_ADMIN = [
 export const TIPOS_NOTIFICACIONES_USUARIO = [
   'comunicado_publicado',
   'destacamento_numero_asignado',
+  // Los cargos del destacamento (y la nacion en inactivo y fallecido).
+  'estatus_miembro_cambiado',
+  'estatus_miembro_por_caer',
   'cuenta_creada',
   'perfil_actualizado',
   'pedido_creado',
@@ -81,6 +86,31 @@ const DEFINICIONES_NOTIFICACIONES = {
     etiquetaAccion: 'Ver',
     tipoAccion: 'ver',
     requiereFotoPersona: true,
+  },
+  // EL ESTATUS DE UN MIEMBRO CAMBIO (asistencia o a mano). Ver
+  // `docs/estatus-miembro.md`: reclutamiento va al destacamento; inactivo y
+  // fallecido, ademas, a la nacion.
+  estatus_miembro_cambiado: {
+    modulo: 'miembros',
+    titulo: 'Cambio de estatus de un miembro',
+    mensajePlantilla: '{{mensaje}}',
+    rolesDisponibles: ['admin', 'usuario', 'todos'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'miembro',
+    etiquetaAccion: 'Ver miembros',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
+  },
+  estatus_miembro_por_caer: {
+    modulo: 'miembros',
+    titulo: 'Miembro a punto de pasar a inactivo',
+    mensajePlantilla: '{{mensaje}}',
+    rolesDisponibles: ['admin', 'usuario', 'todos'],
+    prioridadPorDefecto: 'importante',
+    entidadTipo: 'miembro',
+    etiquetaAccion: 'Ver miembros',
+    tipoAccion: 'ver',
+    requiereFotoPersona: false,
   },
   pedido_recibido: {
     modulo: 'pedidos',

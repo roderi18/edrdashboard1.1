@@ -1201,6 +1201,13 @@ service cloud.firestore {
     // Lo mueve la regla de asistencia desde el navegador de quien pasa lista, y
     // lo lee cualquier sesion del sistema para pintar el chip del perfil. Sin
     // esta regla caia en el comodin del final.
+    // LICENCIAS DE ASISTENCIA ("Otro · De licencia"): un miembro ausente con
+    // permiso varios dias. Las crea y quita quien pasa lista, igual que las
+    // actividades; sin esta regla caia en el comodin del final.
+    match /licenciasAsistencia/{idLicencia} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
     match /estatus_miembros/{idMiembros} {
       allow read, write: if esUsuarioDelSistema();
     }
@@ -1518,6 +1525,12 @@ service cloud.firestore {
         && coleccion != 'favoritos_productos'
         && coleccion != 'preferencias_usuarios'
         && coleccion != 'actividadesAsistencia'
+        // Cintas, estatus y licencias tienen su bloque arriba. Sin excluirlos
+        // aqui el comodin los dejaba escribir a cualquier sesion: las cintas,
+        // que solo pone el Administrador Global, las podia cambiar cualquiera.
+        && coleccion != 'cintas_miembros'
+        && coleccion != 'estatus_miembros'
+        && coleccion != 'licenciasAsistencia'
         && coleccion != 'buzones_chat'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.

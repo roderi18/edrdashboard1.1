@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
@@ -48,6 +49,14 @@ import {
   primerApellidoDePalabras,
 } from 'src/utils/nombres-de-persona';
 import {
+  motivoOtro,
+  MOTIVOS_OTRO,
+  MOTIVO_LICENCIA,
+  licenciasEnFecha,
+  MAXIMO_DIAS_LICENCIA,
+  DIAS_SUGERIDOS_LICENCIA,
+} from 'src/utils/licencias-asistencia.mjs';
+import {
   ordenarRango,
   diaDeLaSemana,
   actividadEnFecha,
@@ -75,7 +84,10 @@ import {
   evaluarEstatusTrasPaseDeLista,
 } from 'src/services/estatus-miembros-service';
 import {
+  crearLicenciaAsistencia,
   crearActividadAsistencia,
+  listarLicenciasAsistencia,
+  eliminarLicenciaAsistencia,
   eliminarActividadAsistencia,
   listarActividadesAsistencia,
   limpiarAsistenciaDestacamento,
@@ -594,6 +606,8 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
   status,
   lastPresentAt,
   onStatusChange,
+  licencia = null,
+  onAbrirOtro,
 }) {
   const estado = getStatusLabel(status);
   // La reunion del dia cuenta como UNA actividad, y la persona la tiene puesta
@@ -645,7 +659,15 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
             justifyContent: { xs: 'flex-end', md: 'center' },
           }}
         >
-          <AttendanceStatusLabel estado={estado} />
+          <Stack alignItems={{ xs: 'flex-end', md: 'center' }} spacing={0.25}>
+            <AttendanceStatusLabel estado={estado} />
+            {licencia && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                {motivoOtro(licencia.motivo)?.label ?? 'De licencia'} hasta{' '}
+                {dayjs(licencia.fechaFin).format('DD/MM')}
+              </Typography>
+            )}
+          </Stack>
         </Box>
 
         {/* ASISTENCIA DEL DÍA */}
@@ -724,7 +746,12 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
               size="small"
               color={option.color}
               variant={status === option.value ? 'contained' : 'outlined'}
-              onClick={() => onStatusChange(memberId, option.value)}
+              // "Otro" ya no marca a secas: abre sus motivos ("De licencia"…).
+              onClick={(evento) =>
+                option.value === 'other' && onAbrirOtro
+                  ? onAbrirOtro(evento.currentTarget, memberId)
+                  : onStatusChange(memberId, option.value)
+              }
               sx={{
                 px: 0,
                 gap: 0.25,
@@ -949,13 +976,14 @@ function BarraDelCalendario({
               color="primary"
               onClick={onEmpezarActividad}
               startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+              // En oscuro el azul de la casa (`primary.main`) casi desaparece
+              // sobre el fondo navy del calendario: se usa su tono claro.
+              sx={(theme) => theme.applyStyles('dark', { color: 'primary.light' })}
             >
               Agregar actividad
             </Button>
           )}
 
-          {/* Sin : empujaba la barra a la derecha y dejaba el boton
-              otra vez a la izquierda. */}
           {/* Sin `ml: 'auto'`: empujaba la barra a la derecha y dejaba el boton
               otra vez a la izquierda. */}
           <PickersActionBar {...props} sx={{ p: 0 }} />
@@ -1069,6 +1097,13 @@ export function AttendanceQuickView() {
   // venir en meses ensuciaba el conteo del destacamento.
   const [estatusPorMiembro, setEstatusPorMiembro] = useState({});
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
+  // LICENCIAS ("Otro · De licencia") del destacamento, y el menú / diálogo de
+  // "Otro". Quien está de licencia no sale ausente mientras dure.
+  const [licencias, setLicencias] = useState([]);
+  const [menuOtro, setMenuOtro] = useState(null);
+  const [licenciaPendiente, setLicenciaPendiente] = useState(null);
+  const [diasLicencia, setDiasLicencia] = useState(7);
+  const [guardandoLicencia, setGuardandoLicencia] = useState(false);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [modoActividad, setModoActividad] = useState(false);
   const [rangoActividad, setRangoActividad] = useState({ inicio: '', fin: '' });
@@ -1375,6 +1410,13 @@ export function AttendanceQuickView() {
       })
       .catch((error) => console.error('[asistencia] no se pudieron leer las actividades', error));
 
+    setLicencias([]);
+    listarLicenciasAsistencia({ idDestacamento: selectedDestId })
+      .then((lista) => {
+        if (activo) setLicencias(lista);
+      })
+      .catch((error) => console.error('[asistencia] no se pudieron leer las licencias', error));
+
     return () => {
       activo = false;
     };
@@ -1499,6 +1541,9 @@ export function AttendanceQuickView() {
       return status === statusFilter;
     });
   }, [searchedMembers, statusByMemberId, statusFilter]);
+
+  // Quién está de licencia el día que se está pasando lista.
+  const licenciasDelDia = useMemo(() => licenciasEnFecha(licencias, date), [licencias, date]);
 
   // Los inactivos se pintan aparte, al final y recogidos.
   const inactivos = useMemo(
@@ -1856,6 +1901,89 @@ export function AttendanceQuickView() {
     [user]
   );
 
+  // "OTRO" ABRE SUS MOTIVOS. "Otro" a secas sigue existiendo; "De licencia" pide
+  // los días y queda guardada en `licenciasAsistencia`.
+  const abrirMenuOtro = useCallback((anchorEl, memberId) => {
+    setMenuOtro({ anchorEl, memberId });
+  }, []);
+
+  const elegirOtroSinMotivo = useCallback(() => {
+    if (menuOtro) handleStatusChange(menuOtro.memberId, 'other');
+    setMenuOtro(null);
+  }, [menuOtro, handleStatusChange]);
+
+  const elegirLicencia = useCallback(
+    (motivo) => {
+      if (menuOtro) {
+        setLicenciaPendiente({ memberId: menuOtro.memberId, motivo });
+        setDiasLicencia(7);
+      }
+      setMenuOtro(null);
+    },
+    [menuOtro]
+  );
+
+  const guardarLicencia = useCallback(async () => {
+    const miembro = selectedDestMembers.find(
+      (member) => String(getMemberId(member)) === String(licenciaPendiente?.memberId)
+    );
+
+    if (!miembro) return;
+
+    try {
+      setGuardandoLicencia(true);
+      const creada = await crearLicenciaAsistencia({
+        destacamento: {
+          idDestacamento: selectedDestId,
+          nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
+        },
+        miembro: { ...miembro, idMiembro: getMemberId(miembro) },
+        fechaInicio: date,
+        dias: diasLicencia,
+        motivo: licenciaPendiente?.motivo,
+        usuario: getAuditUser(),
+      });
+
+      setLicencias((actuales) => [...actuales.filter((item) => item.id !== creada.id), creada]);
+      setStatusByMemberId((actual) => ({ ...actual, [getMemberId(miembro)]: 'other' }));
+      setVersionCambios((actual) => actual + 1);
+      toast.success(
+        `${motivoOtro(creada.motivo)?.label ?? 'De licencia'}: ${diasLicencia} días, hasta el ${dayjs(creada.fechaFin).format('DD/MM/YYYY')}.`
+      );
+      setLicenciaPendiente(null);
+    } catch (error) {
+      console.error('[asistencia] no se pudo guardar la licencia', error);
+      toast.error(error?.message || 'No se pudo guardar la licencia.');
+    } finally {
+      setGuardandoLicencia(false);
+    }
+  }, [
+    date,
+    diasLicencia,
+    getAuditUser,
+    licenciaPendiente,
+    selectedDest,
+    selectedDestId,
+    selectedDestMembers,
+  ]);
+
+  const quitarLicencia = useCallback(async () => {
+    const licencia = menuOtro ? licenciasDelDia.get(String(menuOtro.memberId)) : null;
+
+    setMenuOtro(null);
+
+    if (!licencia) return;
+
+    try {
+      await eliminarLicenciaAsistencia({ licencia, usuario: getAuditUser() });
+      setLicencias((actuales) => actuales.filter((item) => item.id !== licencia.id));
+      toast.success('Licencia quitada.');
+    } catch (error) {
+      console.error('[asistencia] no se pudo quitar la licencia', error);
+      toast.error('No se pudo quitar la licencia.');
+    }
+  }, [getAuditUser, licenciasDelDia, menuOtro]);
+
   const handleClearSaved = useCallback(async () => {
     if (!selectedDestId) {
       return;
@@ -1910,9 +2038,22 @@ export function AttendanceQuickView() {
       // otra division antes de cambiar de filtro no llegaba a Firebase—. La
       // asistencia es del destacamento y de la fecha, no de la vista.
       const statusesToSave = { ...foto.estados };
+      // Quien está de licencia ese día y no se marcó a mano queda "Otro · De
+      // licencia", NO ausente: antes cada sábado de un viaje de un mes le
+      // sumaba una falta.
+      const deLicencia = licenciasEnFecha(foto.licencias ?? [], foto.fecha);
+      const detalles = {};
 
       foto.miembros.forEach((member) => {
         const memberId = getMemberId(member);
+
+        if (!statusesToSave[memberId] && deLicencia.has(String(memberId))) {
+          statusesToSave[memberId] = 'other';
+        }
+
+        if (statusesToSave[memberId] === 'other' && deLicencia.has(String(memberId))) {
+          detalles[memberId] = deLicencia.get(String(memberId))?.motivo || MOTIVO_LICENCIA;
+        }
 
         if (!statusesToSave[memberId]) {
           statusesToSave[memberId] = AUTO_ABSENT_STATUS;
@@ -1930,6 +2071,7 @@ export function AttendanceQuickView() {
           },
           miembros: foto.miembros,
           estados: statusesToSave,
+          detalles,
           usuario: getAuditUser(),
         });
 
@@ -1944,7 +2086,13 @@ export function AttendanceQuickView() {
           const estadosParaEstatus = Object.fromEntries(
             Object.entries(statusesToSave).map(([memberId, estado]) => [
               memberId,
-              convertirEstadoAsistenciaAFirebase(estado === AUTO_ABSENT_STATUS ? 'absent' : estado),
+              // La licencia no es falta para el estatus (ver su regla).
+              // Licencia y suspensión: para el estatus ninguna es falta.
+              detalles[memberId]
+                ? MOTIVO_LICENCIA
+                : convertirEstadoAsistenciaAFirebase(
+                    estado === AUTO_ABSENT_STATUS ? 'absent' : estado
+                  ),
             ])
           );
 
@@ -2041,8 +2189,17 @@ export function AttendanceQuickView() {
       nombreDestacamento: selectedDest?.name || selectedDest?.nombre || '',
       miembros: selectedDestMembers,
       estados: statusByMemberId,
+      licencias,
     }),
-    [versionCambios, date, selectedDestId, selectedDest, selectedDestMembers, statusByMemberId]
+    [
+      versionCambios,
+      date,
+      selectedDestId,
+      selectedDest,
+      selectedDestMembers,
+      statusByMemberId,
+      licencias,
+    ]
   );
 
   const handleSave = useCallback(
@@ -2505,23 +2662,113 @@ export function AttendanceQuickView() {
     />
   );
 
+  // El menú de "Otro" y el diálogo de licencia viajan con el de eliminar
+  // actividad: se pintan en el mismo sitio de la página.
   const renderConfirmarEliminarActividad = () => (
-    <ConfirmDialog
-      open={confirmarEliminarActividad.value}
-      onClose={confirmarEliminarActividad.onFalse}
-      title="Eliminar actividad"
-      content={`¿Seguro que deseas eliminar “${actividadApuntada?.nombre || 'esta actividad'}”?`}
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          disabled={eliminandoActividad}
-          onClick={handleEliminarActividad}
-        >
-          {eliminandoActividad ? 'Eliminando...' : 'Eliminar'}
-        </Button>
-      }
-    />
+    <>
+      {/* LOS MOTIVOS DE "OTRO". "De licencia" va primero: es el que se usa. */}
+      <Menu
+        anchorEl={menuOtro?.anchorEl ?? null}
+        open={Boolean(menuOtro)}
+        onClose={() => setMenuOtro(null)}
+      >
+        {MOTIVOS_OTRO.map((motivo) => (
+          <MenuItem key={motivo.value} onClick={() => elegirLicencia(motivo.value)}>
+            <Iconify icon="solar:calendar-date-bold" width={18} sx={{ mr: 1 }} />
+            {motivo.label}…
+          </MenuItem>
+        ))}
+        {menuOtro && licenciasDelDia.has(String(menuOtro.memberId)) && (
+          <MenuItem onClick={quitarLicencia} sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:trash-bin-trash-bold" width={18} sx={{ mr: 1 }} />
+            Quitar{' '}
+            {motivoOtro(
+              licenciasDelDia.get(String(menuOtro.memberId))?.motivo
+            )?.label?.toLowerCase() ?? 'licencia'}
+          </MenuItem>
+        )}
+        <MenuItem onClick={elegirOtroSinMotivo}>
+          <Iconify icon="solar:menu-dots-bold" width={18} sx={{ mr: 1 }} />
+          Otro (sin motivo)
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={Boolean(licenciaPendiente)}
+        onClose={guardandoLicencia ? undefined : () => setLicenciaPendiente(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>{motivoOtro(licenciaPendiente?.motivo)?.label ?? 'De licencia'}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            Desde el {date ? dayjs(date).format('DD/MM/YYYY') : ''}. Mientras dure, no se marca
+            ausente ni cuenta como falta.
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
+            {DIAS_SUGERIDOS_LICENCIA.map((dias) => (
+              <Button
+                key={dias}
+                size="small"
+                variant={diasLicencia === dias ? 'contained' : 'outlined'}
+                onClick={() => setDiasLicencia(dias)}
+              >
+                {dias} días
+              </Button>
+            ))}
+          </Stack>
+          <TextField
+            fullWidth
+            type="number"
+            label="Cantidad de días"
+            value={diasLicencia}
+            onChange={(evento) => setDiasLicencia(Number(evento.target.value) || 0)}
+            slotProps={{ htmlInput: { min: 1, max: MAXIMO_DIAS_LICENCIA } }}
+            helperText={
+              date && diasLicencia > 0
+                ? `Hasta el ${dayjs(date)
+                    .add(diasLicencia - 1, 'day')
+                    .format('DD/MM/YYYY')}.`
+                : ' '
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="inherit"
+            disabled={guardandoLicencia}
+            onClick={() => setLicenciaPendiente(null)}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            loading={guardandoLicencia}
+            disabled={diasLicencia < 1 || diasLicencia > MAXIMO_DIAS_LICENCIA}
+            onClick={guardarLicencia}
+          >
+            Guardar licencia
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmarEliminarActividad.value}
+        onClose={confirmarEliminarActividad.onFalse}
+        title="Eliminar actividad"
+        content={`¿Seguro que deseas eliminar “${actividadApuntada?.nombre || 'esta actividad'}”?`}
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            disabled={eliminandoActividad}
+            onClick={handleEliminarActividad}
+          >
+            {eliminandoActividad ? 'Eliminando...' : 'Eliminar'}
+          </Button>
+        }
+      />
+    </>
   );
 
   // La pantalla no comprobaba NADA: el menu no se la ofrecia a quien no lleva
@@ -2930,9 +3177,14 @@ export function AttendanceQuickView() {
                     memberId={memberId}
                     memberName={getMemberName(member)}
                     avatarUrl={memberPhotoUrls[memberId] || getMemberAvatar(member)}
-                    status={statusByMemberId[memberId] || ''}
+                    status={
+                      statusByMemberId[memberId] ||
+                      (licenciasDelDia.has(String(memberId)) ? 'other' : '')
+                    }
                     lastPresentAt={lastPresentByMemberId[memberId]}
                     onStatusChange={handleStatusChange}
+                    licencia={licenciasDelDia.get(String(memberId)) || null}
+                    onAbrirOtro={puedePasarAsistencia ? abrirMenuOtro : undefined}
                   />
                 );
               })}
@@ -2972,9 +3224,14 @@ export function AttendanceQuickView() {
                             memberId={memberId}
                             memberName={getMemberName(member)}
                             avatarUrl={memberPhotoUrls[memberId] || getMemberAvatar(member)}
-                            status={statusByMemberId[memberId] || ''}
+                            status={
+                              statusByMemberId[memberId] ||
+                              (licenciasDelDia.has(String(memberId)) ? 'other' : '')
+                            }
                             lastPresentAt={lastPresentByMemberId[memberId]}
                             onStatusChange={handleStatusChange}
+                            licencia={licenciasDelDia.get(String(memberId)) || null}
+                            onAbrirOtro={puedePasarAsistencia ? abrirMenuOtro : undefined}
                           />
                         );
                       })}

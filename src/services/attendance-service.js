@@ -12,6 +12,14 @@ import {
 } from 'firebase/firestore';
 
 import { ordenarRango, motivoRangoInvalido } from 'src/utils/actividades-asistencia.mjs';
+import {
+  idDeLicencia,
+  MOTIVO_LICENCIA,
+  rangoDeLicencia,
+  esMotivoConDias,
+  motivoLicenciaInvalida,
+  COLECCION_LICENCIAS_ASISTENCIA,
+} from 'src/utils/licencias-asistencia.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -71,7 +79,8 @@ const getMemberCode = (member = {}) => String(member.memberId || member.codigoMi
 export const convertirEstadoAsistenciaAFirebase = (estado) =>
   ESTADO_UI_A_FIREBASE[estado] || estado || '';
 
-export const convertirEstadoAsistenciaAUi = (estado) => ESTADO_FIREBASE_A_UI[estado] || estado || '';
+export const convertirEstadoAsistenciaAUi = (estado) =>
+  ESTADO_FIREBASE_A_UI[estado] || estado || '';
 
 export const obtenerAsistenciaDestacamento = async ({ fecha, idDestacamento } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !fecha || !idDestacamento) {
@@ -208,6 +217,9 @@ export const guardarAsistenciaDestacamento = async ({
   destacamento = {},
   miembros = [],
   estados = {},
+  // idMiembro → motivo de un "Otro" ('licencia'). Sin él, "Otro" no decía por
+  // qué y no se podía distinguir una licencia de cualquier otra cosa.
+  detalles = {},
   usuario = null,
 } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !fecha || !destacamento?.idDestacamento) {
@@ -229,7 +241,9 @@ export const guardarAsistenciaDestacamento = async ({
   const estadosResumen = {};
 
   miembros.forEach((member) => {
-    const idMiembro = String(member.idMiembro || member.idMiembros || member.id || member.memberId || '');
+    const idMiembro = String(
+      member.idMiembro || member.idMiembros || member.id || member.memberId || ''
+    );
     if (!idMiembro) return;
 
     // A QUIEN NO SE MARCO SE LE GUARDA COMO AUSENTE, NO COMO UN ESTADO APARTE.
@@ -270,6 +284,7 @@ export const guardarAsistenciaDestacamento = async ({
       nombreMiembro: getMemberName(member),
       division: member.memberDivision || member.division || member.divisionName || '',
       estado,
+      detalleOtro: estado === 'otro' ? detalles[idMiembro] || '' : '',
       marcadoManualmente: !sinMarcar,
       actualizadoEn: now,
       actualizadoPor: usuario || null,
@@ -437,6 +452,116 @@ export const eliminarActividadAsistencia = async ({ actividad, usuario = null } 
       ruta: '/dashboard/attendance',
     },
     antes: actividad,
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
+};
+
+// ----------------------------------------------------------------------
+// LICENCIAS: un miembro ausente con permiso varios días ("Otro · De licencia").
+//
+// Un documento por licencia, con el miembro y el rango. Mientras dure, el pase
+// de lista lo pone como "Otro · De licencia" en vez de ausente y la regla del
+// estatus no le cuenta la falta. Ver `src/utils/licencias-asistencia.mjs`.
+// ----------------------------------------------------------------------
+
+export const listarLicenciasAsistencia = async ({ idDestacamento } = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_LICENCIAS_ASISTENCIA),
+      where('idDestacamento', '==', String(idDestacamento))
+    )
+  );
+
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((licencia) => licencia.fechaInicio && licencia.fechaFin);
+};
+
+export const crearLicenciaAsistencia = async ({
+  destacamento = {},
+  miembro = {},
+  fechaInicio,
+  dias,
+  motivo: motivoElegido = MOTIVO_LICENCIA,
+  usuario = null,
+} = {}) => {
+  const idDestacamento = String(destacamento?.idDestacamento || '');
+  const idMiembro = String(
+    miembro.idMiembro || miembro.idMiembros || miembro.id || miembro.memberId || ''
+  );
+
+  if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento || !idMiembro) {
+    throw new Error('Firebase no esta configurado para guardar la licencia.');
+  }
+
+  const motivo = motivoLicenciaInvalida({ fechaInicio, dias });
+
+  if (motivo) throw new Error(motivo);
+
+  const { fechaInicio: desde, fechaFin: hasta } = rangoDeLicencia({ fechaInicio, dias });
+  const idLicencia = idDeLicencia({ idMiembro, fechaInicio: desde });
+  const licencia = {
+    idLicencia,
+    idMiembro,
+    codigoMiembro: getMemberCode(miembro),
+    nombreMiembro: getMemberName(miembro),
+    idDestacamento,
+    nombreDestacamento: destacamento.nombreDestacamento || '',
+    // "licencia" o "suspension": los dos cubren días y ninguno es falta.
+    motivo: esMotivoConDias(motivoElegido) ? motivoElegido : MOTIVO_LICENCIA,
+    dias: Number(dias),
+    fechaInicio: desde,
+    fechaFin: hasta,
+    creadoEn: new Date().toISOString(),
+    creadoPor: usuario || null,
+    creadoEnServidor: serverTimestamp(),
+  };
+
+  await setDoc(doc(FIRESTORE, COLECCION_LICENCIAS_ASISTENCIA, idLicencia), licencia, {
+    merge: true,
+  });
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'licencia_asistencia_creada',
+    descripcion: `${licencia.nombreMiembro || idMiembro} de licencia ${licencia.dias} días, del ${desde} al ${hasta}.`,
+    entidad: {
+      tipo: 'licencia_asistencia',
+      id: idLicencia,
+      nombre: licencia.nombreMiembro || idMiembro,
+      ruta: '/dashboard/attendance',
+    },
+    despues: { idMiembro, dias: licencia.dias, fechaInicio: desde, fechaFin: hasta },
+    realizadoPor: usuario,
+    origen: 'asistencia',
+  });
+
+  return { ...licencia, id: idLicencia };
+};
+
+export const eliminarLicenciaAsistencia = async ({ licencia, usuario = null } = {}) => {
+  const idLicencia = String(licencia?.id || licencia?.idLicencia || '');
+
+  if (!isFirebaseConfigured || !FIRESTORE || !idLicencia) {
+    throw new Error('No se sabe qué licencia quitar.');
+  }
+
+  await deleteDoc(doc(FIRESTORE, COLECCION_LICENCIAS_ASISTENCIA, idLicencia));
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'asistencia',
+    accion: 'licencia_asistencia_eliminada',
+    descripcion: `Se quitó la licencia de ${licencia?.nombreMiembro || licencia?.idMiembro}.`,
+    entidad: {
+      tipo: 'licencia_asistencia',
+      id: idLicencia,
+      nombre: licencia?.nombreMiembro || '',
+      ruta: '/dashboard/attendance',
+    },
+    antes: { fechaInicio: licencia?.fechaInicio, fechaFin: licencia?.fechaFin },
     realizadoPor: usuario,
     origen: 'asistencia',
   });

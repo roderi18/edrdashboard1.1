@@ -29,7 +29,9 @@ const {
 
 test('cada cinta del catálogo tiene su imagen en la carpeta pública', () => {
   const carpeta = path.join(process.cwd(), 'public/parches/Cintas y medallas/cintas-perfil');
-  const archivos = new Set(fs.readdirSync(carpeta));
+  // Solo las cintas (.webp): la carpeta tiene además `pendientes/`, con
+  // imágenes que todavía no son del catálogo, y contarla hacía fallar la prueba.
+  const archivos = new Set(fs.readdirSync(carpeta).filter((nombre) => nombre.endsWith('.webp')));
 
   assert.equal(CATALOGO_CINTAS_PERFIL.length, archivos.size);
   CATALOGO_CINTAS_PERFIL.forEach((cinta) => {

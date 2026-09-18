@@ -40,6 +40,9 @@ const EFECTO = {
   // Avisó: no se le cuenta la falta, pero tampoco estuvo.
   excusa: { falta: false, presencia: false },
   enfermo: { falta: false, presencia: false },
+  // "Otro · De licencia": ausente con permiso varios días. Si contara como
+  // "otro" a secas, un mes de viaje lo bajaba a Reclutamiento.
+  licencia: { falta: false, presencia: false },
   otro: { falta: true, presencia: false },
 };
 

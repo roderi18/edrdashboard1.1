@@ -42,6 +42,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Reclutamiento avisa al destacamento sin el Pastor; inactivo y fallecido avisan
    además a Oficina Nacional, Administrador Global y Consejo Ejecutivo. "Fallecido"
    solo lo marcan Coordinador de Destacamento, su Asistente y Administrador Global.
+   "Otro · De licencia" (N días, en `licenciasAsistencia`) no es falta ni presencia:
+   mientras dure, el pase de lista lo pone solo en vez de ausente.
    Regla en `src/utils/estatus-por-asistencia.mjs`, detalle en `docs/estatus-miembro.md`.
    Tests: `tests/member/estatus-*.test.mjs`.
 

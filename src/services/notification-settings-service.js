@@ -201,3 +201,15 @@ export async function guardarPreferenciaDestinatarioNotificacion({
     },
   });
 }
+
+// Las preferencias de UNA cuenta, para su pantalla de notificaciones. Sin
+// documento todavia, todo esta encendido: asi se reparten hoy los avisos.
+export async function leerPreferenciasNotificaciones(idUsuario) {
+  if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) return {};
+
+  const snapshot = await getDoc(
+    doc(FIRESTORE, COLECCIONES_NOTIFICACIONES.preferencias, String(idUsuario))
+  );
+
+  return snapshot.exists() ? snapshot.data() : {};
+}

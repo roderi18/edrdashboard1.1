@@ -26,6 +26,9 @@ romper lo guardado en la API .NET.
 
 - **Excusa y enfermo no son falta**: cortan la racha, pero tampoco son presencia,
   así que la regla de los 3 meses baja igual a quien avisa cada sábado.
+- **"Otro · De licencia" no es falta**: el miembro está ausente con permiso
+  varios días. Corta la racha de faltas, pero tampoco es presencia (ver
+  "Licencias" más abajo).
 - **Un día sin reunión no cuenta**: si no se pasó lista o es una actividad
   (excursión, campamento), no mueve las rachas. Venir a una actividad sí cuenta
   como presencia para los 3 meses, pero no reactiva por sí sola.
@@ -68,6 +71,31 @@ guardado y no se deshace.
 - Los **fallecidos no salen**: ni presente ni ausente.
 - Los **inactivos van al final, recogidos**, y se pueden abrir si alguno aparece.
   Marcar ausente cada sábado a quien no va a venir en meses ensuciaba el conteo.
+
+## Licencias ("Otro · De licencia")
+
+En el pase de lista, **"Otro" abre un menú** en vez de marcar a secas:
+
+1. **De licencia…** (la primera): pide la cantidad de días (atajos de 7, 14, 30,
+   60 y 90; hasta 180). Desde el día que se está pasando lista.
+2. **Suspensión disciplinaria…**: igual que la licencia, con días. Tampoco es
+   falta: si contara, la suspensión le sumaría además un cambio de estatus.
+3. **Quitar licencia / suspensión**, si el miembro ya tiene una ese día.
+4. **Otro (sin motivo)**: el "Otro" de siempre.
+
+Mientras la licencia dure:
+
+- El miembro sale como **"Otro"** con "De licencia hasta dd/mm" debajo, aunque
+  nadie lo marque. **No se guarda como ausente.**
+- En el registro de ese día queda `estado: 'otro'` y `detalleOtro` con el motivo
+  (`'licencia'` o `'suspension'`); la licencia guarda también su `motivo`.
+- Para el estatus cuenta como `licencia`: no suma falta ni presencia. Si dura
+  más de tres meses, la regla de los 3 meses lo baja igual a Inactivo.
+
+Firestore: `licenciasAsistencia/{idMiembro}_{fechaInicio}` con miembro,
+destacamento, días, `fechaInicio` y `fechaFin` (el primer día cuenta: 7 días
+desde el sábado 5 terminan el viernes 11). Regla en `firestore.rules`. Lógica y
+test: `src/utils/licencias-asistencia.mjs`, `tests/member/licencias-asistencia.test.mjs`.
 
 ## Dónde está
 
