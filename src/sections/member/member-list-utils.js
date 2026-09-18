@@ -115,11 +115,14 @@ export const mapMemberToTableRow = (member) => ({
   nationalLeadershipPosition: member.nationalLeadershipPosition || '',
 });
 
+// La MINIATURA (128 px, unos 10 kB) cuando la hay: la cara se pinta a 40 px, y
+// la foto entera —hasta 900 px, y las viejas en JPG de varios megas— se bajaba
+// una por fila. Las fotos antiguas no tienen miniatura y siguen con la grande.
 export const mapMemberPhotoUrls = (memberPhotos) =>
   Object.fromEntries(
     Object.entries(memberPhotos || obtenerFotosPrincipalesEnCache({ tipoEntidad: 'miembro' }) || {})
-      .filter(([, photo]) => photo?.urlFoto)
-      .map(([memberId, photo]) => [String(memberId), photo.urlFoto])
+      .filter(([, photo]) => photo?.urlFotoMiniatura || photo?.urlFoto)
+      .map(([memberId, photo]) => [String(memberId), photo.urlFotoMiniatura || photo.urlFoto])
   );
 
 // ----------------------------------------------------------------------

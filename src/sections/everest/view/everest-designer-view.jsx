@@ -25,6 +25,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestCintas } from '../everest-cintas';
+import { EverestMedallas } from '../everest-medallas';
 import { EverestVistaPrevia } from '../everest-vista-previa';
 import { EditorDeDiseno } from '../editores/editor-de-diseno';
 import { useEverestDesigner } from '../hooks/use-everest-designer';
@@ -48,12 +49,12 @@ import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 // ES UNA PANTALLA PROPIA DEL MENU, debajo de "Administradores", y no una pestaña
 // de Administracion: por eso lleva su propio encabezado y su propio marco.
 //
-// DOS ESPACIOS: "Portada" (los bloques de /principal) y "Cintas" (el catalogo de
-// cintas del perfil). El espacio va en la direccion (`?seccion=cintas`) para que
+// TRES ESPACIOS: "Portada" (los bloques de /principal), "Cintas" y "Medallas" (los
+// catalogos de insignias del perfil). El espacio va en la direccion (`?seccion=cintas`) para que
 // se pueda enlazar y para que los lapices de la portada sigan cayendo en Portada.
 // ----------------------------------------------------------------------
 
-const SECCIONES = Object.freeze({ portada: 'portada', cintas: 'cintas' });
+const SECCIONES = Object.freeze({ portada: 'portada', cintas: 'cintas', medallas: 'medallas' });
 
 const ENCABEZADO = (
   <CustomBreadcrumbs
@@ -69,8 +70,9 @@ export function EverestDesignerView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const seccion =
-    searchParams.get('seccion') === SECCIONES.cintas ? SECCIONES.cintas : SECCIONES.portada;
+  const seccion = [SECCIONES.cintas, SECCIONES.medallas].includes(searchParams.get('seccion'))
+    ? searchParams.get('seccion')
+    : SECCIONES.portada;
 
   const cambiarSeccion = (nueva) => {
     const parametros = new URLSearchParams(searchParams.toString());
@@ -134,11 +136,12 @@ export function EverestDesignerView() {
       <Tabs value={seccion} onChange={(evento, nueva) => cambiarSeccion(nueva)} sx={{ mb: 3 }}>
         <Tab value={SECCIONES.portada} label="Portada" />
         <Tab value={SECCIONES.cintas} label="Cintas" />
+        <Tab value={SECCIONES.medallas} label="Medallas" />
       </Tabs>
 
-      {seccion === SECCIONES.cintas ? (
-        <EverestCintas />
-      ) : (
+      {seccion === SECCIONES.cintas && <EverestCintas />}
+      {seccion === SECCIONES.medallas && <EverestMedallas />}
+      {seccion === SECCIONES.portada && (
         <Stack spacing={3}>
           <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>
             {designer.volver && (

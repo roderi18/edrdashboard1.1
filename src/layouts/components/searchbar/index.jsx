@@ -22,8 +22,9 @@ import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
 import { paths } from 'src/routes/paths';
 
 import { buscarEnCatalogo } from 'src/utils/buscador-catalogo.mjs';
+import { buscarPorNombre } from 'src/utils/buscador-organizacion.mjs';
 
-import { useCatalogoDelBuscador } from 'src/actions/buscador';
+import { useCatalogoDelBuscador, useOrganizacionDelBuscador } from 'src/actions/buscador';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -150,6 +151,34 @@ export function Searchbar({
     [premios, searchQuery]
   );
 
+  // PERSONAS Y NIVELES, con su foto. Van primero: es lo que mas se busca por
+  // nombre, y "similares" incluidos (`buscador-organizacion.mjs`).
+  const organizacion = useOrganizacionDelBuscador(buscadorAbierto);
+
+  const organizacionFiltrada = useMemo(
+    () => ({
+      miembros: buscarPorNombre({ elementos: organizacion.miembros, consulta: searchQuery }),
+      destacamentos: buscarPorNombre({
+        elementos: organizacion.destacamentos,
+        consulta: searchQuery,
+        tope: 4,
+      }),
+      secciones: buscarPorNombre({
+        elementos: organizacion.secciones,
+        consulta: searchQuery,
+        tope: 4,
+      }),
+      regiones: buscarPorNombre({
+        elementos: organizacion.regiones,
+        consulta: searchQuery,
+        tope: 4,
+      }),
+    }),
+    [organizacion, searchQuery]
+  );
+
+  const hayOrganizacion = Object.values(organizacionFiltrada).some((lista) => lista.length);
+
   // Los premios viven en la ficha de cada quien: el resultado lleva a la suya.
   // Sin numero de miembro —una cuenta administrativa sin ficha— no se enseñan,
   // porque no habria adonde ir.
@@ -157,6 +186,7 @@ export function Searchbar({
 
   const notFound =
     searchQuery &&
+    !hayOrganizacion &&
     !dataFiltered.length &&
     !productosFiltrados.length &&
     !(idMiembroDeLaSesion && premiosFiltrados.length);
@@ -221,6 +251,7 @@ export function Searchbar({
 
   const renderRotulo = (texto) => (
     <Box
+      key={`rotulo-${texto}`}
       component="li"
       sx={{
         px: 1,
@@ -236,7 +267,15 @@ export function Searchbar({
   );
 
   /** Un resultado del catalogo: producto o premio. Con su cara y su etiqueta. */
-  const renderResultadoDeCatalogo = ({ clave, nombre, detalle, href, imagen, etiquetas }) => {
+  const renderResultadoDeCatalogo = ({
+    clave,
+    nombre,
+    detalle,
+    href,
+    imagen,
+    etiquetas,
+    redonda = false,
+  }) => {
     const partesNombre = parse(nombre, match(nombre, searchQuery, { insideWords: true }));
     const partesDetalle = parse(detalle, match(detalle, searchQuery, { insideWords: true }));
 
@@ -247,6 +286,7 @@ export function Searchbar({
           path={partesDetalle}
           href={href}
           imagen={imagen}
+          redonda={redonda}
           labels={etiquetas}
           onClick={abierto ? cerrarDesplegable : handleClose}
         />
@@ -265,6 +305,52 @@ export function Searchbar({
         },
       }}
     >
+      {/* Personas con su cara redonda y, debajo del nombre, su destacamento. Los
+          niveles con su logo y de donde cuelgan. La ficha a la que llevan decide
+          lo que cada quien puede ver dentro. */}
+      {!!organizacionFiltrada.miembros.length && renderRotulo('Miembros')}
+      {organizacionFiltrada.miembros.map((miembro) =>
+        renderResultadoDeCatalogo({
+          clave: `miembro-${miembro.id}`,
+          nombre: miembro.nombre,
+          detalle: [miembro.destacamento, miembro.codigo].filter(Boolean).join(' · '),
+          href: paths.dashboard.level.member.edit(miembro.id),
+          imagen: organizacion.fotos.miembro?.[miembro.id] || '',
+          etiquetas: ['Miembro'],
+          redonda: true,
+        })
+      )}
+
+      {[
+        [
+          'destacamentos',
+          'Destacamentos',
+          'Destacamento',
+          'destacamento',
+          paths.dashboard.level.dest,
+        ],
+        ['secciones', 'Secciones', 'Sección', 'seccion', paths.dashboard.level.sectional],
+        ['regiones', 'Regiones', 'Región', 'region', paths.dashboard.level.regional],
+      ].flatMap(([clave, rotulo, etiqueta, tipoDeFoto, rutas]) =>
+        // Un arreglo y no un Fragment: MenuList no admite Fragments como hijos.
+        organizacionFiltrada[clave].length
+          ? [
+              renderRotulo(rotulo),
+              ...organizacionFiltrada[clave].map((nivel) =>
+                renderResultadoDeCatalogo({
+                  clave: `${clave}-${nivel.id}`,
+                  nombre: nivel.nombre,
+                  detalle: nivel.detalle,
+                  href: rutas.edit(nivel.id),
+                  imagen: organizacion.fotos[tipoDeFoto]?.[nivel.id] || '',
+                  etiquetas: [etiqueta],
+                  redonda: true,
+                })
+              ),
+            ]
+          : []
+      )}
+
       {!!productosFiltrados.length && renderRotulo('Tienda')}
       {productosFiltrados.map((producto) =>
         renderResultadoDeCatalogo({
@@ -290,7 +376,7 @@ export function Searchbar({
           })
         )}
 
-      {!!(productosFiltrados.length || premiosFiltrados.length) &&
+      {!!(hayOrganizacion || productosFiltrados.length || premiosFiltrados.length) &&
         !!dataFiltered.length &&
         searchQuery &&
         renderRotulo('Pantallas')}

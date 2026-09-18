@@ -461,7 +461,7 @@ export function MemberListView({ destId = null }) {
           regionalId: sectional?.regionalId || '',
           destName: dest?.name || dest?.nombre || dest?.destName || '',
           destNumber: dest?.destNumber || dest?.numero || dest?.number || '',
-          destAvatarUrl: dest?.avatarUrl || '',
+          destAvatarUrl: dest?.avatarMiniaturaUrl || dest?.avatarUrl || '',
         };
 
         if (

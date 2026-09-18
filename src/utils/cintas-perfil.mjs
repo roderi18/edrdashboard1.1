@@ -17,6 +17,10 @@ import { TEXTOS_CINTAS_PERFIL } from './cintas-perfil-textos.mjs';
 
 export const RUTA_CINTAS_PERFIL = '/parches/Cintas%20y%20medallas/cintas-perfil';
 export const COLECCION_CINTAS_MIEMBROS = 'cintas_miembros';
+// El orden GLOBAL que pone el Administrador Global arrastrando en EXPLORA
+// Designer: `configuracion_cintas/orden` → `{ orden: ['3', '1', …] }`.
+export const COLECCION_CONFIGURACION_CINTAS = 'configuracion_cintas';
+export const DOCUMENTO_ORDEN_CINTAS = 'orden';
 export const CINTAS_POR_FILA = 3;
 export const MAXIMO_CINTAS_VISIBLES = 18;
 
@@ -133,25 +137,84 @@ export const obtenerCintaPerfil = (id) =>
       .toLowerCase()
   ) ?? null;
 
+// ----------------------------------------------------------------------
+// EL ORDEN GLOBAL.
+//
+// El número del archivo es el orden de fábrica. El Administrador Global puede
+// cambiarlo arrastrando las cintas en EXPLORA Designer, y ese orden manda EN
+// TODAS PARTES: en los perfiles que ya tienen cintas y en el diálogo para
+// asignarlas. Se guarda la lista completa de ids; lo que falte (una cinta nueva
+// en la carpeta) va al final en su orden de fábrica, y lo que ya no exista se
+// descarta. Sin orden guardado, todo queda como siempre.
+// ----------------------------------------------------------------------
+
+/** La lista completa y válida: sin repetidos, sin ids muertos, sin huecos. */
+export const normalizarOrdenGlobal = (orden = []) => {
+  const guardados = [
+    ...new Set(
+      (Array.isArray(orden) ? orden : []).map((id) => obtenerCintaPerfil(id)?.id).filter(Boolean)
+    ),
+  ];
+  const faltan = CATALOGO_CINTAS_PERFIL.map((cinta) => cinta.id).filter(
+    (id) => !guardados.includes(id)
+  );
+
+  return [...guardados, ...faltan];
+};
+
+/** Comparador por el orden global; sin él, el de fábrica. */
+export const comparadorDeOrden = (orden = null) => {
+  if (!Array.isArray(orden) || !orden.length) return compararCintas;
+
+  const posicion = new Map(normalizarOrdenGlobal(orden).map((id, indice) => [id, indice]));
+
+  return (a, b) => (posicion.get(a) ?? Infinity) - (posicion.get(b) ?? Infinity);
+};
+
+/** El catálogo entero en el orden global. */
+export const catalogoEnOrden = (orden = null) =>
+  Array.isArray(orden) && orden.length
+    ? normalizarOrdenGlobal(orden).map((id) => obtenerCintaPerfil(id))
+    : [...CATALOGO_CINTAS_PERFIL];
+
+/** Mueve una cinta al sitio de otra (arrastrar y soltar). */
+export const moverCintaEnOrden = (orden = [], idQueSeMueve = '', idDestino = '') => {
+  const lista = normalizarOrdenGlobal(orden);
+  const desde = lista.indexOf(String(idQueSeMueve));
+  const hacia = lista.indexOf(String(idDestino));
+
+  if (desde < 0 || hacia < 0 || desde === hacia) return lista;
+
+  const [movida] = lista.splice(desde, 1);
+  lista.splice(hacia, 0, movida);
+
+  return lista;
+};
+
+/** Si el orden es el de fábrica (para no guardar lo que ya es así). */
+export const esOrdenDeFabrica = (orden = []) =>
+  normalizarOrdenGlobal(orden).join(',') ===
+  CATALOGO_CINTAS_PERFIL.map((cinta) => cinta.id).join(',');
+
 // Lo que venga de Firestore (ids sueltos o `{ id, ... }`) → ids del catálogo, sin
-// repetidos, en orden oficial. Un id que ya no existe se descarta en vez de
-// pintar una imagen rota.
-export const ordenarCintas = (entradas = []) => {
+// repetidos, en orden (el global si lo hay, si no el oficial). Un id que ya no
+// existe se descarta en vez de pintar una imagen rota.
+export const ordenarCintas = (entradas = [], orden = null) => {
   const ids = (Array.isArray(entradas) ? entradas : [])
     .map((entrada) => (typeof entrada === 'object' && entrada ? entrada.id : entrada))
     .map((id) => obtenerCintaPerfil(id)?.id)
     .filter(Boolean);
 
-  return [...new Set(ids)].sort(compararCintas);
+  return [...new Set(ids)].sort(comparadorDeOrden(orden));
 };
 
 // Filas de arriba abajo. La primera (arriba) se lleva el sobrante; las demás
 // van completas. Se toman las primeras 18 en orden oficial.
 export const disponerCintasEnFilas = (
   entradas = [],
-  { porFila = CINTAS_POR_FILA, maximo = MAXIMO_CINTAS_VISIBLES } = {}
+  { porFila = CINTAS_POR_FILA, maximo = MAXIMO_CINTAS_VISIBLES, orden = null } = {}
 ) => {
-  const ids = ordenarCintas(entradas).slice(0, maximo);
+  const ids = ordenarCintas(entradas, orden).slice(0, maximo);
   const sobrante = ids.length % porFila;
   const filas = sobrante ? [ids.slice(0, sobrante)] : [];
 

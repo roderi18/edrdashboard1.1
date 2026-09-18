@@ -4,6 +4,8 @@ import { onSnapshot } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
@@ -19,9 +21,14 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import {
+  configuracionDeMedallas,
+  catalogoDeMedallasEnOrden,
+} from 'src/utils/medallas-perfil.mjs';
+import {
   digitosDeVeces,
   CINTAS_POR_FILA,
   normalizarVeces,
+  catalogoEnOrden,
   obtenerCintaPerfil,
   MAXIMO_VECES_CINTA,
   EFECTOS_BORDE_CINTA,
@@ -31,17 +38,24 @@ import {
   normalizarEfectoBorde,
   MAXIMO_CINTAS_VISIBLES,
   normalizarEfectoNumero,
-  CATALOGO_CINTAS_PERFIL,
 } from 'src/utils/cintas-perfil.mjs';
 
 import { referenciaDeCintas } from 'src/services/cintas-miembros-apply';
 import { guardarCintasDeMiembro } from 'src/services/cintas-miembros-service';
+import { guardarMedallasDeMiembro } from 'src/services/medallas-miembros-service';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { useOrdenDeCintas, useOrdenDeMedallas } from './use-orden-de-cintas';
+import {
+  SelectorDeMedallas,
+  useCatalogoDeMedallas,
+  useMedallasDelMiembro,
+} from './medallas-de-miembro';
 
 // ----------------------------------------------------------------------
 
@@ -307,7 +321,10 @@ export function CintasDeMiembro({
     );
   }, [id]);
 
-  const filas = useMemo(() => disponerCintasEnFilas(asignadas), [asignadas]);
+  // El orden global que se arrastra en EXPLORA Designer manda también aquí, en
+  // los perfiles que ya tenían sus cintas puestas.
+  const orden = useOrdenDeCintas();
+  const filas = useMemo(() => disponerCintasEnFilas(asignadas, { orden }), [asignadas, orden]);
   const configuraciones = useMemo(() => configuracionPorCinta(asignadas), [asignadas]);
 
   if (!id) return null;
@@ -683,14 +700,42 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   );
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  // EL MISMO LÁPIZ PARA CINTAS Y MEDALLAS: dos pestañas y un solo Guardar.
+  const [pestana, setPestana] = useState('cintas');
+  const catalogoDeMedallas = useCatalogoDeMedallas();
+  const ordenDeMedallas = useOrdenDeMedallas();
+  const medallasGuardadas = useMedallasDelMiembro(idMiembros);
+  // `null` mientras no se toquen: entonces se guardan las que ya tenía.
+  const [medallasElegidas, setMedallasElegidas] = useState(null);
+  // Movimiento y brillo, globales para sus medallas. `null`: los que ya tenían.
+  const [efectosMedallas, setEfectosMedallas] = useState(null);
+  const medallasEnOrden = useMemo(
+    () => catalogoDeMedallasEnOrden(catalogoDeMedallas, ordenDeMedallas),
+    [catalogoDeMedallas, ordenDeMedallas]
+  );
+  const medallasActuales = useMemo(
+    () =>
+      medallasElegidas ??
+      new Set(medallasGuardadas.medallas.map((entrada) => String(entrada?.id ?? entrada))),
+    [medallasElegidas, medallasGuardadas.medallas]
+  );
+  const efectosActuales = useMemo(
+    () =>
+      efectosMedallas ??
+      [...configuracionDeMedallas(medallasGuardadas.medallas).values()][0] ?? {},
+    [efectosMedallas, medallasGuardadas.medallas]
+  );
+  // Para elegir, en el mismo orden global en que van a salir en el perfil.
+  const orden = useOrdenDeCintas();
   const cintasVisibles = useMemo(() => {
+    const catalogo = catalogoEnOrden(orden);
     const termino = normalizarBusqueda(busqueda);
-    if (!termino) return CATALOGO_CINTAS_PERFIL;
+    if (!termino) return catalogo;
 
-    return CATALOGO_CINTAS_PERFIL.filter((cinta) =>
+    return catalogo.filter((cinta) =>
       normalizarBusqueda(`${cinta.id} ${cinta.nombre}`).includes(termino)
     );
-  }, [busqueda]);
+  }, [busqueda, orden]);
 
   const alternar = (idCinta) =>
     setElegidas((previas) => {
@@ -731,11 +776,24 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
         })),
         usuario: user,
       });
-      toast.success('Cintas guardadas.');
+      const tocoMedallas = Boolean(medallasElegidas || efectosMedallas);
+      if (tocoMedallas) {
+        await guardarMedallasDeMiembro({
+          idMiembros,
+          anteriores: medallasGuardadas.medallas,
+          // En el orden global: así también queda guardado.
+          elegidas: medallasEnOrden
+            .map((medalla) => medalla.id)
+            .filter((idMedalla) => medallasActuales.has(idMedalla))
+            .map((idMedalla) => ({ id: idMedalla, ...efectosActuales })),
+          usuario: user,
+        });
+      }
+      toast.success(tocoMedallas ? 'Cintas y medallas guardadas.' : 'Cintas guardadas.');
       onClose();
     } catch (error) {
       console.error('[cintas] no se pudieron guardar', error);
-      toast.error('No se pudieron guardar las cintas.');
+      toast.error('No se pudieron guardar las cintas o las medallas.');
     } finally {
       setGuardando(false);
     }
@@ -744,193 +802,221 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   return (
     <Dialog open fullWidth maxWidth="lg" onClose={guardando ? undefined : onClose}>
       <DialogTitle>
-        Cintas de prueba <Label color="warning">Solo pruebas</Label>
+        Cintas y medallas de prueba <Label color="warning">Solo pruebas</Label>
       </DialogTitle>
 
-      <DialogContent>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Elegidas: {elegidas.size}. En el perfil se ordenan por número y se muestran hasta 18. Con
-          más de una vez, la cinta lleva el número en el centro.
-        </Typography>
+      <Tabs value={pestana} onChange={(evento, nueva) => setPestana(nueva)} sx={{ px: 3 }}>
+        <Tab value="cintas" label={`Cintas (${elegidas.size})`} />
+        <Tab
+          value="medallas"
+          label={`Medallas (${medallasActuales.size})`}
+          disabled={medallasGuardadas.cargando}
+        />
+      </Tabs>
 
-        <Box
-          sx={{
-            mb: 2,
-            gap: 1.5,
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 260px))' },
-          }}
-        >
-          <TextField
-            fullWidth
-            size="small"
-            label="Buscar cinta"
-            placeholder="Número o nombre"
-            value={busqueda}
-            onChange={(evento) => setBusqueda(evento.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} />,
-              },
-            }}
-            sx={{ gridColumn: '1 / -1' }}
+      <DialogContent sx={{ pt: 3 }}>
+        {pestana === 'medallas' ? (
+          <SelectorDeMedallas
+            catalogo={medallasEnOrden}
+            elegidas={medallasActuales}
+            onCambiar={setMedallasElegidas}
+            efectoMovimiento={efectosActuales.efectoMovimiento}
+            efectoBrillo={efectosActuales.efectoBrillo}
+            onCambiarEfectos={setEfectosMedallas}
           />
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Brillo global de bordes dorados"
-            value={efectoBordeGlobal}
-            onChange={(evento) => setEfectoBordeGlobal(evento.target.value)}
-          >
-            {OPCIONES_BORDE.map(([valor, etiqueta]) => (
-              <MenuItem key={valor} value={valor}>
-                {etiqueta}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Brillo global de números"
-            value={efectoNumeroGlobal}
-            onChange={(evento) => setEfectoNumeroGlobal(evento.target.value)}
-          >
-            {OPCIONES_NUMERO.map(([valor, etiqueta]) => (
-              <MenuItem key={valor} value={valor}>
-                {etiqueta}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
-
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 1,
-            // `minmax(0, 1fr)` y `minWidth: 0`: con `1fr` a secas el nombre sin
-            // cortar ensanchaba la columna y la ventana pedía scroll horizontal.
-            gridTemplateColumns: {
-              xs: 'repeat(2, minmax(0, 1fr))',
-              sm: 'repeat(4, minmax(0, 1fr))',
-              md: 'repeat(6, minmax(0, 1fr))',
-            },
-          }}
-        >
-          {cintasVisibles.map((cinta) => {
-            const activa = elegidas.has(cinta.id);
-            const configuracion = elegidas.get(cinta.id);
-            return (
-              <Box
-                key={cinta.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => alternar(cinta.id)}
-                onKeyDown={(evento) => {
-                  if (evento.key === 'Enter' || evento.key === ' ') {
-                    evento.preventDefault();
-                    alternar(cinta.id);
-                  }
-                }}
-                title={cinta.nombre}
-                sx={(theme) => ({
-                  p: 0.75,
-                  minWidth: 0,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  color: activa
-                    ? theme.vars.palette.primary.darker
-                    : theme.vars.palette.text.primary,
-                  backgroundColor: activa
-                    ? theme.vars.palette.primary.lighter
-                    : theme.vars.palette.background.paper,
-                  border: `2px solid ${
-                    activa ? theme.vars.palette.primary.main : theme.vars.palette.divider
-                  }`,
-                  ...theme.applyStyles('dark', {
-                    color: activa
-                      ? theme.vars.palette.primary.lighter
-                      : theme.vars.palette.text.primary,
-                    backgroundColor: activa
-                      ? theme.vars.palette.primary.darker
-                      : theme.vars.palette.background.paper,
-                    borderColor: activa
-                      ? theme.vars.palette.primary.light
-                      : theme.vars.palette.divider,
-                  }),
-                })}
-              >
-                <ImagenDeCinta
-                  cinta={cinta}
-                  veces={configuracion?.veces}
-                  efectoBorde={efectoBordeGlobal}
-                  efectoNumero={efectoNumeroGlobal}
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    mt: 0.5,
-                    display: 'block',
-                    lineHeight: 1.25,
-                    whiteSpace: 'normal',
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {cinta.id}. {cinta.nombre}
-                </Typography>
-
-                {/* Cuántas veces se ganó. No propaga el clic: cambiar el número no
-                    debe desmarcar la cinta. */}
-                {activa && (
-                  <Box
-                    onClick={(evento) => evento.stopPropagation()}
-                    onKeyDown={(evento) => evento.stopPropagation()}
-                    sx={{
-                      mt: 0.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <IconButton
-                      size="small"
-                      aria-label="Una vez menos"
-                      disabled={configuracion.veces <= 1}
-                      onClick={() => cambiarVeces(cinta.id, -1)}
-                    >
-                      <Iconify icon="mingcute:minimize-line" width={16} />
-                    </IconButton>
-                    <Typography variant="subtitle2" sx={{ minWidth: 40, textAlign: 'center' }}>
-                      ×{configuracion.veces}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      aria-label="Una vez más"
-                      disabled={configuracion.veces >= MAXIMO_VECES_CINTA}
-                      onClick={() => cambiarVeces(cinta.id, 1)}
-                    >
-                      <Iconify icon="mingcute:add-line" width={16} />
-                    </IconButton>
-                  </Box>
-                )}
-              </Box>
-            );
-          })}
-          {!cintasVisibles.length && (
-            <Typography
-              variant="body2"
-              sx={{ py: 3, color: 'text.secondary', textAlign: 'center', gridColumn: '1 / -1' }}
-            >
-              No encontramos cintas con esa búsqueda.
+        ) : (
+          <>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              Elegidas: {elegidas.size}. En el perfil se ordenan por número y se muestran hasta 18.
+              Con más de una vez, la cinta lleva el número en el centro.
             </Typography>
-          )}
-        </Box>
+
+            <Box
+              sx={{
+                mb: 2,
+                gap: 1.5,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 260px))' },
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                label="Buscar cinta"
+                placeholder="Número o nombre"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} />,
+                  },
+                }}
+                sx={{ gridColumn: '1 / -1' }}
+              />
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Brillo global de bordes dorados"
+                value={efectoBordeGlobal}
+                onChange={(evento) => setEfectoBordeGlobal(evento.target.value)}
+              >
+                {OPCIONES_BORDE.map(([valor, etiqueta]) => (
+                  <MenuItem key={valor} value={valor}>
+                    {etiqueta}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Brillo global de números"
+                value={efectoNumeroGlobal}
+                onChange={(evento) => setEfectoNumeroGlobal(evento.target.value)}
+              >
+                {OPCIONES_NUMERO.map(([valor, etiqueta]) => (
+                  <MenuItem key={valor} value={valor}>
+                    {etiqueta}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 1,
+                // `minmax(0, 1fr)` y `minWidth: 0`: con `1fr` a secas el nombre sin
+                // cortar ensanchaba la columna y la ventana pedía scroll horizontal.
+                gridTemplateColumns: {
+                  xs: 'repeat(2, minmax(0, 1fr))',
+                  sm: 'repeat(4, minmax(0, 1fr))',
+                  md: 'repeat(6, minmax(0, 1fr))',
+                },
+              }}
+            >
+              {cintasVisibles.map((cinta) => {
+                const activa = elegidas.has(cinta.id);
+                const configuracion = elegidas.get(cinta.id);
+                return (
+                  <Box
+                    key={cinta.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => alternar(cinta.id)}
+                    onKeyDown={(evento) => {
+                      if (evento.key === 'Enter' || evento.key === ' ') {
+                        evento.preventDefault();
+                        alternar(cinta.id);
+                      }
+                    }}
+                    title={cinta.nombre}
+                    sx={(theme) => ({
+                      p: 0.75,
+                      minWidth: 0,
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      color: activa
+                        ? theme.vars.palette.primary.darker
+                        : theme.vars.palette.text.primary,
+                      backgroundColor: activa
+                        ? theme.vars.palette.primary.lighter
+                        : theme.vars.palette.background.paper,
+                      border: `2px solid ${
+                        activa ? theme.vars.palette.primary.main : theme.vars.palette.divider
+                      }`,
+                      ...theme.applyStyles('dark', {
+                        color: activa
+                          ? theme.vars.palette.primary.lighter
+                          : theme.vars.palette.text.primary,
+                        backgroundColor: activa
+                          ? theme.vars.palette.primary.darker
+                          : theme.vars.palette.background.paper,
+                        borderColor: activa
+                          ? theme.vars.palette.primary.light
+                          : theme.vars.palette.divider,
+                      }),
+                    })}
+                  >
+                    <ImagenDeCinta
+                      cinta={cinta}
+                      veces={configuracion?.veces}
+                      efectoBorde={efectoBordeGlobal}
+                      efectoNumero={efectoNumeroGlobal}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        mt: 0.5,
+                        display: 'block',
+                        lineHeight: 1.25,
+                        whiteSpace: 'normal',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {cinta.id}. {cinta.nombre}
+                    </Typography>
+
+                    {/* Cuántas veces se ganó. No propaga el clic: cambiar el número no
+                    debe desmarcar la cinta. */}
+                    {activa && (
+                      <Box
+                        onClick={(evento) => evento.stopPropagation()}
+                        onKeyDown={(evento) => evento.stopPropagation()}
+                        sx={{
+                          mt: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <IconButton
+                          size="small"
+                          aria-label="Una vez menos"
+                          disabled={configuracion.veces <= 1}
+                          onClick={() => cambiarVeces(cinta.id, -1)}
+                        >
+                          <Iconify icon="mingcute:minimize-line" width={16} />
+                        </IconButton>
+                        <Typography variant="subtitle2" sx={{ minWidth: 40, textAlign: 'center' }}>
+                          ×{configuracion.veces}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          aria-label="Una vez más"
+                          disabled={configuracion.veces >= MAXIMO_VECES_CINTA}
+                          onClick={() => cambiarVeces(cinta.id, 1)}
+                        >
+                          <Iconify icon="mingcute:add-line" width={16} />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+              {!cintasVisibles.length && (
+                <Typography
+                  variant="body2"
+                  sx={{ py: 3, color: 'text.secondary', textAlign: 'center', gridColumn: '1 / -1' }}
+                >
+                  No encontramos cintas con esa búsqueda.
+                </Typography>
+              )}
+            </Box>
+          </>
+        )}
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={() => setElegidas(new Map())} disabled={guardando} color="inherit">
+        <Button
+          onClick={() =>
+            pestana === 'medallas' ? setMedallasElegidas(new Set()) : setElegidas(new Map())
+          }
+          disabled={guardando}
+          color="inherit"
+        >
           Quitar todas
         </Button>
         <Box sx={{ flexGrow: 1 }} />

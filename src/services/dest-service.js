@@ -217,6 +217,13 @@ export async function getDestsApi({ includePhotos = true } = {}) {
             return {
                 ...dest,
                 coordinatorId: localDest?.coordinatorId ?? dest.coordinatorId ?? null,
+                // Para las listas, donde la cara se pinta a 40 px: la foto entera
+                // se bajaba en cada fila de la lista de miembros.
+                avatarMiniaturaUrl:
+                    photosByDestId[String(dest.id)]?.urlFotoMiniatura ||
+                    photosByDestId[String(dest.id)]?.urlFoto ||
+                    localDest?.avatarMiniaturaUrl ||
+                    null,
                 avatarUrl:
                     photosByDestId[String(dest.id)]?.urlFoto ||
                     localDest?.avatarUrl ||

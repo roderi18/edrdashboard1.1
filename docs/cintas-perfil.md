@@ -35,12 +35,23 @@ Ejemplo con las cintas 3, 8, 14, 20, 25:
 Algoritmo: ordenar por número; `resto = n % 3`; si `resto > 0`, la primera fila
 (arriba) lleva las primeras `resto` cintas centradas; el resto se parte en filas de 3.
 
+### Orden global (EXPLORA Designer)
+
+El número del archivo es el orden **de fábrica**. En `/dashboard/everest?seccion=cintas`
+el Administrador Global arrastra las cintas (o usa las flechas, en el teléfono) y pulsa
+"Guardar orden". Ese orden se guarda en `configuracion_cintas/orden` (`{ orden: [ids] }`,
+pasa por `proponerCambio` y queda en Historial) y **manda en todas partes**: en los
+perfiles que ya tienen cintas —las filas se arman con él— y en el diálogo para
+asignarlas. Sin orden guardado, o si no se puede leer, vuelve el de fábrica. Una cinta
+nueva que no esté en el orden guardado va al final; un id que ya no existe se descarta.
+
 ## Implementación
 
 | Pieza | Dónde |
 |---|---|
 | Catálogo, orden y filas (sin React) | `src/utils/cintas-perfil.mjs` |
-| Test | `tests/member/cintas-perfil-orden.test.mjs` |
+| Test | `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs` |
+| Orden global | Firestore `configuracion_cintas/orden`; se lee con `useOrdenDeCintas` (una sola escucha) |
 | Tabla | Firestore `cintas_miembros/{idMiembros}` (regla en `firestore.rules`) |
 | Guardar (pasa por `proponerCambio`, ámbito `cintas_miembro`) | `src/services/cintas-miembros-service.js` + `cintas-miembros-apply.js` |
 | Pintar y lápiz | `src/components/insignias-perfil/cintas-de-miembro.jsx` |
@@ -93,3 +104,46 @@ Documento:
 - Tabla award (o grupo de awards) → número de cinta.
 - Con más de 18 cintas: cuáles se muestran.
 - Si la persona lleva la medalla, no se muestra su cinta.
+
+## Medallas
+
+Mismo trato que las cintas —perfil, pestaña **Medallas** dentro del mismo diálogo (el lápiz de las cintas) del
+Administrador Global y pestaña **Medallas** en EXPLORA Designer
+(`/dashboard/everest?seccion=medallas`) con orden global arrastrable—, con una
+diferencia: **el catálogo es la carpeta** `public/parches/Cintas y medallas/medallas`.
+
+- Cualquier imagen (WebP, PNG, JPG, GIF, AVIF) que se deje ahí aparece en la
+  aplicación, sin tocar código. Las subcarpetas (`en proceso`) no cuentan.
+- El id es el nombre del archivo sin extensión. El número inicial, si lo tiene, es
+  su orden de fábrica; las que no lo tienen van detrás, por nombre. El nombre que se
+  ve sale del archivo (`national-leadership-award` → "National leadership award").
+- `<nombre>-small.webp` es la variante reducida de `<nombre>` (ver
+  `DIRECTRICES-MEDALLAS.md`): no es otra medalla, es la que se pinta en el perfil.
+- En desarrollo, `/api/insignias/medallas` lee la carpeta al momento. En Netlify la
+  función no lleva `public/`, así que lee `src/utils/medallas-manifiesto.json`, que
+  `scripts/generar-manifiesto-medallas.mjs` regenera antes de cada build (`prebuild`).
+- En el perfil van justo debajo de las cintas: **como mucho 3**, en una fila, cada una del ancho de una cinta y con el mismo hueco que hay entre las cintas. El diálogo no deja marcar una cuarta.
+- Renombrar un archivo cambia su id: quien la tenía asignada deja de verla.
+- **Efectos, para que no se vean estáticas.** Dos ajustes que se combinan, globales
+  para las medallas de cada miembro (se eligen en la pestaña Medallas del lápiz de
+  las cintas y se guardan en cada entrada como `efectoMovimiento`/`efectoBrillo`):
+  - Movimiento: `soplo` (por defecto: ráfaga de aire, la cinta se mece y el medallón
+    la sigue con retraso), `pendulo` (solo el medallón), `balanceo` (la pieza entera),
+    `latido` (el medallón late) o `ninguno`.
+  - Brillo: `destello` (por defecto: una franja de luz cruza el medallón), `resplandor`
+    (halo dorado que pulsa), `centelleo` (estrellitas) o `ninguno`.
+  - La imagen se pinta en dos capas (cinta hasta el 56 % del alto, medallón desde el
+    55 %) y el brillo se enmascara con la propia imagen. Cada medalla arranca su ciclo
+    desfasado (`desfaseDeMedalla`) y los movimientos tienen pausas. Con "reducir
+    movimiento" activado en el sistema, no se mueven.
+  - En el Designer se prueban sobre todo el catálogo.
+
+| Pieza | Dónde |
+|---|---|
+| Catálogo, orden y filas (sin React) | `src/utils/medallas-perfil.mjs` |
+| Catálogo servido | `src/app/api/insignias/medallas/route.js` |
+| Tabla | Firestore `medallas_miembros/{idMiembros}`; orden en `configuracion_cintas/orden-medallas` |
+| Guardar (`proponerCambio`, ámbito `cintas_miembro`) | `src/services/medallas-miembros-service.js` + `medallas-miembros-apply.js` |
+| Perfil y diálogo | `src/components/insignias-perfil/medallas-de-miembro.jsx` |
+| Designer | `src/sections/everest/everest-medallas.jsx` |
+| Test | `tests/member/medallas-perfil.test.mjs` |

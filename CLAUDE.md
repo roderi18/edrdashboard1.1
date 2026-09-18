@@ -52,7 +52,17 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    premio ganado más de una vez va el número dorado encima. Catálogo y reglas en
    `src/utils/cintas-perfil.mjs`; se guardan en `cintas_miembros` y hoy solo las
    pone a mano el Administrador Global. Detalle en `docs/cintas-perfil.md`.
-   Test: `tests/member/cintas-perfil-orden.test.mjs`.
+   El Administrador Global puede cambiar ese orden arrastrándolas en EXPLORA
+   Designer → Cintas: se guarda en `configuracion_cintas/orden` y manda en todos
+   los perfiles y al asignarlas; sin orden guardado, el del archivo.
+   **Las medallas, igual, pero el catálogo es la carpeta**
+   `public/parches/Cintas y medallas/medallas`: cualquier imagen que se deje ahí
+   sale en la aplicación (`/api/insignias/medallas`; en producción, el manifiesto
+   que `prebuild` regenera). Las `-small` son su variante pequeña, no otra medalla.
+   Se guardan en `medallas_miembros`; su orden, en `configuracion_cintas/orden-medallas`.
+   Reglas en `src/utils/medallas-perfil.mjs`.
+   Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
+   `tests/member/medallas-perfil.test.mjs`.
 
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.

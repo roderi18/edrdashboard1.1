@@ -48,9 +48,9 @@ import {
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { ChipEstatusMiembro } from 'src/components/label';
-import { CintasDeMiembro } from 'src/components/insignias-perfil';
 import LocationSelect from 'src/components/location/location-select';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
+import { CintasDeMiembro, MedallasDeMiembro } from 'src/components/insignias-perfil';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
 
 import { MemberEstatusDialog } from 'src/sections/member/member-estatus-dialog';
@@ -839,6 +839,7 @@ export function UserAccountGeneral() {
             </Typography>
 
             <CintasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} sx={{ mt: 2 }} />
+            <MedallasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} />
 
             <SignOutButton sx={{ mt: 3 }} />
           </Card>

@@ -11,7 +11,16 @@ import { Label } from 'src/components/label';
 
 // ----------------------------------------------------------------------
 
-export function ResultItem({ title, path, labels, href, imagen = '', sx, ...other }) {
+export function ResultItem({
+  title,
+  path,
+  labels,
+  href,
+  imagen = '',
+  redonda = false,
+  sx,
+  ...other
+}) {
   const linkProps = isExternalLink(href)
     ? { component: 'a', href, target: '_blank', rel: 'noopener noreferrer' }
     : { component: RouterLink, href };
@@ -43,14 +52,30 @@ export function ResultItem({ title, path, labels, href, imagen = '', sx, ...othe
           DENTRO del catalogo (un `data:` de unos 2 kB), y en los premios un icono
           local: en los dos casos se pinta a la vez que el texto, sin pedir nada.
           Cuadrada y no redonda: son parches y articulos, no personas. */}
-      {imagen && (
+      {/* Personas y niveles van REDONDOS y siempre con cara: sin foto, la
+          inicial de su nombre, para que la lista no salte de sangria. */}
+      {(imagen || redonda) && (
         <Avatar
-          variant="rounded"
-          src={imagen}
+          variant={redonda ? 'circular' : 'rounded'}
+          src={imagen || undefined}
           alt=""
-          sx={{ width: 32, height: 32, mr: 1.5, flexShrink: 0, bgcolor: 'background.neutral' }}
+          sx={{
+            width: 32,
+            height: 32,
+            mr: 1.5,
+            flexShrink: 0,
+            typography: 'subtitle2',
+            bgcolor: 'background.neutral',
+            color: 'text.secondary',
+          }}
           slotProps={{ img: { loading: 'lazy', decoding: 'async' } }}
-        />
+        >
+          {title
+            .map((part) => part.text)
+            .join('')
+            .charAt(0)
+            .toUpperCase()}
+        </Avatar>
       )}
 
       <ListItemText

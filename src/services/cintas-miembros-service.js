@@ -1,12 +1,13 @@
 import {
   configuracionPorCinta,
+  normalizarOrdenGlobal,
   construirCintasAsignadas,
 } from 'src/utils/cintas-perfil.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 
-import { escribirCintasDeMiembro } from './cintas-miembros-apply';
+import { escribirOrdenDeCintas, escribirCintasDeMiembro } from './cintas-miembros-apply';
 
 // ----------------------------------------------------------------------
 // CINTAS DEL PERFIL DE UN MIEMBRO (`cintas_miembros/{idMiembros}`).
@@ -57,4 +58,39 @@ export async function guardarCintasDeMiembro({
   });
 
   return cintas;
+}
+
+// ----------------------------------------------------------------------
+// EL ORDEN GLOBAL DE LAS CINTAS.
+//
+// Lo pone el Administrador Global arrastrando en EXPLORA Designer y cambia el
+// orden en TODOS los perfiles a la vez, así que pasa por la misma puerta: se
+// aplica en el acto y queda en Historial el orden de antes y el de después.
+// ----------------------------------------------------------------------
+
+export async function guardarOrdenDeCintas({ orden = [], anterior = [], usuario = {} }) {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    throw new Error('Firebase no está configurado.');
+  }
+
+  const nuevo = normalizarOrdenGlobal(orden);
+  const antes = normalizarOrdenGlobal(anterior).join(', ');
+  const despues = nuevo.join(', ');
+
+  if (antes === despues) return nuevo;
+
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.cintasMiembro,
+    entidad: { tipo: 'configuracion_cintas', id: 'orden', nombre: 'Orden de las cintas' },
+    cambios: [{ campo: 'orden', etiqueta: 'Orden de las cintas', antes, despues }],
+    usuario,
+    descripcion: `Nuevo orden global de las cintas: ${despues}.`,
+    aplicar: () =>
+      escribirOrdenDeCintas(
+        nuevo,
+        String(usuario?.uid ?? usuario?.id ?? usuario?.codigoMiembro ?? '')
+      ),
+  });
+
+  return nuevo;
 }

@@ -11,9 +11,9 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { ChipEstatusMiembro } from 'src/components/label';
 import { ContextInfo } from 'src/components/info/context-info';
 import { BotonCopiar } from 'src/components/common/boton-copiar';
-import { CintasDeMiembro } from 'src/components/insignias-perfil';
 import { UnderlineLink } from 'src/components/link/underline-link';
 import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
+import { CintasDeMiembro, MedallasDeMiembro } from 'src/components/insignias-perfil';
 
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
 
@@ -134,10 +134,13 @@ export function MemberProfileCard({
               />
 
               {!isCreateView && (
-                <CintasDeMiembro
-                  idMiembros={currentMember?.idMiembros ?? currentMember?.id}
-                  sx={{ mt: 2 }}
-                />
+                <>
+                  <CintasDeMiembro
+                    idMiembros={currentMember?.idMiembros ?? currentMember?.id}
+                    sx={{ mt: 2 }}
+                  />
+                  <MedallasDeMiembro idMiembros={currentMember?.idMiembros ?? currentMember?.id} />
+                </>
               )}
 
               {memberDestText && !destLeadership && (
