@@ -52,7 +52,7 @@ test('solo para el Administrador Global y el de Gestion de Tienda, y despues del
   // devolverse (`conTienda`), pero la condicion de la tienda es la misma.
   assert.match(
     layout,
-    /const conTienda =\s*esAdministradorGlobal \|\| canManageStoreProducts\(user\)\s*\?\s*conTiendaDeAdministracion\(navDataFiltrada\)\s*:\s*navDataFiltrada;/
+    /const conTienda =\s*menuDeAdministradorGlobal \|\| canManageStoreProducts\(usuarioDelMenu\)\s*\?\s*conTiendaDeAdministracion\(navDataFiltrada\)\s*:\s*navDataFiltrada;/
   );
   // Despues del filtro: puesta antes, el filtro podia convertirla en la de cliente.
   assert.ok(

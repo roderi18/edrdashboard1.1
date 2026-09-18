@@ -134,8 +134,11 @@ diferencia: **el catálogo es la carpeta** `public/parches/Cintas y medallas/med
     (halo dorado que pulsa), `centelleo` (estrellitas) o `ninguno`.
   - La imagen se pinta en dos capas (cinta hasta el 56 % del alto, medallón desde el
     55 %) y el brillo se enmascara con la propia imagen. Cada medalla arranca su ciclo
-    desfasado (`desfaseDeMedalla`) y los movimientos tienen pausas. Con "reducir
-    movimiento" activado en el sistema, no se mueven.
+    desfasado (`desfaseDeMedalla`) y ningún efecto tiene tramos quietos (con pausas
+    parecía congelarse). Con "reducir movimiento" activado en el sistema, no se mueven.
+  - Cuatro perillas (`AJUSTES_MEDALLA`): velocidad y fuerza del movimiento, velocidad e
+    intensidad del brillo. Son multiplicadores (1 = el efecto de siempre); fuera de rango
+    vuelven a 1. Se guardan con cada medalla, como el tipo de efecto.
   - En el Designer se prueban sobre todo el catálogo.
 
 | Pieza | Dónde |

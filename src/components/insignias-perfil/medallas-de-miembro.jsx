@@ -5,6 +5,7 @@ import { onSnapshot } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Slider from '@mui/material/Slider';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
@@ -13,11 +14,13 @@ import { keyframes } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 import {
+  AJUSTES_MEDALLA,
   MAXIMO_MEDALLAS,
   ordenarMedallas,
   desfaseDeMedalla,
   MEDALLAS_POR_FILA,
   EFECTOS_BRILLO_MEDALLA,
+  normalizarAjusteMedalla,
   configuracionDeMedallas,
   disponerMedallasEnFilas,
   normalizarBrilloMedalla,
@@ -93,8 +96,8 @@ export function useMedallasDelMiembro(idMiembros) {
 // Cada capa se anima por su lado; el brillo va dentro de la capa del medallón y
 // se enmascara con la propia imagen, así que solo toca el metal, nunca el fondo.
 //
-// Casi todos los movimientos tienen PAUSA dentro del ciclo: una medalla que no
-// para de moverse cansa; una que de vez en cuando se mece, parece viva.
+// NINGÚN efecto tiene tramos quietos dentro del ciclo: con pausas, la medalla
+// parecía congelarse y volver a arrancar. Son suaves y continuos.
 // ----------------------------------------------------------------------
 
 export const OPCIONES_MOVIMIENTO_MEDALLA = [
@@ -114,64 +117,64 @@ export const OPCIONES_BRILLO_MEDALLA = [
 
 const CORTE = 55;
 
-// Ráfagas: quieta, un golpe de aire, se asienta, quieta otra vez.
+// Aire que no para: la pieza se mece sin quedarse quieta, con vaivenes
+// desiguales para que no parezca un metrónomo.
 const rafagaPieza = keyframes`
-  0%, 38%, 100% { transform: rotate(0deg); }
-  46% { transform: rotate(-2.2deg); }
-  54% { transform: rotate(1.6deg); }
-  62% { transform: rotate(-0.9deg); }
-  70% { transform: rotate(0.4deg); }
-  78% { transform: rotate(0deg); }
+  0%, 100% { transform: rotate(calc(0deg * var(--fuerza, 1))); }
+  20% { transform: rotate(calc(-1.8deg * var(--fuerza, 1))); }
+  40% { transform: rotate(calc(1.2deg * var(--fuerza, 1))); }
+  60% { transform: rotate(calc(-0.8deg * var(--fuerza, 1))); }
+  80% { transform: rotate(calc(1.5deg * var(--fuerza, 1))); }
 `;
 
-// El medallón llega un poco tarde y se mece más: cuelga de la cinta.
+// El medallón va detrás y se mece más: cuelga de la cinta.
 const rafagaMedallon = keyframes`
-  0%, 42%, 100% { transform: rotate(0deg); }
-  51% { transform: rotate(-4deg); }
-  60% { transform: rotate(3.2deg); }
-  69% { transform: rotate(-1.8deg); }
-  78% { transform: rotate(0.8deg); }
-  86% { transform: rotate(0deg); }
+  0%, 100% { transform: rotate(calc(0.6deg * var(--fuerza, 1))); }
+  24% { transform: rotate(calc(-3.2deg * var(--fuerza, 1))); }
+  44% { transform: rotate(calc(2.4deg * var(--fuerza, 1))); }
+  64% { transform: rotate(calc(-1.6deg * var(--fuerza, 1))); }
+  84% { transform: rotate(calc(2.8deg * var(--fuerza, 1))); }
 `;
 
 const pendulo = keyframes`
-  0%, 100% { transform: rotate(0deg); }
-  12% { transform: rotate(4.5deg); }
-  26% { transform: rotate(-3.6deg); }
-  40% { transform: rotate(2.4deg); }
-  52% { transform: rotate(-1.2deg); }
-  62% { transform: rotate(0deg); }
+  0%, 100% { transform: rotate(calc(-3.5deg * var(--fuerza, 1))); }
+  50% { transform: rotate(calc(3.5deg * var(--fuerza, 1))); }
 `;
 
 const balanceo = keyframes`
-  0%, 100% { transform: rotate(-1.8deg); }
-  50% { transform: rotate(1.8deg); }
+  0%, 100% { transform: rotate(calc(-1.8deg * var(--fuerza, 1))); }
+  50% { transform: rotate(calc(1.8deg * var(--fuerza, 1))); }
 `;
 
+// Respira sin pausas: con un tramo quieto parecía congelarse.
 const latido = keyframes`
-  0%, 30%, 100% { transform: scale(1); }
-  8% { transform: scale(1.045); }
-  16% { transform: scale(1); }
-  22% { transform: scale(1.03); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(calc(1 + 0.04 * var(--fuerza, 1))); }
 `;
 
+// El destello cruza sin descanso: dos franjas por tramo de 2 anchos, así
+// siempre hay una a la vista y el bucle no se nota (antes esperaba medio ciclo
+// fuera de la medalla y parecía que se congelaba).
 const destello = keyframes`
-  0%, 55% { background-position: 170% 0; }
-  85%, 100% { background-position: -70% 0; }
+  from { background-position: 0% 0; }
+  to { background-position: -200% 0; }
 `;
 
 const resplandor = keyframes`
   0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 214, 102, 0)) brightness(1); }
-  50% { filter: drop-shadow(0 0 5px rgba(255, 214, 102, 0.85)) brightness(1.12); }
+  50% {
+    filter: drop-shadow(0 0 calc(5px * var(--intensidad, 1)) rgba(255, 214, 102, 0.85))
+      brightness(calc(1 + 0.12 * var(--intensidad, 1)));
+  }
 `;
 
+// Sin tramos quietos: con pausas en 0 el centelleo parecía congelarse y volver
+// a arrancar. Ahora sube y baja todo el ciclo, sin llegar a apagarse del todo.
 const centelleo = keyframes`
-  0%, 100% { opacity: 0; }
-  10% { opacity: 1; }
-  22% { opacity: 0; }
-  52% { opacity: 0; }
-  62% { opacity: 0.9; }
-  74% { opacity: 0; }
+  0%, 100% { opacity: calc(0.25 * var(--intensidad, 1)); }
+  25% { opacity: calc(1 * var(--intensidad, 1)); }
+  50% { opacity: calc(0.4 * var(--intensidad, 1)); }
+  75% { opacity: calc(0.9 * var(--intensidad, 1)); }
 `;
 
 const animacion = (nombre, segundos, desfase, extra = 'ease-in-out infinite') => ({
@@ -188,6 +191,10 @@ export function ImagenDeMedalla({
   pequena = false,
   efectoMovimiento = EFECTOS_MOVIMIENTO_MEDALLA.SOPLO,
   efectoBrillo = EFECTOS_BRILLO_MEDALLA.DESTELLO,
+  velocidadMovimiento = 1,
+  amplitudMovimiento = 1,
+  velocidadBrillo = 1,
+  intensidadBrillo = 1,
   sx,
 }) {
   const [cargada, setCargada] = useState(false);
@@ -195,20 +202,31 @@ export function ImagenDeMedalla({
   const desfase = desfaseDeMedalla(medalla.id);
   const movimiento = normalizarMovimientoMedalla(efectoMovimiento);
   const brillo = normalizarBrilloMedalla(efectoBrillo);
+  // Más velocidad = ciclo más corto. La fuerza y la intensidad viajan como
+  // variables CSS que multiplican los grados, la escala y la luz de cada efecto.
+  const rapidezMovimiento = normalizarAjusteMedalla('velocidadMovimiento', velocidadMovimiento);
+  const rapidezBrillo = normalizarAjusteMedalla('velocidadBrillo', velocidadBrillo);
+  const intensidad = normalizarAjusteMedalla('intensidadBrillo', intensidadBrillo);
+  const mov = (segundos) => segundos / rapidezMovimiento;
+  const luz = (segundos) => segundos / rapidezBrillo;
+  const variables = {
+    '--fuerza': normalizarAjusteMedalla('amplitudMovimiento', amplitudMovimiento),
+    '--intensidad': intensidad,
+  };
 
   const animacionDeLaPieza =
     movimiento === EFECTOS_MOVIMIENTO_MEDALLA.SOPLO
-      ? animacion(rafagaPieza, 7, desfase)
+      ? animacion(rafagaPieza, mov(6), desfase)
       : movimiento === EFECTOS_MOVIMIENTO_MEDALLA.BALANCEO
-        ? animacion(balanceo, 4.5, desfase)
+        ? animacion(balanceo, mov(4.5), desfase)
         : {};
   const animacionDelMedallon =
     movimiento === EFECTOS_MOVIMIENTO_MEDALLA.SOPLO
-      ? animacion(rafagaMedallon, 7, desfase)
+      ? animacion(rafagaMedallon, mov(6), desfase)
       : movimiento === EFECTOS_MOVIMIENTO_MEDALLA.PENDULO
-        ? animacion(pendulo, 6, desfase)
+        ? animacion(pendulo, mov(3.6), desfase)
         : movimiento === EFECTOS_MOVIMIENTO_MEDALLA.LATIDO
-          ? animacion(latido, 3.2, desfase)
+          ? animacion(latido, mov(2.6), desfase)
           : {};
 
   // La máscara es la propia medalla: el brillo solo cae donde hay metal o hilo.
@@ -223,6 +241,7 @@ export function ImagenDeMedalla({
     <Box
       sx={[
         {
+          ...variables,
           position: 'relative',
           width: 1,
           transformOrigin: '50% 0',
@@ -291,7 +310,7 @@ export function ImagenDeMedalla({
               display: 'block',
               objectFit: 'contain',
               ...(brillo === EFECTOS_BRILLO_MEDALLA.RESPLANDOR
-                ? animacion(resplandor, 3.4, desfase)
+                ? animacion(resplandor, luz(3.4), desfase)
                 : {}),
               ...sinMovimientoSiLoPide,
             }}
@@ -304,10 +323,14 @@ export function ImagenDeMedalla({
                 inset: 0,
                 ...mascara,
                 backgroundImage:
-                  'linear-gradient(110deg, transparent 35%, rgba(255, 246, 214, 0.85) 50%, transparent 65%)',
-                backgroundSize: '250% 100%',
+                  'linear-gradient(110deg, transparent 15%, rgba(255, 246, 214, 0.85) 25%, transparent 35%, transparent 65%, rgba(255, 246, 214, 0.85) 75%, transparent 85%)',
+                backgroundSize: '200% 100%',
+                backgroundRepeat: 'repeat-x',
                 mixBlendMode: 'screen',
-                ...animacion(destello, 4.6, desfase, 'ease-in-out infinite'),
+                // Hasta 1, más o menos visible; por encima, además más luminoso.
+                opacity: Math.min(1, intensidad),
+                filter: intensidad > 1 ? `brightness(${intensidad})` : 'none',
+                ...animacion(destello, luz(5), desfase, 'linear infinite'),
                 ...sinMovimientoSiLoPide,
               }}
             />
@@ -325,7 +348,7 @@ export function ImagenDeMedalla({
                   'radial-gradient(circle at 52% 64%, rgba(255, 255, 255, 0.9) 0 0.8%, transparent 2.5%)',
                 ].join(', '),
                 mixBlendMode: 'screen',
-                ...animacion(centelleo, 3.8, desfase),
+                ...animacion(centelleo, luz(2.4), desfase, 'ease-in-out infinite alternate'),
                 ...sinMovimientoSiLoPide,
               }}
             />
@@ -416,14 +439,60 @@ const normalizarBusqueda = (texto) =>
  * global, para marcar y desmarcar. El estado lo lleva el diálogo, que guarda
  * cintas y medallas con el mismo botón.
  */
+/**
+ * Las cuatro perillas de los efectos (velocidad y fuerza del movimiento,
+ * velocidad e intensidad del brillo). Sirve igual en el diálogo del miembro y en
+ * EXPLORA Designer. `valores` trae las cuatro claves de `AJUSTES_MEDALLA`.
+ */
+export function AjustesDeEfectosDeMedalla({ valores = {}, onCambiar, sx }) {
+  return (
+    <Box
+      sx={[
+        {
+          columnGap: 3,
+          rowGap: 0.5,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, 1fr)' },
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {Object.entries(AJUSTES_MEDALLA).map(([clave, ajuste]) => {
+        const valor = normalizarAjusteMedalla(clave, valores[clave]);
+
+        return (
+          <Box key={clave} sx={{ minWidth: 0 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {ajuste.etiqueta}: <strong>{valor.toFixed(2).replace(/\.?0+$/, '')}×</strong>
+            </Typography>
+            <Slider
+              size="small"
+              value={valor}
+              min={ajuste.min}
+              max={ajuste.max}
+              step={0.05}
+              marks={[{ value: 1 }]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(numero) => `${numero}×`}
+              onChange={(evento, nuevo) => onCambiar?.({ ...valores, [clave]: nuevo })}
+              aria-label={ajuste.etiqueta}
+            />
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
 export function SelectorDeMedallas({
   catalogo = [],
   elegidas,
   onCambiar,
-  efectoMovimiento = EFECTOS_MOVIMIENTO_MEDALLA.SOPLO,
-  efectoBrillo = EFECTOS_BRILLO_MEDALLA.DESTELLO,
+  efectos = {},
   onCambiarEfectos,
 }) {
+  const { efectoMovimiento, efectoBrillo } = efectos;
+
   const [busqueda, setBusqueda] = useState('');
 
   const visibles = useMemo(() => {
@@ -454,18 +523,6 @@ export function SelectorDeMedallas({
         orden global de EXPLORA Designer.
       </Typography>
 
-      <TextField
-        fullWidth
-        size="small"
-        label="Buscar medalla"
-        value={busqueda}
-        onChange={(evento) => setBusqueda(evento.target.value)}
-        slotProps={{
-          input: { startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} /> },
-        }}
-        sx={{ mb: 2, maxWidth: 532 }}
-      />
-
       {/* Globales para el miembro, como el brillo de las cintas: valen para todas
           sus medallas y se combinan entre sí. */}
       <Box
@@ -473,9 +530,19 @@ export function SelectorDeMedallas({
           mb: 2,
           gap: 1.5,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 260px))' },
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 300px) repeat(2, minmax(0, 220px))' },
         }}
       >
+        <TextField
+          fullWidth
+          size="small"
+          label="Buscar medalla"
+          value={busqueda}
+          onChange={(evento) => setBusqueda(evento.target.value)}
+          slotProps={{
+            input: { startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} /> },
+          }}
+        />
         <TextField
           select
           fullWidth
@@ -483,7 +550,7 @@ export function SelectorDeMedallas({
           label="Movimiento global"
           value={normalizarMovimientoMedalla(efectoMovimiento)}
           onChange={(evento) =>
-            onCambiarEfectos?.({ efectoMovimiento: evento.target.value, efectoBrillo })
+            onCambiarEfectos?.({ ...efectos, efectoMovimiento: evento.target.value })
           }
         >
           {OPCIONES_MOVIMIENTO_MEDALLA.map(([valor, etiqueta]) => (
@@ -499,7 +566,7 @@ export function SelectorDeMedallas({
           label="Brillo global del medallón"
           value={normalizarBrilloMedalla(efectoBrillo)}
           onChange={(evento) =>
-            onCambiarEfectos?.({ efectoMovimiento, efectoBrillo: evento.target.value })
+            onCambiarEfectos?.({ ...efectos, efectoBrillo: evento.target.value })
           }
         >
           {OPCIONES_BRILLO_MEDALLA.map(([valor, etiqueta]) => (
@@ -509,6 +576,8 @@ export function SelectorDeMedallas({
           ))}
         </TextField>
       </Box>
+
+      <AjustesDeEfectosDeMedalla valores={efectos} onCambiar={onCambiarEfectos} sx={{ mb: 2 }} />
 
       <Box
         sx={{
@@ -556,12 +625,7 @@ export function SelectorDeMedallas({
                 }),
               })}
             >
-              <ImagenDeMedalla
-                medalla={medalla}
-                pequena
-                efectoMovimiento={efectoMovimiento}
-                efectoBrillo={efectoBrillo}
-              />
+              <ImagenDeMedalla medalla={medalla} pequena {...efectos} />
               <Typography
                 variant="caption"
                 sx={{ mt: 0.5, display: 'block', lineHeight: 1.25, overflowWrap: 'anywhere' }}

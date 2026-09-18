@@ -28,13 +28,14 @@ export async function guardarMedallasDeMiembro({
   asegurarFirebase();
 
   const medallas = construirMedallasAsignadas(anteriores, elegidas, new Date().toISOString());
-  // "1-medalla-al-valor [movimiento: soplo; brillo: destello]": el Historial
-  // registra también un cambio solo de efectos.
+  // "1-medalla-al-valor [movimiento: soplo 1x/1x; brillo: destello 1x/1x]"
+  // (velocidad/fuerza o intensidad): el Historial registra también un cambio
+  // solo de efectos o de sus perillas.
   const describir = (lista) =>
     [...configuracionDeMedallas(lista)]
       .map(
         ([id, efectos]) =>
-          `${id} [movimiento: ${efectos.efectoMovimiento}; brillo: ${efectos.efectoBrillo}]`
+          `${id} [movimiento: ${efectos.efectoMovimiento} ${efectos.velocidadMovimiento}x/${efectos.amplitudMovimiento}x; brillo: ${efectos.efectoBrillo} ${efectos.velocidadBrillo}x/${efectos.intensidadBrillo}x]`
       )
       .join(', ') || 'Ninguna';
   const antes = describir(anteriores);

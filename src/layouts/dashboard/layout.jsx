@@ -335,6 +335,17 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
   }, [user]);
 
+  // CON ROLES COMBINADOS, EL MENU SIGUE SIENDO EL DEL ADMINISTRADOR GLOBAL.
+  // La prueba solo la enciende el; si el menu se recortaba a la pareja probada,
+  // perdia las pestañas para moverse. Los permisos de la pareja los siguen
+  // aplicando los guardas de cada pantalla.
+  const usuarioDelMenu = (pruebaDeRolesActiva && user?.sesionSinPrueba) || user;
+  const menuDeAdministradorGlobal =
+    isAdminGlobal(usuarioDelMenu) ||
+    String(usuarioDelMenu?.role ?? usuarioDelMenu?.rol ?? '')
+      .trim()
+      .toLowerCase() === 'admin';
+
   const navData = useMemo(() => {
     // EL ADMINISTRADOR GLOBAL SIGUE VIENDO TODO.
     //
@@ -352,14 +363,14 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // La pantalla de usuario de la plantilla no va en ese bloque del final: es una
     // entrada sola y un grupo propio para ella pesaba mas que la entrada. Se
     // cuela dentro de "Organizacion", encima de Niveles Organizacionales.
-    const conDesarrollo = esAdministradorGlobal
+    const conDesarrollo = menuDeAdministradorGlobal
       ? [...conUsuarioDeDesarrollo(baseNavData), ...navDataDesarrollo]
       : baseNavData;
     const navDataConIndicadores = agregarIndicadoresMensajes(conDesarrollo, {
       chatUnreadCount: chatsSinLeer,
       mailUnreadCount: mailsSinLeer,
     });
-    const navDataFiltrada = filterDashboardNavDataByUser(navDataConIndicadores, user);
+    const navDataFiltrada = filterDashboardNavDataByUser(navDataConIndicadores, usuarioDelMenu);
 
     // LA TIENDA ENTERA PARA QUIEN LA ADMINISTRA: el Administrador Global y el de
     // Gestion de Tienda ven Tienda Virtual, Ordenes y Recibos debajo de "Tienda".
@@ -368,15 +379,15 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // recibos"— y, puesta antes, podia deshacerla. El resto de los miembros se
     // queda con ese desplegable.
     const conTienda =
-      esAdministradorGlobal || canManageStoreProducts(user)
+      menuDeAdministradorGlobal || canManageStoreProducts(usuarioDelMenu)
         ? conTiendaDeAdministracion(navDataFiltrada)
         : navDataFiltrada;
 
     // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
-    return isAdminGlobal(user) ? conEverestDesigner(conTienda) : conTienda;
-  }, [chatsSinLeer, esAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, user]);
+    return isAdminGlobal(usuarioDelMenu) ? conEverestDesigner(conTienda) : conTienda;
+  }, [chatsSinLeer, menuDeAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, usuarioDelMenu]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

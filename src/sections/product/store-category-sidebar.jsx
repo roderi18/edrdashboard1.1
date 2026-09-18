@@ -61,6 +61,27 @@ const iconoDeCategoria = (categoria) => {
   return ICONOS_DE_CATEGORIA[clave] || ICONO_GENERICO;
 };
 
+// Los nombres con guion llegan así de la tienda ("Barras-Numeros"); en la
+// columna se leen como nombre. Solo cambia lo que se ve: el filtro sigue usando
+// el valor original. "Campamentos" se abrevia porque cortaba con puntos suspensivos.
+const NOMBRES_DE_CATEGORIA = {
+  'barras-numeros': 'Barras y Números',
+  cintas: 'Cintas y Medallas',
+  'campamentos-especiales': 'Camps. y Especiales',
+  'insignias-emblemas': 'Insignias y Emblemas',
+  'materiales-manuales': 'Materiales y Manuales',
+};
+
+const nombreDeCategoria = (categoria, etiqueta) => {
+  const clave = String(categoria || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return NOMBRES_DE_CATEGORIA[clave] || etiqueta;
+};
+
 export function StoreCategorySidebar({ options = [], value = [], onChange, total = 0, sx }) {
   const seleccionada = value.length === 1 ? value[0] : '';
 
@@ -123,7 +144,7 @@ export function StoreCategorySidebar({ options = [], value = [], onChange, total
                 textOverflow: 'ellipsis',
               }}
             >
-              {option.label}
+              {nombreDeCategoria(option.value, option.label)}
             </Box>
 
             <Label variant="soft" color={seleccionada === option.value ? 'primary' : 'default'}>

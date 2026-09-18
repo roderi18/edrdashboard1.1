@@ -222,7 +222,7 @@ test('el menu solo se la enseña al Administrador Global, el mismo que puede abr
   // Despues del filtro del menu, como la tienda de administracion.
   assert.match(
     layout,
-    /return isAdminGlobal\(user\) \? conEverestDesigner\(conTienda\) : conTienda;/
+    /return isAdminGlobal\(usuarioDelMenu\) \? conEverestDesigner\(conTienda\) : conTienda;/
   );
   assert.match(layout, /filterDashboardNavDataByUser\([\s\S]*?conEverestDesigner\(/);
 });

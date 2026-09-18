@@ -64,7 +64,37 @@ export const normalizarMovimientoMedalla = (valor) =>
 export const normalizarBrilloMedalla = (valor) =>
   Object.values(EFECTOS_BRILLO_MEDALLA).includes(valor) ? valor : EFECTOS_BRILLO_MEDALLA.DESTELLO;
 
-/** id → { efectoMovimiento, efectoBrillo }, a partir de lo guardado. */
+// LAS PERILLAS DE CADA EFECTO: velocidad y fuerza del movimiento, velocidad e
+// intensidad del brillo. Son multiplicadores sobre el efecto de siempre (1 = como
+// estaba), así que una medalla guardada antes de que existieran no cambia.
+// Fuera de rango o sin número, vuelve al 1: un valor roto no la deja quieta ni
+// la hace girar como una hélice.
+export const AJUSTES_MEDALLA = Object.freeze({
+  velocidadMovimiento: Object.freeze({ etiqueta: 'Velocidad del movimiento', min: 0.25, max: 3 }),
+  amplitudMovimiento: Object.freeze({ etiqueta: 'Fuerza del movimiento', min: 0.25, max: 3 }),
+  velocidadBrillo: Object.freeze({ etiqueta: 'Velocidad del brillo', min: 0.25, max: 3 }),
+  intensidadBrillo: Object.freeze({ etiqueta: 'Intensidad del brillo', min: 0.25, max: 2 }),
+});
+
+export const normalizarAjusteMedalla = (clave, valor) => {
+  const ajuste = AJUSTES_MEDALLA[clave];
+  const numero = Number(valor);
+
+  if (!ajuste || valor === null || valor === '' || !Number.isFinite(numero)) return 1;
+  if (numero < ajuste.min || numero > ajuste.max) return 1;
+
+  return Math.round(numero * 100) / 100;
+};
+
+const ajustesDe = (entrada = {}) =>
+  Object.fromEntries(
+    Object.keys(AJUSTES_MEDALLA).map((clave) => [
+      clave,
+      normalizarAjusteMedalla(clave, entrada[clave]),
+    ])
+  );
+
+/** id → { efectoMovimiento, efectoBrillo, y los ajustes }, a partir de lo guardado. */
 export const configuracionDeMedallas = (entradas = []) =>
   new Map(
     (Array.isArray(entradas) ? entradas : [])
@@ -75,6 +105,7 @@ export const configuracionDeMedallas = (entradas = []) =>
         {
           efectoMovimiento: normalizarMovimientoMedalla(entrada.efectoMovimiento),
           efectoBrillo: normalizarBrilloMedalla(entrada.efectoBrillo),
+          ...ajustesDe(entrada),
         },
       ])
   );
@@ -231,7 +262,7 @@ export const disponerMedallasEnFilas = (
 /**
  * El documento `medallas_miembros/{idMiembros}` al asignar a mano: conserva la
  * fecha de las que ya estaban. `elegidas`: ids sueltos o `{ id, efectoMovimiento,
- * efectoBrillo }`; un efecto que no venga se queda como estaba.
+ * efectoBrillo, ...AJUSTES_MEDALLA }`; lo que no venga se queda como estaba.
  */
 export const construirMedallasAsignadas = (anteriores = [], elegidas = [], ahoraIso = '') => {
   const previas = new Map(
@@ -259,6 +290,11 @@ export const construirMedallasAsignadas = (anteriores = [], elegidas = [], ahora
       if (entrada.efectoBrillo !== undefined) {
         resultado.efectoBrillo = normalizarBrilloMedalla(entrada.efectoBrillo);
       }
+      Object.keys(AJUSTES_MEDALLA).forEach((clave) => {
+        if (entrada[clave] !== undefined) {
+          resultado[clave] = normalizarAjusteMedalla(clave, entrada[clave]);
+        }
+      });
 
       return resultado;
     });

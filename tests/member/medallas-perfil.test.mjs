@@ -129,8 +129,23 @@ test('sin efecto guardado, la medalla se mueve con el soplo y brilla con el dest
   const { configuracionDeMedallas } = await import('../../src/utils/medallas-perfil.mjs');
   const config = configuracionDeMedallas(['a', { id: 'b', efectoMovimiento: 'pendulo' }]);
 
-  assert.deepEqual(config.get('a'), { efectoMovimiento: 'soplo', efectoBrillo: 'destello' });
-  assert.deepEqual(config.get('b'), { efectoMovimiento: 'pendulo', efectoBrillo: 'destello' });
+  const sinAjustes = {
+    velocidadMovimiento: 1,
+    amplitudMovimiento: 1,
+    velocidadBrillo: 1,
+    intensidadBrillo: 1,
+  };
+
+  assert.deepEqual(config.get('a'), {
+    efectoMovimiento: 'soplo',
+    efectoBrillo: 'destello',
+    ...sinAjustes,
+  });
+  assert.deepEqual(config.get('b'), {
+    efectoMovimiento: 'pendulo',
+    efectoBrillo: 'destello',
+    ...sinAjustes,
+  });
   assert.equal(
     configuracionDeMedallas([{ id: 'c', efectoBrillo: 'xx' }]).get('c').efectoBrillo,
     'destello'
@@ -169,4 +184,25 @@ test('quien pide menos movimiento en su sistema no ve las medallas moverse', asy
   );
 
   assert.match(componente, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+// Se pidió poder cambiar la velocidad del centelleo y las demás propiedades. Un
+// valor roto (texto, fuera de rango) no puede dejar la medalla quieta ni
+// desbocada: vuelve a 1, que es el efecto de siempre.
+test('velocidad e intensidad se guardan con la medalla y un valor roto vuelve a 1', async () => {
+  const { configuracionDeMedallas, construirMedallasAsignadas } =
+    await import('../../src/utils/medallas-perfil.mjs');
+  const medallas = construirMedallasAsignadas(
+    [],
+    [{ id: 'a', velocidadBrillo: 2.5, intensidadBrillo: 0.5, velocidadMovimiento: 'rapido' }],
+    '2026-09-18'
+  );
+
+  assert.equal(medallas[0].velocidadBrillo, 2.5);
+  assert.equal(medallas[0].intensidadBrillo, 0.5);
+  assert.equal(medallas[0].velocidadMovimiento, 1);
+  assert.equal(medallas[0].amplitudMovimiento, undefined);
+
+  const config = configuracionDeMedallas([{ id: 'b', amplitudMovimiento: 99 }]).get('b');
+  assert.equal(config.amplitudMovimiento, 1);
 });

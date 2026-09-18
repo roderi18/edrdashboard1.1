@@ -127,7 +127,7 @@ test('el Administrador de Gestion de Tienda tiene la tienda como el Global, sea 
   // Borrar desde la ficha tambien.
   assert.ok(acceso.includes('isAdminGlobal(user) || canManageStoreProducts(user);'));
   // El menu de administracion de la tienda (Tienda, Ordenes, Recibos).
-  assert.ok(layout.includes('esAdministradorGlobal || canManageStoreProducts(user)'));
+  assert.ok(layout.includes('menuDeAdministradorGlobal || canManageStoreProducts(usuarioDelMenu)'));
 });
 
 test('el panel de la cuenta no enseña el correo y pone los cargos de administracion', () => {

@@ -20,10 +20,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
-import {
-  configuracionDeMedallas,
-  catalogoDeMedallasEnOrden,
-} from 'src/utils/medallas-perfil.mjs';
+import { configuracionDeMedallas, catalogoDeMedallasEnOrden } from 'src/utils/medallas-perfil.mjs';
 import {
   digitosDeVeces,
   CINTAS_POR_FILA,
@@ -719,12 +716,14 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
       new Set(medallasGuardadas.medallas.map((entrada) => String(entrada?.id ?? entrada))),
     [medallasElegidas, medallasGuardadas.medallas]
   );
-  const efectosActuales = useMemo(
-    () =>
-      efectosMedallas ??
-      [...configuracionDeMedallas(medallasGuardadas.medallas).values()][0] ?? {},
-    [efectosMedallas, medallasGuardadas.medallas]
-  );
+  // Siempre con las seis claves (tipo de movimiento y brillo, y sus perillas):
+  // lo que se toca, encima de lo que tenían sus medallas, encima de lo de fábrica.
+  const efectosActuales = useMemo(() => {
+    const guardados = [...configuracionDeMedallas(medallasGuardadas.medallas).values()][0];
+    const base = configuracionDeMedallas([{ id: 'base', ...guardados }]).get('base');
+
+    return { ...base, ...efectosMedallas };
+  }, [efectosMedallas, medallasGuardadas.medallas]);
   // Para elegir, en el mismo orden global en que van a salir en el perfil.
   const orden = useOrdenDeCintas();
   const cintasVisibles = useMemo(() => {
@@ -800,7 +799,15 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   };
 
   return (
-    <Dialog open fullWidth maxWidth="lg" onClose={guardando ? undefined : onClose}>
+    <Dialog
+      open
+      fullWidth
+      maxWidth="lg"
+      onClose={guardando ? undefined : onClose}
+      // Alto fijo: al buscar quedaban pocas insignias y el diálogo se encogía y
+      // saltaba. Así mide lo mismo siempre y lo de dentro se desplaza.
+      slotProps={{ paper: { sx: { height: 'min(90vh, 880px)' } } }}
+    >
       <DialogTitle>
         Cintas y medallas de prueba <Label color="warning">Solo pruebas</Label>
       </DialogTitle>
@@ -820,8 +827,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
             catalogo={medallasEnOrden}
             elegidas={medallasActuales}
             onCambiar={setMedallasElegidas}
-            efectoMovimiento={efectosActuales.efectoMovimiento}
-            efectoBrillo={efectosActuales.efectoBrillo}
+            efectos={efectosActuales}
             onCambiarEfectos={setEfectosMedallas}
           />
         ) : (
@@ -836,7 +842,10 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                 mb: 2,
                 gap: 1.5,
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 260px))' },
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(0, 300px) repeat(2, minmax(0, 220px))',
+                },
               }}
             >
               <TextField
@@ -851,7 +860,6 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
                     startAdornment: <Iconify icon="eva:search-fill" sx={{ mr: 1 }} />,
                   },
                 }}
-                sx={{ gridColumn: '1 / -1' }}
               />
               <TextField
                 select

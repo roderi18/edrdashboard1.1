@@ -31,6 +31,7 @@ import {
   useOrdenDeMedallas,
   useCatalogoDeMedallas,
   OPCIONES_BRILLO_MEDALLA,
+  AjustesDeEfectosDeMedalla,
   OPCIONES_MOVIMIENTO_MEDALLA,
 } from 'src/components/insignias-perfil';
 
@@ -60,6 +61,7 @@ export function EverestMedallas() {
   // miembro lleva los suyos, elegidos con el lápiz de las cintas.
   const [efectoMovimiento, setEfectoMovimiento] = useState(EFECTOS_MOVIMIENTO_MEDALLA.SOPLO);
   const [efectoBrillo, setEfectoBrillo] = useState(EFECTOS_BRILLO_MEDALLA.DESTELLO);
+  const [ajustes, setAjustes] = useState({});
 
   const actual = useMemo(
     () => normalizarOrdenDeMedallas(borrador ?? ordenGuardado ?? [], catalogo),
@@ -118,8 +120,9 @@ export function EverestMedallas() {
           </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Todas las imágenes de la carpeta de medallas. Arrastra una sobre otra para cambiar su
-            lugar; al guardar, ese orden se usa en todos los perfiles y al asignarlas. Movimiento y
-            brillo se prueban aquí y se eligen para cada miembro con el lápiz de las cintas.
+            lugar; al guardar, ese orden se usa en todos los perfiles y al asignarlas. Movimiento,
+            brillo, su velocidad y su intensidad se prueban aquí y se eligen para cada miembro con
+            el lápiz de las cintas.
           </Typography>
         </Box>
 
@@ -153,6 +156,8 @@ export function EverestMedallas() {
           ))}
         </TextField>
       </Stack>
+
+      <AjustesDeEfectosDeMedalla valores={ajustes} onCambiar={setAjustes} sx={{ mb: 2 }} />
 
       <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 3 }}>
         <Stack direction="row" spacing={1}>
@@ -243,6 +248,7 @@ export function EverestMedallas() {
                     medalla={medalla}
                     efectoMovimiento={efectoMovimiento}
                     efectoBrillo={efectoBrillo}
+                    {...ajustes}
                   />
                 </Box>
               </Tooltip>

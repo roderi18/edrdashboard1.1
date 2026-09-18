@@ -123,3 +123,21 @@ test('el botón está en el panel de la cuenta, encima de cerrar sesión', async
   assert.match(panel, /'Ver como usuario'[\s\S]*<SignOutButton/);
   assert.match(panel, /cambiarVerComoUsuario\(!user\?\.verComoUsuario\)/);
 });
+
+// Con "Roles combinados" encendido, la sesion pasa a ser la pareja probada y el
+// menu lateral se recortaba a lo de esos dos cargos: el Administrador Global
+// perdia las pestañas para moverse durante la prueba. El menu sigue siendo el
+// suyo; los permisos de la pareja los aplican los guardas de cada pantalla.
+test('con roles combinados, el menu lateral sigue siendo el del Administrador Global', async () => {
+  const leerFuente = (ruta) => readFile(new URL(`../../${ruta}`, import.meta.url), 'utf8');
+  const proveedor = await leerFuente('src/auth/components/context/firebase/auth-provider.jsx');
+  const layout = await leerFuente('src/layouts/dashboard/layout.jsx');
+
+  assert.ok(proveedor.includes('sesionSinPrueba: conAdministradorGlobalAlMando(usuario)'));
+  assert.ok(
+    layout.includes(
+      'const usuarioDelMenu = (pruebaDeRolesActiva && user?.sesionSinPrueba) || user;'
+    )
+  );
+  assert.ok(layout.includes('filterDashboardNavDataByUser(navDataConIndicadores, usuarioDelMenu)'));
+});

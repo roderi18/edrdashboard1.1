@@ -8,7 +8,11 @@ import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
-import { buildMemberSessionUser, loadMemberAccessProfile } from 'src/utils/member-access';
+import {
+  buildMemberSessionUser,
+  loadMemberAccessProfile,
+  buildDefaultMemberPermissions,
+} from 'src/utils/member-access';
 import {
   loadAdminProfile,
   loadProfileByUid,
@@ -358,10 +362,11 @@ const aplicarSimulacionDeRoles = (usuario) => {
     permisosRol,
     // Los permisos sueltos de su cuenta de administrador no cuentan durante la
     // prueba: si contaran, seguiria pudiendo todo y la prueba no probaria nada.
-    // Vacio como OBJETO, que es lo que espera `getMemberPermissions`: asi las
-    // comprobaciones caen en el catalogo de los dos cargos, que es la respuesta
-    // correcta, en vez de en un objeto de permisos que no existe.
-    permisos: {},
+    // En su lugar, los de CUALQUIER miembro (blog, chat, tienda, archivos,
+    // calendario…), y lo del cargo sale del catalogo de los dos. Vacio, el menu
+    // lateral solo dejaba Inicio, Niveles organizacionales y Asistencia —lo que
+    // decide el catalogo—, y la prueba no se parecia a lo que ve esa persona.
+    permisos: buildDefaultMemberPermissions(),
     permisosDirectos: [],
     permisosAutorizacion: [],
     permisosExcluidos: [],
@@ -390,6 +395,10 @@ const aplicarSimulacionDeRoles = (usuario) => {
         : { regiones: [] }),
     },
     simulacion: { activa: true, ...simulacion },
+    // Quien prueba es el Administrador Global, y el menu lateral sigue siendo el
+    // suyo durante la prueba (`layouts/dashboard/layout.jsx`); lo que cambia es
+    // lo que dejan hacer los guardas de cada pantalla.
+    sesionSinPrueba: conAdministradorGlobalAlMando(usuario),
   };
 };
 
