@@ -11,10 +11,15 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 
 import { capitalizeWords } from 'src/utils/text-format';
 import { getMemberCodeLabel } from 'src/utils/member-access';
@@ -311,6 +316,7 @@ export function UserAccountGeneral() {
   const [dests, setDests] = useState([]);
   const [loadingMember, setLoadingMember] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [mostrarInfoInsignias, setMostrarInfoInsignias] = useState(false);
   // El estatus elegido que espera motivo y confirmación. Cambiarlo a mano es una
   // excepción a la regla de asistencia, así que no sale de mover el desplegable.
   const [estatusPendiente, setEstatusPendiente] = useState('');
@@ -883,6 +889,55 @@ export function UserAccountGeneral() {
                       sx={{ mt: 2 }}
                     />
                     <MedallasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} />
+                    <Box sx={{ mt: 2, mb: -3, textAlign: 'center' }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          color: 'text.secondary',
+                          fontStyle: 'italic',
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Las cintas y medallas son solo una representación gráfica de tus premios
+                        adquiridos en uniforme. Si usas la medalla, no debes usar la cinta
+                        correspondiente.
+                      </Typography>
+                      <Button
+                        size="small"
+                        onClick={() => setMostrarInfoInsignias(true)}
+                        sx={{ mt: 0.5, textTransform: 'none' }}
+                      >
+                        Leer más
+                      </Button>
+                    </Box>
+                    <Dialog
+                      open={mostrarInfoInsignias}
+                      onClose={() => setMostrarInfoInsignias(false)}
+                      fullWidth
+                      maxWidth="sm"
+                    >
+                      <DialogTitle>Cintas y medallas de premio</DialogTitle>
+                      <DialogContent dividers>
+                        <Typography component="p" sx={{ mb: 1.5, fontWeight: 'fontWeightBold' }}>
+                          Cintas de premio para líderes
+                        </Typography>
+                        <Typography component="p" sx={{ mb: 1.5 }}>
+                          Los líderes pueden usar un máximo de 18 cintas: 6 filas de 3 cintas.
+                          Es decisión del líder usar menos de 18, según su preferencia.
+                        </Typography>
+                        <Typography component="p">
+                          Estas se usan únicamente en formato de pin y pueden usarse junto con una
+                          sola medalla de premio.{' '}
+                          <strong>Si se usa la medalla, no se usa la cinta correspondiente.</strong>{' '}
+                          Con este formato se prohíbe utilizar camisa por fuera, o mangas enrolladas
+                          en el caso de uniforme utilitario.
+                        </Typography>
+                      </DialogContent>
+                      <DialogActions>
+                        <Button onClick={() => setMostrarInfoInsignias(false)}>Cerrar</Button>
+                      </DialogActions>
+                    </Dialog>
                   </>
                 }
               />

@@ -45,6 +45,7 @@ const ICONOS_DE_CATEGORIA = {
   'insignias-emblemas': 'custom:categoria-insignias',
   'materiales-manuales': 'custom:categoria-materiales',
   parches: 'custom:categoria-parches',
+  pines: 'custom:categoria-pines',
   't-shirts': 'custom:categoria-camisetas',
   uniformes: 'custom:categoria-uniformes',
 };

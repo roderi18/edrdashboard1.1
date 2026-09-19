@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -22,15 +22,21 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fPercent } from 'src/utils/format-number';
+import { isAdminGlobal } from 'src/utils/org-level-access';
+import { canManageStoreProducts } from 'src/utils/member-access';
+import { generarSiguienteCodigoProducto } from 'src/utils/producto-codigo.mjs';
 
-import { guardarProductoFirestore } from 'src/services/product-service';
 import { PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
+import { guardarProductoFirestore, listarProductosFirestore } from 'src/services/product-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { AgregarCategoriaDialog } from './agregar-categoria-dialog';
+import { useCategoriasProductoPersonalizadas } from './use-categorias-producto-personalizadas';
 
 // ----------------------------------------------------------------------
 
@@ -61,9 +67,14 @@ const PRODUCT_CATEGORY_GROUP_OPTIONS_ES = [
       { label: 'Accesorios', value: 'accesorios' },
       { label: 'Materiales / manuales', value: 'materiales-manuales' },
       { label: 'Campamentos / articulos especiales', value: 'campamentos-especiales' },
+      { label: 'Pines', value: 'pines' },
     ],
   },
 ];
+
+// Opcion centinela dentro del propio listado: al elegirla se abre el dialogo
+// de "+ Nuevo" en vez de guardarla como categoria del producto.
+const AGREGAR_CATEGORIA_VALUE = '__agregar_categoria__';
 
 const PRODUCT_RENGLON_OPTIONS = [
   { label: 'General', value: 'general' },
@@ -159,34 +170,29 @@ const formatStorageSizeEs = (bytes) => {
   })} ${units[index]}`;
 };
 
+// Todos los campos son optimistas: nada bloquea el guardado por dejarse en
+// blanco. Lo unico que se comprueba es la coherencia entre los dos precios.
 export const ProductCreateSchema = z
   .object({
-    name: z.string().min(1, { error: 'El nombre es requerido.' }),
-    description: schemaUtils
-      .editor({ error: 'La descripcion es requerida.' })
-      .min(10, { error: 'La descripcion debe tener al menos 10 caracteres.' }),
-    images: z.array(z.union([z.string(), z.file()])),
-    code: z.string().min(1, { error: 'El codigo del producto es requerido.' }),
-    sku: z.string().min(1, { error: 'El SKU del producto es requerido.' }),
-    quantity: schemaUtils.nullableInput(
-      z.coerce.number().min(0, { error: 'La cantidad no puede ser menor que 0.' }),
-      { error: 'La cantidad es requerida.' }
-    ),
-    colors: z.string().array(),
-    sizes: z.string().array(),
-    tags: z.string().array().min(1, { error: 'Debe agregar al menos 1 etiqueta.' }),
+    name: z.string().optional().default(''),
+    description: z.string().optional().default(''),
+    images: z.array(z.union([z.string(), z.file()])).optional().default([]),
+    code: z.string().optional().default(''),
+    quantity: optionalNumberInput,
+    colors: z.string().array().optional().default([]),
+    sizes: z.string().array().optional().default([]),
+    tags: z.string().array().optional().default([]),
     price: optionalNumberInput,
-    precioRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
-    precioNoRegistrado: schemaUtils.nullableInput(z.coerce.number().min(0), { error: null }),
+    precioRegistrado: optionalNumberInput,
+    precioNoRegistrado: optionalNumberInput,
     precioPendiente: z.boolean().optional(),
-    renglon: z.string(),
+    renglon: z.string().optional().default('general'),
     requiereAprobacion: z.boolean().optional(),
-    tipoProducto: z.string(),
+    tipoProducto: z.string().optional().default('simple'),
     notasAdministrativas: z.string().optional(),
-    orden: optionalNumberInput.optional(),
     // Not required
-    category: z.string(),
-    subDescription: z.string(),
+    category: z.string().optional().default(''),
+    subDescription: z.string().optional(),
     taxes: optionalNumberInput,
     priceSale: optionalNumberInput,
     saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
@@ -215,6 +221,30 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
   const openPricing = useBoolean(true);
+  // Categorías añadidas desde el propio "+ Nuevo": se suman detrás de las de
+  // fábrica y valen igual para elegirlas aquí y para verlas en /product. Si
+  // alguien ya la agregó a mano antes de que pasara a ser de fábrica (caso de
+  // "Pines"), el id se repetía y React se quejaba de la clave duplicada.
+  const categoriasPersonalizadas = useCategoriasProductoPersonalizadas();
+  const categoriasPersonalizadasSinRepetir = useMemo(() => {
+    const idsDeFabrica = new Set(
+      PRODUCT_CATEGORY_GROUP_OPTIONS_ES.flatMap((grupo) => grupo.classify.map((c) => c.value))
+    );
+
+    return categoriasPersonalizadas.filter((categoria) => !idsDeFabrica.has(categoria.value));
+  }, [categoriasPersonalizadas]);
+  const [agregandoCategoria, setAgregandoCategoria] = useState(false);
+  const gruposDeCategoria = useMemo(
+    () =>
+      categoriasPersonalizadasSinRepetir.length
+        ? PRODUCT_CATEGORY_GROUP_OPTIONS_ES.map((grupo, indice) =>
+            indice === 0
+              ? { ...grupo, classify: [...grupo.classify, ...categoriasPersonalizadasSinRepetir] }
+              : grupo
+          )
+        : PRODUCT_CATEGORY_GROUP_OPTIONS_ES,
+    [categoriasPersonalizadasSinRepetir]
+  );
 
   const [includeTaxes, setIncludeTaxes] = useState(false);
   // El interruptor arranca como esta el producto. Antes arrancaba siempre en
@@ -232,7 +262,6 @@ export function ProductCreateEditForm({ currentProduct }) {
     images: [],
     /********/
     code: '',
-    sku: '',
     price: null,
     precioRegistrado: null,
     precioNoRegistrado: null,
@@ -245,7 +274,6 @@ export function ProductCreateEditForm({ currentProduct }) {
     requiereAprobacion: false,
     tipoProducto: 'simple',
     notasAdministrativas: '',
-    orden: 0,
     category: PRODUCT_CATEGORY_GROUP_OPTIONS_ES[0].classify[1].value,
     colors: [],
     sizes: [],
@@ -271,6 +299,87 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const values = watch();
   const isUniformCategory = values.category === 'uniformes';
+  const isAccessoryCategory = values.category === 'accesorios';
+  const todasLasCategorias = useMemo(
+    () => gruposDeCategoria.flatMap((grupo) => grupo.classify),
+    [gruposDeCategoria]
+  );
+
+  // EL CODIGO DE PRODUCTO SE ARMA SOLO, A PARTIR DE LA CATEGORIA.
+  //
+  // Se lee una vez la lista de codigos ya usados (para no repetir ninguno) y se
+  // recalcula cada vez que cambia la categoria: `handleChangeCategory` es quien
+  // lo dispara. Nunca lo escribe la persona.
+  const [codigosExistentes, setCodigosExistentes] = useState([]);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    listarProductosFirestore()
+      .then((productos) => {
+        if (cancelado) return;
+        setCodigosExistentes(
+          productos.map((producto) => ({
+            id: String(producto.id),
+            category: producto.category,
+            code: producto.code,
+          }))
+        );
+      })
+      .catch((error) => {
+        console.error('[producto] no se pudieron leer los codigos existentes', error);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  const regenerarCodigoDeProducto = useCallback(
+    (categoria, etiquetaExplicita) => {
+      const etiqueta =
+        etiquetaExplicita ??
+        todasLasCategorias.find((opcion) => opcion.value === categoria)?.label;
+      const codigosDeLaCategoria = codigosExistentes
+        .filter(
+          (producto) => producto.category === categoria && producto.id !== currentProduct?.id
+        )
+        .map((producto) => producto.code);
+
+      const nuevoCodigo = generarSiguienteCodigoProducto({
+        categoria,
+        etiqueta,
+        codigosExistentes: codigosDeLaCategoria,
+      });
+
+      setValue('code', nuevoCodigo, { shouldDirty: true, shouldValidate: true });
+    },
+    [codigosExistentes, currentProduct?.id, setValue, todasLasCategorias]
+  );
+
+  // Al crear, en cuanto se sabe que codigos ya existen se arma el primero para
+  // la categoria de arranque. Al editar, el producto ya trae el suyo.
+  useEffect(() => {
+    if (currentProduct) return;
+    regenerarCodigoDeProducto(getValues('category'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codigosExistentes]);
+
+  const handleChangeCategory = useCallback(
+    (event) => {
+      const { value } = event.target;
+
+      if (value === AGREGAR_CATEGORIA_VALUE) {
+        setAgregandoCategoria(true);
+        return;
+      }
+
+      setValue('category', value, { shouldValidate: true, shouldDirty: true });
+      regenerarCodigoDeProducto(value);
+    },
+    [regenerarCodigoDeProducto, setValue]
+  );
+
   const oversizedImages = useMemo(
     () =>
       (values.images || []).filter(
@@ -291,17 +400,13 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const onSubmit = handleSubmit(
     async (data) => {
-      if (!data.images.length) {
-        toast.error('Falta subir la imagen del producto.');
-        return;
-      }
-
       const updatedData = {
         ...data,
         id: currentProduct?.id || data.id,
         variantes: currentProduct?.variantes || [],
         price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
         sizes: data.category === 'uniformes' ? data.sizes : [],
+        colors: data.category === 'accesorios' ? data.colors : [],
         requiereAprobacion: getApprovalByRenglon(data.renglon, data.requiereAprobacion),
         tipoProducto: getProductTypeByRenglon(data.renglon, data.tipoProducto),
         taxes: includeTaxes ? defaultValues.taxes : data.taxes,
@@ -531,27 +636,16 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Text name="code" label="Codigo del producto" />
-
-            <Field.Text name="sku" label="SKU del producto" />
-
-            <Field.Text
-              name="quantity"
-              label="Cantidad"
-              placeholder="0"
-              type="number"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-
             <Field.Select
               name="category"
               label="Categoria"
+              onChange={handleChangeCategory}
               slotProps={{
                 select: { native: true },
                 inputLabel: { shrink: true },
               }}
             >
-              {PRODUCT_CATEGORY_GROUP_OPTIONS_ES.map((category) => (
+              {gruposDeCategoria.map((category) => (
                 <optgroup key={category.group} label={category.group}>
                   {category.classify.map((classify) => (
                     <option key={classify.value} value={classify.value}>
@@ -560,7 +654,26 @@ export function ProductCreateEditForm({ currentProduct }) {
                   ))}
                 </optgroup>
               ))}
+              <option value={AGREGAR_CATEGORIA_VALUE} style={{ fontWeight: 700 }}>
+                + Nuevo
+              </option>
             </Field.Select>
+
+            {/* Se arma solo a partir de la categoria (`regenerarCodigoDeProducto`):
+                nunca se escribe a mano, para que nunca se repita. */}
+            <Field.Text
+              name="code"
+              label="Codigo del producto"
+              slotProps={{ htmlInput: { readOnly: true }, inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              name="quantity"
+              label="Cantidad"
+              placeholder="0"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
 
             <Field.Select
               name="renglon"
@@ -593,20 +706,14 @@ export function ProductCreateEditForm({ currentProduct }) {
               ))}
             </Field.Select>
 
-            <Field.Text
-              name="orden"
-              label="Orden de aparicion"
-              placeholder="0"
-              type="number"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-
-            <Field.MultiSelect
-              checkbox
-              name="colors"
-              label="Colores"
-              options={PRODUCT_COLOR_NAME_OPTIONS_ES}
-            />
+            {isAccessoryCategory && (
+              <Field.MultiSelect
+                checkbox
+                name="colors"
+                label="Colores"
+                options={PRODUCT_COLOR_NAME_OPTIONS_ES}
+              />
+            )}
 
             <Field.MultiSelect
               checkbox
@@ -854,13 +961,29 @@ export function ProductCreateEditForm({ currentProduct }) {
   );
 
   return (
-    <Form methods={methods} onSubmit={onSubmit} borrador={`producto:${currentProduct?.id ?? 'nuevo'}`}>
-      <Stack spacing={{ xs: 3, md: 5 }} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
-        {renderDetails()}
-        {renderProperties()}
-        {renderPricing()}
-        {renderActions()}
-      </Stack>
-    </Form>
+    <>
+      <Form
+        methods={methods}
+        onSubmit={onSubmit}
+        borrador={`producto:${currentProduct?.id ?? 'nuevo'}`}
+      >
+        <Stack spacing={{ xs: 3, md: 5 }} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
+          {renderDetails()}
+          {renderProperties()}
+          {renderPricing()}
+          {renderActions()}
+        </Stack>
+      </Form>
+
+      <AgregarCategoriaDialog
+        open={agregandoCategoria}
+        onClose={() => setAgregandoCategoria(false)}
+        onCreada={(categoria) => {
+          setAgregandoCategoria(false);
+          setValue('category', categoria.value, { shouldValidate: true, shouldDirty: true });
+          regenerarCodigoDeProducto(categoria.value, categoria.label);
+        }}
+      />
+    </>
   );
 }

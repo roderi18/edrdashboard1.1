@@ -53,11 +53,9 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     contrast: hasKeys(defaultSettings, ['contrast']),
     navColor: hasKeys(defaultSettings, ['navColor']),
     fontSize: hasKeys(defaultSettings, ['fontSize']),
-    direction: hasKeys(defaultSettings, ['direction']),
     navLayout: hasKeys(defaultSettings, ['navLayout']),
     fontFamily: hasKeys(defaultSettings, ['fontFamily']),
     primaryColor: hasKeys(defaultSettings, ['primaryColor']),
-    compactLayout: hasKeys(defaultSettings, ['compactLayout']),
     navBlanco: hasKeys(defaultSettings, ['navBlanco']),
     accesosRapidos: hasKeys(defaultSettings, ['accesosRapidos']),
   };
@@ -84,7 +82,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
       }}
     >
       <Typography variant="h6" sx={{ flexGrow: 1 }}>
-        Settings
+        Configuración
       </Typography>
 
       <FullScreenButton />
@@ -147,29 +145,6 @@ export function SettingsDrawer({ sx, defaultSettings }) {
         settings.setState({
           contrast: settings.state.contrast === 'default' ? 'high' : 'default',
         });
-      }}
-    />
-  );
-
-  const renderDirection = () => (
-    <BaseOption
-      label="Derecha a Izq."
-      selected={settings.state.direction === 'rtl'}
-      icon={<SvgIcon>{settingIcons.alignRight}</SvgIcon>}
-      onChangeOption={() => {
-        settings.setState({ direction: settings.state.direction === 'ltr' ? 'rtl' : 'ltr' });
-      }}
-    />
-  );
-
-  const renderCompactLayout = () => (
-    <BaseOption
-      tooltip="Dashboard only and available at large resolutions > 1600px (xl)"
-      label="Compacto"
-      selected={!!settings.state.compactLayout}
-      icon={<SvgIcon>{settingIcons.autofitWidth}</SvgIcon>}
-      onChangeOption={() => {
-        settings.setState({ compactLayout: !settings.state.compactLayout });
       }}
     />
   );
@@ -401,8 +376,6 @@ export function SettingsDrawer({ sx, defaultSettings }) {
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
             {visibility.mode && renderMode()}
             {visibility.contrast && renderContrast()}
-            {visibility.direction && renderDirection()}
-            {visibility.compactLayout && renderCompactLayout()}
           </Box>
 
           {(visibility.navColor || visibility.navLayout) && renderNav()}

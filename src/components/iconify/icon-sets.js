@@ -735,6 +735,9 @@ export default {
   'custom:categoria-uniformes': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 19.5a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6"/><path d="M17.5 14.2a6.5 6.5 0 0 1 4 5.3"/></g>',
   },
+  'custom:categoria-pines': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M9 3.5h6l1 6.5-4 4v6.5l-1 1-1-1v-6.5l-4-4z"/></g>',
+  },
   /**
    * @set Garantias del checkout — de LINEA, dibujados aqui.
    *
