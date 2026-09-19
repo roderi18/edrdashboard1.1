@@ -51,6 +51,7 @@ Las insignias del perfil pueden ser cintas, medallas o ambas juntas. Cada insign
 
 - Cintas de perfil: `public/parches/Cintas y medallas/cintas-perfil`
 - Medallas: `public/parches/Cintas y medallas/medallas`
+- Pines: `public/parches/Cintas y medallas/pines` (cualquier imagen aqui sale en la aplicacion; en el perfil van encima de las cintas, como mucho 3)
 - Numeros para cintas: `public/parches/Cintas y medallas/numeros-cintas`
 - Directrices de medallas: `public/parches/Cintas y medallas/DIRECTRICES-MEDALLAS.md`
 

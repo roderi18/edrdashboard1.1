@@ -1,5 +1,6 @@
 export * from './catalogo';
 export * from './insignias-perfil';
+export * from './pines-de-miembro';
 export * from './cintas-de-miembro';
 export * from './use-orden-de-cintas';
 export * from './medallas-de-miembro';

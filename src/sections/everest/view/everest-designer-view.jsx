@@ -23,6 +23,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { EverestPines } from '../everest-pines';
 import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestCintas } from '../everest-cintas';
 import { EverestPaleta } from '../everest-paleta';
@@ -50,7 +51,7 @@ import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 // ES UNA PANTALLA PROPIA DEL MENU, debajo de "Administradores", y no una pestaña
 // de Administracion: por eso lleva su propio encabezado y su propio marco.
 //
-// CUATRO ESPACIOS: "Portada" (los bloques de /principal), "Cintas" y "Medallas" (los
+// CINCO ESPACIOS: "Portada" (los bloques de /principal), "Cintas", "Medallas" y "Pines" (los
 // catalogos de insignias del perfil) y "Paleta" (los colores de la aplicacion). El espacio va
 // en la direccion (`?seccion=cintas`) para que se pueda enlazar y para que los lapices de la
 // portada sigan cayendo en Portada.
@@ -63,6 +64,7 @@ const SECCIONES = Object.freeze({
   portada: 'portada',
   cintas: 'cintas',
   medallas: 'medallas',
+  pines: 'pines',
   paleta: 'paleta',
 });
 
@@ -80,9 +82,12 @@ export function EverestDesignerView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const seccion = [SECCIONES.cintas, SECCIONES.medallas, SECCIONES.paleta].includes(
-    searchParams.get('seccion')
-  )
+  const seccion = [
+    SECCIONES.cintas,
+    SECCIONES.medallas,
+    SECCIONES.pines,
+    SECCIONES.paleta,
+  ].includes(searchParams.get('seccion'))
     ? searchParams.get('seccion')
     : SECCIONES.portada;
 
@@ -149,11 +154,13 @@ export function EverestDesignerView() {
         <Tab value={SECCIONES.portada} label="Portada" />
         <Tab value={SECCIONES.cintas} label="Cintas" />
         <Tab value={SECCIONES.medallas} label="Medallas" />
+        <Tab value={SECCIONES.pines} label="Pines" />
         <Tab value={SECCIONES.paleta} label="Paleta" />
       </Tabs>
 
       {seccion === SECCIONES.cintas && <EverestCintas />}
       {seccion === SECCIONES.medallas && <EverestMedallas />}
+      {seccion === SECCIONES.pines && <EverestPines />}
       {seccion === SECCIONES.paleta && <EverestPaleta />}
       {seccion === SECCIONES.portada && (
         <Stack spacing={3}>

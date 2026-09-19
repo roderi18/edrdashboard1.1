@@ -72,8 +72,12 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    que `prebuild` regenera). Las `-small` son su variante pequeña, no otra medalla.
    Se guardan en `medallas_miembros`; su orden, en `configuracion_cintas/orden-medallas`.
    Reglas en `src/utils/medallas-perfil.mjs`.
-   **Además, el Administrador Global añade cintas y medallas desde EXPLORA
-   Designer** ("Agregar cinta/medalla": imagen, nombre y descripción, las tres
+   **Los pines, igual que las medallas** (carpeta `public/parches/Cintas y medallas/pines`,
+   `/api/insignias/pines`, `pines_miembros`, orden en `configuracion_cintas/orden-pines`),
+   pero en el perfil van **encima de las cintas, centrados**, en una fila de como
+   mucho 3. Reglas en `src/utils/pines-perfil.mjs`.
+   **Además, el Administrador Global añade cintas, medallas y pines desde EXPLORA
+   Designer** ("Agregar cinta/medalla/pin": imagen, nombre y descripción, las tres
    obligatorias). La imagen va a Storage (`everest/insignias-{tipo}/`) y la ficha
    a `insignias_personalizadas`; se suman detrás de las de fábrica con id `p<fecha>`
    y se ordenan y asignan igual (`src/utils/insignias-personalizadas.mjs`; las
@@ -81,7 +85,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Designer se ordenan arrastrando: la tarjeta sigue al puntero y las demás se
    apartan en vivo (`src/sections/everest/rejilla-ordenable.jsx`).
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
-   `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`.
+   `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`,
+   `tests/member/pines-perfil.test.mjs`.
 
 12. **La Directiva Nacional se guarda por cuatrienio** (2022-2026 cerrado, del
    20/08/2022 al 22/08/2026; 2026-2030 vigente; el 22/08/2026 ya es el nuevo).
@@ -155,7 +160,7 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
-- **Pestañas:** Portada, Cintas, Medallas y Paleta (`?seccion=`). La Paleta vivía
+- **Pestañas:** Portada, Cintas, Medallas, Pines y Paleta (`?seccion=`). La Paleta vivía
   en Administración; `/dashboard/admin/paleta` solo redirige aquí.
 - **Pantalla:** `/dashboard/everest`, entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el

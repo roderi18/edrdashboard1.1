@@ -1,10 +1,11 @@
 // ----------------------------------------------------------------------
-// EL MANIFIESTO DE MEDALLAS, PARA PRODUCCIÓN.
+// LOS MANIFIESTOS DE MEDALLAS Y PINES, PARA PRODUCCIÓN.
 //
-// En desarrollo, `/api/insignias/medallas` lee la carpeta en el momento: una
-// imagen nueva aparece al recargar. En Netlify la función no lleva `public/`
-// consigo, así que lee este manifiesto, que se genera solo antes de cada build
-// (`prebuild` en package.json) con la carpeta tal como está al desplegar.
+// En desarrollo, `/api/insignias/medallas` y `/api/insignias/pines` leen su
+// carpeta en el momento: una imagen nueva aparece al recargar. En Netlify la
+// función no lleva `public/` consigo, así que leen estos manifiestos, que se
+// generan solos antes de cada build (`prebuild` en package.json) con las
+// carpetas tal como están al desplegar.
 //
 // Uso a mano: node scripts/generar-manifiesto-medallas.mjs
 // ----------------------------------------------------------------------
@@ -12,19 +13,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const carpeta = path.join(process.cwd(), 'public', 'parches', 'Cintas y medallas', 'medallas');
-const destino = path.join(process.cwd(), 'src', 'utils', 'medallas-manifiesto.json');
+const MANIFIESTOS = [
+  { carpeta: 'medallas', destino: 'medallas-manifiesto.json' },
+  { carpeta: 'pines', destino: 'pines-manifiesto.json' },
+];
 
-const archivos = fs.existsSync(carpeta)
-  ? fs
-      .readdirSync(carpeta, { withFileTypes: true })
-      .filter((entrada) => entrada.isFile())
-      .map((entrada) => entrada.name)
-      .sort()
-  : [];
+MANIFIESTOS.forEach(({ carpeta: nombre, destino: archivo }) => {
+  const carpeta = path.join(process.cwd(), 'public', 'parches', 'Cintas y medallas', nombre);
+  const destino = path.join(process.cwd(), 'src', 'utils', archivo);
 
-fs.writeFileSync(destino, `${JSON.stringify({ archivos }, null, 2)}\n`);
+  const archivos = fs.existsSync(carpeta)
+    ? fs
+        .readdirSync(carpeta, { withFileTypes: true })
+        .filter((entrada) => entrada.isFile())
+        .map((entrada) => entrada.name)
+        .sort()
+    : [];
 
-console.log(
-  `[medallas] manifiesto con ${archivos.length} archivos → ${path.relative(process.cwd(), destino)}`
-);
+  fs.writeFileSync(destino, `${JSON.stringify({ archivos }, null, 2)}\n`);
+
+  console.log(
+    `[${nombre}] manifiesto con ${archivos.length} archivos → ${path.relative(process.cwd(), destino)}`
+  );
+});

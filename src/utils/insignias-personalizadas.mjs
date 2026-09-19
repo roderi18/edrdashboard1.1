@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// CINTAS Y MEDALLAS AÑADIDAS DESDE EXPLORA DESIGNER.
+// CINTAS, MEDALLAS Y PINES AÑADIDOS DESDE EXPLORA DESIGNER.
 //
 // Las de fábrica salen de `public/parches/Cintas y medallas/`: para sumar una
 // había que dejar la imagen en la carpeta y, en las cintas, además tocar código,
@@ -14,7 +14,7 @@
 
 export const COLECCION_INSIGNIAS_PERSONALIZADAS = 'insignias_personalizadas';
 
-export const TIPOS_INSIGNIA = Object.freeze({ CINTA: 'cinta', MEDALLA: 'medalla' });
+export const TIPOS_INSIGNIA = Object.freeze({ CINTA: 'cinta', MEDALLA: 'medalla', PIN: 'pin' });
 
 export const MAXIMO_NOMBRE_INSIGNIA = 80;
 export const MAXIMO_DESCRIPCION_INSIGNIA = 600;
@@ -75,14 +75,14 @@ export const insigniaDesdeDocumento = (documento = {}) => {
     personalizada: true,
   };
 
-  // La medalla lleva además su variante pequeña (la del perfil) y un número para
-  // el orden de fábrica: detrás de todas las de la carpeta.
-  return tipo === TIPOS_INSIGNIA.MEDALLA
-    ? { ...base, srcPequena: src, numero: Number.MAX_SAFE_INTEGER }
-    : base;
+  // La medalla y el pin llevan además su variante pequeña (la del perfil) y un
+  // número para el orden de fábrica: detrás de todos los de su carpeta.
+  return tipo === TIPOS_INSIGNIA.CINTA
+    ? base
+    : { ...base, srcPequena: src, numero: Number.MAX_SAFE_INTEGER };
 };
 
-/** Todas las fichas → `{ cintas, medallas }`, cada lista por fecha de alta. */
+/** Todas las fichas → `{ cintas, medallas, pines }`, cada lista por fecha de alta. */
 export const separarInsignias = (documentos = []) => {
   const validas = (Array.isArray(documentos) ? documentos : [])
     .map(insigniaDesdeDocumento)
@@ -92,6 +92,7 @@ export const separarInsignias = (documentos = []) => {
   return {
     cintas: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.CINTA),
     medallas: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.MEDALLA),
+    pines: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.PIN),
   };
 };
 

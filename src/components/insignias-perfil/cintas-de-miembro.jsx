@@ -21,6 +21,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
+import { catalogoDePinesEnOrden } from 'src/utils/pines-perfil.mjs';
 import { configuracionDeMedallas, catalogoDeMedallasEnOrden } from 'src/utils/medallas-perfil.mjs';
 import {
   AJUSTES_CINTA,
@@ -41,6 +42,7 @@ import {
 } from 'src/utils/cintas-perfil.mjs';
 
 import { referenciaDeCintas } from 'src/services/cintas-miembros-apply';
+import { guardarPinesDeMiembro } from 'src/services/pines-miembros-service';
 import { guardarCintasDeMiembro } from 'src/services/cintas-miembros-service';
 import { guardarMedallasDeMiembro } from 'src/services/medallas-miembros-service';
 
@@ -51,7 +53,8 @@ import { Iconify } from 'src/components/iconify';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
-import { useOrdenDeCintas, useOrdenDeMedallas } from './use-orden-de-cintas';
+import { SelectorDePines, useCatalogoDePines, usePinesDelMiembro } from './pines-de-miembro';
+import { useOrdenDePines, useOrdenDeCintas, useOrdenDeMedallas } from './use-orden-de-cintas';
 import {
   SelectorDeMedallas,
   useCatalogoDeMedallas,
@@ -797,7 +800,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   );
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
-  // EL MISMO LÁPIZ PARA CINTAS Y MEDALLAS: dos pestañas y un solo Guardar.
+  // EL MISMO LÁPIZ PARA CINTAS, MEDALLAS Y PINES: tres pestañas y un solo Guardar.
   const [pestana, setPestana] = useState('cintas');
   const catalogoDeMedallas = useCatalogoDeMedallas();
   const ordenDeMedallas = useOrdenDeMedallas();
@@ -824,6 +827,21 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
 
     return { ...base, ...efectosMedallas };
   }, [efectosMedallas, medallasGuardadas.medallas]);
+  // Los pines, en su pestaña. `null` mientras no se toquen: los que ya tenía.
+  const catalogoDePines = useCatalogoDePines();
+  const ordenDePines = useOrdenDePines();
+  const pinesGuardados = usePinesDelMiembro(idMiembros);
+  const [pinesElegidos, setPinesElegidos] = useState(null);
+  const pinesEnOrden = useMemo(
+    () => catalogoDePinesEnOrden(catalogoDePines, ordenDePines),
+    [catalogoDePines, ordenDePines]
+  );
+  const pinesActuales = useMemo(
+    () =>
+      pinesElegidos ??
+      new Set(pinesGuardados.pines.map((entrada) => String(entrada?.id ?? entrada))),
+    [pinesElegidos, pinesGuardados.pines]
+  );
   // Para elegir, en el mismo orden global en que van a salir en el perfil.
   const orden = useOrdenDeCintas();
   const { cintas: personalizadas } = useInsigniasPersonalizadas();
@@ -891,11 +909,22 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
           usuario: user,
         });
       }
-      toast.success(tocoMedallas ? 'Cintas y medallas guardadas.' : 'Cintas guardadas.');
+      if (pinesElegidos) {
+        await guardarPinesDeMiembro({
+          idMiembros,
+          anteriores: pinesGuardados.pines,
+          // En el orden global: así también queda guardado.
+          elegidos: pinesEnOrden.map((pin) => pin.id).filter((idPin) => pinesActuales.has(idPin)),
+          usuario: user,
+        });
+      }
+      toast.success(
+        tocoMedallas || pinesElegidos ? 'Cintas, medallas y pines guardados.' : 'Cintas guardadas.'
+      );
       onClose();
     } catch (error) {
       console.error('[cintas] no se pudieron guardar', error);
-      toast.error('No se pudieron guardar las cintas o las medallas.');
+      toast.error('No se pudieron guardar las cintas, las medallas o los pines.');
     } finally {
       setGuardando(false);
     }
@@ -912,7 +941,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
       slotProps={{ paper: { sx: { height: 'min(90vh, 880px)' } } }}
     >
       <DialogTitle>
-        Cintas y medallas de prueba <Label color="warning">Solo pruebas</Label>
+        Cintas, medallas y pines de prueba <Label color="warning">Solo pruebas</Label>
       </DialogTitle>
 
       <Tabs value={pestana} onChange={(evento, nueva) => setPestana(nueva)} sx={{ px: 3 }}>
@@ -922,10 +951,21 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
           label={`Medallas (${medallasActuales.size})`}
           disabled={medallasGuardadas.cargando}
         />
+        <Tab
+          value="pines"
+          label={`Pines (${pinesActuales.size})`}
+          disabled={pinesGuardados.cargando}
+        />
       </Tabs>
 
       <DialogContent sx={{ pt: 3 }}>
-        {pestana === 'medallas' ? (
+        {pestana === 'pines' ? (
+          <SelectorDePines
+            catalogo={pinesEnOrden}
+            elegidos={pinesActuales}
+            onCambiar={setPinesElegidos}
+          />
+        ) : pestana === 'medallas' ? (
           <SelectorDeMedallas
             catalogo={medallasEnOrden}
             elegidas={medallasActuales}
@@ -1130,7 +1170,11 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
       <DialogActions>
         <Button
           onClick={() =>
-            pestana === 'medallas' ? setMedallasElegidas(new Set()) : setElegidas(new Map())
+            pestana === 'pines'
+              ? setPinesElegidos(new Set())
+              : pestana === 'medallas'
+                ? setMedallasElegidas(new Set())
+                : setElegidas(new Map())
           }
           disabled={guardando}
           color="inherit"

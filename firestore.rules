@@ -1239,8 +1239,15 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
-    // El orden global de las cintas (`orden`) y de las medallas
-    // (`orden-medallas`), que se arrastra en EXPLORA Designer. Lo leen
+    // Los pines del perfil: mismo trato que cintas y medallas.
+    match /pines_miembros/{idMiembros} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // El orden global de las cintas (`orden`), de las medallas
+    // (`orden-medallas`) y de los pines (`orden-pines`), que se arrastra en
+    // EXPLORA Designer. Lo leen
     // todos los perfiles; solo lo cambia el Administrador Global.
     match /configuracion_cintas/{documento} {
       allow read: if esUsuarioDelSistema();
@@ -1595,6 +1602,7 @@ service cloud.firestore {
         && coleccion != 'directiva_cuatrienios_integrantes'
         && coleccion != 'directiva_nacional_permanentes'
         && coleccion != 'medallas_miembros'
+        && coleccion != 'pines_miembros'
         && coleccion != 'estatus_miembros'
         && coleccion != 'licenciasAsistencia'
         && coleccion != 'buzones_chat'

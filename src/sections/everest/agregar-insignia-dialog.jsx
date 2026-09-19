@@ -23,13 +23,13 @@ import { crearInsigniaPersonalizada } from 'src/services/insignias-personalizada
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { ImagenDeCinta, ImagenDeMedalla } from 'src/components/insignias-perfil';
+import { ImagenDePin, ImagenDeCinta, ImagenDeMedalla } from 'src/components/insignias-perfil';
 
 import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
-// AGREGAR UNA CINTA O UNA MEDALLA desde EXPLORA Designer: imagen, nombre y
-// descripción, las tres obligatorias.
+// AGREGAR UNA CINTA, UNA MEDALLA O UN PIN desde EXPLORA Designer: imagen, nombre
+// y descripción, las tres obligatorias.
 //
 // La vista previa se pinta con la MISMA pieza del perfil y con el ancho de una
 // casilla de la rejilla (`ANCHO_DE_CASILLA`), para ver antes de guardar cómo va a
@@ -37,11 +37,16 @@ import { useAuthContext } from 'src/auth/hooks';
 // no después en todos los perfiles.
 // ----------------------------------------------------------------------
 
-export const ANCHO_DE_CASILLA = { [TIPOS_INSIGNIA.CINTA]: 180, [TIPOS_INSIGNIA.MEDALLA]: 130 };
+export const ANCHO_DE_CASILLA = {
+  [TIPOS_INSIGNIA.CINTA]: 180,
+  [TIPOS_INSIGNIA.MEDALLA]: 130,
+  [TIPOS_INSIGNIA.PIN]: 160,
+};
 
 const TEXTOS = {
   [TIPOS_INSIGNIA.CINTA]: { titulo: 'Agregar cinta', guardada: 'Cinta agregada.' },
   [TIPOS_INSIGNIA.MEDALLA]: { titulo: 'Agregar medalla', guardada: 'Medalla agregada.' },
+  [TIPOS_INSIGNIA.PIN]: { titulo: 'Agregar pin', guardada: 'Pin agregado.' },
 };
 
 export function AgregarInsigniaDialog({ tipo, open, onClose }) {
@@ -104,7 +109,7 @@ export function AgregarInsigniaDialog({ tipo, open, onClose }) {
               sx={{
                 p: 1,
                 width: ANCHO_DE_CASILLA[tipo],
-                minHeight: tipo === TIPOS_INSIGNIA.CINTA ? 60 : 160,
+                minHeight: { cinta: 60, medalla: 160, pin: 110 }[tipo],
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -121,6 +126,8 @@ export function AgregarInsigniaDialog({ tipo, open, onClose }) {
                 <Box sx={{ width: 1 }}>
                   {tipo === TIPOS_INSIGNIA.CINTA ? (
                     <ImagenDeCinta cinta={insignia} veces={1} />
+                  ) : tipo === TIPOS_INSIGNIA.PIN ? (
+                    <ImagenDePin pin={insignia} />
                   ) : (
                     <ImagenDeMedalla medalla={{ ...insignia, srcPequena: vistaPrevia }} />
                   )}

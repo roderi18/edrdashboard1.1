@@ -14,7 +14,7 @@ import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 import { escribirInsigniaPersonalizada } from './insignias-personalizadas-apply';
 
 // ----------------------------------------------------------------------
-// ALTA DE UNA CINTA O MEDALLA DESDE EXPLORA DESIGNER.
+// ALTA DE UNA CINTA, MEDALLA O PIN DESDE EXPLORA DESIGNER.
 //
 // Solo el Administrador Global, como todo lo del Designer. La imagen se sube a
 // `everest/insignias-{tipo}/` —la carpeta del Designer, con su regla de Storage—
@@ -23,13 +23,23 @@ import { escribirInsigniaPersonalizada } from './insignias-personalizadas-apply'
 // en el diálogo para asignarla (`use-insignias-personalizadas.js`).
 // ----------------------------------------------------------------------
 
-const ETIQUETA = { [TIPOS_INSIGNIA.CINTA]: 'cinta', [TIPOS_INSIGNIA.MEDALLA]: 'medalla' };
+const ETIQUETA = {
+  [TIPOS_INSIGNIA.CINTA]: 'cinta',
+  [TIPOS_INSIGNIA.MEDALLA]: 'medalla',
+  [TIPOS_INSIGNIA.PIN]: 'pin',
+};
+// La pestaña del Designer de cada tipo, para el enlace de Historial.
+const SECCION = {
+  [TIPOS_INSIGNIA.CINTA]: 'cintas',
+  [TIPOS_INSIGNIA.MEDALLA]: 'medallas',
+  [TIPOS_INSIGNIA.PIN]: 'pines',
+};
 
 export async function crearInsigniaPersonalizada({ tipo, archivo, nombre, descripcion, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global añade cintas y medallas.');
+    throw new Error('Solo el Administrador Global añade cintas, medallas y pines.');
   }
 
   const error = validarInsigniaNueva({ tipo, nombre, descripcion, tieneImagen: Boolean(archivo) });
@@ -65,7 +75,7 @@ export async function crearInsigniaPersonalizada({ tipo, archivo, nombre, descri
       tipo: `insignia_${tipo}`,
       id,
       nombre: documento.nombre,
-      ruta: `/dashboard/everest?seccion=${tipo === TIPOS_INSIGNIA.CINTA ? 'cintas' : 'medallas'}`,
+      ruta: `/dashboard/everest?seccion=${SECCION[tipo]}`,
     },
     cambios: [
       { campo: 'nombre', etiqueta: 'Nombre', antes: null, despues: documento.nombre },
@@ -77,7 +87,7 @@ export async function crearInsigniaPersonalizada({ tipo, archivo, nombre, descri
       },
     ],
     usuario,
-    descripcion: `Nueva ${ETIQUETA[tipo]} en EXPLORA Designer: ${documento.nombre}.`,
+    descripcion: `${tipo === TIPOS_INSIGNIA.PIN ? 'Nuevo' : 'Nueva'} ${ETIQUETA[tipo]} en EXPLORA Designer: ${documento.nombre}.`,
     aplicarDirecto: true,
     aplicar: () =>
       escribirInsigniaPersonalizada(

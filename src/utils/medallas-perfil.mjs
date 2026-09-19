@@ -146,13 +146,16 @@ export const compararMedallas = (a, b) =>
 // donde la medalla sale pequeña.
 const SUFIJO_PEQUENA = /-small$/i;
 
-const rutaDe = (archivo) => `${RUTA_MEDALLAS}/${encodeURIComponent(archivo)}`;
+const rutaEn = (ruta, archivo) => `${ruta}/${encodeURIComponent(archivo)}`;
 
 /**
  * La lista de archivos de la carpeta → el catálogo. Solo imágenes; lo demás
  * (un .md, una carpeta) se ignora, y las `-small` van con su medalla.
+ * `ruta`: la carpeta pública; los pines (`pines-perfil.mjs`) usan esta misma
+ * lectura con la suya.
  */
-export const catalogoDesdeArchivos = (archivos = []) => {
+export const catalogoDesdeArchivos = (archivos = [], { ruta = RUTA_MEDALLAS } = {}) => {
+  const rutaDe = (archivo) => rutaEn(ruta, archivo);
   const imagenes = [
     ...new Set(
       (Array.isArray(archivos) ? archivos : [])

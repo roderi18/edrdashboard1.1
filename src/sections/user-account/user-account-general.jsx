@@ -52,8 +52,12 @@ import { UnderlineLink } from 'src/components/link/underline-link';
 import LocationSelect from 'src/components/location/location-select';
 import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
-import { CintasDeMiembro, MedallasDeMiembro } from 'src/components/insignias-perfil';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
+import {
+  PinesDeMiembro,
+  CintasDeMiembro,
+  MedallasDeMiembro,
+} from 'src/components/insignias-perfil';
 
 import { MemberEstatusDialog } from 'src/sections/member/member-estatus-dialog';
 
@@ -235,9 +239,8 @@ const mapMemberToValues = (member) => {
     // Valor de partida, para el primer pintado. En cuanto llega la lista de
     // destacamentos se reescribe con el nombre y el numero de verdad.
     destDisplay:
-      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${
-        member?.destacamentoNumero ?? ''
-      }`.trim() || formatDestDisplay(null, destId),
+      `${member?.destacamentoName ?? member?.destacamento ?? ''} ${member?.destacamentoNumero ?? ''
+        }`.trim() || formatDestDisplay(null, destId),
     instructorCertificadoCi:
       member?.instructorCertificadoCi === true || member?.instructorCertificadoCi === 1
         ? 'Sí'
@@ -356,9 +359,9 @@ export function UserAccountGeneral() {
               String(item?.correo ?? '')
                 .trim()
                 .toLowerCase() ===
-                String(user?.email ?? '')
-                  .trim()
-                  .toLowerCase())
+              String(user?.email ?? '')
+                .trim()
+                .toLowerCase())
           );
         });
 
@@ -590,9 +593,8 @@ export function UserAccountGeneral() {
       registrarCambiosHistorialMiembro({
         idMiembros: memberId,
         codigoMiembro: member?.codigoMiembro || user?.codigoMiembro || '',
-        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${
-          member?.apellidos ?? user?.apellidos ?? ''
-        }`.trim(),
+        nombreMiembro: `${member?.nombres ?? user?.nombres ?? ''} ${member?.apellidos ?? user?.apellidos ?? ''
+          }`.trim(),
         modulo: 'Información general',
         antes: { avatarUrl: member?.avatarUrl || '' },
         despues: { avatarUrl },
@@ -790,10 +792,10 @@ export function UserAccountGeneral() {
 
   if (!user || loadingMember) {
     return <AccountSectionSkeleton
-        variant="profile"
-        idMiembros={user?.idMiembros}
-        cerrarSesion={false}
-      />;
+      variant="profile"
+      idMiembros={user?.idMiembros}
+      cerrarSesion={false}
+    />;
   }
 
   if (!member) {
@@ -855,7 +857,7 @@ export function UserAccountGeneral() {
                     {!!destDisplay && (
                       <Typography
                         variant="body2"
-                        sx={{ mt: 2, mx: 'auto', display: 'block', textAlign: 'center' }}
+                        sx={{ mx: 'auto', display: 'block', textAlign: 'center' }}
                       >
                         Miembro de{' '}
                         {destIdActual ? (
@@ -871,6 +873,11 @@ export function UserAccountGeneral() {
                       </Typography>
                     )}
 
+                    {/* Los pines van ENCIMA de las cintas, centrados. */}
+                    <PinesDeMiembro
+                      idMiembros={member?.idMiembros ?? user?.idMiembros}
+                      sx={{ mt: 2 }}
+                    />
                     <CintasDeMiembro
                       idMiembros={member?.idMiembros ?? user?.idMiembros}
                       sx={{ mt: 2 }}

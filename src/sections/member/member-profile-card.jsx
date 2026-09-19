@@ -13,7 +13,11 @@ import { ContextInfo } from 'src/components/info/context-info';
 import { BotonCopiar } from 'src/components/common/boton-copiar';
 import { UnderlineLink } from 'src/components/link/underline-link';
 import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
-import { CintasDeMiembro, MedallasDeMiembro } from 'src/components/insignias-perfil';
+import {
+  PinesDeMiembro,
+  CintasDeMiembro,
+  MedallasDeMiembro,
+} from 'src/components/insignias-perfil';
 
 import { MemberInfoPdfMenu } from './member-info-pdf-menu';
 
@@ -145,6 +149,11 @@ export function MemberProfileCard({
 
               {!isCreateView && (
                 <>
+                  {/* Los pines van ENCIMA de las cintas, centrados. */}
+                  <PinesDeMiembro
+                    idMiembros={currentMember?.idMiembros ?? currentMember?.id}
+                    sx={{ mt: 2 }}
+                  />
                   <CintasDeMiembro
                     idMiembros={currentMember?.idMiembros ?? currentMember?.id}
                     sx={{ mt: 2 }}

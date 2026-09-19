@@ -22,6 +22,7 @@ import { EDAD_MAYORIA } from 'src/utils/member-age';
 import { optimizeImageFile } from 'src/utils/image-optimizer';
 import { generateMemberId } from 'src/utils/generate-member-id';
 import { isGlobalOrgManager } from 'src/utils/org-level-access';
+import { certificacionCi } from 'src/utils/certificacion-ci.mjs';
 // services
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
@@ -209,8 +210,12 @@ const mapCurrentMemberToHistoryPayload = (member = {}) => ({
   idCargoLocal: member.idCargoLocal ?? null,
   idCargoInstitucional: member.idCargoInstitucional ?? null,
   idDivision: member.idDivision ?? null,
-  instructorCertificadoCi: member.instructorCertificadoCi ?? member.InstructorCertificadoCI ?? null,
-  estatusVigenciaCi: member.estatusVigenciaCi ?? member.EstatusVigenciaCI ?? null,
+  // Con las mismas reglas con que se guarda: el padrón trae `0`/`1` y el guardado
+  // manda booleanos, y sin esto cada guardado apuntaba los dos campos CI.
+  ...certificacionCi({
+    instructor: member.instructorCertificadoCi ?? member.InstructorCertificadoCI,
+    estatus: member.estatusVigenciaCi ?? member.EstatusVigenciaCI,
+  }),
   fechaInicioCertificado: member.fechaInicioCertificado || member.FechaInicioCI || null,
   fechaFinCertificado: member.fechaFinCertificado || member.FechaVencimientoCI || null,
 });
@@ -1945,23 +1950,13 @@ export function MemberCreateEditForm({
                 : null,
             idDivision: formData.idDivision ? Number(formData.idDivision) : 0,
             // Un menor de edad nunca es Instructor CI: se guarda siempre en blanco,
-            // aunque el formulario trajera valores previos.
-            instructorCertificadoCi: esMenorAlGuardar
-              ? false
-              : formData.InstructorCertificadoCI === 1
-                ? true
-                : formData.InstructorCertificadoCI === 0
-                  ? false
-                  : null,
-
-            estatusVigenciaCi:
-              esMenorAlGuardar || formData.EstatusVigenciaCI === 'na'
-                ? null
-                : formData.EstatusVigenciaCI === 1
-                  ? true
-                  : formData.EstatusVigenciaCI === 0
-                    ? false
-                    : null,
+            // aunque el formulario trajera valores previos. La misma regla lee el
+            // "antes" del historial, para que los dos lados se comparen igual.
+            ...certificacionCi({
+              instructor: formData.InstructorCertificadoCI,
+              estatus: formData.EstatusVigenciaCI,
+              esMenor: esMenorAlGuardar,
+            }),
             fechaInicioCertificado:
               !esMenorAlGuardar && formData.FechaInicioCI
                 ? dayjs(formData.FechaInicioCI).format('YYYY-MM-DD')

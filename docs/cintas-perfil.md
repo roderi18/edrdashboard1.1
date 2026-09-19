@@ -17,7 +17,7 @@ El prefijo numérico del nombre **es el orden oficial** (`1-cinta-al-valor.webp`
 - `12a` y `12b` van entre la 11 y la 13, `12a` primero.
 - Una letra **delante** del número (`a5`, `z1`…) manda al final, agrupada por esa
   letra y luego por número: `40` → `a5` → `z1` … `z6`.
-- **Desde la aplicación**: EXPLORA Designer → Cintas (o Medallas) → "Agregar". Pide
+- **Desde la aplicación**: EXPLORA Designer → Cintas (o Medallas, o Pines) → "Agregar". Pide
   imagen, nombre y descripción; se guardan en Storage y en `insignias_personalizadas`,
   y salen detrás de las de fábrica en todos los perfiles. Es lo que sirve en
   producción, donde nadie escribe en la carpeta pública.
@@ -160,3 +160,42 @@ diferencia: **el catálogo es la carpeta** `public/parches/Cintas y medallas/med
 | Perfil y diálogo | `src/components/insignias-perfil/medallas-de-miembro.jsx` |
 | Designer | `src/sections/everest/everest-medallas.jsx` |
 | Test | `tests/member/medallas-perfil.test.mjs` |
+
+## Pines
+
+El tercer apartado del perfil, con el mismo trato que las medallas: **perfil**,
+pestaña **Pines** del mismo diálogo del lápiz de las cintas (Administrador Global,
+un solo Guardar para las tres) y pestaña **Pines** en EXPLORA Designer
+(`/dashboard/everest?seccion=pines`) con orden global arrastrable y
+"Agregar pin".
+
+- **En el perfil van ENCIMA de las cintas, centrados**: una sola fila, **como
+  mucho 3**, cada uno del ancho de una cinta y con el mismo hueco que hay entre
+  ellas. El diálogo no deja marcar un cuarto. Sin pines no ocupan sitio; mientras
+  cargan se guarda el hueco solo si esa persona tenía pines la última vez.
+- **El catálogo es la carpeta** `public/parches/Cintas y medallas/pines`: cualquier
+  imagen que se deje ahí sale en la aplicación sin tocar código (hoy dos:
+  `instructor-juvenil` y `pin-instructor`). Mismas reglas de nombre que las
+  medallas: el id es el nombre sin extensión, el número inicial (si lo hay) es el
+  orden de fábrica, el nombre visible sale del archivo y `-small` es la variante
+  reducida. Renombrar un archivo cambia su id: quien lo tenía deja de verlo.
+- En desarrollo `/api/insignias/pines` lee la carpeta al momento; en Netlify lee
+  `src/utils/pines-manifiesto.json`, que `scripts/generar-manifiesto-medallas.mjs`
+  regenera en `prebuild` junto al de medallas.
+- Los añadidos desde el Designer son insignias personalizadas de tipo `pin`
+  (Storage `everest/insignias-pin/`, ficha en `insignias_personalizadas`) y van
+  detrás de los de la carpeta.
+- Sin efectos animados: el pin es una pieza de metal fija en el uniforme.
+
+| Pieza | Dónde |
+|---|---|
+| Catálogo, orden y filas (sin React) | `src/utils/pines-perfil.mjs` (reutiliza la lectura y el orden de `medallas-perfil.mjs`) |
+| Catálogo servido | `src/app/api/insignias/pines/route.js` |
+| Tabla | Firestore `pines_miembros/{idMiembros}` (`{ pines: [{ id, origen, asignadaEn }] }`); orden en `configuracion_cintas/orden-pines` |
+| Guardar (`proponerCambio`, ámbito `cintas_miembro`) | `src/services/pines-miembros-service.js` + `pines-miembros-apply.js` |
+| Perfil, esqueleto y diálogo | `src/components/insignias-perfil/pines-de-miembro.jsx` |
+| Designer | `src/sections/everest/everest-pines.jsx` |
+| Test | `tests/member/pines-perfil.test.mjs` |
+
+- Lectura: cualquier sesión del sistema. Escritura: solo Administrador Global
+  (regla explícita en `firestore.rules` y excluida del comodín).

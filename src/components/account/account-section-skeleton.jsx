@@ -5,7 +5,11 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 
-import { EsqueletoDeCintas, EsqueletoDeMedallas } from 'src/components/insignias-perfil';
+import {
+  EsqueletoDePines,
+  EsqueletoDeCintas,
+  EsqueletoDeMedallas,
+} from 'src/components/insignias-perfil';
 
 // ----------------------------------------------------------------------
 
@@ -23,6 +27,7 @@ function AccountProfileSkeleton({ idMiembros, cerrarSesion = true, sx, ...other 
           <Skeleton variant="circular" width={144} height={144} sx={{ mx: 'auto', mb: 5 }} />
           <Skeleton variant="text" width="62%" height={24} sx={{ mx: 'auto' }} />
           <Skeleton variant="text" width="34%" height={22} sx={{ mx: 'auto', mt: 0.5 }} />
+          <EsqueletoDePines idMiembros={idMiembros} sx={{ mt: 2 }} />
           <EsqueletoDeCintas idMiembros={idMiembros} sx={{ mt: 2 }} />
           <EsqueletoDeMedallas idMiembros={idMiembros} />
           {cerrarSesion && <Skeleton variant="rounded" height={48} sx={{ mt: 3 }} />}

@@ -23,7 +23,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // cuando el componente se vuelve a pintar, `obtenerCintaPerfil` ya las conoce.
 // ----------------------------------------------------------------------
 
-const VACIO = Object.freeze({ cintas: [], medallas: [] });
+const VACIO = Object.freeze({ cintas: [], medallas: [], pines: [] });
 
 let estado = VACIO;
 let cancelar = null;
@@ -62,6 +62,6 @@ const suscribir = (oyente) => {
 const leer = () => estado;
 const leerEnServidor = () => VACIO;
 
-/** `{ cintas, medallas }` añadidas en el Designer, en vivo. */
+/** `{ cintas, medallas, pines }` añadidos en el Designer, en vivo. */
 export const useInsigniasPersonalizadas = () =>
   useSyncExternalStore(suscribir, leer, leerEnServidor);
