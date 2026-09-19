@@ -17,6 +17,10 @@ El prefijo numérico del nombre **es el orden oficial** (`1-cinta-al-valor.webp`
 - `12a` y `12b` van entre la 11 y la 13, `12a` primero.
 - Una letra **delante** del número (`a5`, `z1`…) manda al final, agrupada por esa
   letra y luego por número: `40` → `a5` → `z1` … `z6`.
+- **Desde la aplicación**: EXPLORA Designer → Cintas (o Medallas) → "Agregar". Pide
+  imagen, nombre y descripción; se guardan en Storage y en `insignias_personalizadas`,
+  y salen detrás de las de fábrica en todos los perfiles. Es lo que sirve en
+  producción, donde nadie escribe en la carpeta pública.
 - **Dejar la imagen en la carpeta no basta**: hay que añadir su nombre a `ARCHIVOS`
   en `src/utils/cintas-perfil.mjs` y su texto en `cintas-perfil-textos.mjs`. El
   test `cintas-perfil-orden` falla si hay una imagen sin catálogo. Las copias de

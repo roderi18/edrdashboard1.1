@@ -352,7 +352,7 @@ export async function notificarCambioDirectivaHistorica({ mensaje = '', cuatrien
     actorNombre: usuario?.displayName || usuario?.name || 'Alguien',
     entidadTipo: 'directiva_cuatrienio',
     entidadId: String(cuatrienio),
-    ruta: '/dashboard/level/national?vista=cuatrienios',
+    ruta: `/dashboard/level/national?cuatrienio=${encodeURIComponent(cuatrienio)}`,
     etiquetaAccion: 'Ver directiva',
     metadatos: { cuatrienio },
     usuario,

@@ -72,12 +72,21 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    que `prebuild` regenera). Las `-small` son su variante pequeña, no otra medalla.
    Se guardan en `medallas_miembros`; su orden, en `configuracion_cintas/orden-medallas`.
    Reglas en `src/utils/medallas-perfil.mjs`.
+   **Además, el Administrador Global añade cintas y medallas desde EXPLORA
+   Designer** ("Agregar cinta/medalla": imagen, nombre y descripción, las tres
+   obligatorias). La imagen va a Storage (`everest/insignias-{tipo}/`) y la ficha
+   a `insignias_personalizadas`; se suman detrás de las de fábrica con id `p<fecha>`
+   y se ordenan y asignan igual (`src/utils/insignias-personalizadas.mjs`; las
+   cintas se registran en el catálogo con `registrarCintasPersonalizadas`). En el
+   Designer se ordenan arrastrando: la tarjeta sigue al puntero y las demás se
+   apartan en vivo (`src/sections/everest/rejilla-ordenable.jsx`).
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
-   `tests/member/medallas-perfil.test.mjs`.
+   `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`.
 
 12. **La Directiva Nacional se guarda por cuatrienio** (2022-2026 cerrado, del
    20/08/2022 al 22/08/2026; 2026-2030 vigente; el 22/08/2026 ya es el nuevo).
-   Pestaña "Por cuatrienio" de `/dashboard/level/national`. Es memoria: foto fija
+   Se elige en el título de `/dashboard/level/national` (desplegable) y se pinta
+   en la misma tabla que la directiva actual. Es memoria: foto fija
    (la foto se COPIA a `directiva-historica/`, nunca se enlaza la de perfil) y
    **no da permisos**; mandan los cargos actuales. Única excepción: quien es o fue
    Director Nacional —o Comandante Nacional, su nombre antiguo— conserva los

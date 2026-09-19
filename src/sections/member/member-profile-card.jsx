@@ -66,22 +66,6 @@ export function MemberProfileCard({
           onFoto={(archivo) => onUploadPhoto([archivo])}
           ayuda={
             <>
-              {canUploadMemberPhoto && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    mt: 3,
-                    mx: 'auto',
-                    display: 'block',
-                    textAlign: 'center',
-                    color: 'text.disabled',
-                  }}
-                >
-                  Permitido *.jpeg, *.jpg, *.png, *.gif
-                  <br /> se encuadra y se sube ligera, en WebP.
-                </Typography>
-              )}
-
               {!!photoUploadErrorMessage && (
                 <Typography
                   variant="caption"
@@ -112,6 +96,9 @@ export function MemberProfileCard({
                     show: !isCreateView && !!currentMember?.memberId,
                     text: `Miembro ${currentMember?.memberId}`,
                     copiar: currentMember?.memberId,
+                    // Separado de la foto: pegado al boton de la camara se leia
+                    // como parte de ella.
+                    mt: 2,
                     aviso: memberDataNotice,
                   },
                   {
@@ -133,20 +120,12 @@ export function MemberProfileCard({
                 ]}
               />
 
-              {!isCreateView && (
-                <>
-                  <CintasDeMiembro
-                    idMiembros={currentMember?.idMiembros ?? currentMember?.id}
-                    sx={{ mt: 2 }}
-                  />
-                  <MedallasDeMiembro idMiembros={currentMember?.idMiembros ?? currentMember?.id} />
-                </>
-              )}
-
-              {memberDestText && !destLeadership && (
+              {/* Debajo del codigo y para TODOS: antes se ocultaba a quien tenia cargo en
+                  su destacamento, y la ficha no decia de donde era. */}
+              {memberDestText && (
                 <Typography
                   variant="body2"
-                  sx={{ mt: 1, mx: 'auto', display: 'block', textAlign: 'center' }}
+                  sx={{ mt: 0, mx: 'auto', display: 'block', textAlign: 'center' }}
                 >
                   {memberDestText.includes(destName) ? (
                     <>
@@ -162,6 +141,16 @@ export function MemberProfileCard({
                     memberDestText
                   )}
                 </Typography>
+              )}
+
+              {!isCreateView && (
+                <>
+                  <CintasDeMiembro
+                    idMiembros={currentMember?.idMiembros ?? currentMember?.id}
+                    sx={{ mt: 2 }}
+                  />
+                  <MedallasDeMiembro idMiembros={currentMember?.idMiembros ?? currentMember?.id} />
+                </>
               )}
 
               {!isCreateView &&

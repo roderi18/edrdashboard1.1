@@ -35,6 +35,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { useOrdenDeMedallas } from './use-orden-de-cintas';
+import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 
 // ----------------------------------------------------------------------
 // MEDALLAS DEL PERFIL.
@@ -58,7 +59,15 @@ function useLecturaDelCatalogo() {
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   );
 
-  return { medallas: data?.medallas ?? VACIO, cargando: !data && !error };
+  // Las añadidas en EXPLORA Designer (Firestore) van detrás de las de la carpeta.
+  const { medallas: personalizadas } = useInsigniasPersonalizadas();
+  const deCarpeta = data?.medallas ?? VACIO;
+  const medallas = useMemo(
+    () => (personalizadas.length ? [...deCarpeta, ...personalizadas] : deCarpeta),
+    [deCarpeta, personalizadas]
+  );
+
+  return { medallas, cargando: !data && !error };
 }
 
 /** El catálogo de medallas, una vez por sesión y compartido entre tarjetas. */

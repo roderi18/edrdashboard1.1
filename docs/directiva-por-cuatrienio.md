@@ -8,9 +8,11 @@
 
 ## 1. Qué es
 
-`/dashboard/level/national` tiene dos pestañas: **Directiva actual** (las
-casillas de hoy, como siempre) y **Por cuatrienio** (`?vista=cuatrienios`), la
-**memoria de la organización**. Cada cuatrienio guarda quién ocupó cada cargo de
+En `/dashboard/level/national` el cuatrienio se elige en el propio título de la
+lista (**Directiva Nacional 2026-2030 · Actual ▾**). El vigente son las casillas
+de hoy, como siempre; uno pasado (`?cuatrienio=2022-2026`) es la **memoria de la
+organización**, pintada en la misma tabla con los mismos filtros.
+`?vista=cuatrienios`, el enlace de antes, abre el último cuatrienio cerrado. Cada cuatrienio guarda quién ocupó cada cargo de
 la **Directiva Nacional**, que incluye:
 
 - el Consejo Ejecutivo nacional, sus oficiales y sus ex comandantes,
@@ -114,17 +116,21 @@ directiva_nacional_permanentes/{idMiembros}
 
 ## 5. Pantalla
 
-- Pestaña **Por cuatrienio**: selector (2026-2030 · Vigente / 2022-2026),
-  buscador, y desplegables **Directiva Nacional** (Directiva, Oficiales, Ex
-  comandantes) → **cada Región** → **cada Sección**.
-- **Ver organigrama** abre los organigramas de siempre
+- El título es el selector (`src/sections/national/cuatrienios/selector-de-cuatrienio.jsx`):
+  al elegir un cuatrienio pasado, la tabla de la Directiva actual (Nombre,
+  Posición, Nivel organizacional, Estructura, con sus filtros y la vista de
+  tarjetas) se llena con los integrantes guardados, con la foto congelada.
+  Provisionales, oficiales y ex comandantes van detrás de los cargos.
+- **Pulsar la posición** abre los organigramas de siempre
   (`src/sections/{national,regional,sectional}/leadership`) en **modo histórico**
   (`historico`): mismos componentes, ocupantes y fotos del cuatrienio, solo
   lectura, sin tocar la directiva de hoy.
-- Para quien edita: **Agregar**, **Editar** y **Quitar** por fila; **Cargar
-  listado 2022-2026** (vista previa → Cargar); **Guardar la directiva de hoy** en
-  el cuatrienio vigente (copia las casillas nacionales, regionales y seccionales
-  actuales con su foto).
+- Para quien edita: **Agregar** en el encabezado, **Editar** y **Eliminar** en
+  el menú de cada fila (y por selección); **Cargar listado 2022-2026** en el
+  encabezado (vista previa → Cargar); en el cuatrienio vigente, **Guardar en la
+  memoria de 2026-2030** (copia las casillas nacionales, regionales y seccionales
+  actuales con su foto). Lectura y diálogos en
+  `src/sections/national/cuatrienios/herramientas-del-cuatrienio.jsx`.
 
 Piezas: `src/utils/directiva-cuatrienios.mjs` (reglas puras),
 `src/services/directiva-cuatrienios-service.js` (Firestore),

@@ -12,6 +12,7 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
 import {
   moverMedallaEnOrden,
   EFECTOS_BRILLO_MEDALLA,
@@ -37,6 +38,9 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { RejillaOrdenable } from './rejilla-ordenable';
+import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
+
 // ----------------------------------------------------------------------
 // LAS MEDALLAS, DENTRO DE EXPLORA DESIGNER.
 //
@@ -54,9 +58,8 @@ export function EverestMedallas() {
   const ordenGuardado = useOrdenDeMedallas();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
   const [borrador, setBorrador] = useState(null);
-  const [arrastrada, setArrastrada] = useState('');
-  const [encima, setEncima] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [agregando, setAgregando] = useState(false);
   // Para probar los efectos sobre todo el catálogo. No se guardan aquí: cada
   // miembro lleva los suyos, elegidos con el lápiz de las cintas.
   const [efectoMovimiento, setEfectoMovimiento] = useState(EFECTOS_MOVIMIENTO_MEDALLA.SOPLO);
@@ -99,11 +102,6 @@ export function EverestMedallas() {
     }
   };
 
-  const soltar = () => {
-    setArrastrada('');
-    setEncima('');
-  };
-
   return (
     <Card sx={{ p: 3 }}>
       <Stack
@@ -119,8 +117,8 @@ export function EverestMedallas() {
             {hayCambios && <Label color="warning">Sin guardar</Label>}
           </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Todas las imágenes de la carpeta de medallas. Arrastra una sobre otra para cambiar su
-            lugar; al guardar, ese orden se usa en todos los perfiles y al asignarlas. Movimiento,
+            Las de la carpeta de medallas y las añadidas aquí. Arrastra una: las demás se apartan
+            para hacerle sitio; al guardar, ese orden se usa en todos los perfiles y al asignarlas. Movimiento,
             brillo, su velocidad y su intensidad se prueban aquí y se eligen para cada miembro con
             el lápiz de las cintas.
           </Typography>
@@ -160,6 +158,15 @@ export function EverestMedallas() {
       <AjustesDeEfectosDeMedalla valores={ajustes} onCambiar={setAjustes} sx={{ mb: 2 }} />
 
       <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<Iconify icon="mingcute:add-line" />}
+          disabled={guardando}
+          onClick={() => setAgregando(true)}
+          sx={{ mr: 'auto' }}
+        >
+          Agregar medalla
+        </Button>
         <Stack direction="row" spacing={1}>
           <Button
             color="inherit"
@@ -187,10 +194,11 @@ export function EverestMedallas() {
         </Stack>
       </Stack>
 
-      <Box
+      <RejillaOrdenable
+        items={medallas}
+        deshabilitado={guardando}
+        onMover={mover}
         sx={{
-          gap: 2,
-          display: 'grid',
           gridTemplateColumns: {
             xs: 'repeat(3, minmax(0, 1fr))',
             sm: 'repeat(4, minmax(0, 1fr))',
@@ -198,89 +206,79 @@ export function EverestMedallas() {
             lg: 'repeat(8, minmax(0, 1fr))',
           },
         }}
-      >
-        {medallas.map((medalla, indice) => {
-          const esDestino = encima === medalla.id && arrastrada !== medalla.id;
-
-          return (
-            <Box
-              key={medalla.id}
-              draggable={!guardando}
-              onDragStart={(evento) => {
-                evento.dataTransfer.effectAllowed = 'move';
-                // Firefox no arrastra nada sin un dato puesto.
-                evento.dataTransfer.setData('text/plain', medalla.id);
-                setArrastrada(medalla.id);
-              }}
-              onDragOver={(evento) => {
-                if (!arrastrada) return;
-                evento.preventDefault();
-                evento.dataTransfer.dropEffect = 'move';
-                if (encima !== medalla.id) setEncima(medalla.id);
-              }}
-              onDragLeave={() => {
-                if (encima === medalla.id) setEncima('');
-              }}
-              onDrop={(evento) => {
-                evento.preventDefault();
-                if (arrastrada) mover(arrastrada, medalla.id);
-                soltar();
-              }}
-              onDragEnd={soltar}
-              sx={(theme) => ({
-                p: 1,
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: 1,
-                cursor: guardando ? 'default' : 'grab',
-                opacity: arrastrada === medalla.id ? 0.4 : 1,
-                border: `1px ${esDestino ? 'dashed' : 'solid'} ${
-                  esDestino ? theme.vars.palette.primary.main : theme.vars.palette.divider
-                }`,
-                transition: theme.transitions.create(['opacity', 'border-color']),
-                '&:active': { cursor: 'grabbing' },
-              })}
+        renderItem={(medalla, indice, { arrastrando, flotante }) => (
+          <Box
+            sx={(theme) => ({
+              p: 1,
+              height: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 1,
+              border: `1px solid ${theme.vars.palette.divider}`,
+            })}
+          >
+            <Tooltip
+              arrow
+              title={
+                arrastrando ? (
+                  ''
+                ) : (
+                  <>
+                    <Typography variant="subtitle2">{medalla.nombre}</Typography>
+                    {medalla.descripcion && (
+                      <Typography variant="caption">{medalla.descripcion}</Typography>
+                    )}
+                  </>
+                )
+              }
             >
-              <Tooltip arrow title={medalla.nombre}>
-                <Box sx={{ flexGrow: 1, pointerEvents: arrastrada ? 'none' : 'auto' }}>
-                  <ImagenDeMedalla
-                    medalla={medalla}
-                    efectoMovimiento={efectoMovimiento}
-                    efectoBrillo={efectoBrillo}
-                    {...ajustes}
-                  />
-                </Box>
-              </Tooltip>
+              <Box sx={{ flexGrow: 1, '& img': { userSelect: 'none', pointerEvents: 'none' } }}>
+                <ImagenDeMedalla
+                  medalla={medalla}
+                  efectoMovimiento={efectoMovimiento}
+                  efectoBrillo={efectoBrillo}
+                  {...ajustes}
+                />
+              </Box>
+            </Tooltip>
 
-              <Stack direction="row" alignItems="center" spacing={0.25} sx={{ mt: 0.75 }}>
-                <Label sx={{ flexShrink: 0 }}>{indice + 1}</Label>
-                <Typography variant="caption" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
-                  {medalla.nombre}
-                </Typography>
-                <IconButton
-                  size="small"
-                  aria-label={`Mover ${medalla.nombre} antes`}
-                  disabled={guardando || indice === 0}
-                  onClick={() => moverUnPaso(medalla.id, -1)}
-                  sx={{ p: 0.25 }}
-                >
-                  <Iconify icon="eva:arrow-ios-back-fill" width={16} />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  aria-label={`Mover ${medalla.nombre} después`}
-                  disabled={guardando || indice === medallas.length - 1}
-                  onClick={() => moverUnPaso(medalla.id, 1)}
-                  sx={{ p: 0.25 }}
-                >
-                  <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
-                </IconButton>
-              </Stack>
-            </Box>
-          );
-        })}
-      </Box>
+            <Stack direction="row" alignItems="center" spacing={0.25} sx={{ mt: 0.75 }}>
+              <Label sx={{ flexShrink: 0 }}>{indice + 1}</Label>
+              <Typography variant="caption" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+                {medalla.nombre}
+              </Typography>
+              {!flotante && (
+                <>
+                  <IconButton
+                    size="small"
+                    aria-label={`Mover ${medalla.nombre} antes`}
+                    disabled={guardando || indice === 0}
+                    onClick={() => moverUnPaso(medalla.id, -1)}
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:arrow-ios-back-fill" width={16} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label={`Mover ${medalla.nombre} después`}
+                    disabled={guardando || indice === medallas.length - 1}
+                    onClick={() => moverUnPaso(medalla.id, 1)}
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
+                  </IconButton>
+                </>
+              )}
+            </Stack>
+          </Box>
+        )}
+      />
+
+      <AgregarInsigniaDialog
+        tipo={TIPOS_INSIGNIA.MEDALLA}
+        open={agregando}
+        onClose={() => setAgregando(false)}
+      />
 
       {!catalogo.length && (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>

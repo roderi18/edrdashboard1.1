@@ -9,26 +9,35 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
-import { canDeleteOrgLevel } from 'src/utils/org-level-access';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
+import { canDeleteOrgLevel, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
+import {
+  CUATRIENIOS,
+  nombreCompleto,
+  cuatrienioDeFecha,
+  esCuatrienioCerrado,
+} from 'src/utils/directiva-cuatrienios.mjs';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
-import { obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
+import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
+import { quitarIntegrante, obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
 import {
   NATIONAL_LEADERSHIP_DATA,
   REGIONAL_LEADERSHIP_DATA,
@@ -55,7 +64,11 @@ import {
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
-import { DirectivaCuatrieniosView } from 'src/sections/national/cuatrienios/directiva-cuatrienios-view';
+import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
+import {
+  useIntegrantesDelCuatrienio,
+  useHerramientasDelCuatrienio,
+} from 'src/sections/national/cuatrienios/herramientas-del-cuatrienio';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -220,7 +233,14 @@ const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) =>
 // de Director Nacional). Sale en esta lista y en su filtro de posicion aunque no
 // tenga cargo, sin poder darse de baja desde aqui: es historia, no asignacion.
 const POSICION_EX_COMANDANTE = 'ex-comandante-nacional';
-const RUTA_CUATRIENIOS = `${paths.dashboard.level.national.root}?vista=cuatrienios`;
+
+// En la memoria de un cuatrienio, lo que no ocupa casilla del organigrama va
+// detras de los cargos: los provisionales, los oficiales y los ex comandantes.
+const ORDEN_SIN_CASILLA = { directiva: 1000, oficiales: 2000, ex_comandantes: 3000 };
+
+const RUTA_LISTA = paths.dashboard.level.national.root;
+const rutaDelCuatrienio = (id, vigente) =>
+  id === vigente ? RUTA_LISTA : `${RUTA_LISTA}?cuatrienio=${id}`;
 
 // ----------------------------------------------------------------------
 
@@ -228,13 +248,36 @@ export function NationalListView() {
   const [hydrated, setHydrated] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  // "Directiva actual" (las casillas de hoy) o "Por cuatrienio" (la memoria).
-  const vista = searchParams.get('vista') === 'cuatrienios' ? 'cuatrienios' : 'actual';
+
+  // EL CUATRIENIO SE ELIGE EN EL TITULO. El vigente son las casillas de hoy; uno
+  // pasado es la memoria guardada, pintada en la misma tabla. `?vista=cuatrienios`
+  // es el enlace de antes (avisos ya enviados): abre el ultimo cuatrienio cerrado.
+  const vigente = cuatrienioDeFecha()?.id || CUATRIENIOS[CUATRIENIOS.length - 1].id;
+  const ultimoCerrado =
+    [...CUATRIENIOS].reverse().find((item) => esCuatrienioCerrado(item.id))?.id || vigente;
+  const pedido = searchParams.get('cuatrienio');
+  const cuatrienio = CUATRIENIOS.some((item) => item.id === pedido)
+    ? pedido
+    : searchParams.get('vista') === 'cuatrienios'
+      ? ultimoCerrado
+      : vigente;
+  const esMemoria = cuatrienio !== vigente;
 
   const { user } = useAuthContext();
-  const canManage = canManageOrgLevels(user);
+  // La memoria la editan el Administrador Global y la Oficina Nacional; las
+  // casillas de hoy, quien siempre.
+  const puedeEditarMemoria = puedeEditarDirectivaHistorica(user);
+  const canManage = esMemoria ? puedeEditarMemoria : canManageOrgLevels(user);
   // Eliminar registros del consejo nacional: solo el Administrador Global.
-  const canDelete = canDeleteOrgLevel(user);
+  const canDelete = esMemoria ? puedeEditarMemoria : canDeleteOrgLevel(user);
+
+  const memoria = useIntegrantesDelCuatrienio(esMemoria ? cuatrienio : '');
+  const herramientas = useHerramientasDelCuatrienio({
+    cuatrienio,
+    integrantes: memoria.integrantes,
+    usuario: user,
+    alCambiar: memoria.recargar,
+  });
 
   const table = useTable();
 
@@ -345,7 +388,7 @@ export function NationalListView() {
     // directiva_local: 'Directiva Local',
   };
 
-  const tableData = nationalAssignments.map((assignment) => {
+  const filasDeHoy = nationalAssignments.map((assignment) => {
     const member = allMembers.find(
       (m) => String(m.id ?? m.idMiembros) === String(assignment.idMiembro)
     );
@@ -410,7 +453,7 @@ export function NationalListView() {
   exComandantes.forEach((permanente) => {
     const member = allMembers.find((m) => String(m.id) === String(permanente.idMiembros));
 
-    tableData.push({
+    filasDeHoy.push({
       id: `${POSICION_EX_COMANDANTE}-${permanente.idMiembros}`,
       soloLectura: true,
       entityId: 'nacional',
@@ -432,7 +475,7 @@ export function NationalListView() {
       nationalXMemberPosition: POSICION_EX_COMANDANTE,
       nationalXMemberPositionLabel: 'Ex Comandante Nacional',
       nationalXMemberPositionScope: 'Consejo Ejecutivo',
-      nationalXMemberPositionHref: RUTA_CUATRIENIOS,
+      nationalXMemberPositionHref: rutaDelCuatrienio(ultimoCerrado, vigente),
       nationalEstructure: 'consejo_ejecutivo',
       nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
       nationalOrganizationalLevel: 'Consejo Ejecutivo',
@@ -442,6 +485,62 @@ export function NationalListView() {
       nationalXAssignedRegional: 'Consejo Ejecutivo',
     });
   });
+
+  // La memoria del cuatrienio, con la misma forma que las filas de hoy.
+  const filasDelCuatrienio = memoria.integrantes.map((integrante) => {
+    const { nivel } = integrante;
+    const member = integrante.idMiembros
+      ? allMembers.find((m) => String(m.id ?? m.idMiembros) === String(integrante.idMiembros))
+      : null;
+    const position = DIRECTIVA_POSITIONS.find(
+      (item) => item.idCargo === integrante.idPosicionDirectiva
+    );
+    const estructura = ESTRUCTURA_POR_NIVEL[nivel] || '-';
+    const entidad =
+      nivel === 'regional'
+        ? { id: integrante.regionId, nombre: integrante.regionNombre }
+        : nivel === 'seccional'
+          ? { id: integrante.seccionId, nombre: integrante.seccionNombre }
+          : {};
+    // Por NOMBRE y no por id: una seccion del listado puede no existir aun en el
+    // padron, y aun asi tiene que salir con su nombre.
+    const ambito =
+      nivel === 'nacional'
+        ? 'Consejo Ejecutivo'
+        : nivel === 'regional'
+          ? conPrefijo('Región', entidad.nombre) || 'Región sin asignar'
+          : conPrefijo('Sección', entidad.nombre) || 'Sección sin asignar';
+
+    return {
+      id: integrante.id,
+      integrante,
+      soloLectura: !puedeEditarMemoria,
+      entityId: entidad.id || nivel,
+      memberId: integrante.idMiembros || '',
+      level: nivel,
+      nationalXname: nombreCompleto(integrante) || 'Sin nombre',
+      email: member?.email,
+      phoneNumber: member?.phoneNumber,
+      // La foto CONGELADA de entonces, nunca la de perfil de hoy.
+      avatarUrl: integrante.fotoUrl || '',
+      nationalXMemberPosition:
+        integrante.idPosicionDirectiva || `${nivel}:${integrante.grupo}:${integrante.cargo}`,
+      nationalXMemberPositionLabel: integrante.cargoNombre || '-',
+      nationalXMemberPositionScope: ambito,
+      // El cargo abre el organigrama de su entidad en ese cuatrienio.
+      onAbrirPosicion: () => herramientas.abrirOrganigrama(nivel, entidad),
+      nationalEstructure: estructura,
+      nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
+      nationalOrganizationalLevel: ambito,
+      hierarchyStructureOrder: ORDEN_ESTRUCTURA[estructura] ?? 999,
+      hierarchyRoleOrder: position
+        ? obtenerOrdenVisualCargo(position, nivel)
+        : (ORDEN_SIN_CASILLA[integrante.grupo] ?? 1000) + (Number(integrante.orden) || 99),
+      nationalXAssignedRegional: ambito,
+    };
+  });
+
+  const tableData = esMemoria ? filasDelCuatrienio : filasDeHoy;
 
   const { state: currentFilters } = filters;
   const distinctPositions = getAvailableOptionsFromData({
@@ -533,29 +632,56 @@ export function NationalListView() {
     [nationalAssignments, user]
   );
 
+  // Quitar de la memoria de un cuatrienio, de uno en uno: cada baja deja su
+  // entrada en Historial y recalcula quien conserva permisos para siempre, y en
+  // paralelo esos recalculos se pisaban.
+  const quitarDeLaMemoria = useCallback(
+    async (ids) => {
+      const objetivo = memoria.integrantes.filter((integrante) => ids.includes(integrante.id));
+
+      await objetivo.reduce(
+        (anterior, integrante) =>
+          anterior.then(() => quitarIntegrante({ integrante, usuario: user })),
+        Promise.resolve()
+      );
+
+      memoria.recargar();
+    },
+    [memoria, user]
+  );
+
+  const darDeBaja = esMemoria ? quitarDeLaMemoria : darDeBajaAsignaciones;
+
+  const cambiarCuatrienio = (id) => {
+    filters.resetState();
+    table.onResetPage();
+    table.onSelectAllRows(false, []);
+    router.replace(rutaDelCuatrienio(id, vigente));
+  };
+
   const handleDeleteRow = useCallback(
     async (id) => {
       try {
-        await darDeBajaAsignaciones([id]);
+        await darDeBaja([id]);
         toast.success('Eliminado correctamente');
       } catch (error) {
         console.error('[lista nacional] no se pudo dar de baja la asignación', error);
         toast.error(error?.message || 'No se pudo eliminar.');
       }
     },
-    [darDeBajaAsignaciones]
+    [darDeBaja]
   );
 
   const handleDeleteRows = useCallback(async () => {
     try {
-      await darDeBajaAsignaciones(table.selected);
+      await darDeBaja(table.selected);
       table.onSelectAllRows(false, []);
       toast.success('Eliminados correctamente');
     } catch (error) {
       console.error('[lista nacional] no se pudieron dar de baja las asignaciones', error);
       toast.error(error?.message || 'No se pudieron eliminar.');
     }
-  }, [darDeBajaAsignaciones, table]);
+  }, [darDeBaja, table]);
 
   if (!hydrated) {
     return null;
@@ -564,179 +690,203 @@ export function NationalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Directiva Nacional"
+          heading={
+            <SelectorDeCuatrienio
+              titulo="Directiva Nacional"
+              cuatrienio={cuatrienio}
+              onCambiar={cambiarCuatrienio}
+            />
+          }
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Nacional', href: paths.dashboard.level.national.root },
             { name: 'Lista' },
           ]}
-          sx={{ mb: 3 }}
-        />
+          action={
+            puedeEditarMemoria && (
+              <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap' }}>
+                {esMemoria && cuatrienio === ID_CUATRIENIO_LISTADO && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:import-bold" />}
+                    onClick={herramientas.importar}
+                  >
+                    Cargar listado {ID_CUATRIENIO_LISTADO}
+                  </Button>
+                )}
 
-        <Tabs
-          value={vista}
-          onChange={(event, valor) =>
-            router.replace(
-              valor === 'cuatrienios' ? RUTA_CUATRIENIOS : paths.dashboard.level.national.root
+                {esMemoria && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    onClick={() => herramientas.agregar()}
+                  >
+                    Agregar
+                  </Button>
+                )}
+
+                {/* Al cerrar el cuatrienio, la directiva de hoy se guarda en su
+                    memoria desde aqui. */}
+                {!esMemoria && (
+                  <Button
+                    variant="outlined"
+                    disabled={Boolean(herramientas.tomandoFoto)}
+                    startIcon={
+                      herramientas.tomandoFoto ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <Iconify icon="solar:camera-add-bold" />
+                      )
+                    }
+                    onClick={herramientas.pedirFoto}
+                  >
+                    {herramientas.tomandoFoto || `Guardar en la memoria de ${cuatrienio}`}
+                  </Button>
+                )}
+              </Box>
             )
           }
-          sx={{ mb: { xs: 3, md: 4 } }}
-        >
-          <Tab
-            value="actual"
-            label="Directiva actual"
-            icon={<Iconify width={22} icon="solar:users-group-rounded-bold" />}
-            iconPosition="start"
-          />
-          <Tab
-            value="cuatrienios"
-            label="Por cuatrienio"
-            icon={<Iconify width={22} icon="solar:medal-ribbon-bold" />}
-            iconPosition="start"
-          />
-        </Tabs>
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
 
-        {vista === 'cuatrienios' && <DirectivaCuatrieniosView />}
+        <>
+          <Card>
+            <Tabs
+              value={currentFilters.status}
+              sx={[
+                (themeItem) => ({
+                  px: { md: 2.5 },
+                  boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
+                }),
+              ]}
+            >
+              <Tab
+                value="all"
+                label="Todos"
+                iconPosition="end"
+                icon={<Label variant="filled">{tableData.length}</Label>}
+              />
+            </Tabs>
 
-        {vista === 'actual' && (
-          <>
-            <Card>
-              <Tabs
-                value={currentFilters.status}
-                sx={[
-                  (themeItem) => ({
-                    px: { md: 2.5 },
-                    boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
-                  }),
-                ]}
-              >
-                <Tab
-                  value="all"
-                  label="Todos"
-                  iconPosition="end"
-                  icon={<Label variant="filled">{tableData.length}</Label>}
-                />
-              </Tabs>
+            <NationalTableToolbar
+              filters={filters}
+              onResetPage={table.onResetPage}
+              displayMode={displayMode}
+              setDisplayMode={setDisplayMode}
+              options={{
+                nationalXMemberPosition: distinctPositions,
+                nationalOrganizationalLevel: distinctOrganizationalLevels,
+                nationalEstructure: distinctEstructures,
+              }}
+            />
 
-              <NationalTableToolbar
+            {canReset && (
+              <NationalTableFiltersResult
                 filters={filters}
-                onResetPage={table.onResetPage}
-                displayMode={displayMode}
-                setDisplayMode={setDisplayMode}
                 options={{
-                  nationalXMemberPosition: distinctPositions,
                   nationalOrganizationalLevel: distinctOrganizationalLevels,
                   nationalEstructure: distinctEstructures,
+                  nationalXMemberPosition: distinctPositions,
                 }}
+                totalResults={dataFiltered.length}
+                onResetPage={table.onResetPage}
+                sx={{ p: 2.5, pt: 0 }}
               />
+            )}
 
-              {canReset && (
-                <NationalTableFiltersResult
-                  filters={filters}
-                  options={{
-                    nationalOrganizationalLevel: distinctOrganizationalLevels,
-                    nationalEstructure: distinctEstructures,
-                    nationalXMemberPosition: distinctPositions,
-                  }}
-                  totalResults={dataFiltered.length}
-                  onResetPage={table.onResetPage}
-                  sx={{ p: 2.5, pt: 0 }}
-                />
-              )}
+            {displayMode === 'panel' && (
+              <Box sx={{ position: 'relative' }}>
+                {canDelete && (
+                  <TableSelectedAction
+                    dense={table.dense}
+                    numSelected={table.selected.length}
+                    rowCount={dataFiltered.length}
+                    onSelectAllRows={(checked) =>
+                      table.onSelectAllRows(
+                        checked,
+                        dataFiltered.map((row) => row.id)
+                      )
+                    }
+                    action={
+                      <Tooltip title="Eliminar">
+                        <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                          <Iconify icon="solar:trash-bin-trash-bold" />
+                        </IconButton>
+                      </Tooltip>
+                    }
+                  />
+                )}
 
-              {displayMode === 'panel' && (
-                <Box sx={{ position: 'relative' }}>
-                  {canDelete && (
-                    <TableSelectedAction
-                      dense={table.dense}
-                      numSelected={table.selected.length}
+                <Scrollbar>
+                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                    <TableHeadCustom
+                      order={table.order}
+                      orderBy={table.orderBy}
+                      headCells={TABLE_HEAD}
                       rowCount={dataFiltered.length}
+                      numSelected={table.selected.length}
+                      onSort={table.onSort}
                       onSelectAllRows={(checked) =>
                         table.onSelectAllRows(
                           checked,
                           dataFiltered.map((row) => row.id)
                         )
                       }
-                      action={
-                        <Tooltip title="Eliminar">
-                          <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                            <Iconify icon="solar:trash-bin-trash-bold" />
-                          </IconButton>
-                        </Tooltip>
-                      }
                     />
-                  )}
 
-                  <Scrollbar>
-                    <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                      <TableHeadCustom
-                        order={table.order}
-                        orderBy={table.orderBy}
-                        headCells={TABLE_HEAD}
-                        rowCount={dataFiltered.length}
-                        numSelected={table.selected.length}
-                        onSort={table.onSort}
-                        onSelectAllRows={(checked) =>
-                          table.onSelectAllRows(
-                            checked,
-                            dataFiltered.map((row) => row.id)
-                          )
-                        }
-                      />
-
-                      <CompactEntityListView
-                        loading={false}
-                        rows={dataFiltered.slice(
-                          table.page * table.rowsPerPage,
-                          table.page * table.rowsPerPage + table.rowsPerPage
-                        )}
-                        renderRow={(row) => (
-                          <NationalTableRow
-                            key={row.id}
-                            row={row}
-                            selected={table.selected.includes(row.id)}
-                            onSelectRow={() => table.onSelectRow(row.id)}
-                            onDeleteRow={() => handleDeleteRow(row.id)}
-                            editHref={paths.dashboard.level.national.edit(row.id)}
-                            canManage={canManage && !row.soloLectura}
-                            canDelete={canDelete && !row.soloLectura}
-                            allMembers={allMembers}
-                          />
-                        )}
-                        notFound={notFound}
-                        skeletonRows={table.rowsPerPage}
-                        skeletonCellCount={TABLE_HEAD.length + 1}
-                        emptyRowsHeight={table.dense ? 56 : 56 + 20}
-                        emptyRowsCount={emptyRows(
-                          table.page,
-                          table.rowsPerPage,
-                          dataFiltered.length
-                        )}
-                      />
-                    </Table>
-                  </Scrollbar>
-                </Box>
-              )}
-
-              {displayMode === 'panel' && (
-                <TablePaginationCustom
-                  page={table.page}
-                  dense={table.dense}
-                  count={dataFiltered.length}
-                  rowsPerPage={table.rowsPerPage}
-                  onPageChange={table.onChangePage}
-                  onChangeDense={table.onChangeDense}
-                  onRowsPerPageChange={table.onChangeRowsPerPage}
-                />
-              )}
-            </Card>
-
-            {displayMode !== 'panel' && (
-              <NationalCardList nationals={dataFiltered} canManage={canManage} />
+                    <CompactEntityListView
+                      loading={esMemoria && memoria.cargando}
+                      rows={dataFiltered.slice(
+                        table.page * table.rowsPerPage,
+                        table.page * table.rowsPerPage + table.rowsPerPage
+                      )}
+                      renderRow={(row) => (
+                        <NationalTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          onEditRow={
+                            row.integrante ? () => herramientas.editar(row.integrante) : undefined
+                          }
+                          editHref={paths.dashboard.level.national.edit(row.id)}
+                          canManage={canManage && !row.soloLectura}
+                          canDelete={canDelete && !row.soloLectura}
+                          allMembers={allMembers}
+                        />
+                      )}
+                      notFound={notFound}
+                      skeletonRows={table.rowsPerPage}
+                      skeletonCellCount={TABLE_HEAD.length + 1}
+                      emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                      emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    />
+                  </Table>
+                </Scrollbar>
+              </Box>
             )}
-          </>
-        )}
+
+            {displayMode === 'panel' && (
+              <TablePaginationCustom
+                page={table.page}
+                dense={table.dense}
+                count={dataFiltered.length}
+                rowsPerPage={table.rowsPerPage}
+                onPageChange={table.onChangePage}
+                onChangeDense={table.onChangeDense}
+                onRowsPerPageChange={table.onChangeRowsPerPage}
+              />
+            )}
+          </Card>
+
+          {displayMode !== 'panel' && (
+            <NationalCardList nationals={dataFiltered} canManage={canManage} />
+          )}
+        </>
       </DashboardContent>
+
+      {herramientas.dialogos}
 
       <CompactEntityDeleteDialog
         open={confirmDialog.value}

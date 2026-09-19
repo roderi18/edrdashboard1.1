@@ -235,6 +235,8 @@ export default [
       'src/services/cintas-miembros-apply.js',
       // Mismo caso: las medallas del perfil y su orden global.
       'src/services/medallas-miembros-apply.js',
+      // Mismo caso: las cintas y medallas añadidas desde EXPLORA Designer.
+      'src/services/insignias-personalizadas-apply.js',
       // Mismo caso: el estatus de cada miembro, que mueve la regla de asistencia
       // despues de registrarlo en Historial.
       'src/services/estatus-miembros-apply.js',

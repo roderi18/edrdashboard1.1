@@ -160,12 +160,34 @@ export const CATALOGO_CINTAS_PERFIL = Object.freeze(
 
 const POR_ID = new Map(CATALOGO_CINTAS_PERFIL.map((cinta) => [cinta.id, cinta]));
 
-export const obtenerCintaPerfil = (id) =>
-  POR_ID.get(
-    String(id ?? '')
-      .trim()
-      .toLowerCase()
-  ) ?? null;
+// LAS CINTAS AÑADIDAS DESDE EXPLORA DESIGNER (`insignias-personalizadas.mjs`).
+//
+// Viven en Firestore, así que no pueden estar en el catálogo de fábrica, que se
+// arma al cargar el módulo. Las registra la escucha compartida del navegador
+// (`use-insignias-personalizadas.js`) y a partir de ahí todo lo de aquí —buscar,
+// ordenar, el orden global— las trata igual que a las de la carpeta. En el
+// servidor y en las pruebas la lista está vacía: el catálogo es el de fábrica.
+let personalizadas = [];
+let personalizadasPorId = new Map();
+
+export const registrarCintasPersonalizadas = (lista = []) => {
+  personalizadas = (Array.isArray(lista) ? lista : []).filter(
+    (cinta) => cinta?.id && !POR_ID.has(cinta.id)
+  );
+  personalizadasPorId = new Map(personalizadas.map((cinta) => [cinta.id, cinta]));
+};
+
+/** Todo el catálogo: las de fábrica y, detrás, las añadidas en el Designer. */
+export const catalogoDeCintas = () =>
+  personalizadas.length ? [...CATALOGO_CINTAS_PERFIL, ...personalizadas] : CATALOGO_CINTAS_PERFIL;
+
+export const obtenerCintaPerfil = (id) => {
+  const clave = String(id ?? '')
+    .trim()
+    .toLowerCase();
+
+  return POR_ID.get(clave) ?? personalizadasPorId.get(clave) ?? null;
+};
 
 // ----------------------------------------------------------------------
 // EL ORDEN GLOBAL.
@@ -185,9 +207,9 @@ export const normalizarOrdenGlobal = (orden = []) => {
       (Array.isArray(orden) ? orden : []).map((id) => obtenerCintaPerfil(id)?.id).filter(Boolean)
     ),
   ];
-  const faltan = CATALOGO_CINTAS_PERFIL.map((cinta) => cinta.id).filter(
-    (id) => !guardados.includes(id)
-  );
+  const faltan = catalogoDeCintas()
+    .map((cinta) => cinta.id)
+    .filter((id) => !guardados.includes(id));
 
   return [...guardados, ...faltan];
 };
@@ -205,7 +227,7 @@ export const comparadorDeOrden = (orden = null) => {
 export const catalogoEnOrden = (orden = null) =>
   Array.isArray(orden) && orden.length
     ? normalizarOrdenGlobal(orden).map((id) => obtenerCintaPerfil(id))
-    : [...CATALOGO_CINTAS_PERFIL];
+    : [...catalogoDeCintas()];
 
 /** Mueve una cinta al sitio de otra (arrastrar y soltar). */
 export const moverCintaEnOrden = (orden = [], idQueSeMueve = '', idDestino = '') => {
@@ -224,7 +246,9 @@ export const moverCintaEnOrden = (orden = [], idQueSeMueve = '', idDestino = '')
 /** Si el orden es el de fábrica (para no guardar lo que ya es así). */
 export const esOrdenDeFabrica = (orden = []) =>
   normalizarOrdenGlobal(orden).join(',') ===
-  CATALOGO_CINTAS_PERFIL.map((cinta) => cinta.id).join(',');
+  catalogoDeCintas()
+    .map((cinta) => cinta.id)
+    .join(',');
 
 // Lo que venga de Firestore (ids sueltos o `{ id, ... }`) → ids del catálogo, sin
 // repetidos, en orden (el global si lo hay, si no el oficial). Un id que ya no

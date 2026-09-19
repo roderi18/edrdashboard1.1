@@ -50,6 +50,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 import { useOrdenDeCintas, useOrdenDeMedallas } from './use-orden-de-cintas';
 import {
   SelectorDeMedallas,
@@ -338,7 +339,14 @@ export function CintasDeMiembro({
   // El orden global que se arrastra en EXPLORA Designer manda también aquí, en
   // los perfiles que ya tenían sus cintas puestas.
   const orden = useOrdenDeCintas();
-  const filas = useMemo(() => disponerCintasEnFilas(asignadas, { orden }), [asignadas, orden]);
+  // Las añadidas en el Designer: al llegar se registran en el catálogo y esto se
+  // vuelve a calcular, para que una de ellas no se descarte por "desconocida".
+  const { cintas: personalizadas } = useInsigniasPersonalizadas();
+  const filas = useMemo(
+    () => disponerCintasEnFilas(asignadas, { orden }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [asignadas, orden, personalizadas]
+  );
   const configuraciones = useMemo(() => configuracionPorCinta(asignadas), [asignadas]);
 
   if (!id) return null;
@@ -818,6 +826,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   }, [efectosMedallas, medallasGuardadas.medallas]);
   // Para elegir, en el mismo orden global en que van a salir en el perfil.
   const orden = useOrdenDeCintas();
+  const { cintas: personalizadas } = useInsigniasPersonalizadas();
   const cintasVisibles = useMemo(() => {
     const catalogo = catalogoEnOrden(orden);
     const termino = normalizarBusqueda(busqueda);
@@ -826,7 +835,8 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
     return catalogo.filter((cinta) =>
       normalizarBusqueda(`${cinta.id} ${cinta.nombre}`).includes(termino)
     );
-  }, [busqueda, orden]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda, orden, personalizadas]);
 
   const alternar = (idCinta) =>
     setElegidas((previas) => {

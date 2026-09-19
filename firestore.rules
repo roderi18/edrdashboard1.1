@@ -1247,6 +1247,14 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
+    // Las cintas y medallas añadidas desde EXPLORA Designer (imagen, nombre y
+    // descripción). Salen en todos los perfiles, así que las lee cualquiera con
+    // cuenta; las añade solo el Administrador Global, como todo el Designer.
+    match /insignias_personalizadas/{idInsignia} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
     // LA DIRECTIVA NACIONAL POR CUATRIENIO: la memoria de quien ocupo cada cargo
     // (nacional, regiones y secciones) en 2022-2026, 2026-2030... La lee
     // cualquiera con cuenta; la escriben solo el Administrador Global y la
@@ -1583,6 +1591,7 @@ service cloud.firestore {
         // que solo pone el Administrador Global, las podia cambiar cualquiera.
         && coleccion != 'cintas_miembros'
         && coleccion != 'configuracion_cintas'
+        && coleccion != 'insignias_personalizadas'
         && coleccion != 'directiva_cuatrienios_integrantes'
         && coleccion != 'directiva_nacional_permanentes'
         && coleccion != 'medallas_miembros'

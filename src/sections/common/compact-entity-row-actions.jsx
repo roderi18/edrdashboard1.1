@@ -20,6 +20,9 @@ export function CompactEntityRowActions({
   allowDelete = true,
   allowQuickEdit = true,
   editHref,
+  // Sin pagina de edicion (una fila de la memoria de un cuatrienio): el menu
+  // abre el dialogo que diga la vista en vez de navegar.
+  onEdit,
   onDelete,
   QuickEditForm,
   quickEditProps,
@@ -73,9 +76,11 @@ export function CompactEntityRowActions({
           <MenuList>
             <li>
               <MenuItem
-                component={RouterLink}
-                href={editHref}
-                onClick={() => menuActions.onClose()}
+                {...(onEdit ? {} : { component: RouterLink, href: editHref })}
+                onClick={() => {
+                  menuActions.onClose();
+                  onEdit?.();
+                }}
               >
                 <Iconify icon="solar:pen-bold" />
                 Editar

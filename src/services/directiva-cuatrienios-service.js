@@ -31,7 +31,9 @@ import { notificarCambioDirectivaHistorica } from './notificar-oficina-nacional-
 // en Historial y avisa al otro.
 // ----------------------------------------------------------------------
 
-const RUTA_PANTALLA = '/dashboard/level/national?vista=cuatrienios';
+// La lista nacional abre ese cuatrienio con `?cuatrienio=`.
+const rutaDelCuatrienio = (cuatrienio) =>
+  `/dashboard/level/national?cuatrienio=${encodeURIComponent(cuatrienio)}`;
 const CARPETA_FOTOS = 'directiva-historica';
 // Firestore no admite mas de 500 escrituras por lote.
 const TAMANO_LOTE = 400;
@@ -210,7 +212,7 @@ export async function guardarIntegrantes({
       tipo: 'directiva_cuatrienio',
       id: cuatrienio,
       nombre: `Directiva ${cuatrienio}`,
-      ruta: RUTA_PANTALLA,
+      ruta: rutaDelCuatrienio(cuatrienio),
     },
     cambios:
       filas.length === 1
@@ -262,7 +264,7 @@ export async function quitarIntegrante({ integrante, usuario }) {
       tipo: 'directiva_cuatrienio',
       id: integrante.cuatrienio,
       nombre: `Directiva ${integrante.cuatrienio}`,
-      ruta: RUTA_PANTALLA,
+      ruta: rutaDelCuatrienio(integrante.cuatrienio),
     },
     cambios: [
       {

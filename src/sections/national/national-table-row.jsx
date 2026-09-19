@@ -20,6 +20,7 @@ export function NationalTableRow({
   editHref,
   onSelectRow,
   onDeleteRow,
+  onEditRow,
   canManage = true,
   canDelete = true,
   // Ambas colecciones las calcula UNA vez la vista y las pasa por props: leerlas
@@ -70,7 +71,20 @@ export function NationalTableRow({
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {/* El cargo lleva a la Directiva de SU entidad. Sin entidad resoluble se
             queda como texto: mejor eso que un enlace a una pagina inexistente. */}
-        {positionHref ? (
+        {/* En un cuatrienio pasado el cargo abre el organigrama DE ENTONCES, que
+            no es una pagina sino un dialogo. */}
+        {row.onAbrirPosicion ? (
+          <Link
+            component="button"
+            type="button"
+            onClick={row.onAbrirPosicion}
+            underline="always"
+            color="inherit"
+            sx={{ font: 'inherit', verticalAlign: 'baseline' }}
+          >
+            {positionLabel}
+          </Link>
+        ) : positionHref ? (
           <Link
             component={RouterLink}
             href={positionHref}
@@ -96,6 +110,7 @@ export function NationalTableRow({
         allowDelete={canDelete}
         allowQuickEdit={false}
         editHref={editHref}
+        onEdit={onEditRow}
         onDelete={canDelete ? onDeleteRow : undefined}
         QuickEditForm={NationalQuickEditForm}
         quickEditProps={{ currentNational: row }}

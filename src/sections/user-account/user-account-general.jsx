@@ -47,7 +47,10 @@ import {
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { ChipEstatusMiembro } from 'src/components/label';
+import { ContextInfo } from 'src/components/info/context-info';
+import { UnderlineLink } from 'src/components/link/underline-link';
 import LocationSelect from 'src/components/location/location-select';
+import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { CintasDeMiembro, MedallasDeMiembro } from 'src/components/insignias-perfil';
 import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
@@ -485,6 +488,8 @@ export function UserAccountGeneral() {
   // `member` va en las dependencias para que esto vuelva a correr despues del
   // `reset` de arriba, que deja el campo con el valor de partida.
   const destIdSeleccionado = watch('destId');
+  const destDisplay = watch('destDisplay');
+  const destIdActual = destIdSeleccionado;
 
   useEffect(() => {
     if (!destIdSeleccionado || !dests.length) return;
@@ -808,7 +813,11 @@ export function UserAccountGeneral() {
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center', position: 'relative' }}>
+          {/* Igual que la ficha del miembro (`member-profile-card`): la misma foto, los
+              mismos rellenos y, debajo, el codigo y el destacamento. Aqui salia
+              ademas el nombre, con otra foto y otros margenes, y "Mi cuenta" no
+              se parecia a la ficha de la misma persona. */}
+          <Card sx={{ pt: 5, pb: 5, px: 3, position: 'relative' }}>
             <ChipEstatusMiembro
               estatus={watch('status')}
               explicacion={member?.estatusExplicacion}
@@ -824,25 +833,53 @@ export function UserAccountGeneral() {
             )}
 
             <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                loading={uploadingPhoto}
-                disabled={uploadingPhoto}
-                onDrop={handleUploadAvatar}
-                optimizationToast={false}
+              <FotoDeMiembro
+                url={watch('avatarUrl') || ''}
+                nombre={`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}
+                cargando={uploadingPhoto}
+                puedeEditar={!uploadingPhoto}
+                onFoto={(archivo) => handleUploadAvatar([archivo])}
+                ayuda={
+                  <>
+                    <ContextInfo
+                      items={[
+                        {
+                          show: !!memberCode,
+                          text: `Miembro ${memberCode}`,
+                          copiar: memberCode,
+                          mt: 2,
+                        },
+                      ]}
+                    />
+
+                    {!!destDisplay && (
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 2, mx: 'auto', display: 'block', textAlign: 'center' }}
+                      >
+                        Miembro de{' '}
+                        {destIdActual ? (
+                          <UnderlineLink
+                            href={`/dashboard/level/dest/${destIdActual}/edit`}
+                            sx={{ color: 'text.primary' }}
+                          >
+                            {destDisplay}
+                          </UnderlineLink>
+                        ) : (
+                          destDisplay
+                        )}
+                      </Typography>
+                    )}
+
+                    <CintasDeMiembro
+                      idMiembros={member?.idMiembros ?? user?.idMiembros}
+                      sx={{ mt: 2 }}
+                    />
+                    <MedallasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} />
+                  </>
+                }
               />
             </Box>
-
-            <Typography variant="subtitle1">
-              {`${member.nombres ?? ''} ${member.apellidos ?? ''}`.trim()}
-            </Typography>
-
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              {memberCode}
-            </Typography>
-
-            <CintasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} sx={{ mt: 2 }} />
-            <MedallasDeMiembro idMiembros={member?.idMiembros ?? user?.idMiembros} />
           </Card>
         </Grid>
 

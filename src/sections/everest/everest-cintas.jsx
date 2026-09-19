@@ -12,6 +12,7 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
 import {
   catalogoEnOrden,
   esOrdenDeFabrica,
@@ -19,7 +20,6 @@ import {
   EFECTOS_BORDE_CINTA,
   EFECTOS_NUMERO_CINTA,
   normalizarOrdenGlobal,
-  CATALOGO_CINTAS_PERFIL,
 } from 'src/utils/cintas-perfil.mjs';
 
 import { guardarOrdenDeCintas } from 'src/services/cintas-miembros-service';
@@ -34,15 +34,20 @@ import {
   OPCIONES_NUMERO,
   useOrdenDeCintas,
   AjustesDeEfectosDeCinta,
+  useInsigniasPersonalizadas,
 } from 'src/components/insignias-perfil';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { RejillaOrdenable } from './rejilla-ordenable';
+import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
+
 // ----------------------------------------------------------------------
 // LAS CINTAS, DENTRO DE EXPLORA DESIGNER.
 //
-// Todas las cintas que existen, pintadas con la MISMA pieza que el perfil
-// (`ImagenDeCinta`). Arrastrándolas se cambia el ORDEN GLOBAL: al guardar, ese
+// Todas las cintas que existen —las de la carpeta y las añadidas aquí con
+// "Agregar cinta"—, pintadas con la MISMA pieza que el perfil (`ImagenDeCinta`).
+// Arrastrándolas (`RejillaOrdenable`) se cambia el ORDEN GLOBAL: al guardar, ese
 // orden manda en todos los perfiles —también en los que ya tenían sus cintas— y
 // en el diálogo para asignarlas (`src/utils/cintas-perfil.mjs`). Hasta pulsar
 // "Guardar orden" no cambia nada fuera de aquí.
@@ -56,9 +61,11 @@ export function EverestCintas() {
   const ordenGuardado = useOrdenDeCintas();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
   const [borrador, setBorrador] = useState(null);
-  const [arrastrada, setArrastrada] = useState('');
-  const [encima, setEncima] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [agregando, setAgregando] = useState(false);
+  // Las añadidas en el Designer entran en el catálogo al llegar: con esto la
+  // rejilla se vuelve a calcular y aparecen al final.
+  const { cintas: personalizadas } = useInsigniasPersonalizadas();
 
   const [efectoBorde, setEfectoBorde] = useState(EFECTOS_BORDE_CINTA.BARRIDO);
   const [efectoNumero, setEfectoNumero] = useState(EFECTOS_NUMERO_CINTA.BARRIDO);
@@ -69,7 +76,8 @@ export function EverestCintas() {
 
   const actual = useMemo(
     () => normalizarOrdenGlobal(borrador ?? ordenGuardado ?? []),
-    [borrador, ordenGuardado]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [borrador, ordenGuardado, personalizadas]
   );
   const cintas = useMemo(() => catalogoEnOrden(actual), [actual]);
   const hayCambios =
@@ -101,11 +109,6 @@ export function EverestCintas() {
     }
   };
 
-  const soltar = () => {
-    setArrastrada('');
-    setEncima('');
-  };
-
   return (
     <Card sx={{ p: 3 }}>
       <Stack
@@ -117,12 +120,12 @@ export function EverestCintas() {
         <Box sx={{ flexGrow: 1 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <Typography variant="h6">Cintas</Typography>
-            <Label color="info">{CATALOGO_CINTAS_PERFIL.length}</Label>
+            <Label color="info">{cintas.length}</Label>
             {hayCambios && <Label color="warning">Sin guardar</Label>}
           </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Arrastra una cinta sobre otra para cambiar su lugar. Al guardar, ese orden se usa en
-            todos los perfiles y al asignarlas.
+            Arrastra una cinta: las demás se apartan para hacerle sitio. Al guardar, ese orden se
+            usa en todos los perfiles y al asignarlas.
           </Typography>
         </Box>
 
@@ -176,6 +179,15 @@ export function EverestCintas() {
 
       <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 3 }}>
         <Button
+          variant="outlined"
+          startIcon={<Iconify icon="mingcute:add-line" />}
+          disabled={guardando}
+          onClick={() => setAgregando(true)}
+          sx={{ mr: 'auto' }}
+        >
+          Agregar cinta
+        </Button>
+        <Button
           color="inherit"
           startIcon={<Iconify icon="solar:restart-bold" />}
           disabled={guardando || esOrdenDeFabrica(actual)}
@@ -200,10 +212,11 @@ export function EverestCintas() {
         </Button>
       </Stack>
 
-      <Box
+      <RejillaOrdenable
+        items={cintas}
+        deshabilitado={guardando}
+        onMover={mover}
         sx={{
-          gap: 2,
-          display: 'grid',
           // `minmax(0, 1fr)`: con `1fr` a secas un nombre largo ensanchaba la columna.
           gridTemplateColumns: {
             xs: 'repeat(2, minmax(0, 1fr))',
@@ -212,59 +225,21 @@ export function EverestCintas() {
             lg: 'repeat(6, minmax(0, 1fr))',
           },
         }}
-      >
-        {cintas.map((cinta, indice) => (
+        renderItem={(cinta, indice, { arrastrando, flotante }) => (
           <Box
-            key={cinta.id}
-            draggable={!guardando}
-            onDragStart={(evento) => {
-              evento.dataTransfer.effectAllowed = 'move';
-              // Firefox no arrastra nada sin un dato puesto.
-              evento.dataTransfer.setData('text/plain', cinta.id);
-              setArrastrada(cinta.id);
-            }}
-            onDragOver={(evento) => {
-              if (!arrastrada) return;
-              evento.preventDefault();
-              evento.dataTransfer.dropEffect = 'move';
-              if (encima !== cinta.id) setEncima(cinta.id);
-            }}
-            onDragLeave={() => {
-              if (encima === cinta.id) setEncima('');
-            }}
-            onDrop={(evento) => {
-              evento.preventDefault();
-              if (arrastrada) mover(arrastrada, cinta.id);
-              soltar();
-            }}
-            onDragEnd={soltar}
             sx={(theme) => ({
               p: 1,
-              minWidth: 0,
+              height: 1,
               borderRadius: 1,
-              cursor: guardando ? 'default' : 'grab',
-              opacity: arrastrada === cinta.id ? 0.4 : 1,
-              border: `1px ${encima === cinta.id && arrastrada !== cinta.id ? 'dashed' : 'solid'} ${
-                encima === cinta.id && arrastrada !== cinta.id
-                  ? theme.vars.palette.primary.main
-                  : theme.vars.palette.divider
-              }`,
-              transition: theme.transitions.create(['opacity', 'border-color']),
-              '&:active': { cursor: 'grabbing' },
+              border: `1px solid ${theme.vars.palette.divider}`,
             })}
           >
             <Tooltip
               arrow
-              title={<TextoDeCinta cinta={cinta} />}
+              title={arrastrando ? '' : <TextoDeCinta cinta={cinta} />}
               slotProps={{ tooltip: { sx: { maxWidth: 380 } } }}
             >
-              {/* La imagen no se arrastra sola: se arrastra la tarjeta entera. */}
-              <Box
-                sx={{
-                  pointerEvents: arrastrada ? 'none' : 'auto',
-                  '& img': { userSelect: 'none' },
-                }}
-              >
+              <Box sx={{ '& img': { userSelect: 'none', pointerEvents: 'none' } }}>
                 <ImagenDeCinta
                   cinta={cinta}
                   veces={veces}
@@ -278,30 +253,40 @@ export function EverestCintas() {
             <Stack direction="row" alignItems="center" spacing={0.25} sx={{ mt: 0.75 }}>
               <Label sx={{ flexShrink: 0 }}>{indice + 1}</Label>
               <Typography variant="caption" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
-                {cinta.id}. {cinta.nombre}
+                {cinta.personalizada ? cinta.nombre : `${cinta.id}. ${cinta.nombre}`}
               </Typography>
-              <IconButton
-                size="small"
-                aria-label={`Mover ${cinta.nombre} antes`}
-                disabled={guardando || indice === 0}
-                onClick={() => moverUnPaso(cinta.id, -1)}
-                sx={{ p: 0.25 }}
-              >
-                <Iconify icon="eva:arrow-ios-back-fill" width={16} />
-              </IconButton>
-              <IconButton
-                size="small"
-                aria-label={`Mover ${cinta.nombre} después`}
-                disabled={guardando || indice === cintas.length - 1}
-                onClick={() => moverUnPaso(cinta.id, 1)}
-                sx={{ p: 0.25 }}
-              >
-                <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
-              </IconButton>
+              {!flotante && (
+                <>
+                  <IconButton
+                    size="small"
+                    aria-label={`Mover ${cinta.nombre} antes`}
+                    disabled={guardando || indice === 0}
+                    onClick={() => moverUnPaso(cinta.id, -1)}
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:arrow-ios-back-fill" width={16} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label={`Mover ${cinta.nombre} después`}
+                    disabled={guardando || indice === cintas.length - 1}
+                    onClick={() => moverUnPaso(cinta.id, 1)}
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
+                  </IconButton>
+                </>
+              )}
             </Stack>
           </Box>
-        ))}
-      </Box>
+        )}
+      />
+
+      <AgregarInsigniaDialog
+        tipo={TIPOS_INSIGNIA.CINTA}
+        open={agregando}
+        onClose={() => setAgregando(false)}
+      />
     </Card>
   );
 }
