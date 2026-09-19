@@ -205,7 +205,7 @@ export function StoreHeader({ sx }) {
     try {
       const subida = await uploadOptimizedImage({
         file: archivo,
-        preset: 'general',
+        preset: 'tienda',
         storagePath: `tienda/encabezado-elemento-${Date.now()}.webp`,
         metadata: { modulo: 'tienda', tipo: 'encabezado-elemento' },
       });
@@ -359,7 +359,7 @@ export function StoreHeader({ sx }) {
         ? (
             await uploadOptimizedImage({
               file: archivo,
-              preset: 'general',
+              preset: 'tienda',
               storagePath: `tienda/encabezado-${Date.now()}.webp`,
               metadata: { modulo: 'tienda', tipo: 'encabezado' },
             })

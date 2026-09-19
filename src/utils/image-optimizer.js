@@ -5,6 +5,16 @@ export const IMAGE_UPLOAD_PRESETS = {
     quality: 0.9,
     mimeType: 'image/webp',
   },
+  // La imagen del encabezado de la tienda suele ser ya una portada preparada
+  // para web. Por debajo de 150 KiB se conserva tal cual para no recodificarla
+  // innecesariamente ni introducir una perdida de calidad.
+  tienda: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.9,
+    mimeType: 'image/webp',
+    skipOptimizationBelowBytes: 150 * 1024,
+  },
   // La cara en una LISTA: el buscador de chat, los contactos, las menciones. Se
   // dibuja a unos 40px, asi que 128 sobra para pantallas densas. Una foto de
   // perfil normal ronda los 300 kB; esta se queda en unos 10.
@@ -185,8 +195,11 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
   if (!String(file.type || '').startsWith('image/')) return file;
   if (PRESERVE_MIME_TYPES.has(file.type)) return file;
 
-  const { maxWidth, maxHeight, quality, mimeType, maxSizeBytes } =
+  const { maxWidth, maxHeight, quality, mimeType, maxSizeBytes, skipOptimizationBelowBytes } =
     getPresetOptions(presetOrOptions);
+
+  if (skipOptimizationBelowBytes && file.size < skipOptimizationBelowBytes) return file;
+
   const image = await loadImageElement(file);
   const { width, height } = getTargetDimensions({
     width: image.naturalWidth || image.width,
